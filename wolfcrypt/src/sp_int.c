@@ -85,7 +85,7 @@ WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
 
 #endif
 
-int sp_get_digit_count(sp_int *a)
+int sp_get_digit_count(const sp_int *a)
 {
     int ret;
     if (!a)
@@ -206,7 +206,7 @@ void sp_clear(sp_int* a)
  * a  SP integer.
  * returns the count.
  */
-int sp_unsigned_bin_size(sp_int* a)
+int sp_unsigned_bin_size(const sp_int* a)
 {
     int size = sp_count_bits(a);
     return (size + 7) / 8;
@@ -364,7 +364,7 @@ int sp_cmp(sp_int* a, sp_int* b)
  * a  SP integer.
  * returns the number of bits.
  */
-int sp_count_bits(sp_int* a)
+int sp_count_bits(const sp_int* a)
 {
     int r = 0;
     sp_int_digit d;
@@ -495,7 +495,7 @@ void sp_forcezero(sp_int* a)
  * r  SP integer.
  * returns MP_OKAY always.
  */
-int sp_copy(sp_int* a, sp_int* r)
+int sp_copy(const sp_int* a, sp_int* r)
 {
     if (a != r) {
         XMEMCPY(r->dp, a->dp, a->used * sizeof(sp_int_digit));
@@ -733,8 +733,8 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
     }
 }
 
-#if defined(WOLFSSL_SP_SMALL) || (defined(WOLFSSL_KEY_GEN) || \
-                                         !defined(NO_DH) && !defined(WC_NO_RNG))
+#if defined(WOLFSSL_KEY_GEN) || (!defined(NO_DH) && !defined(WC_NO_RNG)) || \
+    defined(WOLFSSL_SP_SMALL)
 /* Multiply a by digit n and put result into r shifting up o digits.
  *   r = (a * n) << (o * SP_WORD_SIZE)
  *
@@ -1146,6 +1146,7 @@ int sp_lshd(sp_int* a, int s)
 int sp_add(sp_int* a, sp_int* b, sp_int* r)
 {
     int i;
+    int err = MP_OKAY;
     sp_int_digit c = 0;
     sp_int_digit t;
 
@@ -1165,12 +1166,16 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
         r->dp[i] = b->dp[i] + c;
         c = (b->dp[i] != 0) && (r->dp[i] == 0);
     }
-    if (c != 0) {
+    if (i == r->size) {
+        c = 0;
+        err = MP_VAL;
+    }
+    if ((err == 0) && (c != 0)) {
         r->dp[i] = c;
     }
     r->used = (int)(i + c);
 
-    return MP_OKAY;
+    return err;;
 }
 #endif /* !NO_PWDBASED || WOLFSSL_KEY_GEN || !NO_DH */
 

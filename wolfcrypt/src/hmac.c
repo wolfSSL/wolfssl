@@ -1141,6 +1141,8 @@ void wc_HmacFree(Hmac* hmac)
             wc_Sha512Free(&hmac->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            break;
     }
 }
 

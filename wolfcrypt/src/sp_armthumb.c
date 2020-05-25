@@ -58,7 +58,8 @@
  */
 static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
 {
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -100,7 +101,8 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #elif DIGIT_BIT > 32
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -134,7 +136,9 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i, j = 0, s = 0;
+    int i;
+    int j = 0;
+    int s = 0;
 
     r[0] = 0;
     for (i = 0; i < a->used && j < size; i++) {
@@ -173,7 +177,10 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
  */
 static void sp_2048_to_bin(sp_digit* r, byte* a)
 {
-    int i, j, s = 0, b;
+    int i;
+    int j;
+    int s = 0;
+    int b;
 
     j = 2048 / 8 - 1;
     a[j] = 0;
@@ -716,7 +723,9 @@ SP_NOINLINE static void sp_2048_mul_16(sp_digit* r, const sp_digit* a,
     sp_digit a1[8];
     sp_digit b1[8];
     sp_digit z2[16];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_2048_add_8(a1, a, &a[8]);
     cb = sp_2048_add_8(b1, b, &b[8]);
@@ -1105,7 +1114,9 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
     sp_digit a1[16];
     sp_digit b1[16];
     sp_digit z2[32];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_2048_add_16(a1, a, &a[16]);
     cb = sp_2048_add_16(b1, b, &b[16]);
@@ -1763,7 +1774,9 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
     sp_digit a1[32];
     sp_digit b1[32];
     sp_digit z2[64];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_2048_add_32(a1, a, &a[32]);
     cb = sp_2048_add_32(b1, b, &b[32]);
@@ -2498,7 +2511,7 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH) & !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -2507,7 +2520,8 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
  */
 static void sp_2048_mont_setup(const sp_digit* a, sp_digit* rho)
 {
-    sp_digit x, b;
+    sp_digit x;
+    sp_digit b;
 
     b = a[0];
     x = (((b + 2) & 4) << 1) + b; /* here x*a==1 mod 2**4 */
@@ -2516,7 +2530,7 @@ static void sp_2048_mont_setup(const sp_digit* a, sp_digit* rho)
     x *= 2 - b * x;               /* here x*a==1 mod 2**32 */
 
     /* rho = -1/m mod b */
-    *rho = -x;
+    *rho = (sp_digit)0 - x;
 }
 
 /* Mul a by digit b into r. (r = a * b)
@@ -2791,8 +2805,8 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_32(r, a, b);
     sp_2048_mont_reduce_32(r, m, mp);
@@ -2805,8 +2819,8 @@ static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_2048_sqr_32(r, a);
     sp_2048_mont_reduce_32(r, m, mp);
@@ -3099,7 +3113,6 @@ static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_dig
 
     r1 = sp_2048_cmp_32(t1, d) >= 0;
     sp_2048_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -3139,7 +3152,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -3202,18 +3216,18 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 28;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
-        for (; i>=0 || c>=4; ) {
+        while ((i >= 0) || (c >= 4)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n <<= 4;
                 c = 28;
             }
             else if (c < 4) {
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n = e[i--];
                 c = 4 - c;
                 y |= n >> (32 - c);
@@ -3273,7 +3287,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -3352,18 +3367,18 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
                 y |= n >> (32 - c);
@@ -3402,7 +3417,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH) & !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -3419,7 +3434,7 @@ static void sp_2048_mont_norm_64(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_64(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -3611,8 +3626,8 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_64(r, a, b);
     sp_2048_mont_reduce_64(r, m, mp);
@@ -3625,8 +3640,8 @@ static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_2048_sqr_64(r, a);
     sp_2048_mont_reduce_64(r, m, mp);
@@ -3882,7 +3897,6 @@ static WC_INLINE int sp_2048_div_64(const sp_digit* a, const sp_digit* d, sp_dig
 
     r1 = sp_2048_cmp_64(t1, d) >= 0;
     sp_2048_cond_sub_64(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -3898,6 +3912,329 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_2048_div_64(a, m, NULL, r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r5, #1\n\t"
+        "lsl	r5, #8\n\t"
+        "add	r6, r5\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_2048_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -3931,8 +4268,16 @@ static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d, s
         }
     }
 
-    r1 = sp_2048_cmp_64(t1, d) >= 0;
-    sp_2048_cond_sub_64(r, t1, d, (sp_digit)0 - r1);
+    for (i = 63; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_2048_sub_64(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 64);
+    }
 
     return MP_OKAY;
 }
@@ -3975,7 +4320,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -4038,18 +4384,18 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 28;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
-        for (; i>=0 || c>=4; ) {
+        while ((i >= 0) || (c >= 4)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n <<= 4;
                 c = 28;
             }
             else if (c < 4) {
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n = e[i--];
                 c = 4 - c;
                 y |= n >> (32 - c);
@@ -4109,7 +4455,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -4188,18 +4535,18 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
                 y |= n >> (32 - c);
@@ -4252,11 +4599,13 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[128], m[64], r[128];
+    sp_digit a[128];
+    sp_digit m[64];
+    sp_digit r[128];
 #else
     sp_digit* d = NULL;
     sp_digit* a = NULL;
@@ -4427,9 +4776,9 @@ SP_NOINLINE static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a, 
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
-    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
     sp_digit* a = NULL;
@@ -4490,8 +4839,11 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[64 * 2];
-    sp_digit p[32], q[32], dp[32];
-    sp_digit tmpa[64], tmpb[64];
+    sp_digit p[32];
+    sp_digit q[32];
+    sp_digit dp[32];
+    sp_digit tmpa[64];
+    sp_digit tmpb[64];
 #else
     sp_digit* t = NULL;
     sp_digit* a = NULL;
@@ -4583,7 +4935,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
+#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -4606,17 +4958,19 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
         r->used = 64;
         mp_clamp(r);
 #elif DIGIT_BIT < 32
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 64; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
-            r->dp[j] &= (1L << DIGIT_BIT) - 1;
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
             r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
-                r->dp[j++] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
                 if (s == SP_WORD_SIZE) {
                     r->dp[j] = 0;
                 }
@@ -4629,14 +4983,16 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
         r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
         mp_clamp(r);
 #else
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 64; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 32 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
-                r->dp[j] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
                 r->dp[++j] = a[i] >> s;
@@ -4663,10 +5019,13 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+int sp_ModExp_2048(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
 {
     int err = MP_OKAY;
-    sp_digit b[128], e[64], m[64];
+    sp_digit b[128];
+    sp_digit e[64];
+    sp_digit m[64];
     sp_digit* r = b;
     int expBits = mp_count_bits(exp);
 
@@ -4674,16 +5033,12 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expBits > 2048) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expBits > 2048)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 2048)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -5128,10 +5483,12 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
     sp_digit* norm;
     sp_digit* tmp;
     sp_digit mp = 1;
-    sp_digit n, o;
+    sp_digit n;
+    sp_digit o;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    byte y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -5163,21 +5520,21 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         sp_2048_lshift_64(r, norm, y);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (32 - c);
+                y |= (int)(n >> (32 - c));
                 n <<= c;
                 c = 32 - c;
             }
@@ -5229,11 +5586,13 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
-    mp_int* mod, byte* out, word32* outLen)
+int sp_DhExp_2048(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
-    sp_digit b[128], e[64], m[64];
+    sp_digit b[128];
+    sp_digit e[64];
+    sp_digit m[64];
     sp_digit* r = b;
     word32 i;
 
@@ -5241,16 +5600,12 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expLen > 256) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expLen > 256U)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 2048)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -5271,6 +5626,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         sp_2048_to_bin(r, out);
         *outLen = 256;
         for (i=0; i<256 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
         }
         *outLen -= i;
         XMEMMOVE(out, out + i, *outLen);
@@ -5292,10 +5648,13 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+int sp_ModExp_1024(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
 {
     int err = MP_OKAY;
-    sp_digit b[64], e[32], m[32];
+    sp_digit b[64];
+    sp_digit e[32];
+    sp_digit m[32];
     sp_digit* r = b;
     int expBits = mp_count_bits(exp);
 
@@ -5303,16 +5662,12 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expBits > 1024) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expBits > 1024)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1024) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 1024)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -5335,7 +5690,7 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
+#endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* !WOLFSSL_SP_NO_2048 */
 
@@ -5349,7 +5704,8 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
  */
 static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
 {
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -5391,7 +5747,8 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #elif DIGIT_BIT > 32
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -5425,7 +5782,9 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i, j = 0, s = 0;
+    int i;
+    int j = 0;
+    int s = 0;
 
     r[0] = 0;
     for (i = 0; i < a->used && j < size; i++) {
@@ -5464,7 +5823,10 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
  */
 static void sp_3072_to_bin(sp_digit* r, byte* a)
 {
-    int i, j, s = 0, b;
+    int i;
+    int j;
+    int s = 0;
+    int b;
 
     j = 3072 / 8 - 1;
     a[j] = 0;
@@ -6091,7 +6453,9 @@ SP_NOINLINE static void sp_3072_mul_24(sp_digit* r, const sp_digit* a,
     sp_digit a1[12];
     sp_digit b1[12];
     sp_digit z2[24];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_3072_add_12(a1, a, &a[12]);
     cb = sp_3072_add_12(b1, b, &b[12]);
@@ -6621,7 +6985,9 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
     sp_digit a1[24];
     sp_digit b1[24];
     sp_digit z2[48];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_3072_add_24(a1, a, &a[24]);
     cb = sp_3072_add_24(b1, b, &b[24]);
@@ -7546,7 +7912,9 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
     sp_digit a1[48];
     sp_digit b1[48];
     sp_digit z2[96];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_3072_add_48(a1, a, &a[48]);
     cb = sp_3072_add_48(b1, b, &b[48]);
@@ -8297,7 +8665,7 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH) & !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -8306,7 +8674,8 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
  */
 static void sp_3072_mont_setup(const sp_digit* a, sp_digit* rho)
 {
-    sp_digit x, b;
+    sp_digit x;
+    sp_digit b;
 
     b = a[0];
     x = (((b + 2) & 4) << 1) + b; /* here x*a==1 mod 2**4 */
@@ -8315,7 +8684,7 @@ static void sp_3072_mont_setup(const sp_digit* a, sp_digit* rho)
     x *= 2 - b * x;               /* here x*a==1 mod 2**32 */
 
     /* rho = -1/m mod b */
-    *rho = -x;
+    *rho = (sp_digit)0 - x;
 }
 
 /* Mul a by digit b into r. (r = a * b)
@@ -8591,8 +8960,8 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_48(r, a, b);
     sp_3072_mont_reduce_48(r, m, mp);
@@ -8605,8 +8974,8 @@ static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_48(r, a);
     sp_3072_mont_reduce_48(r, m, mp);
@@ -8899,7 +9268,6 @@ static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_dig
 
     r1 = sp_3072_cmp_48(t1, d) >= 0;
     sp_3072_cond_sub_48(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -8939,7 +9307,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9002,18 +9371,18 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 28;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
-        for (; i>=0 || c>=4; ) {
+        while ((i >= 0) || (c >= 4)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n <<= 4;
                 c = 28;
             }
             else if (c < 4) {
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n = e[i--];
                 c = 4 - c;
                 y |= n >> (32 - c);
@@ -9073,7 +9442,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9152,18 +9522,18 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
                 y |= n >> (32 - c);
@@ -9202,7 +9572,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH) & !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -9219,7 +9589,7 @@ static void sp_3072_mont_norm_96(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_96(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -9415,8 +9785,8 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_96(r, a, b);
     sp_3072_mont_reduce_96(r, m, mp);
@@ -9429,8 +9799,8 @@ static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_3072_sqr_96(r, a);
     sp_3072_mont_reduce_96(r, m, mp);
@@ -9688,7 +10058,6 @@ static WC_INLINE int sp_3072_div_96(const sp_digit* a, const sp_digit* d, sp_dig
 
     r1 = sp_3072_cmp_96(t1, d) >= 0;
     sp_3072_cond_sub_96(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -9704,6 +10073,464 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a, const sp_dig
     return sp_3072_div_96(a, m, NULL, r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r5, #1\n\t"
+        "lsl	r5, #8\n\t"
+        "add	r5, #128\n\t"
+        "add	r6, r5\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_3072_sub_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -9737,8 +10564,16 @@ static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d, s
         }
     }
 
-    r1 = sp_3072_cmp_96(t1, d) >= 0;
-    sp_3072_cond_sub_96(r, t1, d, (sp_digit)0 - r1);
+    for (i = 95; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_3072_sub_96(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 96);
+    }
 
     return MP_OKAY;
 }
@@ -9781,7 +10616,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9844,18 +10680,18 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 28;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
-        for (; i>=0 || c>=4; ) {
+        while ((i >= 0) || (c >= 4)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n <<= 4;
                 c = 28;
             }
             else if (c < 4) {
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n = e[i--];
                 c = 4 - c;
                 y |= n >> (32 - c);
@@ -9915,7 +10751,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -9994,18 +10831,18 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
                 y |= n >> (32 - c);
@@ -10058,11 +10895,13 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[192], m[96], r[192];
+    sp_digit a[192];
+    sp_digit m[96];
+    sp_digit r[192];
 #else
     sp_digit* d = NULL;
     sp_digit* a = NULL;
@@ -10233,9 +11072,9 @@ SP_NOINLINE static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a, 
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
-    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
     sp_digit* a = NULL;
@@ -10296,8 +11135,11 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[96 * 2];
-    sp_digit p[48], q[48], dp[48];
-    sp_digit tmpa[96], tmpb[96];
+    sp_digit p[48];
+    sp_digit q[48];
+    sp_digit dp[48];
+    sp_digit tmpa[96];
+    sp_digit tmpb[96];
 #else
     sp_digit* t = NULL;
     sp_digit* a = NULL;
@@ -10389,7 +11231,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
+#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -10412,17 +11254,19 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
         r->used = 96;
         mp_clamp(r);
 #elif DIGIT_BIT < 32
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 96; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
-            r->dp[j] &= (1L << DIGIT_BIT) - 1;
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
             r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
-                r->dp[j++] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
                 if (s == SP_WORD_SIZE) {
                     r->dp[j] = 0;
                 }
@@ -10435,14 +11279,16 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
         r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
         mp_clamp(r);
 #else
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 96; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 32 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
-                r->dp[j] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
                 r->dp[++j] = a[i] >> s;
@@ -10469,10 +11315,13 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+int sp_ModExp_3072(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
 {
     int err = MP_OKAY;
-    sp_digit b[192], e[96], m[96];
+    sp_digit b[192];
+    sp_digit e[96];
+    sp_digit m[96];
     sp_digit* r = b;
     int expBits = mp_count_bits(exp);
 
@@ -10480,16 +11329,12 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expBits > 3072) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expBits > 3072)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 3072)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -11132,10 +11977,12 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
     sp_digit* norm;
     sp_digit* tmp;
     sp_digit mp = 1;
-    sp_digit n, o;
+    sp_digit n;
+    sp_digit o;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    byte y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -11167,21 +12014,21 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         sp_3072_lshift_96(r, norm, y);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (32 - c);
+                y |= (int)(n >> (32 - c));
                 n <<= c;
                 c = 32 - c;
             }
@@ -11233,11 +12080,13 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
-    mp_int* mod, byte* out, word32* outLen)
+int sp_DhExp_3072(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
-    sp_digit b[192], e[96], m[96];
+    sp_digit b[192];
+    sp_digit e[96];
+    sp_digit m[96];
     sp_digit* r = b;
     word32 i;
 
@@ -11245,16 +12094,12 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expLen > 384) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expLen > 384U)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 3072)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -11275,6 +12120,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         sp_3072_to_bin(r, out);
         *outLen = 384;
         for (i=0; i<384 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
         }
         *outLen -= i;
         XMEMMOVE(out, out + i, *outLen);
@@ -11296,10 +12142,13 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+int sp_ModExp_1536(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
 {
     int err = MP_OKAY;
-    sp_digit b[96], e[48], m[48];
+    sp_digit b[96];
+    sp_digit e[48];
+    sp_digit m[48];
     sp_digit* r = b;
     int expBits = mp_count_bits(exp);
 
@@ -11307,16 +12156,12 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expBits > 1536) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expBits > 1536)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1536) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 1536)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -11339,7 +12184,7 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
+#endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* !WOLFSSL_SP_NO_3072 */
 
@@ -11353,7 +12198,8 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
  */
 static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
 {
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -11395,7 +12241,8 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #elif DIGIT_BIT > 32
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -11429,7 +12276,9 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i, j = 0, s = 0;
+    int i;
+    int j = 0;
+    int s = 0;
 
     r[0] = 0;
     for (i = 0; i < a->used && j < size; i++) {
@@ -11468,7 +12317,10 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
  */
 static void sp_4096_to_bin(sp_digit* r, byte* a)
 {
-    int i, j, s = 0, b;
+    int i;
+    int j;
+    int s = 0;
+    int b;
 
     j = 4096 / 8 - 1;
     a[j] = 0;
@@ -12614,7 +13466,9 @@ SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
     sp_digit a1[64];
     sp_digit b1[64];
     sp_digit z2[128];
-    sp_digit u, ca, cb;
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
 
     ca = sp_2048_add_64(a1, a, &a[64]);
     cb = sp_2048_add_64(b1, b, &b[64]);
@@ -13013,7 +13867,8 @@ SP_NOINLINE static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
  */
 static void sp_4096_mont_setup(const sp_digit* a, sp_digit* rho)
 {
-    sp_digit x, b;
+    sp_digit x;
+    sp_digit b;
 
     b = a[0];
     x = (((b + 2) & 4) << 1) + b; /* here x*a==1 mod 2**4 */
@@ -13022,7 +13877,7 @@ static void sp_4096_mont_setup(const sp_digit* a, sp_digit* rho)
     x *= 2 - b * x;               /* here x*a==1 mod 2**32 */
 
     /* rho = -1/m mod b */
-    *rho = -x;
+    *rho = (sp_digit)0 - x;
 }
 
 /* Mul a by digit b into r. (r = a * b)
@@ -13108,7 +13963,7 @@ static void sp_4096_mont_norm_128(sp_digit* r, const sp_digit* m)
     sp_4096_sub_in_place_128(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -13302,8 +14157,8 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_4096_mont_mul_128(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_4096_mont_mul_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_4096_mul_128(r, a, b);
     sp_4096_mont_reduce_128(r, m, mp);
@@ -13316,8 +14171,8 @@ static void sp_4096_mont_mul_128(sp_digit* r, const sp_digit* a, const sp_digit*
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_4096_mont_sqr_128(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_4096_mont_sqr_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_4096_sqr_128(r, a);
     sp_4096_mont_reduce_128(r, m, mp);
@@ -13575,7 +14430,6 @@ static WC_INLINE int sp_4096_div_128(const sp_digit* a, const sp_digit* d, sp_di
 
     r1 = sp_4096_cmp_128(t1, d) >= 0;
     sp_4096_cond_sub_128(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -13591,6 +14445,597 @@ static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a, const sp_di
     return sp_4096_div_128(a, m, NULL, r);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r5, #2\n\t"
+        "lsl	r5, #8\n\t"
+        "add	r6, r5\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_4096_sub_128(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #0x80\n\t"
+        "add	%[b], #0x80\n\t"
+        "add	%[r], #0x80\n\t"
+        "mov	r6, #0\n\t"
+        "sub	r6, %[c]\n\t"
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -13624,8 +15069,16 @@ static WC_INLINE int sp_4096_div_128_cond(const sp_digit* a, const sp_digit* d, 
         }
     }
 
-    r1 = sp_4096_cmp_128(t1, d) >= 0;
-    sp_4096_cond_sub_128(r, t1, d, (sp_digit)0 - r1);
+    for (i = 127; i > 0; i--) {
+        if (t1[i] != d[i])
+            break;
+    }
+    if (t1[i] >= d[i]) {
+        sp_4096_sub_128(r, t1, d);
+    }
+    else {
+        XMEMCPY(r, t1, sizeof(*t1) * 128);
+    }
 
     return MP_OKAY;
 }
@@ -13668,7 +15121,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -13731,18 +15185,18 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         if (c == 32) {
             c = 28;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 128);
-        for (; i>=0 || c>=4; ) {
+        while ((i >= 0) || (c >= 4)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n <<= 4;
                 c = 28;
             }
             else if (c < 4) {
-                y = n >> 28;
+                y = (byte)(n >> 28);
                 n = e[i--];
                 c = 4 - c;
                 y |= n >> (32 - c);
@@ -13802,7 +15256,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     sp_digit n;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -13881,18 +15336,18 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 128);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
                 y |= n >> (32 - c);
@@ -13945,11 +15400,13 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
+    const mp_int* mm, byte* out, word32* outLen)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[256], m[128], r[256];
+    sp_digit a[256];
+    sp_digit m[128];
+    sp_digit r[256];
 #else
     sp_digit* d = NULL;
     sp_digit* a = NULL;
@@ -14121,9 +15578,9 @@ SP_NOINLINE static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a, 
  * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
  * an array is too long and MEMORY_E when dynamic memory allocation fails.
  */
-int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
-    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
-    byte* out, word32* outLen)
+int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
+    const mp_int* pm, const mp_int* qm, const mp_int* dpm, const mp_int* dqm,
+    const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
     sp_digit* a = NULL;
@@ -14184,8 +15641,11 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[128 * 2];
-    sp_digit p[64], q[64], dp[64];
-    sp_digit tmpa[128], tmpb[128];
+    sp_digit p[64];
+    sp_digit q[64];
+    sp_digit dp[64];
+    sp_digit tmpa[128];
+    sp_digit tmpb[128];
 #else
     sp_digit* t = NULL;
     sp_digit* a = NULL;
@@ -14277,7 +15737,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
+#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -14300,17 +15760,19 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
         r->used = 128;
         mp_clamp(r);
 #elif DIGIT_BIT < 32
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 128; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
-            r->dp[j] &= (1L << DIGIT_BIT) - 1;
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
             r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
-                r->dp[j++] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
                 if (s == SP_WORD_SIZE) {
                     r->dp[j] = 0;
                 }
@@ -14323,14 +15785,16 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
         r->used = (4096 + DIGIT_BIT - 1) / DIGIT_BIT;
         mp_clamp(r);
 #else
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 128; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 32 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
-                r->dp[j] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
                 r->dp[++j] = a[i] >> s;
@@ -14357,10 +15821,13 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+int sp_ModExp_4096(const mp_int* base, const mp_int* exp, const mp_int* mod,
+    mp_int* res)
 {
     int err = MP_OKAY;
-    sp_digit b[256], e[128], m[128];
+    sp_digit b[256];
+    sp_digit e[128];
+    sp_digit m[128];
     sp_digit* r = b;
     int expBits = mp_count_bits(exp);
 
@@ -14368,16 +15835,12 @@ int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expBits > 4096) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expBits > 4096)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 4096)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -15216,10 +16679,12 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
     sp_digit* norm;
     sp_digit* tmp;
     sp_digit mp = 1;
-    sp_digit n, o;
+    sp_digit n;
+    sp_digit o;
     sp_digit mask;
     int i;
-    int c, y;
+    int c;
+    byte y;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -15251,21 +16716,21 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
         if (c == 32) {
             c = 27;
         }
-        y = (int)(n >> c);
+        y = (byte)(n >> c);
         n <<= 32 - c;
         sp_4096_lshift_128(r, norm, y);
-        for (; i>=0 || c>=5; ) {
+        while ((i >= 0) || (c >= 5)) {
             if (c == 0) {
                 n = e[i--];
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n <<= 5;
                 c = 27;
             }
             else if (c < 5) {
-                y = n >> 27;
+                y = (byte)(n >> 27);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (32 - c);
+                y |= (int)(n >> (32 - c));
                 n <<= c;
                 c = 32 - c;
             }
@@ -15317,11 +16782,13 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
  * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
-int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
-    mp_int* mod, byte* out, word32* outLen)
+int sp_DhExp_4096(const mp_int* base, const byte* exp, word32 expLen,
+    const mp_int* mod, byte* out, word32* outLen)
 {
     int err = MP_OKAY;
-    sp_digit b[256], e[128], m[128];
+    sp_digit b[256];
+    sp_digit e[128];
+    sp_digit m[128];
     sp_digit* r = b;
     word32 i;
 
@@ -15329,16 +16796,12 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
         err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (expLen > 512) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (expLen > 512U)) {
+        err = MP_READ_E;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
+    if ((err == MP_OKAY) && (mp_count_bits(mod) != 4096)) {
+        err = MP_READ_E;
     }
 
     if (err == MP_OKAY) {
@@ -15359,6 +16822,7 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
         sp_4096_to_bin(r, out);
         *outLen = 512;
         for (i=0; i<512 && out[i] == 0; i++) {
+            /* Search for first non-zero. */
         }
         *outLen -= i;
         XMEMMOVE(out, out + i, *outLen);
@@ -15371,19 +16835,23 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
 }
 #endif /* WOLFSSL_HAVE_SP_DH */
 
-#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
+#endif /* WOLFSSL_HAVE_SP_DH | (WOLFSSL_HAVE_SP_RSA & !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_4096 */
 
-#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
 
 /* Point structure to use. */
 typedef struct sp_point_256 {
+    /* X ordinate of point. */
     sp_digit x[2 * 8];
+    /* Y ordinate of point. */
     sp_digit y[2 * 8];
+    /* Z ordinate of point. */
     sp_digit z[2 * 8];
+    /* Indicates point is at infinity. */
     int infinity;
 } sp_point_256;
 
@@ -15453,7 +16921,448 @@ static const sp_digit p256_b[8] = {
 };
 #endif
 
-static int sp_256_point_new_ex_8(void* heap, sp_point_256* sp, sp_point_256** p)
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp[8 * 2];
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r9, %[a]\n\t"
+        "mov	r10, %[b]\n\t"
+        "mov	r6, #32\n\t"
+        "add	r6, r9\n\t"
+        "mov	r12, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #28\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	%[b], r8\n\t"
+        "sub	%[b], %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	%[b], r10\n\t"
+        "\n2:\n\t"
+        "# Multiply Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply Done\n\t"
+        "add	%[a], #4\n\t"
+        "sub	%[b], #4\n\t"
+        "cmp	%[a], r12\n\t"
+        "beq	3f\n\t"
+        "mov	r6, r8\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #56\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[a], r9\n\t"
+        "mov	%[b], r10\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+    );
+
+    XMEMCPY(r, tmp, sizeof(tmp));
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r6, #64\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, r6\n\t"
+        "mov	r10, sp\n\t"
+        "mov	r9, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #28\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	r2, r8\n\t"
+        "sub	r2, %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	r2, r9\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+        "beq	4f\n\t"
+        "# Multiply * 2: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply * 2: Done\n\t"
+        "bal	5f\n\t"
+        "\n4:\n\t"
+        "# Square: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r6\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "mul	r7, r7\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #15\n\t"
+        "lsl	r6, r6, #17\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Square: Done\n\t"
+        "\n5:\n\t"
+        "add	%[a], #4\n\t"
+        "sub	r2, #4\n\t"
+        "mov	r6, #32\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "beq	3f\n\t"
+        "cmp	%[a], r2\n\t"
+        "bgt	3f\n\t"
+        "mov	r7, r8\n\t"
+        "add	r7, r9\n\t"
+        "cmp	%[a], r7\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r10\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #56\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "mov	%[a], r9\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	r3, #60\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "sub	r3, #4\n\t"
+        "bge	4b\n\t"
+        "mov	r6, #64\n\t"
+        "add	sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+    );
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r7, #0\n\t"
+        "add	r6, #32\n\t"
+        "sub	r7, #1\n\t"
+        "\n1:\n\t"
+        "add	%[c], r7\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#else
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "add	r4, r5\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #4]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #12]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #20]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #28]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #28]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "add	r6, #32\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Create a new point.
+ *
+ * heap  [in]   Buffer to allocate dynamic memory from.
+ * sp    [in]   Data for point - only if not allocating.
+ * p     [out]  New point.
+ * returns MEMORY_E when dynamic memory allocation fails and 0 otherwise.
+ */
+static int sp_256_point_new_ex_8(void* heap, sp_point_256* sp,
+        sp_point_256** p)
 {
     int ret = MP_OKAY;
     (void)heap;
@@ -15478,6 +17387,12 @@ static int sp_256_point_new_ex_8(void* heap, sp_point_256* sp, sp_point_256** p)
 #endif
 
 
+/* Free the point.
+ *
+ * p      [in,out]  Point to free.
+ * clear  [in]      Indicates whether to zeroize point.
+ * heap   [in]      Buffer from which dynamic memory was allocate from.
+ */
 static void sp_256_point_free_8(sp_point_256* p, int clear, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -15585,7 +17500,8 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #elif DIGIT_BIT > 32
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -15619,7 +17535,9 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
         r[j] = 0;
     }
 #else
-    int i, j = 0, s = 0;
+    int i;
+    int j = 0;
+    int s = 0;
 
     r[0] = 0;
     for (i = 0; i < a->used && j < size; i++) {
@@ -15655,7 +17573,8 @@ static void sp_256_from_mp(sp_digit* r, int size, const mp_int* a)
  * p   Point of type sp_point_256 (result).
  * pm  Point of type ecc_point.
  */
-static void sp_256_point_from_ecc_point_8(sp_point_256* p, const ecc_point* pm)
+static void sp_256_point_from_ecc_point_8(sp_point_256* p,
+        const ecc_point* pm)
 {
     XMEMSET(p->x, 0, sizeof(p->x));
     XMEMSET(p->y, 0, sizeof(p->y));
@@ -15682,17 +17601,19 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
         r->used = 8;
         mp_clamp(r);
 #elif DIGIT_BIT < 32
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 8; i++) {
             r->dp[j] |= (mp_digit)(a[i] << s);
-            r->dp[j] &= (1L << DIGIT_BIT) - 1;
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
             r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
-                r->dp[j++] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
                 if (s == SP_WORD_SIZE) {
                     r->dp[j] = 0;
                 }
@@ -15705,14 +17626,16 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
         r->used = (256 + DIGIT_BIT - 1) / DIGIT_BIT;
         mp_clamp(r);
 #else
-        int i, j = 0, s = 0;
+        int i;
+        int j = 0;
+        int s = 0;
 
         r->dp[0] = 0;
         for (i = 0; i < 8; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 32 >= DIGIT_BIT) {
     #if DIGIT_BIT != 32 && DIGIT_BIT != 64
-                r->dp[j] &= (1L << DIGIT_BIT) - 1;
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
                 r->dp[++j] = a[i] >> s;
@@ -15750,106 +17673,6 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
     }
 
     return err;
-}
-
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit tmp[8 * 2];
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "mov	r8, r3\n\t"
-        "mov	r11, %[r]\n\t"
-        "mov	r9, %[a]\n\t"
-        "mov	r10, %[b]\n\t"
-        "mov	r6, #32\n\t"
-        "add	r6, r9\n\t"
-        "mov	r12, r6\n\t"
-        "\n1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r5, #0\n\t"
-        "mov	r6, #28\n\t"
-        "mov	%[a], r8\n\t"
-        "sub	%[a], r6\n\t"
-        "sbc	r6, r6\n\t"
-        "mvn	r6, r6\n\t"
-        "and	%[a], r6\n\t"
-        "mov	%[b], r8\n\t"
-        "sub	%[b], %[a]\n\t"
-        "add	%[a], r9\n\t"
-        "add	%[b], r10\n\t"
-        "\n2:\n\t"
-        "# Multiply Start\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "# Multiply Done\n\t"
-        "add	%[a], #4\n\t"
-        "sub	%[b], #4\n\t"
-        "cmp	%[a], r12\n\t"
-        "beq	3f\n\t"
-        "mov	r6, r8\n\t"
-        "add	r6, r9\n\t"
-        "cmp	%[a], r6\n\t"
-        "ble	2b\n\t"
-        "\n3:\n\t"
-        "mov	%[r], r11\n\t"
-        "mov	r7, r8\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "add	r7, #4\n\t"
-        "mov	r8, r7\n\t"
-        "mov	r6, #56\n\t"
-        "cmp	r7, r6\n\t"
-        "ble	1b\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	%[a], r9\n\t"
-        "mov	%[b], r10\n\t"
-        :
-        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
-    );
-
-    XMEMCPY(r, tmp, sizeof(tmp));
 }
 
 /* Conditionally subtract b from a using the mask m.
@@ -16166,159 +17989,11 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_256_mul_8(r, a, b);
     sp_256_mont_reduce_8(r, m, mp);
-}
-
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
-{
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "mov	r5, #0\n\t"
-        "mov	r8, r3\n\t"
-        "mov	r11, %[r]\n\t"
-        "mov	r6, #64\n\t"
-        "neg	r6, r6\n\t"
-        "add	sp, r6\n\t"
-        "mov	r10, sp\n\t"
-        "mov	r9, %[a]\n\t"
-        "\n1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r6, #28\n\t"
-        "mov	%[a], r8\n\t"
-        "sub	%[a], r6\n\t"
-        "sbc	r6, r6\n\t"
-        "mvn	r6, r6\n\t"
-        "and	%[a], r6\n\t"
-        "mov	r2, r8\n\t"
-        "sub	r2, %[a]\n\t"
-        "add	%[a], r9\n\t"
-        "add	r2, r9\n\t"
-        "\n2:\n\t"
-        "cmp	r2, %[a]\n\t"
-        "beq	4f\n\t"
-        "# Multiply * 2: Start\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "# Multiply * 2: Done\n\t"
-        "bal	5f\n\t"
-        "\n4:\n\t"
-        "# Square: Start\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "mul	r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "mul	r7, r7\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #15\n\t"
-        "lsl	r6, r6, #17\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "# Square: Done\n\t"
-        "\n5:\n\t"
-        "add	%[a], #4\n\t"
-        "sub	r2, #4\n\t"
-        "mov	r6, #32\n\t"
-        "add	r6, r9\n\t"
-        "cmp	%[a], r6\n\t"
-        "beq	3f\n\t"
-        "cmp	%[a], r2\n\t"
-        "bgt	3f\n\t"
-        "mov	r7, r8\n\t"
-        "add	r7, r9\n\t"
-        "cmp	%[a], r7\n\t"
-        "ble	2b\n\t"
-        "\n3:\n\t"
-        "mov	%[r], r10\n\t"
-        "mov	r7, r8\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "mov	r5, #0\n\t"
-        "add	r7, #4\n\t"
-        "mov	r8, r7\n\t"
-        "mov	r6, #56\n\t"
-        "cmp	r7, r6\n\t"
-        "ble	1b\n\t"
-        "mov	%[a], r9\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	%[r], r11\n\t"
-        "mov	%[a], r10\n\t"
-        "mov	r3, #60\n\t"
-        "\n4:\n\t"
-        "ldr	r6, [%[a], r3]\n\t"
-        "str	r6, [%[r], r3]\n\t"
-        "sub	r3, #4\n\t"
-        "bge	4b\n\t"
-        "mov	r6, #64\n\t"
-        "add	sp, r6\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
-    );
 }
 
 /* Square the Montgomery form number. (r = a * a mod m)
@@ -16328,8 +18003,8 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_256_sqr_8(r, a);
     sp_256_mont_reduce_8(r, m, mp);
@@ -16353,7 +18028,7 @@ static void sp_256_mont_sqr_n_8(sp_digit* r, const sp_digit* a, int n,
     }
 }
 
-#endif /* !WOLFSSL_SP_SMALL || HAVE_COMP_KEY */
+#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P256 curve. */
 static const uint32_t p256_mod_minus_2[8] = {
@@ -16486,7 +18161,8 @@ SP_NOINLINE static int32_t sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
  * p  Montgomery form projective coordinate point.
  * t  Temporary ordinate data.
  */
-static void sp_256_map_8(sp_point_256* r, const sp_point_256* p, sp_digit* t)
+static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
+        sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -16522,100 +18198,6 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p, sp_digit* t)
 
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r6, %[a]\n\t"
-        "mov	r7, #0\n\t"
-        "add	r6, #32\n\t"
-        "sub	r7, #1\n\t"
-        "\n1:\n\t"
-        "add	%[c], r7\n\t"
-        "ldr	r4, [%[a]]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r]]\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c]\n\t"
-        "add	%[a], #4\n\t"
-        "add	%[b], #4\n\t"
-        "add	%[r], #4\n\t"
-        "cmp	%[a], r6\n\t"
-        "bne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r7"
-    );
-
-    return c;
-}
-
-#else
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "ldr	r4, [%[a], #0]\n\t"
-        "ldr	r5, [%[b], #0]\n\t"
-        "add	r4, r5\n\t"
-        "str	r4, [%[r], #0]\n\t"
-        "ldr	r4, [%[a], #4]\n\t"
-        "ldr	r5, [%[b], #4]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #4]\n\t"
-        "ldr	r4, [%[a], #8]\n\t"
-        "ldr	r5, [%[b], #8]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #8]\n\t"
-        "ldr	r4, [%[a], #12]\n\t"
-        "ldr	r5, [%[b], #12]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #12]\n\t"
-        "ldr	r4, [%[a], #16]\n\t"
-        "ldr	r5, [%[b], #16]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #16]\n\t"
-        "ldr	r4, [%[a], #20]\n\t"
-        "ldr	r5, [%[b], #20]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #20]\n\t"
-        "ldr	r4, [%[a], #24]\n\t"
-        "ldr	r5, [%[b], #24]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #24]\n\t"
-        "ldr	r4, [%[a], #28]\n\t"
-        "ldr	r5, [%[b], #28]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #28]\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c]\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
@@ -17195,7 +18777,8 @@ static int sp_256_proj_point_dbl_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, con
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-static void sp_256_proj_point_dbl_8(sp_point_256* r, const sp_point_256* p, sp_digit* t)
+static void sp_256_proj_point_dbl_8(sp_point_256* r,
+        const sp_point_256* p, sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -17249,97 +18832,6 @@ static void sp_256_proj_point_dbl_8(sp_point_256* r, const sp_point_256* p, sp_d
     sp_256_mont_sub_8(y, y, t2, p256_mod);
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r6, %[a]\n\t"
-        "add	r6, #32\n\t"
-        "\n1:\n\t"
-        "mov	r5, #0\n\t"
-        "sub	r5, %[c]\n\t"
-        "ldr	r4, [%[a]]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "sbc	r4, r5\n\t"
-        "str	r4, [%[r]]\n\t"
-        "sbc	%[c], %[c]\n\t"
-        "add	%[a], #4\n\t"
-        "add	%[b], #4\n\t"
-        "add	%[r], #4\n\t"
-        "cmp	%[a], r6\n\t"
-        "bne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6"
-    );
-
-    return c;
-}
-
-#else
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "ldr	r4, [%[a], #0]\n\t"
-        "ldr	r5, [%[a], #4]\n\t"
-        "ldr	r6, [%[b], #0]\n\t"
-        "ldr	r7, [%[b], #4]\n\t"
-        "sub	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #0]\n\t"
-        "str	r5, [%[r], #4]\n\t"
-        "ldr	r4, [%[a], #8]\n\t"
-        "ldr	r5, [%[a], #12]\n\t"
-        "ldr	r6, [%[b], #8]\n\t"
-        "ldr	r7, [%[b], #12]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #8]\n\t"
-        "str	r5, [%[r], #12]\n\t"
-        "ldr	r4, [%[a], #16]\n\t"
-        "ldr	r5, [%[a], #20]\n\t"
-        "ldr	r6, [%[b], #16]\n\t"
-        "ldr	r7, [%[b], #20]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #16]\n\t"
-        "str	r5, [%[r], #20]\n\t"
-        "ldr	r4, [%[a], #24]\n\t"
-        "ldr	r5, [%[a], #28]\n\t"
-        "ldr	r6, [%[b], #24]\n\t"
-        "ldr	r7, [%[b], #28]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #24]\n\t"
-        "str	r5, [%[r], #28]\n\t"
-        "sbc	%[c], %[c]\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r7"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
 /* Compare two numbers to determine if they are equal.
  * Constant time implementation.
  *
@@ -17377,7 +18869,7 @@ typedef struct sp_256_proj_point_add_8_ctx {
     sp_digit* z;
 } sp_256_proj_point_add_8_ctx;
 
-static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, 
+static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     const sp_point_256* p, const sp_point_256* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -17563,8 +19055,8 @@ static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-static void sp_256_proj_point_add_8(sp_point_256* r, const sp_point_256* p, const sp_point_256* q,
-        sp_digit* t)
+static void sp_256_proj_point_add_8(sp_point_256* r,
+        const sp_point_256* p, const sp_point_256* q, sp_digit* t)
 {
     const sp_point_256* ap[2];
     sp_point_256* rp[2];
@@ -17719,9 +19211,11 @@ static void sp_256_get_point_16_8(sp_point_256* r, const sp_point_256* table,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Simple, smaller code size and memory size, of windowing.
- * Calculate uindow of 4 bits.
- * Only add points from table.
+ * Fast implementation that generates a pre-computation table.
+ * 4 bits of window (no sliding!).
+ * Uses add and double for calculating table.
+ * 256 doubles.
+ * 76 adds.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -17750,7 +19244,8 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
     sp_digit* tmp;
     sp_digit n;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err;
 
     /* Constant time used for cache attack resistance implementation. */
@@ -17823,7 +19318,7 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
         i = 6;
         n = k[i+1] << 0;
         c = 28;
-        y = n >> 28;
+        y = (int)(n >> 28);
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
             sp_256_get_point_16_8(rt, t, y);
@@ -17888,12 +19383,6 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
     return err;
 }
 
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_256 {
-    sp_digit x[8];
-    sp_digit y[8];
-} sp_table_entry_256;
-
 #ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
  *
@@ -17902,7 +19391,8 @@ typedef struct sp_table_entry_256 {
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_n_8(sp_point_256* p, int n, sp_digit* t)
+static void sp_256_proj_point_dbl_n_8(sp_point_256* p, int n,
+        sp_digit* t)
 {
     sp_digit* w = t;
     sp_digit* a = t + 2*8;
@@ -17946,11 +19436,13 @@ static void sp_256_proj_point_dbl_n_8(sp_point_256* p, int n, sp_digit* t)
         sp_256_mont_sqr_8(t1, t1, p256_mod, p256_mp_mod);
 #ifdef WOLFSSL_SP_SMALL
         if (n != 0)
-#endif
         {
+#endif
             /* W = W*Y^4 */
             sp_256_mont_mul_8(w, w, t1, p256_mod, p256_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
         }
+#endif
         /* y = 2*A*(B - X) - Y^4 */
         sp_256_mont_sub_8(y, b, x, p256_mod);
         sp_256_mont_mul_8(y, y, a, p256_mod, p256_mp_mod);
@@ -17983,6 +19475,36 @@ static void sp_256_proj_point_dbl_n_8(sp_point_256* p, int n, sp_digit* t)
     sp_256_div2_8(y, y, p256_mod);
 }
 
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_256_proj_to_affine_8(sp_point_256* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 8;
+    sp_digit* tmp = t + 4 * 8;
+
+    sp_256_mont_inv_8(t1, a->z, tmp);
+
+    sp_256_mont_sqr_8(t2, t1, p256_mod, p256_mp_mod);
+    sp_256_mont_mul_8(t1, t2, t1, p256_mod, p256_mp_mod);
+
+    sp_256_mont_mul_8(a->x, a->x, t2, p256_mod, p256_mp_mod);
+    sp_256_mont_mul_8(a->y, a->y, t1, p256_mod, p256_mp_mod);
+    XMEMCPY(a->z, p256_norm_mod, sizeof(p256_norm_mod));
+}
+
+#endif /* FP_ECC */
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_256 {
+    sp_digit x[8];
+    sp_digit y[8];
+} sp_table_entry_256;
+
+#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -18068,29 +19590,11 @@ static void sp_256_proj_point_add_qz1_8(sp_point_256* r, const sp_point_256* p,
 
 #ifdef WOLFSSL_SP_SMALL
 #ifdef FP_ECC
-/* Convert the projective point to affine.
- * Ordinates are in Montgomery form.
- *
- * a  Point to convert.
- * t  Temporary data.
- */
-static void sp_256_proj_to_affine_8(sp_point_256* a, sp_digit* t)
-{
-    sp_digit* t1 = t;
-    sp_digit* t2 = t + 2 * 8;
-    sp_digit* tmp = t + 4 * 8;
-
-    sp_256_mont_inv_8(t1, a->z, tmp);
-
-    sp_256_mont_sqr_8(t2, t1, p256_mod, p256_mp_mod);
-    sp_256_mont_mul_8(t1, t2, t1, p256_mod, p256_mp_mod);
-
-    sp_256_mont_mul_8(a->x, a->x, t2, p256_mod, p256_mp_mod);
-    sp_256_mont_mul_8(a->y, a->y, t1, p256_mod, p256_mp_mod);
-    XMEMCPY(a->z, p256_norm_mod, sizeof(p256_norm_mod));
-}
-
 /* Generate the pre-computed table of points for the base point.
+ *
+ * width = 4
+ * 16 entries
+ * 64 bits between
  *
  * a      The base point.
  * table  Place to store generated point data.
@@ -18101,12 +19605,15 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         sp_table_entry_256* table, sp_digit* tmp, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 td, s1d, s2d;
+    sp_point_256 td;
+    sp_point_256 s1d;
+    sp_point_256 s2d;
 #endif
     sp_point_256* t;
     sp_point_256* s1 = NULL;
     sp_point_256* s2 = NULL;
-    int i, j;
+    int i;
+    int j;
     int err;
 
     (void)heap;
@@ -18225,8 +19732,10 @@ static void sp_256_get_entry_16_8(sp_point_256* r,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Implementation uses striping of bits.
- * Choose bits 4 bits apart.
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^64, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
  *
  * r      Resulting point.
  * k      Scalar to multiply by.
@@ -18248,8 +19757,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     sp_point_256* rt;
     sp_point_256* p = NULL;
     sp_digit* t;
-    int i, j;
-    int y, x;
+    int i;
+    int j;
+    int y;
+    int x;
     int err;
 
     (void)g;
@@ -18277,8 +19788,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         XMEMCPY(rt->z, p256_norm_mod, sizeof(p256_norm_mod));
 
         y = 0;
-        for (j=0,x=63; j<4; j++,x+=64) {
+        x = 63;
+        for (j=0; j<4; j++) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 64;
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -18292,8 +19805,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         rt->infinity = !y;
         for (i=62; i>=0; i--) {
             y = 0;
-            for (j=0,x=i; j<4; j++,x+=64) {
+            x = i;
+            for (j = 0; j < 4; j++) {
                 y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 64;
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -18335,16 +19850,25 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     #define FP_ENTRIES 16
 #endif
 
+/* Cache entry - holds precomputation tables for a point. */
 typedef struct sp_cache_256_t {
+    /* X ordinate of point that table was generated from. */
     sp_digit x[8];
+    /* Y ordinate of point that table was generated from. */
     sp_digit y[8];
+    /* Precomputation table for point. */
     sp_table_entry_256 table[16];
+    /* Count of entries in table. */
     uint32_t cnt;
+    /* Point and table set in entry. */
     int set;
 } sp_cache_256_t;
 
+/* Cache of tables. */
 static THREAD_LS_T sp_cache_256_t sp_cache_256[FP_ENTRIES];
+/* Index of last entry in cache. */
 static THREAD_LS_T int sp_cache_256_last = -1;
+/* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_256_inited = 0;
 
 #ifndef HAVE_THREAD_LS
@@ -18352,9 +19876,16 @@ static THREAD_LS_T int sp_cache_256_inited = 0;
     static wolfSSL_Mutex sp_cache_256_lock;
 #endif
 
-static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_256(const sp_point_256* g,
+        sp_cache_256_t** cache)
 {
-    int i, j;
+    int i;
+    int j;
     uint32_t least;
 
     if (sp_cache_256_inited == 0) {
@@ -18464,6 +19995,10 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #ifdef FP_ECC
 /* Generate the pre-computed table of points for the base point.
  *
+ * width = 8
+ * 256 entries
+ * 32 bits between
+ *
  * a      The base point.
  * table  Place to store generated point data.
  * tmp    Temporary data.
@@ -18473,12 +20008,15 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         sp_table_entry_256* table, sp_digit* tmp, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 td, s1d, s2d;
+    sp_point_256 td;
+    sp_point_256 s1d;
+    sp_point_256 s2d;
 #endif
     sp_point_256* t;
     sp_point_256* s1 = NULL;
     sp_point_256* s2 = NULL;
-    int i, j;
+    int i;
+    int j;
     int err;
 
     (void)heap;
@@ -18597,8 +20135,10 @@ static void sp_256_get_entry_256_8(sp_point_256* r,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Implementation uses striping of bits.
- * Choose bits 8 bits apart.
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
  *
  * r      Resulting point.
  * k      Scalar to multiply by.
@@ -18620,8 +20160,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     sp_point_256* rt;
     sp_point_256* p = NULL;
     sp_digit* t;
-    int i, j;
-    int y, x;
+    int i;
+    int j;
+    int y;
+    int x;
     int err;
 
     (void)g;
@@ -18649,8 +20191,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         XMEMCPY(rt->z, p256_norm_mod, sizeof(p256_norm_mod));
 
         y = 0;
-        for (j=0,x=31; j<8; j++,x+=32) {
+        x = 31;
+        for (j=0; j<8; j++) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 32;
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -18664,8 +20208,10 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         rt->infinity = !y;
         for (i=30; i>=0; i--) {
             y = 0;
-            for (j=0,x=i; j<8; j++,x+=32) {
+            x = i;
+            for (j = 0; j < 8; j++) {
                 y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 32;
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -18707,16 +20253,25 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     #define FP_ENTRIES 16
 #endif
 
+/* Cache entry - holds precomputation tables for a point. */
 typedef struct sp_cache_256_t {
+    /* X ordinate of point that table was generated from. */
     sp_digit x[8];
+    /* Y ordinate of point that table was generated from. */
     sp_digit y[8];
+    /* Precomputation table for point. */
     sp_table_entry_256 table[256];
+    /* Count of entries in table. */
     uint32_t cnt;
+    /* Point and table set in entry. */
     int set;
 } sp_cache_256_t;
 
+/* Cache of tables. */
 static THREAD_LS_T sp_cache_256_t sp_cache_256[FP_ENTRIES];
+/* Index of last entry in cache. */
 static THREAD_LS_T int sp_cache_256_last = -1;
+/* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_256_inited = 0;
 
 #ifndef HAVE_THREAD_LS
@@ -18724,9 +20279,16 @@ static THREAD_LS_T int sp_cache_256_inited = 0;
     static wolfSSL_Mutex sp_cache_256_lock;
 #endif
 
-static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_256(const sp_point_256* g,
+        sp_cache_256_t** cache)
 {
-    int i, j;
+    int i;
+    int j;
     uint32_t least;
 
     if (sp_cache_256_inited == 0) {
@@ -18843,8 +20405,8 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
-        void* heap)
+int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
+    int map, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 p;
@@ -18869,7 +20431,7 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
 
-            err = sp_256_ecc_mulmod_8(point, point, k, map, 1, heap);
+            err = sp_256_ecc_mulmod_8(point, point, k, map, 0, heap);
     }
     if (err == MP_OKAY) {
         err = sp_256_point_to_ecc_point_8(point, r);
@@ -18885,7 +20447,94 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
     return err;
 }
 
+/* Multiply the point by the scalar, add point a and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * p       Point to multiply.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montogmery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256 p;
+    sp_point_256 a;
+    sp_digit kd[8];
+    sp_digit t[8 * 2 * 5];
+#endif
+    sp_point_256* point;
+    sp_point_256* addP = NULL;
+    sp_digit* k = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+    err = sp_256_point_new_8(heap, p, point);
+    if (err == MP_OKAY) {
+        err = sp_256_point_new_8(heap, a, addP);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 + 8 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+        else {
+            tmp = k + 8;
+        }
+    }
+#else
+    k = kd;
+    tmp = t;
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 8, km);
+        sp_256_point_from_ecc_point_8(point, gm);
+        sp_256_point_from_ecc_point_8(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->x, addP->x, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->y, addP->y, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->z, addP->z, p256_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_8(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_256_proj_point_add_8(point, point, addP, tmp);
+
+        if (map) {
+                sp_256_map_8(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_8(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_256_point_free_8(addP, 0, heap);
+    sp_256_point_free_8(point, 0, heap);
+
+    return err;
+}
+
 #ifdef WOLFSSL_SP_SMALL
+/* Striping precomputation table.
+ * 4 points combined into a table of 16 points.
+ * Distance of 64 between points.
+ */
 static const sp_table_entry_256 p256_table[16] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -18970,6 +20619,11 @@ static const sp_table_entry_256 p256_table[16] = {
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^64, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
@@ -18985,6 +20639,10 @@ static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
 }
 
 #else
+/* Striping precomputation table.
+ * 8 points combined into a table of 256 points.
+ * Distance of 32 between points.
+ */
 static const sp_table_entry_256 p256_table[256] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -20269,6 +21927,11 @@ static const sp_table_entry_256 p256_table[256] = {
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
@@ -20294,7 +21957,7 @@ static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
+int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 p;
@@ -20307,8 +21970,7 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     err = sp_256_point_new_8(heap, p, point);
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap, DYNAMIC_TYPE_ECC);
         if (k == NULL) {
             err = MEMORY_E;
         }
@@ -20335,6 +21997,87 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
+/* Multiply the base point of P256 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montogmery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256 p;
+    sp_point_256 a;
+    sp_digit kd[8];
+    sp_digit t[8 * 2 * 5];
+#endif
+    sp_point_256* point;
+    sp_point_256* addP = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_256_point_new_8(heap, p, point);
+    if (err == MP_OKAY) {
+        err = sp_256_point_new_8(heap, a, addP);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 + 8 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+        else {
+            tmp = k + 8;
+        }
+    }
+#else
+    k = kd;
+    tmp = t;
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 8, km);
+        sp_256_point_from_ecc_point_8(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->x, addP->x, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->y, addP->y, p256_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->z, addP->z, p256_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_base_8(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_256_proj_point_add_8(point, point, addP, tmp);
+
+        if (map) {
+                sp_256_map_8(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_8(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_256_point_free_8(addP, 0, heap);
+    sp_256_point_free_8(point, 0, heap);
+
+    return err;
+}
+
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
 /* Returns 1 if the number of zero.
@@ -20348,7 +22091,7 @@ static int sp_256_iszero_8(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3] | a[4] | a[5] | a[6] | a[7]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -20397,7 +22140,8 @@ SP_NOINLINE static void sp_256_add_one_8(sp_digit* a)
  */
 static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
 {
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -20541,7 +22285,10 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
  */
 static void sp_256_to_bin(sp_digit* r, byte* a)
 {
-    int i, j, s = 0, b;
+    int i;
+    int j;
+    int s = 0;
+    int b;
 
     j = 256 / 8 - 1;
     a[j] = 0;
@@ -20582,7 +22329,7 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
  * returns BUFFER_E if the buffer is to small for output size,
  * MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
+int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
@@ -20997,7 +22744,6 @@ static WC_INLINE int sp_256_div_8(const sp_digit* a, const sp_digit* d, sp_digit
 
     r1 = sp_256_cmp_8(t1, d) >= 0;
     sp_256_cond_sub_8(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -21023,7 +22769,7 @@ static const uint32_t p256_order_minus_2[8] = {
 };
 #else
 /* The low half of the order-2 of the P256 curve. */
-static const uint32_t p256_order_low[4] = {
+static const sp_int_digit p256_order_low[4] = {
     0xfc63254fU,0xf3b9cac2U,0xa7179e84U,0xbce6faadU
 };
 #endif /* WOLFSSL_SP_SMALL */
@@ -21087,7 +22833,7 @@ static int sp_256_mont_inv_order_8_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const s
 {
     int err = FP_WOULDBLOCK;
     sp_256_mont_inv_order_8_ctx* ctx = (sp_256_mont_inv_order_8_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_256_mont_inv_order_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -21169,7 +22915,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6 */
     for (i=127; i>=112; i--) {
         sp_256_mont_sqr_order_8(t2, t2);
-        if (((sp_digit)p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
+        if ((p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
             sp_256_mont_mul_order_8(t2, t2, a);
         }
     }
@@ -21179,7 +22925,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84 */
     for (i=107; i>=64; i--) {
         sp_256_mont_sqr_order_8(t2, t2);
-        if (((sp_digit)p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
+        if ((p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
             sp_256_mont_mul_order_8(t2, t2, a);
         }
     }
@@ -21189,7 +22935,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2 */
     for (i=59; i>=32; i--) {
         sp_256_mont_sqr_order_8(t2, t2);
-        if (((sp_digit)p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
+        if ((p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
             sp_256_mont_mul_order_8(t2, t2, a);
         }
     }
@@ -21199,7 +22945,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc63254 */
     for (i=27; i>=0; i--) {
         sp_256_mont_sqr_order_8(t2, t2);
-        if (((sp_digit)p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
+        if ((p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
             sp_256_mont_mul_order_8(t2, t2, a);
         }
     }
@@ -21210,11 +22956,62 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-#endif /* HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
 #define SP_ECC_MAX_SIG_GEN  64
 #endif
+
+/* Calculate second signature value S from R, k and private value.
+ *
+ * s = (r * x + e) / k
+ *
+ * s    Signature value.
+ * r    First signature value.
+ * k    Ephemeral private key.
+ * x    Private key as a number.
+ * e    Hash of message as a number.
+ * tmp  Temporary storage for intermediate numbers.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_s_8(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    int32_t c;
+    sp_digit* kInv = k;
+
+    /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_8(k, k, p256_norm_order);
+    err = sp_256_mod_8(k, k, p256_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_8(k);
+
+        /* kInv = 1/k mod order */
+            sp_256_mont_inv_order_8(kInv, k, tmp);
+        sp_256_norm_8(kInv);
+
+        /* s = r * x + e */
+            sp_256_mul_8(x, x, r);
+        err = sp_256_mod_8(x, x, p256_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_8(x);
+        carry = sp_256_add_8(s, e, x);
+        sp_256_cond_sub_8(s, s, p256_order, 0 - carry);
+        sp_256_norm_8(s);
+        c = sp_256_cmp_8(s, p256_order);
+        sp_256_cond_sub_8(s, s, p256_order, 0L - (sp_digit)(c >= 0));
+        sp_256_norm_8(s);
+
+        /* s = s * k^-1 mod order */
+            sp_256_mont_mul_order_8(s, s, kInv);
+        sp_256_norm_8(s);
+    }
+
+    return err;
+}
 
 /* Sign the hash using the private key.
  *   e = [hash, 256 bits] from binary
@@ -21286,7 +23083,7 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
         err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
             &ctx->point, &p256_base, ctx->k, 1, 1, heap);
@@ -21391,8 +23188,8 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
-                    mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -21410,11 +23207,9 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     sp_digit* r = NULL;
     sp_digit* tmp = NULL;
     sp_point_256* point = NULL;
-    sp_digit carry;
     sp_digit* s = NULL;
-    sp_digit* kInv = NULL;
-    int err = MP_OKAY;
     int32_t c;
+    int err = MP_OKAY;
     int i;
 
     (void)heap;
@@ -21445,7 +23240,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         tmp = td;
 #endif
         s = e;
-        kInv = k;
 
         if (hashLen > 32U) {
             hashLen = 32U;
@@ -21455,8 +23249,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
-        sp_256_from_mp(x, 8, priv);
-
         /* New random point. */
         if (km == NULL || mp_iszero(km)) {
             err = sp_256_ecc_gen_k_8(rng, k);
@@ -21466,9 +23258,8 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             mp_zero(km);
         }
         if (err == MP_OKAY) {
-                err = sp_256_ecc_mulmod_base_8(point, k, 1, 1, NULL);
+                err = sp_256_ecc_mulmod_base_8(point, k, 1, 1, heap);
         }
-
         if (err == MP_OKAY) {
             /* r = point->x mod order */
             XMEMCPY(r, point->x, sizeof(sp_digit) * 8U);
@@ -21477,37 +23268,14 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             sp_256_cond_sub_8(r, r, p256_order, 0L - (sp_digit)(c >= 0));
             sp_256_norm_8(r);
 
-            /* Conv k to Montgomery form (mod order) */
-                sp_256_mul_8(k, k, p256_norm_order);
-            err = sp_256_mod_8(k, k, p256_order);
+            sp_256_from_mp(x, 8, priv);
+
+            err = sp_256_calc_s_8(s, r, k, x, e, tmp);
         }
-        if (err == MP_OKAY) {
-            sp_256_norm_8(k);
-            /* kInv = 1/k mod order */
-                sp_256_mont_inv_order_8(kInv, k, tmp);
-            sp_256_norm_8(kInv);
 
-            /* s = r * x + e */
-                sp_256_mul_8(x, x, r);
-            err = sp_256_mod_8(x, x, p256_order);
-        }
-        if (err == MP_OKAY) {
-            sp_256_norm_8(x);
-            carry = sp_256_add_8(s, e, x);
-            sp_256_cond_sub_8(s, s, p256_order, 0 - carry);
-            sp_256_norm_8(s);
-            c = sp_256_cmp_8(s, p256_order);
-            sp_256_cond_sub_8(s, s, p256_order, 0L - (sp_digit)(c >= 0));
-            sp_256_norm_8(s);
-
-            /* s = s * k^-1 mod order */
-                sp_256_mont_mul_order_8(s, s, kInv);
-            sp_256_norm_8(s);
-
-            /* Check that signature is usable. */
-            if (sp_256_iszero_8(s) == 0) {
-                break;
-            }
+        /* Check that signature is usable. */
+        if ((err == MP_OKAY) && (sp_256_iszero_8(s) == 0)) {
+            break;
         }
     }
 
@@ -21542,6 +23310,68 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 #endif /* HAVE_ECC_SIGN */
 
 #ifdef HAVE_ECC_VERIFY
+
+/* Add point p1 into point p2. Handles p1 == p2 and result at infinity.
+ *
+ * p1   First point to add and holds result.
+ * p2   Second point to add.
+ * tmp  Temporary storage for intermediate numbers.
+ */
+static void sp_256_add_points_8(sp_point_256* p1, const sp_point_256* p2,
+    sp_digit* tmp)
+{
+
+        sp_256_proj_point_add_8(p1, p1, p2, tmp);
+    if (sp_256_iszero_8(p1->z)) {
+        if (sp_256_iszero_8(p1->x) && sp_256_iszero_8(p1->y)) {
+                sp_256_proj_point_dbl_8(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
+        }
+    }
+}
+
+/* Calculate the verification point: [e/s]G + [r/s]Q
+ *
+ * p1    Calculated point.
+ * p2    Public point and temporary.
+ * s     Second part of signature as a number.
+ * u1    Temporary number.
+ * u2    Temproray number.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_vfy_point_8(sp_point_256* p1, sp_point_256* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+
+    sp_256_norm_8(s);
+        sp_256_mont_inv_order_8(s, s, tmp);
+        sp_256_mont_mul_order_8(u1, u1, s);
+        sp_256_mont_mul_order_8(u2, u2, s);
+        err = sp_256_ecc_mulmod_base_8(p1, u1, 0, 0, heap);
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, 0, heap);
+    }
+
+    if (err == MP_OKAY) {
+        sp_256_add_points_8(p1, p2, tmp);
+    }
+
+    return err;
+}
+
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 256)
  *   u1 = e/s mod order
@@ -21559,8 +23389,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
  * rm       First part of result as an mp_int.
  * sm       Sirst part of result as an mp_int.
  * heap     Heap to use for allocation.
- * returns RNG failures, MEMORY_E when memory allocation fails and
- * MP_OKAY on success.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_verify_256_ctx {
@@ -21728,8 +23557,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
-    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
+int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
+    int* res, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -21748,7 +23578,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     sp_point_256* p1;
     sp_point_256* p2 = NULL;
     sp_digit carry;
-    int32_t c;
+    int32_t c = 0;
     int err;
 
     err = sp_256_point_new_8(heap, p1d, p1);
@@ -21789,47 +23619,14 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 8, pY);
         sp_256_from_mp(p2->z, 8, pZ);
 
-        {
             sp_256_mul_8(s, s, p256_norm_order);
-        }
         err = sp_256_mod_8(s, s, p256_order);
     }
     if (err == MP_OKAY) {
-        sp_256_norm_8(s);
-        {
-            sp_256_mont_inv_order_8(s, s, tmp);
-            sp_256_mont_mul_order_8(u1, u1, s);
-            sp_256_mont_mul_order_8(u2, u2, s);
-        }
-
-            err = sp_256_ecc_mulmod_base_8(p1, u1, 0, 0, heap);
+        err = sp_256_calc_vfy_point_8(p1, p2, s, u1, u2, tmp,
+            heap);
     }
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, 0, heap);
-    }
-
-    if (err == MP_OKAY) {
-        {
-            sp_256_proj_point_add_8(p1, p1, p2, tmp);
-            if (sp_256_iszero_8(p1->z)) {
-                if (sp_256_iszero_8(p1->x) && sp_256_iszero_8(p1->y)) {
-                    sp_256_proj_point_dbl_8(p1, p2, tmp);
-                }
-                else {
-                    /* Y ordinate is not used from here - don't set. */
-                    p1->x[0] = 0;
-                    p1->x[1] = 0;
-                    p1->x[2] = 0;
-                    p1->x[3] = 0;
-                    p1->x[4] = 0;
-                    p1->x[5] = 0;
-                    p1->x[6] = 0;
-                    p1->x[7] = 0;
-                    XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
-                }
-            }
-        }
-
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
         sp_256_from_mp(u2, 8, r);
@@ -21840,7 +23637,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         /* u1 = r.z'.z' mod prime */
         sp_256_mont_sqr_8(p1->z, p1->z, p256_mod, p256_mp_mod);
         sp_256_mont_mul_8(u1, u2, p1->z, p256_mod, p256_mp_mod);
-        *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
+        *res = (sp_256_cmp_8(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
             sp_256_from_mp(u2, 8, r);
@@ -21851,16 +23648,16 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_256_cmp_8(u2, p256_mod);
-                if (c < 0) {
-                    /* Convert to Montogomery form */
-                    err = sp_256_mod_mul_norm_8(u2, u2, p256_mod);
-                    if (err == MP_OKAY) {
-                        /* u1 = (r + 1*order).z'.z' mod prime */
-                        sp_256_mont_mul_8(u1, u2, p1->z, p256_mod,
-                                                                  p256_mp_mod);
-                        *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
-                    }
-                }
+            }
+         }
+         if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_8(u2, u2, p256_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_256_mont_mul_8(u1, u2, p1->z, p256_mod,
+                    p256_mp_mod);
+                *res = (sp_256_cmp_8(p1->x, u1) == 0);
             }
         }
     }
@@ -21884,7 +23681,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
  * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
  * not on the curve and MP_OKAY otherwise.
  */
-static int sp_256_ecc_is_point_8(sp_point_256* point, void* heap)
+static int sp_256_ecc_is_point_8(const sp_point_256* point, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -21947,7 +23744,7 @@ static int sp_256_ecc_is_point_8(sp_point_256* point, void* heap)
  * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
  * not on the curve and MP_OKAY otherwise.
  */
-int sp_ecc_is_point_256(mp_int* pX, mp_int* pY)
+int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 pubd;
@@ -21981,7 +23778,8 @@ int sp_ecc_is_point_256(mp_int* pX, mp_int* pY)
  * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
  * MP_OKAY otherwise.
  */
-int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
+int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit privd[8];
@@ -22025,12 +23823,11 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Check range of X and Y */
-        if (sp_256_cmp_8(pub->x, p256_mod) >= 0 ||
-            sp_256_cmp_8(pub->y, p256_mod) >= 0) {
-            err = ECC_OUT_OF_RANGE_E;
-        }
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_256_cmp_8(pub->x, p256_mod) >= 0) ||
+             (sp_256_cmp_8(pub->y, p256_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
     }
 
     if (err == MP_OKAY) {
@@ -22042,24 +23839,20 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         /* Point * order = infinity */
             err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, 1, heap);
     }
-    if (err == MP_OKAY) {
-        /* Check result is infinity */
-        if ((sp_256_iszero_8(p->x) == 0) ||
-            (sp_256_iszero_8(p->y) == 0)) {
-            err = ECC_INF_E;
-        }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_256_iszero_8(p->x) == 0) ||
+                             (sp_256_iszero_8(p->y) == 0))) {
+        err = ECC_INF_E;
     }
 
     if (err == MP_OKAY) {
         /* Base * private = point */
             err = sp_256_ecc_mulmod_base_8(p, priv, 1, 1, heap);
     }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_256_cmp_8(p->x, pub->x) != 0 ||
-            sp_256_cmp_8(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
-        }
+    /* Check result is public key */
+    if ((err == MP_OKAY) && ((sp_256_cmp_8(p->x, pub->x) != 0) ||
+                             (sp_256_cmp_8(p->y, pub->y) != 0))) {
+        err = ECC_PRIV_KEY_E;
     }
 
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -22248,7 +24041,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_256_from_mp(p->y, 8, pY);
         sp_256_from_mp(p->z, 8, pZ);
 
-        sp_256_map_8(p, p, tmp);
+            sp_256_map_8(p, p, tmp);
     }
 
     if (err == MP_OKAY) {
@@ -22428,9 +24221,13 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 
 /* Point structure to use. */
 typedef struct sp_point_384 {
+    /* X ordinate of point. */
     sp_digit x[2 * 12];
+    /* Y ordinate of point. */
     sp_digit y[2 * 12];
+    /* Z ordinate of point. */
     sp_digit z[2 * 12];
+    /* Indicates point is at infinity. */
     int infinity;
 } sp_point_384;
 
@@ -22499,336 +24296,6 @@ static const sp_digit p384_b[12] = {
     0xfe814112,0x181d9c6e,0xe3f82d19,0x988e056b,0xe23ee7e4,0xb3312fa7
 };
 #endif
-
-static int sp_384_point_new_ex_12(void* heap, sp_point_384* sp, sp_point_384** p)
-{
-    int ret = MP_OKAY;
-    (void)heap;
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    (void)sp;
-    *p = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);
-#else
-    *p = sp;
-#endif
-    if (*p == NULL) {
-        ret = MEMORY_E;
-    }
-    return ret;
-}
-
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* Allocate memory for point and return error. */
-#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), NULL, &(p))
-#else
-/* Set pointer to data and return no error. */
-#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), &(sp), &(p))
-#endif
-
-
-static void sp_384_point_free_12(sp_point_384* p, int clear, void* heap)
-{
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* If valid pointer then clear point data if requested and free data. */
-    if (p != NULL) {
-        if (clear != 0) {
-            XMEMSET(p, 0, sizeof(*p));
-        }
-        XFREE(p, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-/* Clear point data if requested. */
-    if (clear != 0) {
-        XMEMSET(p, 0, sizeof(*p));
-    }
-#endif
-    (void)heap;
-}
-
-/* Multiply a number by Montogmery normalizer mod modulus (prime).
- *
- * r  The resulting Montgomery form number.
- * a  The number to convert.
- * m  The modulus (prime).
- * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
- */
-static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    int64_t* t;
-#else
-    int64_t t[12];
-#endif
-    int64_t o;
-    int err = MP_OKAY;
-
-    (void)m;
-
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (int64_t*)XMALLOC(sizeof(int64_t) * 12, NULL, DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
-        err = MEMORY_E;
-    }
-#endif
-
-    if (err == MP_OKAY) {
-        /*  1  0  0  0  0  0  0  0  1  1  0 -1 */
-        t[0] = 0 + (uint64_t)a[0] + (uint64_t)a[8] + (uint64_t)a[9] - (uint64_t)a[11];
-        /* -1  1  0  0  0  0  0  0 -1  0  1  1 */
-        t[1] = 0 - (uint64_t)a[0] + (uint64_t)a[1] - (uint64_t)a[8] + (uint64_t)a[10] + (uint64_t)a[11];
-        /*  0 -1  1  0  0  0  0  0  0 -1  0  1 */
-        t[2] = 0 - (uint64_t)a[1] + (uint64_t)a[2] - (uint64_t)a[9] + (uint64_t)a[11];
-        /*  1  0 -1  1  0  0  0  0  1  1 -1 -1 */
-        t[3] = 0 + (uint64_t)a[0] - (uint64_t)a[2] + (uint64_t)a[3] + (uint64_t)a[8] + (uint64_t)a[9] - (uint64_t)a[10] - (uint64_t)a[11];
-        /*  1  1  0 -1  1  0  0  0  1  2  1 -2 */
-        t[4] = 0 + (uint64_t)a[0] + (uint64_t)a[1] - (uint64_t)a[3] + (uint64_t)a[4] + (uint64_t)a[8] + 2 * (uint64_t)a[9] + (uint64_t)a[10] -  2 * (uint64_t)a[11];
-        /*  0  1  1  0 -1  1  0  0  0  1  2  1 */
-        t[5] = 0 + (uint64_t)a[1] + (uint64_t)a[2] - (uint64_t)a[4] + (uint64_t)a[5] + (uint64_t)a[9] + 2 * (uint64_t)a[10] + (uint64_t)a[11];
-        /*  0  0  1  1  0 -1  1  0  0  0  1  2 */
-        t[6] = 0 + (uint64_t)a[2] + (uint64_t)a[3] - (uint64_t)a[5] + (uint64_t)a[6] + (uint64_t)a[10] + 2 * (uint64_t)a[11];
-        /*  0  0  0  1  1  0 -1  1  0  0  0  1 */
-        t[7] = 0 + (uint64_t)a[3] + (uint64_t)a[4] - (uint64_t)a[6] + (uint64_t)a[7] + (uint64_t)a[11];
-        /*  0  0  0  0  1  1  0 -1  1  0  0  0 */
-        t[8] = 0 + (uint64_t)a[4] + (uint64_t)a[5] - (uint64_t)a[7] + (uint64_t)a[8];
-        /*  0  0  0  0  0  1  1  0 -1  1  0  0 */
-        t[9] = 0 + (uint64_t)a[5] + (uint64_t)a[6] - (uint64_t)a[8] + (uint64_t)a[9];
-        /*  0  0  0  0  0  0  1  1  0 -1  1  0 */
-        t[10] = 0 + (uint64_t)a[6] + (uint64_t)a[7] - (uint64_t)a[9] + (uint64_t)a[10];
-        /*  0  0  0  0  0  0  0  1  1  0 -1  1 */
-        t[11] = 0 + (uint64_t)a[7] + (uint64_t)a[8] - (uint64_t)a[10] + (uint64_t)a[11];
-
-        t[1] += t[0] >> 32; t[0] &= 0xffffffff;
-        t[2] += t[1] >> 32; t[1] &= 0xffffffff;
-        t[3] += t[2] >> 32; t[2] &= 0xffffffff;
-        t[4] += t[3] >> 32; t[3] &= 0xffffffff;
-        t[5] += t[4] >> 32; t[4] &= 0xffffffff;
-        t[6] += t[5] >> 32; t[5] &= 0xffffffff;
-        t[7] += t[6] >> 32; t[6] &= 0xffffffff;
-        t[8] += t[7] >> 32; t[7] &= 0xffffffff;
-        t[9] += t[8] >> 32; t[8] &= 0xffffffff;
-        t[10] += t[9] >> 32; t[9] &= 0xffffffff;
-        t[11] += t[10] >> 32; t[10] &= 0xffffffff;
-        o     = t[11] >> 32; t[11] &= 0xffffffff;
-        t[0] += o;
-        t[1] -= o;
-        t[3] += o;
-        t[4] += o;
-        t[1] += t[0] >> 32; t[0] &= 0xffffffff;
-        t[2] += t[1] >> 32; t[1] &= 0xffffffff;
-        t[3] += t[2] >> 32; t[2] &= 0xffffffff;
-        t[4] += t[3] >> 32; t[3] &= 0xffffffff;
-        t[5] += t[4] >> 32; t[4] &= 0xffffffff;
-        t[6] += t[5] >> 32; t[5] &= 0xffffffff;
-        t[7] += t[6] >> 32; t[6] &= 0xffffffff;
-        t[8] += t[7] >> 32; t[7] &= 0xffffffff;
-        t[9] += t[8] >> 32; t[8] &= 0xffffffff;
-        t[10] += t[9] >> 32; t[9] &= 0xffffffff;
-        t[11] += t[10] >> 32; t[10] &= 0xffffffff;
-
-        r[0] = t[0];
-        r[1] = t[1];
-        r[2] = t[2];
-        r[3] = t[3];
-        r[4] = t[4];
-        r[5] = t[5];
-        r[6] = t[6];
-        r[7] = t[7];
-        r[8] = t[8];
-        r[9] = t[9];
-        r[10] = t[10];
-        r[11] = t[11];
-    }
-
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL)
-        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    return err;
-}
-
-/* Convert an mp_int to an array of sp_digit.
- *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  A multi-precision integer.
- */
-static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
-{
-#if DIGIT_BIT == 32
-    int j;
-
-    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
-    }
-#elif DIGIT_BIT > 32
-    int i, j = 0;
-    word32 s = 0;
-
-    r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
-        r[j] |= ((sp_digit)a->dp[i] << s);
-        r[j] &= 0xffffffff;
-        s = 32U - s;
-        if (j + 1 >= size) {
-            break;
-        }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
-        while ((s + 32U) <= (word32)DIGIT_BIT) {
-            s += 32U;
-            r[j] &= 0xffffffff;
-            if (j + 1 >= size) {
-                break;
-            }
-            if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
-            }
-            else {
-                r[++j] = 0L;
-            }
-        }
-        s = (word32)DIGIT_BIT - s;
-    }
-
-    for (j++; j < size; j++) {
-        r[j] = 0;
-    }
-#else
-    int i, j = 0, s = 0;
-
-    r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
-        r[j] |= ((sp_digit)a->dp[i]) << s;
-        if (s + DIGIT_BIT >= 32) {
-            r[j] &= 0xffffffff;
-            if (j + 1 >= size) {
-                break;
-            }
-            s = 32 - s;
-            if (s == DIGIT_BIT) {
-                r[++j] = 0;
-                s = 0;
-            }
-            else {
-                r[++j] = a->dp[i] >> s;
-                s = DIGIT_BIT - s;
-            }
-        }
-        else {
-            s += DIGIT_BIT;
-        }
-    }
-
-    for (j++; j < size; j++) {
-        r[j] = 0;
-    }
-#endif
-}
-
-/* Convert a point of type ecc_point to type sp_point_384.
- *
- * p   Point of type sp_point_384 (result).
- * pm  Point of type ecc_point.
- */
-static void sp_384_point_from_ecc_point_12(sp_point_384* p, const ecc_point* pm)
-{
-    XMEMSET(p->x, 0, sizeof(p->x));
-    XMEMSET(p->y, 0, sizeof(p->y));
-    XMEMSET(p->z, 0, sizeof(p->z));
-    sp_384_from_mp(p->x, 12, pm->x);
-    sp_384_from_mp(p->y, 12, pm->y);
-    sp_384_from_mp(p->z, 12, pm->z);
-    p->infinity = 0;
-}
-
-/* Convert an array of sp_digit to an mp_int.
- *
- * a  A single precision integer.
- * r  A multi-precision integer.
- */
-static int sp_384_to_mp(const sp_digit* a, mp_int* r)
-{
-    int err;
-
-    err = mp_grow(r, (384 + DIGIT_BIT - 1) / DIGIT_BIT);
-    if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
-#if DIGIT_BIT == 32
-        XMEMCPY(r->dp, a, sizeof(sp_digit) * 12);
-        r->used = 12;
-        mp_clamp(r);
-#elif DIGIT_BIT < 32
-        int i, j = 0, s = 0;
-
-        r->dp[0] = 0;
-        for (i = 0; i < 12; i++) {
-            r->dp[j] |= (mp_digit)(a[i] << s);
-            r->dp[j] &= (1L << DIGIT_BIT) - 1;
-            s = DIGIT_BIT - s;
-            r->dp[++j] = (mp_digit)(a[i] >> s);
-            while (s + DIGIT_BIT <= 32) {
-                s += DIGIT_BIT;
-                r->dp[j++] &= (1L << DIGIT_BIT) - 1;
-                if (s == SP_WORD_SIZE) {
-                    r->dp[j] = 0;
-                }
-                else {
-                    r->dp[j] = (mp_digit)(a[i] >> s);
-                }
-            }
-            s = 32 - s;
-        }
-        r->used = (384 + DIGIT_BIT - 1) / DIGIT_BIT;
-        mp_clamp(r);
-#else
-        int i, j = 0, s = 0;
-
-        r->dp[0] = 0;
-        for (i = 0; i < 12; i++) {
-            r->dp[j] |= ((mp_digit)a[i]) << s;
-            if (s + 32 >= DIGIT_BIT) {
-    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
-                r->dp[j] &= (1L << DIGIT_BIT) - 1;
-    #endif
-                s = DIGIT_BIT - s;
-                r->dp[++j] = a[i] >> s;
-                s = 32 - s;
-            }
-            else {
-                s += 32;
-            }
-        }
-        r->used = (384 + DIGIT_BIT - 1) / DIGIT_BIT;
-        mp_clamp(r);
-#endif
-    }
-
-    return err;
-}
-
-/* Convert a point of type sp_point_384 to type ecc_point.
- *
- * p   Point of type sp_point_384.
- * pm  Point of type ecc_point (result).
- * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
- * MP_OKAY.
- */
-static int sp_384_point_to_ecc_point_12(const sp_point_384* p, ecc_point* pm)
-{
-    int err;
-
-    err = sp_384_to_mp(p->x, pm->x);
-    if (err == MP_OKAY) {
-        err = sp_384_to_mp(p->y, pm->y);
-    }
-    if (err == MP_OKAY) {
-        err = sp_384_to_mp(p->z, pm->z);
-    }
-
-    return err;
-}
 
 /* Multiply a and b into r. (r = a * b)
  *
@@ -22928,6 +24395,723 @@ SP_NOINLINE static void sp_384_mul_12(sp_digit* r, const sp_digit* a,
     );
 
     XMEMCPY(r, tmp, sizeof(tmp));
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r6, #96\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, r6\n\t"
+        "mov	r10, sp\n\t"
+        "mov	r9, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #44\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	r2, r8\n\t"
+        "sub	r2, %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	r2, r9\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+        "beq	4f\n\t"
+        "# Multiply * 2: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply * 2: Done\n\t"
+        "bal	5f\n\t"
+        "\n4:\n\t"
+        "# Square: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r6\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "mul	r7, r7\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #15\n\t"
+        "lsl	r6, r6, #17\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Square: Done\n\t"
+        "\n5:\n\t"
+        "add	%[a], #4\n\t"
+        "sub	r2, #4\n\t"
+        "mov	r6, #48\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "beq	3f\n\t"
+        "cmp	%[a], r2\n\t"
+        "bgt	3f\n\t"
+        "mov	r7, r8\n\t"
+        "add	r7, r9\n\t"
+        "cmp	%[a], r7\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r10\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #88\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "mov	%[a], r9\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	r3, #92\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "sub	r3, #4\n\t"
+        "bge	4b\n\t"
+        "mov	r6, #96\n\t"
+        "add	sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+    );
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r7, #0\n\t"
+        "add	r6, #48\n\t"
+        "sub	r7, #1\n\t"
+        "\n1:\n\t"
+        "add	%[c], r7\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#else
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "add	r4, r5\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #4]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #12]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #20]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #28]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[b], #32]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "ldr	r4, [%[a], #36]\n\t"
+        "ldr	r5, [%[b], #36]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[b], #40]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "ldr	r5, [%[b], #44]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #44]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "add	r6, #48\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Create a new point.
+ *
+ * heap  [in]   Buffer to allocate dynamic memory from.
+ * sp    [in]   Data for point - only if not allocating.
+ * p     [out]  New point.
+ * returns MEMORY_E when dynamic memory allocation fails and 0 otherwise.
+ */
+static int sp_384_point_new_ex_12(void* heap, sp_point_384* sp,
+        sp_point_384** p)
+{
+    int ret = MP_OKAY;
+    (void)heap;
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    (void)sp;
+    *p = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);
+#else
+    *p = sp;
+#endif
+    if (*p == NULL) {
+        ret = MEMORY_E;
+    }
+    return ret;
+}
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+/* Allocate memory for point and return error. */
+#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), NULL, &(p))
+#else
+/* Set pointer to data and return no error. */
+#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), &(sp), &(p))
+#endif
+
+
+/* Free the point.
+ *
+ * p      [in,out]  Point to free.
+ * clear  [in]      Indicates whether to zeroize point.
+ * heap   [in]      Buffer from which dynamic memory was allocate from.
+ */
+static void sp_384_point_free_12(sp_point_384* p, int clear, void* heap)
+{
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+/* If valid pointer then clear point data if requested and free data. */
+    if (p != NULL) {
+        if (clear != 0) {
+            XMEMSET(p, 0, sizeof(*p));
+        }
+        XFREE(p, heap, DYNAMIC_TYPE_ECC);
+    }
+#else
+/* Clear point data if requested. */
+    if (clear != 0) {
+        XMEMSET(p, 0, sizeof(*p));
+    }
+#endif
+    (void)heap;
+}
+
+/* Multiply a number by Montogmery normalizer mod modulus (prime).
+ *
+ * r  The resulting Montgomery form number.
+ * a  The number to convert.
+ * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    int64_t* t;
+#else
+    int64_t t[12];
+#endif
+    int64_t o;
+    int err = MP_OKAY;
+
+    (void)m;
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (int64_t*)XMALLOC(sizeof(int64_t) * 12, NULL, DYNAMIC_TYPE_ECC);
+    if (t == NULL) {
+        err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        /*  1  0  0  0  0  0  0  0  1  1  0 -1 */
+        t[0] = 0 + (int64_t)a[0] + (int64_t)a[8] + (int64_t)a[9] - (int64_t)a[11];
+        /* -1  1  0  0  0  0  0  0 -1  0  1  1 */
+        t[1] = 0 - (int64_t)a[0] + (int64_t)a[1] - (int64_t)a[8] + (int64_t)a[10] + (int64_t)a[11];
+        /*  0 -1  1  0  0  0  0  0  0 -1  0  1 */
+        t[2] = 0 - (int64_t)a[1] + (int64_t)a[2] - (int64_t)a[9] + (int64_t)a[11];
+        /*  1  0 -1  1  0  0  0  0  1  1 -1 -1 */
+        t[3] = 0 + (int64_t)a[0] - (int64_t)a[2] + (int64_t)a[3] + (int64_t)a[8] + (int64_t)a[9] - (int64_t)a[10] - (int64_t)a[11];
+        /*  1  1  0 -1  1  0  0  0  1  2  1 -2 */
+        t[4] = 0 + (int64_t)a[0] + (int64_t)a[1] - (int64_t)a[3] + (int64_t)a[4] + (int64_t)a[8] + 2 * (int64_t)a[9] + (int64_t)a[10] -  2 * (int64_t)a[11];
+        /*  0  1  1  0 -1  1  0  0  0  1  2  1 */
+        t[5] = 0 + (int64_t)a[1] + (int64_t)a[2] - (int64_t)a[4] + (int64_t)a[5] + (int64_t)a[9] + 2 * (int64_t)a[10] + (int64_t)a[11];
+        /*  0  0  1  1  0 -1  1  0  0  0  1  2 */
+        t[6] = 0 + (int64_t)a[2] + (int64_t)a[3] - (int64_t)a[5] + (int64_t)a[6] + (int64_t)a[10] + 2 * (int64_t)a[11];
+        /*  0  0  0  1  1  0 -1  1  0  0  0  1 */
+        t[7] = 0 + (int64_t)a[3] + (int64_t)a[4] - (int64_t)a[6] + (int64_t)a[7] + (int64_t)a[11];
+        /*  0  0  0  0  1  1  0 -1  1  0  0  0 */
+        t[8] = 0 + (int64_t)a[4] + (int64_t)a[5] - (int64_t)a[7] + (int64_t)a[8];
+        /*  0  0  0  0  0  1  1  0 -1  1  0  0 */
+        t[9] = 0 + (int64_t)a[5] + (int64_t)a[6] - (int64_t)a[8] + (int64_t)a[9];
+        /*  0  0  0  0  0  0  1  1  0 -1  1  0 */
+        t[10] = 0 + (int64_t)a[6] + (int64_t)a[7] - (int64_t)a[9] + (int64_t)a[10];
+        /*  0  0  0  0  0  0  0  1  1  0 -1  1 */
+        t[11] = 0 + (int64_t)a[7] + (int64_t)a[8] - (int64_t)a[10] + (int64_t)a[11];
+
+        t[1] += t[0] >> 32; t[0] &= 0xffffffff;
+        t[2] += t[1] >> 32; t[1] &= 0xffffffff;
+        t[3] += t[2] >> 32; t[2] &= 0xffffffff;
+        t[4] += t[3] >> 32; t[3] &= 0xffffffff;
+        t[5] += t[4] >> 32; t[4] &= 0xffffffff;
+        t[6] += t[5] >> 32; t[5] &= 0xffffffff;
+        t[7] += t[6] >> 32; t[6] &= 0xffffffff;
+        t[8] += t[7] >> 32; t[7] &= 0xffffffff;
+        t[9] += t[8] >> 32; t[8] &= 0xffffffff;
+        t[10] += t[9] >> 32; t[9] &= 0xffffffff;
+        t[11] += t[10] >> 32; t[10] &= 0xffffffff;
+        o     = t[11] >> 32; t[11] &= 0xffffffff;
+        t[0] += o;
+        t[1] -= o;
+        t[3] += o;
+        t[4] += o;
+        t[1] += t[0] >> 32; t[0] &= 0xffffffff;
+        t[2] += t[1] >> 32; t[1] &= 0xffffffff;
+        t[3] += t[2] >> 32; t[2] &= 0xffffffff;
+        t[4] += t[3] >> 32; t[3] &= 0xffffffff;
+        t[5] += t[4] >> 32; t[4] &= 0xffffffff;
+        t[6] += t[5] >> 32; t[5] &= 0xffffffff;
+        t[7] += t[6] >> 32; t[6] &= 0xffffffff;
+        t[8] += t[7] >> 32; t[7] &= 0xffffffff;
+        t[9] += t[8] >> 32; t[8] &= 0xffffffff;
+        t[10] += t[9] >> 32; t[9] &= 0xffffffff;
+        t[11] += t[10] >> 32; t[10] &= 0xffffffff;
+
+        r[0] = t[0];
+        r[1] = t[1];
+        r[2] = t[2];
+        r[3] = t[3];
+        r[4] = t[4];
+        r[5] = t[5];
+        r[6] = t[6];
+        r[7] = t[7];
+        r[8] = t[8];
+        r[9] = t[9];
+        r[10] = t[10];
+        r[11] = t[11];
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Convert an mp_int to an array of sp_digit.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  A multi-precision integer.
+ */
+static void sp_384_from_mp(sp_digit* r, int size, const mp_int* a)
+{
+#if DIGIT_BIT == 32
+    int j;
+
+    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
+
+    for (j = a->used; j < size; j++) {
+        r[j] = 0;
+    }
+#elif DIGIT_BIT > 32
+    int i;
+    int j = 0;
+    word32 s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i] << s);
+        r[j] &= 0xffffffff;
+        s = 32U - s;
+        if (j + 1 >= size) {
+            break;
+        }
+        /* lint allow cast of mismatch word32 and mp_digit */
+        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        while ((s + 32U) <= (word32)DIGIT_BIT) {
+            s += 32U;
+            r[j] &= 0xffffffff;
+            if (j + 1 >= size) {
+                break;
+            }
+            if (s < (word32)DIGIT_BIT) {
+                /* lint allow cast of mismatch word32 and mp_digit */
+                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+            }
+            else {
+                r[++j] = 0L;
+            }
+        }
+        s = (word32)DIGIT_BIT - s;
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#else
+    int i;
+    int j = 0;
+    int s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i]) << s;
+        if (s + DIGIT_BIT >= 32) {
+            r[j] &= 0xffffffff;
+            if (j + 1 >= size) {
+                break;
+            }
+            s = 32 - s;
+            if (s == DIGIT_BIT) {
+                r[++j] = 0;
+                s = 0;
+            }
+            else {
+                r[++j] = a->dp[i] >> s;
+                s = DIGIT_BIT - s;
+            }
+        }
+        else {
+            s += DIGIT_BIT;
+        }
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#endif
+}
+
+/* Convert a point of type ecc_point to type sp_point_384.
+ *
+ * p   Point of type sp_point_384 (result).
+ * pm  Point of type ecc_point.
+ */
+static void sp_384_point_from_ecc_point_12(sp_point_384* p,
+        const ecc_point* pm)
+{
+    XMEMSET(p->x, 0, sizeof(p->x));
+    XMEMSET(p->y, 0, sizeof(p->y));
+    XMEMSET(p->z, 0, sizeof(p->z));
+    sp_384_from_mp(p->x, 12, pm->x);
+    sp_384_from_mp(p->y, 12, pm->y);
+    sp_384_from_mp(p->z, 12, pm->z);
+    p->infinity = 0;
+}
+
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_384_to_mp(const sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (384 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
+#if DIGIT_BIT == 32
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 12);
+        r->used = 12;
+        mp_clamp(r);
+#elif DIGIT_BIT < 32
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 12; i++) {
+            r->dp[j] |= (mp_digit)(a[i] << s);
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
+            while (s + DIGIT_BIT <= 32) {
+                s += DIGIT_BIT;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+                if (s == SP_WORD_SIZE) {
+                    r->dp[j] = 0;
+                }
+                else {
+                    r->dp[j] = (mp_digit)(a[i] >> s);
+                }
+            }
+            s = 32 - s;
+        }
+        r->used = (384 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 12; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 32 >= DIGIT_BIT) {
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 32 - s;
+            }
+            else {
+                s += 32;
+            }
+        }
+        r->used = (384 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Convert a point of type sp_point_384 to type ecc_point.
+ *
+ * p   Point of type sp_point_384.
+ * pm  Point of type ecc_point (result).
+ * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
+ * MP_OKAY.
+ */
+static int sp_384_point_to_ecc_point_12(const sp_point_384* p, ecc_point* pm)
+{
+    int err;
+
+    err = sp_384_to_mp(p->x, pm->x);
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->y, pm->y);
+    }
+    if (err == MP_OKAY) {
+        err = sp_384_to_mp(p->z, pm->z);
+    }
+
+    return err;
 }
 
 /* Conditionally subtract b from a using the mask m.
@@ -23121,159 +25305,11 @@ SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_384_mont_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        const sp_digit* m, sp_digit mp)
+static void sp_384_mont_mul_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
 {
     sp_384_mul_12(r, a, b);
     sp_384_mont_reduce_12(r, m, mp);
-}
-
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
-{
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "mov	r5, #0\n\t"
-        "mov	r8, r3\n\t"
-        "mov	r11, %[r]\n\t"
-        "mov	r6, #96\n\t"
-        "neg	r6, r6\n\t"
-        "add	sp, r6\n\t"
-        "mov	r10, sp\n\t"
-        "mov	r9, %[a]\n\t"
-        "\n1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r6, #44\n\t"
-        "mov	%[a], r8\n\t"
-        "sub	%[a], r6\n\t"
-        "sbc	r6, r6\n\t"
-        "mvn	r6, r6\n\t"
-        "and	%[a], r6\n\t"
-        "mov	r2, r8\n\t"
-        "sub	r2, %[a]\n\t"
-        "add	%[a], r9\n\t"
-        "add	r2, r9\n\t"
-        "\n2:\n\t"
-        "cmp	r2, %[a]\n\t"
-        "beq	4f\n\t"
-        "# Multiply * 2: Start\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "# Multiply * 2: Done\n\t"
-        "bal	5f\n\t"
-        "\n4:\n\t"
-        "# Square: Start\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "mul	r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "mul	r7, r7\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #15\n\t"
-        "lsl	r6, r6, #17\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "# Square: Done\n\t"
-        "\n5:\n\t"
-        "add	%[a], #4\n\t"
-        "sub	r2, #4\n\t"
-        "mov	r6, #48\n\t"
-        "add	r6, r9\n\t"
-        "cmp	%[a], r6\n\t"
-        "beq	3f\n\t"
-        "cmp	%[a], r2\n\t"
-        "bgt	3f\n\t"
-        "mov	r7, r8\n\t"
-        "add	r7, r9\n\t"
-        "cmp	%[a], r7\n\t"
-        "ble	2b\n\t"
-        "\n3:\n\t"
-        "mov	%[r], r10\n\t"
-        "mov	r7, r8\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "mov	r5, #0\n\t"
-        "add	r7, #4\n\t"
-        "mov	r8, r7\n\t"
-        "mov	r6, #88\n\t"
-        "cmp	r7, r6\n\t"
-        "ble	1b\n\t"
-        "mov	%[a], r9\n\t"
-        "str	r3, [%[r], r7]\n\t"
-        "mov	%[r], r11\n\t"
-        "mov	%[a], r10\n\t"
-        "mov	r3, #92\n\t"
-        "\n4:\n\t"
-        "ldr	r6, [%[a], r3]\n\t"
-        "str	r6, [%[r], r3]\n\t"
-        "sub	r3, #4\n\t"
-        "bge	4b\n\t"
-        "mov	r6, #96\n\t"
-        "add	sp, r6\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
-    );
 }
 
 /* Square the Montgomery form number. (r = a * a mod m)
@@ -23283,8 +25319,8 @@ SP_NOINLINE static void sp_384_sqr_12(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_384_mont_sqr_12(sp_digit* r, const sp_digit* a, const sp_digit* m,
-        sp_digit mp)
+static void sp_384_mont_sqr_12(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
 {
     sp_384_sqr_12(r, a);
     sp_384_mont_reduce_12(r, m, mp);
@@ -23308,7 +25344,7 @@ static void sp_384_mont_sqr_n_12(sp_digit* r, const sp_digit* a, int n,
     }
 }
 
-#endif /* !WOLFSSL_SP_SMALL || HAVE_COMP_KEY */
+#endif /* !WOLFSSL_SP_SMALL | HAVE_COMP_KEY */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P384 curve. */
 static const uint32_t p384_mod_minus_2[12] = {
@@ -23457,7 +25493,8 @@ SP_NOINLINE static int32_t sp_384_cmp_12(const sp_digit* a, const sp_digit* b)
  * p  Montgomery form projective coordinate point.
  * t  Temporary ordinate data.
  */
-static void sp_384_map_12(sp_point_384* r, const sp_point_384* p, sp_digit* t)
+static void sp_384_map_12(sp_point_384* r, const sp_point_384* p,
+        sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*12;
@@ -23493,116 +25530,6 @@ static void sp_384_map_12(sp_point_384* r, const sp_point_384* p, sp_digit* t)
 
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r6, %[a]\n\t"
-        "mov	r7, #0\n\t"
-        "add	r6, #48\n\t"
-        "sub	r7, #1\n\t"
-        "\n1:\n\t"
-        "add	%[c], r7\n\t"
-        "ldr	r4, [%[a]]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r]]\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c]\n\t"
-        "add	%[a], #4\n\t"
-        "add	%[b], #4\n\t"
-        "add	%[r], #4\n\t"
-        "cmp	%[a], r6\n\t"
-        "bne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r7"
-    );
-
-    return c;
-}
-
-#else
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_384_add_12(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "ldr	r4, [%[a], #0]\n\t"
-        "ldr	r5, [%[b], #0]\n\t"
-        "add	r4, r5\n\t"
-        "str	r4, [%[r], #0]\n\t"
-        "ldr	r4, [%[a], #4]\n\t"
-        "ldr	r5, [%[b], #4]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #4]\n\t"
-        "ldr	r4, [%[a], #8]\n\t"
-        "ldr	r5, [%[b], #8]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #8]\n\t"
-        "ldr	r4, [%[a], #12]\n\t"
-        "ldr	r5, [%[b], #12]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #12]\n\t"
-        "ldr	r4, [%[a], #16]\n\t"
-        "ldr	r5, [%[b], #16]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #16]\n\t"
-        "ldr	r4, [%[a], #20]\n\t"
-        "ldr	r5, [%[b], #20]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #20]\n\t"
-        "ldr	r4, [%[a], #24]\n\t"
-        "ldr	r5, [%[b], #24]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #24]\n\t"
-        "ldr	r4, [%[a], #28]\n\t"
-        "ldr	r5, [%[b], #28]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #28]\n\t"
-        "ldr	r4, [%[a], #32]\n\t"
-        "ldr	r5, [%[b], #32]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #32]\n\t"
-        "ldr	r4, [%[a], #36]\n\t"
-        "ldr	r5, [%[b], #36]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #36]\n\t"
-        "ldr	r4, [%[a], #40]\n\t"
-        "ldr	r5, [%[b], #40]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #40]\n\t"
-        "ldr	r4, [%[a], #44]\n\t"
-        "ldr	r5, [%[b], #44]\n\t"
-        "adc	r4, r5\n\t"
-        "str	r4, [%[r], #44]\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c]\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
@@ -23649,113 +25576,6 @@ SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a, const
     sp_384_cond_sub_12(r, r, m, 0 - o);
 }
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r6, %[a]\n\t"
-        "add	r6, #48\n\t"
-        "\n1:\n\t"
-        "mov	r5, #0\n\t"
-        "sub	r5, %[c]\n\t"
-        "ldr	r4, [%[a]]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "sbc	r4, r5\n\t"
-        "str	r4, [%[r]]\n\t"
-        "sbc	%[c], %[c]\n\t"
-        "add	%[a], #4\n\t"
-        "add	%[b], #4\n\t"
-        "add	%[r], #4\n\t"
-        "cmp	%[a], r6\n\t"
-        "bne	1b\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6"
-    );
-
-    return c;
-}
-
-#else
-/* Sub b from a into r. (r = a - b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "ldr	r4, [%[a], #0]\n\t"
-        "ldr	r5, [%[a], #4]\n\t"
-        "ldr	r6, [%[b], #0]\n\t"
-        "ldr	r7, [%[b], #4]\n\t"
-        "sub	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #0]\n\t"
-        "str	r5, [%[r], #4]\n\t"
-        "ldr	r4, [%[a], #8]\n\t"
-        "ldr	r5, [%[a], #12]\n\t"
-        "ldr	r6, [%[b], #8]\n\t"
-        "ldr	r7, [%[b], #12]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #8]\n\t"
-        "str	r5, [%[r], #12]\n\t"
-        "ldr	r4, [%[a], #16]\n\t"
-        "ldr	r5, [%[a], #20]\n\t"
-        "ldr	r6, [%[b], #16]\n\t"
-        "ldr	r7, [%[b], #20]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #16]\n\t"
-        "str	r5, [%[r], #20]\n\t"
-        "ldr	r4, [%[a], #24]\n\t"
-        "ldr	r5, [%[a], #28]\n\t"
-        "ldr	r6, [%[b], #24]\n\t"
-        "ldr	r7, [%[b], #28]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #24]\n\t"
-        "str	r5, [%[r], #28]\n\t"
-        "ldr	r4, [%[a], #32]\n\t"
-        "ldr	r5, [%[a], #36]\n\t"
-        "ldr	r6, [%[b], #32]\n\t"
-        "ldr	r7, [%[b], #36]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #32]\n\t"
-        "str	r5, [%[r], #36]\n\t"
-        "ldr	r4, [%[a], #40]\n\t"
-        "ldr	r5, [%[a], #44]\n\t"
-        "ldr	r6, [%[b], #40]\n\t"
-        "ldr	r7, [%[b], #44]\n\t"
-        "sbc	r4, r6\n\t"
-        "sbc	r5, r7\n\t"
-        "str	r4, [%[r], #40]\n\t"
-        "str	r5, [%[r], #44]\n\t"
-        "sbc	%[c], %[c]\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r7"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -24034,7 +25854,8 @@ static int sp_384_proj_point_dbl_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, co
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-static void sp_384_proj_point_dbl_12(sp_point_384* r, const sp_point_384* p, sp_digit* t)
+static void sp_384_proj_point_dbl_12(sp_point_384* r,
+        const sp_point_384* p, sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*12;
@@ -24126,7 +25947,7 @@ typedef struct sp_384_proj_point_add_12_ctx {
     sp_digit* z;
 } sp_384_proj_point_add_12_ctx;
 
-static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, 
+static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     const sp_point_384* p, const sp_point_384* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -24312,8 +26133,8 @@ static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-static void sp_384_proj_point_add_12(sp_point_384* r, const sp_point_384* p, const sp_point_384* q,
-        sp_digit* t)
+static void sp_384_proj_point_add_12(sp_point_384* r,
+        const sp_point_384* p, const sp_point_384* q, sp_digit* t)
 {
     const sp_point_384* ap[2];
     sp_point_384* rp[2];
@@ -24492,9 +26313,11 @@ static void sp_384_get_point_16_12(sp_point_384* r, const sp_point_384* table,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Simple, smaller code size and memory size, of windowing.
- * Calculate uindow of 4 bits.
- * Only add points from table.
+ * Fast implementation that generates a pre-computation table.
+ * 4 bits of window (no sliding!).
+ * Uses add and double for calculating table.
+ * 384 doubles.
+ * 108 adds.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -24523,7 +26346,8 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     sp_digit* tmp;
     sp_digit n;
     int i;
-    int c, y;
+    int c;
+    int y;
     int err;
 
     /* Constant time used for cache attack resistance implementation. */
@@ -24596,7 +26420,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
         i = 10;
         n = k[i+1] << 0;
         c = 28;
-        y = n >> 28;
+        y = (int)(n >> 28);
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
             sp_384_get_point_16_12(rt, t, y);
@@ -24661,12 +26485,6 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     return err;
 }
 
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_384 {
-    sp_digit x[12];
-    sp_digit y[12];
-} sp_table_entry_384;
-
 #ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
  *
@@ -24675,7 +26493,8 @@ typedef struct sp_table_entry_384 {
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_384_proj_point_dbl_n_12(sp_point_384* p, int n, sp_digit* t)
+static void sp_384_proj_point_dbl_n_12(sp_point_384* p, int n,
+        sp_digit* t)
 {
     sp_digit* w = t;
     sp_digit* a = t + 2*12;
@@ -24719,11 +26538,13 @@ static void sp_384_proj_point_dbl_n_12(sp_point_384* p, int n, sp_digit* t)
         sp_384_mont_sqr_12(t1, t1, p384_mod, p384_mp_mod);
 #ifdef WOLFSSL_SP_SMALL
         if (n != 0)
-#endif
         {
+#endif
             /* W = W*Y^4 */
             sp_384_mont_mul_12(w, w, t1, p384_mod, p384_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
         }
+#endif
         /* y = 2*A*(B - X) - Y^4 */
         sp_384_mont_sub_12(y, b, x, p384_mod);
         sp_384_mont_mul_12(y, y, a, p384_mod, p384_mp_mod);
@@ -24756,6 +26577,36 @@ static void sp_384_proj_point_dbl_n_12(sp_point_384* p, int n, sp_digit* t)
     sp_384_div2_12(y, y, p384_mod);
 }
 
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_384_proj_to_affine_12(sp_point_384* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 12;
+    sp_digit* tmp = t + 4 * 12;
+
+    sp_384_mont_inv_12(t1, a->z, tmp);
+
+    sp_384_mont_sqr_12(t2, t1, p384_mod, p384_mp_mod);
+    sp_384_mont_mul_12(t1, t2, t1, p384_mod, p384_mp_mod);
+
+    sp_384_mont_mul_12(a->x, a->x, t2, p384_mod, p384_mp_mod);
+    sp_384_mont_mul_12(a->y, a->y, t1, p384_mod, p384_mp_mod);
+    XMEMCPY(a->z, p384_norm_mod, sizeof(p384_norm_mod));
+}
+
+#endif /* FP_ECC */
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_384 {
+    sp_digit x[12];
+    sp_digit y[12];
+} sp_table_entry_384;
+
+#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -24841,29 +26692,11 @@ static void sp_384_proj_point_add_qz1_12(sp_point_384* r, const sp_point_384* p,
 
 #ifdef WOLFSSL_SP_SMALL
 #ifdef FP_ECC
-/* Convert the projective point to affine.
- * Ordinates are in Montgomery form.
- *
- * a  Point to convert.
- * t  Temporary data.
- */
-static void sp_384_proj_to_affine_12(sp_point_384* a, sp_digit* t)
-{
-    sp_digit* t1 = t;
-    sp_digit* t2 = t + 2 * 12;
-    sp_digit* tmp = t + 4 * 12;
-
-    sp_384_mont_inv_12(t1, a->z, tmp);
-
-    sp_384_mont_sqr_12(t2, t1, p384_mod, p384_mp_mod);
-    sp_384_mont_mul_12(t1, t2, t1, p384_mod, p384_mp_mod);
-
-    sp_384_mont_mul_12(a->x, a->x, t2, p384_mod, p384_mp_mod);
-    sp_384_mont_mul_12(a->y, a->y, t1, p384_mod, p384_mp_mod);
-    XMEMCPY(a->z, p384_norm_mod, sizeof(p384_norm_mod));
-}
-
 /* Generate the pre-computed table of points for the base point.
+ *
+ * width = 4
+ * 16 entries
+ * 96 bits between
  *
  * a      The base point.
  * table  Place to store generated point data.
@@ -24874,12 +26707,15 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         sp_table_entry_384* table, sp_digit* tmp, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 td, s1d, s2d;
+    sp_point_384 td;
+    sp_point_384 s1d;
+    sp_point_384 s2d;
 #endif
     sp_point_384* t;
     sp_point_384* s1 = NULL;
     sp_point_384* s2 = NULL;
-    int i, j;
+    int i;
+    int j;
     int err;
 
     (void)heap;
@@ -25014,8 +26850,10 @@ static void sp_384_get_entry_16_12(sp_point_384* r,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Implementation uses striping of bits.
- * Choose bits 4 bits apart.
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^96, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
  *
  * r      Resulting point.
  * k      Scalar to multiply by.
@@ -25037,8 +26875,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     sp_point_384* rt;
     sp_point_384* p = NULL;
     sp_digit* t;
-    int i, j;
-    int y, x;
+    int i;
+    int j;
+    int y;
+    int x;
     int err;
 
     (void)g;
@@ -25066,8 +26906,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         XMEMCPY(rt->z, p384_norm_mod, sizeof(p384_norm_mod));
 
         y = 0;
-        for (j=0,x=95; j<4; j++,x+=96) {
+        x = 95;
+        for (j=0; j<4; j++) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 96;
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25081,8 +26923,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         rt->infinity = !y;
         for (i=94; i>=0; i--) {
             y = 0;
-            for (j=0,x=i; j<4; j++,x+=96) {
+            x = i;
+            for (j = 0; j < 4; j++) {
                 y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 96;
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
@@ -25124,16 +26968,25 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     #define FP_ENTRIES 16
 #endif
 
+/* Cache entry - holds precomputation tables for a point. */
 typedef struct sp_cache_384_t {
+    /* X ordinate of point that table was generated from. */
     sp_digit x[12];
+    /* Y ordinate of point that table was generated from. */
     sp_digit y[12];
+    /* Precomputation table for point. */
     sp_table_entry_384 table[16];
+    /* Count of entries in table. */
     uint32_t cnt;
+    /* Point and table set in entry. */
     int set;
 } sp_cache_384_t;
 
+/* Cache of tables. */
 static THREAD_LS_T sp_cache_384_t sp_cache_384[FP_ENTRIES];
+/* Index of last entry in cache. */
 static THREAD_LS_T int sp_cache_384_last = -1;
+/* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_384_inited = 0;
 
 #ifndef HAVE_THREAD_LS
@@ -25141,9 +26994,16 @@ static THREAD_LS_T int sp_cache_384_inited = 0;
     static wolfSSL_Mutex sp_cache_384_lock;
 #endif
 
-static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_384(const sp_point_384* g,
+        sp_cache_384_t** cache)
 {
-    int i, j;
+    int i;
+    int j;
     uint32_t least;
 
     if (sp_cache_384_inited == 0) {
@@ -25253,6 +27113,10 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #ifdef FP_ECC
 /* Generate the pre-computed table of points for the base point.
  *
+ * width = 8
+ * 256 entries
+ * 48 bits between
+ *
  * a      The base point.
  * table  Place to store generated point data.
  * tmp    Temporary data.
@@ -25262,12 +27126,15 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         sp_table_entry_384* table, sp_digit* tmp, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 td, s1d, s2d;
+    sp_point_384 td;
+    sp_point_384 s1d;
+    sp_point_384 s2d;
 #endif
     sp_point_384* t;
     sp_point_384* s1 = NULL;
     sp_point_384* s2 = NULL;
-    int i, j;
+    int i;
+    int j;
     int err;
 
     (void)heap;
@@ -25402,8 +27269,10 @@ static void sp_384_get_entry_256_12(sp_point_384* r,
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * Implementation uses striping of bits.
- * Choose bits 8 bits apart.
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^48, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
  *
  * r      Resulting point.
  * k      Scalar to multiply by.
@@ -25425,8 +27294,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     sp_point_384* rt;
     sp_point_384* p = NULL;
     sp_digit* t;
-    int i, j;
-    int y, x;
+    int i;
+    int j;
+    int y;
+    int x;
     int err;
 
     (void)g;
@@ -25454,8 +27325,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         XMEMCPY(rt->z, p384_norm_mod, sizeof(p384_norm_mod));
 
         y = 0;
-        for (j=0,x=47; j<8; j++,x+=48) {
+        x = 47;
+        for (j=0; j<8; j++) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 48;
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25469,8 +27342,10 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         rt->infinity = !y;
         for (i=46; i>=0; i--) {
             y = 0;
-            for (j=0,x=i; j<8; j++,x+=48) {
+            x = i;
+            for (j = 0; j < 8; j++) {
                 y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 48;
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
@@ -25512,16 +27387,25 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     #define FP_ENTRIES 16
 #endif
 
+/* Cache entry - holds precomputation tables for a point. */
 typedef struct sp_cache_384_t {
+    /* X ordinate of point that table was generated from. */
     sp_digit x[12];
+    /* Y ordinate of point that table was generated from. */
     sp_digit y[12];
+    /* Precomputation table for point. */
     sp_table_entry_384 table[256];
+    /* Count of entries in table. */
     uint32_t cnt;
+    /* Point and table set in entry. */
     int set;
 } sp_cache_384_t;
 
+/* Cache of tables. */
 static THREAD_LS_T sp_cache_384_t sp_cache_384[FP_ENTRIES];
+/* Index of last entry in cache. */
 static THREAD_LS_T int sp_cache_384_last = -1;
+/* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_384_inited = 0;
 
 #ifndef HAVE_THREAD_LS
@@ -25529,9 +27413,16 @@ static THREAD_LS_T int sp_cache_384_inited = 0;
     static wolfSSL_Mutex sp_cache_384_lock;
 #endif
 
-static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_384(const sp_point_384* g,
+        sp_cache_384_t** cache)
 {
-    int i, j;
+    int i;
+    int j;
     uint32_t least;
 
     if (sp_cache_384_inited == 0) {
@@ -25648,8 +27539,8 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* r, int map,
-        void* heap)
+int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
+    int map, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 p;
@@ -25674,7 +27565,7 @@ int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(point, gm);
 
-            err = sp_384_ecc_mulmod_12(point, point, k, map, 1, heap);
+            err = sp_384_ecc_mulmod_12(point, point, k, map, 0, heap);
     }
     if (err == MP_OKAY) {
         err = sp_384_point_to_ecc_point_12(point, r);
@@ -25690,7 +27581,94 @@ int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* r, int map,
     return err;
 }
 
+/* Multiply the point by the scalar, add point a and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * p       Point to multiply.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montogmery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
+    const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384 p;
+    sp_point_384 a;
+    sp_digit kd[12];
+    sp_digit t[12 * 2 * 6];
+#endif
+    sp_point_384* point;
+    sp_point_384* addP = NULL;
+    sp_digit* k = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+    err = sp_384_point_new_12(heap, p, point);
+    if (err == MP_OKAY) {
+        err = sp_384_point_new_12(heap, a, addP);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (12 + 12 * 2 * 6), heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+        else {
+            tmp = k + 12;
+        }
+    }
+#else
+    k = kd;
+    tmp = t;
+#endif
+    if (err == MP_OKAY) {
+        sp_384_from_mp(k, 12, km);
+        sp_384_point_from_ecc_point_12(point, gm);
+        sp_384_point_from_ecc_point_12(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->x, addP->x, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->y, addP->y, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->z, addP->z, p384_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_384_ecc_mulmod_12(point, point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_384_proj_point_add_12(point, point, addP, tmp);
+
+        if (map) {
+                sp_384_map_12(point, point, tmp);
+        }
+
+        err = sp_384_point_to_ecc_point_12(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_384_point_free_12(addP, 0, heap);
+    sp_384_point_free_12(point, 0, heap);
+
+    return err;
+}
+
 #ifdef WOLFSSL_SP_SMALL
+/* Striping precomputation table.
+ * 4 points combined into a table of 16 points.
+ * Distance of 96 between points.
+ */
 static const sp_table_entry_384 p384_table[16] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -25775,6 +27753,11 @@ static const sp_table_entry_384 p384_table[16] = {
 /* Multiply the base point of P384 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^96, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
@@ -25790,6 +27773,10 @@ static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
 }
 
 #else
+/* Striping precomputation table.
+ * 8 points combined into a table of 256 points.
+ * Distance of 48 between points.
+ */
 static const sp_table_entry_384 p384_table[256] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
@@ -27074,6 +29061,11 @@ static const sp_table_entry_384 p384_table[256] = {
 /* Multiply the base point of P384 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^48, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
@@ -27099,7 +29091,7 @@ static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_mulmod_base_384(mp_int* km, ecc_point* r, int map, void* heap)
+int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 p;
@@ -27112,8 +29104,7 @@ int sp_ecc_mulmod_base_384(mp_int* km, ecc_point* r, int map, void* heap)
     err = sp_384_point_new_12(heap, p, point);
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap, DYNAMIC_TYPE_ECC);
         if (k == NULL) {
             err = MEMORY_E;
         }
@@ -27140,6 +29131,87 @@ int sp_ecc_mulmod_base_384(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
+/* Multiply the base point of P384 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montogmery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384 p;
+    sp_point_384 a;
+    sp_digit kd[12];
+    sp_digit t[12 * 2 * 6];
+#endif
+    sp_point_384* point;
+    sp_point_384* addP = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_384_point_new_12(heap, p, point);
+    if (err == MP_OKAY) {
+        err = sp_384_point_new_12(heap, a, addP);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (12 + 12 * 2 * 6), heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+        else {
+            tmp = k + 12;
+        }
+    }
+#else
+    k = kd;
+    tmp = t;
+#endif
+    if (err == MP_OKAY) {
+        sp_384_from_mp(k, 12, km);
+        sp_384_point_from_ecc_point_12(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->x, addP->x, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->y, addP->y, p384_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_384_mod_mul_norm_12(addP->z, addP->z, p384_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_384_ecc_mulmod_base_12(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_384_proj_point_add_12(point, point, addP, tmp);
+
+        if (map) {
+                sp_384_map_12(point, point, tmp);
+        }
+
+        err = sp_384_point_to_ecc_point_12(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_384_point_free_12(addP, 0, heap);
+    sp_384_point_free_12(point, 0, heap);
+
+    return err;
+}
+
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                                         defined(HAVE_ECC_VERIFY)
 /* Returns 1 if the number of zero.
@@ -27154,7 +29226,7 @@ static int sp_384_iszero_12(const sp_digit* a)
             a[8] | a[9] | a[10] | a[11]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -27215,7 +29287,8 @@ SP_NOINLINE static void sp_384_add_one_12(sp_digit* a)
  */
 static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
 {
-    int i, j = 0;
+    int i;
+    int j = 0;
     word32 s = 0;
 
     r[0] = 0;
@@ -27359,7 +29432,10 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
  */
 static void sp_384_to_bin(sp_digit* r, byte* a)
 {
-    int i, j, s = 0, b;
+    int i;
+    int j;
+    int s = 0;
+    int b;
 
     j = 384 / 8 - 1;
     a[j] = 0;
@@ -27400,7 +29476,7 @@ static void sp_384_to_bin(sp_digit* r, byte* a)
  * returns BUFFER_E if the buffer is to small for output size,
  * MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-int sp_ecc_secret_gen_384(mp_int* priv, ecc_point* pub, byte* out,
+int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
@@ -27835,7 +29911,6 @@ static WC_INLINE int sp_384_div_12(const sp_digit* a, const sp_digit* d, sp_digi
 
     r1 = sp_384_cmp_12(t1, d) >= 0;
     sp_384_cond_sub_12(r, t1, d, (sp_digit)0 - r1);
-
     return MP_OKAY;
 }
 
@@ -27861,9 +29936,8 @@ static const uint32_t p384_order_minus_2[12] = {
 };
 #else
 /* The low half of the order-2 of the P384 curve. */
-static const uint32_t p384_order_low[6] = {
+static const sp_int_digit p384_order_low[6] = {
     0xccc52971U,0xecec196aU,0x48b0a77aU,0x581a0db2U,0xf4372ddfU,0xc7634d81U
-    
 };
 #endif /* WOLFSSL_SP_SMALL */
 
@@ -27926,7 +30000,7 @@ static int sp_384_mont_inv_order_12_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const 
 {
     int err = FP_WOULDBLOCK;
     sp_384_mont_inv_order_12_ctx* ctx = (sp_384_mont_inv_order_12_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_384_mont_inv_order_12_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -28011,7 +30085,7 @@ static void sp_384_mont_inv_order_12(sp_digit* r, const sp_digit* a,
     sp_384_mont_mul_order_12(t2, t2, t);
     for (i=191; i>=1; i--) {
         sp_384_mont_sqr_order_12(t2, t2);
-        if (((sp_digit)p384_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
+        if ((p384_order_low[i / 32] & ((sp_int_digit)1 << (i % 32))) != 0) {
             sp_384_mont_mul_order_12(t2, t2, a);
         }
     }
@@ -28020,11 +30094,62 @@ static void sp_384_mont_inv_order_12(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-#endif /* HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
 #define SP_ECC_MAX_SIG_GEN  64
 #endif
+
+/* Calculate second signature value S from R, k and private value.
+ *
+ * s = (r * x + e) / k
+ *
+ * s    Signature value.
+ * r    First signature value.
+ * k    Ephemeral private key.
+ * x    Private key as a number.
+ * e    Hash of message as a number.
+ * tmp  Temporary storage for intermediate numbers.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_384_calc_s_12(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    int32_t c;
+    sp_digit* kInv = k;
+
+    /* Conv k to Montgomery form (mod order) */
+        sp_384_mul_12(k, k, p384_norm_order);
+    err = sp_384_mod_12(k, k, p384_order);
+    if (err == MP_OKAY) {
+        sp_384_norm_12(k);
+
+        /* kInv = 1/k mod order */
+            sp_384_mont_inv_order_12(kInv, k, tmp);
+        sp_384_norm_12(kInv);
+
+        /* s = r * x + e */
+            sp_384_mul_12(x, x, r);
+        err = sp_384_mod_12(x, x, p384_order);
+    }
+    if (err == MP_OKAY) {
+        sp_384_norm_12(x);
+        carry = sp_384_add_12(s, e, x);
+        sp_384_cond_sub_12(s, s, p384_order, 0 - carry);
+        sp_384_norm_12(s);
+        c = sp_384_cmp_12(s, p384_order);
+        sp_384_cond_sub_12(s, s, p384_order, 0L - (sp_digit)(c >= 0));
+        sp_384_norm_12(s);
+
+        /* s = s * k^-1 mod order */
+            sp_384_mont_mul_order_12(s, s, kInv);
+        sp_384_norm_12(s);
+    }
+
+    return err;
+}
 
 /* Sign the hash using the private key.
  *   e = [hash, 384 bits] from binary
@@ -28096,7 +30221,7 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
         err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
             &ctx->point, &p384_base, ctx->k, 1, 1, heap);
@@ -28201,8 +30326,8 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
-                    mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -28220,11 +30345,9 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     sp_digit* r = NULL;
     sp_digit* tmp = NULL;
     sp_point_384* point = NULL;
-    sp_digit carry;
     sp_digit* s = NULL;
-    sp_digit* kInv = NULL;
-    int err = MP_OKAY;
     int32_t c;
+    int err = MP_OKAY;
     int i;
 
     (void)heap;
@@ -28255,7 +30378,6 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         tmp = td;
 #endif
         s = e;
-        kInv = k;
 
         if (hashLen > 48U) {
             hashLen = 48U;
@@ -28265,8 +30387,6 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
-        sp_384_from_mp(x, 12, priv);
-
         /* New random point. */
         if (km == NULL || mp_iszero(km)) {
             err = sp_384_ecc_gen_k_12(rng, k);
@@ -28276,9 +30396,8 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             mp_zero(km);
         }
         if (err == MP_OKAY) {
-                err = sp_384_ecc_mulmod_base_12(point, k, 1, 1, NULL);
+                err = sp_384_ecc_mulmod_base_12(point, k, 1, 1, heap);
         }
-
         if (err == MP_OKAY) {
             /* r = point->x mod order */
             XMEMCPY(r, point->x, sizeof(sp_digit) * 12U);
@@ -28287,37 +30406,14 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             sp_384_cond_sub_12(r, r, p384_order, 0L - (sp_digit)(c >= 0));
             sp_384_norm_12(r);
 
-            /* Conv k to Montgomery form (mod order) */
-                sp_384_mul_12(k, k, p384_norm_order);
-            err = sp_384_mod_12(k, k, p384_order);
+            sp_384_from_mp(x, 12, priv);
+
+            err = sp_384_calc_s_12(s, r, k, x, e, tmp);
         }
-        if (err == MP_OKAY) {
-            sp_384_norm_12(k);
-            /* kInv = 1/k mod order */
-                sp_384_mont_inv_order_12(kInv, k, tmp);
-            sp_384_norm_12(kInv);
 
-            /* s = r * x + e */
-                sp_384_mul_12(x, x, r);
-            err = sp_384_mod_12(x, x, p384_order);
-        }
-        if (err == MP_OKAY) {
-            sp_384_norm_12(x);
-            carry = sp_384_add_12(s, e, x);
-            sp_384_cond_sub_12(s, s, p384_order, 0 - carry);
-            sp_384_norm_12(s);
-            c = sp_384_cmp_12(s, p384_order);
-            sp_384_cond_sub_12(s, s, p384_order, 0L - (sp_digit)(c >= 0));
-            sp_384_norm_12(s);
-
-            /* s = s * k^-1 mod order */
-                sp_384_mont_mul_order_12(s, s, kInv);
-            sp_384_norm_12(s);
-
-            /* Check that signature is usable. */
-            if (sp_384_iszero_12(s) == 0) {
-                break;
-            }
+        /* Check that signature is usable. */
+        if ((err == MP_OKAY) && (sp_384_iszero_12(s) == 0)) {
+            break;
         }
     }
 
@@ -28352,6 +30448,72 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 #endif /* HAVE_ECC_SIGN */
 
 #ifdef HAVE_ECC_VERIFY
+
+/* Add point p1 into point p2. Handles p1 == p2 and result at infinity.
+ *
+ * p1   First point to add and holds result.
+ * p2   Second point to add.
+ * tmp  Temporary storage for intermediate numbers.
+ */
+static void sp_384_add_points_12(sp_point_384* p1, const sp_point_384* p2,
+    sp_digit* tmp)
+{
+
+        sp_384_proj_point_add_12(p1, p1, p2, tmp);
+    if (sp_384_iszero_12(p1->z)) {
+        if (sp_384_iszero_12(p1->x) && sp_384_iszero_12(p1->y)) {
+                sp_384_proj_point_dbl_12(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            p1->x[8] = 0;
+            p1->x[9] = 0;
+            p1->x[10] = 0;
+            p1->x[11] = 0;
+            XMEMCPY(p1->z, p384_norm_mod, sizeof(p384_norm_mod));
+        }
+    }
+}
+
+/* Calculate the verification point: [e/s]G + [r/s]Q
+ *
+ * p1    Calculated point.
+ * p2    Public point and temporary.
+ * s     Second part of signature as a number.
+ * u1    Temporary number.
+ * u2    Temproray number.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_384_calc_vfy_point_12(sp_point_384* p1, sp_point_384* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+{
+    int err;
+
+    sp_384_norm_12(s);
+        sp_384_mont_inv_order_12(s, s, tmp);
+        sp_384_mont_mul_order_12(u1, u1, s);
+        sp_384_mont_mul_order_12(u2, u2, s);
+        err = sp_384_ecc_mulmod_base_12(p1, u1, 0, 0, heap);
+    if (err == MP_OKAY) {
+            err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, 0, heap);
+    }
+
+    if (err == MP_OKAY) {
+        sp_384_add_points_12(p1, p2, tmp);
+    }
+
+    return err;
+}
+
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 384)
  *   u1 = e/s mod order
@@ -28369,8 +30531,7 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
  * rm       First part of result as an mp_int.
  * sm       Sirst part of result as an mp_int.
  * heap     Heap to use for allocation.
- * returns RNG failures, MEMORY_E when memory allocation fails and
- * MP_OKAY on success.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 #ifdef WOLFSSL_SP_NONBLOCK
 typedef struct sp_ecc_verify_384_ctx {
@@ -28538,8 +30699,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
-    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
+int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
+    int* res, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -28558,7 +30720,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
     sp_point_384* p1;
     sp_point_384* p2 = NULL;
     sp_digit carry;
-    int32_t c;
+    int32_t c = 0;
     int err;
 
     err = sp_384_point_new_12(heap, p1d, p1);
@@ -28599,51 +30761,14 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
         sp_384_from_mp(p2->y, 12, pY);
         sp_384_from_mp(p2->z, 12, pZ);
 
-        {
             sp_384_mul_12(s, s, p384_norm_order);
-        }
         err = sp_384_mod_12(s, s, p384_order);
     }
     if (err == MP_OKAY) {
-        sp_384_norm_12(s);
-        {
-            sp_384_mont_inv_order_12(s, s, tmp);
-            sp_384_mont_mul_order_12(u1, u1, s);
-            sp_384_mont_mul_order_12(u2, u2, s);
-        }
-
-            err = sp_384_ecc_mulmod_base_12(p1, u1, 0, 0, heap);
+        err = sp_384_calc_vfy_point_12(p1, p2, s, u1, u2, tmp,
+            heap);
     }
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, 0, heap);
-    }
-
-    if (err == MP_OKAY) {
-        {
-            sp_384_proj_point_add_12(p1, p1, p2, tmp);
-            if (sp_384_iszero_12(p1->z)) {
-                if (sp_384_iszero_12(p1->x) && sp_384_iszero_12(p1->y)) {
-                    sp_384_proj_point_dbl_12(p1, p2, tmp);
-                }
-                else {
-                    /* Y ordinate is not used from here - don't set. */
-                    p1->x[0] = 0;
-                    p1->x[1] = 0;
-                    p1->x[2] = 0;
-                    p1->x[3] = 0;
-                    p1->x[4] = 0;
-                    p1->x[5] = 0;
-                    p1->x[6] = 0;
-                    p1->x[7] = 0;
-                    p1->x[8] = 0;
-                    p1->x[9] = 0;
-                    p1->x[10] = 0;
-                    p1->x[11] = 0;
-                    XMEMCPY(p1->z, p384_norm_mod, sizeof(p384_norm_mod));
-                }
-            }
-        }
-
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
         sp_384_from_mp(u2, 12, r);
@@ -28654,7 +30779,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
         /* u1 = r.z'.z' mod prime */
         sp_384_mont_sqr_12(p1->z, p1->z, p384_mod, p384_mp_mod);
         sp_384_mont_mul_12(u1, u2, p1->z, p384_mod, p384_mp_mod);
-        *res = (int)(sp_384_cmp_12(p1->x, u1) == 0);
+        *res = (sp_384_cmp_12(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
             sp_384_from_mp(u2, 12, r);
@@ -28665,16 +30790,16 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
 
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_384_cmp_12(u2, p384_mod);
-                if (c < 0) {
-                    /* Convert to Montogomery form */
-                    err = sp_384_mod_mul_norm_12(u2, u2, p384_mod);
-                    if (err == MP_OKAY) {
-                        /* u1 = (r + 1*order).z'.z' mod prime */
-                        sp_384_mont_mul_12(u1, u2, p1->z, p384_mod,
-                                                                  p384_mp_mod);
-                        *res = (int)(sp_384_cmp_12(p1->x, u1) == 0);
-                    }
-                }
+            }
+         }
+         if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_384_mod_mul_norm_12(u2, u2, p384_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_384_mont_mul_12(u1, u2, p1->z, p384_mod,
+                    p384_mp_mod);
+                *res = (sp_384_cmp_12(p1->x, u1) == 0);
             }
         }
     }
@@ -28698,7 +30823,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
  * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
  * not on the curve and MP_OKAY otherwise.
  */
-static int sp_384_ecc_is_point_12(sp_point_384* point, void* heap)
+static int sp_384_ecc_is_point_12(const sp_point_384* point, void* heap)
 {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
@@ -28761,7 +30886,7 @@ static int sp_384_ecc_is_point_12(sp_point_384* point, void* heap)
  * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
  * not on the curve and MP_OKAY otherwise.
  */
-int sp_ecc_is_point_384(mp_int* pX, mp_int* pY)
+int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 pubd;
@@ -28795,7 +30920,8 @@ int sp_ecc_is_point_384(mp_int* pX, mp_int* pY)
  * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
  * MP_OKAY otherwise.
  */
-int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
+int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit privd[12];
@@ -28839,12 +30965,11 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Check range of X and Y */
-        if (sp_384_cmp_12(pub->x, p384_mod) >= 0 ||
-            sp_384_cmp_12(pub->y, p384_mod) >= 0) {
-            err = ECC_OUT_OF_RANGE_E;
-        }
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_384_cmp_12(pub->x, p384_mod) >= 0) ||
+             (sp_384_cmp_12(pub->y, p384_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
     }
 
     if (err == MP_OKAY) {
@@ -28856,24 +30981,20 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         /* Point * order = infinity */
             err = sp_384_ecc_mulmod_12(p, pub, p384_order, 1, 1, heap);
     }
-    if (err == MP_OKAY) {
-        /* Check result is infinity */
-        if ((sp_384_iszero_12(p->x) == 0) ||
-            (sp_384_iszero_12(p->y) == 0)) {
-            err = ECC_INF_E;
-        }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_384_iszero_12(p->x) == 0) ||
+                             (sp_384_iszero_12(p->y) == 0))) {
+        err = ECC_INF_E;
     }
 
     if (err == MP_OKAY) {
         /* Base * private = point */
             err = sp_384_ecc_mulmod_base_12(p, priv, 1, 1, heap);
     }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_384_cmp_12(p->x, pub->x) != 0 ||
-            sp_384_cmp_12(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
-        }
+    /* Check result is public key */
+    if ((err == MP_OKAY) && ((sp_384_cmp_12(p->x, pub->x) != 0) ||
+                             (sp_384_cmp_12(p->y, pub->y) != 0))) {
+        err = ECC_PRIV_KEY_E;
     }
 
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
@@ -29062,7 +31183,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
         sp_384_from_mp(p->y, 12, pY);
         sp_384_from_mp(p->z, 12, pZ);
 
-        sp_384_map_12(p, p, tmp);
+            sp_384_map_12(p, p, tmp);
     }
 
     if (err == MP_OKAY) {
@@ -29275,6 +31396,11329 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 }
 #endif
 #endif /* WOLFSSL_SP_384 */
+#ifdef WOLFSSL_SP_1024
+
+/* Point structure to use. */
+typedef struct sp_point_1024 {
+    /* X ordinate of point. */
+    sp_digit x[2 * 32];
+    /* Y ordinate of point. */
+    sp_digit y[2 * 32];
+    /* Z ordinate of point. */
+    sp_digit z[2 * 32];
+    /* Indicates point is at infinity. */
+    int infinity;
+} sp_point_1024;
+
+#ifndef WOLFSSL_SP_SMALL
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_mul_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp[8 * 2];
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r9, %[a]\n\t"
+        "mov	r10, %[b]\n\t"
+        "mov	r6, #32\n\t"
+        "add	r6, r9\n\t"
+        "mov	r12, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #28\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	%[b], r8\n\t"
+        "sub	%[b], %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	%[b], r10\n\t"
+        "\n2:\n\t"
+        "# Multiply Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply Done\n\t"
+        "add	%[a], #4\n\t"
+        "sub	%[b], #4\n\t"
+        "cmp	%[a], r12\n\t"
+        "beq	3f\n\t"
+        "mov	r6, r8\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #56\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[a], r9\n\t"
+        "mov	%[b], r10\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+    );
+
+    XMEMCPY(r, tmp, sizeof(tmp));
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_sqr_8(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r6, #64\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, r6\n\t"
+        "mov	r10, sp\n\t"
+        "mov	r9, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #28\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	r2, r8\n\t"
+        "sub	r2, %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	r2, r9\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+        "beq	4f\n\t"
+        "# Multiply * 2: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply * 2: Done\n\t"
+        "bal	5f\n\t"
+        "\n4:\n\t"
+        "# Square: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r6\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "mul	r7, r7\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #15\n\t"
+        "lsl	r6, r6, #17\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Square: Done\n\t"
+        "\n5:\n\t"
+        "add	%[a], #4\n\t"
+        "sub	r2, #4\n\t"
+        "mov	r6, #32\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "beq	3f\n\t"
+        "cmp	%[a], r2\n\t"
+        "bgt	3f\n\t"
+        "mov	r7, r8\n\t"
+        "add	r7, r9\n\t"
+        "cmp	%[a], r7\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r10\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #56\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "mov	%[a], r9\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	r3, #60\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "sub	r3, #4\n\t"
+        "bge	4b\n\t"
+        "mov	r6, #64\n\t"
+        "add	sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+    );
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_add_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "add	r4, r5\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #4]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #12]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #20]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #28]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #28]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5"
+    );
+
+    return c;
+}
+
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_sub_in_place_16(sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r3, [%[a], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "ldr	r6, [%[b], #4]\n\t"
+        "sub	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #0]\n\t"
+        "str	r4, [%[a], #4]\n\t"
+        "ldr	r3, [%[a], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "ldr	r6, [%[b], #12]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #8]\n\t"
+        "str	r4, [%[a], #12]\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "ldr	r6, [%[b], #20]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #16]\n\t"
+        "str	r4, [%[a], #20]\n\t"
+        "ldr	r3, [%[a], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "ldr	r6, [%[b], #28]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #24]\n\t"
+        "str	r4, [%[a], #28]\n\t"
+        "ldr	r3, [%[a], #32]\n\t"
+        "ldr	r4, [%[a], #36]\n\t"
+        "ldr	r5, [%[b], #32]\n\t"
+        "ldr	r6, [%[b], #36]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #32]\n\t"
+        "str	r4, [%[a], #36]\n\t"
+        "ldr	r3, [%[a], #40]\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "ldr	r5, [%[b], #40]\n\t"
+        "ldr	r6, [%[b], #44]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #40]\n\t"
+        "str	r4, [%[a], #44]\n\t"
+        "ldr	r3, [%[a], #48]\n\t"
+        "ldr	r4, [%[a], #52]\n\t"
+        "ldr	r5, [%[b], #48]\n\t"
+        "ldr	r6, [%[b], #52]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #48]\n\t"
+        "str	r4, [%[a], #52]\n\t"
+        "ldr	r3, [%[a], #56]\n\t"
+        "ldr	r4, [%[a], #60]\n\t"
+        "ldr	r5, [%[b], #56]\n\t"
+        "ldr	r6, [%[b], #60]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #56]\n\t"
+        "str	r4, [%[a], #60]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "add	r4, r5\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #4]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #12]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #20]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #28]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[b], #32]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "ldr	r4, [%[a], #36]\n\t"
+        "ldr	r5, [%[b], #36]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[b], #40]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "ldr	r5, [%[b], #44]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[b], #48]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "ldr	r4, [%[a], #52]\n\t"
+        "ldr	r5, [%[b], #52]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[b], #56]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "ldr	r4, [%[a], #60]\n\t"
+        "ldr	r5, [%[b], #60]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #60]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5"
+    );
+
+    return c;
+}
+
+/* AND m into each word of a and store in r.
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * m  Mask to AND against each digit.
+ */
+static void sp_1024_mask_8(sp_digit* r, const sp_digit* a, sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=0; i<8; i++) {
+        r[i] = a[i] & m;
+    }
+#else
+    r[0] = a[0] & m;
+    r[1] = a[1] & m;
+    r[2] = a[2] & m;
+    r[3] = a[3] & m;
+    r[4] = a[4] & m;
+    r[5] = a[5] & m;
+    r[6] = a[6] & m;
+    r[7] = a[7] & m;
+#endif
+}
+
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_mul_16(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit* z0 = r;
+    sp_digit z1[16];
+    sp_digit a1[8];
+    sp_digit b1[8];
+    sp_digit z2[16];
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
+
+    ca = sp_1024_add_8(a1, a, &a[8]);
+    cb = sp_1024_add_8(b1, b, &b[8]);
+    u  = ca & cb;
+    sp_1024_mul_8(z1, a1, b1);
+    sp_1024_mul_8(z2, &a[8], &b[8]);
+    sp_1024_mul_8(z0, a, b);
+    sp_1024_mask_8(r + 16, a1, 0 - cb);
+    sp_1024_mask_8(b1, b1, 0 - ca);
+    u += sp_1024_add_8(r + 16, r + 16, b1);
+    u += sp_1024_sub_in_place_16(z1, z2);
+    u += sp_1024_sub_in_place_16(z1, z0);
+    u += sp_1024_add_16(r + 8, r + 8, z1);
+    r[24] = u;
+    XMEMSET(r + 24 + 1, 0, sizeof(sp_digit) * (8 - 1));
+    (void)sp_1024_add_16(r + 16, r + 16, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
+{
+    sp_digit* z0 = r;
+    sp_digit z2[16];
+    sp_digit z1[16];
+    sp_digit a1[8];
+    sp_digit u;
+
+    u = sp_1024_add_8(a1, a, &a[8]);
+    sp_1024_sqr_8(z1, a1);
+    sp_1024_sqr_8(z2, &a[8]);
+    sp_1024_sqr_8(z0, a);
+    sp_1024_mask_8(r + 16, a1, 0 - u);
+    u += sp_1024_add_8(r + 16, r + 16, r + 16);
+    u += sp_1024_sub_in_place_16(z1, z2);
+    u += sp_1024_sub_in_place_16(z1, z0);
+    u += sp_1024_add_16(r + 8, r + 8, z1);
+    r[24] = u;
+    XMEMSET(r + 24 + 1, 0, sizeof(sp_digit) * (8 - 1));
+    (void)sp_1024_add_16(r + 16, r + 16, z2);
+}
+
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r3, [%[a], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "ldr	r6, [%[b], #4]\n\t"
+        "sub	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #0]\n\t"
+        "str	r4, [%[a], #4]\n\t"
+        "ldr	r3, [%[a], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "ldr	r6, [%[b], #12]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #8]\n\t"
+        "str	r4, [%[a], #12]\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "ldr	r6, [%[b], #20]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #16]\n\t"
+        "str	r4, [%[a], #20]\n\t"
+        "ldr	r3, [%[a], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "ldr	r6, [%[b], #28]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #24]\n\t"
+        "str	r4, [%[a], #28]\n\t"
+        "ldr	r3, [%[a], #32]\n\t"
+        "ldr	r4, [%[a], #36]\n\t"
+        "ldr	r5, [%[b], #32]\n\t"
+        "ldr	r6, [%[b], #36]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #32]\n\t"
+        "str	r4, [%[a], #36]\n\t"
+        "ldr	r3, [%[a], #40]\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "ldr	r5, [%[b], #40]\n\t"
+        "ldr	r6, [%[b], #44]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #40]\n\t"
+        "str	r4, [%[a], #44]\n\t"
+        "ldr	r3, [%[a], #48]\n\t"
+        "ldr	r4, [%[a], #52]\n\t"
+        "ldr	r5, [%[b], #48]\n\t"
+        "ldr	r6, [%[b], #52]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #48]\n\t"
+        "str	r4, [%[a], #52]\n\t"
+        "ldr	r3, [%[a], #56]\n\t"
+        "ldr	r4, [%[a], #60]\n\t"
+        "ldr	r5, [%[b], #56]\n\t"
+        "ldr	r6, [%[b], #60]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #56]\n\t"
+        "str	r4, [%[a], #60]\n\t"
+        "ldr	r3, [%[a], #64]\n\t"
+        "ldr	r4, [%[a], #68]\n\t"
+        "ldr	r5, [%[b], #64]\n\t"
+        "ldr	r6, [%[b], #68]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #64]\n\t"
+        "str	r4, [%[a], #68]\n\t"
+        "ldr	r3, [%[a], #72]\n\t"
+        "ldr	r4, [%[a], #76]\n\t"
+        "ldr	r5, [%[b], #72]\n\t"
+        "ldr	r6, [%[b], #76]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #72]\n\t"
+        "str	r4, [%[a], #76]\n\t"
+        "ldr	r3, [%[a], #80]\n\t"
+        "ldr	r4, [%[a], #84]\n\t"
+        "ldr	r5, [%[b], #80]\n\t"
+        "ldr	r6, [%[b], #84]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #80]\n\t"
+        "str	r4, [%[a], #84]\n\t"
+        "ldr	r3, [%[a], #88]\n\t"
+        "ldr	r4, [%[a], #92]\n\t"
+        "ldr	r5, [%[b], #88]\n\t"
+        "ldr	r6, [%[b], #92]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #88]\n\t"
+        "str	r4, [%[a], #92]\n\t"
+        "ldr	r3, [%[a], #96]\n\t"
+        "ldr	r4, [%[a], #100]\n\t"
+        "ldr	r5, [%[b], #96]\n\t"
+        "ldr	r6, [%[b], #100]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #96]\n\t"
+        "str	r4, [%[a], #100]\n\t"
+        "ldr	r3, [%[a], #104]\n\t"
+        "ldr	r4, [%[a], #108]\n\t"
+        "ldr	r5, [%[b], #104]\n\t"
+        "ldr	r6, [%[b], #108]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #104]\n\t"
+        "str	r4, [%[a], #108]\n\t"
+        "ldr	r3, [%[a], #112]\n\t"
+        "ldr	r4, [%[a], #116]\n\t"
+        "ldr	r5, [%[b], #112]\n\t"
+        "ldr	r6, [%[b], #116]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #112]\n\t"
+        "str	r4, [%[a], #116]\n\t"
+        "ldr	r3, [%[a], #120]\n\t"
+        "ldr	r4, [%[a], #124]\n\t"
+        "ldr	r5, [%[b], #120]\n\t"
+        "ldr	r6, [%[b], #124]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a], #120]\n\t"
+        "str	r4, [%[a], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[b], #0]\n\t"
+        "add	r4, r5\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b], #4]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[b], #8]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "ldr	r5, [%[b], #12]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[b], #16]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "ldr	r5, [%[b], #20]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[b], #24]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "ldr	r5, [%[b], #28]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[b], #32]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "ldr	r4, [%[a], #36]\n\t"
+        "ldr	r5, [%[b], #36]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[b], #40]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "ldr	r5, [%[b], #44]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[b], #48]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "ldr	r4, [%[a], #52]\n\t"
+        "ldr	r5, [%[b], #52]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[b], #56]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "ldr	r4, [%[a], #60]\n\t"
+        "ldr	r5, [%[b], #60]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[b], #64]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "ldr	r4, [%[a], #68]\n\t"
+        "ldr	r5, [%[b], #68]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[b], #72]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "ldr	r4, [%[a], #76]\n\t"
+        "ldr	r5, [%[b], #76]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[b], #80]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "ldr	r4, [%[a], #84]\n\t"
+        "ldr	r5, [%[b], #84]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[b], #88]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "ldr	r4, [%[a], #92]\n\t"
+        "ldr	r5, [%[b], #92]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[b], #96]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "ldr	r4, [%[a], #100]\n\t"
+        "ldr	r5, [%[b], #100]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[b], #104]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "ldr	r4, [%[a], #108]\n\t"
+        "ldr	r5, [%[b], #108]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[b], #112]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "ldr	r4, [%[a], #116]\n\t"
+        "ldr	r5, [%[b], #116]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[b], #120]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "ldr	r4, [%[a], #124]\n\t"
+        "ldr	r5, [%[b], #124]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r], #124]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5"
+    );
+
+    return c;
+}
+
+/* AND m into each word of a and store in r.
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * m  Mask to AND against each digit.
+ */
+static void sp_1024_mask_16(sp_digit* r, const sp_digit* a, sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=0; i<16; i++) {
+        r[i] = a[i] & m;
+    }
+#else
+    int i;
+
+    for (i = 0; i < 16; i += 8) {
+        r[i+0] = a[i+0] & m;
+        r[i+1] = a[i+1] & m;
+        r[i+2] = a[i+2] & m;
+        r[i+3] = a[i+3] & m;
+        r[i+4] = a[i+4] & m;
+        r[i+5] = a[i+5] & m;
+        r[i+6] = a[i+6] & m;
+        r[i+7] = a[i+7] & m;
+    }
+#endif
+}
+
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit* z0 = r;
+    sp_digit z1[32];
+    sp_digit a1[16];
+    sp_digit b1[16];
+    sp_digit z2[32];
+    sp_digit u;
+    sp_digit ca;
+    sp_digit cb;
+
+    ca = sp_1024_add_16(a1, a, &a[16]);
+    cb = sp_1024_add_16(b1, b, &b[16]);
+    u  = ca & cb;
+    sp_1024_mul_16(z1, a1, b1);
+    sp_1024_mul_16(z2, &a[16], &b[16]);
+    sp_1024_mul_16(z0, a, b);
+    sp_1024_mask_16(r + 32, a1, 0 - cb);
+    sp_1024_mask_16(b1, b1, 0 - ca);
+    u += sp_1024_add_16(r + 32, r + 32, b1);
+    u += sp_1024_sub_in_place_32(z1, z2);
+    u += sp_1024_sub_in_place_32(z1, z0);
+    u += sp_1024_add_32(r + 16, r + 16, z1);
+    r[48] = u;
+    XMEMSET(r + 48 + 1, 0, sizeof(sp_digit) * (16 - 1));
+    (void)sp_1024_add_32(r + 32, r + 32, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
+{
+    sp_digit* z0 = r;
+    sp_digit z2[32];
+    sp_digit z1[32];
+    sp_digit a1[16];
+    sp_digit u;
+
+    u = sp_1024_add_16(a1, a, &a[16]);
+    sp_1024_sqr_16(z1, a1);
+    sp_1024_sqr_16(z2, &a[16]);
+    sp_1024_sqr_16(z0, a);
+    sp_1024_mask_16(r + 32, a1, 0 - u);
+    u += sp_1024_add_16(r + 32, r + 32, r + 32);
+    u += sp_1024_sub_in_place_32(z1, z2);
+    u += sp_1024_sub_in_place_32(z1, z0);
+    u += sp_1024_add_32(r + 16, r + 16, z1);
+    r[48] = u;
+    XMEMSET(r + 48 + 1, 0, sizeof(sp_digit) * (16 - 1));
+    (void)sp_1024_add_32(r + 32, r + 32, z2);
+}
+
+#else
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp[32 * 2];
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r9, %[a]\n\t"
+        "mov	r10, %[b]\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r9\n\t"
+        "mov	r12, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	%[b], r8\n\t"
+        "sub	%[b], %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	%[b], r10\n\t"
+        "\n2:\n\t"
+        "# Multiply Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [%[b]]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply Done\n\t"
+        "add	%[a], #4\n\t"
+        "sub	%[b], #4\n\t"
+        "cmp	%[a], r12\n\t"
+        "beq	3f\n\t"
+        "mov	r6, r8\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[a], r9\n\t"
+        "mov	%[b], r10\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"
+    );
+
+    XMEMCPY(r, tmp, sizeof(tmp));
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r8, r3\n\t"
+        "mov	r11, %[r]\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, r6\n\t"
+        "mov	r10, sp\n\t"
+        "mov	r9, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r8\n\t"
+        "sub	%[a], r6\n\t"
+        "sbc	r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], r6\n\t"
+        "mov	r2, r8\n\t"
+        "sub	r2, %[a]\n\t"
+        "add	%[a], r9\n\t"
+        "add	r2, r9\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+        "beq	4f\n\t"
+        "# Multiply * 2: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r7, [r2]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Multiply * 2: Done\n\t"
+        "bal	5f\n\t"
+        "\n4:\n\t"
+        "# Square: Start\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r6\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "mul	r7, r7\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #15\n\t"
+        "lsl	r6, r6, #17\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# Square: Done\n\t"
+        "\n5:\n\t"
+        "add	%[a], #4\n\t"
+        "sub	r2, #4\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r9\n\t"
+        "cmp	%[a], r6\n\t"
+        "beq	3f\n\t"
+        "cmp	%[a], r2\n\t"
+        "bgt	3f\n\t"
+        "mov	r7, r8\n\t"
+        "add	r7, r9\n\t"
+        "cmp	%[a], r7\n\t"
+        "ble	2b\n\t"
+        "\n3:\n\t"
+        "mov	%[r], r10\n\t"
+        "mov	r7, r8\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r7, #4\n\t"
+        "mov	r8, r7\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r7, r6\n\t"
+        "ble	1b\n\t"
+        "mov	%[a], r9\n\t"
+        "str	r3, [%[r], r7]\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	r3, #252\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "sub	r3, #4\n\t"
+        "bge	4b\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11"
+    );
+}
+
+#endif /* !WOLFSSL_SP_SMALL */
+/* The modulus (prime) of the curve P1024. */
+static const sp_digit p1024_mod[32] = {
+    0xfea85feb,0x666d807a,0xac7ace87,0x80c5df10,0x89857db0,0xfce3e823,
+    0x56971f1f,0x9f94d6af,0x1c3c09aa,0xa7cf3c52,0x31852a82,0xb6aff4a8,
+    0x65681ce1,0x512ac5cd,0x326b4cd4,0xe26c6487,0xa666a6d0,0x356d27f4,
+    0xf7c88a19,0xe791b39f,0x31a59cb0,0x228730d5,0xe2fc0f1b,0xf40aab27,
+    0xb3e01a2e,0xbe9ae358,0x9cb48261,0x416c0ce1,0xdad0657a,0x65c61198,
+    0x0a563fda,0x997abb1f
+};
+/* The Montogmery normalizer for modulus of the curve P1024. */
+static const sp_digit p1024_norm_mod[32] = {
+    0x0157a015,0x99927f85,0x53853178,0x7f3a20ef,0x767a824f,0x031c17dc,
+    0xa968e0e0,0x606b2950,0xe3c3f655,0x5830c3ad,0xce7ad57d,0x49500b57,
+    0x9a97e31e,0xaed53a32,0xcd94b32b,0x1d939b78,0x5999592f,0xca92d80b,
+    0x083775e6,0x186e4c60,0xce5a634f,0xdd78cf2a,0x1d03f0e4,0x0bf554d8,
+    0x4c1fe5d1,0x41651ca7,0x634b7d9e,0xbe93f31e,0x252f9a85,0x9a39ee67,
+    0xf5a9c025,0x668544e0
+};
+/* The Montogmery multiplier for modulus of the curve P1024. */
+static sp_digit p1024_mp_mod = 0x7c8f2f3d;
+#ifdef WOLFSSL_SP_SMALL
+/* The order of the curve P1024. */
+static const sp_digit p1024_order[32] = {
+    0xbfaa17fb,0xd99b601e,0x2b1eb3a1,0x203177c4,0xe2615f6c,0xff38fa08,
+    0xd5a5c7c7,0xa7e535ab,0x870f026a,0xa9f3cf14,0x0c614aa0,0x6dabfd2a,
+    0x595a0738,0x144ab173,0xcc9ad335,0x389b1921,0x2999a9b4,0x4d5b49fd,
+    0xfdf22286,0x39e46ce7,0x4c69672c,0xc8a1cc35,0xf8bf03c6,0xbd02aac9,
+    0x2cf8068b,0x6fa6b8d6,0x672d2098,0x905b0338,0x36b4195e,0x99718466,
+    0xc2958ff6,0x265eaec7
+};
+#endif
+/* The base point of curve P1024. */
+static const sp_point_1024 p1024_base = {
+    /* X ordinate */
+    {
+        0xeae63895,0x880dc8ab,0x967e0979,0x80ec46c4,0xb63f73ec,0xee9163a5,
+        0x80728d87,0xd5cfb4cc,0xba66910d,0xa7c1514d,0x7a60de74,0xa702c339,
+        0x8b72f2e1,0x337c8654,0x5dd5bccb,0x9760af76,0x406ce890,0x718bd9e7,
+        0xdb9dfa55,0x43d5f22c,0x30b09e10,0xab10db90,0xf6ce2308,0xb5edb6c0,
+        0xb6ff7cbf,0x98b2f204,0x0aec69c6,0x2b1a2fd6,0x3ed9b52a,0x0a799005,
+        0x332c29ad,0x53fc09ee,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L
+    },
+    /* Y ordinate */
+    {
+        0x1bef16d7,0x75573fd7,0x6a67dcde,0xadb9b570,0xd5bb4636,0x80bdad5a,
+        0xe9cb99a9,0x13515ad7,0xc5a4d5f2,0x492d979f,0x164aa989,0xac6f1e80,
+        0xb7652fe0,0xcad696b5,0xad547c6c,0x70dae117,0xa9e032b9,0x416cff0c,
+        0x9a140b2e,0x6b598ccf,0xf0de55f6,0xe7f7f5e5,0x654ec2b9,0xf5ea69f4,
+        0x1e141178,0x3d778d82,0x02990696,0xd3e82016,0x3634a135,0xf9f1f053,
+        0x3f6009f1,0x0a824906,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L
+    },
+    /* Z ordinate */
+    {
+        0x00000001,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L
+    },
+    /* infinity */
+    0
+};
+
+#ifdef WOLFSSL_SP_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "mov	r7, #0\n\t"
+        "add	r6, #128\n\t"
+        "sub	r7, #1\n\t"
+        "\n1:\n\t"
+        "add	%[c], r7\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "adc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+/* Sub b from a into a. (a -= b)
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+    __asm__ __volatile__ (
+        "mov	r7, %[a]\n\t"
+        "add	r7, #128\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r3, [%[a]]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "ldr	r6, [%[b], #4]\n\t"
+        "sbc	r3, r5\n\t"
+        "sbc	r4, r6\n\t"
+        "str	r3, [%[a]]\n\t"
+        "str	r4, [%[a], #4]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #8\n\t"
+        "add	%[b], #8\n\t"
+        "cmp	%[a], r7\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r3", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #128\n\t"
+        "mov	r8, r5\n\t"
+        "mov	r7, #0\n\t"
+        "1:\n\t"
+        "ldr	r6, [%[b], r7]\n\t"
+        "and	r6, %[m]\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r5, [%[a], r7]\n\t"
+        "sbc	r5, r6\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "str	r5, [%[r], r7]\n\t"
+        "add	r7, #4\n\t"
+        "cmp	r7, r8\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r7", "r8"
+    );
+
+    return c;
+}
+
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+SP_NOINLINE static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
+    __asm__ __volatile__ (
+        "mov	r6, #128\n\t"
+        "add	r6, %[a]\n\t"
+        "mov	r8, %[r]\n\t"
+        "mov	r9, r6\n\t"
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "# A[] * B\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "# A[] * B - Done\n\t"
+        "mov	%[r], r8\n\t"
+        "str	r3, [%[r]]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	%[r], #4\n\t"
+        "add	%[a], #4\n\t"
+        "mov	r8, %[r]\n\t"
+        "cmp	%[a], r9\n\t"
+        "blt	1b\n\t"
+        "str	r3, [%[r]]\n\t"
+        : [r] "+r" (r), [a] "+r" (a)
+        : [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+    );
+}
+
+/* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
+ *
+ * d1   The high order half of the number to divide.
+ * d0   The low order half of the number to divide.
+ * div  The dividend.
+ * returns the result of the division.
+ *
+ * Note that this is an approximate div. It may give an answer 1 larger.
+ */
+SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0,
+        sp_digit div)
+{
+    sp_digit r = 0;
+
+    __asm__ __volatile__ (
+        "lsr	r5, %[div], #1\n\t"
+        "add	r5, #1\n\t"
+        "mov	r8, %[d0]\n\t"
+        "mov	r9, %[d1]\n\t"
+        "# Do top 32\n\t"
+        "mov	r6, r5\n\t"
+        "sub	r6, %[d1]\n\t"
+        "sbc	r6, r6\n\t"
+        "add	%[r], %[r]\n\t"
+        "sub	%[r], r6\n\t"
+        "and	r6, r5\n\t"
+        "sub	%[d1], r6\n\t"
+        "# Next 30 bits\n\t"
+        "mov	r4, #29\n\t"
+        "1:\n\t"
+        "lsl	%[d0], %[d0], #1\n\t"
+        "adc	%[d1], %[d1]\n\t"
+        "mov	r6, r5\n\t"
+        "sub	r6, %[d1]\n\t"
+        "sbc	r6, r6\n\t"
+        "add	%[r], %[r]\n\t"
+        "sub	%[r], r6\n\t"
+        "and	r6, r5\n\t"
+        "sub	%[d1], r6\n\t"
+        "sub	r4, #1\n\t"
+        "bpl	1b\n\t"
+        "mov	r7, #0\n\t"
+        "add	%[r], %[r]\n\t"
+        "add	%[r], #1\n\t"
+        "# r * div - Start\n\t"
+        "lsl	%[d1], %[r], #16\n\t"
+        "lsl	r4, %[div], #16\n\t"
+        "lsr	%[d1], %[d1], #16\n\t"
+        "lsr	r4, r4, #16\n\t"
+        "mul	r4, %[d1]\n\t"
+        "lsr	r6, %[div], #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r5, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r7\n\t"
+        "lsr	%[d1], %[r], #16\n\t"
+        "mul	r6, %[d1]\n\t"
+        "add	r5, r6\n\t"
+        "lsl	r6, %[div], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r6, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r6\n\t"
+        "# r * div - Done\n\t"
+        "mov	%[d1], r8\n\t"
+        "sub	%[d1], r4\n\t"
+        "mov	r4, %[d1]\n\t"
+        "mov	%[d1], r9\n\t"
+        "sbc	%[d1], r5\n\t"
+        "mov	r5, %[d1]\n\t"
+        "add	%[r], r5\n\t"
+        "# r * div - Start\n\t"
+        "lsl	%[d1], %[r], #16\n\t"
+        "lsl	r4, %[div], #16\n\t"
+        "lsr	%[d1], %[d1], #16\n\t"
+        "lsr	r4, r4, #16\n\t"
+        "mul	r4, %[d1]\n\t"
+        "lsr	r6, %[div], #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r5, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r7\n\t"
+        "lsr	%[d1], %[r], #16\n\t"
+        "mul	r6, %[d1]\n\t"
+        "add	r5, r6\n\t"
+        "lsl	r6, %[div], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r6, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r6\n\t"
+        "# r * div - Done\n\t"
+        "mov	%[d1], r8\n\t"
+        "mov	r6, r9\n\t"
+        "sub	r4, %[d1], r4\n\t"
+        "sbc	r6, r5\n\t"
+        "mov	r5, r6\n\t"
+        "add	%[r], r5\n\t"
+        "# r * div - Start\n\t"
+        "lsl	%[d1], %[r], #16\n\t"
+        "lsl	r4, %[div], #16\n\t"
+        "lsr	%[d1], %[d1], #16\n\t"
+        "lsr	r4, r4, #16\n\t"
+        "mul	r4, %[d1]\n\t"
+        "lsr	r6, %[div], #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r5, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r7\n\t"
+        "lsr	%[d1], %[r], #16\n\t"
+        "mul	r6, %[d1]\n\t"
+        "add	r5, r6\n\t"
+        "lsl	r6, %[div], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "mul	%[d1], r6\n\t"
+        "lsr	r6, %[d1], #16\n\t"
+        "lsl	%[d1], %[d1], #16\n\t"
+        "add	r4, %[d1]\n\t"
+        "adc	r5, r6\n\t"
+        "# r * div - Done\n\t"
+        "mov	%[d1], r8\n\t"
+        "mov	r6, r9\n\t"
+        "sub	r4, %[d1], r4\n\t"
+        "sbc	r6, r5\n\t"
+        "mov	r5, r6\n\t"
+        "add	%[r], r5\n\t"
+        "mov	r6, %[div]\n\t"
+        "sub	r6, r4\n\t"
+        "sbc	r6, r6\n\t"
+        "sub	%[r], r6\n\t"
+        : [r] "+r" (r)
+        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
+        : "r4", "r5", "r7", "r6", "r8", "r9"
+    );
+    return r;
+}
+
+/* AND m into each word of a and store in r.
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * m  Mask to AND against each digit.
+ */
+static void sp_1024_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    for (i=0; i<32; i++) {
+        r[i] = a[i] & m;
+    }
+#else
+    int i;
+
+    for (i = 0; i < 32; i += 8) {
+        r[i+0] = a[i+0] & m;
+        r[i+1] = a[i+1] & m;
+        r[i+2] = a[i+2] & m;
+        r[i+3] = a[i+3] & m;
+        r[i+4] = a[i+4] & m;
+        r[i+5] = a[i+5] & m;
+        r[i+6] = a[i+6] & m;
+        r[i+7] = a[i+7] & m;
+    }
+#endif
+}
+
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+SP_NOINLINE static int32_t sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
+{
+    sp_digit r = 0;
+
+
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #124\n\t"
+        "1:\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
+        "ldr	r5, [%[b], r6]\n\t"
+        "and	r7, r3\n\t"
+        "and	r5, r3\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [b] "r" (b)
+        : "r3", "r4", "r5", "r6", "r7"
+    );
+
+    return r;
+}
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * a  Nmber to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_1024_div_32(const sp_digit* a, const sp_digit* d, sp_digit* m,
+        sp_digit* r)
+{
+    sp_digit t1[64], t2[33];
+    sp_digit div, r1;
+    int i;
+
+    (void)m;
+
+    div = d[31];
+    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
+    for (i=31; i>=0; i--) {
+        r1 = div_1024_word_32(t1[32 + i], t1[32 + i - 1], div);
+
+        sp_1024_mul_d_32(t2, d, r1);
+        t1[32 + i] += sp_1024_sub_in_place_32(&t1[i], t2);
+        t1[32 + i] -= t2[32];
+        sp_1024_mask_32(t2, d, t1[32 + i]);
+        t1[32 + i] += sp_1024_add_32(&t1[i], &t1[i], t2);
+        sp_1024_mask_32(t2, d, t1[32 + i]);
+        t1[32 + i] += sp_1024_add_32(&t1[i], &t1[i], t2);
+    }
+
+    r1 = sp_1024_cmp_32(t1, d) >= 0;
+    sp_1024_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
+    return MP_OKAY;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MP_OKAY indicating success.
+ */
+static WC_INLINE int sp_1024_mod_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_1024_div_32(a, m, NULL, r);
+}
+
+/* Multiply a number by Montogmery normalizer mod modulus (prime).
+ *
+ * r  The resulting Montgomery form number.
+ * a  The number to convert.
+ * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_1024_mod_mul_norm_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    sp_1024_mul_32(r, a, p1024_norm_mod);
+    return sp_1024_mod_32(r, r, m);
+}
+
+/* Create a new point.
+ *
+ * heap  [in]   Buffer to allocate dynamic memory from.
+ * sp    [in]   Data for point - only if not allocating.
+ * p     [out]  New point.
+ * returns MEMORY_E when dynamic memory allocation fails and 0 otherwise.
+ */
+static int sp_1024_point_new_ex_32(void* heap, sp_point_1024* sp,
+        sp_point_1024** p)
+{
+    int ret = MP_OKAY;
+    (void)heap;
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    (void)sp;
+    *p = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap, DYNAMIC_TYPE_ECC);
+#else
+    *p = sp;
+#endif
+    if (*p == NULL) {
+        ret = MEMORY_E;
+    }
+    return ret;
+}
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+/* Allocate memory for point and return error. */
+#define sp_1024_point_new_32(heap, sp, p) sp_1024_point_new_ex_32((heap), NULL, &(p))
+#else
+/* Set pointer to data and return no error. */
+#define sp_1024_point_new_32(heap, sp, p) sp_1024_point_new_ex_32((heap), &(sp), &(p))
+#endif
+
+
+/* Free the point.
+ *
+ * p      [in,out]  Point to free.
+ * clear  [in]      Indicates whether to zeroize point.
+ * heap   [in]      Buffer from which dynamic memory was allocate from.
+ */
+static void sp_1024_point_free_32(sp_point_1024* p, int clear, void* heap)
+{
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+/* If valid pointer then clear point data if requested and free data. */
+    if (p != NULL) {
+        if (clear != 0) {
+            XMEMSET(p, 0, sizeof(*p));
+        }
+        XFREE(p, heap, DYNAMIC_TYPE_ECC);
+    }
+#else
+/* Clear point data if requested. */
+    if (clear != 0) {
+        XMEMSET(p, 0, sizeof(*p));
+    }
+#endif
+    (void)heap;
+}
+
+/* Convert an mp_int to an array of sp_digit.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  A multi-precision integer.
+ */
+static void sp_1024_from_mp(sp_digit* r, int size, const mp_int* a)
+{
+#if DIGIT_BIT == 32
+    int j;
+
+    XMEMCPY(r, a->dp, sizeof(sp_digit) * a->used);
+
+    for (j = a->used; j < size; j++) {
+        r[j] = 0;
+    }
+#elif DIGIT_BIT > 32
+    int i;
+    int j = 0;
+    word32 s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i] << s);
+        r[j] &= 0xffffffff;
+        s = 32U - s;
+        if (j + 1 >= size) {
+            break;
+        }
+        /* lint allow cast of mismatch word32 and mp_digit */
+        r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+        while ((s + 32U) <= (word32)DIGIT_BIT) {
+            s += 32U;
+            r[j] &= 0xffffffff;
+            if (j + 1 >= size) {
+                break;
+            }
+            if (s < (word32)DIGIT_BIT) {
+                /* lint allow cast of mismatch word32 and mp_digit */
+                r[++j] = (sp_digit)(a->dp[i] >> s); /*lint !e9033*/
+            }
+            else {
+                r[++j] = 0L;
+            }
+        }
+        s = (word32)DIGIT_BIT - s;
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#else
+    int i;
+    int j = 0;
+    int s = 0;
+
+    r[0] = 0;
+    for (i = 0; i < a->used && j < size; i++) {
+        r[j] |= ((sp_digit)a->dp[i]) << s;
+        if (s + DIGIT_BIT >= 32) {
+            r[j] &= 0xffffffff;
+            if (j + 1 >= size) {
+                break;
+            }
+            s = 32 - s;
+            if (s == DIGIT_BIT) {
+                r[++j] = 0;
+                s = 0;
+            }
+            else {
+                r[++j] = a->dp[i] >> s;
+                s = DIGIT_BIT - s;
+            }
+        }
+        else {
+            s += DIGIT_BIT;
+        }
+    }
+
+    for (j++; j < size; j++) {
+        r[j] = 0;
+    }
+#endif
+}
+
+/* Convert a point of type ecc_point to type sp_point_1024.
+ *
+ * p   Point of type sp_point_1024 (result).
+ * pm  Point of type ecc_point.
+ */
+static void sp_1024_point_from_ecc_point_32(sp_point_1024* p,
+        const ecc_point* pm)
+{
+    XMEMSET(p->x, 0, sizeof(p->x));
+    XMEMSET(p->y, 0, sizeof(p->y));
+    XMEMSET(p->z, 0, sizeof(p->z));
+    sp_1024_from_mp(p->x, 32, pm->x);
+    sp_1024_from_mp(p->y, 32, pm->y);
+    sp_1024_from_mp(p->z, 32, pm->z);
+    p->infinity = 0;
+}
+
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_1024_to_mp(const sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (1024 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) { /*lint !e774 case where err is always MP_OKAY*/
+#if DIGIT_BIT == 32
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 32);
+        r->used = 32;
+        mp_clamp(r);
+#elif DIGIT_BIT < 32
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 32; i++) {
+            r->dp[j] |= (mp_digit)(a[i] << s);
+            r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
+            while (s + DIGIT_BIT <= 32) {
+                s += DIGIT_BIT;
+                r->dp[j++] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+                if (s == SP_WORD_SIZE) {
+                    r->dp[j] = 0;
+                }
+                else {
+                    r->dp[j] = (mp_digit)(a[i] >> s);
+                }
+            }
+            s = 32 - s;
+        }
+        r->used = (1024 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i;
+        int j = 0;
+        int s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 32; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 32 >= DIGIT_BIT) {
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
+                r->dp[j] &= ((sp_digit)1 << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 32 - s;
+            }
+            else {
+                s += 32;
+            }
+        }
+        r->used = (1024 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Convert a point of type sp_point_1024 to type ecc_point.
+ *
+ * p   Point of type sp_point_1024.
+ * pm  Point of type ecc_point (result).
+ * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
+ * MP_OKAY.
+ */
+static int sp_1024_point_to_ecc_point_32(const sp_point_1024* p, ecc_point* pm)
+{
+    int err;
+
+    err = sp_1024_to_mp(p->x, pm->x);
+    if (err == MP_OKAY) {
+        err = sp_1024_to_mp(p->y, pm->y);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_to_mp(p->z, pm->z);
+    }
+
+    return err;
+}
+
+/* Reduce the number back to 1024 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
+        sp_digit mp)
+{
+    sp_digit ca = 0;
+
+    __asm__ __volatile__ (
+        "mov	r8, %[mp]\n\t"
+        "mov	r12, %[ca]\n\t"
+        "mov	r14, %[m]\n\t"
+        "mov	r9, %[a]\n\t"
+        "mov	r4, #0\n\t"
+        "# i = 0\n\t"
+        "mov	r11, r4\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "mov	%[ca], #0\n\t"
+        "# mu = a[i] * mp\n\t"
+        "mov	%[mp], r8\n\t"
+        "ldr	%[a], [%[a]]\n\t"
+        "mul	%[mp], %[a]\n\t"
+        "mov	%[m], r14\n\t"
+        "mov	r10, r9\n\t"
+        "\n2:\n\t"
+        "# a[i+j] += m[j] * mu\n\t"
+        "mov	%[a], r10\n\t"
+        "ldr	%[a], [%[a]]\n\t"
+        "mov	%[ca], #0\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "# Multiply m[j] and mu - Start\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsl	r6, %[mp], #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	%[a], r7\n\t"
+        "adc	r5, %[ca]\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	%[a], r6\n\t"
+        "adc	r5, r7\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsr	r6, %[mp], #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r5, r7\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	%[a], r6\n\t"
+        "adc	r5, r7\n\t"
+        "# Multiply m[j] and mu - Done\n\t"
+        "add	r4, %[a]\n\t"
+        "adc	r5, %[ca]\n\t"
+        "mov	%[a], r10\n\t"
+        "str	r4, [%[a]]\n\t"
+        "mov	r6, #4\n\t"
+        "add	%[m], #4\n\t"
+        "add	r10, r6\n\t"
+        "mov	r4, #124\n\t"
+        "add	r4, r9\n\t"
+        "cmp	r10, r4\n\t"
+        "blt	2b\n\t"
+        "# a[i+31] += m[31] * mu\n\t"
+        "mov	%[ca], #0\n\t"
+        "mov	r4, r12\n\t"
+        "mov	%[a], #0\n\t"
+        "# Multiply m[31] and mu - Start\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsl	r6, %[mp], #16\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r5, r7\n\t"
+        "adc	r4, %[ca]\n\t"
+        "adc	%[a], %[ca]\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r5, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	%[a], %[ca]\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsr	r6, %[mp], #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	%[a], %[ca]\n\t"
+        "ldr	r7, [%[m]]\n\t"
+        "lsl	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r5, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	%[a], %[ca]\n\t"
+        "# Multiply m[31] and mu - Done\n\t"
+        "mov	%[ca], %[a]\n\t"
+        "mov	%[a], r10\n\t"
+        "ldr	r7, [%[a], #4]\n\t"
+        "ldr	%[a], [%[a]]\n\t"
+        "mov	r6, #0\n\t"
+        "add	r5, %[a]\n\t"
+        "adc	r7, r4\n\t"
+        "adc	%[ca], r6\n\t"
+        "mov	%[a], r10\n\t"
+        "str	r5, [%[a]]\n\t"
+        "str	r7, [%[a], #4]\n\t"
+        "# i += 1\n\t"
+        "mov	r6, #4\n\t"
+        "add	r9, r6\n\t"
+        "add	r11, r6\n\t"
+        "mov	r12, %[ca]\n\t"
+        "mov	%[a], r9\n\t"
+        "mov	r4, #128\n\t"
+        "cmp	r11, r4\n\t"
+        "blt	1b\n\t"
+        "ldr	r6, [%[m]]\n\t"
+        "neg	%[ca], %[ca]\n\t"
+        "sub	r6, r7\n\t"
+        "sbc	r6, r6\n\t"
+        "orr	%[ca], r6\n\t"
+        "mov	%[m], r14\n\t"
+        : [ca] "+r" (ca), [a] "+r" (a)
+        : [m] "r" (m), [mp] "r" (mp)
+        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    sp_1024_cond_sub_32(a - 32, a, m, ca);
+}
+
+/* Multiply two Montogmery form numbers mod the modulus (prime).
+ * (r = a * b mod m)
+ *
+ * r   Result of multiplication.
+ * a   First number to multiply in Montogmery form.
+ * b   Second number to multiply in Montogmery form.
+ * m   Modulus (prime).
+ * mp  Montogmery mulitplier.
+ */
+static void sp_1024_mont_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
+{
+    sp_1024_mul_32(r, a, b);
+    sp_1024_mont_reduce_32(r, m, mp);
+}
+
+/* Square the Montgomery form number. (r = a * a mod m)
+ *
+ * r   Result of squaring.
+ * a   Number to square in Montogmery form.
+ * m   Modulus (prime).
+ * mp  Montogmery mulitplier.
+ */
+static void sp_1024_mont_sqr_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
+{
+    sp_1024_sqr_32(r, a);
+    sp_1024_mont_reduce_32(r, m, mp);
+}
+
+/* Mod-2 for the P1024 curve. */
+static const uint8_t p1024_mod_minus_2[] = {
+     6,0x06,  7,0x0f,  7,0x0b,  6,0x0c,  7,0x1e,  9,0x09,  7,0x0c,  7,0x1f,
+     6,0x16,  6,0x06,  7,0x0e,  8,0x10,  6,0x03,  8,0x11,  6,0x0d,  7,0x14,
+     9,0x12,  6,0x0f,  7,0x04,  9,0x0d,  6,0x00,  7,0x13,  6,0x01,  6,0x07,
+     8,0x0d,  8,0x00,  6,0x06,  9,0x17,  6,0x14,  6,0x15,  6,0x11,  6,0x0b,
+     9,0x0c,  6,0x1e, 13,0x14,  7,0x0e,  6,0x1d, 12,0x0a,  6,0x0b,  8,0x07,
+     6,0x18,  6,0x0f,  6,0x10,  8,0x1c,  7,0x16,  7,0x02,  6,0x01,  6,0x13,
+    10,0x15,  7,0x06,  8,0x14,  6,0x0c,  6,0x19,  7,0x10,  6,0x19,  6,0x19,
+     9,0x16,  7,0x19,  6,0x1f,  6,0x17,  6,0x12,  8,0x02,  6,0x01,  6,0x04,
+     6,0x15,  7,0x16,  6,0x04,  6,0x1f,  6,0x09,  7,0x06,  7,0x13,  7,0x09,
+     6,0x0d, 10,0x18,  6,0x06,  6,0x11,  6,0x04,  6,0x01,  6,0x13,  8,0x06,
+     6,0x0d,  8,0x13,  7,0x08,  6,0x08,  6,0x05,  7,0x0c,  7,0x0e,  7,0x15,
+     6,0x05,  7,0x14, 10,0x19,  6,0x10,  6,0x16,  6,0x15,  7,0x1f,  6,0x14,
+     6,0x0a, 10,0x11,  6,0x01,  7,0x05,  7,0x08,  8,0x0a,  7,0x1e,  7,0x1c,
+     6,0x1c,  7,0x09, 10,0x18,  7,0x1c, 10,0x06,  6,0x0a,  6,0x07,  6,0x19,
+     7,0x06,  6,0x0d,  7,0x0f,  7,0x0b,  7,0x05,  6,0x11,  6,0x1c,  7,0x1f,
+     6,0x1e,  7,0x18,  6,0x1e,  6,0x00,  6,0x03,  6,0x02,  7,0x10,  6,0x0b,
+     6,0x1b,  7,0x10,  6,0x00,  8,0x11,  7,0x1b,  6,0x18,  6,0x01,  7,0x0c,
+     7,0x1d,  7,0x13,  6,0x08,  7,0x1b,  8,0x13,  7,0x16, 13,0x1d,  7,0x1f,
+     6,0x0a,  6,0x01,  7,0x1f,  6,0x14,  1,0x01
+};
+
+/* Invert the number, in Montgomery form, modulo the modulus (prime) of the
+ * P1024 curve. (r = 1 / a mod m)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_1024_mont_inv_32(sp_digit* r, const sp_digit* a,
+        sp_digit* td)
+{
+    sp_digit* t = td;
+    int i;
+    int j;
+    sp_digit table[32][2 * 32];
+
+    XMEMCPY(table[0], a, sizeof(sp_digit) * 32);
+    for (i = 1; i < 6; i++) {
+        sp_1024_mont_sqr_32(table[0], table[0], p1024_mod, p1024_mp_mod);
+    }
+    for (i = 1; i < 32; i++) {
+        sp_1024_mont_mul_32(table[i], table[i-1], a, p1024_mod, p1024_mp_mod);
+    }
+
+    XMEMCPY(t, table[p1024_mod_minus_2[1]], sizeof(sp_digit) * 32);
+    for (i = 2; i < (int)sizeof(p1024_mod_minus_2) - 2; i += 2) {
+        for (j = 0; j < p1024_mod_minus_2[i]; j++) {
+            sp_1024_mont_sqr_32(t, t, p1024_mod, p1024_mp_mod);
+        }
+        sp_1024_mont_mul_32(t, t, table[p1024_mod_minus_2[i+1]], p1024_mod,
+            p1024_mp_mod);
+    }
+    sp_1024_mont_sqr_32(t, t, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(r, t, a, p1024_mod, p1024_mp_mod);
+}
+
+/* Normalize the values in each word to 32.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+#define sp_1024_norm_32(a)
+
+/* Map the Montgomery form projective coordinate point to an affine point.
+ *
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
+ * t  Temporary ordinate data.
+ */
+static void sp_1024_map_32(sp_point_1024* r, const sp_point_1024* p,
+        sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*32;
+    int32_t n;
+
+    sp_1024_mont_inv_32(t1, p->z, t + 2*32);
+
+    sp_1024_mont_sqr_32(t2, t1, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(t1, t2, t1, p1024_mod, p1024_mp_mod);
+
+    /* x /= z^2 */
+    sp_1024_mont_mul_32(r->x, p->x, t2, p1024_mod, p1024_mp_mod);
+    XMEMSET(r->x + 32, 0, sizeof(r->x) / 2U);
+    sp_1024_mont_reduce_32(r->x, p1024_mod, p1024_mp_mod);
+    /* Reduce x to less than modulus */
+    n = sp_1024_cmp_32(r->x, p1024_mod);
+    sp_1024_cond_sub_32(r->x, r->x, p1024_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_1024_norm_32(r->x);
+
+    /* y /= z^3 */
+    sp_1024_mont_mul_32(r->y, p->y, t1, p1024_mod, p1024_mp_mod);
+    XMEMSET(r->y + 32, 0, sizeof(r->y) / 2U);
+    sp_1024_mont_reduce_32(r->y, p1024_mod, p1024_mp_mod);
+    /* Reduce y to less than modulus */
+    n = sp_1024_cmp_32(r->y, p1024_mod);
+    sp_1024_cond_sub_32(r->y, r->y, p1024_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_1024_norm_32(r->y);
+
+    XMEMSET(r->z, 0, sizeof(r->z));
+    r->z[0] = 1;
+
+}
+
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montogmery form.
+ * b   Second number to add in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_1024_mont_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    sp_digit o;
+
+    o = sp_1024_add_32(r, a, b);
+    sp_1024_cond_sub_32(r, r, m, 0 - o);
+}
+
+/* Double a Montgomery form number (r = a + a % m).
+ *
+ * r   Result of doubling.
+ * a   Number to double in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit o;
+
+    o = sp_1024_add_32(r, a, a);
+    sp_1024_cond_sub_32(r, r, m, 0 - o);
+}
+
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit o;
+
+    o = sp_1024_add_32(r, a, a);
+    sp_1024_cond_sub_32(r, r, m, 0 - o);
+    o = sp_1024_add_32(r, r, a);
+    sp_1024_cond_sub_32(r, r, m, 0 - o);
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r6, %[a]\n\t"
+        "add	r6, #128\n\t"
+        "\n1:\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, %[c]\n\t"
+        "ldr	r4, [%[a]]\n\t"
+        "ldr	r5, [%[b]]\n\t"
+        "sbc	r4, r5\n\t"
+        "str	r4, [%[r]]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        "add	%[a], #4\n\t"
+        "add	%[b], #4\n\t"
+        "add	%[r], #4\n\t"
+        "cmp	%[a], r6\n\t"
+        "bne	1b\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6"
+    );
+
+    return c;
+}
+
+#else
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static sp_digit sp_1024_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "ldr	r4, [%[a], #0]\n\t"
+        "ldr	r5, [%[a], #4]\n\t"
+        "ldr	r6, [%[b], #0]\n\t"
+        "ldr	r7, [%[b], #4]\n\t"
+        "sub	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #0]\n\t"
+        "str	r5, [%[r], #4]\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "ldr	r5, [%[a], #12]\n\t"
+        "ldr	r6, [%[b], #8]\n\t"
+        "ldr	r7, [%[b], #12]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "str	r5, [%[r], #12]\n\t"
+        "ldr	r4, [%[a], #16]\n\t"
+        "ldr	r5, [%[a], #20]\n\t"
+        "ldr	r6, [%[b], #16]\n\t"
+        "ldr	r7, [%[b], #20]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #16]\n\t"
+        "str	r5, [%[r], #20]\n\t"
+        "ldr	r4, [%[a], #24]\n\t"
+        "ldr	r5, [%[a], #28]\n\t"
+        "ldr	r6, [%[b], #24]\n\t"
+        "ldr	r7, [%[b], #28]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #24]\n\t"
+        "str	r5, [%[r], #28]\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "ldr	r5, [%[a], #36]\n\t"
+        "ldr	r6, [%[b], #32]\n\t"
+        "ldr	r7, [%[b], #36]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "str	r5, [%[r], #36]\n\t"
+        "ldr	r4, [%[a], #40]\n\t"
+        "ldr	r5, [%[a], #44]\n\t"
+        "ldr	r6, [%[b], #40]\n\t"
+        "ldr	r7, [%[b], #44]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "ldr	r4, [%[a], #48]\n\t"
+        "ldr	r5, [%[a], #52]\n\t"
+        "ldr	r6, [%[b], #48]\n\t"
+        "ldr	r7, [%[b], #52]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #48]\n\t"
+        "str	r5, [%[r], #52]\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "ldr	r5, [%[a], #60]\n\t"
+        "ldr	r6, [%[b], #56]\n\t"
+        "ldr	r7, [%[b], #60]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "str	r5, [%[r], #60]\n\t"
+        "ldr	r4, [%[a], #64]\n\t"
+        "ldr	r5, [%[a], #68]\n\t"
+        "ldr	r6, [%[b], #64]\n\t"
+        "ldr	r7, [%[b], #68]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #64]\n\t"
+        "str	r5, [%[r], #68]\n\t"
+        "ldr	r4, [%[a], #72]\n\t"
+        "ldr	r5, [%[a], #76]\n\t"
+        "ldr	r6, [%[b], #72]\n\t"
+        "ldr	r7, [%[b], #76]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #72]\n\t"
+        "str	r5, [%[r], #76]\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "ldr	r5, [%[a], #84]\n\t"
+        "ldr	r6, [%[b], #80]\n\t"
+        "ldr	r7, [%[b], #84]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "str	r5, [%[r], #84]\n\t"
+        "ldr	r4, [%[a], #88]\n\t"
+        "ldr	r5, [%[a], #92]\n\t"
+        "ldr	r6, [%[b], #88]\n\t"
+        "ldr	r7, [%[b], #92]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #88]\n\t"
+        "str	r5, [%[r], #92]\n\t"
+        "ldr	r4, [%[a], #96]\n\t"
+        "ldr	r5, [%[a], #100]\n\t"
+        "ldr	r6, [%[b], #96]\n\t"
+        "ldr	r7, [%[b], #100]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #96]\n\t"
+        "str	r5, [%[r], #100]\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "ldr	r5, [%[a], #108]\n\t"
+        "ldr	r6, [%[b], #104]\n\t"
+        "ldr	r7, [%[b], #108]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "str	r5, [%[r], #108]\n\t"
+        "ldr	r4, [%[a], #112]\n\t"
+        "ldr	r5, [%[a], #116]\n\t"
+        "ldr	r6, [%[b], #112]\n\t"
+        "ldr	r7, [%[b], #116]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #112]\n\t"
+        "str	r5, [%[r], #116]\n\t"
+        "ldr	r4, [%[a], #120]\n\t"
+        "ldr	r5, [%[a], #124]\n\t"
+        "ldr	r6, [%[b], #120]\n\t"
+        "ldr	r7, [%[b], #124]\n\t"
+        "sbc	r4, r6\n\t"
+        "sbc	r5, r7\n\t"
+        "str	r4, [%[r], #120]\n\t"
+        "str	r5, [%[r], #124]\n\t"
+        "sbc	%[c], %[c]\n\t"
+        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
+        :
+        : "memory", "r4", "r5", "r6", "r7"
+    );
+
+    return c;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #128\n\t"
+        "mov	r8, r5\n\t"
+        "mov	r7, #0\n\t"
+        "1:\n\t"
+        "ldr	r6, [%[b], r7]\n\t"
+        "and	r6, %[m]\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, #1\n\t"
+        "add	r5, %[c]\n\t"
+        "ldr	r5, [%[a], r7]\n\t"
+        "adc	r5, r6\n\t"
+        "mov	%[c], #0\n\t"
+        "adc	%[c], %[c]\n\t"
+        "str	r5, [%[r], r7]\n\t"
+        "add	r7, #4\n\t"
+        "cmp	r7, r8\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r7", "r8"
+    );
+
+    return c;
+}
+
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montogmery form.
+ * b   Number to subtract with in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    sp_digit o;
+
+    o = sp_1024_sub_32(r, a, b);
+    o += sp_1024_cond_add_32(r, r, m, o);
+    sp_1024_cond_add_32(r, r, m, o);
+}
+
+static void sp_1024_rshift1_32(sp_digit* r, sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "ldr	r2, [%[a]]\n\t"
+        "ldr	r3, [%[a], #4]\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "str	r2, [%[r], #0]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #12]\n\t"
+        "str	r3, [%[r], #4]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "str	r2, [%[r], #12]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #24]\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #28]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #32]\n\t"
+        "str	r2, [%[r], #24]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #36]\n\t"
+        "str	r3, [%[r], #28]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #40]\n\t"
+        "str	r4, [%[r], #32]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #44]\n\t"
+        "str	r2, [%[r], #36]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #48]\n\t"
+        "str	r3, [%[r], #40]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #52]\n\t"
+        "str	r4, [%[r], #44]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #56]\n\t"
+        "str	r2, [%[r], #48]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #60]\n\t"
+        "str	r3, [%[r], #52]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #64]\n\t"
+        "str	r4, [%[r], #56]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #68]\n\t"
+        "str	r2, [%[r], #60]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #72]\n\t"
+        "str	r3, [%[r], #64]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #76]\n\t"
+        "str	r4, [%[r], #68]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #80]\n\t"
+        "str	r2, [%[r], #72]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #84]\n\t"
+        "str	r3, [%[r], #76]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #88]\n\t"
+        "str	r4, [%[r], #80]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #92]\n\t"
+        "str	r2, [%[r], #84]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #96]\n\t"
+        "str	r3, [%[r], #88]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #100]\n\t"
+        "str	r4, [%[r], #92]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #104]\n\t"
+        "str	r2, [%[r], #96]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #108]\n\t"
+        "str	r3, [%[r], #100]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #112]\n\t"
+        "str	r4, [%[r], #104]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #116]\n\t"
+        "str	r2, [%[r], #108]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #120]\n\t"
+        "str	r3, [%[r], #112]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #124]\n\t"
+        "str	r4, [%[r], #116]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "str	r2, [%[r], #120]\n\t"
+        "str	r3, [%[r], #124]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5"
+    );
+}
+
+/* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus (prime).
+ */
+SP_NOINLINE static void sp_1024_div2_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit o;
+
+    o = sp_1024_cond_add_32(r, a, m, 0 - (a[0] & 1));
+    sp_1024_rshift1_32(r, r);
+    r[31] |= o << 31;
+}
+
+/* Double the Montgomery form projective point p.
+ *
+ * r  Result of doubling point.
+ * p  Point to double.
+ * t  Temporary ordinate data.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_1024_proj_point_dbl_32_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_1024_proj_point_dbl_32_ctx;
+
+static int sp_1024_proj_point_dbl_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r, const sp_point_1024* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_1024_proj_point_dbl_32_ctx* ctx = (sp_1024_proj_point_dbl_32_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_1024_proj_point_dbl_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*32;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_1024_mont_sqr_32(ctx->t1, p->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_1024_mont_mul_32(ctx->z, p->y, p->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_1024_mont_dbl_32(ctx->z, ctx->z, p1024_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_1024_mont_sub_32(ctx->t2, p->x, ctx->t1, p1024_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_1024_mont_add_32(ctx->t1, p->x, ctx->t1, p1024_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_1024_mont_mul_32(ctx->t2, ctx->t1, ctx->t2, p1024_mod, p1024_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_1024_mont_tpl_32(ctx->t1, ctx->t2, p1024_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_1024_mont_dbl_32(ctx->y, p->y, p1024_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_1024_mont_sqr_32(ctx->y, ctx->y, p1024_mod, p1024_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_1024_mont_sqr_32(ctx->t2, ctx->y, p1024_mod, p1024_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_1024_div2_32(ctx->t2, ctx->t2, p1024_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_1024_mont_mul_32(ctx->y, ctx->y, p->x, p1024_mod, p1024_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_1024_mont_sqr_32(ctx->x, ctx->t1, p1024_mod, p1024_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->y, p1024_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->y, p1024_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->x, p1024_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_1024_mont_mul_32(ctx->y, ctx->y, ctx->t1, p1024_mod, p1024_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t2, p1024_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_1024_proj_point_dbl_32(sp_point_1024* r,
+        const sp_point_1024* p, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*32;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
+    if (r != p) {
+        r->infinity = p->infinity;
+    }
+
+    /* T1 = Z * Z */
+    sp_1024_mont_sqr_32(t1, p->z, p1024_mod, p1024_mp_mod);
+    /* Z = Y * Z */
+    sp_1024_mont_mul_32(z, p->y, p->z, p1024_mod, p1024_mp_mod);
+    /* Z = 2Z */
+    sp_1024_mont_dbl_32(z, z, p1024_mod);
+    /* T2 = X - T1 */
+    sp_1024_mont_sub_32(t2, p->x, t1, p1024_mod);
+    /* T1 = X + T1 */
+    sp_1024_mont_add_32(t1, p->x, t1, p1024_mod);
+    /* T2 = T1 * T2 */
+    sp_1024_mont_mul_32(t2, t1, t2, p1024_mod, p1024_mp_mod);
+    /* T1 = 3T2 */
+    sp_1024_mont_tpl_32(t1, t2, p1024_mod);
+    /* Y = 2Y */
+    sp_1024_mont_dbl_32(y, p->y, p1024_mod);
+    /* Y = Y * Y */
+    sp_1024_mont_sqr_32(y, y, p1024_mod, p1024_mp_mod);
+    /* T2 = Y * Y */
+    sp_1024_mont_sqr_32(t2, y, p1024_mod, p1024_mp_mod);
+    /* T2 = T2/2 */
+    sp_1024_div2_32(t2, t2, p1024_mod);
+    /* Y = Y * X */
+    sp_1024_mont_mul_32(y, y, p->x, p1024_mod, p1024_mp_mod);
+    /* X = T1 * T1 */
+    sp_1024_mont_sqr_32(x, t1, p1024_mod, p1024_mp_mod);
+    /* X = X - Y */
+    sp_1024_mont_sub_32(x, x, y, p1024_mod);
+    /* X = X - Y */
+    sp_1024_mont_sub_32(x, x, y, p1024_mod);
+    /* Y = Y - X */
+    sp_1024_mont_sub_32(y, y, x, p1024_mod);
+    /* Y = Y * T1 */
+    sp_1024_mont_mul_32(y, y, t1, p1024_mod, p1024_mp_mod);
+    /* Y = Y - T2 */
+    sp_1024_mont_sub_32(y, y, t2, p1024_mod);
+}
+
+/* Compare two numbers to determine if they are equal.
+ * Constant time implementation.
+ *
+ * a  First number to compare.
+ * b  Second number to compare.
+ * returns 1 when equal and 0 otherwise.
+ */
+static int sp_1024_cmp_equal_32(const sp_digit* a, const sp_digit* b)
+{
+    return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2]) | (a[3] ^ b[3]) |
+            (a[4] ^ b[4]) | (a[5] ^ b[5]) | (a[6] ^ b[6]) | (a[7] ^ b[7]) |
+            (a[8] ^ b[8]) | (a[9] ^ b[9]) | (a[10] ^ b[10]) | (a[11] ^ b[11]) |
+            (a[12] ^ b[12]) | (a[13] ^ b[13]) | (a[14] ^ b[14]) | (a[15] ^ b[15]) |
+            (a[16] ^ b[16]) | (a[17] ^ b[17]) | (a[18] ^ b[18]) | (a[19] ^ b[19]) |
+            (a[20] ^ b[20]) | (a[21] ^ b[21]) | (a[22] ^ b[22]) | (a[23] ^ b[23]) |
+            (a[24] ^ b[24]) | (a[25] ^ b[25]) | (a[26] ^ b[26]) | (a[27] ^ b[27]) |
+            (a[28] ^ b[28]) | (a[29] ^ b[29]) | (a[30] ^ b[30]) | (a[31] ^ b[31])) == 0;
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_1024_proj_point_add_32_ctx {
+    int state;
+    sp_1024_proj_point_dbl_32_ctx dbl_ctx;
+    const sp_point_1024* ap[2];
+    sp_point_1024* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_1024_proj_point_add_32_ctx;
+
+static int sp_1024_proj_point_add_32_nb(sp_ecc_ctx_t* sp_ctx, sp_point_1024* r,
+    const sp_point_1024* p, const sp_point_1024* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_1024_proj_point_add_32_ctx* ctx = (sp_1024_proj_point_add_32_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_1024* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_1024_proj_point_add_32_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*32;
+        ctx->t3 = t + 4*32;
+        ctx->t4 = t + 6*32;
+        ctx->t5 = t + 8*32;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_1024_sub_32(ctx->t1, p1024_mod, q->y);
+        sp_1024_norm_32(ctx->t1);
+        if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+            (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_1024_proj_point_dbl_32_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_1024*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_1024));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<32; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<32; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<32; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_1024_mont_sqr_32(ctx->t1, q->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_1024_mont_mul_32(ctx->t3, ctx->t1, q->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_1024_mont_mul_32(ctx->t1, ctx->t1, ctx->x, p1024_mod, p1024_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_1024_mont_sqr_32(ctx->t2, ctx->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_1024_mont_mul_32(ctx->t4, ctx->t2, ctx->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_1024_mont_mul_32(ctx->t2, ctx->t2, q->x, p1024_mod, p1024_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_1024_mont_mul_32(ctx->t3, ctx->t3, ctx->y, p1024_mod, p1024_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_1024_mont_mul_32(ctx->t4, ctx->t4, q->y, p1024_mod, p1024_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_1024_mont_sub_32(ctx->t2, ctx->t2, ctx->t1, p1024_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_1024_mont_sub_32(ctx->t4, ctx->t4, ctx->t3, p1024_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_1024_mont_mul_32(ctx->z, ctx->z, q->z, p1024_mod, p1024_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_1024_mont_mul_32(ctx->z, ctx->z, ctx->t2, p1024_mod, p1024_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_1024_mont_sqr_32(ctx->x, ctx->t4, p1024_mod, p1024_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_1024_mont_sqr_32(ctx->t5, ctx->t2, p1024_mod, p1024_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_1024_mont_mul_32(ctx->y, ctx->t1, ctx->t5, p1024_mod, p1024_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_1024_mont_mul_32(ctx->t5, ctx->t5, ctx->t2, p1024_mod, p1024_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->t5, p1024_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_1024_mont_dbl_32(ctx->t1, ctx->y, p1024_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_1024_mont_sub_32(ctx->x, ctx->x, ctx->t1, p1024_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->x, p1024_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_1024_mont_mul_32(ctx->y, ctx->y, ctx->t4, p1024_mod, p1024_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_1024_mont_mul_32(ctx->t5, ctx->t5, ctx->t3, p1024_mod, p1024_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_1024_mont_sub_32(ctx->y, ctx->y, ctx->t5, p1024_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_1024_proj_point_add_32(sp_point_1024* r,
+        const sp_point_1024* p, const sp_point_1024* q, sp_digit* t)
+{
+    const sp_point_1024* ap[2];
+    sp_point_1024* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*32;
+    sp_digit* t3 = t + 4*32;
+    sp_digit* t4 = t + 6*32;
+    sp_digit* t5 = t + 8*32;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_1024* a = p;
+        p = q;
+        q = a;
+    }
+
+    /* Check double */
+    (void)sp_1024_mont_sub_32(t1, p1024_mod, q->y, p1024_mod);
+    sp_1024_norm_32(t1);
+    if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+        (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, t1))) != 0) {
+        sp_1024_proj_point_dbl_32(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_1024*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_1024));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<32; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<32; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<32; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U1 = X1*Z2^2 */
+        sp_1024_mont_sqr_32(t1, q->z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t3, t1, q->z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t1, t1, x, p1024_mod, p1024_mp_mod);
+        /* U2 = X2*Z1^2 */
+        sp_1024_mont_sqr_32(t2, z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t4, t2, z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t2, t2, q->x, p1024_mod, p1024_mp_mod);
+        /* S1 = Y1*Z2^3 */
+        sp_1024_mont_mul_32(t3, t3, y, p1024_mod, p1024_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_1024_mont_mul_32(t4, t4, q->y, p1024_mod, p1024_mp_mod);
+        /* H = U2 - U1 */
+        sp_1024_mont_sub_32(t2, t2, t1, p1024_mod);
+        /* R = S2 - S1 */
+        sp_1024_mont_sub_32(t4, t4, t3, p1024_mod);
+        /* Z3 = H*Z1*Z2 */
+        sp_1024_mont_mul_32(z, z, q->z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(z, z, t2, p1024_mod, p1024_mp_mod);
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_1024_mont_sqr_32(x, t4, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sqr_32(t5, t2, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(y, t1, t5, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t5, t5, t2, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sub_32(x, x, t5, p1024_mod);
+        sp_1024_mont_dbl_32(t1, y, p1024_mod);
+        sp_1024_mont_sub_32(x, x, t1, p1024_mod);
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_1024_mont_sub_32(y, y, x, p1024_mod);
+        sp_1024_mont_mul_32(y, y, t4, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t5, t5, t3, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sub_32(y, y, t5, p1024_mod);
+    }
+}
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Fast implementation that generates a pre-computation table.
+ * 4 bits of window (no sliding!).
+ * Uses add and double for calculating table.
+ * 1024 doubles.
+ * 268 adds.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 td[16];
+    sp_point_1024 rtd;
+    sp_digit tmpd[2 * 32 * 5];
+#endif
+    sp_point_1024* t;
+    sp_point_1024* rt;
+    sp_digit* tmp;
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+    int err;
+
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+    err = sp_1024_point_new_32(heap, rtd, rt);
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#ifndef WC_NO_CACHE_RESISTANT
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 17, heap, DYNAMIC_TYPE_ECC);
+#else
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 16, heap, DYNAMIC_TYPE_ECC);
+#endif
+    if (t == NULL)
+        err = MEMORY_E;
+    tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                             DYNAMIC_TYPE_ECC);
+    if (tmp == NULL)
+        err = MEMORY_E;
+#else
+    t = td;
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        /* t[0] = {0, 0, 1} * norm */
+        XMEMSET(&t[0], 0, sizeof(t[0]));
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        (void)sp_1024_mod_mul_norm_32(t[1].x, g->x, p1024_mod);
+        (void)sp_1024_mod_mul_norm_32(t[1].y, g->y, p1024_mod);
+        (void)sp_1024_mod_mul_norm_32(t[1].z, g->z, p1024_mod);
+        t[1].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[ 2], &t[ 1], tmp);
+        t[ 2].infinity = 0;
+        sp_1024_proj_point_add_32(&t[ 3], &t[ 2], &t[ 1], tmp);
+        t[ 3].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[ 4], &t[ 2], tmp);
+        t[ 4].infinity = 0;
+        sp_1024_proj_point_add_32(&t[ 5], &t[ 3], &t[ 2], tmp);
+        t[ 5].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[ 6], &t[ 3], tmp);
+        t[ 6].infinity = 0;
+        sp_1024_proj_point_add_32(&t[ 7], &t[ 4], &t[ 3], tmp);
+        t[ 7].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[ 8], &t[ 4], tmp);
+        t[ 8].infinity = 0;
+        sp_1024_proj_point_add_32(&t[ 9], &t[ 5], &t[ 4], tmp);
+        t[ 9].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[10], &t[ 5], tmp);
+        t[10].infinity = 0;
+        sp_1024_proj_point_add_32(&t[11], &t[ 6], &t[ 5], tmp);
+        t[11].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[12], &t[ 6], tmp);
+        t[12].infinity = 0;
+        sp_1024_proj_point_add_32(&t[13], &t[ 7], &t[ 6], tmp);
+        t[13].infinity = 0;
+        sp_1024_proj_point_dbl_32(&t[14], &t[ 7], tmp);
+        t[14].infinity = 0;
+        sp_1024_proj_point_add_32(&t[15], &t[ 8], &t[ 7], tmp);
+        t[15].infinity = 0;
+
+        i = 30;
+        n = k[i+1] << 0;
+        c = 28;
+        y = (int)(n >> 28);
+        XMEMCPY(rt, &t[y], sizeof(sp_point_1024));
+        n <<= 4;
+        for (; i>=0 || c>=4; ) {
+            if (c < 4) {
+                n |= k[i--];
+                c += 32;
+            }
+            y = (n >> 28) & 0xf;
+            n <<= 4;
+            c -= 4;
+
+            sp_1024_proj_point_dbl_32(rt, rt, tmp);
+            sp_1024_proj_point_dbl_32(rt, rt, tmp);
+            sp_1024_proj_point_dbl_32(rt, rt, tmp);
+            sp_1024_proj_point_dbl_32(rt, rt, tmp);
+            sp_1024_proj_point_add_32(rt, rt, &t[y], tmp);
+        }
+
+        if (map != 0) {
+            sp_1024_map_32(r, rt, tmp);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_1024));
+        }
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL) {
+        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 32 * 5);
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    }
+    if (t != NULL) {
+        XMEMSET(t, 0, sizeof(sp_point_1024) * 16);
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    }
+#else
+    ForceZero(tmpd, sizeof(tmpd));
+    ForceZero(td, sizeof(td));
+#endif
+    sp_1024_point_free_32(rt, 1, heap);
+
+    return err;
+}
+
+#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_1024_proj_point_dbl_n_32(sp_point_1024* p, int n,
+        sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*32;
+    sp_digit* b = t + 4*32;
+    sp_digit* t1 = t + 6*32;
+    sp_digit* t2 = t + 8*32;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = p->x;
+    y = p->y;
+    z = p->z;
+
+    /* Y = 2*Y */
+    sp_1024_mont_dbl_32(y, y, p1024_mod);
+    /* W = Z^4 */
+    sp_1024_mont_sqr_32(w, z, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_sqr_32(w, w, p1024_mod, p1024_mp_mod);
+
+#ifndef WOLFSSL_SP_SMALL
+    while (--n > 0)
+#else
+    while (--n >= 0)
+#endif
+    {
+        /* A = 3*(X^2 - W) */
+        sp_1024_mont_sqr_32(t1, x, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sub_32(t1, t1, w, p1024_mod);
+        sp_1024_mont_tpl_32(a, t1, p1024_mod);
+        /* B = X*Y^2 */
+        sp_1024_mont_sqr_32(t1, y, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(b, t1, x, p1024_mod, p1024_mp_mod);
+        /* X = A^2 - 2B */
+        sp_1024_mont_sqr_32(x, a, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_dbl_32(t2, b, p1024_mod);
+        sp_1024_mont_sub_32(x, x, t2, p1024_mod);
+        /* Z = Z*Y */
+        sp_1024_mont_mul_32(z, z, y, p1024_mod, p1024_mp_mod);
+        /* t2 = Y^4 */
+        sp_1024_mont_sqr_32(t1, t1, p1024_mod, p1024_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
+        if (n != 0)
+        {
+#endif
+            /* W = W*Y^4 */
+            sp_1024_mont_mul_32(w, w, t1, p1024_mod, p1024_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
+        }
+#endif
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_1024_mont_sub_32(y, b, x, p1024_mod);
+        sp_1024_mont_mul_32(y, y, a, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_dbl_32(y, y, p1024_mod);
+        sp_1024_mont_sub_32(y, y, t1, p1024_mod);
+    }
+#ifndef WOLFSSL_SP_SMALL
+    /* A = 3*(X^2 - W) */
+    sp_1024_mont_sqr_32(t1, x, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_sub_32(t1, t1, w, p1024_mod);
+    sp_1024_mont_tpl_32(a, t1, p1024_mod);
+    /* B = X*Y^2 */
+    sp_1024_mont_sqr_32(t1, y, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(b, t1, x, p1024_mod, p1024_mp_mod);
+    /* X = A^2 - 2B */
+    sp_1024_mont_sqr_32(x, a, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_dbl_32(t2, b, p1024_mod);
+    sp_1024_mont_sub_32(x, x, t2, p1024_mod);
+    /* Z = Z*Y */
+    sp_1024_mont_mul_32(z, z, y, p1024_mod, p1024_mp_mod);
+    /* t2 = Y^4 */
+    sp_1024_mont_sqr_32(t1, t1, p1024_mod, p1024_mp_mod);
+    /* y = 2*A*(B - X) - Y^4 */
+    sp_1024_mont_sub_32(y, b, x, p1024_mod);
+    sp_1024_mont_mul_32(y, y, a, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_dbl_32(y, y, p1024_mod);
+    sp_1024_mont_sub_32(y, y, t1, p1024_mod);
+#endif
+    /* Y = Y/2 */
+    sp_1024_div2_32(y, y, p1024_mod);
+}
+
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_1024_proj_to_affine_32(sp_point_1024* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 32;
+    sp_digit* tmp = t + 4 * 32;
+
+    sp_1024_mont_inv_32(t1, a->z, tmp);
+
+    sp_1024_mont_sqr_32(t2, t1, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(t1, t2, t1, p1024_mod, p1024_mp_mod);
+
+    sp_1024_mont_mul_32(a->x, a->x, t2, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(a->y, a->y, t1, p1024_mod, p1024_mp_mod);
+    XMEMCPY(a->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+}
+
+#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_1024 {
+    sp_digit x[32];
+    sp_digit y[32];
+} sp_table_entry_1024;
+
+#ifdef FP_ECC
+#endif /* FP_ECC */
+/* Add two Montgomery form projective points. The second point has a q value of
+ * one.
+ * Only the first point can be the same pointer as the result point.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+static void sp_1024_proj_point_add_qz1_32(sp_point_1024* r, const sp_point_1024* p,
+        const sp_point_1024* q, sp_digit* t)
+{
+    const sp_point_1024* ap[2];
+    sp_point_1024* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*32;
+    sp_digit* t3 = t + 4*32;
+    sp_digit* t4 = t + 6*32;
+    sp_digit* t5 = t + 8*32;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Check double */
+    (void)sp_1024_mont_sub_32(t1, p1024_mod, q->y, p1024_mod);
+    sp_1024_norm_32(t1);
+    if ((sp_1024_cmp_equal_32(p->x, q->x) & sp_1024_cmp_equal_32(p->z, q->z) &
+        (sp_1024_cmp_equal_32(p->y, q->y) | sp_1024_cmp_equal_32(p->y, t1))) != 0) {
+        sp_1024_proj_point_dbl_32(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_1024*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_1024));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<32; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<32; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<32; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U2 = X2*Z1^2 */
+        sp_1024_mont_sqr_32(t2, z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t4, t2, z, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t2, t2, q->x, p1024_mod, p1024_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_1024_mont_mul_32(t4, t4, q->y, p1024_mod, p1024_mp_mod);
+        /* H = U2 - X1 */
+        sp_1024_mont_sub_32(t2, t2, x, p1024_mod);
+        /* R = S2 - Y1 */
+        sp_1024_mont_sub_32(t4, t4, y, p1024_mod);
+        /* Z3 = H*Z1 */
+        sp_1024_mont_mul_32(z, z, t2, p1024_mod, p1024_mp_mod);
+        /* X3 = R^2 - H^3 - 2*X1*H^2 */
+        sp_1024_mont_sqr_32(t1, t4, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sqr_32(t5, t2, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t3, x, t5, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t5, t5, t2, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sub_32(x, t1, t5, p1024_mod);
+        sp_1024_mont_dbl_32(t1, t3, p1024_mod);
+        sp_1024_mont_sub_32(x, x, t1, p1024_mod);
+        /* Y3 = R*(X1*H^2 - X3) - Y1*H^3 */
+        sp_1024_mont_sub_32(t3, t3, x, p1024_mod);
+        sp_1024_mont_mul_32(t3, t3, t4, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_mul_32(t5, t5, y, p1024_mod, p1024_mp_mod);
+        sp_1024_mont_sub_32(y, t3, t5, p1024_mod);
+    }
+}
+
+#ifdef WOLFSSL_SP_SMALL
+#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 4
+ * 16 entries
+ * 256 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
+        sp_table_entry_1024* table, sp_digit* tmp, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 td;
+    sp_point_1024 s1d;
+    sp_point_1024 s2d;
+#endif
+    sp_point_1024* t;
+    sp_point_1024* s1 = NULL;
+    sp_point_1024* s2 = NULL;
+    int i;
+    int j;
+    int err;
+
+    (void)heap;
+
+    err = sp_1024_point_new_32(heap, td, t);
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, s1d, s1);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, s2d, s2);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->x, a->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->y, a->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->z, a->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_1024_proj_to_affine_32(t, tmp);
+
+        XMEMCPY(s1->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_1024));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<4; i++) {
+            sp_1024_proj_point_dbl_n_32(t, 256, tmp);
+            sp_1024_proj_to_affine_32(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<4; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_1024_proj_point_add_qz1_32(t, s1, s2, tmp);
+                sp_1024_proj_to_affine_32(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+    sp_1024_point_free_32(s2, 0, heap);
+    sp_1024_point_free_32(s1, 0, heap);
+    sp_1024_point_free_32( t, 0, heap);
+
+    return err;
+}
+
+#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^256, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g,
+        const sp_table_entry_1024* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 rtd;
+    sp_point_1024 pd;
+    sp_digit td[2 * 32 * 5];
+#endif
+    sp_point_1024* rt;
+    sp_point_1024* p = NULL;
+    sp_digit* t;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+    err = sp_1024_point_new_32(heap, rtd, rt);
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, pd, p);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                           DYNAMIC_TYPE_ECC);
+    if (t == NULL) {
+        err = MEMORY_E;
+    }
+#else
+    t = td;
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMCPY(p->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        XMEMCPY(rt->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+
+        y = 0;
+        x = 255;
+        for (j=0; j<4; j++) {
+            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 256;
+        }
+        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        rt->infinity = !y;
+        for (i=254; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j = 0; j < 4; j++) {
+                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 256;
+            }
+
+            sp_1024_proj_point_dbl_32(rt, rt, t);
+            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            p->infinity = !y;
+            sp_1024_proj_point_add_qz1_32(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_1024_map_32(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_1024));
+        }
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(p, 0, heap);
+    sp_1024_point_free_32(rt, 0, heap);
+
+    return err;
+}
+
+#ifdef FP_ECC
+#ifndef FP_ENTRIES
+    #define FP_ENTRIES 16
+#endif
+
+/* Cache entry - holds precomputation tables for a point. */
+typedef struct sp_cache_1024_t {
+    /* X ordinate of point that table was generated from. */
+    sp_digit x[32];
+    /* Y ordinate of point that table was generated from. */
+    sp_digit y[32];
+    /* Precomputation table for point. */
+    sp_table_entry_1024 table[16];
+    /* Count of entries in table. */
+    uint32_t cnt;
+    /* Point and table set in entry. */
+    int set;
+} sp_cache_1024_t;
+
+/* Cache of tables. */
+static THREAD_LS_T sp_cache_1024_t sp_cache_1024[FP_ENTRIES];
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_1024_last = -1;
+/* Cache has been initialized. */
+static THREAD_LS_T int sp_cache_1024_inited = 0;
+
+#ifndef HAVE_THREAD_LS
+    static volatile int initCacheMutex_1024 = 0;
+    static wolfSSL_Mutex sp_cache_1024_lock;
+#endif
+
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_1024(const sp_point_1024* g,
+        sp_cache_1024_t** cache)
+{
+    int i;
+    int j;
+    uint32_t least;
+
+    if (sp_cache_1024_inited == 0) {
+        for (i=0; i<FP_ENTRIES; i++) {
+            sp_cache_1024[i].set = 0;
+        }
+        sp_cache_1024_inited = 1;
+    }
+
+    /* Compare point with those in cache. */
+    for (i=0; i<FP_ENTRIES; i++) {
+        if (!sp_cache_1024[i].set)
+            continue;
+
+        if (sp_1024_cmp_equal_32(g->x, sp_cache_1024[i].x) &
+                           sp_1024_cmp_equal_32(g->y, sp_cache_1024[i].y)) {
+            sp_cache_1024[i].cnt++;
+            break;
+        }
+    }
+
+    /* No match. */
+    if (i == FP_ENTRIES) {
+        /* Find empty entry. */
+        i = (sp_cache_1024_last + 1) % FP_ENTRIES;
+        for (; i != sp_cache_1024_last; i=(i+1)%FP_ENTRIES) {
+            if (!sp_cache_1024[i].set) {
+                break;
+            }
+        }
+
+        /* Evict least used. */
+        if (i == sp_cache_1024_last) {
+            least = sp_cache_1024[0].cnt;
+            for (j=1; j<FP_ENTRIES; j++) {
+                if (sp_cache_1024[j].cnt < least) {
+                    i = j;
+                    least = sp_cache_1024[i].cnt;
+                }
+            }
+        }
+
+        XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
+        XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
+        sp_cache_1024[i].set = 1;
+        sp_cache_1024[i].cnt = 1;
+    }
+
+    *cache = &sp_cache_1024[i];
+    sp_cache_1024_last = i;
+}
+#endif /* FP_ECC */
+
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+#else
+    sp_digit tmp[2 * 32 * 5];
+    sp_cache_1024_t* cache;
+    int err = MP_OKAY;
+
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_1024 == 0) {
+         wc_InitMutex(&sp_cache_1024_lock);
+         initCacheMutex_1024 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_1024_lock) != 0)
+       err = BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_1024(g, &cache);
+        if (cache->cnt == 2)
+            sp_1024_gen_stripe_table_32(g, cache->table, tmp, heap);
+
+#ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_1024_lock);
+#endif /* HAVE_THREAD_LS */
+
+        if (cache->cnt < 2) {
+            err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+    }
+
+    return err;
+#endif
+}
+
+#else
+#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 8
+ * 256 entries
+ * 128 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
+        sp_table_entry_1024* table, sp_digit* tmp, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 td;
+    sp_point_1024 s1d;
+    sp_point_1024 s2d;
+#endif
+    sp_point_1024* t;
+    sp_point_1024* s1 = NULL;
+    sp_point_1024* s2 = NULL;
+    int i;
+    int j;
+    int err;
+
+    (void)heap;
+
+    err = sp_1024_point_new_32(heap, td, t);
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, s1d, s1);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, s2d, s2);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->x, a->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->y, a->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(t->z, a->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_1024_proj_to_affine_32(t, tmp);
+
+        XMEMCPY(s1->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_1024));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<8; i++) {
+            sp_1024_proj_point_dbl_n_32(t, 128, tmp);
+            sp_1024_proj_to_affine_32(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<8; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_1024_proj_point_add_qz1_32(t, s1, s2, tmp);
+                sp_1024_proj_to_affine_32(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+    sp_1024_point_free_32(s2, 0, heap);
+    sp_1024_point_free_32(s1, 0, heap);
+    sp_1024_point_free_32( t, 0, heap);
+
+    return err;
+}
+
+#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^128, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g,
+        const sp_table_entry_1024* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 rtd;
+    sp_point_1024 pd;
+    sp_digit td[2 * 32 * 5];
+#endif
+    sp_point_1024* rt;
+    sp_point_1024* p = NULL;
+    sp_digit* t;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+    err = sp_1024_point_new_32(heap, rtd, rt);
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, pd, p);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                           DYNAMIC_TYPE_ECC);
+    if (t == NULL) {
+        err = MEMORY_E;
+    }
+#else
+    t = td;
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMCPY(p->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        XMEMCPY(rt->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+
+        y = 0;
+        x = 127;
+        for (j=0; j<8; j++) {
+            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            x += 128;
+        }
+        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        rt->infinity = !y;
+        for (i=126; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j = 0; j < 8; j++) {
+                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                x += 128;
+            }
+
+            sp_1024_proj_point_dbl_32(rt, rt, t);
+            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            p->infinity = !y;
+            sp_1024_proj_point_add_qz1_32(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_1024_map_32(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_1024));
+        }
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL) {
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(p, 0, heap);
+    sp_1024_point_free_32(rt, 0, heap);
+
+    return err;
+}
+
+#ifdef FP_ECC
+#ifndef FP_ENTRIES
+    #define FP_ENTRIES 16
+#endif
+
+/* Cache entry - holds precomputation tables for a point. */
+typedef struct sp_cache_1024_t {
+    /* X ordinate of point that table was generated from. */
+    sp_digit x[32];
+    /* Y ordinate of point that table was generated from. */
+    sp_digit y[32];
+    /* Precomputation table for point. */
+    sp_table_entry_1024 table[256];
+    /* Count of entries in table. */
+    uint32_t cnt;
+    /* Point and table set in entry. */
+    int set;
+} sp_cache_1024_t;
+
+/* Cache of tables. */
+static THREAD_LS_T sp_cache_1024_t sp_cache_1024[FP_ENTRIES];
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_1024_last = -1;
+/* Cache has been initialized. */
+static THREAD_LS_T int sp_cache_1024_inited = 0;
+
+#ifndef HAVE_THREAD_LS
+    static volatile int initCacheMutex_1024 = 0;
+    static wolfSSL_Mutex sp_cache_1024_lock;
+#endif
+
+/* Get the cache entry for the point.
+ *
+ * g      [in]   Point scalar multipling.
+ * cache  [out]  Cache table to use.
+ */
+static void sp_ecc_get_cache_1024(const sp_point_1024* g,
+        sp_cache_1024_t** cache)
+{
+    int i;
+    int j;
+    uint32_t least;
+
+    if (sp_cache_1024_inited == 0) {
+        for (i=0; i<FP_ENTRIES; i++) {
+            sp_cache_1024[i].set = 0;
+        }
+        sp_cache_1024_inited = 1;
+    }
+
+    /* Compare point with those in cache. */
+    for (i=0; i<FP_ENTRIES; i++) {
+        if (!sp_cache_1024[i].set)
+            continue;
+
+        if (sp_1024_cmp_equal_32(g->x, sp_cache_1024[i].x) &
+                           sp_1024_cmp_equal_32(g->y, sp_cache_1024[i].y)) {
+            sp_cache_1024[i].cnt++;
+            break;
+        }
+    }
+
+    /* No match. */
+    if (i == FP_ENTRIES) {
+        /* Find empty entry. */
+        i = (sp_cache_1024_last + 1) % FP_ENTRIES;
+        for (; i != sp_cache_1024_last; i=(i+1)%FP_ENTRIES) {
+            if (!sp_cache_1024[i].set) {
+                break;
+            }
+        }
+
+        /* Evict least used. */
+        if (i == sp_cache_1024_last) {
+            least = sp_cache_1024[0].cnt;
+            for (j=1; j<FP_ENTRIES; j++) {
+                if (sp_cache_1024[j].cnt < least) {
+                    i = j;
+                    least = sp_cache_1024[i].cnt;
+                }
+            }
+        }
+
+        XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
+        XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
+        sp_cache_1024[i].set = 1;
+        sp_cache_1024[i].cnt = 1;
+    }
+
+    *cache = &sp_cache_1024[i];
+    sp_cache_1024_last = i;
+}
+#endif /* FP_ECC */
+
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+#else
+    sp_digit tmp[2 * 32 * 5];
+    sp_cache_1024_t* cache;
+    int err = MP_OKAY;
+
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_1024 == 0) {
+         wc_InitMutex(&sp_cache_1024_lock);
+         initCacheMutex_1024 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_1024_lock) != 0)
+       err = BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        sp_ecc_get_cache_1024(g, &cache);
+        if (cache->cnt == 2)
+            sp_1024_gen_stripe_table_32(g, cache->table, tmp, heap);
+
+#ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_1024_lock);
+#endif /* HAVE_THREAD_LS */
+
+        if (cache->cnt < 2) {
+            err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+        }
+        else {
+            err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
+                    map, ct, heap);
+        }
+    }
+
+    return err;
+#endif
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * p     Point to multiply.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
+    int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 p;
+    sp_digit kd[32];
+#endif
+    sp_point_1024* point;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_1024_point_new_32(heap, p, point);
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#else
+    k = kd;
+#endif
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 32, km);
+        sp_1024_point_from_ecc_point_32(point, gm);
+
+            err = sp_1024_ecc_mulmod_32(point, point, k, map, 0, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_32(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(point, 0, heap);
+
+    return err;
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Striping precomputation table.
+ * 4 points combined into a table of 16 points.
+ * Distance of 256 between points.
+ */
+static const sp_table_entry_1024 p1024_table[16] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0xe0162bc2,0xbf9c7ec6,0x10a89289,0xddecc6e3,0x9e499d81,0x5d599df0,
+        0x6d358218,0x9a96ea28,0x70c5f8db,0x01aec7d3,0x8cf5d066,0xe72e4995,
+        0x3e91d7f8,0xc2e7297d,0xda9f2f5a,0x8621db92,0x5a5679ed,0x4b26c867,
+        0x2c56aac1,0x233385df,0xc6a13f99,0xb88e74d4,0xffa8ec11,0x1214b173,
+        0x1f3f9fef,0xa0386a27,0xc0e7b44e,0xbd9b1b4e,0xeecd3496,0xafe528dc,
+        0x1c49f80b,0x8dfff96a },
+      { 0xc03c0c83,0xb4a4753a,0xabcdcd75,0x68e69d18,0xf775b649,0xe3839b88,
+        0xbf58f352,0x803f949a,0xbd0bc15c,0x5f702679,0x8ff298c2,0x85bf5d16,
+        0xc6c7976e,0x3f6ebd98,0x45e3e1b4,0x20618af4,0x54e64093,0x67d5598e,
+        0x504fed9e,0xb047283b,0x70d87517,0x450cabfd,0x3f5addbe,0x47d628bf,
+        0x78cb4cca,0x0037ef30,0x6b1c4908,0x4e148d3c,0x4fcfd837,0xe256d329,
+        0xde3c01f3,0x2aa1207b } },
+    /* 2 */
+    { { 0x755c2a27,0xcf3e0bb2,0x59585c44,0xd38e42f9,0x19285e60,0x46b13e0f,
+        0x76273d0f,0xc3ecd0c0,0x193c569a,0x7800f085,0x4351818a,0xf04e74ab,
+        0x8496363b,0x9258aa38,0xb8c894fe,0x8456617c,0x2af969a0,0x8bc62aaa,
+        0x5a4668d9,0x66c2280b,0xa992f4fa,0xbc9df58e,0x3f401e99,0x5db0b7d9,
+        0xc4c38c0e,0xe0614fe1,0x2ccdf6b3,0xd531151c,0xe143b618,0x1c7575ec,
+        0xdf9398a4,0x40247985 },
+      { 0x8f055746,0xfba25178,0x0ab1e6e0,0xc5ba0040,0xac292697,0xe1b194fb,
+        0x5b4f4740,0x77152119,0x9bb7ba54,0x250091d0,0xb9a139a4,0x7a674861,
+        0xf353aa7e,0xba8413b3,0x2443ceee,0xafe77192,0x3847bbd0,0x14468d36,
+        0x3da4942d,0x61f79ff6,0xd425b456,0x1563a1c1,0x75ff4630,0x3c270fcd,
+        0xeb2802c9,0x42072090,0xc85c7004,0x68f0cdcb,0xfa032e74,0xca4372fb,
+        0xc8b79d80,0x1a6fd1e6 } },
+    /* 3 */
+    { { 0x8d5116a3,0x967a901a,0xb2f5f47f,0x0b844394,0x60ebaf3b,0xe39ad452,
+        0x60ccfc0c,0x1e1be617,0xcc3f53f2,0xac07e3d2,0x1ed11bb6,0xdd838e0e,
+        0x1c15b0c2,0x45475307,0x920fe5b8,0x70dd4748,0xe471896d,0x1a20be2d,
+        0x59276c7c,0x3c3fad8a,0xc886ee07,0x026a1cc3,0x6e831ac4,0x9fdb6f37,
+        0xac501d65,0x26a35d1a,0x40da8574,0x0ae98905,0xabd734e5,0x65dde0a4,
+        0x15614750,0x29b7d4dc },
+      { 0xcbf4e20b,0x44b3c2cb,0x58cc44c5,0x1c3f548f,0x5b0cac1f,0x39809b54,
+        0x00f80621,0x0c0f02b5,0x066905e0,0xe612b890,0x8350188c,0x8f158ed7,
+        0x3f5576b2,0xc01dc458,0xa45492e0,0x29803272,0x0ff92443,0x77a5623a,
+        0x29d0dc41,0xd12a2b00,0x2780e87a,0xb4125459,0x0d53f272,0x1ebcf903,
+        0x24301e8d,0xbae6ea40,0xa37d0798,0x1e5f3f2f,0x22b4126c,0x9342c310,
+        0x5382497e,0x5d092802 } },
+    /* 4 */
+    { { 0x4b59213a,0xf5b495d0,0x8d70200e,0xca672039,0x2b6771c1,0x4bcb09a6,
+        0x2b9eb0cb,0x26adeed4,0x8cdba212,0xeb544754,0xf08890d1,0x0e1abfcd,
+        0x698e46b4,0x52509963,0x82e9c138,0xe1bff0b0,0x51099a71,0xa189e4cd,
+        0xc9b91cc7,0x2360c9bc,0x137ec4be,0x9bd4d7dc,0xd1519f6e,0xd0356521,
+        0xcf832503,0xbf5f6d78,0x8deea2b4,0xe4301031,0xef4c319c,0xc3132494,
+        0x0f1fa7d7,0x2ab3bd47 },
+      { 0x922c9fbb,0x5753b680,0x0f16c6d1,0x869e7dc8,0xbac16efc,0x83445135,
+        0x846d1d9b,0x4326a3b4,0xb2d62c21,0xb517fee3,0x0b292ad5,0x6905afa2,
+        0x2cadac13,0x2a57131a,0xebdbca8d,0xcd904d8f,0x3f365fb2,0xdfeda86f,
+        0xdc7eaa1c,0x7097b208,0xa45e77c0,0x89a35a84,0xcf5d118e,0x417a062c,
+        0x1f6e99e8,0x3c0c04a8,0xba7a087d,0xc44704b0,0x3ea22ad2,0x6f8a27d1,
+        0x4c27d229,0x93a4b416 } },
+    /* 5 */
+    { { 0x1f1efb7a,0xd4271bc1,0x33fccc0d,0xae4e68e6,0xb11f50a8,0x9d9bc8f1,
+        0xaf076089,0x5430398f,0x443d0e03,0x45e242fb,0xf6e3d4c1,0x73ec2519,
+        0xba9bad09,0xab70f790,0xf9add10f,0xde612ad5,0x14e942b4,0xb837e54e,
+        0xddb8b68a,0x175a56d3,0x1ac2a408,0xe85b233c,0xf0c80f94,0xf8ff6c30,
+        0x898db4f9,0x4b7f3fb7,0x45a7dcdd,0xa2c6044f,0xfe3d3895,0xf3abb2f6,
+        0x32ee7763,0x342ce0d7 },
+      { 0xcf491b1f,0xeb261394,0x1909e395,0xdcaaeed7,0x9fe4dbea,0xdcc4055a,
+        0x493d604d,0x17a6611d,0x1ce5ebef,0xba445a3a,0xe3989cb5,0xe82e2858,
+        0x83f58406,0xb96f4282,0xa156cf55,0x99877b99,0x4e166a0e,0xaf906a66,
+        0xb2976d13,0xcea1d353,0x36c61a01,0xefc16f27,0xb0f55d86,0xdb04c433,
+        0x8eb34c01,0x3cb4b269,0x2ae60280,0x38d07f78,0x43be3ec5,0x43ac3bcb,
+        0xe156fd20,0x455f4af3 } },
+    /* 6 */
+    { { 0x95532833,0x2e6fe0a6,0xd626d067,0xabca228e,0x649e73bd,0x22aef3d9,
+        0xf03c4c0c,0x2083a87a,0x35169b45,0xe954e75d,0x74506a89,0x577509ee,
+        0x2aeacf90,0x49cb276e,0xfa409f91,0x08275d77,0xf0bbd6b9,0x61eb6f3d,
+        0xe4132704,0x948202cb,0xb1c498b1,0x35f3fc21,0x361fee59,0x76c68ba8,
+        0x50e051f3,0xa18cbbd9,0x318e7042,0x2384a879,0x80dd1e8b,0x292abead,
+        0x5c37c334,0x65713c29 },
+      { 0xceb77b9a,0xdccca8e9,0x23b69469,0x2f97e727,0xa01d6b28,0xc76abee6,
+        0x5abecdfe,0x3925203d,0x29290d70,0x89448082,0xb0314438,0xf9931424,
+        0x7cd447c3,0x04209df1,0xc855c827,0x7c6f2059,0x56c0e069,0xd97d7862,
+        0x412d94c4,0x5a9db6fe,0x994c41dd,0x19a64591,0xc89e21a3,0x12348aa1,
+        0xc6a03f0e,0xd6904b50,0xa616feac,0x55c15156,0x7cc7693b,0x4e36d1b5,
+        0x3bae3c38,0x6b0e996c } },
+    /* 7 */
+    { { 0xcceced00,0x32789fab,0xe5b7aa66,0x3237e71a,0x2ddebcdf,0x87b2e269,
+        0xb61dad8f,0xb7245120,0xd35f803c,0xe11e5e48,0x98e50f0d,0xfb4df5d7,
+        0xbcd2ab92,0x60ee68b4,0x1ce3363d,0x98ab2f5c,0x7cd42647,0x15ba39da,
+        0x83f4fb3f,0x1a6572eb,0xe56f08db,0x0f77de88,0x172562c2,0x1743761e,
+        0x8a58f0f4,0xbe349ff8,0x84d1d6e2,0xe04da71b,0x9e9ff3b4,0x368f0342,
+        0x678223f8,0x4022a205 },
+      { 0x83847375,0x527bbd05,0x3f451af0,0x3ae56b62,0x4b2c7f18,0x6198f24d,
+        0x4525b98d,0xee323f5b,0x0e0884b5,0xa9d8d39a,0xfb12c776,0xd005d7f6,
+        0x708bc154,0xd71c483e,0x742541bc,0x8ca6fd28,0xf8397ddb,0x0af3dccd,
+        0x3eccf243,0xb80d3125,0x58d81b8d,0xc743a108,0x71391f68,0x3f48eb21,
+        0x33bb657f,0x493aff88,0x07e47e31,0x1d15ed66,0xe08279f6,0x10159b11,
+        0x24a6a956,0x312179cb } },
+    /* 8 */
+    { { 0xfb99cfe6,0x950323d3,0xc9334178,0x7b09bc26,0x7cbdfb6f,0x64111e41,
+        0x89a75760,0x91141744,0x10919cb0,0x4c633df9,0x396bfd2f,0x715fc7c7,
+        0x8cab62db,0x8ca19512,0x4db81aac,0x30672473,0xb4c4c54a,0xe67a246b,
+        0xbf229646,0xd77ea0fa,0xfa5b5d70,0x5bed15f1,0xc2f192f3,0xa5686da5,
+        0x7f6690ad,0xdecac72a,0xcaa50b7d,0x0c4af2a2,0x6049ad2f,0xf44631c1,
+        0x04ecf056,0x325d2796 },
+      { 0x4848c144,0xee11fb55,0xb6a7af32,0x4e062925,0x369e0f9a,0x125b68e1,
+        0xca53b21e,0xad9bdae6,0x2e98ea1b,0xf50d605c,0x9f2fa395,0xbdb9e153,
+        0xe91532f5,0x4570e32d,0x46a250d7,0x810698ae,0xad9d9145,0x7fd9546c,
+        0x11e97a5e,0xabf67721,0x249f82e9,0xca29f7d5,0x9851df63,0xa9c539a9,
+        0x71d0e3e5,0xfd84d54b,0x041d2b56,0xd1e0459c,0xfd80096a,0xceb3eb6e,
+        0xe32a79d3,0x19d48546 } },
+    /* 9 */
+    { { 0xb540f5e5,0xfe19ee8f,0x04e68d17,0x86d2a52f,0xadbdc871,0xd2320db0,
+        0xd03a7fc8,0xa83ad5a8,0x08bcb916,0x54bf83c7,0x2e51e840,0x092133ea,
+        0xcb52dddf,0xbce38424,0x31063583,0xd5c7be40,0x458e3176,0xc1ebb9df,
+        0xbc4dabbf,0xafb19639,0xc05725a8,0x36350fe4,0x84e1cd24,0xac4a0634,
+        0xc145b8de,0xadf73154,0xb3483237,0x0aa6dd9e,0xcbff2720,0xa3345c3d,
+        0xb4e453b0,0x1b3ace6c },
+      { 0x90a8bdc5,0x0343e5e9,0x6306a089,0xa203bf9d,0x8e48520e,0x98489a35,
+        0xde7d1d06,0xbd17debe,0x5f795d3f,0x8fafa6d7,0x387b0a3f,0xa4ceb630,
+        0xffddeafa,0xe0166b32,0x7e764e02,0xa2fe2054,0xe871f304,0x55ab9824,
+        0x952ec45e,0xa2bd36bb,0xa90d20ca,0x7b4c1484,0x75bcfb53,0x5319f387,
+        0x6982c4e5,0x34238a4a,0xa102921d,0xa2bb61c7,0xdb3ab17e,0x1e061b64,
+        0x192f0a14,0x538ec33e } },
+    /* 10 */
+    { { 0x576374c2,0xe53c7785,0x84727040,0xe60526d1,0x228ca044,0x8a066dc8,
+        0xf1ce1313,0x1fe1c1b2,0xcdeb0c5d,0x2aeec832,0x9cbf826f,0xa7596699,
+        0xde77a589,0xcd188e81,0x118d1254,0xe5ce0fe0,0x0790b86a,0xa142a984,
+        0x39ac28ce,0xe28f043f,0x87de5804,0x4eef8290,0xf639a8c5,0x83c31b32,
+        0x5887794f,0xd70454a7,0x18b1b391,0xca635d50,0x31d9c795,0xcefea076,
+        0xb6f8aa25,0x13cbee76 },
+      { 0x8d3f34f3,0x79cabe0f,0xa3617fe3,0xbda9c31c,0xdd9426a1,0xb26dee23,
+        0xf29c9104,0xe9dd9627,0xe2c6cd3b,0x033eb169,0xfcba2196,0x8a73f492,
+        0xb858c83c,0x92e37e0b,0x23b3fbb7,0xe4f2aca6,0x64be00a2,0x8101fb1e,
+        0x948f6448,0x91a7826a,0x907260e7,0x414067b4,0xe30bb835,0xf774aa50,
+        0xc999c06e,0xf922ca80,0x0ba08511,0x6b8635b9,0x25fa04f0,0xbf936b5c,
+        0xe02e8967,0x4e0a1ada } },
+    /* 11 */
+    { { 0x8ba29c4d,0x00ca6670,0x22988094,0xc08240ce,0x16dda752,0x21c5ca67,
+        0xabbbfa34,0x689c0e45,0x3ed28b72,0x1d7545fd,0xd7c56ab4,0x5f221198,
+        0x38759d65,0x4b3d8f74,0x8fe50b89,0x93490dfb,0xe80eba16,0xb641f5d7,
+        0x79acb537,0x7b0da5eb,0x0c1d5e5e,0xab6b1497,0xa5da429a,0x2338e68d,
+        0x2f6d2f25,0xe010c437,0x6530f3a7,0x226f16d2,0xcbef08bc,0xefb0f7b6,
+        0x9f99c999,0x733e30d9 },
+      { 0xa42a38f9,0xecfe1582,0x4730b500,0xaec2d58e,0xde976b2c,0x2ee2f2a7,
+        0xa969c1bb,0xf0539db5,0xfcecdb4a,0x31954168,0xe7a8e902,0xf2f7348a,
+        0x3121541f,0x1d58d7cc,0x2202ae52,0x5d25b75c,0xf40835a7,0xdea9965a,
+        0x529b4e46,0x3feb6a41,0xbd27ad9b,0x5c97fb6f,0x261f900b,0xd87554c0,
+        0x04d5b19e,0xb43031d9,0xcb219b9c,0x33d5e9b8,0x3ee00bcf,0x7a43d492,
+        0xb79a5c0c,0x56facb39 } },
+    /* 12 */
+    { { 0x7c834915,0x667eaed6,0xbc5eb64d,0x9f77aa6a,0x25d62011,0x729ebcb6,
+        0x699fd9c2,0x0aee24f2,0x2b8d4f6c,0xe1eb5874,0x14c976d6,0x7f12710c,
+        0xf6d9ea65,0x91390335,0x06b50064,0x668b7049,0x0876ee4f,0x65969a0e,
+        0x2f9d9360,0xf901bf3f,0xb499e3ce,0xfb1a8651,0xf2dbcaaa,0x80b953fb,
+        0x973b06b6,0x312cc566,0x3af36c64,0x3534d9c3,0x10ffd815,0xe4463a52,
+        0xf18c2b91,0x57ea2b4b },
+      { 0x8aa0f2f2,0x00f5e162,0x0e46bcaa,0x8c7e75c5,0xa4a2c42d,0x97ab479a,
+        0x14baa202,0xb4f308ea,0x6943cc2e,0xa901bd14,0xeed58804,0xbb125fee,
+        0x9d180f7c,0x6502c8f9,0x1580c61c,0xe5353919,0x27101ee3,0x7e278069,
+        0xfaa72717,0x7a0a40a1,0x4c75b153,0x32edce02,0x538f1c22,0xda23660b,
+        0xbe307d2e,0x4d511e98,0x9baee0b4,0x24276e40,0x7ff1f307,0xa78c3927,
+        0xea7935c9,0x60480b46 } },
+    /* 13 */
+    { { 0x3872ece3,0x31087d66,0x955b70f8,0x5f29be7d,0x9cf95bb8,0xb50b4fc7,
+        0xdbffa621,0xbae3b58d,0xe022ba5d,0x0e61d280,0x4181449c,0x78ae5117,
+        0xcf555485,0x0b132840,0xb8ce0b0e,0x800ed1b6,0x78d5de3d,0x35dffdd5,
+        0x69a56b47,0xf7e42374,0x8d910ae7,0xd5e32369,0x6313c7c7,0xb6ff52a0,
+        0xa92de9e5,0x5a2fe20d,0xd12110bb,0x41b347d3,0x40c16f23,0xc5905edb,
+        0x9a8f88cc,0x0774a0d3 },
+      { 0xe3b6c106,0x3ae181ab,0x8de150b7,0x4ebe163f,0x6f354836,0xcf75b82f,
+        0x3ac7ac16,0xaa0d2063,0x291722af,0x5c680668,0x11545553,0x73941e61,
+        0xbf5de3f7,0x17127e38,0x1afb41da,0x32cfdf03,0x87bc8663,0xc6893c91,
+        0xa62c9c99,0x75046744,0x962c1947,0x96866e2d,0x378cdf4c,0x489ec8df,
+        0x3407fa32,0x3a60709b,0x551290d1,0xd37d2159,0xbab92273,0x9623d303,
+        0x2432014b,0x08151954 } },
+    /* 14 */
+    { { 0xb05f2b26,0x569044f3,0x80b9f76c,0xb35a294a,0x4290f6ae,0x8839fe28,
+        0x026a5877,0x761cfb23,0x2e5ff9c3,0x768926b6,0x0b11c576,0xbae6cd20,
+        0x72a03efe,0xdc857756,0xe1bad63a,0x0cae074a,0xd709d99c,0x3fe491a1,
+        0x6501d9c1,0x76c5ded6,0xc32aeff7,0x1da6eca1,0xc57683e8,0x50849d55,
+        0xdf98d847,0x9e392e9c,0x64d9a564,0xfad7982f,0xa37b98b2,0xf7c3bdb7,
+        0xf0860497,0x1fe09f94 },
+      { 0x7648cc63,0x49a7eaae,0x67cfa714,0x13ea2511,0x653f4559,0xfc8b923c,
+        0x81a16e86,0xd957619b,0x3c864674,0x0c7e804b,0x1616599a,0xfc88134a,
+        0x0a652328,0x366ea969,0x4bc9029e,0x41532960,0xae2aad2b,0xef9e1994,
+        0x7f10bef5,0x9e2a8c52,0xc67bf860,0x73dcb586,0x844cc25d,0xf61a43fa,
+        0x74eb3653,0xd74e7eea,0xdd240f02,0xf3356706,0xfd83bcb4,0xeec7694c,
+        0xdb62526a,0x4de95786 } },
+    /* 15 */
+    { { 0x3deac2f7,0x4867d315,0xb61d9a8e,0xa084778a,0x0ab7b2d5,0xf3b76f96,
+        0xcfdf4f79,0x00b30056,0x31ab8f4b,0xd0701e15,0x9c779d01,0x07f948d5,
+        0x82675371,0x7c994ebc,0x48bad4c0,0x1104d4ee,0xbfc9d058,0x798ce0b5,
+        0x309fa80b,0xc7ca898d,0xacb33eaf,0x0244f225,0x5b2f3175,0xd51e8dfc,
+        0xa4d7be34,0x3e49ba6b,0xbda02b43,0x1760f4c7,0x4435275a,0x37e36a7e,
+        0xe636980c,0x1c94418b },
+      { 0x09dc1414,0x43a21313,0x43c93537,0x060765fc,0xdf5f79ce,0x6ff3207a,
+        0x85d4cfca,0x6f18b1fa,0x63e995ab,0xf5c4272e,0xa82b3002,0x121a09e4,
+        0x97147f16,0x82b65d1b,0x20a7fe26,0x4993c20c,0xe6716726,0x99c9cb98,
+        0xfeb440a0,0x5a02d673,0x251b4bc5,0x3f3fa9e1,0xa05338ea,0x75dbc474,
+        0x7b09f6cb,0x3cb4044b,0x80434609,0x6767da18,0x098ceac2,0x97851422,
+        0xb55235ba,0x611bfbb2 } },
+};
+
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^256, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_base_32(sp_point_1024* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_1024_ecc_mulmod_stripe_32(r, &p1024_base, p1024_table,
+                                      k, map, ct, heap);
+}
+
+#else
+/* Striping precomputation table.
+ * 8 points combined into a table of 256 points.
+ * Distance of 128 between points.
+ */
+static const sp_table_entry_1024 p1024_table[256] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0xe0162bc2,0xbf9c7ec6,0x10a89289,0xddecc6e3,0x9e499d81,0x5d599df0,
+        0x6d358218,0x9a96ea28,0x70c5f8db,0x01aec7d3,0x8cf5d066,0xe72e4995,
+        0x3e91d7f8,0xc2e7297d,0xda9f2f5a,0x8621db92,0x5a5679ed,0x4b26c867,
+        0x2c56aac1,0x233385df,0xc6a13f99,0xb88e74d4,0xffa8ec11,0x1214b173,
+        0x1f3f9fef,0xa0386a27,0xc0e7b44e,0xbd9b1b4e,0xeecd3496,0xafe528dc,
+        0x1c49f80b,0x8dfff96a },
+      { 0xc03c0c83,0xb4a4753a,0xabcdcd75,0x68e69d18,0xf775b649,0xe3839b88,
+        0xbf58f352,0x803f949a,0xbd0bc15c,0x5f702679,0x8ff298c2,0x85bf5d16,
+        0xc6c7976e,0x3f6ebd98,0x45e3e1b4,0x20618af4,0x54e64093,0x67d5598e,
+        0x504fed9e,0xb047283b,0x70d87517,0x450cabfd,0x3f5addbe,0x47d628bf,
+        0x78cb4cca,0x0037ef30,0x6b1c4908,0x4e148d3c,0x4fcfd837,0xe256d329,
+        0xde3c01f3,0x2aa1207b } },
+    /* 2 */
+    { { 0x01900955,0xa95b6dae,0xceb4656d,0xa5dc9cc1,0xe72fe95b,0x50c78907,
+        0xa040c334,0xa1ae5447,0x7952ea6e,0x91191370,0x6d097305,0x54ff7343,
+        0xbda4d10f,0xa4db0074,0x91644070,0xfd5306f1,0x8b24522c,0x14b9fe73,
+        0x7849f762,0x1468dad6,0xb0dcd2e4,0x87b29a18,0x5e1ad492,0xadd7f1a1,
+        0xdbba2a1a,0x9ac63a81,0x81223379,0x01379c5b,0xb0e53bc8,0xf402b2f0,
+        0x0bf13b61,0x8c3eb27f },
+      { 0xe513696f,0x9a4ad3e1,0x18c81ffa,0x0350ba5c,0x3c033d13,0x1e2fc136,
+        0x17a531bc,0x53da6e71,0x1aed610d,0x42ec6490,0xe99ff567,0xd33e8df7,
+        0x3deed12a,0xe4aad73e,0x180f4deb,0xd983b465,0x502f30b4,0x99365269,
+        0xa8918d7f,0x7e2799ab,0x700fc79a,0x0ffe84b6,0x40bfd8c2,0x7b4400d6,
+        0x5d2641bd,0xc3a21d21,0xc32621cb,0x79839442,0xb1401e83,0xace6500b,
+        0x251c4310,0x7bf4163e } },
+    /* 3 */
+    { { 0xe3fd589e,0x1c174f88,0xdf974a03,0xdb501790,0x3e70549f,0xd09623e3,
+        0x15924f34,0x8d091eff,0xf9b65ac5,0xeef79cad,0x3f69c2cf,0xd2cc4262,
+        0x52cd82bc,0x817d9032,0xa5f1dddd,0xacf4f4d9,0x5011b6bd,0xd0612635,
+        0x2ed140c9,0x9f74490d,0x4db686d2,0x64092e8c,0x776b0fcc,0x225eef16,
+        0xdf16aeb6,0x0e8c01e9,0x84bbd82a,0x62836741,0x8956e337,0x757574e2,
+        0x705a7f07,0x9871edc6 },
+      { 0x776535f7,0xbd0b76d5,0x2635b3b8,0x5214d602,0x9d216f64,0xc0c25ad9,
+        0x5515bf75,0xfd4df3a7,0x5e9f1675,0x24a625bc,0x406873e7,0x3c35efb7,
+        0xbb2e5c4a,0xef5c9a33,0x806b198a,0xa971b35e,0xa3c690ed,0x9f5c0ca5,
+        0x8e1e2341,0xa8d5dd89,0x955ad9e4,0x4cecbcce,0x248d3416,0x2ecf4407,
+        0x45c0af6e,0x1abb3811,0x1c780fff,0x3f4bee82,0xc272ed57,0xd14df768,
+        0x371637ad,0x397ed10a } },
+    /* 4 */
+    { { 0x755c2a27,0xcf3e0bb2,0x59585c44,0xd38e42f9,0x19285e60,0x46b13e0f,
+        0x76273d0f,0xc3ecd0c0,0x193c569a,0x7800f085,0x4351818a,0xf04e74ab,
+        0x8496363b,0x9258aa38,0xb8c894fe,0x8456617c,0x2af969a0,0x8bc62aaa,
+        0x5a4668d9,0x66c2280b,0xa992f4fa,0xbc9df58e,0x3f401e99,0x5db0b7d9,
+        0xc4c38c0e,0xe0614fe1,0x2ccdf6b3,0xd531151c,0xe143b618,0x1c7575ec,
+        0xdf9398a4,0x40247985 },
+      { 0x8f055746,0xfba25178,0x0ab1e6e0,0xc5ba0040,0xac292697,0xe1b194fb,
+        0x5b4f4740,0x77152119,0x9bb7ba54,0x250091d0,0xb9a139a4,0x7a674861,
+        0xf353aa7e,0xba8413b3,0x2443ceee,0xafe77192,0x3847bbd0,0x14468d36,
+        0x3da4942d,0x61f79ff6,0xd425b456,0x1563a1c1,0x75ff4630,0x3c270fcd,
+        0xeb2802c9,0x42072090,0xc85c7004,0x68f0cdcb,0xfa032e74,0xca4372fb,
+        0xc8b79d80,0x1a6fd1e6 } },
+    /* 5 */
+    { { 0x8d5116a3,0x967a901a,0xb2f5f47f,0x0b844394,0x60ebaf3b,0xe39ad452,
+        0x60ccfc0c,0x1e1be617,0xcc3f53f2,0xac07e3d2,0x1ed11bb6,0xdd838e0e,
+        0x1c15b0c2,0x45475307,0x920fe5b8,0x70dd4748,0xe471896d,0x1a20be2d,
+        0x59276c7c,0x3c3fad8a,0xc886ee07,0x026a1cc3,0x6e831ac4,0x9fdb6f37,
+        0xac501d65,0x26a35d1a,0x40da8574,0x0ae98905,0xabd734e5,0x65dde0a4,
+        0x15614750,0x29b7d4dc },
+      { 0xcbf4e20b,0x44b3c2cb,0x58cc44c5,0x1c3f548f,0x5b0cac1f,0x39809b54,
+        0x00f80621,0x0c0f02b5,0x066905e0,0xe612b890,0x8350188c,0x8f158ed7,
+        0x3f5576b2,0xc01dc458,0xa45492e0,0x29803272,0x0ff92443,0x77a5623a,
+        0x29d0dc41,0xd12a2b00,0x2780e87a,0xb4125459,0x0d53f272,0x1ebcf903,
+        0x24301e8d,0xbae6ea40,0xa37d0798,0x1e5f3f2f,0x22b4126c,0x9342c310,
+        0x5382497e,0x5d092802 } },
+    /* 6 */
+    { { 0xff2f780d,0x583a2b7e,0xd7d76b1d,0x34d26820,0x86f74aec,0xe3c32847,
+        0x10823feb,0x0fd42212,0xfb5e7bf4,0x227e417e,0xa568f8cd,0x510d49b6,
+        0x1781bbec,0x53bce7d6,0x2f3718b7,0x9cfe3f22,0xd9de6c1f,0x7f44e89f,
+        0x3fac9b55,0xf1cc553f,0xe6f300bc,0x9d2d0846,0x9f0ae6b1,0x976c82a2,
+        0x24b8bbe0,0xe63dbf5e,0x973a5aa7,0x4cac7f45,0x84dd33c7,0xc6eb6237,
+        0x142fee5d,0x0a26e434 },
+      { 0xacaa9a08,0x8081339f,0x5246ece1,0x40f31105,0x61393747,0x892c8170,
+        0x242f02e1,0x8d8d4103,0x3b5de98a,0x482bfd20,0x5abbe952,0x89ef946b,
+        0x37698249,0xb8d218b9,0x66617c7a,0xd5268e89,0x8b7d2b91,0x962e7551,
+        0xfe8d67c3,0x2c5c7973,0x2b017c51,0x42e3150a,0xc1a29469,0x6f4e5ebc,
+        0x531c7083,0xa39910ce,0xb77b9e50,0xaf4f6eb4,0xda120ad0,0x68cbb175,
+        0xb92636ec,0x19497c61 } },
+    /* 7 */
+    { { 0x417659a8,0x6920b0c6,0x92cb28ff,0xc77ab9c7,0xb687797f,0x55b67180,
+        0xe7759363,0x4caf58c1,0x5561b186,0x5155bdb6,0x780f4946,0x2e64e355,
+        0x229a8b20,0xeb0ac9b7,0x2571bd60,0x88594d78,0xe3fa78f9,0x5dcc0939,
+        0x2ac2d379,0x7b8b4830,0xb90f1444,0x505fbf60,0x3ce4b3c1,0xac610e81,
+        0xd59b5c18,0x39a4f27a,0x7cea0222,0x5fa33973,0x8dff1c7b,0xe578730b,
+        0x517bf7a6,0x96b91b8b },
+      { 0x9aac087c,0xc1a991f4,0x6cfdb28d,0xce62f74e,0x5f7600d6,0x08d6ff9a,
+        0xf917f9c9,0xd781cd04,0x3de52dbf,0x7796f5f6,0x2ed72180,0xe7db64e0,
+        0x6fa4137d,0x0f0876f6,0x3ca1f716,0x3271ee64,0x7c4ab8a3,0xcb9b2058,
+        0x39481047,0xcba17107,0x598c5c37,0xdf9a190d,0x6f20e125,0x0cb6e72a,
+        0xf4f2902d,0xa3142204,0x7ce2dcfb,0x42d28cb9,0xa3d3c351,0xdf261b8a,
+        0xcffc249d,0x73f3d315 } },
+    /* 8 */
+    { { 0xe6fd3673,0x5d86855b,0x9d214b7b,0x309b70af,0xdcc46cd3,0x8d332f90,
+        0x595510de,0xe553c015,0x38c1251c,0x5746a096,0x85cc1bc9,0xcd7cea5b,
+        0x002eba8f,0x4ffa1468,0x22fcd77c,0x10a3cb70,0xc4ea05e3,0xb6999dfb,
+        0x4efa756e,0x3375a0d0,0xdced5fd8,0x4d90279e,0x251fd56e,0x48192403,
+        0x82a4c5f1,0xe87633a4,0x1b34105b,0x3170d130,0x7247e578,0x93998b0f,
+        0x436ba1fa,0x88934f64 },
+      { 0x4713eabc,0xf09f43b0,0xaccdc517,0x4ca7dd91,0xef13ca7c,0x27daa63b,
+        0x2588184b,0x8b2e5a7a,0xd95dc269,0x0a8cb612,0xe1f2f14c,0x346975a2,
+        0xe172935c,0x1f29b8ed,0xd40bc1e3,0xc3cbfd6e,0x132623da,0xd3f46b3f,
+        0xfb0b7681,0xc115be6d,0x56da4344,0x5e31c345,0xa8e43d98,0xa7c63f18,
+        0x4bddb4ea,0x55cb2083,0x4a54f58c,0xb16a0c38,0x46fd69d9,0x74eacca2,
+        0x153548e1,0x0d1898bb } },
+    /* 9 */
+    { { 0xe35ef043,0x4ea73461,0x3496b564,0x107b67d9,0xd0f83a3c,0xd62c173b,
+        0x51d29c35,0xfad4b038,0x71b1c1a4,0x3f42882a,0x54b43b9e,0x5d2bcf66,
+        0x2abdf543,0xc77b15aa,0xdabe3dc1,0x5cb38a80,0xa481673b,0x15fda0ae,
+        0xe7b90ebe,0x86996b4d,0x2bc8f3d8,0x84f87e25,0x37c4e424,0xaded03d6,
+        0xd7a7afd8,0xe5ede666,0xa1ccb93a,0x80dd95a2,0x46fba391,0xa55cfd25,
+        0x46f82e60,0x2bdab1dc },
+      { 0xfa6fed61,0x7a4de22b,0xcc8dd94e,0xca458aa5,0x071222f5,0x3e372df1,
+        0xe5aff377,0x06a4b44f,0x4a738e6d,0xbc2d0ba7,0x5f31f136,0x1a470e1d,
+        0xe102a911,0x77ff933a,0x310c7885,0x8b380a50,0x783fc5ac,0x9f3c0228,
+        0x44725d06,0xec668925,0x5ac84221,0x878f0e16,0xcfda6e8a,0x9a3af1af,
+        0x78cd2aba,0x0183ed37,0x826d0eae,0x32cdbd60,0xcbee6415,0xb3234661,
+        0xb9c10120,0x353eb892 } },
+    /* 10 */
+    { { 0x10b5521e,0xc8fdcad6,0x52e702f0,0x1a11b440,0x8ffda49c,0x6302680d,
+        0xcbf36bad,0xcdb9654a,0x4c10a2d7,0x7b58ce11,0xe630e7e0,0x1e5d1f7d,
+        0x6760a813,0x8cbe3d7d,0x6480d77f,0xeb35866b,0x7f036219,0x58728cf3,
+        0x42a8a757,0xdd5865ed,0x906a2870,0x283f1f1d,0xa51f906b,0x79e23fa4,
+        0x543b20a8,0xf2ac6e83,0xb81e7754,0x4f0b6379,0x840016ee,0x57fbc0d4,
+        0xe621b67d,0x8da20771 },
+      { 0xecce65ec,0x3c855004,0xb748185e,0x76d10d1f,0x78797ad2,0x64be7bca,
+        0x77e54aad,0x43444db0,0xbe0df0ff,0x17b6b0c9,0x055086a4,0x8fc4256c,
+        0xfd74d5a3,0xf952c43b,0x01c4edb8,0x501e005a,0x4a57e328,0xd5172dfc,
+        0x535d6ee3,0xdb40ce4e,0x0c650918,0xbaef1e5c,0x857561fc,0xe85145e7,
+        0x34a224c6,0xe468536a,0x0ec0e0a2,0x69a8e227,0x242b03fc,0xb3f52247,
+        0xc3bebd5f,0x862f55e2 } },
+    /* 11 */
+    { { 0x226049fe,0x2d6a390f,0xdcbbc9fb,0xcc92a578,0x97634fb7,0xa52feca4,
+        0x3dea5893,0x2b340cb6,0x2a49e916,0xa39f338a,0x949e41f3,0x26b2df3d,
+        0x065a7e40,0xc71c7cdb,0x468281a2,0x4a9b84a0,0x731eeeca,0x63eeb503,
+        0x76cbb725,0xe6d09134,0xb94a678c,0x0cf979a9,0x808fd9f1,0xb44d8c3b,
+        0xe0afc5b9,0xe60da613,0x3ea5be69,0x52dce7de,0xdc1ee74f,0x3a5d6864,
+        0x3bc80790,0x71ab2891 },
+      { 0x3b5b60ad,0xcf618fc4,0x4a0c3184,0x0afb5e30,0xbc403302,0xd22381cc,
+        0xdb1c0c66,0x33cf8953,0xa6112a8d,0x9c994e4d,0xd1967a86,0xd7aae2c3,
+        0x5b7acd29,0xc28d5493,0x6c9a57fb,0x8075bd13,0x9c8427f9,0xc9c0373e,
+        0x193225f5,0x2cbca18d,0x442c018c,0x73777d13,0xfbb3a727,0xebe5ed47,
+        0x1962dc18,0x70437d49,0x2dc08806,0xf39c1e09,0x15fff35c,0x03e9c6f7,
+        0x5e360a65,0x8d087bb6 } },
+    /* 12 */
+    { { 0x3fdc1844,0xbe212302,0x105eac56,0x6eca27ef,0xf168a348,0x2183a606,
+        0xe1d7a4cb,0x295f807d,0x7ef5d43e,0x7246a632,0xc77025c7,0xae143205,
+        0xf3484e3e,0x4bdfc7ca,0xdf52c075,0xec939895,0xd7a9cac0,0x82e655f6,
+        0x8baeddb0,0x985dfe20,0x527de731,0x79c817e4,0x313de1ea,0x30ce0fbc,
+        0xcc4f6cbb,0x9df95b89,0xf5bb20cd,0xf2aedf1e,0x1a8cfb01,0xfc1e0a89,
+        0x63edb7ec,0x225ed34a },
+      { 0xbabb1a85,0x3e13154d,0x1e6a565a,0xd3d8dae7,0xab4b100f,0xd3217d56,
+        0xebc78e1a,0xd44d934e,0x48e73d37,0x0215321b,0x201e43cb,0xbbc90bfa,
+        0x27500905,0x3c23f1d0,0xc86691a1,0x2a2e5000,0x6065841c,0x08b2bad2,
+        0x30026b60,0x15d41caf,0x5276ce61,0x1712c2f4,0x15932ffb,0x01c4c3e7,
+        0x6a74caf2,0x7894e13d,0x0c0537a4,0x02d6f5df,0xc2b1c97e,0xa8fb7602,
+        0xd0887c7b,0x612b60e5 } },
+    /* 13 */
+    { { 0xba245d6b,0xefd495cf,0xa2ce3ff6,0x5cf0cbb7,0xdff5feee,0x24da2ac0,
+        0xcf28c6a3,0x90c914f8,0x4308a56b,0x72fdb50d,0x13d72034,0x03dbf779,
+        0x822ac9e9,0xcfa5ec91,0x3aea3e81,0x0dde73c8,0x66289139,0x545ba962,
+        0xca6acbd3,0xa52f648b,0x98a0683a,0xff6f276e,0xa378ed52,0x2536d3ac,
+        0x885ac1d9,0x353c2c54,0x00bc84a7,0xcaff52da,0x37684167,0x3971f81c,
+        0xd2d7986e,0x0f7334e1 },
+      { 0x6596067e,0xafbb5c83,0x38c19806,0x33e54e19,0x39cb0dcc,0x8285d967,
+        0x424035f9,0x2b53f43d,0xdfef9095,0x38c531f8,0xdb0f571a,0x90fbe8e4,
+        0xa39ca787,0x9a0c1ed2,0x606f2620,0x2fecc1d6,0x72b7cb4a,0x9dc890b1,
+        0xccbb7868,0xc33ca6fb,0xfe73ee49,0xd1b11082,0xfcb66c48,0x590b7d17,
+        0x86e14573,0x9356b0a6,0x053ead85,0x75d682c4,0xc54d30fb,0xb2ae55fa,
+        0xf8aee949,0x67636a72 } },
+    /* 14 */
+    { { 0xb91d6bea,0x638063bc,0x923ecb96,0xae263a2e,0xc627aca6,0x9d7b0992,
+        0x77af9e7e,0xc6ed001a,0x24aafebb,0x9214accf,0x78055a90,0xa3564b96,
+        0xe027499d,0x00999b1c,0xe46a06a5,0xe413a4e1,0x2e51efe7,0xa05d13f6,
+        0x9ba843be,0x35e87d34,0x3183159e,0x0a633825,0x54601923,0x6023e8ba,
+        0xb7fd1cf2,0x9b107721,0xfdf2fd53,0x46b5542b,0x1c18af38,0xb314f4f8,
+        0x60ac8965,0x086f9876 },
+      { 0x8cbb9850,0x76701954,0xa20d2c8c,0x6210b730,0x5335670c,0x4084d057,
+        0x0324baea,0x3ecdc595,0xc76ee9b4,0x607fc5f2,0x440ffa64,0xf393d00f,
+        0x2dc1463c,0xe0111796,0x9c7725e7,0xf00b8251,0x5bd1d186,0x35e60736,
+        0x2cf72aac,0xf3d8554c,0xefa3497d,0xb4dd0fde,0xf646ad11,0xd712268c,
+        0x9f7b8ead,0x07c20afb,0xfc06dfe5,0x630969d4,0x7245549a,0x76b7df1c,
+        0xe61ae810,0x681f9403 } },
+    /* 15 */
+    { { 0xc9a0623b,0x7cad5163,0x67fab8d4,0xdbf82957,0x81af7c7c,0x2ccab0ec,
+        0xe966d5c2,0x469e38c8,0xf0d4e41c,0x34430d52,0xa52b359c,0x426075a2,
+        0x33bd0127,0x242dd3e3,0x9fed2341,0xcda3f635,0xd7d52ffa,0x4df33730,
+        0x7640c3ef,0x5fff56f0,0x1bbde57c,0x4783c21c,0xeb8bb336,0xd8784a2a,
+        0xead08405,0x1ec7c533,0xf9b62bd4,0x4b7f1423,0x7075d4af,0x5543145c,
+        0xba60590a,0x0c9de94a },
+      { 0x95d5682b,0x8ed72735,0x2ec276ed,0x711c4283,0x8b36a0d2,0xd1f4aed5,
+        0x8498a88f,0x62ab40c4,0x4480f451,0x58c8fc62,0xb79cffe2,0x8bc8ca4b,
+        0x701a359d,0x90ab583c,0x3fd5d15d,0xaee31a73,0xc912333c,0x02a5597b,
+        0xb6c3e3c2,0x1019cae4,0x29938088,0xe513042c,0xf47c8199,0x0e00283d,
+        0xf2a00e92,0x90d68e58,0xa775ae3b,0x69e2df41,0x871c30b2,0xb8d2eca5,
+        0xbb1de396,0x733dca0e } },
+    /* 16 */
+    { { 0x4b59213a,0xf5b495d0,0x8d70200e,0xca672039,0x2b6771c1,0x4bcb09a6,
+        0x2b9eb0cb,0x26adeed4,0x8cdba212,0xeb544754,0xf08890d1,0x0e1abfcd,
+        0x698e46b4,0x52509963,0x82e9c138,0xe1bff0b0,0x51099a71,0xa189e4cd,
+        0xc9b91cc7,0x2360c9bc,0x137ec4be,0x9bd4d7dc,0xd1519f6e,0xd0356521,
+        0xcf832503,0xbf5f6d78,0x8deea2b4,0xe4301031,0xef4c319c,0xc3132494,
+        0x0f1fa7d7,0x2ab3bd47 },
+      { 0x922c9fbb,0x5753b680,0x0f16c6d1,0x869e7dc8,0xbac16efc,0x83445135,
+        0x846d1d9b,0x4326a3b4,0xb2d62c21,0xb517fee3,0x0b292ad5,0x6905afa2,
+        0x2cadac13,0x2a57131a,0xebdbca8d,0xcd904d8f,0x3f365fb2,0xdfeda86f,
+        0xdc7eaa1c,0x7097b208,0xa45e77c0,0x89a35a84,0xcf5d118e,0x417a062c,
+        0x1f6e99e8,0x3c0c04a8,0xba7a087d,0xc44704b0,0x3ea22ad2,0x6f8a27d1,
+        0x4c27d229,0x93a4b416 } },
+    /* 17 */
+    { { 0x1f1efb7a,0xd4271bc1,0x33fccc0d,0xae4e68e6,0xb11f50a8,0x9d9bc8f1,
+        0xaf076089,0x5430398f,0x443d0e03,0x45e242fb,0xf6e3d4c1,0x73ec2519,
+        0xba9bad09,0xab70f790,0xf9add10f,0xde612ad5,0x14e942b4,0xb837e54e,
+        0xddb8b68a,0x175a56d3,0x1ac2a408,0xe85b233c,0xf0c80f94,0xf8ff6c30,
+        0x898db4f9,0x4b7f3fb7,0x45a7dcdd,0xa2c6044f,0xfe3d3895,0xf3abb2f6,
+        0x32ee7763,0x342ce0d7 },
+      { 0xcf491b1f,0xeb261394,0x1909e395,0xdcaaeed7,0x9fe4dbea,0xdcc4055a,
+        0x493d604d,0x17a6611d,0x1ce5ebef,0xba445a3a,0xe3989cb5,0xe82e2858,
+        0x83f58406,0xb96f4282,0xa156cf55,0x99877b99,0x4e166a0e,0xaf906a66,
+        0xb2976d13,0xcea1d353,0x36c61a01,0xefc16f27,0xb0f55d86,0xdb04c433,
+        0x8eb34c01,0x3cb4b269,0x2ae60280,0x38d07f78,0x43be3ec5,0x43ac3bcb,
+        0xe156fd20,0x455f4af3 } },
+    /* 18 */
+    { { 0x754ec21c,0xc057f262,0xe3a1ba38,0x3eacd4c9,0x116c1fe9,0x3a0210d1,
+        0xeacc8ab6,0xe4ea4e94,0xea6f32ca,0x31c00c9a,0x86b975ce,0x5cb6239d,
+        0xa14ea1e9,0x654d5d8c,0x5067fc8b,0x230d31f4,0x6355fecb,0x48bb90cb,
+        0xdc172e8e,0x78f81ece,0xcb006737,0x288380a8,0xe162d012,0x19b02e01,
+        0xc5af145c,0x0e087a06,0xb72dc354,0xf04dc8b7,0x8de3c066,0xf70ef214,
+        0x13009fb7,0x4f148243 },
+      { 0x6e2055e2,0x5e004fce,0x86c32067,0x89e247ea,0x5f9daaa2,0x4ebcbd95,
+        0xceb7f63b,0xd15f212f,0x863784a0,0x5ecc5c1f,0x75760251,0x53b3800b,
+        0x8a6a2954,0xeb9301c3,0xa13cdd19,0x0f16ba18,0x887c2d24,0x8313d251,
+        0x9a9413f6,0xf9923585,0xfe3fd7c5,0x423405e6,0x16e0ee05,0x678aeb34,
+        0x3fadaab0,0x1f3be7bb,0x82884471,0x7901fa2c,0x4d662ff6,0xc950db30,
+        0x3c01170b,0x74d5d2d4 } },
+    /* 19 */
+    { { 0x2b5bfe11,0xa3002dc0,0x52d321e7,0x0733410d,0x9679ba89,0x15920f65,
+        0x685b236e,0x0e248c14,0x346f6040,0x8cfab594,0x40c717f0,0x9f57afb7,
+        0x66044576,0x0dbab28c,0x9cdc3247,0x0fa09968,0xc230ed05,0x41e02ae2,
+        0xe45bef74,0x0d961554,0xce4d7b6f,0x9688a982,0x5e62d22e,0xfadefac7,
+        0xbd2cba28,0xaf1512a6,0xbe7c749f,0x78868e62,0xae9f5a6b,0x88048d81,
+        0xc5857a29,0x6b1a5442 },
+      { 0x43242066,0x9f5ab9ad,0x2ccca2ae,0x0afef1b5,0x988edc4e,0xb1b43ec7,
+        0x0341b0d5,0x0d0c00f1,0xb50aab37,0x4d68b8f7,0xf3a64a99,0x9a8e4e6f,
+        0x7f1a684e,0x198338fb,0x351a0f5c,0x8bc0e748,0xdac44515,0x2cacf2cd,
+        0x5e9ff76b,0xc14d3999,0x16393055,0x54a01b3f,0x888d8376,0x6ac3eea5,
+        0x723277b1,0xb84d9a9a,0xe11dbbbf,0x99132691,0xabb67178,0x597717ae,
+        0x8bb14ac8,0x4c213526 } },
+    /* 20 */
+    { { 0x95532833,0x2e6fe0a6,0xd626d067,0xabca228e,0x649e73bd,0x22aef3d9,
+        0xf03c4c0c,0x2083a87a,0x35169b45,0xe954e75d,0x74506a89,0x577509ee,
+        0x2aeacf90,0x49cb276e,0xfa409f91,0x08275d77,0xf0bbd6b9,0x61eb6f3d,
+        0xe4132704,0x948202cb,0xb1c498b1,0x35f3fc21,0x361fee59,0x76c68ba8,
+        0x50e051f3,0xa18cbbd9,0x318e7042,0x2384a879,0x80dd1e8b,0x292abead,
+        0x5c37c334,0x65713c29 },
+      { 0xceb77b9a,0xdccca8e9,0x23b69469,0x2f97e727,0xa01d6b28,0xc76abee6,
+        0x5abecdfe,0x3925203d,0x29290d70,0x89448082,0xb0314438,0xf9931424,
+        0x7cd447c3,0x04209df1,0xc855c827,0x7c6f2059,0x56c0e069,0xd97d7862,
+        0x412d94c4,0x5a9db6fe,0x994c41dd,0x19a64591,0xc89e21a3,0x12348aa1,
+        0xc6a03f0e,0xd6904b50,0xa616feac,0x55c15156,0x7cc7693b,0x4e36d1b5,
+        0x3bae3c38,0x6b0e996c } },
+    /* 21 */
+    { { 0xcceced00,0x32789fab,0xe5b7aa66,0x3237e71a,0x2ddebcdf,0x87b2e269,
+        0xb61dad8f,0xb7245120,0xd35f803c,0xe11e5e48,0x98e50f0d,0xfb4df5d7,
+        0xbcd2ab92,0x60ee68b4,0x1ce3363d,0x98ab2f5c,0x7cd42647,0x15ba39da,
+        0x83f4fb3f,0x1a6572eb,0xe56f08db,0x0f77de88,0x172562c2,0x1743761e,
+        0x8a58f0f4,0xbe349ff8,0x84d1d6e2,0xe04da71b,0x9e9ff3b4,0x368f0342,
+        0x678223f8,0x4022a205 },
+      { 0x83847375,0x527bbd05,0x3f451af0,0x3ae56b62,0x4b2c7f18,0x6198f24d,
+        0x4525b98d,0xee323f5b,0x0e0884b5,0xa9d8d39a,0xfb12c776,0xd005d7f6,
+        0x708bc154,0xd71c483e,0x742541bc,0x8ca6fd28,0xf8397ddb,0x0af3dccd,
+        0x3eccf243,0xb80d3125,0x58d81b8d,0xc743a108,0x71391f68,0x3f48eb21,
+        0x33bb657f,0x493aff88,0x07e47e31,0x1d15ed66,0xe08279f6,0x10159b11,
+        0x24a6a956,0x312179cb } },
+    /* 22 */
+    { { 0x07615ac2,0xa94cc3ca,0x121ad581,0x85865e64,0xa7986b79,0xae47616f,
+        0x9d5e0f1d,0x395a40eb,0x3d9457ea,0xa9143264,0xfa2865d9,0x8de6d6a3,
+        0x1014ae8c,0x0771db96,0x976a87cb,0x77a7cce6,0x143a0f60,0xa7de42e1,
+        0xd993d934,0xe203cc09,0x98ec4c3d,0x92018693,0x3a25df4b,0xd77546d8,
+        0x62b02d6b,0x0ad9eb47,0xd05a7189,0xfaaaf208,0x431221bb,0x5238181f,
+        0x733511ea,0x417d6c78 },
+      { 0x0e91e9a8,0x3cbd81b7,0xc370d6b3,0x73340418,0x8eaa2373,0x825db10a,
+        0x6c7d6756,0x8f2b09e4,0x94c33ded,0xe288ee9b,0x1695e3fb,0xcd8426bb,
+        0xdce9e888,0xa6176c86,0x6165e362,0x3f4c8922,0x6063fb09,0x514e411f,
+        0xc8f9e04c,0x6907ac20,0xdfd2ad61,0xcef7469c,0x8452199a,0xba30bae4,
+        0x12ac3462,0x30681293,0xc92d482d,0x011be873,0xe8330995,0xff4cbf89,
+        0xd1470a0a,0x02189d52 } },
+    /* 23 */
+    { { 0x92599c69,0x73e419dd,0x7fec32ca,0x5b94221b,0x09bbfbfd,0xb2bf9bd2,
+        0x63ed895b,0x61ea97a4,0x3f486f79,0x6609146b,0xfd141a39,0xbd1c7a05,
+        0x83d64135,0xc79ec8cf,0x9883507b,0x7f8fd42f,0x17b3d027,0xafcb53b7,
+        0x67ca5a21,0x86658dcd,0xcd149786,0xa6a6c0ac,0x34b95067,0x16f3d70e,
+        0xdf44958c,0x371208e3,0xec280212,0xd2dd64e6,0x30782c71,0x33b2c4ab,
+        0x521176fa,0x7bbf8abd },
+      { 0xa78b981a,0xbe9e4aaf,0x304ec828,0x788b4e36,0x3959dea3,0x0c45cf39,
+        0x240b39c7,0x70a9bdd3,0x28383b7d,0x499cd7dd,0x307a1026,0x30690b2e,
+        0xee92f1b3,0x2262d598,0xb4725a48,0xc62d77de,0x7bc3aa0e,0xa16f25bc,
+        0xd15ef7fa,0x62dd8b65,0x0b96d68f,0xd979221d,0xa00f1906,0xb92885c3,
+        0xeb74c740,0xfa476b9b,0xc7576222,0x217ddbb5,0x5788504f,0xc2782c30,
+        0xf812716b,0x860d096c } },
+    /* 24 */
+    { { 0x4d79bbf9,0xfebc337d,0x69f74f80,0x5d53eab8,0x33104d53,0xff36a095,
+        0x196f8b97,0x2ab820da,0x75ce6909,0x961d3d1f,0x04683754,0xb197ec04,
+        0x93a6cb9b,0xa68ce1bf,0xc5f021a3,0x503456ff,0x8940ffdb,0xb50a2db1,
+        0xef004209,0x77c50f8f,0x04965875,0xd635d177,0x8bb8770a,0x725766d9,
+        0xa078e53e,0x8e19b028,0xf9fc8378,0x364d4cca,0xf0dd39a0,0x1a3df411,
+        0x03adf920,0x7e80e442 },
+      { 0x539a1ddf,0x4b5f8a57,0xee486562,0xd248e7ae,0x816021e1,0x1c7b491d,
+        0xfd36d2c4,0x2e7b871b,0x0aec00d9,0xda38b504,0x6193f1b3,0xf2827612,
+        0xfb1f78d6,0x69c3fe86,0xe827ac33,0x56c8b786,0x3487c8f7,0x1687f6c7,
+        0x19dee5bc,0xab8f2217,0xff399418,0x04e8473f,0xa9027c80,0xf384c014,
+        0xaa1d2e28,0x9967be9a,0xe065eef1,0x869686d3,0xc7bd837c,0x737c6b08,
+        0x9e8bd863,0x5dcab5d1 } },
+    /* 25 */
+    { { 0x9a7d772b,0x0784283a,0xe540959b,0x6b49e525,0x86414ab5,0x546bb008,
+        0x9d74b2a9,0xd4448162,0x203b0b1b,0x267890ad,0xc8d3f86b,0x1e7a82bc,
+        0xd85a83c7,0x1352bfb5,0xfad07ccf,0xf29f16e3,0x41e0c43f,0xc02a63b8,
+        0x6b379fef,0x904f22c5,0xb1244f26,0x19d8a653,0x3a28bdea,0x6635b6df,
+        0xf6d455ce,0x18b68851,0x9cff3735,0x74ac2818,0x8b2cbdab,0xad40f9df,
+        0xadc9d498,0x08cc2d9e },
+      { 0xc170c84b,0x2e6a6866,0x5a49a484,0xbb989e8b,0xd04c8992,0x7b0e00e0,
+        0x61b3a423,0x55ad3478,0xb0d01899,0x3c952450,0xe3100cb3,0xe3922155,
+        0xf03276d0,0x19265b6e,0x76d42b53,0x0fe8595a,0xfc6353b6,0x0a96dee0,
+        0x246f893e,0x761e0dc8,0xf0a74cba,0x4ec902be,0x3fdfad9b,0x61008684,
+        0x4fdb6975,0x5d6a60e4,0x7ef7590a,0x3f53aac8,0x12870a37,0xd29e6be0,
+        0x55aa55b0,0x991fadc1 } },
+    /* 26 */
+    { { 0xb4844ffe,0x82bc4b0f,0x60f8b871,0x73922714,0x4ce3f1f3,0x8ac000e2,
+        0x163519ec,0xf0d548b4,0x88288b5f,0x7aaf842b,0x2bdc9a70,0x9e8b0c4c,
+        0x4ba5fd67,0xa06d5152,0xf93cdec3,0xd0b1afa0,0xdf89f8f0,0x280955ba,
+        0xeea32c92,0x86cbe92d,0x3fe05be4,0x0cae3f99,0xfa6919aa,0xf2607095,
+        0x6e0f1b8b,0x0f54741e,0x30ecf988,0x2aed1f74,0x734991d7,0x9296f76b,
+        0x259f0fe9,0x66cf8d28 },
+      { 0x226f5868,0x9b01905b,0x16909e9e,0xc102e88c,0x4a37eb54,0x2bd08916,
+        0xc9816323,0xf72253e8,0x86bac53c,0x37f84e9d,0xafeaaaf7,0x2e352454,
+        0x2ca0046e,0x67c86f77,0x6663372e,0x86bce50e,0xb6950a04,0xf6a3a960,
+        0xfc1aba93,0x61f994d7,0xc1326e6e,0x1957c12b,0x2e56b005,0x9b658fe4,
+        0x8592740c,0x9cd297fc,0x177f26a5,0x7654ce9b,0xa79d2ebb,0xaaa699db,
+        0x0ecb6448,0x5fca0c5a } },
+    /* 27 */
+    { { 0x569a6663,0xe26e25f3,0xe6aa4ca7,0x09597ee7,0x8d18b80c,0x25a4cda6,
+        0x22926730,0x450602b5,0x07387209,0x9af5f650,0x26733a53,0xfeeedb34,
+        0x86572951,0x0f5ce768,0x8398ae9a,0x872a360b,0x2b30f6c3,0x60347a80,
+        0x1a162158,0xd2113b23,0xee6c6dec,0x6fd9cf92,0x5cbcf9e6,0x85f0a5a8,
+        0x2ba3fe84,0xd7a5a6e4,0x51ecd727,0xaafe6720,0xa2081a10,0xe09c6bb2,
+        0xb973b0b4,0x657acbf0 },
+      { 0xc274c8d4,0x3130466f,0x30a994d1,0x42765176,0x7079435f,0x217258ca,
+        0xeb897a06,0x44850406,0x561ee130,0xf38dfeee,0xaa1778bb,0x11f4facf,
+        0xb9abb9e9,0x765c6617,0xd8f10932,0xb135499b,0xa73b9159,0xc0eb6337,
+        0x6f7e8b6a,0xf2c1ccf1,0x187def53,0x5b32c03a,0x830b9c62,0x89ad1d49,
+        0x2f10e538,0x1735eae3,0x9d5f55bc,0xb1cbd9c2,0xe539db0d,0x42428c47,
+        0xc852b3bb,0x3d2da412 } },
+    /* 28 */
+    { { 0x871f2865,0x97702b6e,0x142920d6,0x56cb639f,0x45b58611,0x328522a0,
+        0xf3b13812,0xf3943ad1,0x712206e8,0xe6c2200a,0xa34d59ea,0xc2890e5a,
+        0xf6b7f759,0xab52fd40,0x180bf567,0xf522c8de,0xaccee396,0x181e97b2,
+        0xc4ea5cbb,0xe0375819,0xab51d3ef,0x0d9985e8,0xbcb50fd8,0xe26c96ca,
+        0x97e1c80d,0xfb9d6b13,0xf796357d,0x582b1814,0x07f4c7fb,0x89a78221,
+        0xc0357e61,0x02aeef2d },
+      { 0x2c7ec9be,0x2ba7926f,0x7258b201,0x292f307e,0xc6fa6b4a,0x74e62a10,
+        0xe2bcc5ab,0x80c08549,0x7bb8c073,0xb4160db8,0x329f194d,0xd5ef0529,
+        0x6dda4a9c,0x0eb8da14,0x15ea23d1,0x0b5d43d2,0xfc34bfae,0x6cebef02,
+        0x848757a7,0xacd364d0,0x2d34cca3,0xc1401368,0x1d2d95e2,0x09ca6742,
+        0x786eaa28,0xc3fd1d6e,0xa2965fec,0x9eb1136d,0xc0779203,0x48871baa,
+        0x4b15aeb0,0x6b446c01 } },
+    /* 29 */
+    { { 0x25e8fe80,0xc819eb2e,0x98238a17,0x2b5f7906,0x81e41849,0xd6f1e996,
+        0x98ea6d45,0x58ad8ad6,0xbfd02e40,0x5bae5ad4,0xa812416d,0x016dc327,
+        0xa3347ca1,0x8b31a985,0x82a65391,0x0b4da610,0xb48c35fb,0x1cb91b2d,
+        0xd2aaf8c4,0x9e96817c,0xcdfdcdc0,0x1a630483,0x12b69254,0x70559361,
+        0xf8a2a097,0x5fdcd712,0x35cc5281,0x59ab623a,0x932b6095,0x30c8ebe0,
+        0xb08e052f,0x8613424b },
+      { 0xb2231d8a,0x28902063,0xd9a61667,0xb0f62329,0x071a9f27,0xaafa0fe7,
+        0x603f047e,0x6bcd8960,0xfd92a1c3,0x118cca76,0x71d483b6,0x3414e62b,
+        0xba705262,0xa123ccdd,0xfd9b5c5a,0x1a576437,0x4c8d0fa3,0xa5301bc2,
+        0x102427cd,0x96f0ad44,0xd3aa6c02,0x0e6fb5e0,0x072a3996,0xcd8c4880,
+        0x840d3fad,0x4dafca12,0xde91d541,0x29f4ca3d,0x8441734d,0x0037c598,
+        0x9ccfe57c,0x86333a99 } },
+    /* 30 */
+    { { 0xecf53b40,0xd213a751,0x2f78a542,0xcff2c6f2,0xf13ae56d,0x0f59f0e2,
+        0x0e61748e,0x91f8ccbf,0xd72c4145,0x0aadecb9,0x4c9cdcb7,0x6b2ed852,
+        0x1eaffc70,0x8e00b72c,0xaa728102,0x89b24285,0xb679cafa,0xaa7ea7e0,
+        0x4f0a6f6f,0x5d2b8c26,0x0e804397,0x7ed7b173,0xc8573049,0x5a93eb45,
+        0x0986e93e,0xc92bf5d4,0x6a20c0af,0x526b5a9c,0xb99dc3af,0x0adf47c9,
+        0xba202cc9,0x12b25fe2 },
+      { 0x33eea395,0x09b8d78a,0xf633fc5c,0xc7a93618,0x270eceef,0x7e821629,
+        0xc628ed0c,0x524779b8,0xa1d68939,0x91db5ca1,0x586edc90,0x8626e18e,
+        0xfeb3f3bf,0xfe023e8b,0x0250171c,0x6279fde1,0x55e172de,0xe52ec7dc,
+        0xc6d4ca45,0x445e8695,0xbdbc10f1,0x42de3878,0x6fc3835e,0x2b114de8,
+        0x7e10b652,0x9faba456,0x390e78fe,0x4111d82a,0xaedf0aca,0x576b61c2,
+        0x74accb74,0x216279a9 } },
+    /* 31 */
+    { { 0x4047f747,0xc14cdabf,0xc1315a1e,0x03ca233d,0x40e5d0a7,0x59e7cbd3,
+        0xbb413869,0x1fd0c4e9,0x0f01fbd8,0x189d08b1,0xa76b823d,0x50449c42,
+        0x398b00a1,0x81c224a1,0x8e8179e4,0x08084e4f,0x698e41e9,0xfd8af994,
+        0x5610bf2e,0x1e30e37c,0xa7d2790f,0x4e6a043f,0xb3195388,0x9d96e60c,
+        0x03799dfd,0xe75f986d,0xf8ff902f,0x3b4a8f11,0x7588416e,0xfa945378,
+        0x9827535e,0x20683e3f },
+      { 0xd0378878,0xcb582e26,0xa7945787,0x9e214c23,0x8f6688b3,0x13d000bf,
+        0x40515270,0x7548d4f5,0x40111f5d,0x7113c15d,0xa8bff902,0x3bf5a526,
+        0x9b4945cc,0xbda6b010,0xbc2f3a05,0x83dcc74e,0x43efdfa1,0x2aef6284,
+        0x565c5bf4,0xd2e60ee9,0x592f243a,0x4f0fa10d,0x1bc3bf51,0x6ae58b32,
+        0x60576a74,0x813b0868,0x4d73081a,0x0bc023f8,0x32dcee59,0x9fd03aa0,
+        0x27d6c795,0x5e416bf5 } },
+    /* 32 */
+    { { 0x026cc23c,0x24313760,0xb5b29058,0xf819aaee,0xc5d2ee17,0xa92272f8,
+        0xee5cc402,0x8048e7cb,0x77def07d,0xdbc7d6ee,0xf6af821e,0x61d69244,
+        0x996cbb89,0x5f7966ed,0x96a155a4,0xf81b17ea,0x03f3ed56,0xb2d9ef70,
+        0xe882a5b2,0x5e6e5906,0xae947180,0x86fa1072,0x658c76f4,0x34d9fc51,
+        0xcb035aa0,0x9f603dc0,0x75be6481,0xb7b39feb,0xcf04a9ef,0xca87554a,
+        0x87b4fde3,0x4ff682ec },
+      { 0xd0a10ad5,0x3125627f,0x968e6f45,0x7fd45c72,0x806a1163,0x2981bd6b,
+        0xde5033e3,0xb92de1cd,0xbf4f8988,0x3b44b45e,0xdae7e1dc,0xca1b9896,
+        0x0778d878,0x52166e5a,0xa5116847,0x82d472be,0xf2895445,0xfbdd382a,
+        0x5d6ec4c9,0x22ed1602,0xb6552b02,0x3614eb1c,0xa1e6210f,0x63c5df73,
+        0x021a74a7,0xe9160285,0xc65cbd4d,0xa44ca400,0x0f15e299,0x48cb187e,
+        0x3402507c,0x51eb818e } },
+    /* 33 */
+    { { 0xb92100ab,0x1fc1d178,0x9605b839,0xdf2e3d60,0xb71e59d0,0x12a7c255,
+        0x14fcbe04,0x3f8b6675,0x59fd06af,0x0e8a3935,0x12020d07,0x56326502,
+        0x528e7be5,0x6696fcd1,0x0c7b7654,0x6588514b,0x5912a5b5,0x0cd80f8c,
+        0xf324cb7f,0x8bafef04,0xc6da3d75,0x6b53eecf,0x31d1df2f,0xedef48d8,
+        0x73812b6d,0xf336b965,0xee626031,0xc82eae4a,0xd244f09b,0x300abd32,
+        0x31d9647f,0x8b0af955 },
+      { 0x2e603544,0xb770180a,0x221acd9e,0x2b573ac3,0x62407032,0x3a17f665,
+        0xb89abc3d,0xad3e74ad,0xd793225a,0x8a3d2e3a,0xef02564b,0x457bba04,
+        0xfc2dd2b5,0x8875652f,0xe67143e8,0xd2905d15,0x02e48d70,0x6d884b42,
+        0xc7636a57,0x06f99219,0x35e378df,0xa8dc3421,0x10c64a02,0x95c1d73d,
+        0xcc157a66,0xcd6a4ece,0x8e24a354,0xbadcc1c8,0x9839329d,0x8024f1b2,
+        0x4da48ad0,0x5363e549 } },
+    /* 34 */
+    { { 0xe23fc641,0x1f5523b7,0x86667063,0xfe54e72f,0x8e009d2f,0x294a15f5,
+        0x8c57f5e1,0xf203997f,0xb16d64dc,0xa229724c,0x4baa2ffb,0x697be4fd,
+        0x0a6e8ed6,0x3f507e46,0x78508536,0x0afe3a5d,0x95408208,0xeeef6cdd,
+        0xf2c4237c,0x701fd889,0x5c385253,0x496d883a,0x72a212f1,0xe25c67ed,
+        0x1ff78fcd,0x4b416783,0xc16f4146,0xe9967004,0xc45b0697,0xfa45c3a1,
+        0x3fbd30c3,0x63334018 },
+      { 0xa2fbbbce,0x39c9a0cc,0xaa0cb744,0x876f6e5c,0x3438ece3,0x9ce6010e,
+        0x13802d82,0x0aad148e,0x9cd45a1b,0x9c3e5c60,0x7bcfc1e0,0x875cb859,
+        0xd8584dd0,0xb19ff790,0xd81c2a2b,0x2598b81e,0x02be07e3,0x118bdf2f,
+        0xb9765ce9,0x074fc8ee,0xb24f95ae,0x125e9d88,0x0c98f09d,0x3bb12cdc,
+        0xa0b74b27,0x4a6aee07,0xc08077ce,0x4723d2f9,0xbea8026f,0x959447d6,
+        0x16280b73,0x93a7075c } },
+    /* 35 */
+    { { 0x715b27f9,0x26bbefe2,0x2a280923,0xa935a5e2,0xfd58a26a,0x5ddf23af,
+        0x7c138694,0x54c83e16,0x892a2153,0x44799bc9,0x9b8d09f5,0x4e6e4710,
+        0xd588ea68,0xc63af616,0x883ab1b6,0x5e896706,0x3d209336,0x3c1393a0,
+        0x92c23dda,0xd02f2921,0xdcf6ea43,0xab70cb7a,0x791559e1,0x12434ea8,
+        0x6d70ff0b,0x040680db,0x2832ba45,0x1a10fe52,0xe5f0cb8f,0xd69f9c08,
+        0x44b141fd,0x1a7422ac },
+      { 0x9f40b675,0xc3a9dd2e,0xfcc71f39,0x2a7c6603,0x1948e342,0x18939a61,
+        0xed0ab484,0x8f3b6158,0xee31ca6b,0xa3aa7d97,0xf7a8db63,0xbc1e865e,
+        0x2c7c62e4,0x315f8c09,0x9f5c6d0f,0xa260788f,0x4b6f3ec5,0xb1833129,
+        0x36b4d849,0x73adbcd6,0xbc699a9b,0x66e14890,0x2a1175e7,0xbf3790d8,
+        0xfc53ca4f,0x7f43605a,0x87ff6091,0x577f6c47,0x600c82b6,0x827c7552,
+        0x9d25599c,0x0944d630 } },
+    /* 36 */
+    { { 0xe6ab9620,0xcfdeb63e,0x786cd808,0xdff4fa6d,0x456320b3,0x145edd82,
+        0xc4943915,0x2ae5f862,0xb73b3f87,0x9508e813,0xe52f97a9,0x3bd805f3,
+        0xc9829b62,0xf71b5c28,0x86e0cefc,0xb394c70e,0x23bdb36e,0x534fb1a9,
+        0xdbe27e5a,0xd64f5862,0x83ab6169,0xbae23df3,0x27c828cb,0xdd6df1b1,
+        0x3a307a8a,0x1901899f,0x811ddf66,0x36cc8659,0x79943b77,0xa3cb7774,
+        0x6fd86576,0x7d89f383 },
+      { 0xc9f92b2b,0xf8564242,0xc46e32bd,0x700c6a75,0x7f99a5c5,0x93e768b7,
+        0x03149568,0xb6efe858,0xc2ce6709,0xbbfe8a19,0xee6ec493,0x721a3b1b,
+        0xc371c28d,0x26eeeea9,0x15177e1d,0xd798115e,0xb068a5a5,0xd7bf3bce,
+        0x46d2b4b2,0xdf8da220,0x59be9dfc,0x3df0995b,0x77640b79,0xc96897bc,
+        0x5a2bd3c5,0xce0cf4c2,0x89afe744,0x16f45d6e,0x3a8509bb,0xb53f3acb,
+        0x63f2a6e6,0x449af81f } },
+    /* 37 */
+    { { 0xa16d9377,0xc2fcf132,0x7e1a2f9e,0x9ab377b3,0x86d19ae5,0x72e1a12e,
+        0xd013bbb1,0xd2b12e66,0xcb5f66ba,0x0972e055,0x399eab50,0xd11de1c0,
+        0xc65f5ec2,0xc1f314fd,0x8a9ff593,0xfc311841,0xe05246e6,0xdf73c1ec,
+        0x1625056d,0xc28d1363,0x6fb25e19,0x30a9dbd7,0x845cd2d7,0x049ed244,
+        0xd36e852d,0xc779b83f,0xf68c8a83,0x85a35fc7,0xc95e8033,0x299bf1e1,
+        0x20891af5,0x0e8617c3 },
+      { 0x67c81b5c,0x53720602,0xe737873c,0x2fa89dcd,0xa8144fd0,0x2a7430b0,
+        0x26208c83,0x3006c5a7,0xd8ea40f5,0x4e066660,0x896413a4,0x9dd025f9,
+        0x46b9149f,0xbdf380cc,0x0a125cc2,0x80156619,0x52793c37,0x04d6a3b7,
+        0x6b7a62f2,0xb6001374,0x585d5978,0xa9cfe268,0x8395fe66,0xdcad0cb8,
+        0x46b261f6,0xbab468fc,0x9d9d9218,0xca0ef5ef,0x5e452402,0xc507d4a8,
+        0x326cf687,0x6f4404f1 } },
+    /* 38 */
+    { { 0x4febd3ff,0xa3e1920b,0xfdfd2bba,0xca6234d8,0xe19a9829,0xb7d1af2a,
+        0xc6f5bc20,0x23de1610,0xdaa39ca9,0xe204dbf3,0x6d8c70ab,0x2a2de9b8,
+        0x7c9d370b,0x272e0c37,0xe565510e,0x80914c06,0x57cbb6b0,0xb611e7a8,
+        0xd8266a6e,0x076fc6ef,0x3095801c,0xdfac34ee,0xb9e24063,0x69ff40a2,
+        0x787aa5c5,0xa7ba31a9,0x33c70cd2,0x0e4d1fdf,0x6895f074,0x903e3132,
+        0x7fb671e2,0x905771f8 },
+      { 0xa4062bee,0x5199ba0d,0x94d7d9f9,0x18e7238c,0x1e0922c0,0xf53f29bc,
+        0xb12d855f,0xde9b2a81,0x6d68ca29,0x649f3eed,0xc50c097f,0x64adfc34,
+        0x9db398a0,0x81964ab9,0x7a587224,0x00d59c47,0x74c5903a,0x09fea396,
+        0x15043dd0,0x6aafd8ee,0x5f1ecc20,0xc5721a6e,0x0db9b7b4,0xb6d6a483,
+        0x66c8d52a,0x06ffc617,0xacc82a27,0x3de241d6,0x27f2f7a8,0x0605f052,
+        0x6404decc,0x6a22953b } },
+    /* 39 */
+    { { 0x74fce389,0x92452d8f,0x2afa5564,0x059634c0,0xf0ed7825,0x9377ccbb,
+        0x37718e0d,0x89f4045b,0x9fa69a4d,0x11074e7d,0x7295b0ba,0x5d70bb07,
+        0xf107ede6,0xb22d54ad,0xa1a29c7b,0x5c39a3d8,0xd795e3ab,0x37236c02,
+        0x2b589951,0xf7282d00,0x5790bee2,0x5e2265be,0xa8e65ea2,0x91e0ea11,
+        0x6001cebd,0x0e71a708,0x2c1c5402,0x16900f5a,0x357f6981,0xc3b2d5c0,
+        0x619e3427,0x528c9ea0 },
+      { 0x5f26c577,0x1edc86b4,0x9438bd45,0xf8074708,0x792582a7,0x2dfe1013,
+        0xde1e569f,0xe08eaca0,0x9a55a356,0x5f952efa,0xe4976216,0xa4d80b53,
+        0xcd5d71f2,0xd2b65855,0x66cea3f0,0x246704bf,0x492323ca,0x193f641f,
+        0x9adb1325,0xa681855c,0x2d19d652,0x86d522ce,0x5b82ed7b,0x53609f10,
+        0x8e150d29,0x3b0f0094,0x0b13e891,0x23ad8bfb,0xf794b449,0xcbb1556c,
+        0x738bcf57,0x200f9093 } },
+    /* 40 */
+    { { 0x8388387f,0xf9b22fc5,0x28e883c5,0xcf26f170,0xd1b7973c,0x447cab90,
+        0xf6ec9171,0x8d5d4ea2,0xc30cdbc0,0x2e16f498,0x48623c2b,0xdc92910c,
+        0x30dbc545,0xeb1491b0,0x14de21b0,0x631deb2e,0x2fe830f4,0x04a21066,
+        0x379c1f3f,0xa4c6979c,0xfb06a795,0x8a732b68,0x1619dfa9,0x3a44327a,
+        0x8dbe2c9b,0x91a307d3,0x03989fea,0x939bc8d2,0x0f4a331f,0x3daabaf2,
+        0xdd0f55dc,0x5c307e98 },
+      { 0x35b233da,0xbbc4e0c4,0x22f6f985,0xe3d29085,0xa8b02468,0x99dd2d21,
+        0xa96916e7,0x978f40e9,0x614bcced,0x0327d86c,0xb290762c,0x95e95502,
+        0xa879f2ed,0x0ffd2197,0x50e0bd33,0xc4365137,0x0827c4c4,0x26c3148a,
+        0x3fcfc0b2,0xc79812a8,0x31928589,0xc3d8d17e,0x8830f42d,0x8b572cfe,
+        0x4b07f83f,0x7cd9ff92,0x0a51148f,0x331ca950,0x4c59f9ac,0xd0c53968,
+        0xc1434785,0x1df16dfa } },
+    /* 41 */
+    { { 0x68bcacc3,0xcc7bb4ac,0x430f58cf,0x06ded34f,0xd461855a,0xc59f9f4f,
+        0x45c9f0bc,0xf5491994,0x4375c892,0xdc5f7ec6,0x3c85983a,0x1b8708f1,
+        0x82fcd087,0xb32a5cc4,0x2d6b4c0f,0xefdcdc35,0x8ac6fb2d,0x4bb24f04,
+        0x33906471,0x5982d4f5,0xb83a3ac4,0x162eb52f,0x2337a223,0x7130df28,
+        0xcbc3dbd3,0xdce7b802,0x2467ac0e,0x8b395959,0x1b56717e,0x21d3d2e8,
+        0x46512617,0x729a7f50 },
+      { 0x8420f90a,0x874ed1aa,0x0fe4c855,0x6368e19e,0xb0be74af,0xb62d4aaa,
+        0x8ca60ca9,0x76fcc480,0x7645a867,0xf310b5a5,0xddb1b24c,0x131bac9b,
+        0x2dea5b44,0xef77d71d,0x72fcc64e,0x4706d210,0x673d77f0,0x29b92691,
+        0xe89e0663,0x22e00bf3,0x74077d40,0x472d0cd3,0x829232e2,0x3e21040d,
+        0x38dc8533,0x2f916dfb,0x14b8f667,0x48bbb59b,0xd44be19d,0x19de9f4a,
+        0x232d9d5c,0x7f6d3649 } },
+    /* 42 */
+    { { 0x6e794819,0x3bd064de,0xf82ebda1,0x5a6b694e,0xb91e2804,0x1f017fe0,
+        0x07a43cd2,0x190d31f3,0x630433e9,0x6c26f226,0x0abfdcb4,0xba488aa7,
+        0xa46411c0,0x418d9085,0xbffb5880,0x1b934fe6,0xe200f849,0x75d1e237,
+        0xa55413db,0xdf04d63f,0xe23b3f77,0xe216ed75,0x0f91bd30,0xa05866cb,
+        0x7729c509,0x84c395d9,0x452ab2d7,0xec97e188,0x0093d686,0x8cb7c1f9,
+        0x628f086c,0x2d032395 },
+      { 0x4a44b4c5,0xa81c9407,0xcc702c98,0xb9846879,0xceb0dc97,0xcb502287,
+        0x6e3aa321,0x30301126,0xe4c256c2,0xc0ac8763,0xe55b4845,0x65034d20,
+        0xf240f35b,0xaa96a040,0x7cf7eedc,0x046d26d3,0x3b810656,0x62a5a8e1,
+        0x83d70c2b,0x86044b97,0x59e4da8f,0x2fbaff88,0x5457f5d1,0x929d901a,
+        0xb531b757,0xd29e1eb2,0x9e4e9739,0x214dabdc,0x4eaa9bd9,0x5bd724fc,
+        0x1ef9bb9b,0x734c12b3 } },
+    /* 43 */
+    { { 0x92f9b086,0x98fe3c2e,0xb3fd4544,0x4641b93e,0x5c02c65c,0x47ce208b,
+        0xc4f03242,0x8a52dca1,0x679d29f6,0xb5ec17d9,0x9406f5f4,0x11d2fed0,
+        0x0d9ba811,0x260f63dc,0x15472a3f,0xde2b056f,0x007290e6,0x1b170d9f,
+        0xb6b5c8f9,0xa2e23e8d,0xcf34c3ee,0x345a2839,0x1b973ee2,0x9bdc5461,
+        0xbb24d1c5,0x65bda6c2,0x3c6141a1,0x97d52ba3,0x9d2eb201,0x47bb1612,
+        0x21fbe49f,0x7c558a87 },
+      { 0x3f350fec,0xb9485a52,0x6a38d4c0,0x016678c5,0x0d5aa64d,0x8ef346a2,
+        0xd96da2e4,0xb85daa02,0x4f647b3c,0x845ec4ea,0x0d5e946c,0xc0d1a6ca,
+        0x4fa9f4ab,0x41d8d1c1,0x9c8b1303,0x43972cc5,0x434ffbfb,0x67e1f48d,
+        0x819d2318,0x350ce93a,0x6ddef23f,0x49f53090,0x200cf12c,0x3c2e6cf9,
+        0x640432fc,0x42691cc1,0x72496b52,0xbfff74b4,0x020a97be,0x44527c9f,
+        0x7b3c4348,0x34cd7dca } },
+    /* 44 */
+    { { 0x59e7fe87,0xf031761a,0x0047cd72,0xb1eae31a,0xfae30f62,0x27902e68,
+        0xb71db143,0xa666f48d,0x0e0038f4,0x75ee6678,0x02bdd76d,0x3b45ac67,
+        0xa0d6cd5c,0x0d2fb828,0x9d8c5b11,0x27ce7f1d,0x120b5e96,0x141fe0e4,
+        0xb9267c37,0x95a1b984,0xd60312cd,0x5206e589,0xda549356,0x1867342e,
+        0x070c74ac,0x374520b9,0x9557b0b3,0x2703cbb5,0xa6ed8c14,0xf621f59c,
+        0xabf7b887,0x7ceb1cc2 },
+      { 0xdb7fd65b,0x0647a5bb,0x36c9457c,0xd8d45cc0,0x9e12718a,0xc6da99db,
+        0xe93a7fb1,0xed1dbbf4,0xbd1566a1,0x4512c95c,0xdbc0c919,0x4861ba00,
+        0x9e7f5269,0x3c6cc298,0x0941aaae,0x67196150,0xc8c538e3,0xbfcf5d0f,
+        0xa25a551f,0xad6e9929,0x17ca0f26,0x90710985,0xfa89ef7e,0x743b78ea,
+        0x71ab4549,0x39d5ea31,0xe6d1c36d,0x7442f3f3,0x059d568d,0x25a683e0,
+        0x227ced5c,0x1f629a99 } },
+    /* 45 */
+    { { 0xe45a1c3e,0x8925ddac,0x41f7545f,0x72d29365,0x37e7f828,0x45622fcb,
+        0x3e4c79d2,0x88234513,0x9c2645d6,0x5dffaf84,0x994802b9,0x3078f4dd,
+        0x9d339fa0,0x566927f0,0x9fd91dcc,0x9a500a1e,0x0ab0abd7,0xce008180,
+        0x8194e5df,0xd97135a3,0x98adf088,0x9e876307,0x9a45a2a7,0x3baf01b8,
+        0x788b4399,0x6fed6154,0xe77a997d,0x980e5722,0x2a378eed,0xaac90ffa,
+        0x8bd805a2,0x4a75fda2 },
+      { 0x55e74cbc,0xd09a8fbb,0xfab18f25,0x737738ce,0x9764ec3a,0x0fc23ad6,
+        0xe7e0ad31,0xc5a7d35b,0xe481cc9b,0xe75e068e,0x3d4aec34,0xf0c2ea99,
+        0x0d4a63c4,0xf1324fe8,0x99b0592c,0x5dbb7c16,0xa7e0f46b,0x442d674d,
+        0xa300faea,0x5a5d66c7,0x3333ac83,0xe83dc821,0x8c408496,0x70ef812e,
+        0x99ef5fc1,0x96e1dcb6,0x1734e862,0x6e2b771b,0x583507d8,0x04629cdc,
+        0x23d8179a,0x5819f9ae } },
+    /* 46 */
+    { { 0x6aa78811,0xd9969121,0x2103e7c3,0xf64ee8f4,0x22b9e698,0xddf01070,
+        0x4f582cde,0xe6001f9e,0x2ecfac1a,0x24a608af,0x06393009,0x6ef4c784,
+        0xebf72911,0x5262eae6,0x8c4ee5a0,0xddbd0af5,0xecd87bc7,0x875aff90,
+        0x6f24f114,0x2fddb34c,0xe865f172,0x48104281,0x886c1b9a,0x95692426,
+        0x9ef4231f,0x6f5f3208,0xd0a7e82e,0xaf587acf,0x9ac395c8,0xd6571917,
+        0x1364a750,0x7459603c },
+      { 0xf41ae519,0x1c2475bf,0x4af8f251,0x34401fb1,0xaefb2c3d,0x70ddfcd2,
+        0x51cdaf08,0x9b2d385b,0x8208bb19,0x8531c256,0x4c33f3f6,0x16c89df6,
+        0x24571769,0xc23cfa99,0x86d010ba,0x2339b51e,0x22638313,0x08db0e8d,
+        0x00fedeb7,0xf769e179,0xa3687ef1,0x3fd96dcb,0x91476475,0xcd046b23,
+        0x0c45c8dd,0xf3ff2064,0xb8343d78,0xefd167bd,0x4b77ee90,0x493ccb6d,
+        0xb3cf7b45,0x33025513 } },
+    /* 47 */
+    { { 0x35eaaca1,0x36f00469,0x89119102,0x0c384b75,0xe6d2954c,0xcb375665,
+        0xb1e9d6d7,0xcb9199b9,0xc29c2757,0x75852349,0xb8e738d0,0x89cbd1ba,
+        0x5923a427,0x9b8dbe90,0x18fe1889,0xa237793e,0xa742e083,0xa4271757,
+        0x4eebd613,0x8c4979d2,0xd4f2cf77,0x40325054,0x958705de,0xa3b8a091,
+        0x33d999ba,0x1b191bd9,0x3b0fee1e,0xbafefba4,0x3facdf14,0xb3bad184,
+        0x4387561c,0x9328adb0 },
+      { 0xf906b872,0xabe84e80,0x78262665,0x705523a0,0x3398ccf7,0xd89c6a7e,
+        0xf55b5323,0x2fab551d,0x0554dea8,0xa0578eca,0x375589cd,0xef26523d,
+        0x864ad750,0xd8fd6242,0x178fe1fe,0x93f27fc5,0x9df87422,0x7b3e6f30,
+        0x3750d054,0x2862e49e,0x5dc038a1,0x7d90c6b2,0x84db682b,0xc1a1ae22,
+        0x9881930a,0x47f3dab7,0xbaf3e0a4,0x30e6bd52,0xf62d25c5,0x0680025b,
+        0xadd0d5e7,0x0aa1f3cf } },
+    /* 48 */
+    { { 0x22a10453,0xa9822190,0x2a03a10b,0xdd1eb91c,0x96646f3b,0xafbb5d95,
+        0xf38b6fc6,0xa58de344,0xb8cfca1d,0xce47c3e5,0x0f70da04,0xfcd8e16d,
+        0xda262ed6,0xac44349b,0xc56e2f8e,0x9320d87b,0x19138e58,0x9ce3ea08,
+        0xa2b236c0,0xa5862dff,0x8e7efb0d,0x6b0f9a5c,0x16ac78eb,0x4b53432b,
+        0x709b51af,0x6ff43105,0x8f519628,0x08e236f8,0xeed403ad,0x1f93f176,
+        0x9636545e,0x559337e0 },
+      { 0xd8fd807a,0x30ddf738,0xab131222,0xf4e0ec9d,0x625afbc3,0x14a2f4db,
+        0x9f12f895,0xd5b70604,0xac3044fd,0xb46f3c23,0xf540148f,0x1b232d1f,
+        0x39b4e554,0x61b458f5,0x0dd70b75,0xf694b24a,0x289581d9,0x0fc64299,
+        0xee5fe22d,0xc05d49be,0x6a18bf63,0x7af3447f,0x7f1929d6,0xe96a1dc2,
+        0xc1551e8c,0x6afe6028,0x2b5d4fa2,0x27dacaf3,0x545c2cb4,0x4a1631bc,
+        0xb0c914d3,0x930070f9 } },
+    /* 49 */
+    { { 0x69a9bc05,0xd2f32c5e,0x589c4b73,0x0a5c19c6,0x94665f9c,0x095c9e5e,
+        0xbcfb4c39,0x8ab0f293,0x1ddb7c31,0xb9070877,0x66b38048,0x894e9658,
+        0x606bd9bd,0xf19a90cf,0xb6fd2d69,0xcc1d58df,0x461d8a69,0x886dcc4e,
+        0xf9ce4831,0xc455c277,0x765f8a82,0x749a5996,0xc3badc8d,0x2ffc668c,
+        0x9112cdab,0x38018396,0xb243c7cb,0xa98795c3,0x010a2224,0x8775f310,
+        0x587b5e14,0x043a2141 },
+      { 0x3a873752,0x7bbe9dbc,0x2f442fee,0xee1493f4,0xc18c2181,0x981ca2c8,
+        0xe29769e7,0x00ce3090,0xde768c5f,0xb4626ac8,0x34d7677e,0x33e9ce46,
+        0xe0fa94e6,0xf89c2cad,0x41f5b5bf,0x04f5cc11,0x2228c12c,0x2565f736,
+        0x0c05cce5,0xf1bf706a,0xbe487c4f,0x5d07ffff,0xa499f1a4,0x3ec43c09,
+        0x98d94800,0x4f4e79bb,0x073f12f8,0x8a335a16,0x0f970d6d,0x4bb5eaf7,
+        0xf24d0ae8,0x18d0747b } },
+    /* 50 */
+    { { 0x84601faf,0x58d3c77c,0xaf1c1f72,0xc9465be2,0xd116d806,0xff626798,
+        0xd5b0d93c,0x3996c0c6,0x5ec6723a,0x2fa1ad75,0x03ba5349,0x966a8144,
+        0x2ac34d8a,0xdc4c9422,0xed675865,0xddf471de,0x953d528f,0xd8aca597,
+        0x24ebf67d,0xb2e463b5,0x7e25b4d3,0x25824871,0x43159daa,0x23c5adba,
+        0x83357540,0x5458f9c6,0xf938b1a6,0xcf685da7,0xcefed231,0x981a4fda,
+        0x08bb5e59,0x711093ed },
+      { 0x401f161a,0x12aa3fc6,0x974c5e87,0xf7358560,0x17b5df82,0x4aa252fb,
+        0xa48e6299,0xb0b82b07,0x29dd847d,0x00234157,0x4529c5a6,0xf1e54d00,
+        0x6d98f538,0xcc1c539e,0x28d3abcb,0x36162b53,0x2a84f0cd,0x75a37938,
+        0x4dee7484,0xf717a81b,0x4c23bf1b,0x16cf35fb,0x787e8b3e,0x7fd1c29f,
+        0x59b79ab0,0xb7da7e68,0x85f6c60b,0x072100a0,0xe7ed48b5,0x31840159,
+        0x4d9c97d4,0x17898bda } },
+    /* 51 */
+    { { 0xae1b8cf8,0xcd8483d8,0xe9a28856,0x323d4b42,0x204a4bc2,0x7633584f,
+        0xca7a69fa,0x4e0b2228,0xf757bab2,0x8afbda8b,0x6cc5f9ca,0x85b24088,
+        0xd41a95c3,0x47fb4813,0xc2aabe6b,0x3f1bc53c,0x1ad1599d,0xf22cda3f,
+        0xc31ea9b1,0x1b2ec081,0x01614ac1,0x048f304b,0xc6afa7ab,0xce31cee9,
+        0x4140dc3d,0x55af7633,0xdce8abba,0x84b7ab37,0xc7cf3efe,0x50de7648,
+        0x15356ab2,0x73a88dcf },
+      { 0x06e83b39,0x3f868288,0x9f44037d,0x477a4413,0x17dbc841,0xf9058b0f,
+        0x54d17549,0x2db64f4f,0xf2307ffe,0xa23cea6a,0x4f126261,0x393efd55,
+        0x10f37f26,0x2f4e658a,0xf4ee1e35,0xa4437ce3,0xa93cde8b,0x64ef42a7,
+        0x939aa901,0x1debc9f4,0x3d7b5cd4,0x44223d6a,0xf88a3acc,0x789a6a11,
+        0x2c608a2d,0x56fb9df8,0xbbf56c06,0xe79db8e3,0x668fa300,0x73c56af2,
+        0xae396a1e,0x52f32b17 } },
+    /* 52 */
+    { { 0xe714f71a,0x56f524c1,0x9add8519,0xc1be1262,0x65cadbe3,0xad9189d8,
+        0x5a0fb649,0xd88bf5c8,0x21d192d9,0x9efa6a92,0x6f724b6f,0xe3fe8389,
+        0xb250119c,0xec3fae24,0x2ae0d3c0,0x4b6af9f6,0xd619624d,0x8fceba0b,
+        0x2fdb6e3a,0x7dc3092b,0x3263cd29,0xc91da376,0xf95c43bd,0x30c0761e,
+        0xcdeb44d9,0x89136400,0x43c0d31d,0xfd7dce84,0x9871899f,0x78fec3b1,
+        0xefdf58c1,0x79e14d28 },
+      { 0x9bb40c55,0xe3822235,0x0ed07a42,0x0a27202d,0x4838c1f4,0x48e6c1a9,
+        0xd864a78e,0x2b5f24a7,0x0c6c55c9,0x7e7f140a,0xce12d508,0xe62c104a,
+        0xc11b1e10,0x9b0a1a7e,0xafbb3dd5,0xfd8a275f,0x9a3b6b30,0xdff354fe,
+        0x46602a01,0x5a105d9e,0x93bb65f7,0x3d371b4d,0x0f82fdeb,0xda5cbf0b,
+        0xde468545,0x4601229b,0xc73d517e,0x505e10b9,0x672ff492,0x77cfa541,
+        0x99566ce2,0x0d8ec28a } },
+    /* 53 */
+    { { 0xcbeee995,0x014cf73e,0xd491e80c,0xb2eb88bc,0xd9aba5d4,0x615a6cad,
+        0x9304c84d,0x2f7d4633,0x8ab03c9a,0xba0501d2,0x91babb94,0xc8f723de,
+        0x50405772,0xc885f977,0xc7fcb094,0xb5e1d2b3,0xdf96c71a,0x61ee7995,
+        0x3464499e,0xb8c8daab,0x5f607932,0xdb425ddd,0xb1243587,0x70251ca1,
+        0x9fc74340,0x26d7d3be,0xc902ac89,0x8c179310,0x4559a74f,0x72522c15,
+        0xc3734afc,0x86001e27 },
+      { 0xe7693947,0x13b00ba5,0x012c062b,0x6478641e,0xe85490a8,0xe1a438e0,
+        0xd9574d5e,0x5173dbbf,0x9bd3ba61,0x9532eb8c,0x5f3ea075,0x1f41bcb8,
+        0x8cbb92b9,0xac1cc247,0x1ef901b4,0x0f34648e,0xd2b3b2ee,0xdd929d1e,
+        0xc3d75bfc,0x470f1eab,0x139cf4d2,0x5cdbc6f7,0xf0424953,0xcd86454d,
+        0x47fcb383,0x1e079812,0x17df930c,0xb9f209b4,0x114ebc00,0x4225fc31,
+        0x347946c1,0x020591cb } },
+    /* 54 */
+    { { 0x275e0af4,0xe3003721,0xe78a4a4b,0x721141ef,0xd1757485,0x666cfcf6,
+        0x168e659e,0x5fa1d737,0x0e2842ee,0x263e3e54,0x948bd5f6,0xadecc3d4,
+        0x246b104a,0x019de03d,0xf343d818,0xf8a9e903,0x5b0c0d31,0xcb57ba4a,
+        0x51e2765f,0x8246c506,0x6519bf67,0x80c5751f,0xf2119a01,0x5f05c200,
+        0x7821d4f4,0x7e6487b8,0x261c3a06,0x262f94aa,0x72146052,0x56cfe489,
+        0xa1df05ef,0x5119985f },
+      { 0xb18586c0,0x5819497d,0xc6eeaa62,0x004415d6,0x97cda28b,0x7c6a46b6,
+        0x7c194594,0x9a149b28,0x4ed3a506,0xb56369fa,0x43c94cb4,0x7092aa66,
+        0xa9e9eee2,0x55bce73a,0x77893509,0x34bb2870,0x06eb5326,0x8af95fb0,
+        0x9638f485,0x87cd0323,0x5ba75bf8,0x29376268,0x9d42d581,0xf32d6f3d,
+        0x65c6d64d,0xa4cad574,0xb2cded41,0x985f50fb,0x9006a067,0xcf34ce0e,
+        0x58a57f9a,0x59eaf265 } },
+    /* 55 */
+    { { 0x6ec3876f,0x7b407efb,0xf0f48648,0x780c6123,0xbf893039,0x2abb56ff,
+        0x45a91ab0,0x9592eaa0,0x78811b82,0xce5b84d7,0x1f9f3fc9,0x86a71a34,
+        0xf0e7e13b,0xc17fdd86,0x655a0880,0x88ed8297,0x81d5e666,0x75d6dc74,
+        0x1d171797,0xeffc9df6,0xe3f79e1f,0x36ad4c8d,0x2046192e,0xdb15317d,
+        0x274fda62,0x78c9fa7a,0x82dd9914,0x04ec924f,0x3a64971c,0x059d1e38,
+        0x2620bbfb,0x3b4450ea },
+      { 0xc776dcdb,0x3db7a955,0x81c8ba47,0x35c4a57c,0x505760fb,0xae285003,
+        0xb3aec353,0xe3e80691,0x47117be5,0x380335be,0x056ccf61,0xe1c47e3a,
+        0x33977916,0x253cfdeb,0xf5cb7ee1,0x3decdfba,0x7cf4b704,0xf3c9794f,
+        0x9ff81462,0x2401680c,0xbe3daa9f,0x4e440e11,0x69f91d8a,0xc5d04377,
+        0xcb5e9c5d,0x4106c7a8,0x33b7d24d,0x191909a1,0x3764b4a2,0xe893c838,
+        0xc429b614,0x4a7fe30c } },
+    /* 56 */
+    { { 0x2455c7c5,0xe78f3a70,0x70157754,0x5b7636e8,0x7623262c,0xf32c4524,
+        0x1bc780c7,0x2c98b11e,0x915ed877,0xd48eaeac,0x199265f4,0xbb04d3c0,
+        0xcfa5200f,0x6b52b19b,0x93ea3fe8,0xc46a0981,0xba758059,0xd82c733d,
+        0x1896aacc,0xd324bbd6,0xce8ecd51,0xac09a2fc,0x02fc44b3,0x529918fd,
+        0xaaa1784b,0xf0c45e4a,0xfe22085c,0x35626340,0xc50c7d61,0x53cbb676,
+        0x65126b23,0x83fa1ea3 },
+      { 0x10ccc646,0x60ac86da,0x7b0451e9,0x2ce0637f,0x8a088610,0xbbbcf630,
+        0x20349982,0x23c19019,0xfc0bcda0,0x707fc39c,0x1bd4fd7d,0x7f4d1f15,
+        0x44713bbb,0xd6a64e74,0xc5ac9e60,0x57bdc676,0x37b61169,0x456c5303,
+        0xdcf40a1d,0xd3451396,0x4997d2c7,0xf3edec25,0xc2c4a739,0x534ae9a4,
+        0x6a6ad2e2,0x1401397e,0x23e95f81,0x20769d4d,0xde98fabf,0xcee007c6,
+        0x931c51e0,0x61409779 } },
+    /* 57 */
+    { { 0x15156623,0x3ddb32db,0xab7a67c2,0x68137fbc,0x6f19e3c2,0x26011f50,
+        0x89924c61,0x34218b02,0xc6804c1c,0x492a0b0f,0xafaae6a7,0xd65be706,
+        0x0d01be61,0x3b13d23e,0xf87f4c69,0x44545b47,0x04dc1aa3,0xd42236e2,
+        0x3c5161ec,0x6135261d,0xbd88bc07,0x1eb46a63,0x1599d720,0x78c6d836,
+        0x69baf0f3,0xf6955fe1,0x17072820,0x467eebd6,0x3e3a340a,0x2f1b8a2a,
+        0x2d0b5f88,0x636dac76 },
+      { 0xb4c80af3,0x94280db9,0x4e3892ab,0x9a189cd1,0xd1477ddc,0x26e702e0,
+        0x68f9f14f,0xe91aee38,0x80baa0b2,0x2864f63a,0x8b714a29,0xacd81f73,
+        0xc5fe7cb6,0x30e1b870,0xb10837fd,0x883ea1c3,0x6b20489f,0x2da27953,
+        0x58a2da5f,0x3aeb2a68,0x03a8fa14,0xe2330bf2,0xdc70b1c4,0xb5c488b5,
+        0x299678f4,0x0a78c4d9,0x25df675c,0x233bd098,0x7b67d368,0x37b5c076,
+        0x4d0bef3f,0x2f6dbdfe } },
+    /* 58 */
+    { { 0x2e4da7c7,0x2f8472fd,0xae677932,0x708cfc91,0x3dc268e2,0x364af08a,
+        0x799a2424,0x0f10dfe0,0x71d58bff,0xef912d58,0x988962e6,0x6bf35dfc,
+        0x5f47ea0a,0x28b96fa9,0xaad308c1,0x734a79ea,0x9f437bba,0x95730337,
+        0x6cf54f75,0x002cbd8e,0xe7632eec,0x47606dcf,0x53193104,0x404b5ecb,
+        0x0acf729d,0x0ae0897c,0x3bddf1de,0x89628b86,0xf87d7448,0xeced154e,
+        0x458d5d4e,0x5cb6e197 },
+      { 0x008c75ed,0x98cef197,0xf6eeaaf8,0x7cf49d3e,0x1875e96d,0x1d6f9e02,
+        0xdd9b0d8a,0xfcec2cfe,0xb9576daa,0x38a61cfe,0x36a7dbb8,0x10003f39,
+        0x23b814f4,0xb37c3868,0xb80e3153,0x9fb66dcb,0x059847a8,0x9e7e2eba,
+        0x35a72770,0xa4ec63fd,0xfc9e0ed0,0x311f3d91,0xd515baa4,0x3c1dc094,
+        0xa08cd4e3,0x75a06ebc,0x2ed5eeaa,0xab617238,0xe1f52c1f,0x2e82bbb0,
+        0x5175d6e5,0x2149d630 } },
+    /* 59 */
+    { { 0x5f9311f6,0xee1a8e6f,0xbabc1f85,0xc97e3c9f,0xb494209a,0x4fa7c52e,
+        0x19774fe1,0x04c2f51c,0x8555844f,0x5cefd122,0xb5873ab3,0xb53862a3,
+        0xcbed19fc,0x768efdd6,0xee58469a,0xcdc12479,0x3d80c09c,0x11237e31,
+        0xc044c28c,0xdd74a290,0xbd47e287,0x9ee6517a,0xad0ffeef,0xc2421228,
+        0x818d281f,0x4273088f,0x43ec0de1,0xebc744bc,0xb415bd73,0x5b26eccf,
+        0xcb07c26c,0x14e2f350 },
+      { 0x4216946b,0x548d2a10,0x7a4bd92d,0x6e801f07,0x43695160,0x5996d0a3,
+        0x63a197c9,0x0f1b5c2f,0x061f77c9,0x79da3c4f,0x93ff7b22,0x1c1cd634,
+        0xa234123f,0x5e61b650,0xf284033c,0x826b34c5,0xc2f34214,0x718b90e8,
+        0xae806ec5,0xa5f35620,0xe324a9b4,0xa2fae345,0x8b53cb51,0x8c0bb95e,
+        0xf9965778,0xc94f6ac2,0x6b9def32,0x07ec607d,0xd0ed8f27,0x63bf1dba,
+        0xdcb61e4f,0x58537e02 } },
+    /* 60 */
+    { { 0x64f80ba2,0x1f64b064,0x0559a45b,0xe8e055e7,0xf1f4b634,0xc3262b34,
+        0xde8c8482,0xef4f7d5f,0xc30c780a,0x9d55dea0,0xcfa1e693,0x1740afb9,
+        0x7460c34b,0x2cfe6a66,0x1187c1ee,0xf6695941,0x5f974d94,0x1382f277,
+        0x004549eb,0x1ca0ace4,0xbabded02,0xf8244b3f,0x4e3653ea,0xc36f4d06,
+        0xc55c5f83,0xeab9f0dc,0xacebce90,0xd93b9cef,0x19061425,0x16658e72,
+        0x82d7970d,0x4857835f },
+      { 0xd2576210,0xdcd525bc,0xd51b5443,0x9f378aa7,0x1bd83994,0xfe97bf17,
+        0xf38ac621,0x930d0f63,0x818408cc,0xaf8f2c17,0x260f53f6,0x2692c87e,
+        0xdb0a75e4,0x0ee45407,0xffdb1b37,0x0ec47ae5,0x7aa6a44b,0x769129dc,
+        0x2e40b75d,0xb6f932b2,0x95ef3b77,0xe06764d0,0x68bc63e8,0x28fd47f5,
+        0x9c0014c0,0xd1810494,0xd7995d8e,0x90e2d3fd,0x6c2a85af,0xeb39a05d,
+        0xa21f3128,0x6c0277bd } },
+    /* 61 */
+    { { 0xb509e7ef,0xe41b7086,0x3d7f9f91,0x8842ec7b,0x5526b88b,0xcd285f94,
+        0x051dd0ab,0x6e44e064,0x774f1ceb,0x90198c10,0x123e661b,0x6ecabe98,
+        0x32f647d9,0x44811136,0x26c52aee,0x1dd82b45,0x939dc9d5,0xd650907f,
+        0xfcd455bf,0xbd5eeef2,0x8d2e5d7c,0x7815a4dd,0x88bc9f2a,0x5ad4ec92,
+        0x57a3b322,0xc6f10d0b,0x20b9cbdb,0xe8d0c1e7,0x9b774ee8,0x5a0b071a,
+        0xf22fcf8f,0x3067bc9a },
+      { 0xb7ca9326,0xe0e589f2,0xb1224f63,0x17a106fd,0x747a57bd,0xb2354521,
+        0x62b0882e,0x2614982d,0x4391ffcf,0x7f3af544,0xa84e440d,0x1aaa337b,
+        0x941bb071,0x28ea37b0,0x2e4a7f54,0xa957dcb4,0x1a6ad5fb,0xe7ab662c,
+        0xf7c36a20,0xd135e381,0x9baa0b6b,0x42e7980c,0x94e4671f,0x4237030c,
+        0x8b0922e3,0x24cc63ff,0x445a589f,0xd10d5279,0xa870ff6c,0xbb99d316,
+        0xa996c195,0x390c83ca } },
+    /* 62 */
+    { { 0xffc4a73f,0x50d3fa82,0x3bd53303,0x2665d635,0x264bb77d,0x80a06f8a,
+        0x22d73d84,0x81c04a6e,0x0323b8aa,0x2409cff5,0x8c4c4d5a,0x31dce217,
+        0x0c0f9c19,0x374aa80e,0x00186bb8,0x0b25a387,0xaaf1487f,0xd0b77a10,
+        0xab498de1,0x15f39ad5,0x1aa0c116,0x92e32da6,0x96e25ce8,0x228e3dbd,
+        0x5e8646d1,0xb57c88dc,0x267b1c68,0x672b1164,0x600bdec5,0x5d0d807f,
+        0x223e573a,0x3ea4007d },
+      { 0xa595d0a3,0xd76debd0,0xaff0b3b4,0xa6bd76cb,0x9b1bdb97,0xbf2c154f,
+        0x4c714c71,0x62b19ab4,0x221af663,0xc9bf33b9,0x8c941ef6,0x23d87c49,
+        0xd79f0f6d,0x255804c3,0x2a7acbc1,0x6f1a1005,0x550528af,0x5dab79d9,
+        0xc8d16213,0xfd77a6f0,0xde5e1029,0x40508b6d,0xf95da12b,0xd95ac0f2,
+        0x758a8ba1,0x8860af71,0x7160c8fb,0x0b194c83,0xce004d34,0xa40e6c80,
+        0x6b14aaa0,0x09f82a17 } },
+    /* 63 */
+    { { 0xc21366dc,0x60abe588,0xaf75daf9,0x729c0a4f,0xacb93ed4,0x70501fd9,
+        0x87a16d70,0xb97e744e,0x98e7361b,0xa42e0a7a,0x28b54cf3,0x1acdaff2,
+        0xb7bd9078,0xf087ccbb,0x663250e7,0xda6f3983,0xbaf07c09,0x66d693ee,
+        0x8cbaf157,0x79baf4c3,0xdfca99d0,0x5a984e07,0xf26d8dab,0xab4d3247,
+        0x7eba36f9,0x4d0be701,0x0e8dd216,0x37bb9e65,0x531c4f03,0x72aa4e24,
+        0xb753d85a,0x77d1e984 },
+      { 0xd8e62367,0xd9373239,0xb9820cf1,0x3361848b,0x5a9c97c4,0x00c7e344,
+        0x14f960fc,0x9a0ec9ae,0x740474b5,0xcf41f0cf,0xece065d5,0xa5eede8f,
+        0x9e808610,0xb1de5a4e,0xae0cf75d,0x17c44ae4,0x6b148d0b,0x2fa56323,
+        0xd29ff2dc,0x64fa740f,0x88cb212e,0xc605eb8a,0x6a863016,0xf2c771ad,
+        0x607b4c17,0x6d6112e7,0x40d49785,0xfe90ec07,0xe256e0e5,0x599be18b,
+        0xca54adb0,0x4e6eabec } },
+    /* 64 */
+    { { 0xfb99cfe6,0x950323d3,0xc9334178,0x7b09bc26,0x7cbdfb6f,0x64111e41,
+        0x89a75760,0x91141744,0x10919cb0,0x4c633df9,0x396bfd2f,0x715fc7c7,
+        0x8cab62db,0x8ca19512,0x4db81aac,0x30672473,0xb4c4c54a,0xe67a246b,
+        0xbf229646,0xd77ea0fa,0xfa5b5d70,0x5bed15f1,0xc2f192f3,0xa5686da5,
+        0x7f6690ad,0xdecac72a,0xcaa50b7d,0x0c4af2a2,0x6049ad2f,0xf44631c1,
+        0x04ecf056,0x325d2796 },
+      { 0x4848c144,0xee11fb55,0xb6a7af32,0x4e062925,0x369e0f9a,0x125b68e1,
+        0xca53b21e,0xad9bdae6,0x2e98ea1b,0xf50d605c,0x9f2fa395,0xbdb9e153,
+        0xe91532f5,0x4570e32d,0x46a250d7,0x810698ae,0xad9d9145,0x7fd9546c,
+        0x11e97a5e,0xabf67721,0x249f82e9,0xca29f7d5,0x9851df63,0xa9c539a9,
+        0x71d0e3e5,0xfd84d54b,0x041d2b56,0xd1e0459c,0xfd80096a,0xceb3eb6e,
+        0xe32a79d3,0x19d48546 } },
+    /* 65 */
+    { { 0xb540f5e5,0xfe19ee8f,0x04e68d17,0x86d2a52f,0xadbdc871,0xd2320db0,
+        0xd03a7fc8,0xa83ad5a8,0x08bcb916,0x54bf83c7,0x2e51e840,0x092133ea,
+        0xcb52dddf,0xbce38424,0x31063583,0xd5c7be40,0x458e3176,0xc1ebb9df,
+        0xbc4dabbf,0xafb19639,0xc05725a8,0x36350fe4,0x84e1cd24,0xac4a0634,
+        0xc145b8de,0xadf73154,0xb3483237,0x0aa6dd9e,0xcbff2720,0xa3345c3d,
+        0xb4e453b0,0x1b3ace6c },
+      { 0x90a8bdc5,0x0343e5e9,0x6306a089,0xa203bf9d,0x8e48520e,0x98489a35,
+        0xde7d1d06,0xbd17debe,0x5f795d3f,0x8fafa6d7,0x387b0a3f,0xa4ceb630,
+        0xffddeafa,0xe0166b32,0x7e764e02,0xa2fe2054,0xe871f304,0x55ab9824,
+        0x952ec45e,0xa2bd36bb,0xa90d20ca,0x7b4c1484,0x75bcfb53,0x5319f387,
+        0x6982c4e5,0x34238a4a,0xa102921d,0xa2bb61c7,0xdb3ab17e,0x1e061b64,
+        0x192f0a14,0x538ec33e } },
+    /* 66 */
+    { { 0xa19b56cf,0x193496fe,0x7bb99acd,0x663d77f4,0x57d0a881,0x8f04afa8,
+        0x082835fd,0xcced3da2,0x5d82cec7,0x7e21faed,0xf8009c85,0x6e175b99,
+        0x2d05a307,0xd9c6e31b,0x81487d82,0x96948d4a,0xd46f6655,0x86ebd3f2,
+        0x773ccc49,0x86851aa8,0x8b1640a6,0x3e220f22,0x41a20b75,0x9f06e3a8,
+        0x90ac0a6f,0x2cfffe5e,0x8ebeb3fb,0xf5a9b1da,0x6e08e2c9,0x2587d997,
+        0x03e9f401,0x6fd60298 },
+      { 0x8eb7516a,0x54709f8d,0xbdc598ab,0x83058a74,0x87e801ce,0xd234dd98,
+        0xd17b8a96,0xfd0f9d90,0x6e90f6ab,0xaa1e549f,0x5a7ed55b,0x2496ff80,
+        0x6c254c19,0x0d9f657a,0xb8962575,0x3cdea49c,0x2dff27de,0xb685a3f0,
+        0xdb8bc04b,0x3c50e7fd,0x987236b0,0x904ff0ff,0xbb0d5055,0x494298fd,
+        0xe14be8d0,0x34b3386d,0x7c3d30d6,0x7ad34e9c,0xe159fdd9,0x1f2b32bd,
+        0xc761e5c0,0x84cfa23c } },
+    /* 67 */
+    { { 0x8b99b964,0x13bc11eb,0x58e2fc47,0x8e280c0a,0xd4c9a54b,0x870fbc49,
+        0xbf6e20fa,0x37a334a2,0xd7c88cfa,0xee583d0d,0xef4af1da,0x05e029a8,
+        0x0c2ef8a6,0x6d55e234,0x209e9b62,0x61b6fdfe,0xbb8e080f,0x3b1dad26,
+        0x9392fc1a,0x5adbc162,0x0aae3f4e,0x02ac0fe6,0xc2bf4d5b,0x8d99801a,
+        0xc282fed2,0x2333f93f,0xb52db33f,0x16dcb10c,0xc55752e7,0x09f90f84,
+        0xc84a0d8e,0x287d4c51 },
+      { 0x0e9867da,0x5fa58201,0x1a874cda,0x614589b3,0xfbdee22e,0x005e27c5,
+        0xe612bda8,0xe357fef5,0x2d3635f9,0x4e0dbedf,0x6f125a86,0x62be70e4,
+        0x0d94a2e5,0xa09b9884,0x28b5e5d1,0x7eb99a15,0x751028b5,0x21b9416e,
+        0xe06d2cc4,0x1b137fd7,0xfea09845,0x6fa1f517,0xffcecbd7,0x3ba1e966,
+        0x832f453e,0xd4c89a4a,0xeca68fa1,0x07b1e2af,0x4bd395a3,0xd0fb4453,
+        0xd8ef9e13,0x0132a3dc } },
+    /* 68 */
+    { { 0x576374c2,0xe53c7785,0x84727040,0xe60526d1,0x228ca044,0x8a066dc8,
+        0xf1ce1313,0x1fe1c1b2,0xcdeb0c5d,0x2aeec832,0x9cbf826f,0xa7596699,
+        0xde77a589,0xcd188e81,0x118d1254,0xe5ce0fe0,0x0790b86a,0xa142a984,
+        0x39ac28ce,0xe28f043f,0x87de5804,0x4eef8290,0xf639a8c5,0x83c31b32,
+        0x5887794f,0xd70454a7,0x18b1b391,0xca635d50,0x31d9c795,0xcefea076,
+        0xb6f8aa25,0x13cbee76 },
+      { 0x8d3f34f3,0x79cabe0f,0xa3617fe3,0xbda9c31c,0xdd9426a1,0xb26dee23,
+        0xf29c9104,0xe9dd9627,0xe2c6cd3b,0x033eb169,0xfcba2196,0x8a73f492,
+        0xb858c83c,0x92e37e0b,0x23b3fbb7,0xe4f2aca6,0x64be00a2,0x8101fb1e,
+        0x948f6448,0x91a7826a,0x907260e7,0x414067b4,0xe30bb835,0xf774aa50,
+        0xc999c06e,0xf922ca80,0x0ba08511,0x6b8635b9,0x25fa04f0,0xbf936b5c,
+        0xe02e8967,0x4e0a1ada } },
+    /* 69 */
+    { { 0x8ba29c4d,0x00ca6670,0x22988094,0xc08240ce,0x16dda752,0x21c5ca67,
+        0xabbbfa34,0x689c0e45,0x3ed28b72,0x1d7545fd,0xd7c56ab4,0x5f221198,
+        0x38759d65,0x4b3d8f74,0x8fe50b89,0x93490dfb,0xe80eba16,0xb641f5d7,
+        0x79acb537,0x7b0da5eb,0x0c1d5e5e,0xab6b1497,0xa5da429a,0x2338e68d,
+        0x2f6d2f25,0xe010c437,0x6530f3a7,0x226f16d2,0xcbef08bc,0xefb0f7b6,
+        0x9f99c999,0x733e30d9 },
+      { 0xa42a38f9,0xecfe1582,0x4730b500,0xaec2d58e,0xde976b2c,0x2ee2f2a7,
+        0xa969c1bb,0xf0539db5,0xfcecdb4a,0x31954168,0xe7a8e902,0xf2f7348a,
+        0x3121541f,0x1d58d7cc,0x2202ae52,0x5d25b75c,0xf40835a7,0xdea9965a,
+        0x529b4e46,0x3feb6a41,0xbd27ad9b,0x5c97fb6f,0x261f900b,0xd87554c0,
+        0x04d5b19e,0xb43031d9,0xcb219b9c,0x33d5e9b8,0x3ee00bcf,0x7a43d492,
+        0xb79a5c0c,0x56facb39 } },
+    /* 70 */
+    { { 0xa3018bfa,0x019165a2,0x9ffad984,0x100c6b24,0x55341a9b,0xbbf1b1f6,
+        0x25dc4cc9,0xe6bd1d97,0x2bfffe60,0x52850ed5,0x7e5509ab,0x24e992cc,
+        0x4ceb59f1,0xff6c502e,0x1aa7d148,0x2f0b3573,0xe7e3aa46,0xe90c1ddd,
+        0xd1142880,0xbaec9f45,0x65be5dd5,0x475cfd26,0x1febce13,0x83abb14e,
+        0x80942d30,0x6aba4829,0x297e82c8,0x1e1b235d,0x50d8218d,0xb771cdbe,
+        0xd94d6cbb,0x88599266 },
+      { 0x155ccaf2,0x08847290,0x7c5b773e,0x8679ebc7,0xb2dd08ed,0xa88b2dd1,
+        0x87d475db,0x960a180e,0x6694d02a,0x80fdb6b7,0x3f3f9e96,0x3e8758c9,
+        0x4ad836c4,0xbda3f6fa,0x32fb387d,0x9400c581,0x2550200f,0x25a78542,
+        0x776ecf18,0x2a97c351,0x566db59a,0x03ebf46e,0x26545eda,0x4743a280,
+        0xcf74ab44,0xed169d84,0x88cb3f69,0xbaab931d,0xd8257196,0x70ae932c,
+        0xa0c09719,0x797224a6 } },
+    /* 71 */
+    { { 0x441f3567,0x632923f8,0x2e24bf1d,0xc11c3168,0xb7671fff,0x4b97726b,
+        0x7a5e1a22,0x601746a7,0x3addb417,0x53dddea0,0x7f59b846,0x57867a3c,
+        0x56cd7ff7,0xb012a987,0xf19ba9a8,0x1bd5fec9,0xf8306748,0x750379a2,
+        0xab8c05d1,0x7763445d,0x7903f42a,0x5d7f441b,0xa903e46d,0xc011674d,
+        0xadd126c1,0x1b1d3c4d,0x61455b40,0xa2752aac,0x555c356e,0x4da42a68,
+        0xd820852c,0x3ff09c15 },
+      { 0xf9cb7784,0x4c0a1bce,0x2422f305,0xaec539bc,0x0c414aa7,0x5f40f9fd,
+        0xffd42bc4,0xd3aa316c,0x2f358e15,0x42f5a4c3,0xd6e27682,0x00bdcd9e,
+        0xf8a5ecee,0x069f789f,0x05e14f5d,0x8078018e,0x8b40c741,0x2bb3e493,
+        0x7917f72d,0x5dbc8c1d,0xcc57150c,0xe0eea664,0xc3fa8920,0xa25ecc5a,
+        0x1c797164,0x3c21b0f5,0x634ad16b,0x8f09a2f2,0x58391d9a,0x8e730fc5,
+        0x4fdfae4c,0x47ef1805 } },
+    /* 72 */
+    { { 0x3da285e4,0x9965f3d1,0x3a01e3f4,0xba7d4dba,0x61214ad0,0x4738413a,
+        0x22397549,0xd3b7d535,0x5a730b92,0xa53dbdcf,0x332d165d,0x3130d92b,
+        0x82f97ef4,0x44a28541,0x44dce1b6,0xbf62221c,0x7e2a0ec9,0xbba13858,
+        0xcbfad998,0x33f32c8d,0xb5fed44b,0x409e5f3f,0xc66217bb,0x5c328c65,
+        0xfcdf71a9,0xb00db69f,0xb8920788,0xa23c2a21,0x3ae6464b,0xf8ab28e6,
+        0xb8de0861,0x1a6b6e9c },
+      { 0x06af77aa,0xaf6ec2b6,0xa887f065,0x2e60f5cd,0x9f498c56,0x87d21400,
+        0xfcbaaf4b,0xdb595b59,0x271ab855,0x0fb592a1,0xd4349b0c,0xa0ce10e5,
+        0x887d8c9c,0x9d6187d8,0x154bd6db,0x03ee95f9,0x5d06c999,0x8fe53213,
+        0xfb6a64d0,0xf4a7bc30,0x66a4cb60,0x3d22af0d,0x5d37367c,0x16952cef,
+        0x997d8e55,0x6f0ea734,0x731732d0,0xb447c70f,0xa9cb3942,0x00ab3034,
+        0x28510fd0,0x79dd0180 } },
+    /* 73 */
+    { { 0x3ac7424e,0x04e0033a,0x60fda4d0,0xdb06b688,0xbcb772fb,0x236a9766,
+        0xf297cda4,0x294a8e2b,0xdb013c6e,0x4b0aab85,0x8723a3ad,0x3d2aec98,
+        0x13c84a6b,0x0cae32cd,0x70ec169e,0x21888f5e,0x42a88262,0x739633bd,
+        0x7b60d9b8,0x68ac792e,0x10769fe1,0x89f2b722,0xd24bed34,0x8f3fcfe6,
+        0xa3eb24aa,0xd35efb88,0x484c706b,0xddecfa3f,0x929ece0d,0x7cc119a9,
+        0x8d405436,0x87e5ad45 },
+      { 0x7d1000a7,0xba99aa9d,0xae823833,0x8b94affc,0xdfb83dc5,0xc8229628,
+        0x845a418d,0x2f59fe11,0x5d417054,0xa8b970f8,0x72b71581,0x8918c265,
+        0xc0d1dd17,0xe4ef477d,0x3afad7c0,0xb50b4cf3,0x01870a5b,0x21baea79,
+        0xbb3a2868,0xc77087f9,0x124a59cd,0x7857531e,0x57f43239,0xed74c26f,
+        0x0164c94a,0xd5f5ae25,0xf094bf74,0x6608b7e2,0xfdceea32,0xf4cdb5ba,
+        0x990cc045,0x0b712519 } },
+    /* 74 */
+    { { 0x88d5c64d,0x5a290ca1,0xa7492534,0x0596d749,0x2a00e925,0xa04b0d3d,
+        0xcaf7b66b,0x082cd02c,0xecdded83,0x912b50c2,0xff31646e,0x813ce9de,
+        0xc75fff95,0x62ae70c7,0x7e2a4615,0x6f6852e0,0x03804fd1,0x320fd7d0,
+        0x8218e8d9,0xb1a2a4dd,0xafc645d7,0x4918a6fb,0xe8d9fdbe,0xfb080fa1,
+        0x4470b6ee,0x33d4d08a,0x6d974ef7,0xd2ba2077,0x69dae5d2,0x8ecb95a7,
+        0x7d69596d,0x7a3f423a },
+      { 0x9a929387,0x362d2ca6,0xcb1c1fff,0xabdb7581,0x7e51b6cb,0xd892ec9f,
+        0x3a4e131f,0xee8d8632,0x5bd87561,0x4680e3f1,0xd4e7e732,0xe3a597e1,
+        0x5581fefe,0x3cc72b7c,0xca8cae0b,0xf3e77f8a,0x5e2fd4af,0xfcc7d7dc,
+        0x21355b79,0xdd3a4552,0xa2c07177,0x546b24f2,0x0689621f,0x415b532d,
+        0x3f78163e,0x2be9af51,0x33d7ed21,0x27d63b9b,0x96802943,0xab019ef2,
+        0x1623faf4,0x2da5fc55 } },
+    /* 75 */
+    { { 0xc8a5c600,0x62429cf3,0x3fe33e7c,0xa7a80c22,0x0a57ddcb,0x9ffda740,
+        0x925b0c74,0xd1ae156d,0x6b100eb0,0x097a43f9,0xef943c81,0x169e945c,
+        0x1128cf24,0xa1f734e5,0x419f0133,0x04387c4a,0x01044024,0xc007868b,
+        0x90359cf2,0xe5416abf,0x478d54e3,0xf9c76fee,0x42a2173e,0x66219da6,
+        0x9fe30141,0x61e03156,0x93ef247e,0xa0ff5ce3,0x072b6592,0x811792ba,
+        0x70c854d3,0x855f0219 },
+      { 0x847314c4,0x61fbfb6c,0xeb45b96a,0x97906155,0x6ba2afac,0x7102e146,
+        0xab949781,0xed51f975,0xc110c4fe,0x9d2f5b17,0xaff57667,0x7ac8ce70,
+        0x6eb244e7,0xe7366a21,0x551c65c7,0xdd1bbcec,0xe1a859de,0xb525060a,
+        0x8ba7d2e7,0x7a048174,0xab8ea8c4,0xe1a2c541,0x6fdff078,0x6e7824c3,
+        0x14874b04,0x79b49fc7,0x06b1f733,0x22ae337f,0x6f8fe6cf,0x1c352192,
+        0x525d0797,0x292236cf } },
+    /* 76 */
+    { { 0x7d8b29dc,0xcdb8d80a,0x08ea648a,0xd17a2024,0xae92be91,0x7db12c5e,
+        0xfda72fbc,0x1f347d18,0x9e760c6f,0x11374b40,0xd8e38d91,0x7361e8f1,
+        0x739ac1f4,0x7714be9d,0xb4df5c4e,0xc1f9701c,0x6f72cae1,0xd9138ed8,
+        0x6ad180c4,0x1c7fe1f7,0x9e2dbf9c,0xf8c185be,0x7c70c44d,0x835db269,
+        0xb0d15b5f,0xf997cfea,0x61e6545e,0x5101445a,0x25184e5e,0x16b06884,
+        0x7521e7aa,0x7cfac359 },
+      { 0x3c0bc53a,0x81182167,0x7e751367,0x84b5ede3,0xa3657a18,0x3ca255fd,
+        0xba1fdd98,0x096abbf4,0xc5da77d8,0x9ce8369f,0xaab342c5,0xf27b9ae7,
+        0x972059f1,0x06c91bd6,0x914ecfe9,0xee0dab30,0x93f53f12,0xbb647fbb,
+        0xffa57e0e,0x30c38a7a,0x9f2ad607,0x517d06ef,0xbb99dcc9,0x49728d87,
+        0x446080a1,0xb0034af1,0x12b9c17d,0xcc810c3f,0x772a22a0,0x7225f14f,
+        0x1ddf82bd,0x6ce3dc7f } },
+    /* 77 */
+    { { 0xa4397830,0xc07cd835,0xf4733306,0x4dd9290c,0x29989e8c,0xdd35d3a8,
+        0x563d8152,0x79902559,0xe87de61b,0xf278d911,0x1024e35c,0x9c7340c7,
+        0x4a0d0e59,0x2d444461,0xf32626a1,0x63e7608f,0xc4c9baa9,0x627a37e9,
+        0x76fffd25,0x0c56dc51,0xcef2a1cd,0xcb6defc8,0xefc559d9,0xcbcc0d56,
+        0x041cb692,0xe45f3fc5,0xe5161e09,0xcd05c239,0x5c3b559c,0x2a731ee9,
+        0xa3d0a16d,0x85151122 },
+      { 0x86ff19e2,0x782d0335,0x1da28603,0xc2c60daa,0x557c7eed,0xb2e78cfe,
+        0x1bc4e8b0,0xa8f6f984,0x3df35c67,0xcc1f9b4b,0x4764462a,0x96e13603,
+        0x7c7ae0b0,0xbf910b97,0x51435956,0x27c7f305,0xf631eae5,0xc14db15c,
+        0x7e69b34c,0xa51d6142,0x5fc12ff2,0xdec82851,0xfb887162,0xfcceae13,
+        0xde1488bd,0xda332ac1,0x2ee3e74c,0xa20374e2,0xf0ae069c,0x597ea1a1,
+        0x77bdec04,0x8b1159f2 } },
+    /* 78 */
+    { { 0x2f961d30,0x4af71a44,0x7ac7248f,0xbdf968a8,0xb1a906cd,0xd32df87c,
+        0x04abf925,0x00c10e26,0xb9f04d4c,0xb8711759,0x939705da,0x00d54e60,
+        0xc9f80849,0xf7587433,0x6a7a2375,0x2e9abade,0x94ac17ac,0x5676d478,
+        0xc202d99c,0x4ca0525b,0xabfae73d,0x95b8bcad,0x3405991b,0x2371ed38,
+        0x458a99c3,0x2b69e47a,0x2b78c866,0x7cac0b18,0xe0232c7c,0x6ceaa79b,
+        0x588f7459,0x0bd86433 },
+      { 0x7e734189,0xdea1a8b4,0xcfe5fa17,0x52c5ac88,0x11437664,0x444a4d4e,
+        0xaf9e9750,0xc2522308,0xd30c6b3b,0x78b1d0c3,0x4c6df477,0x2edae5f0,
+        0x2ee88dd7,0x53131d9a,0xacc93e34,0xc4e380ee,0xa8db0e8e,0xd499b1ac,
+        0x7f5d49d7,0x77348c16,0x1556ccd7,0xc9663257,0x2611d13d,0x65ce0e8c,
+        0xb5a2fdcc,0x2c95fe66,0x8658faa1,0x26698832,0x31c32c98,0xda87d1f4,
+        0xfcd91907,0x46650598 } },
+    /* 79 */
+    { { 0x6b4a5efa,0x4c6c13cc,0x1d07b265,0xc481989b,0x8bdc69c0,0x10b966ce,
+        0x2c2531d4,0xf54cfaa2,0xcad0a100,0xcb5f1808,0xee5da449,0xbeb52538,
+        0xbedd83cc,0xa6240085,0xd6255c78,0xe792dacf,0x2062058f,0x88371906,
+        0xed1658c1,0x96615e83,0x7d28d542,0x4b549b27,0x83b75df3,0xeaf127db,
+        0x17fbb942,0x4f60df6d,0xf6f7c930,0xd08631db,0x6018789f,0x17c38f98,
+        0xb9a9280c,0x0c43574a },
+      { 0x1d20cad0,0x76eb324c,0x8c61108a,0x90decb09,0x6f06d36d,0xa6e9d39c,
+        0xbc0da197,0x6cd978ba,0x507ac5ce,0x5948b1c0,0xc5497eb5,0x2bd47164,
+        0x4d5914e3,0x2a9c4c0f,0xa759f03c,0x772c5046,0x69ac847e,0xe7d7328a,
+        0x3048b330,0xa8d57d0c,0x40f7bace,0xe60034e0,0xa85f1790,0x823d9193,
+        0x5c859736,0xa6e9b66c,0x679e1022,0x22ca2c7a,0x09023fa4,0x00e7a19c,
+        0x2726d5b9,0x324999f1 } },
+    /* 80 */
+    { { 0x7c834915,0x667eaed6,0xbc5eb64d,0x9f77aa6a,0x25d62011,0x729ebcb6,
+        0x699fd9c2,0x0aee24f2,0x2b8d4f6c,0xe1eb5874,0x14c976d6,0x7f12710c,
+        0xf6d9ea65,0x91390335,0x06b50064,0x668b7049,0x0876ee4f,0x65969a0e,
+        0x2f9d9360,0xf901bf3f,0xb499e3ce,0xfb1a8651,0xf2dbcaaa,0x80b953fb,
+        0x973b06b6,0x312cc566,0x3af36c64,0x3534d9c3,0x10ffd815,0xe4463a52,
+        0xf18c2b91,0x57ea2b4b },
+      { 0x8aa0f2f2,0x00f5e162,0x0e46bcaa,0x8c7e75c5,0xa4a2c42d,0x97ab479a,
+        0x14baa202,0xb4f308ea,0x6943cc2e,0xa901bd14,0xeed58804,0xbb125fee,
+        0x9d180f7c,0x6502c8f9,0x1580c61c,0xe5353919,0x27101ee3,0x7e278069,
+        0xfaa72717,0x7a0a40a1,0x4c75b153,0x32edce02,0x538f1c22,0xda23660b,
+        0xbe307d2e,0x4d511e98,0x9baee0b4,0x24276e40,0x7ff1f307,0xa78c3927,
+        0xea7935c9,0x60480b46 } },
+    /* 81 */
+    { { 0x3872ece3,0x31087d66,0x955b70f8,0x5f29be7d,0x9cf95bb8,0xb50b4fc7,
+        0xdbffa621,0xbae3b58d,0xe022ba5d,0x0e61d280,0x4181449c,0x78ae5117,
+        0xcf555485,0x0b132840,0xb8ce0b0e,0x800ed1b6,0x78d5de3d,0x35dffdd5,
+        0x69a56b47,0xf7e42374,0x8d910ae7,0xd5e32369,0x6313c7c7,0xb6ff52a0,
+        0xa92de9e5,0x5a2fe20d,0xd12110bb,0x41b347d3,0x40c16f23,0xc5905edb,
+        0x9a8f88cc,0x0774a0d3 },
+      { 0xe3b6c106,0x3ae181ab,0x8de150b7,0x4ebe163f,0x6f354836,0xcf75b82f,
+        0x3ac7ac16,0xaa0d2063,0x291722af,0x5c680668,0x11545553,0x73941e61,
+        0xbf5de3f7,0x17127e38,0x1afb41da,0x32cfdf03,0x87bc8663,0xc6893c91,
+        0xa62c9c99,0x75046744,0x962c1947,0x96866e2d,0x378cdf4c,0x489ec8df,
+        0x3407fa32,0x3a60709b,0x551290d1,0xd37d2159,0xbab92273,0x9623d303,
+        0x2432014b,0x08151954 } },
+    /* 82 */
+    { { 0xfb7b2108,0xf9236d89,0xad75f9aa,0x3ecc83cc,0xb4e1da11,0xf7c72b15,
+        0x0315c362,0x552aeaef,0xf272fe3f,0x11e140ed,0x87843ee8,0x99d79bf6,
+        0x1d9bb25b,0xce6b54fd,0x5b1bad74,0xb20b0e21,0x5b84c90d,0x54a0214f,
+        0xfca6cec9,0x459bbf52,0x9e4df76f,0xe363c48d,0xd64cf17e,0x3045f84e,
+        0xf62ada48,0x8402a167,0x6a74ca01,0x2c9e1bf3,0xf691c42d,0xe8cf9d41,
+        0xc2c4b874,0x5abf2178 },
+      { 0xf3b3bccd,0x4777966b,0xbe3e0caa,0x0047e0f0,0x8c7d5043,0xcb8383b3,
+        0x946fd5fc,0xe77e3baf,0xe9ec0e87,0x79baa785,0xc8a18d25,0xd83c557c,
+        0x25befcfe,0x9b96e5af,0x98c71b61,0x4f05d15e,0x77e62da1,0x081f991a,
+        0xcbaa3821,0x1c6ec781,0xe54d9bfb,0x7522f65d,0x44ed1430,0xf5d05573,
+        0x95cafdda,0x3035b31f,0x6378f5bf,0x47e67f43,0x5270b9d9,0x029f7cad,
+        0x4d916a48,0x15ad1587 } },
+    /* 83 */
+    { { 0xaa588ae4,0x00de2ece,0xa371a232,0x552ebc58,0x71230444,0xd00ea934,
+        0xe4b1832d,0xafbfa67d,0xb689e843,0x29216341,0x61f4e2e8,0x1f96bbbd,
+        0x04c29dc5,0x95420684,0x42317fd1,0xc7fe3827,0x63483162,0xe0a0aec6,
+        0x0700184f,0xfc2b94d1,0xfe1fbd85,0x07219973,0xfb074352,0x648b6ab1,
+        0xc46e5392,0x23bbdaad,0x00fa56ff,0x0db8dd1f,0x866725f6,0x104815eb,
+        0x52e81963,0x3f9c4cca },
+      { 0x32ce637e,0xff36b297,0xf5d25cdd,0x81a15f2d,0x8b02ad97,0x1a1d052d,
+        0xcfbab3e9,0x2e5f3bbc,0x614eeb75,0x60d2cbd7,0xcd5a793a,0xd4491843,
+        0xcdba2144,0x2242cf75,0x88b99766,0xa20705e7,0xec77e132,0x64e12cc0,
+        0xb61a9b05,0xb1c14df6,0x74825b5a,0x8fd97f04,0x3da31223,0x95604821,
+        0x4d30c70d,0xde486727,0x1c12ee69,0xbcab8f15,0x668d893d,0x5dc638b4,
+        0x223f574b,0x6479dad6 } },
+    /* 84 */
+    { { 0xb05f2b26,0x569044f3,0x80b9f76c,0xb35a294a,0x4290f6ae,0x8839fe28,
+        0x026a5877,0x761cfb23,0x2e5ff9c3,0x768926b6,0x0b11c576,0xbae6cd20,
+        0x72a03efe,0xdc857756,0xe1bad63a,0x0cae074a,0xd709d99c,0x3fe491a1,
+        0x6501d9c1,0x76c5ded6,0xc32aeff7,0x1da6eca1,0xc57683e8,0x50849d55,
+        0xdf98d847,0x9e392e9c,0x64d9a564,0xfad7982f,0xa37b98b2,0xf7c3bdb7,
+        0xf0860497,0x1fe09f94 },
+      { 0x7648cc63,0x49a7eaae,0x67cfa714,0x13ea2511,0x653f4559,0xfc8b923c,
+        0x81a16e86,0xd957619b,0x3c864674,0x0c7e804b,0x1616599a,0xfc88134a,
+        0x0a652328,0x366ea969,0x4bc9029e,0x41532960,0xae2aad2b,0xef9e1994,
+        0x7f10bef5,0x9e2a8c52,0xc67bf860,0x73dcb586,0x844cc25d,0xf61a43fa,
+        0x74eb3653,0xd74e7eea,0xdd240f02,0xf3356706,0xfd83bcb4,0xeec7694c,
+        0xdb62526a,0x4de95786 } },
+    /* 85 */
+    { { 0x3deac2f7,0x4867d315,0xb61d9a8e,0xa084778a,0x0ab7b2d5,0xf3b76f96,
+        0xcfdf4f79,0x00b30056,0x31ab8f4b,0xd0701e15,0x9c779d01,0x07f948d5,
+        0x82675371,0x7c994ebc,0x48bad4c0,0x1104d4ee,0xbfc9d058,0x798ce0b5,
+        0x309fa80b,0xc7ca898d,0xacb33eaf,0x0244f225,0x5b2f3175,0xd51e8dfc,
+        0xa4d7be34,0x3e49ba6b,0xbda02b43,0x1760f4c7,0x4435275a,0x37e36a7e,
+        0xe636980c,0x1c94418b },
+      { 0x09dc1414,0x43a21313,0x43c93537,0x060765fc,0xdf5f79ce,0x6ff3207a,
+        0x85d4cfca,0x6f18b1fa,0x63e995ab,0xf5c4272e,0xa82b3002,0x121a09e4,
+        0x97147f16,0x82b65d1b,0x20a7fe26,0x4993c20c,0xe6716726,0x99c9cb98,
+        0xfeb440a0,0x5a02d673,0x251b4bc5,0x3f3fa9e1,0xa05338ea,0x75dbc474,
+        0x7b09f6cb,0x3cb4044b,0x80434609,0x6767da18,0x098ceac2,0x97851422,
+        0xb55235ba,0x611bfbb2 } },
+    /* 86 */
+    { { 0xf00ad2a1,0xbdbaa55e,0x14a290d7,0x29efa85e,0xe92b1694,0x3b4a4768,
+        0x11ec8130,0x67111bcd,0x88bd27b2,0x0e425702,0xd9a03c06,0xf28cf2a3,
+        0xf318884a,0xbb7c8d2d,0xe3aaeb20,0xe2ea1462,0x43b85d77,0x33535804,
+        0x554ee9bd,0x81ee4482,0xe6aa198f,0xeb2eee9e,0xc26c5944,0x7a5aa804,
+        0x82ab167c,0xa0ef2da5,0x02fe21a5,0x5a2ab476,0x3370298e,0x169cb3b8,
+        0x0eb3aa8d,0x86e6c544 },
+      { 0x0b793d9b,0xede03321,0x1ddb5ece,0xf79fade1,0x68930b64,0xf73fda92,
+        0xfe4fd1b2,0x06aad97d,0x92a4dc88,0x073a5b1d,0xbc976d75,0x8af8cbd8,
+        0x63ce26c0,0x60b4abb1,0xdcb1fb06,0x9c8300a9,0xda95b3d3,0x335a594c,
+        0xb37eac87,0x1f97d7d4,0x20eefaab,0xa3d2eba2,0xf3e828c8,0x3258c906,
+        0x85ab7781,0xc832616f,0x8c28b617,0x72597192,0x3233b82d,0xcd7196bc,
+        0x19fa126d,0x83867eb9 } },
+    /* 87 */
+    { { 0x22474edb,0x774fe73e,0x1a84e1ae,0x2a766394,0x9c6dd6e3,0x270329ad,
+        0x14f8bf5d,0x00c4a415,0xd2267b90,0x3ce2ea37,0x11d24fae,0x12753015,
+        0x263a1b78,0x7c14d854,0x1ae0b206,0x20c8401b,0x081f49fc,0xf32a011b,
+        0x959c6df8,0x1e8123fb,0x800e1d06,0xa328dc7c,0x24259a9a,0x5876a378,
+        0xb7ef6c37,0x23ada8b5,0xa93d4c9f,0x023f6b6e,0xffb6389f,0x89f5414d,
+        0xe628b39e,0x4b26bba2 },
+      { 0x5d318454,0xd30b1cb4,0xd7436cb6,0x123b749f,0x568a7461,0x3110c726,
+        0x1c84fd1e,0xc85de123,0x08403d55,0xa5f8d6e6,0x9b1fabf8,0x395b6e13,
+        0x3cfedce0,0xfe6d68c3,0x94b91110,0x1d90381f,0x2dcc6eb7,0xf0a8ea81,
+        0x7e90ca2b,0x59e80413,0xc8a25c5a,0xbeb5fc07,0x5d84663c,0x009c253a,
+        0x910b6a7c,0x00b15073,0x4108f8d5,0x8607da4c,0xcb901e65,0x02c3d9c3,
+        0x2c9615c6,0x4d697bc5 } },
+    /* 88 */
+    { { 0xefa8fb40,0xe0db1ef0,0x5ba3989c,0x29021c5b,0x809d19df,0xa8d6fb15,
+        0x4c1219e1,0x6b787b73,0x14ef05e2,0x6417e168,0x8f9796e2,0x449342db,
+        0xbf84421b,0x2f878a5e,0xe94a4536,0xe71916d7,0xae119693,0x9818bba3,
+        0x5768804e,0xec674be9,0xf8424f8a,0x0a26074c,0x466ce6ab,0xdbc93b9d,
+        0xc920078b,0xb3f15a98,0x3870f1a3,0x9d10fd0d,0xe4e785a7,0xa61241d9,
+        0xe6c8cd80,0x76ca87a1 },
+      { 0xe02e48b7,0x4357fb56,0xcc09e9c6,0xfbd14b13,0x24069cf0,0xdb5f2435,
+        0x2c3b01a9,0xf878165c,0xe6956dad,0xe549e7c4,0xbbd60b68,0xf2fe9538,
+        0x059dc653,0x952f856b,0xb377fe9b,0xd3f60225,0xbfe908c4,0x6a0c7328,
+        0xbc8f5f2d,0xce6aa2d3,0x24425050,0xf7213443,0x3d3b3ce5,0x17e1266a,
+        0xc1677512,0x75b5e43f,0x37fb894a,0x15927062,0x2be3e375,0x15260753,
+        0x6da3b7be,0x27e7f2c6 } },
+    /* 89 */
+    { { 0xe6a15883,0x638f65ad,0x66afdb33,0xd4a7e68c,0xd3f12de5,0x6207b6ab,
+        0x37b87810,0x1c6ff950,0x64acf6d3,0xc0d44cb2,0xf2be78c2,0x163ac601,
+        0x1636980e,0x1c63cc5a,0x95c9349b,0x3e92cfe8,0x41ec7220,0x7738e0d8,
+        0x2d5fa961,0x6169d764,0xc3e028e9,0x2aa776c1,0xb16d5409,0x93dc5646,
+        0x706df4d9,0xa0b27fb5,0xce9c6b97,0x9e991170,0x53c85f40,0xea8e42be,
+        0x83246528,0x02e96437 },
+      { 0xae78ea1f,0x91540add,0x7b670e96,0x51a1b74d,0xf7006826,0xf9936441,
+        0x7d7520c7,0x8f97d6ea,0x69ce12e1,0x0faa6a02,0x79208342,0x2590aca8,
+        0x75614436,0x7a483863,0xf381408f,0x07c6149e,0xd7853406,0x733bf584,
+        0x9abbb6f7,0x8761b010,0xf528a09a,0xe4eb249f,0x2e00ae3c,0x08781ed8,
+        0x2178effa,0x864c1b25,0x9d513a7e,0xcc1e62a2,0x1919062f,0xedb8b94e,
+        0x4f16527d,0x739f53da } },
+    /* 90 */
+    { { 0x924adc5f,0x7a5f4a88,0xa818f56d,0x95646c16,0x7795f954,0x0ec49129,
+        0xd19c5400,0x2b48753d,0x205912b4,0x16fa236b,0xe87a4946,0x6b3d65f3,
+        0x045fd066,0xa7174a01,0x12a5e140,0xb6350313,0xa96b8623,0xa79c4b44,
+        0x9ab003d5,0x7a339d65,0x3826f31a,0xc72f30c6,0x6f7090cd,0xb4e7390c,
+        0x906ebe24,0x59ac6c36,0xbba4505a,0x39a7f06d,0xc58c413a,0x839991e1,
+        0xa20e0e84,0x020c23ff },
+      { 0xafc74661,0x120e4ada,0x277fc065,0x37bbcf63,0xb6dce799,0x41049cf6,
+        0x7b161ba1,0x5b8d6b53,0xa9610fb2,0x22218431,0xdfdde769,0xde9ec9d1,
+        0x42d80630,0xd32bfa4d,0x6244df4b,0x3885702a,0x45592dfb,0xcdedd1ed,
+        0xfb4e01b8,0x0e1df45b,0x86e215b0,0x8f4bded2,0x6a937e6a,0x80935487,
+        0x8130f723,0x415278ba,0x38a821f8,0xc6dc4692,0xfd8b4f8a,0x2207b119,
+        0xf9269cef,0x76e7bf53 } },
+    /* 91 */
+    { { 0x27ebd187,0x5f128428,0xb65aadbb,0x8d3320ab,0x72258695,0xb042765a,
+        0x8f0986ab,0xda3f33f9,0xaebff503,0x411807a7,0x825f71a5,0x25c776ca,
+        0xff7df24b,0xc0de7bed,0x165f1fb4,0xda8b0f42,0x731f3ae3,0x5f3ff737,
+        0x193e0a52,0x4cd1d7e7,0xb6b3ba46,0x8df84aa3,0xaa1f3782,0xba84b897,
+        0xe7733ac7,0x6e7960cc,0x50981a21,0x4d46d6ab,0x7cbb80ed,0x1ec12c25,
+        0x2b96ef09,0x79e7ad27 },
+      { 0x8f30caae,0x3cd970dc,0x0a6ebef4,0x85cabcf1,0xc714616d,0x63c1863e,
+        0x519e3a98,0x1c50db0b,0x64cb13d6,0xf39b8963,0x22547b69,0xdf67d81f,
+        0xd67db0cc,0x7157abb9,0x889491b7,0xccca25ba,0x7a27e0dc,0xf689207c,
+        0x0fd43281,0x34ae8fbe,0x5720ec09,0xa5d91f73,0xcdfd7bed,0xb2f61909,
+        0x4a039e32,0x1ec10232,0xdb0d8fdc,0xd3c3d65e,0x4fe5005d,0x32c916c8,
+        0x4c0bea94,0x7f8c37ac } },
+    /* 92 */
+    { { 0x43ac05e5,0x33ec1e54,0xcd8d3825,0xda4a4da4,0x88bf9e2b,0x86d88c0b,
+        0xb53811dc,0x34d71dd0,0xa3c3aba4,0x655040d2,0xb61611be,0x2bc40949,
+        0x279a4fa0,0x1c2d426e,0x3b065ac3,0x535a5aa2,0xc52ea890,0xdaa8a32f,
+        0x9fddad22,0x5a5deca7,0x2ab3b26f,0x911f05fd,0xf37cd81e,0x5dace7db,
+        0x90d16b8c,0x0e0e44e7,0xe4f5894e,0x15e68aed,0xfc92a74f,0xafe04999,
+        0x970e7c2f,0x1d7703aa },
+      { 0x3f0062a9,0xa8a4c81d,0xd96a20ba,0xe31eb2b8,0x864bd101,0x66dd98df,
+        0x4413b614,0xba05f592,0xe9a555f8,0x51a67a0d,0x2e4b52d1,0xacc2f097,
+        0x7184ab23,0xab5daaec,0x7c7f691b,0xce08b43e,0x76c427f4,0x520e530b,
+        0xe423ebdc,0x7d352069,0x34df14ce,0x6b5e39e8,0x446305ac,0x3dcbf295,
+        0xfe34cdc1,0x682cb2e1,0x111f5afb,0xd4ac45d1,0x47f296f9,0xc5ef63cd,
+        0x93c20871,0x0a2c40ec } },
+    /* 93 */
+    { { 0xaf5747db,0x09bc384f,0xc06ab86b,0x3bad6086,0x9e7c1547,0xa406882e,
+        0x55977abf,0x2d5326d1,0xda81deb0,0x063a9a05,0x524b6111,0x9a86e4a7,
+        0x4ab2eb90,0x1402f87a,0xd5c600ba,0x7d0721d4,0xf289fdbf,0x1a2fd9a9,
+        0xecde6f07,0xf5dce66d,0xdab9fa73,0x62171277,0x6c474bab,0x6d2dc49f,
+        0x76eed033,0xdc017e1f,0x4da825d3,0xb97175c0,0x54b05e43,0x6c297e3d,
+        0x56c9c87e,0x2efb4546 },
+      { 0x8b21c064,0xa4712b00,0x4a70629e,0xd186fe42,0x9b74f0af,0x6435b340,
+        0x7ec9e629,0x6965aa43,0xc4c60d08,0xdda14673,0xbf3057aa,0x0b656670,
+        0x3ce86f60,0x7f05e840,0x04401a16,0xc05073a9,0x294e607e,0x16b1e638,
+        0x69cf7046,0x20783252,0xe8ce7d3a,0x2941141b,0x7577053d,0xd38ad8d3,
+        0xcaa6630d,0xdba68fb3,0xe9504350,0xecbeaff1,0x1d2d760b,0x9f5166d5,
+        0x462891e4,0x337532ce } },
+    /* 94 */
+    { { 0x3a00bb9b,0x3f111853,0x45f66685,0x2d2ffbae,0xd4aee24d,0x9ae11a85,
+        0x0341856e,0x18ba1e1b,0x2731349f,0xa9ac8178,0x545715b5,0xc13dfd4a,
+        0x5daad2ea,0xa5f7423c,0x535b76a7,0x30a483b9,0xff873e9b,0x92e9ada4,
+        0x723a1055,0x15662d84,0x8edac4e0,0xb935497b,0x39d8fa70,0x61b6441a,
+        0x40d1589f,0x1541d756,0xf0a05f0a,0x62994237,0x6bb28908,0xfd8b0034,
+        0xd4cd32bf,0x192a2b5d },
+      { 0x365ced07,0x63576628,0x05de1d1f,0x029f32fb,0xbf40a7aa,0x6d17b9bc,
+        0x9bb50a47,0x1b1b2a08,0x795a6278,0x9389abbb,0xb34fc19b,0x52cff60f,
+        0x387d8739,0xf3ab9492,0x6920ccd6,0xa8f053e6,0x63a9b4f0,0x3ef2dd4b,
+        0x51e82129,0x9ab0ede1,0x0838bfa1,0xafba0c0b,0x9ffc11be,0x2bd5a7ac,
+        0x95cc0878,0x058bfd95,0xf8c2f0c6,0x686d48a3,0x1d9b31ba,0xc33abaaf,
+        0x3bc0c268,0x632e2289 } },
+    /* 95 */
+    { { 0x15a1ccca,0x1c851d20,0x7e522bc3,0x4efe290c,0x18eab053,0x0b741d55,
+        0xbc85e217,0xae656197,0x01cf8b29,0xae13141e,0x66948478,0x2e2cb593,
+        0xc31bd8ae,0xeb57bb0f,0xc264e788,0xdecef5d6,0x9cb96d86,0x6fa856cc,
+        0x279183da,0x2db16813,0x383d796a,0xf03f3820,0x1d0c6fed,0x58a456ff,
+        0x8a6abd9b,0x25589805,0x83f96f19,0x339f52c5,0xda7e9ea7,0xcf6ded8f,
+        0x5d1ccd45,0x68c3d9c1 },
+      { 0xe6b392b7,0x67e26265,0x775d9509,0xcec1d9bf,0xd76514f7,0xe16abcd4,
+        0x0de72e1c,0xd86f59b2,0x1adfb033,0xa66e43cd,0x05e457cc,0xdb344340,
+        0x5681daa2,0xb67a7916,0xf0114731,0xc32e7bab,0xd3b1e961,0x066fe16e,
+        0xf63d26e6,0x924e298e,0x541add6d,0x9bea0dd8,0x9982f971,0xef9500df,
+        0xc5f076ac,0x5c876e63,0xb23d396b,0x55e12ae5,0x2ec6747a,0x09efbb36,
+        0x233286a5,0x8f2055ee } },
+    /* 96 */
+    { { 0xb82c1af0,0x4a4ab9e3,0xf2cae264,0xfc65e9e7,0x60187d46,0x4feaac0a,
+        0xe393b363,0x27d3f335,0x819bacce,0x9c9f7c00,0xb8aa6611,0x3f7418b5,
+        0x372aae95,0xffa94557,0x8db38589,0x937d7804,0x6f1fbc1c,0xd10c86df,
+        0xa2f0a0ce,0x48aebd89,0x367439eb,0xae5d5fa2,0x3f17d2d8,0x103a6a0b,
+        0x411d9894,0xf233f68a,0x218b67a2,0x7fece8b3,0x2319bf06,0x0422540f,
+        0x340d322e,0x1292c8c9 },
+      { 0x0386463d,0xf5eb5587,0x0371d97f,0xd4bbc2b2,0x0b819c5a,0x1b364571,
+        0xcf04ad41,0x0cbb42d6,0x66939ec1,0x5d819c76,0xa01847e7,0x8745ac13,
+        0x1c7232e4,0x4f704b02,0xacb05780,0x2c9e58a0,0xb561e295,0x9523b8b3,
+        0x79f9ba35,0x3384df00,0x1eaa9628,0x78231fc2,0x8aea2b90,0xa2eac54f,
+        0x30d1c263,0x8075ed77,0xfb339000,0xacb44ed5,0xf011293a,0x92546ac2,
+        0xeb821764,0x7c78762b } },
+    /* 97 */
+    { { 0x067902b6,0xb8f7d6fb,0xd1735980,0xb2823a43,0x59741ddd,0x062cfb12,
+        0x4033f95c,0x6e391b07,0x68589b8c,0x3831d0a3,0x522290f2,0xe3474d49,
+        0x222e1f3a,0x4dab14d6,0x53f08d39,0x8f00fcde,0x707f28f5,0x559917ae,
+        0x068e607c,0x166aa0ba,0xd7e1f824,0x602713e7,0x4d6a328f,0x7c255540,
+        0x9890cd2a,0x0d2e3264,0xeca0b20a,0xf2207944,0x52f4e09c,0x5c98dc07,
+        0xd84de81d,0x69403504 },
+      { 0xe5407206,0xf8b7b366,0x0d88fa8c,0x1ecf54cf,0xf7272e6f,0x6fefe548,
+        0x81ab4468,0xd6531372,0x4e474408,0x52cb5f0e,0x6490737f,0x9e426b3a,
+        0x4980d071,0x2576c19b,0x0f272caf,0x91f34628,0x468f31c9,0x78e60a4f,
+        0x90844d89,0x8776a329,0xb951582b,0x8a55700c,0x14b1adbf,0xab1af365,
+        0xfbd343ef,0x22ebff92,0xb7d81f34,0x32f9fb01,0xba6b30e1,0xad850e06,
+        0xbc5f9546,0x6da9e027 } },
+    /* 98 */
+    { { 0x5c9490ce,0x21eee4c2,0x0df68381,0xa96ec4a3,0xa4a9368e,0xe6c607e0,
+        0x4bc262f3,0xd8b0492a,0x460c34ff,0x0846a210,0x28df33cd,0xf7ff7a64,
+        0x21827612,0x10c55044,0x149bcd01,0x9d25fce9,0xcfc613dc,0x725611cd,
+        0x97f51ce5,0x159f7e88,0x4e8c08b5,0x3fa3bf31,0x75e7538f,0xea156115,
+        0x91c84020,0xd1e0a951,0xcf02ad0a,0x0d2268ba,0x058b8e5f,0xa04c6ac4,
+        0xb3515912,0x773b40b9 },
+      { 0x3631cfd2,0x00ff2cdc,0x807737bc,0x14c4c2d3,0x338a5270,0xd600616a,
+        0xb32cabde,0xd0e3306d,0xa70b17ca,0x336738ea,0x79f353ee,0xf2f4aa8d,
+        0x576f3ad3,0x712f6ad9,0x89b2bce0,0xe4279852,0xda92ca30,0x05d8f94d,
+        0xd8492dd9,0x9891d475,0x4d15e4bd,0x3e06a5ca,0x254eabbd,0x4725d4eb,
+        0xc0ed513c,0x31394ace,0xbbfaae6c,0x7e0f9859,0x833fd137,0xdc125546,
+        0xc56c4f75,0x12b46385 } },
+    /* 99 */
+    { { 0x932951de,0x810dbebd,0x5aa69c94,0x96959d42,0xecb2f08d,0x5fc49c04,
+        0x2250b82c,0xac74f0cc,0x3aec4e1d,0x96a439a5,0x90499acd,0xc33cab9a,
+        0x54d9b3af,0x2fccde66,0x3863ae8b,0xf4af285c,0x46febf88,0x2373373e,
+        0x3c9ab7ed,0x751d672c,0xfe12020c,0xc1c51130,0x52f3e56e,0xad82402f,
+        0xa4a64a81,0x3489ab7a,0xd9f163f2,0x0a1fb661,0x0e553317,0x17c69be1,
+        0x7d88d417,0x61c1935e },
+      { 0x3492ae43,0x2e722d9b,0x0538f05a,0x1ef89d95,0x200aab63,0xae77e588,
+        0xeba4b117,0x2872c120,0x3a461cb8,0x5c2432c8,0xcb938f26,0x315b3434,
+        0x8c4c7dc0,0x05bf2ac5,0x596b378d,0xd2e501dd,0xcb890c30,0xa8506c9f,
+        0x7c361f0c,0x3d0af461,0x5a35cbae,0x21f7b718,0xf3fc0138,0xbd1035f1,
+        0x8b248edf,0x74628af5,0x48c9cae0,0x8d6421d0,0x2ca18773,0x75e3da39,
+        0x71d3db94,0x27ad0df2 } },
+    /* 100 */
+    { { 0x305b5aed,0x9e3bda79,0x5998d6a7,0x2c67d4a4,0x0f7eb700,0xc855e1d3,
+        0x147d1c44,0xc18a7e9e,0xc89540ed,0x3ea99618,0x7e6bfd20,0xa53be20a,
+        0xecc14437,0xc9487e64,0x34ef85c6,0x72979207,0xd5e1ebd5,0xfa0d4e71,
+        0x4d48d6b6,0xfda2b1e6,0x66e200d4,0x782a1e05,0x5a5366a1,0x2a3c70da,
+        0x1a473738,0xfe3fbd2b,0x7fe020e8,0xd7ef8c06,0xeacfb665,0xec686fde,
+        0x6dd1542f,0x5d9b5e27 },
+      { 0xcb3e472e,0x3637c5a5,0x30a1405e,0x2153d927,0xb4498558,0x009992e5,
+        0xf39a0851,0x18f00ccd,0xb5c6c560,0x26237c11,0x1343540e,0x418ed408,
+        0x7e7f3184,0xfef7cbf0,0xbf48576b,0xecd92366,0xbc94c91a,0x1b75be1a,
+        0x4a162276,0x8e1778de,0xc5c6bcb8,0xc52e57d3,0x5ab71858,0x5cc382c7,
+        0x3f6e39f9,0xe12c2c28,0xd62735fc,0x4c7e0ef2,0x835a5996,0xe071deb1,
+        0xcbb8c766,0x24f891cd } },
+    /* 101 */
+    { { 0x6778c1e2,0x24ef60bf,0x00d5be5c,0xff49c03d,0x2f01a09f,0xec11986e,
+        0xae096e58,0x59a728a4,0x7077984c,0xaabbcedb,0x870ca5a5,0xfb473bd2,
+        0x4de30e3d,0x8c928c61,0x4f67abca,0x3fae7f9a,0xec21a9cf,0x83c2b2eb,
+        0x9cd9b5de,0xafa70d62,0xc60b18df,0xadeaea59,0x4049b54c,0xd5fef7be,
+        0x6dd310e3,0xfceebc76,0x8f6321cc,0x7748efe3,0x18ee8af5,0xfe9c32b1,
+        0xd42df612,0x863ac3cf },
+      { 0xb85a2fe2,0x0a36fca7,0xee429dc6,0xf3e70d08,0x141c3944,0x8c9ba209,
+        0x67272a0a,0x306a8106,0xf968bd06,0xe69a1555,0x153c603d,0xb86f7e47,
+        0xef56e4fa,0x9706614a,0x98780b4c,0xc0dc36b8,0x3a1d3263,0x43657fe2,
+        0x435522c9,0x01f97a86,0xedfef679,0xd91897f6,0x6daa17a0,0xebbe31d4,
+        0x85accfbd,0x6f179100,0x8f9fc1de,0xe0da6e32,0xe1e7142c,0x1c9d53db,
+        0x8b86725a,0x3e3f1b1e } },
+    /* 102 */
+    { { 0x7b7fbf05,0xb7ea15c0,0x1f1a3882,0x992f11b6,0xd1dcd1bc,0xc9ddd95a,
+        0xad0f7e8b,0x31f5b7fa,0xfca7ab79,0x2936e5eb,0x19a55be6,0x30f417dc,
+        0x43cde554,0x1f6f4e43,0x82f044bf,0x971f5e65,0x4288c408,0x73c3b8e4,
+        0xb807f575,0x61aac59f,0x818b58f0,0xa64ee2dd,0x97a3b0d3,0x6f7a0a60,
+        0x0394b058,0x8b85ecc8,0xbfb3517d,0x9a059474,0xa79c3f06,0x89ad5977,
+        0x700a8025,0x81208ed8 },
+      { 0x14c4ce37,0x10935099,0xa1aa48a6,0xf34bb843,0x580d58e8,0x86007024,
+        0xb375b8ba,0x6db42c49,0xed3bde83,0xac365524,0x649233b6,0x5521e1b4,
+        0x64dd946f,0xbc7cc5d5,0xbfb5b6ae,0x9c14b035,0x0146c1a3,0x7f22ba18,
+        0x872214f5,0x0b62fbbc,0xb4921764,0x3acfd7f7,0xcb4d6df1,0x5ff10da1,
+        0x62600a91,0x660e2620,0x81d9167f,0x7ac7da9d,0xb6e7a199,0x6e8e260c,
+        0x80deb3c2,0x44383fb8 } },
+    /* 103 */
+    { { 0xe44f9af6,0xe107f01d,0x8cb1fa1c,0x36381a4d,0xfb7dd493,0xe65be3ec,
+        0x26a8839f,0xd0b8435a,0x3ec789d8,0xee60f915,0x2bcc5e1f,0xe25fea50,
+        0x7e44a81c,0x0477c0c5,0x230ba5b8,0x349e9f83,0xde180dd9,0xdd42f32f,
+        0x64a3d11c,0x8b039eaf,0xbeb7083a,0x80ef884e,0xf12742cb,0x288e60c4,
+        0x720a0262,0x44156cc5,0x7253b77f,0xcd547de6,0xa6013a59,0x9829a6ec,
+        0x0d548445,0x8aee708f },
+      { 0x32c54409,0x18f22d9c,0x75ebaac4,0xa9ebfa46,0x86284981,0x90e2e928,
+        0x6b3a8e0c,0xd0201f6f,0xbd77641e,0xc973016c,0x70170575,0xf926f2f0,
+        0xfec0ce01,0x4984048f,0xf319d304,0xbf696211,0xc91a88c4,0x74b5c844,
+        0xe0030a82,0x4c40fbce,0xe4f6d521,0xbed67525,0x29d67d1e,0xaf7e47cc,
+        0xc21d3536,0xfa307db8,0xbbb29405,0x56b6c46a,0x033e805f,0xf059a7e3,
+        0x6096a5a0,0x970f61fe } },
+    /* 104 */
+    { { 0x1bec8e4a,0x1bc53d23,0x35a6034c,0x8809ac14,0x509e464d,0x4ee081da,
+        0x8a488235,0x496ae1fd,0x325864b6,0xa1ae9863,0x74cd069f,0xbaca13e9,
+        0xb1d8a6b4,0x3738cc58,0xe76b9da4,0x5fa71f58,0xc7eb16fb,0xc919be88,
+        0xad4e429d,0xf5c8f13f,0x2499f9ed,0x4583b671,0xa10d8bd7,0xbce20115,
+        0x5790bb7e,0xf66d7605,0x482b78dd,0x9316aede,0x75f855fa,0xe0d8fb2d,
+        0x5a7dcca7,0x404b5b94 },
+      { 0x517a15c7,0xf9ee682a,0xef880202,0xaae4cfbc,0x5106a354,0xcee2c139,
+        0x170febe7,0x5de60192,0x73d0c54b,0x589e39fd,0x8c9092b7,0x195c7135,
+        0x0a7bfe5f,0xcb7ed53f,0xf61cc979,0x2bd9242a,0x5395f7d9,0x8d2ef16c,
+        0x70b32f09,0x0d4ac1ca,0x52d185c1,0xa587526d,0x942d6195,0x2932b04a,
+        0xa500b0ac,0xfe25a979,0x562fd230,0x5fa1f4ae,0x20da253c,0x60f55af2,
+        0x83146002,0x7faa11b5 } },
+    /* 105 */
+    { { 0x6e402149,0xb0ba4f0c,0x963cc119,0x3584cc1d,0xa6527476,0x7740dc1a,
+        0xc95715f2,0x3f77ff75,0x3f89fb0e,0xb2f234ad,0xef9be3ff,0x55159032,
+        0x04237e82,0xfc9fb21d,0xa153ed93,0xeb2eff38,0x10041d13,0x89d53ae0,
+        0x7f1bd828,0xcf2e545b,0x43953ea5,0xdd4a27ce,0xd85e75c8,0x00d2e5d4,
+        0x241be1c3,0xeb93ed62,0x0242032d,0x1e53f25f,0xc3a4e701,0xb9957636,
+        0xed98febf,0x14b63a52 },
+      { 0x71c43336,0x7610b553,0x23a4824b,0x19dfd4a6,0x0286051b,0x7b97a2e0,
+        0x8f5f1edb,0x86abbb9c,0x9b67daad,0x67a57d77,0xcd5ffafb,0x8ace506d,
+        0x89ac3c63,0x85da9f95,0x75a3d150,0x081cbaa8,0xe9346ed2,0x03353d8f,
+        0xa1f9a02d,0xb2ab61f1,0x3a659c71,0xb0cb0937,0x4f5df8a1,0xb7e0e30b,
+        0xeb7d5a1d,0x77c4c741,0x728e5cf0,0x8f046c9c,0xf7c171ac,0x32dd0bc7,
+        0x836d2655,0x02485873 } },
+    /* 106 */
+    { { 0x75a4cd8d,0xcd40dd23,0x97bcba78,0x132ca433,0x258d61f5,0x30c5cd84,
+        0xda1e8e68,0x0a7ec059,0x1d65d40a,0x07a8f171,0xf4350d76,0x869e655e,
+        0x5983ae42,0xb98ce6f0,0x9d8bebd0,0x7b61391d,0xb1ba5d49,0x3a529e25,
+        0x1f6b2cf6,0x46f732e9,0x3fa3b629,0xbd66ec6a,0xc3ef0ed2,0x397950ec,
+        0x5f08b476,0xee9008cb,0x965a0e2e,0xfd6be425,0x1177bc87,0x78ed513c,
+        0xfe512dae,0x6798cedf },
+      { 0x1b97c5c6,0x49e3f8fd,0x78c3b33f,0x39fbab3e,0x40f595ba,0x44274412,
+        0x5d7d4376,0x174225b9,0x79c44777,0x880b3fcc,0x3296b245,0xdc3aca83,
+        0x1734e184,0x55913df7,0x9c934472,0xa4db23d3,0xd1420a11,0xcebb3733,
+        0xf3608bdc,0xb9d20cf9,0x30cfe13f,0xa618acf6,0x5f30874c,0x75f06b31,
+        0x9f0005a5,0x506efe7f,0x01bfc9db,0x8aaea78c,0xf78e7c41,0xf9179255,
+        0x52e96395,0x3ea7aed2 } },
+    /* 107 */
+    { { 0x5b06ae25,0x98617e04,0xcb5750ef,0xbcac148d,0x604c2ba2,0x91ea2f0e,
+        0x76b78975,0x00c19f6b,0x651da181,0x79b9b6d0,0xc945705b,0xf3225beb,
+        0x5c005bf1,0x30b435f3,0xbc24d86d,0x440b4482,0xd6373777,0x2b8f0996,
+        0x1c44b4dc,0x65fd6c56,0x30906999,0xe9405ee6,0x08aa1ec1,0x19ff0924,
+        0x3d2f2895,0xeef3246a,0xbc746797,0x016c3765,0xd0705f7e,0x62d2569f,
+        0x05250044,0x6a8ad39c },
+      { 0x46be7282,0xe45f020d,0x21380f12,0x9405afed,0xd5da6ad0,0x4cdca5bd,
+        0x7f8be61e,0xc2d6f184,0x596b8178,0x20132953,0x7a8df954,0x8d3b1e7b,
+        0x39572b4d,0x757c61bb,0x80cc3b56,0xd749b57b,0x37b3ffec,0x9590ff93,
+        0x145dc94d,0x39bbb653,0x2335e573,0x70c1c606,0xf763feba,0x9c2e72d7,
+        0xcc61b732,0x4768e424,0xaa73f2ca,0x777d2fa6,0xc5cb58cd,0xdee4dbaa,
+        0x9cfae1aa,0x1a181179 } },
+    /* 108 */
+    { { 0x77575ed0,0x6f6ff62f,0x7d1da99b,0x18f14fa9,0x69efd7f6,0x2e72aefb,
+        0xddc28633,0xc45ab4cb,0x586c5834,0xb0e20d48,0x39775dd8,0xd397011a,
+        0xf4134498,0x0130c808,0xf5115ed8,0x2d408eba,0x0260ded9,0xc506a05c,
+        0x19cab911,0x9e5b7362,0xe8693a86,0x4cf508c6,0xcc773617,0x4e71245f,
+        0x95d89ca3,0x2f71aa1f,0x607bbc98,0x4bba7c6a,0x212b7fd2,0xf3a515e7,
+        0x9230f5a8,0x7d2ddc75 },
+      { 0x4ed2cae8,0x3d05816d,0xb9c00377,0x4cf6bc7d,0x646b08d4,0xc23e98e6,
+        0x4b9c0180,0xf9ee6c61,0xef9179c1,0xe11c9a13,0x8ed9688a,0xa5b6147e,
+        0xd06670a7,0x7afeb648,0x17685275,0xd670333c,0x75f9e8f2,0xa89dd969,
+        0x37a68ade,0xbb57228d,0x454cb186,0x21a05d5e,0x063dd550,0x4810158f,
+        0x4cb6caf3,0x92dd4f08,0x7854abe7,0x70c4d852,0x6e729d76,0x845969dc,
+        0xb1bf40ba,0x5a52f87a } },
+    /* 109 */
+    { { 0x09ecacbd,0xed019e91,0x7b89bdea,0x6544023d,0x5707371e,0x7cc51f0b,
+        0x16c8e217,0x14832b04,0x81259ab5,0xb1aa6682,0x23e361d4,0x6e100f92,
+        0xe3a95c2a,0xe593eee9,0x16c10e26,0x699b6bbd,0x9473a13f,0xad487873,
+        0xb274987c,0xf1c14dc5,0x2559e2e9,0x57dc0075,0xc3d47ad2,0x8449849d,
+        0xdd527793,0x83df278a,0xeefd5b99,0x770e3ec8,0x76bd02a0,0x2ae58446,
+        0x3e705ffe,0x17f02764 },
+      { 0x29abea1f,0xdda4010d,0x2407ac4c,0x636b9695,0x0433218b,0x96a60129,
+        0x163d534a,0xf221fc3b,0xccc20565,0x05ba15be,0x96285577,0x1238e54d,
+        0x878804d3,0x1b144257,0xa89a9fe4,0x96fbf304,0x4be642b1,0xc8a7f06c,
+        0x6e2b085e,0xdd1a20e8,0xff4a591d,0x8f7f27c2,0xa4a343b8,0xc17b0753,
+        0xbb173d4d,0x684b1e88,0x3dc07bbe,0x3accea44,0x4c441d77,0xdb15c88d,
+        0x53e5957e,0x0ef0309a } },
+    /* 110 */
+    { { 0xfa8e5b60,0x4fc25721,0x691c0bb2,0x646938ad,0x0b0a2248,0xe46d4b76,
+        0x7de16877,0x863f9ac2,0x2721c630,0x503bb6ef,0x0b67fb02,0xf8c199df,
+        0xe07abd39,0x78c1ed72,0xb32f0dda,0xcf9deb7b,0x6c3c89f3,0xaff726f0,
+        0x1972225a,0xb7008b2d,0x4f145f5c,0x8f5a6117,0x457c4f37,0x4e0e6f8c,
+        0x1c453c64,0x8bbdaa44,0xa6e92c80,0x57be326d,0x5d773561,0xa9bc3fd9,
+        0xbb37b72a,0x3d3b6cc6 },
+      { 0x9722c880,0x6e6f12cc,0x286b6889,0x3a1b6ae7,0xad2fafec,0xba1cc09b,
+        0x43bb8bef,0xad64ad7a,0x97c3f4c3,0xa5af6a00,0xc353a91b,0x2afcb0d9,
+        0x69ccbf6b,0xca13fcab,0xf2abc190,0x699a1391,0x23a247e5,0x2dbd5542,
+        0x95488d9a,0xe206180f,0x1244cc3c,0xba9e7bff,0x87d3a365,0x29297abe,
+        0xfa4ca5e2,0x4054fa38,0x67be1b6c,0xb390623d,0x78f41a44,0x1fa67c57,
+        0xc7b544e7,0x2e946e43 } },
+    /* 111 */
+    { { 0xc60934ae,0x2980fddf,0x164206d1,0x2c3e7eff,0x416ed75a,0xf75e7f96,
+        0x5cd0b2dc,0xfac60cf3,0x1faad87b,0xddc4bece,0x9849e5dd,0x753fa87c,
+        0x2c1bf1ae,0xc5d516a3,0x14732b4b,0x565dbea8,0xce48696b,0x007ebe3a,
+        0xcdb97694,0x40ca74d6,0x65e4e7be,0x3f5cd270,0x3aac4ebc,0x74847c01,
+        0x43d6c3a1,0x6762e034,0x467a076a,0x690d8c95,0x1eda677d,0x768d78d6,
+        0x0181d8c2,0x0997ce55 },
+      { 0x965a0b81,0x9297746c,0xe5e12dfa,0x48b58be6,0x715f437f,0x5573b3c4,
+        0xb565c459,0xe425e907,0x1582797c,0x4f43f512,0x8ea5474f,0xe5dafa6f,
+        0x13de04ac,0x2aeb8fbe,0xe8a07c83,0xed7f95f0,0x662c09fe,0x3e012a6e,
+        0xc742cf17,0xbf96e9b8,0xe28a1c45,0x8ea5759a,0x5cf4e2f3,0x475941b4,
+        0xf901a019,0x7dd3c02d,0x70916b2e,0xe7a4deea,0x2fa9b988,0x50b272b5,
+        0xd0917fe6,0x96f9f09f } },
+    /* 112 */
+    { { 0x2c310a96,0x78e8aac4,0xf7a2a734,0x32a98303,0x23962207,0xc46ca83d,
+        0xd9541280,0xad131e6e,0x2cabe911,0x5791fc5e,0x841b6c68,0x50cb77eb,
+        0x3d3c8878,0xaff93dea,0xf1007bce,0x06541f1d,0x55cdf1fd,0x4ee729c2,
+        0x323e3972,0xe0f71317,0xad4d08c1,0xa2de7a41,0xa35e22bf,0xa9912abf,
+        0x89b03325,0xa050122b,0x06514d4e,0x8b9e51f4,0x79d3e0ab,0x423c7aad,
+        0x40b8fea5,0x71998e26 },
+      { 0xceb6ed78,0x40140fcd,0x18534516,0x653cf377,0xe8d60dcc,0x0450b65a,
+        0x9dac55f8,0xce6c1a76,0xae05686c,0x8a96a92d,0x12712562,0x2fe44762,
+        0xa4f39425,0x747bcb50,0xfc531fc2,0xf0ec6ff2,0x10fe9ff0,0xc97c3447,
+        0x9c792cff,0xfb488783,0x026fb019,0x552c5248,0xd804c290,0x4001a29c,
+        0x35c8ca73,0x742b5ad8,0x6ee5dfa0,0xc3781f17,0x3dfa4ab1,0xca6b85f0,
+        0x0b0d32ac,0x8389941a } },
+    /* 113 */
+    { { 0xde067dff,0xc0f062a2,0xbcb80162,0xd4f32690,0x0707a2bd,0x98cd990d,
+        0xfae4a391,0x5afc63b8,0xb32ad814,0x684f1b7b,0xf199dfb1,0xb0a2dce2,
+        0x48f25848,0x2260e17f,0xc2d5e862,0x7393db00,0x338cf171,0x9e88f854,
+        0x02acf522,0x00679429,0x6835af3d,0x19157cb8,0xb8a2614c,0x2faa6f92,
+        0x134ec46c,0x04ff95f5,0xfb7a8135,0xcf00626e,0xb37a4704,0x454b3d05,
+        0x2694ec25,0x1fbfda31 },
+      { 0xc8f69c77,0xfdebb657,0xa3df88fa,0x92a8278b,0xc1fb78b4,0x463b5571,
+        0x11c71a33,0xd2066a1a,0x089958b0,0x10c88143,0xcf9d67a6,0xb975c7e0,
+        0x73037b8f,0xdaa5d208,0x40bf5861,0x5ee5005d,0x7dba69a9,0x300e6ce7,
+        0xc962cc74,0x893c3cb3,0x4cf84055,0x0ac98629,0x225c9d70,0x0a7ef63a,
+        0xb91e47e8,0xfe184869,0x8c2f84be,0x1b9d7deb,0xc0e278bf,0x67788915,
+        0xc426f19e,0x4f9488ca } },
+    /* 114 */
+    { { 0xdd51b8ce,0x610dfcd4,0x36230e80,0x08579278,0x36599562,0xedc7ff1c,
+        0xe2cae877,0x905ead4b,0xe7967608,0xa1c325d9,0xbd38926c,0x3e39eddd,
+        0x5f6f0a4e,0xda92c868,0xf47a0fa4,0xe16f800a,0xe5f60aab,0x50b4db5b,
+        0x983853d3,0x3665412f,0x9b79789c,0x64b62250,0x4e0e72b2,0xea560058,
+        0xe555c2bb,0xabbd4901,0x17292e11,0x378419a7,0xe174218f,0x6e0b5aaa,
+        0x8f796b92,0x688e0684 },
+      { 0x313b8f64,0xcdfef641,0x942c7462,0xaef11b7b,0x5c0d8abd,0x067cfb77,
+        0xaf4041a9,0x608ea5f0,0x6935210f,0x23d5bd82,0x27917a08,0x5ab904fc,
+        0x45d22d21,0x85dbb1fe,0x4d36159f,0xc3d5e509,0x1d39b8f2,0xaebb528e,
+        0xf44acef0,0xdd5ca828,0x20c57a54,0x24209adf,0x78f95f44,0x5742b433,
+        0xa9337d37,0xd11fa7d9,0xc64cfdb7,0xd66a0c09,0x9bb817ec,0x56e55b8f,
+        0xe4c41265,0x1723c7e3 } },
+    /* 115 */
+    { { 0xdc8b43f3,0x9a6486d8,0x26409e68,0xfc3e0e61,0xd9b46003,0x1889c437,
+        0x6284ec7b,0x3a850335,0x6a9dbaea,0x5a3665c4,0xe978933c,0x7bf6941d,
+        0x69341490,0x1ed5a510,0x8cb8002d,0x664a7b7a,0x60ed0a59,0x603f76e4,
+        0x1f4ebf27,0xc3e06ba3,0xf2c38a7f,0x296ced41,0xcf1db08a,0x2ac18f79,
+        0xcde7a3b6,0xc919e882,0xdbf68b06,0x15e77d29,0x4e947cb5,0x21978baa,
+        0x7630993a,0x84bf542b },
+      { 0xe364f21e,0xc1decda9,0x012e557e,0x0d6cf345,0x588f90e1,0xba246848,
+        0xe3b104b8,0x9f6dda4b,0xe3aef57a,0x6bf7a346,0xe8327ea9,0x210299fe,
+        0xda95e6c7,0xaa99f487,0xd2cdf645,0x24ff813e,0x8bd414b8,0xd1dbb2d2,
+        0xcafa1a61,0x065101af,0x9cdebda4,0x7d9f4b9a,0xe41039e4,0xaf41b395,
+        0xc50adf42,0xe3e9e6ba,0x341e9e49,0x4f2133ae,0xcb157f23,0x4968c0f3,
+        0xda068153,0x383f827b } },
+    /* 116 */
+    { { 0x6583ff4c,0x2ec46a21,0x4ad709e7,0x4e645a29,0xc04ca12a,0xdc66e9cf,
+        0x9160a7e5,0x82f128f4,0x569c762e,0xbfb227b1,0xc2edb8e7,0xf80c7963,
+        0x49a0f688,0xa7dafe06,0x2d14b8cc,0xb7e41754,0x86de40be,0x3a0c5c53,
+        0x1db79331,0xf0d05286,0xfbfe071b,0xb902ce69,0x210e9903,0x61e46956,
+        0xf703ebb8,0xfaef874e,0xdd5f78b6,0xf668947e,0x5af5ea3a,0x6fe86547,
+        0x43f94625,0x3b121f15 },
+      { 0x659275e9,0x5b26e847,0x6d0fce50,0x47581cfd,0x8aa3f1ef,0x55f5cbfd,
+        0xe484e60e,0x1e7be315,0xfe9698e4,0xd8f1a20f,0x7ab04784,0x25d46da9,
+        0x834cdb3e,0xa526db75,0x8d08a009,0x1fd408d9,0x5b5ca816,0xfc004b20,
+        0x65e4bbe8,0x5b3e3bb3,0x759bb6ef,0xf50cc125,0xc2fac737,0xf05fa817,
+        0xd273951a,0x9ee102d2,0xfecb3367,0x2a8e540b,0x2a6a515f,0x673446fb,
+        0x37290c83,0x5505e1d1 } },
+    /* 117 */
+    { { 0xd15e68a6,0x0c3014a1,0x64dd35e5,0x6f9f0b26,0x03ad67f9,0x18c3742d,
+        0xd2c14484,0x74818c0e,0x0d41a3cb,0xc5181169,0xc49f3e9e,0x65c8c83f,
+        0x2c279386,0x9b260c61,0xced04e9c,0xf6086fae,0xfd7c4758,0xa7b2cceb,
+        0x90297fd8,0x4b3c3133,0x09701ac8,0xca8264e8,0x508b3762,0x9f976a87,
+        0x983a8dfe,0x5d582714,0xd9d598e9,0x350d2669,0x0f6fd348,0x85cb89cb,
+        0xa574317c,0x617d80d4 },
+      { 0x70022b67,0x4cef267e,0x3768b94a,0x80536bb5,0xd2784462,0x3153a566,
+        0x38243919,0x49054d44,0x5df78c4a,0x8d11e172,0xd5a1e35a,0x9b252a71,
+        0x8171e31d,0x07866c80,0x1b38a00e,0x0a8501db,0xce770236,0x2ed932b8,
+        0x8edaf7d0,0xa2d77609,0xb93006e9,0x3aee5dab,0xbbfeb036,0xfaffc8c4,
+        0x4e21b38b,0x077b9678,0xdca8e069,0x491fc59f,0x0e938471,0x3f624f55,
+        0x7cd1780b,0x5156f508 } },
+    /* 118 */
+    { { 0x0206e8d0,0x58234e22,0x7f15af32,0xf5f6f5d4,0xd638950f,0xafab7289,
+        0x7d4495f4,0x66ec4d09,0x68da80a9,0xad890c5d,0x64f8a36b,0xe4aa0920,
+        0x0f4d5c5f,0x799e257e,0x24495e31,0x44c677ae,0xa5b8e352,0x720387b3,
+        0x75a287b9,0x703790f4,0xc3c1f2f7,0x54895cc5,0x41a7fa41,0xb8680f9b,
+        0xb00b008b,0xfcd47458,0xba6473cb,0x149cc838,0xac9be19a,0x78ed5f7a,
+        0xb33765ba,0x5254599c },
+      { 0xa21b54c4,0x08739679,0xb6497d9d,0x029ece2a,0xc8488640,0xf14f1a92,
+        0xe9fa79d9,0xae48dcff,0x46c208db,0x14b911c2,0xdae3f69e,0x5ab0fbf2,
+        0xd1edb838,0x180ac87e,0x188586bb,0x146fd718,0x5467cbd0,0x210eb654,
+        0x1667cfee,0xaa239408,0xb73d1a60,0xdb125c1a,0x881c1cbe,0xde685300,
+        0x37c30232,0xfe34c713,0x6f3c8d18,0xc6c6070e,0xb4af4e83,0x07e365ba,
+        0xdcf82b45,0x22f0a7ed } },
+    /* 119 */
+    { { 0xea7f1b7f,0xe262791f,0xdcff09d4,0x9c3d8c5d,0x39c7dc58,0x86c2a9c3,
+        0x4276e8c0,0x4dad4017,0xe9fe1d56,0x0a918f59,0x2aa810c9,0xb8d79670,
+        0x4aa5cdc4,0xeb7a8836,0xe7afa72e,0xfc4c23bb,0x4ac86908,0x4dbb5c9e,
+        0x6a0c7e6f,0x37e39013,0x49c218d2,0x855d7001,0x94b324a2,0xe475bc67,
+        0x6287a071,0xc98a8dc6,0x5fb4323c,0x395a299b,0x0c0389e9,0xe186c3ee,
+        0x16734c46,0x79f81e6f },
+      { 0x364f3c4e,0x83f2c1f3,0x1367e14b,0x536b2ac5,0x5933e43d,0x44a6dcfc,
+        0x10d961fe,0x34e59475,0x7e3f2aae,0x08234ece,0xbdea7f25,0xcb92e00a,
+        0xa791a124,0x1efba4f0,0x1192d53a,0xc2086fd2,0xb51c8af6,0xfec0d0fc,
+        0xdc0f1b5f,0x48d1b2ca,0x812dbe19,0xb07a388f,0xdedbdd45,0x40873a6a,
+        0xd702589a,0xbc2a1268,0x17e27b64,0xbbf6e3a8,0x6d386e85,0x73ee5663,
+        0x9de7c000,0x442ecd37 } },
+    /* 120 */
+    { { 0x8a2f90a6,0xb4cd1ae6,0x6f5ad0cc,0xf277d41d,0x401d4b8e,0x6a3828c4,
+        0xd8376631,0xe817a134,0xf5e1124b,0x142b758d,0xfd6b95e4,0x25fbc69d,
+        0xd74a9e3e,0xa30c9f5f,0xd89663ce,0x5ac0f163,0x0ce6386d,0x32a9eef7,
+        0xd8ed5544,0x7a690ea5,0x9889427a,0x5de23ff0,0xeaaced58,0x75ad36a5,
+        0xd3e18465,0x3514a6c1,0x7f093910,0x3d9162c3,0xe33d56e8,0x5c10add9,
+        0x06aa691e,0x85176b73 },
+      { 0x28a21e38,0xa32110fa,0x5773d538,0x97b6379d,0x2d020dc4,0xd3697bbf,
+        0x961833cd,0x59177593,0xe5fa8516,0x6d7045fa,0x786ab5d2,0x3390f29a,
+        0xdc4f5b70,0xac0bda30,0xdcc615c6,0xcca0240a,0xc5146d91,0x8e1f1702,
+        0xa72cef87,0xceb472d0,0x0b669ba1,0x84840708,0x7e61aa0a,0x79b08f9d,
+        0x4669560b,0x388160be,0x948eb71e,0x23935c2d,0x9431590c,0xd7fd83c0,
+        0x6e5768b3,0x8ab154bb } },
+    /* 121 */
+    { { 0x353c4a96,0x28686003,0x905cd835,0x4e5c60e8,0x8f66f8cc,0xbd591364,
+        0x9faccf9e,0xb6b80b98,0xe32639e5,0xbc1c1fae,0x278aadeb,0x2f6396d2,
+        0x1898202d,0x00a796d0,0x3a474835,0x18ab548f,0xb31b0e3e,0xacd056c3,
+        0x0164512d,0x15ba68dd,0x4b03f3bc,0x203836d9,0xd8f206c5,0xd64eca6b,
+        0x9f1779b6,0x931a361e,0x52ab34a8,0xd82690fc,0x92922e22,0x342bb8e0,
+        0xe00b02a9,0x1bfcdd84 },
+      { 0x75a365d9,0x310b9a43,0x08d8fb03,0xd4ade15e,0xd742df83,0x9c9753d7,
+        0xde318742,0xcf7309d4,0x3360ace0,0x1228e212,0xf7669643,0x1043d238,
+        0xf90f5a53,0xfc2adbed,0x7b5f9397,0x41d64cb7,0xc446d010,0x5200b30a,
+        0x231720fe,0xc3c8642d,0xb9aa2075,0xfcc0122d,0x041eae47,0x856e3b12,
+        0x68c876a4,0x45864455,0x233606b1,0x1a1c7842,0x227757bf,0x9b766d1f,
+        0xf7b9d4f1,0x25b78a3b } },
+    /* 122 */
+    { { 0x156707ce,0x90835718,0x4314f90a,0x9bdc2398,0x8be57dbd,0x017c885a,
+        0xad63a4b8,0xd4bba225,0x15aacffd,0x5ce71b86,0x72954722,0x5f266475,
+        0x4f0ad3dd,0x0a80f1f7,0xfc352ed7,0x010538a3,0x4203c6ca,0xf8a64045,
+        0x330c73b4,0x2b2c7a88,0x02dcac1b,0xb3433ee6,0xed2b17c7,0x2e0499cf,
+        0xbd6329c7,0x9f8681a4,0x36fadc37,0x38979946,0x92b7895b,0xdc5650c8,
+        0x65a51cf0,0x70ab9570 },
+      { 0x7b585d93,0x46778ec4,0xa633fe4e,0xca6d3610,0x4ea0311a,0x21da154e,
+        0xbd64002f,0xaf22190b,0xd91cb7a9,0x9e633ac7,0xee6837d7,0xed13c31f,
+        0x1616ee8a,0xda4a07d7,0x3afcd616,0xd78a2732,0xba14d694,0xc06696e5,
+        0x4df58420,0x733754d7,0x2778e3c9,0xe85e504e,0x55b5a5c2,0x3055aa0c,
+        0x8a3acb5c,0x313df538,0x2a088eda,0x5896acb5,0x84c85dde,0xfc8842a0,
+        0x51dde6be,0x5fec9f79 } },
+    /* 123 */
+    { { 0xfe519f99,0x5ebc2c7c,0xe5410353,0xe396bd80,0x8a3988f3,0xaded9402,
+        0xd601bda1,0x1c03b735,0x14ce64ac,0xfd302036,0x01240290,0x5837ebe9,
+        0xa554097d,0xcaaea1a3,0xb0b88139,0xdce73d25,0xecb090b9,0x35ed412b,
+        0xd63dab3c,0x99029ff7,0x062db071,0x555437d9,0x42a4c11d,0x277d2f56,
+        0x24fc9109,0x477fa645,0x2799254d,0x7b12e9b7,0xd84c618c,0x7ad2ae22,
+        0xce8ed195,0x0a8d5663 },
+      { 0x0a21fde1,0x43ac5163,0x6903d849,0xcfcf5dd6,0x5fdd6281,0x6d2499ee,
+        0x77a49a34,0x4dedc6f0,0x2875c06f,0x46bda2c0,0x347b8046,0xd0e0e0f6,
+        0x5e67836f,0x1058169b,0xde8a8042,0xc961912a,0xa93b3d32,0xdf3fea0a,
+        0x0c576bc5,0x9f138edb,0xd8d37e47,0x7971ad6e,0xcce5e7cb,0xeab85739,
+        0x1d202b40,0x88a4b434,0xe3a1fd26,0x5d842557,0xb3a86f91,0x872fabd5,
+        0x6aa4629f,0x95b93493 } },
+    /* 124 */
+    { { 0x99f951de,0x9998a701,0xf058db45,0x8fade596,0xf3d03dd3,0x4d479c1e,
+        0x33b141d3,0x6e928d5d,0xacfe8a40,0x9a465800,0xc1cefa3d,0xd108ad2f,
+        0xe013726e,0x64b96921,0x8e83bb9f,0xb9b6a6b6,0x1242e544,0x29f1e6dc,
+        0x2f65966b,0xd3f8f676,0x5e105b41,0xa34dd096,0x16011e1c,0xd4e9139a,
+        0x2515541b,0xeea4dc68,0xc822166d,0x6f8030ac,0x31d16124,0xbdc7ae1d,
+        0x621afa7d,0x2e25ef51 },
+      { 0xdd8e7357,0x2533cf8f,0xeaceddb8,0x333ba218,0x0784d2ac,0x68e3e31d,
+        0xf2804ae2,0x1c927f36,0x77e7ad7e,0x01433d22,0x587f78a0,0x0b401cf0,
+        0xaa0027ae,0x9dfcf036,0x1d9a46b5,0xc9e46c8b,0x1f288d32,0xaa6de486,
+        0x1b8a043d,0xdd56da2f,0xf2d0bb56,0x346230e5,0x19defb56,0x19f0b6e4,
+        0x21d2c874,0x55ec37cd,0xb70e45b3,0x3dbf0397,0xac7ce852,0xf0862a8d,
+        0xe141f3d6,0x87979ea7 } },
+    /* 125 */
+    { { 0x7f1c747f,0x9b7e7b3f,0xc6e63369,0x151a4c1d,0xb372dba0,0x4273ff70,
+        0xd3ee54fe,0xca6d2234,0xd33cae0f,0x12fc8e0c,0x5dd6f10c,0x27328538,
+        0xf01a9cf9,0xc86f3fbd,0xe36cae91,0x5322677f,0x2fefea44,0x39a70033,
+        0xce8af217,0x2c9ca328,0xf6a731f4,0xc0256776,0x66a96813,0xc687b3df,
+        0x8db2eda8,0x194aab12,0xeec4febd,0xde30dc5a,0x979241b2,0xc052236a,
+        0xc23d4c16,0x3ec98802 },
+      { 0x4072f74d,0x0f9e760c,0xab594059,0xe78eb0de,0xc9b009c2,0xdb3dea40,
+        0x38b59ae5,0x47e875f0,0x2b4daa06,0xf40eb436,0x090f3788,0x9a6a4f92,
+        0xedbfaf8b,0xefebe9af,0x9867e256,0xf87f96a5,0x75ab6aeb,0x1e6fed23,
+        0x3fdb13cb,0x17f2782a,0x70fa2621,0x5102c71e,0xfd4c0dbe,0x5d2b06ec,
+        0x30347297,0x537cc268,0x2b67e780,0x8dbf5e2b,0xba25da32,0x2f633f3a,
+        0xefaec914,0x3e9315e8 } },
+    /* 126 */
+    { { 0x239a9ea9,0x9255cfa5,0x0be33a62,0x20f3c690,0x9cb642bd,0x759eeb4b,
+        0x00bae718,0x3316c546,0xf3410f84,0x874a76d5,0x90f129b6,0x123b502e,
+        0x12851f1c,0xadc8f9a8,0x1b62408c,0xf57b764a,0x1a80777b,0x116ec01f,
+        0x1f0ddc5c,0x746ecef2,0xe5a6a5a7,0x3c49d47c,0x06e955ba,0x1e15dbe7,
+        0xb45d79b0,0x629c0c79,0x778d1087,0x11278308,0x8c6a22d7,0x22585dc7,
+        0x0a682791,0x2ed02a0d },
+      { 0x4daa2682,0x53043416,0x01359625,0x0e26d32b,0xbd867097,0x449c834a,
+        0xee77ae2e,0x11a19d2b,0x3af6c169,0x39bd529a,0x5cd61054,0x36cca5c0,
+        0xdc6c0fe1,0x6370a59b,0xb93d5135,0xca420d27,0x554c451a,0xd8730d45,
+        0x96cdebf2,0xebd258c9,0xa50f9a05,0x0cb1b990,0x7b0f0151,0x69a8c97a,
+        0x11d217e1,0x2cc36d34,0x752f75e8,0xf117688a,0xa09b2a61,0x1db01394,
+        0xa9efd7dd,0x14627844 } },
+    /* 127 */
+    { { 0x232803cf,0x6bca3aed,0x9a96ff34,0xc1e4398b,0x74ab788b,0xcaf6757f,
+        0x7e68c04d,0xc3a53e00,0x5cb7cd20,0x5f969c19,0xdc068bca,0xf28b65a6,
+        0x1d863032,0xe3ca01d3,0x87808e14,0x9b733b81,0xefe618be,0xb5d704d9,
+        0xb01b946d,0x276f3542,0xfbedddbf,0xe057e19e,0x903275ce,0x7d182f2b,
+        0x880f7bc6,0x3cdc5f77,0x78476c14,0xd6f03d3f,0xa9ba5072,0x035f5557,
+        0xb4029628,0x7acb57b6 },
+      { 0x44e6b07c,0xd2413569,0xe1c7345d,0x451c4cc9,0xe273b9fb,0x407444d8,
+        0xb88e34fc,0xfe496079,0xf152776d,0x77d184cf,0xc742299c,0x6d1033b9,
+        0x77bf2897,0x29a0a684,0xee8f0420,0x59ffdf10,0x44bb56d6,0x4e17146c,
+        0xfb9ae855,0x831d06c2,0xd93e7cd5,0xb2cb82db,0x3c96b607,0x83381c46,
+        0x7549e2a8,0x06aed251,0x774a21d4,0xef97891c,0x8675fbdd,0xae9807c7,
+        0x6363516c,0x6a5a05b9 } },
+    /* 128 */
+    { { 0x6a8f4f33,0x92e71ea6,0x4dea8f4a,0xf2fc6fc6,0xfee88461,0xd356252c,
+        0x08954d08,0x59b0a83e,0x468ab766,0x5bd68c23,0x900f8d04,0x40281357,
+        0x52b867ae,0x181c19c0,0x18764c41,0x986a5169,0x13575d24,0xcb01dfae,
+        0x593677b7,0x17269ae5,0x46dc9b19,0xf6d17025,0xc40097c8,0x8de68499,
+        0x259c407b,0x76df0032,0x17d29d8b,0x4091aad9,0x4a7ab5f6,0xa7f46d21,
+        0x70ece48c,0x688054b4 },
+      { 0x51a5b86c,0xf0d168aa,0x95777247,0x2437e4d8,0xf1720329,0xae844076,
+        0x9647a54e,0x0a7ac87d,0x0405622c,0x1e597a4b,0xf0a79f2f,0xedefe5c6,
+        0x4d55156d,0xaf3ef0c2,0xef047cf6,0x917fb04e,0x54b62137,0x3792799f,
+        0x314be0b8,0x875ea32f,0x0c466b0c,0xe157c65b,0x7e218978,0xd28c90ce,
+        0xcde587af,0xb90fc3ba,0x8b877bed,0xdd32d71c,0xca8e10cd,0x3b432200,
+        0xd94f6e53,0x0021f419 } },
+    /* 129 */
+    { { 0x43519d26,0x2191122c,0x40a51845,0xbdafac1d,0x548bb89f,0xcc6f71e9,
+        0x16844bf9,0x9ef3375c,0x178e8d55,0xe7789f79,0x1f8be1c5,0x04f599b6,
+        0x2cbbde40,0x8088c99a,0x893206c9,0x8939a260,0xfcd30851,0xa1ae4bff,
+        0xe08feafe,0x664cb3fe,0xff14aabc,0x61f38099,0x2a841ef9,0x0d8394cc,
+        0x17f01db6,0x75fad8ad,0x6debb773,0x6fc34576,0xa4252512,0x1e716b05,
+        0x29e1ed9f,0x79855880 },
+      { 0x95106473,0xa2cb3aaa,0x5a61da04,0x95fafa41,0x539563c0,0xfd3c9362,
+        0x95312b87,0xbaa48091,0xbf885c76,0x6c7e7582,0x230c78d5,0x70f6dab6,
+        0x7747440d,0x8ce3051c,0xffdb6186,0x6dbebd14,0x190e4096,0xb0e041fa,
+        0x6ee62e2a,0xba10c466,0x74f333d6,0x93d57e2a,0xfe7b9b66,0x006aadc4,
+        0x06d2837d,0xfaf72f6c,0x910741ea,0x318cc5e6,0x65692477,0x9c502609,
+        0x1d0fb08d,0x95d823c3 } },
+    /* 130 */
+    { { 0x140528a5,0x6aeebd86,0x53979bc8,0xf268c2ba,0x4ec144ab,0xb1bc9b8a,
+        0x82a7d7ed,0x1efabb0d,0x4e0118d8,0xf12c70d1,0xa1c1558e,0x31607168,
+        0xe4b7e73e,0x33e428b7,0x83aec9dd,0x63176637,0xe12ac35c,0x5172ffbe,
+        0xbc17b2a4,0x37df0bfb,0x741f812a,0x4212f870,0xe2888f9c,0x3dcecbdb,
+        0x756ca55d,0xa9dc15aa,0xb9028e41,0xf31918ec,0x6aeadb03,0x7ede0285,
+        0x78654f54,0x0e2708d5 },
+      { 0xcde20f88,0x2270cc53,0x5f5b1039,0x9338272c,0x5dcb1dbf,0x5042e19e,
+        0xb72d74c1,0x4b3de219,0x2aaaaa55,0x16c49a8b,0xbba86ba6,0x008443e5,
+        0x20cf1695,0xee6bcd72,0xa89abd11,0x59ffac6b,0xf115639d,0x2831217b,
+        0xf34cba52,0xe4d28af2,0x0727a906,0xf27f03e7,0x69017766,0x6842c79f,
+        0x7a81123e,0xcb3469bd,0xa42973b8,0x48c0f346,0x23990dbd,0xfc5784a6,
+        0xfb299678,0x0d3dab3b } },
+    /* 131 */
+    { { 0xce29c3cc,0x8f8376e6,0xf016cbc6,0xcb0507ec,0x5e394ce1,0xdebff996,
+        0x73c50d41,0x24fc526f,0x2d16ce3d,0x4edd5a54,0x91c13141,0xbb37bdd9,
+        0xe33a8606,0xe3442ef2,0xc0629da8,0x2ae90337,0x592ab331,0x57faec64,
+        0xd82b857b,0x1a938997,0xa3373176,0xad6c8cb9,0x9086751f,0x82595de2,
+        0x18c17196,0xa81e97fb,0xbf697357,0xe4f48a13,0x5cb89f69,0xa1387c2e,
+        0x5874b426,0x530b4eeb },
+      { 0xbab7b5ae,0xe9f275a1,0x03a57bf4,0xbb69dc4d,0xa45c505b,0xc974dc4a,
+        0x416ac402,0x726369f3,0xaed985dc,0x735e4e78,0xcdd446a1,0x0548d879,
+        0x9e16b02a,0x84ceb069,0x789b11a6,0xf73f6fa4,0xb2a4e784,0x6aa0c41f,
+        0x93a9b697,0xb1f76902,0xf03a8ab2,0x814cce00,0x844d66c1,0x64cb255b,
+        0x30952201,0xb794e7d6,0x3da32271,0xe052d4e4,0x08b6a4d9,0x5278b2e7,
+        0x80c6577f,0x90942552 } },
+    /* 132 */
+    { { 0x0d5b4c2f,0xd269a14d,0x5c8a649c,0x2b8fc59b,0xb0e37d4a,0x95becb3a,
+        0x9111037e,0xfda1a768,0x94e35322,0x5810e05a,0xa178fafc,0xa24dcc12,
+        0x8e3dce62,0x5c2c63b2,0x9452c444,0x995c3f17,0x42d45161,0x35330ec3,
+        0xb4ef8129,0xa025a60a,0x8bae9c13,0x85493252,0xe2e3caf8,0x25d1a606,
+        0x3649bf47,0xd44091ab,0x704ec5f1,0xc7d0afbf,0xbd8b3333,0x27bd1d62,
+        0xcfe616f5,0x50570111 },
+      { 0xf534356b,0xd0084ace,0x4b4b0fbc,0x9df1de05,0xcee04dc1,0x021afe05,
+        0x361b78e1,0x64bde688,0xef78d38b,0xa324fcc7,0xeb0a5e4e,0xfeb372ce,
+        0x65811996,0xef04fcb3,0x5eb0ab4e,0x7dce5d50,0x238c586e,0x1e29b588,
+        0xbcd80037,0xde5e3197,0x4806b9cf,0x8bf5e451,0xd18e67ab,0x4330968b,
+        0xf9f63fad,0x26a7d04e,0xb5c18bb4,0xa1c7f123,0x25dce22c,0x485b8482,
+        0xd540e79f,0x8ff0b36f } },
+    /* 133 */
+    { { 0x3ff42cff,0x99f2e2f4,0x1c35317c,0xa3c19f9d,0xaba1b545,0xdb749392,
+        0x4afa9a32,0x84232b05,0xd7dcd436,0x0b855d46,0x45cf9915,0x8ac35e20,
+        0xf001a218,0xd7cf22c7,0xed408305,0x057d35ae,0x553ccfcd,0x25a4a519,
+        0x93e2b939,0x5e565793,0x3422ec27,0xa20332b0,0x3ac53958,0x9b09005e,
+        0x79e9b163,0x628051a3,0xfc6618d6,0xb4a0dc09,0x6748e7af,0x9e0e857f,
+        0xc577d63e,0x71b28eee },
+      { 0x99726bf8,0x4942b0cd,0x1c208f3c,0x1290a3b9,0xb0598eaa,0xfd7290e7,
+        0xa25a9128,0xc6a7791f,0xc037d7da,0x2d33db24,0x70e2837b,0xc21efeb0,
+        0xe3dae2a0,0xbf70d96e,0x85076027,0x43ed8191,0x4d4ad7e3,0x4aeb0aa8,
+        0xe8c5b74c,0xbc75101f,0xad26ebdd,0xdbfb2a6e,0x6b78aa4e,0xba812068,
+        0xe1159848,0xc94aa8f2,0x3eba5c4e,0x0d10d9db,0x6318295a,0xce7fec47,
+        0x330d925a,0x7294711a } },
+    /* 134 */
+    { { 0x32bbd495,0xfce45904,0xbe54973f,0x330f4dd1,0x5d9c3f4e,0x006bee1d,
+        0x59ba7204,0x40ee6078,0x42c2c768,0xc194fd3f,0xe9fe88be,0xa0e76b12,
+        0xec2b0210,0x17cddddb,0x00811ec7,0x689d436b,0x284be9e4,0xa6a6ba37,
+        0x007d4114,0xabc395b2,0x0f11e744,0xf8cdf9f3,0xe9396402,0xc5febec8,
+        0xeeb46285,0x8a751743,0xc6e0d137,0x99bf8782,0xbeb292e3,0x3965e170,
+        0x5801fd5f,0x001c39d8 },
+      { 0xda4a0912,0xf4805cb9,0x4410bca4,0xd27cb76a,0xec71d65b,0xef3dcb8e,
+        0x4816849a,0x780fbb2b,0xa8b24635,0xef6a7026,0x12c44e68,0x15625c88,
+        0x4d7a74a8,0x624c232c,0x4b1631e4,0x81a77037,0xdb917c2e,0x04e4f7f1,
+        0x1f61ed95,0x1d0465fd,0xcbde6e3d,0xb1048049,0xd7131fcf,0x637ce0c1,
+        0x8ada4715,0x22e4dbc2,0xace99726,0xf7530c5c,0xee287450,0xa0160dcc,
+        0xbb91af13,0x9132e670 } },
+    /* 135 */
+    { { 0x7996099d,0x8057efe2,0xa06e608c,0xb72344db,0xd0958588,0xeb4a8740,
+        0x79e5aee9,0xe53daf06,0x908a2fad,0xc9560a9a,0x107e706a,0x7f4be131,
+        0x2830246a,0x6d5f3d9b,0x27cca3e6,0xa5f8e8da,0x4c28f292,0xeb51dca6,
+        0xf31dfd78,0x4cfa310e,0x2ca073e5,0x92e0c7c2,0xa40da683,0x102f1694,
+        0x750d38fc,0x16bb07cc,0xbadae035,0x703e83e2,0xb4d3c9dd,0xea93c066,
+        0x79940ed1,0x7d0b03e5 },
+      { 0x4dd94c63,0x5fe7ea30,0x738b0b3a,0x57ef01c5,0xa14e6b4b,0x9534a78c,
+        0xa5353276,0x07622cde,0x7c22d006,0xaf696a07,0x7d46b209,0x733c1886,
+        0x626c2b4a,0x9654ccbb,0xa84f3c4c,0xa098d3a1,0x2d734b74,0x3596f9ed,
+        0x5d551c90,0xdfd3021a,0x1ec5123f,0xe2ba7d2f,0xb2c1aa39,0xf9726925,
+        0xf8eb2927,0xd2e75d0e,0x19192a6f,0xfaba712e,0x9b83e50e,0xa606b43a,
+        0xdab5de60,0x31b1782f } },
+    /* 136 */
+    { { 0x4034db92,0x878dba45,0x8f34dc4d,0xa3977901,0xdf754c33,0x8d004f2e,
+        0xcd563a88,0xeaa5954a,0xbb5ffad1,0xa29d6c89,0xb0d8bdb8,0xa8adf655,
+        0x8cdbdb47,0xf7fb842d,0x80d3205b,0xb72e3a03,0x7cac7ca9,0xc335b0b2,
+        0xd8a5475d,0xffc60bcb,0xeba4d25f,0x736f7719,0x0c50fca6,0x3d901c38,
+        0x80c01900,0x1fdacf7b,0x5681f84d,0x75cf658f,0x5cefbbc1,0x57a7e634,
+        0x3e07ed1f,0x6fc0fbe5 },
+      { 0xb81b0e5f,0x496d116b,0x2ac853b8,0xd82dd2a5,0x327387f0,0x357e22d4,
+        0xba912c59,0x3e332a84,0x49d5dcc1,0x8b71c643,0x438d85d3,0x0c982ee9,
+        0xbf7fcd4e,0x90b9553c,0x38fed5e3,0x2cb39bbc,0x5ac42903,0xa2c67c9c,
+        0xbf07da55,0xebf21217,0xa0b9e4ee,0x55ac05ad,0x8ee9e0c6,0x10bb12c2,
+        0x48bb6e3f,0x5cf3aee5,0x8b046e91,0x4ae7269c,0xaa0e553f,0xcb266012,
+        0xa94c8fc8,0x701935a1 } },
+    /* 137 */
+    { { 0xa4626dea,0xde58d41d,0x15b9039f,0x25ef66ca,0x3164e65b,0x99a810a4,
+        0x748cfccf,0x9fe6daad,0x2f142fa9,0x7ab9a6bd,0x5d471796,0xa4cba168,
+        0x6bc3a39b,0x12d30b36,0x8bf45076,0x1f46a5dc,0x1421ac0e,0xb868e529,
+        0x59bba1c4,0x7a686206,0xda698b90,0x2b4b552e,0xe5453707,0x5039dcd4,
+        0x9e90165f,0x42a07a9e,0xd7d45dfc,0xa838fff3,0x3b5ceb30,0x41991e5a,
+        0x969ca600,0x6c961ec8 },
+      { 0xc4e7eb46,0x703bdc1b,0x596c7b48,0xd6bac557,0x66afd74d,0x4f9917cd,
+        0x656ce6f3,0x56355105,0x32497175,0x3d1fb50c,0x63effb2d,0xfda6783e,
+        0xeefaa2bd,0xbd79f1f3,0x17af9ef7,0xa4efbe54,0x5a55b7a4,0x6cef6462,
+        0x1a713304,0x116f3238,0xb95625a3,0xdb2a2a7f,0x0b027e96,0x6a0aa43a,
+        0x4832b3bc,0x458fe5d2,0x5adfaac0,0x523418df,0xc49e7f9a,0xc05a89cb,
+        0x69e24b53,0x830883d8 } },
+    /* 138 */
+    { { 0x02557389,0x959b1c62,0xadefc0bc,0x5fe5ce97,0x8330f383,0x893bbe7f,
+        0x16cfb81e,0x27e0c6af,0xd04428fd,0x6f64e65b,0xb79e6182,0x53de9245,
+        0x487e11ca,0x08a313c1,0x445bce93,0x65cec3b9,0xd67ed49e,0x33bc0314,
+        0x30782352,0x69f36b24,0x93ad31d2,0xd78e5daf,0xc780890c,0xf2682b70,
+        0x9e45efe9,0x7015c34f,0xe6cbafea,0x135d4ba4,0x7e3fcc6c,0x43a378a4,
+        0x96638f8c,0x2376f97f },
+      { 0xae575b99,0x0a6e1ec0,0x81b970dc,0x7e14cb4f,0xd3a73947,0xf00a3824,
+        0xfb235a9d,0x0b4b9c81,0x5bf62944,0x8d15115f,0x1e165d7a,0xcfd35b43,
+        0xb2ee3e3b,0x5d12fea2,0xf5182e7b,0x629984a6,0xc365d08e,0x4e43e2f3,
+        0x30f36e72,0x99327091,0xfd345401,0x698b4a00,0xbaf96dce,0x23c4fd0e,
+        0x23675554,0xa60ba0ae,0xb0325784,0x51bdac2d,0x215464a1,0x8ab4190a,
+        0x6bf10296,0x8c461661 } },
+    /* 139 */
+    { { 0x2d1f36a5,0xeffca258,0x894c5f2d,0x0eded2b2,0x43ced84f,0x35a5cdb8,
+        0xdb0e3b9b,0x290f8982,0x0719a112,0xcce0eaf0,0x39a362d6,0xd0e657e4,
+        0x62697e47,0x5516a55d,0x8e636514,0x269e1f77,0xd50269bc,0x5e3dedcb,
+        0x441c57c5,0xecec2300,0xc705578d,0xdb83f31c,0x1e489eab,0x1bdefb73,
+        0x395fcdb4,0x20b678cf,0xff9db001,0x908cf91c,0x55f52cc8,0xcbebc6f4,
+        0xb4c61162,0x155ea622 },
+      { 0x876fa42e,0x94be2f1f,0x7fadeee7,0xab5e8749,0x38c865af,0x692e70f5,
+        0xdf8059b0,0x16e99b84,0x8b5a7ac9,0x0ceb606e,0x2d463d2b,0xced23357,
+        0x2a9a09a0,0x2d0f2623,0x3861fbdf,0x2529998c,0xc1be310b,0x711888a7,
+        0x0d8aade3,0x9b1229c5,0x3b13533d,0xdbcf9b78,0xff029708,0x3ca746f8,
+        0xda83ef88,0xa5a013a1,0x4ab28444,0x8e904d18,0xbcbd4aba,0x2fe84b3d,
+        0x259058c3,0x8f570f24 } },
+    /* 140 */
+    { { 0x2ca9c508,0xdeb66c8a,0x69d6b780,0x2dc5bec2,0x88ead600,0x16d61266,
+        0x49d72614,0x61841b97,0xce472e6f,0x41e40e6c,0x1fa7a876,0xada24264,
+        0xcc3997a0,0x45b9fd33,0x7c15dcf4,0xb25e8fa9,0x12e9629d,0x0124ceb2,
+        0x7db3d956,0x3a8c72c6,0x7c1a7844,0x8e2ded2b,0x6dd027ff,0x94ab09c6,
+        0x7e7a2bc6,0xf89a057d,0xcf70c763,0xad8bf226,0xc8a26212,0x4cb268e7,
+        0xb2c44c1d,0x3d171e87 },
+      { 0x8ce49820,0x382ac16e,0xc0c44dc9,0x24ee45e2,0x73e858c4,0x0ec67912,
+        0x46327cf9,0x918cb25c,0xc6159c1f,0x43e3876b,0x37545cb3,0xb6b6e0e0,
+        0x5d12347e,0x64b839ab,0xa300d541,0x72e09274,0x881c1169,0x26ab28e6,
+        0xeb75a843,0x4a580fff,0x359120df,0x0a5802ca,0x3209f4a3,0x7fee82d0,
+        0x8e6a9380,0xb518016b,0xc2ee11ca,0xb99c6c70,0xab9d4ec7,0x16105af1,
+        0x34cd9004,0x234e98f8 } },
+    /* 141 */
+    { { 0x14db9cda,0xff435208,0x96adec90,0x99cfdc47,0xaf458b6d,0x843aaa6f,
+        0x743eaa31,0x3f1f7415,0x61735d81,0x915e192e,0x0ac595d5,0x3441a22d,
+        0xc044bc8d,0x704bbf67,0xbe23a236,0x2f960471,0x15d1d557,0xcc326388,
+        0x76b1dd94,0x9410230b,0x0c1c8a67,0xf2e5439f,0x833c910d,0x56b141ac,
+        0x865b84df,0x467c999f,0x21f02b7b,0x1b0251fa,0x96216950,0xde5b5260,
+        0xce3a1e93,0x6a2130e3 },
+      { 0x4b3ca1a7,0xd21b67a0,0x00c0ce80,0xaf42ed53,0x932cf07a,0x22ccd368,
+        0x5c25c35a,0x36523a81,0x8dd04d06,0xecdd3958,0xb2f93a3b,0x73da3502,
+        0xd5e5b530,0x4c5e0c3c,0x13268777,0xef9f5486,0x1e742292,0xed87fefc,
+        0xa24e5ede,0x6d9ac29e,0x33849f1a,0x08abc9f0,0x40f23905,0xb09b2292,
+        0x7f934353,0x6791072c,0xe6aeb550,0x102a6381,0x96feb870,0x3ee07409,
+        0x9c4d2830,0x34f06faa } },
+    /* 142 */
+    { { 0x2348f005,0x869dc79f,0xdf4920b1,0x9b5c5d71,0x6dee64a4,0xfd1b57ca,
+        0xe82a4fb4,0x21b7f734,0xb9578366,0x637cb834,0x7d287d96,0xc934101b,
+        0x0392ecab,0x1590f8ac,0x7f75f4e3,0x280dc373,0x6a61ac62,0x8b36f50f,
+        0xa65568da,0x74f58304,0xd930870a,0x80d792a9,0xfc8895cc,0x6d17b192,
+        0x4914939f,0x498392fa,0xd41d5b9e,0xaf36027d,0x5caa82b5,0x452d79e2,
+        0xf4115d1a,0x764d47b1 },
+      { 0xa2ee8b9c,0x5df22303,0x85dfcd48,0x1b9f72d3,0x10813a37,0x6b42b983,
+        0x3de741f5,0xe28c523b,0xf303bb5b,0x0857625a,0xac9bf9af,0x926f299a,
+        0x0d445b34,0x21beac08,0xd6ba2c0e,0x6a523a02,0x7fce2864,0xe302a1b1,
+        0xe300c1ea,0x4516a235,0x7b4a9311,0x4543736a,0xc0cc89f7,0xd3c0b9e8,
+        0x40ed88de,0x0481904f,0x3cb7fc70,0x4f269b56,0x321b9738,0x09a1d53a,
+        0x230a3810,0x1c0dd9c3 } },
+    /* 143 */
+    { { 0xc46a7d9a,0xffaa1f67,0xbedf91cc,0x64743334,0x47a42f2e,0x45833a74,
+        0x241ffaa9,0x67980051,0x335efe6b,0x70979a84,0xf08b2403,0x5f0613f5,
+        0x64f211dc,0x6bb22fcd,0xa0572cfc,0xe1b8b2a3,0x7950a14a,0x19e0eb41,
+        0x3eb6cd4c,0xe634bb29,0x470a25ff,0x31a04b25,0xa3d15a0a,0xa41f7ac9,
+        0xbf2fede9,0xefed85ec,0x81b94a00,0x1f581f5f,0x9ef4a15c,0xaa3996b0,
+        0xb06041bc,0x52d8be39 },
+      { 0xfd631a2f,0xbd1536f6,0xb351a8dc,0x91fae7f0,0x9b126212,0xd1a590c7,
+        0x2bd0f435,0x52d4875f,0x92b0ea70,0x9aedb6d3,0xb83ab89e,0x0bd0abdc,
+        0x89fe192c,0x827a1062,0x102a0bda,0x6566a960,0xce036814,0xda083037,
+        0x58639405,0x30bed79f,0xdbca8df9,0x972019b6,0xefdaa3f5,0x89201286,
+        0x5236b892,0xb337b996,0x28fc2e73,0x11d3e38e,0x880e8da3,0x70787f41,
+        0xdae4a45d,0x6cff6367 } },
+    /* 144 */
+    { { 0xf89a8bb4,0xbd3d0433,0x93b98f71,0x42144c33,0x03470a2d,0x82b616c8,
+        0xe5da089e,0x98fcc757,0x7bf5fda6,0x542354ef,0x9ebd34cc,0x1885c253,
+        0xbec5dd0d,0x2e20b285,0x782a1bca,0xe71bbbe1,0x9b854ef0,0x959ded30,
+        0x8997fa6a,0x17249979,0xd81f3c45,0x50cf8fa8,0x60c11152,0xa9a3b517,
+        0xecf845ea,0xc9b0ef7d,0xb9fed11b,0xc9339e23,0x28256080,0xc93e9c5c,
+        0x613ec1e7,0x1d2c8217 },
+      { 0x987cfc93,0x7381347d,0xf187f810,0x047603bb,0x1250ca31,0x3fa6bc9d,
+        0xbb055bf3,0x480091e0,0x3a3af87c,0xbdf95f1a,0x140540ab,0xe2687770,
+        0xd7fe045b,0x998df730,0xb723bc2d,0xb398135f,0x15ebec46,0xac230f8c,
+        0x5f5561c0,0xe08e1830,0xda60a47f,0x7c0fbf4c,0xe16d4bfc,0x06e95c24,
+        0x74617e92,0x74163495,0x4ae0c20e,0x39719869,0x2131e2b6,0xfe269312,
+        0x0a537722,0x25486e36 } },
+    /* 145 */
+    { { 0x53572806,0x618795ca,0x656968e1,0xb2c89449,0x3fb323ae,0x149c2c97,
+        0x409bc7d6,0xfb15de26,0xc79121b3,0xa90cda72,0x204cabbb,0x6d2fa14e,
+        0x91604125,0xcbcda6f7,0xb435f947,0x25086261,0xc282eb10,0xdb686c38,
+        0xf1a791cb,0x51016d62,0x61a2266c,0x6b1c7ed1,0x271d74a6,0x26780666,
+        0x824287a4,0xb5ffeda1,0xbbe4f0f3,0xcbe503ff,0xb9482a74,0xd7f7f0be,
+        0x088493f1,0x751b2358 },
+      { 0xe9c9be68,0xd597b9d6,0x67d10c6c,0x1794b5c4,0x7762b2f4,0xa88cdc3d,
+        0xa1b44e11,0x6d94a63a,0xaaa8eca8,0xfb0bbbb9,0xc963d87f,0xf4b0f2d0,
+        0x5dc7075d,0xb753062c,0x49933989,0xfed726ac,0x57f9ccde,0x5da60638,
+        0x75f8c766,0x221c392a,0x5dc672ca,0xcd264d95,0xb66ecc8d,0x7004ff22,
+        0x18a458ba,0xfb1aa9ae,0x8babd653,0xea9644df,0x2ba0de7c,0xa9378e80,
+        0xca2c6c75,0x144cc12d } },
+    /* 146 */
+    { { 0x2989aa3a,0x593a0a1d,0x59e6e64d,0xd83f2283,0xd32e732e,0xe938b0cb,
+        0x3c3cb249,0xf4c464c5,0xf89ea6ac,0x9750a5f8,0x346cfc32,0x467e5bbf,
+        0x37b2b809,0xc9bfab9d,0x3b339c6d,0xf8eb7453,0x3b766dee,0x3fe01fbe,
+        0xef6aea27,0xb3154254,0x7be61b10,0x555c3df2,0xdd818488,0x70fb6d81,
+        0xbbe714f9,0xda1af3a4,0x9d18f693,0x575f2017,0x2465b839,0xdc08fc6b,
+        0x6b84a951,0x874ecf33 },
+      { 0xbbb3f6be,0x624af83e,0x08bb423d,0xf578fbb9,0xd7873527,0x5623b0ba,
+        0xa62e0442,0xc3659bd8,0xfe236f79,0x2903b167,0xe53f26a6,0x55a430c6,
+        0x3ad712cf,0x222547ae,0x76eb272b,0xb73890d7,0x3d628df9,0x95b4f70b,
+        0x53eae4ac,0x9f0e13b0,0xe7f2174e,0x5b4f5138,0x98dbae17,0x75482cf9,
+        0x44518480,0x2b69bbde,0xcafef15c,0x4f279652,0xb6bcaf19,0xa0a3ef2b,
+        0xce4c634f,0x31fb8581 } },
+    /* 147 */
+    { { 0x615cd607,0x398306d1,0xaa32c3a6,0x680c9faa,0x7779131d,0xe87a705b,
+        0x36708b00,0x1031013a,0x9445297f,0x814fa0e1,0xa6a79b56,0x70c5583a,
+        0x4b16bed4,0x03039cbf,0xaaaaf8d3,0x18a7ca8d,0x5cdb68a5,0xf33159e7,
+        0xd23814fa,0xdea0e738,0x8d0f4f9f,0xeb352718,0xdcdff032,0xb0b76609,
+        0x3d48338b,0x65ba8ea9,0x55dd507a,0x18044d82,0x4a4a50b4,0x844a223e,
+        0x18e19e54,0x98323000 },
+      { 0x57f3d5a6,0x28a21027,0x6e8cadcd,0xffce5648,0x02551f3b,0x9590381b,
+        0x935ebdf1,0xb26cc64f,0xc083aa6e,0x60611291,0x88e4cf41,0xcd988a66,
+        0xdd53b1b5,0x581c3f73,0x77fc621d,0x78c804a9,0xfadca2fa,0x31874330,
+        0xc83ccf02,0xf7008da4,0xa79a4707,0xc4122a1d,0x4a915eb5,0x9a8e0d3f,
+        0xd0123660,0xa2de157d,0x65ead2a0,0x45ef43b2,0x188db285,0xd0a22ade,
+        0x922e0caa,0x8abbe39e } },
+    /* 148 */
+    { { 0x3a2d2f01,0xb4446905,0x5dc6685c,0xd27c3193,0x1d74a027,0x6a908bbf,
+        0x5b50ec1d,0x01da350f,0x3f3c2e26,0x1d3dd45e,0xb836ee92,0xf66e11d0,
+        0x474b979c,0x7e03908f,0x98b87834,0x19e7c5b9,0xbd3d1de9,0xa741d3fe,
+        0x1ef6059b,0x63c68e8d,0x3674e247,0x9b9ff939,0x3e7e67f6,0x1d7d53e7,
+        0xaee9e248,0x698dc326,0xb3bd984c,0x52f23eda,0x6f8fe8a7,0xf95e31b0,
+        0xc3d0ba95,0x0f15b4d0 },
+      { 0x790a8d85,0x8f2f6635,0xe2595af1,0x51bffbae,0x24b51287,0xd15b7ec6,
+        0x3234715d,0x7639b6ab,0x2bc5441d,0x0cdd5299,0xf6d05833,0x54800ea4,
+        0xf6d6e360,0x21efd752,0x19290613,0xc0b7ffe5,0xeea898cd,0xb68a5825,
+        0x22982266,0xecedba92,0xbbd06bb2,0x678a91b0,0x4bb6b0cb,0xb2436dc0,
+        0xcaf8ea98,0xcf7a99e7,0x71aa05bb,0xb92d0e6e,0xf5993eb1,0xbf8d0471,
+        0x20385ddb,0x515db378 } },
+    /* 149 */
+    { { 0x6f5bef22,0xee43eaaa,0x20348712,0x952d2698,0x7a3af6c6,0x1e4c484e,
+        0x9a8c9403,0x18d434c6,0x5001899a,0x63e5d741,0xfe8ea40c,0x5238dbbc,
+        0x96798721,0xca6cc8d2,0x04acbde8,0x73db6aee,0xb7f993ce,0xbf69328d,
+        0xad45e334,0xa3f79bbf,0x7c1f1630,0x8c51ec93,0x9b00a6de,0x4907325f,
+        0x12d82bc3,0x49e6acb4,0x0ec59fc9,0x5901b36d,0x9cf34e3b,0xcb09b710,
+        0x1abf4c02,0x2de0487e },
+      { 0x8dd9d484,0x18b722f3,0x7c77bacc,0x83349393,0x93d92b8a,0x58dbb8f1,
+        0x8e3fac25,0x80d78d50,0x745f4a7d,0xf0500981,0x877cc29d,0xd072bfed,
+        0xc30a89f8,0x67abf8f2,0x9a0820d7,0x92c567ea,0x8a3a5738,0x425ab12e,
+        0xf055521b,0xc162faeb,0xb94ea5e9,0xee1c4f26,0x3d71e546,0x1e414994,
+        0x43e8be1d,0x258183b8,0xef9eae0b,0x44917c82,0x73874a30,0x6813a457,
+        0xcc42f86e,0x6f6ac071 } },
+    /* 150 */
+    { { 0x4dd6e3b1,0xd38822ad,0xad620869,0xfc78e1cc,0x2cacde80,0xe7843845,
+        0xa8469fe3,0x121cc14a,0xe67e8ef2,0x8e8f3da7,0x4d347448,0xdb83d16e,
+        0x798631f4,0x3ba1dd98,0x0a4c4c17,0xdfab5977,0x3edc701f,0x1f0a1306,
+        0x6cd8ff28,0x4649d601,0xbcc55bc9,0x2267230b,0x5760412a,0x02a19c60,
+        0x328faef6,0xc719d5f1,0xf67eaad9,0x27cb969e,0x719bafb5,0xf342530e,
+        0xff5a82cb,0x6e2c24cc },
+      { 0xadaf8793,0x6313024b,0x035c948e,0x944bccf1,0x953500bf,0xe9a066b7,
+        0x1d116765,0x7991a946,0x9fd93c78,0x95addb2e,0xe92e5495,0x05d2c037,
+        0x9f03e5cf,0xcb145b18,0x95aa1f72,0x81ae48ca,0x135a6e4f,0x203f2702,
+        0x49b2a7d5,0x2bcef5a2,0x02d7f2a3,0x0687a900,0x6c6745b0,0x2f7d3228,
+        0x86507305,0x3da8a875,0x2e8dc58f,0xbe38b884,0xdbf11185,0x6b48bf34,
+        0x97c08f91,0x5af7fd0d } },
+    /* 151 */
+    { { 0xf4a224a5,0x55f9b950,0xcc50273a,0x41904574,0x643f1fd5,0x34f81330,
+        0x0e50f783,0x996801bb,0x89581712,0x866d7403,0xa4091d36,0xdb9a405d,
+        0x16a46fe7,0xf1e379df,0x83bf9168,0x8d04a93f,0x32b20bca,0xae4c8335,
+        0xf72a1c10,0x99d334b1,0xd8195db4,0x8fbc9977,0xfba14b5d,0xcaeb3dff,
+        0x76daf476,0x60fef022,0xdb5b72f4,0x4b948dfe,0xb6dfb062,0x5185c925,
+        0x9609d4ae,0x27a9c381 },
+      { 0xf12a93af,0x73c37346,0x5536634d,0x028b707c,0x498193d1,0x8efa58d5,
+        0xef21b69d,0x4f83a5cc,0xa788a0e2,0x05cbb0a3,0x65b13c98,0x01031781,
+        0x2b73784c,0xfea20e58,0xe50361f2,0xdf9713a0,0xd0cc22d9,0x31449a0f,
+        0x7c5e2e1b,0x183752e7,0xb67044cf,0x6e44d6bd,0x733e177a,0x012dde95,
+        0x08ee2c23,0x68b49669,0x1f5f1949,0xd9bb0541,0x6acd886f,0x95182c71,
+        0xfbde9244,0x1c690694 } },
+    /* 152 */
+    { { 0x3a880026,0x5db67d17,0x125d95f2,0x89c4f0a0,0x3f6cb7a4,0x29050551,
+        0x5cbbdca5,0x3eb231d1,0x972bcbd3,0xf8cffc99,0xad55a03a,0xcb4ef4d4,
+        0x22867c2f,0x944d47ca,0x0ead1aa5,0x96d88548,0xcbc8b045,0x76a57cf8,
+        0x005e55a0,0xdfe5844b,0x1d18a097,0x5e9e7e19,0x52923c74,0x957a26e8,
+        0x7f5db339,0xd0867b79,0x63bed0c8,0x2553408e,0x689ad23c,0x1596e5d5,
+        0xa504c339,0x7b8c13d6 },
+      { 0x52fb6901,0x2fc43aad,0x16ca253b,0x1c0313f9,0x515aadc6,0x1475830a,
+        0x7f577dc2,0xc93d1926,0xf723c0dd,0x26e52e8e,0x3eb9f6da,0x2f1e0eb8,
+        0xf180376d,0x9979de82,0xb0834939,0x43e28ecb,0xa39c38e7,0x9a2d51dc,
+        0xa8e3f6b5,0x6e6063a9,0x4b9b3270,0x4cf1da3a,0xd2f8915d,0x6e5348a2,
+        0x50507912,0x5e75e3e0,0x20d383fa,0xaeffce57,0x8fd2fb29,0x1d6d53cc,
+        0x696f4cd0,0x0e3c3ef6 } },
+    /* 153 */
+    { { 0x21ee1d83,0x3bc337c1,0x787b7788,0x97e08f6d,0x138fa4ce,0xbf709fcc,
+        0xa0348e58,0xbaf77647,0xa55e672d,0x04f8babc,0x7d5ec5dd,0x0ed2919d,
+        0x33e99218,0x8ce64bff,0x24b059af,0xac09fc57,0xdc5e32ba,0x506831f9,
+        0x465af6a9,0x26a22677,0xc97f1ff8,0x3c5efe66,0xbc6087fd,0x1515e0d6,
+        0xaa8edc6b,0xb1a39c5e,0x0e79ed29,0x3dd816bb,0xbc3788b8,0x6cc13769,
+        0xc092a51c,0x463098e3 },
+      { 0xc8bd0fa7,0x3a6408c7,0xce6bde49,0xd1764311,0x283ef7be,0xe315e108,
+        0x99b5d938,0x8213cc77,0x45a49a6b,0xaf7f1581,0xe529e4d1,0xd00fdb0f,
+        0xce66c9d6,0x55d38f77,0x1bd4b952,0xb4f7ccc0,0xaf71f986,0x8d975b49,
+        0xcd64d00a,0x12b59fcb,0xa5a3bad7,0x1860e504,0x2b5c89f1,0x6d976044,
+        0x7a3e231f,0xfed0c659,0x178cba92,0x58114c33,0x6698e11e,0xe2e74c06,
+        0xa348b85a,0x7f8fd093 } },
+    /* 154 */
+    { { 0xc19428af,0xf24592ca,0x3a308665,0x192a1c81,0xe30bbd7f,0x42589812,
+        0x836c6bb9,0x10db0723,0x598e4987,0x9c7a41e9,0x6ead6f4b,0x8aff179e,
+        0x75862c44,0x70f8f9b9,0x6f21983e,0x6b3b0237,0x98e65152,0x25d83e9b,
+        0xd751218a,0x3b2d26a8,0x9d6f1da6,0x9508281a,0xa5a81f74,0x8df78d05,
+        0xe4687471,0xd79ee559,0x6787d8cc,0x2060ca57,0xa8476c95,0x427a84ff,
+        0xe6435131,0x87b64c51 },
+      { 0x4b30d3c4,0x87f46f65,0x23b4ef14,0xcdec4c5c,0x63ca4d68,0xb3b74766,
+        0xcf3fb56d,0x1df34269,0x0fd7d46a,0xd4f139c4,0x6a69a8bd,0xa3b7c7c7,
+        0xcbadd7d2,0xee56b4c9,0xac942334,0xb28ff342,0x786f1da3,0x0046fdfa,
+        0xb700c82e,0xce5d149c,0x50966597,0xca30ef81,0xfcff4bdd,0x44a20609,
+        0x44925268,0x0f2f65e7,0xd4021f38,0xe5b6552c,0x042dbbd0,0x77ea9c2a,
+        0xd9c062f5,0x8c95267c } },
+    /* 155 */
+    { { 0x5fc1abb1,0x6655032e,0x12fe4743,0x2215af54,0x29f05ef5,0xfd657560,
+        0xdc191be9,0xb0e73325,0xc08639b0,0x7ab3c65e,0x1c3e6673,0x67507f51,
+        0xc8615555,0x638befc3,0x42f0c4ad,0x5d0188cf,0xd896186d,0x843a301c,
+        0xb2c6741e,0x045603f7,0xfa3cd1d0,0xf7545c0c,0x4a40672e,0xf612affd,
+        0x45b9e8dd,0x56197c9f,0x87922d74,0xb453237d,0x4b2d59bf,0xbf132e3a,
+        0xb84a6a16,0x8afa1b73 },
+      { 0xe793ac70,0x6b3596ea,0xeef6dd10,0x4c94ef8e,0x70422e40,0x926b4fa2,
+        0xe9e5d763,0xc8c71dce,0xf512aadf,0x352fcb70,0xa883975f,0x1b7ba138,
+        0x058c3b13,0x57991390,0x97740fd1,0x9692092a,0x160b0697,0x19ad945b,
+        0x10837ab2,0xbc634388,0xf174bb71,0x76ee11c4,0xab1b80eb,0x6111bfc1,
+        0x70ec458a,0xbc82bac8,0x312d3325,0xeee60127,0xb240adc8,0xb4118b1a,
+        0x2b5a093c,0x67211191 } },
+    /* 156 */
+    { { 0xf55cf9bf,0x91e99306,0xa46b96d9,0x9b045308,0x9e7a65df,0xae3c1e1d,
+        0xc731bcbb,0x453cb151,0xa4d58a61,0x14be5227,0x97c74cc2,0x39dac922,
+        0x822e00d6,0x4d0f7a45,0xc62b03df,0xafeb1d51,0xbaa18b2d,0xbb1dc3a4,
+        0xdf2b74f0,0x7f3c7178,0x896b6a33,0xfcd328a6,0x1dce055f,0xe95ed454,
+        0x6a4e2b87,0x97fbc76b,0xfa59dce9,0xe5ec67f1,0xcc0367c1,0x052368ac,
+        0x54e4a3fe,0x7c863916 },
+      { 0xca7388cf,0x55e94b5e,0xc0335d38,0x17cc0a60,0x616f85ba,0x9b69b78b,
+        0x10122980,0x705d02ef,0x1cfd0a79,0x565a6e80,0x7d1ee352,0xeb74a96d,
+        0x427b9dad,0x5c8832ed,0xe6d5330f,0x96ea8528,0x18d24ee8,0x30d8862b,
+        0x9ff939f7,0x9cd38ed5,0x01060252,0x690fc9a2,0x2303b3ff,0xc62d88b8,
+        0xdd52b469,0xfc42d7a4,0x8cad2d93,0x06f8dfa2,0x60920438,0x50236090,
+        0xfce855ad,0x32582758 } },
+    /* 157 */
+    { { 0x359e8c60,0xeb20e45f,0x364ca186,0xc71bb8a5,0xdff8e110,0x02b15071,
+        0x4c93e578,0x074e91d3,0xb829d0d8,0xc0326e00,0x626a83fa,0x3c192258,
+        0xfb29a09e,0x387a64d5,0xe5ac5c82,0xcaaa3d34,0xada2da29,0x8ed685e5,
+        0xeb29650e,0x92720267,0x763802f3,0xf7184b19,0xdf6b1aea,0x23f5dd0e,
+        0x25e6125d,0xbe1fa347,0x0c872a1a,0xd6287f9d,0xac57c3af,0x49aa93d2,
+        0x5bda7656,0x1a4e6a71 },
+      { 0x554d1267,0x1a126ede,0x1cd02b48,0x37f94533,0xce31fb1d,0xd70af04c,
+        0x097dc012,0xcf410b0b,0x36c7b6c5,0x930e1d17,0xc6891085,0x902fee41,
+        0x79fb638f,0x349ba4a7,0xacd6f8df,0xa16c5821,0x2e076ace,0xfb3b83c1,
+        0xe501d14d,0x6b8d033b,0x20f2d2da,0x0593d452,0x99df1880,0x3752526d,
+        0x9feb33a6,0xca32351c,0x1f6ef456,0xd91343bc,0x35b9dc8a,0xc74857db,
+        0x85b4e832,0x856a7c93 } },
+    /* 158 */
+    { { 0x0d0a5583,0xa007d002,0xeda4658a,0x2f1301dd,0x34d939be,0x91c07964,
+        0xa70c0836,0xa0cb6780,0xbe81e540,0xc0b4df95,0x5d4ac8b8,0x6cbbcd34,
+        0x54756239,0x57c52ed0,0x1805ceb6,0xcac2dca4,0x79344255,0x915ee6ab,
+        0x24c9a2a6,0x366def31,0x8c12c674,0xbd3b962f,0x7dbb7c3b,0xaab64f1b,
+        0xe22bb95b,0x3c0e4553,0xc4c63b74,0x2408feba,0x2a4da631,0x3ca77312,
+        0xc636da40,0x62889084 },
+      { 0x8cb8d208,0xa457fd53,0x543f06d4,0x7a8f8009,0xf2eff2ab,0xb66de154,
+        0xf72517e7,0xfddb28eb,0xf9389d2c,0x0149fe66,0xd85b88ce,0x79e8773f,
+        0x0ba543f7,0x452e090b,0xb0b03fc0,0xdeb9b5cf,0x6c5ed77b,0x3113448a,
+        0x8ffc0372,0x3609f3cf,0x5c1b4c4a,0x2bc9c46d,0x8fa59be9,0xe66f3bf3,
+        0xcdb02691,0x1396bf5f,0x009f88f9,0xf1ec59d4,0x2ad9dfe3,0xc2903456,
+        0x5ada4d58,0x79d8122c } },
+    /* 159 */
+    { { 0xaa529507,0x14d4e4ce,0x74655d00,0x056a0814,0x4f0fc474,0xc0d30a38,
+        0x3443cb8e,0x8a8203ea,0x97f1728d,0x33c62fb0,0xb520ef52,0x8a38dcfd,
+        0x7cac9d3e,0xa0f90d5d,0x873cea50,0x28a7b0bf,0x6c6c41cb,0xd115ae3a,
+        0xa13812c1,0xa35171da,0x624d507e,0x25d4bba5,0x7e98f42f,0x91dad289,
+        0x96a41371,0xffd6b1e9,0xb69e5b77,0xd46c2125,0x20c4f707,0xc7d2b424,
+        0x8142557a,0x2ab3af95 },
+      { 0x6a5372a6,0x86ca074c,0x56292ba7,0x728fb83e,0x77741cf5,0x745596dc,
+        0x520ef49d,0x70b4cea1,0x61e46472,0x1472fe34,0x3fb8ac5d,0xf4d6bd66,
+        0xc10bc071,0x46e52cc9,0x371a3461,0x28794efe,0x276fe877,0xa4850718,
+        0x9bef5ab4,0xedad5773,0x3f15c815,0x24c2d9ff,0x8f8395c3,0x188950e5,
+        0x80b6a855,0xbae40996,0x8a8803e1,0x4f53e22c,0x039d25ee,0xaf233f61,
+        0x250409ca,0x07db2c35 } },
+    /* 160 */
+    { { 0x037d4703,0xc7f3b8db,0xc5f488b9,0xe83708df,0x8471d402,0x1fba830f,
+        0x5a2faae9,0xa55ee8d2,0x5404fc1e,0xc2e5bf10,0xaa2d5651,0x647d5027,
+        0x7ebaf5f9,0x37a53c0c,0x95b30abf,0x7adf0bb2,0xd64c93ba,0x5a62e1fe,
+        0xe2ef4a78,0x7ffc18c0,0x4d2cd04f,0x139dd9d9,0x5ea0af02,0x253fbab7,
+        0x0fef9acf,0x7c8100ea,0xc8615aa7,0x74c5384d,0x9fe52069,0xcb28682d,
+        0xcf7dd759,0x08b6ca8f },
+      { 0x036c3b5a,0xe04e5bea,0x7f9f2b4b,0x38726102,0x29797c0f,0xa9fca570,
+        0x82879ea3,0x1656180b,0x607f0ddf,0x153389bb,0x67b0e087,0x99a1223c,
+        0x9d897fc7,0x0d1808ec,0x916edf19,0x9470711a,0x07217118,0xf8f52f2b,
+        0xd18888b6,0x5d8b29ff,0x4cc6f900,0xef1e22c5,0xeb24877f,0xc4036165,
+        0x35479525,0xfda95233,0x6861468a,0xd622a421,0x74faba08,0x5d043b07,
+        0x0d31a7d2,0x2c337b02 } },
+    /* 161 */
+    { { 0xea22fa65,0x7b2305bc,0xd159f63a,0xbe183ef4,0x3f35923f,0x3473d87d,
+        0xc11d7753,0xb27fb306,0x2a054cff,0x702e7e6b,0xaf185619,0x3ce9f97c,
+        0x4e7d51c5,0x83550243,0xf356ac5b,0xa63e3d82,0xd7645131,0x867b7caa,
+        0xa671fc9d,0xee85e6af,0x2b07cd77,0x3b985ede,0xffda5193,0x07d598b0,
+        0xa942dc36,0xb10eca39,0x506218a9,0x17f3dcee,0x06b7d5ca,0x3d94e8d1,
+        0xed8831c9,0x509b2634 },
+      { 0x48caed54,0xb1b9414e,0xcbf51e97,0x77a78c6c,0x4de9b258,0xa4688c8d,
+        0x91ee3d78,0x0024137c,0xe30ee64c,0xa68f9234,0x88190d78,0x573255bc,
+        0xba80690b,0x41e8e05f,0xec354f4c,0x50038d84,0xdfa52816,0xb18f02d6,
+        0xccb63fda,0xc47f9007,0xe98ae455,0x29d480fb,0x5d0e319d,0x4ac45d22,
+        0x026db719,0xd06f3575,0x2c3587b9,0x733b9e20,0x2c317727,0x22483992,
+        0x54bb8752,0x1592d5a7 } },
+    /* 162 */
+    { { 0xcf7453f0,0x5778d9a2,0xed83c1f0,0xaffb899a,0xe0a82ba7,0xae6506d3,
+        0xea3d5081,0x32c84e1a,0x810aa38b,0x9ad528c0,0xbd37d041,0xb1fdb020,
+        0xd06ce41f,0x78d6cbe1,0x2e74b7f6,0xd287f0f0,0xc43bb022,0xf5cd2575,
+        0xf81a71b3,0x6d28f2f3,0xc633e7f4,0xe65bb1f5,0xc4fc580e,0x32e5fc1c,
+        0xbb7b07a5,0xcd55539f,0xc3caaf3a,0xb5a94471,0x4cc22d2d,0xb958bdf4,
+        0x77a2777c,0x1614bdbd },
+      { 0xed0ab04d,0x4c1f0230,0x6e2082ea,0xae347b00,0xc42c5b5f,0x9f10bc63,
+        0xde019935,0xb0539e6f,0x65dd0825,0xd89bd4e7,0xbbceda16,0x92260fef,
+        0xe62aca32,0x8aaa755c,0x5ec82c5f,0xed762fa9,0x18650768,0x99e64c01,
+        0xc92e348c,0x57dd6245,0x31ea6d68,0x0db88a77,0x07b44736,0xef0012ab,
+        0x171d70fe,0xb9356b94,0x03f891b0,0xe68b0628,0xb79c20a2,0x3a54a53a,
+        0xb00b0728,0x489656c7 } },
+    /* 163 */
+    { { 0x71353c25,0xe43649ba,0x13f67e24,0x517f27a1,0x1c1eb9e3,0x10bd333a,
+        0x78e29bf9,0x94e1c05c,0x4743f15d,0x84fe7d97,0x90da2df0,0x9c874908,
+        0x53673be1,0x82403fa7,0x1baea1b1,0x7ebf5db4,0x24180ead,0xcfe0ae35,
+        0xc2f50c3f,0x1d15873f,0x70661cd9,0x16851ad6,0xa51e8c2c,0x802968d9,
+        0xe0161099,0xe7d1a9cd,0xa8a7ea56,0x2b153c89,0x06e3c498,0x6d41b789,
+        0xd6769dcb,0x082bb2e9 },
+      { 0xc4d6615f,0x6180ef46,0x01b9829c,0xfc629dc1,0x0fb264ca,0xde222ec0,
+        0x10ecc2c4,0xc5457e06,0x1eea2c4d,0x95ce599f,0x8f9c5b2c,0x0433fa72,
+        0xcd6310f9,0xee035462,0xce2e2253,0x84c57c3b,0x96d87e44,0x6c8ec31a,
+        0xa452c5a7,0x30bfe393,0xa047b235,0xc592b140,0xc018545e,0x7bd8be18,
+        0x5c178c46,0x794e0107,0x2e23005b,0x48471946,0x622a54f3,0x2665e237,
+        0x901c9042,0x36451a46 } },
+    /* 164 */
+    { { 0x19893e71,0x17802d18,0x539a2082,0xa1765d8b,0x2302ecfc,0xfc6aea01,
+        0x365bf59d,0x8d4cf51b,0x0d232a80,0x87741d72,0x18e80427,0xac343eb3,
+        0xe74739ec,0x553ecb2f,0x1a8b07ca,0xaeca79a8,0x56f4ab3a,0x089ff322,
+        0x3fa1d1f7,0x5e95d729,0xf62a9a16,0x260569ae,0xaa08ddc2,0x5e776232,
+        0x1b7bb54a,0x93fabec3,0x743d56e7,0x48a20956,0xeb0ebeff,0x749cdb12,
+        0x69b8fcf1,0x705307a4 },
+      { 0xe488310b,0x7a8e4c04,0x5325cd7b,0x12726e32,0x4983efac,0x5d0fd8b0,
+        0x02ddb913,0x796e552c,0x77b9685c,0x0eeca3f7,0xb15f24a3,0x9b766e89,
+        0x48efc979,0x7c2736d6,0xa8021c6c,0x3d619685,0xa0b2f1ea,0xfe33e278,
+        0xb676d6b0,0x95c69879,0x1af4e0be,0xa0747319,0x36c4ee55,0xa2fab5f1,
+        0x59e5f3b9,0x6938b8ff,0x39cafe6e,0x1e114da4,0x6a6ad120,0xc9595ec3,
+        0x57e62aec,0x80f79bd0 } },
+    /* 165 */
+    { { 0x60af09b3,0x3cef42a7,0x933dfe14,0x3c016ebd,0xed85eaa8,0x720cf1e0,
+        0xceaa3bc9,0xd4f5e99f,0xb7106f97,0x7216b9d2,0xc9668ad2,0x65f34c36,
+        0x5b0c651f,0xa8fb82bc,0xf2fda4de,0x20f42f1c,0xd21f659e,0xeb31ab2c,
+        0xa13d1618,0xb7a776c7,0x38662be5,0xec441022,0xcad08e0b,0xc825da70,
+        0x022c0180,0x99299079,0x2aef9ffd,0x7623bda0,0xf5c58b50,0xde84f4f3,
+        0xd824ff19,0x5f5a5da4 },
+      { 0x7e8311dc,0x5737257e,0x466cf136,0xdef94f51,0xb05ca21a,0xa73e1645,
+        0x02e4ab37,0x38ea9b3c,0x8579165b,0x7760eac9,0xc24b01a4,0xdffdd047,
+        0x3fb95584,0x188d4fd1,0x25548bda,0xfaac38b8,0x59e9dcac,0x1a79a6f0,
+        0x09a2700f,0x983f720f,0xfb8a7e48,0x8cbba554,0x47a1fad5,0x38a19968,
+        0x5abd6b5e,0x11856547,0xf3716ec2,0x75113d31,0x4212907b,0x1391e781,
+        0x0dc15889,0x5319c801 } },
+    /* 166 */
+    { { 0x6b61c3af,0x2320136e,0x07b4bb68,0x1d40f2de,0x380c97f0,0x651dee7f,
+        0x6a8c313a,0xa978ba70,0x2011ca10,0x22c587d6,0xab1f445b,0x48bba218,
+        0xe50444e6,0x8c5eaf07,0x442fccf9,0x5549f02a,0x3d80493d,0x2564746f,
+        0x79c04591,0x42d24f61,0xabdc8887,0x1600fa18,0xded38f8f,0x5cb8600a,
+        0x923aeb46,0xa4bf9b90,0x1e1c578a,0xd63fee35,0xebb9ea14,0xf3c9c5ac,
+        0xf11a4ff0,0x3d13314d },
+      { 0xb4513d1e,0xe5cc662d,0xd55952bd,0xde78a8c5,0xe7f86d0a,0xe8a37a3f,
+        0x7a04f0c5,0xca2d12a4,0x2e25d06c,0x4c6696e4,0xb2136071,0x52614698,
+        0x89f6e1cb,0xf4d2701b,0x80efd95e,0xaafd6177,0xc5bb6907,0xe6d73ac4,
+        0x420db35a,0x49e874ac,0xf2751fa0,0x11631de4,0xa1fa2edd,0xb29f7336,
+        0xb7fd794d,0x4c406864,0xe22f92a6,0x73cb21d3,0x2043cc76,0xeae904e6,
+        0xb322c6ad,0x67f28a9f } },
+    /* 167 */
+    { { 0xca148ab5,0x7c17b258,0xb3c60051,0xb9a1976f,0xc8f28df9,0xea260698,
+        0xe8d45017,0x87b2cc74,0x0578a422,0x37257329,0x17bec732,0x81d5ee25,
+        0x1d48bbc4,0xd7411fcf,0x487f5cfe,0x46217e6b,0x41eb8e1b,0xcb007ac5,
+        0xe05a00c8,0xc41c57a6,0xd2f9fa99,0x1f954d2b,0x40941cad,0x370bd5db,
+        0x3829509d,0xe487879c,0x5ceca5ee,0x4c137552,0xfd3efb9e,0xe8ef7fa4,
+        0x1bd1bdb2,0x5ff09174 },
+      { 0x579c6632,0x791912a4,0xb8a20815,0xbb19a44f,0x535639d3,0xf4f97b84,
+        0xbc3c9bce,0xe57e2bcb,0xf19e6410,0x122b3f2b,0x1357d9ad,0x1f0189da,
+        0x79e5ff66,0x675573bb,0xef2f3c4c,0x444e5c98,0x04d10731,0xd6f61e20,
+        0xac75d635,0x0dfa366f,0x2c854f23,0x9fc47c86,0x0ad0850b,0xc04ae43e,
+        0x2f720c32,0x5ce94f64,0xa753bc9d,0x67efae65,0xb0373a63,0xc27d30d3,
+        0x29721646,0x6681013a } },
+    /* 168 */
+    { { 0xe84509df,0x1385d913,0xcf339376,0xe978bedd,0x3423a148,0x2df425d3,
+        0xee8cb579,0x43fa0ae3,0x31c4553c,0xf015369d,0xdfbf1d48,0x05cf08bb,
+        0x9444244a,0xadff4be6,0xa35dda33,0x01635f81,0xe76fab7c,0x085c8949,
+        0x16737783,0x4bd7fcde,0xa254f8d2,0xfd8cb52c,0x413ec985,0x62168a66,
+        0x7a9026cc,0xf2db9741,0x50e1e1b7,0x3962ee56,0xd3beffde,0xbee0a346,
+        0x0bdfab1f,0x3b35b72f },
+      { 0x535c3749,0xbff8de9f,0x8add9c48,0x23c1f20f,0xc8f8f663,0xa975b37b,
+        0xe8f3ae49,0x2529e475,0x1d5e2628,0xc32f10d5,0x67862f1d,0x5ac0d297,
+        0x854cbe36,0x13c79338,0x4b67e462,0x48f004ef,0xe5d10ee1,0xfa37a150,
+        0xd28288a0,0x4974778d,0xcfb73f4d,0x96830a66,0x07804952,0x9f444013,
+        0x9760b694,0x8233c709,0x25b75c99,0x8340cca5,0xc771f99c,0x3f62e40b,
+        0xcd95c685,0x47d0a1eb } },
+    /* 169 */
+    { { 0x652811f1,0x266f4fff,0x62ef3002,0xeaacaa93,0x50cba0ca,0x6c387a55,
+        0x007f5467,0xa350142a,0x202f2673,0xc7fd102a,0x33dc6e65,0x5daee570,
+        0x064a63d9,0x60682ec3,0x462b251e,0x46cf0bb0,0x5da936e7,0x0e030ca5,
+        0x434265b5,0xc87a60f2,0x69b4e8f5,0x9637b2bb,0x7ad7770a,0x601fb58c,
+        0xed3a15a6,0x1f2147f6,0x2995e961,0x05b47d5e,0x83213a16,0xcb0ca9b3,
+        0x4995a85c,0x8f4b614a },
+      { 0x4b4eb3c1,0x5aa8ec19,0x20323a70,0x8c549ac4,0x4f6cc6aa,0x00d49322,
+        0x45f9a5a3,0x0e53b9bb,0x0897abbb,0xe46ef110,0xd7acd7d0,0xfe873e57,
+        0x0f7cb588,0x7cfccfe5,0xc85557d1,0x0ea53d65,0x7288f2e2,0xfdd9eb44,
+        0xc0eb68a8,0xab2dedfa,0x08603a0c,0x58221470,0x00feb06c,0x69464689,
+        0x25e5caac,0x804cf5bf,0x9fc91ae9,0xd8559858,0x73c45eae,0xed9378b1,
+        0x524c9801,0x8f942d02 } },
+    /* 170 */
+    { { 0x8e845808,0x1f1ec302,0xb77abfc5,0xc302bffa,0xf8d97dc7,0x26afd4b9,
+        0x3aac594b,0x3d3a83c4,0x674d94dc,0xe3b74bd1,0xcaa5911c,0x4464b737,
+        0x871c2cd2,0x62925773,0x3b4440fe,0x419f2485,0xe052ad7d,0xdda6a0f3,
+        0x846c86c0,0x645280d6,0xf8324f42,0xa25689fa,0x07cf117a,0xc74ad1e8,
+        0x8ddc9db7,0x5626dea0,0x966fc85d,0x52620373,0xf3b1eb53,0xe0ad57c3,
+        0x949c1acb,0x38300252 },
+      { 0x5e744723,0xa0ef5a40,0x1ae08481,0xdb5bcf75,0xfec1f76f,0xabfad8cc,
+        0xfab37fc6,0xfba5d831,0xc8fedb78,0xbe39e248,0xad93f310,0xa5cfad5f,
+        0x913d5c24,0x747fdb1e,0x4518b7f5,0x052a47c9,0x7cfb4327,0x9e208d6c,
+        0x70e538be,0xb135cb9c,0x5bb17916,0x36352759,0x5b3106c7,0xa2c07880,
+        0xc209bb06,0xd2d42a06,0xd3c504ad,0xb525b471,0x822ce034,0xc9f4b368,
+        0xeb4185a5,0x15f18796 } },
+    /* 171 */
+    { { 0x0aee4684,0x094dea06,0x7cdbdbc8,0x42b21f06,0xb1931319,0xa439e149,
+        0x81a7dba6,0xea4bdd41,0x3c2ae80f,0xc6213706,0x12823dc2,0xb58b0967,
+        0x832611b1,0x7443d515,0x13c20384,0x2e16f831,0x2bd992d2,0x0ce204d6,
+        0xf419388b,0x499dbcd6,0x1d3778c7,0x492ded1d,0xc5ddae73,0x9d5bd74f,
+        0x994b6259,0xd4813d52,0x0e86ca68,0x191d9cf6,0xf3e9c2ac,0x562179ea,
+        0x9fee1238,0x6146f1f3 },
+      { 0x078e2aa6,0xbd06d33e,0x9dee9265,0x693af7f7,0xdaa40e84,0xd56e0f81,
+        0x9b9a407e,0x05fbbb88,0xede99519,0xdcf44adc,0x092dba39,0x7f71f8d3,
+        0x4231774b,0x675b5da5,0xa5f605eb,0x7456a251,0x87a39a9e,0x9031d4af,
+        0x05b474bd,0xdb430006,0xb665aa91,0xbda5dbf2,0x6631eeb4,0x5d1a3df5,
+        0x62377c58,0x028149ef,0x685d0bff,0x2e1af4e9,0x82a465de,0xe0ea0875,
+        0x06bd0050,0x95543f9e } },
+    /* 172 */
+    { { 0x85d7c6ef,0xf7cbc6f4,0x63b1bc24,0xcad8084d,0xbf8cba62,0xdf90ce88,
+        0xb455c192,0x98e4b686,0x774fc6ed,0x6146b8d5,0x7ae20077,0x70e2389e,
+        0x61c22529,0x5241c479,0x3884e5f5,0x7d221510,0x17e28273,0xd6d20ce2,
+        0x4f2674f8,0xe3119f51,0x70c011db,0x85459055,0xfcfb760e,0xdfab75d9,
+        0x9e8c2a19,0x9546362a,0x4a7d4b27,0x4b6d3f8a,0xee5d698c,0xa5c87104,
+        0x2ba296ff,0x6db43478 },
+      { 0x5c3f0d95,0x06486493,0x4e748895,0x8917db82,0x6b2f3e44,0xf73fdf62,
+        0x2b7f574b,0xc60edc54,0xaf732723,0xbe1c09a2,0x7cad114c,0x7d34669d,
+        0x321aaff9,0x9646600a,0xed0cd61c,0xb94e2bba,0xdec4750e,0x866e1a41,
+        0xb1a89f58,0xa1be990d,0xf2759693,0xc39e4d6c,0xc0e0dddf,0x11cfb780,
+        0xd99c8a41,0xf0afcd7f,0x6e1c3050,0xcebffadb,0x96d2c6e4,0x4f3981b0,
+        0x2ae27a94,0x07a791e7 } },
+    /* 173 */
+    { { 0x1e9f0300,0xe70e9047,0xbccdf904,0xe0253ad9,0xff053078,0x51c0289d,
+        0xae893462,0xf1ef092e,0xa4846845,0x2c90a91a,0xf1dad4b4,0x1946eda0,
+        0x33df67b2,0xf07650f3,0x0b15a014,0xc6e988db,0xb542f0f9,0x72e0c66e,
+        0xe0c0378f,0x5d4b6311,0xae86950d,0x548badaa,0xb35f1c8f,0x6801638d,
+        0x944d1ad4,0x129e3216,0x40471d32,0x9951bac8,0x85e94dde,0x03cc29f3,
+        0x4543ecac,0x6d6acc2e },
+      { 0x57b2d299,0xeb999e95,0xe3d721cd,0x3a2bcd9b,0xbb4cb444,0x2e60384f,
+        0xdc060faa,0xae177709,0x8c987cde,0x74f0e6d3,0x1076fbed,0x9a237cf8,
+        0x7983fbff,0x69af1513,0x323f9584,0x6c3f7a1d,0x6db64398,0x3e21cacf,
+        0x96703d92,0x7cd8134f,0xb8393f76,0x0755898f,0x2e825222,0x1b5b28bc,
+        0x7924aa7c,0xb78799c1,0x81427a8a,0x1db378f2,0xff289492,0xd5a451b1,
+        0x3d3c46ee,0x79d18212 } },
+    /* 174 */
+    { { 0x109d5589,0x1a3edff9,0x029b4499,0xded52eb4,0xb4b54adf,0x13eb9d30,
+        0xa27bff67,0x4f9214c1,0x67f0f460,0x4c817ee7,0xc3a50e28,0xbadf8d83,
+        0x94026237,0xc5dc03c9,0x966647c1,0x5f29581b,0x8a0687f3,0x10b6a089,
+        0x31634517,0xae787cec,0x62e75188,0x2001dba5,0x45e2c3fb,0x55d4e1a7,
+        0xb67d3395,0xbfcacdeb,0xbc6842ee,0xa1a0af9c,0x3e88580b,0x50590a2b,
+        0xa784cdc8,0x73104491 },
+      { 0x2648d676,0x44ca2cdf,0x4f1b12b1,0x9a85eca5,0x2980e1eb,0x1b9dac94,
+        0x1ac8aa89,0xf30d3709,0xc719e195,0x73072ab7,0x2f703797,0xba518c82,
+        0xac0067f6,0xac090e14,0x8dcd2927,0x0e6cfc70,0x21e7da63,0x4f5889e2,
+        0x8371c7c6,0xb4aaa40b,0x8f7878c9,0x1f9dabe2,0xd84caf3f,0xf78aed6b,
+        0x9e0e1d92,0x3c39dd07,0x122424dc,0x680be5fb,0x0bdc0099,0xf41b214d,
+        0x5180c54f,0x6a8f8fc9 } },
+    /* 175 */
+    { { 0x53235132,0x62a1ed63,0x59dba88b,0x1db233f1,0x291efdd8,0x85625452,
+        0xb25111ae,0xc7505297,0x1d701bd8,0xb5921af9,0x9774f45d,0xb4d05d72,
+        0xf18e73ff,0x6e3d4c5e,0x899b3038,0x897d985f,0xc89b1558,0x8a9c30fb,
+        0x4d13181c,0x3c92d1a3,0x2223320e,0x292e86ba,0x01ceed02,0xcf2454c2,
+        0x583f309f,0x27a45f74,0xad0fd1a3,0x75a6102c,0xcb9c7538,0xdb4f45d2,
+        0xdb283fd7,0x4752d8c1 },
+      { 0xd5dff4d5,0x514d6cea,0x45a827f4,0x74cd5fdb,0x4fc7135e,0x1070a60c,
+        0x1be5778e,0xdec0bb78,0x58dc6b08,0x271e12cd,0x54bc2496,0xb765089b,
+        0x619098ac,0x6ddf2c63,0x67528832,0xfd6ebac6,0xc2508af1,0xeaa2d025,
+        0x4dcfc1f0,0x13c2cda8,0x45510be0,0x1c7836a8,0x1a886801,0x3904688d,
+        0xafaf2545,0x643132aa,0x2830a88d,0x49685577,0x8744b470,0x569491ca,
+        0x75fb8552,0x3a6518f3 } },
+    /* 176 */
+    { { 0x224042a0,0xaaa8ed50,0x2452f1e6,0x6cb4e3b0,0x768211d8,0xedca5f4c,
+        0xef4d5d3f,0x4e0fe3f9,0x522d46e5,0x33a8e2a4,0xf1446775,0x5998e21f,
+        0xf592d01b,0x1496c50e,0x83a67739,0x69104c2f,0x472bbf00,0x28670bcb,
+        0x503177bd,0x8ea883b2,0x7d2712a2,0xc5d8bc05,0xb439c994,0x41ef9317,
+        0xdcda1aff,0x9801d3a8,0x7038f6fb,0xd686eeb5,0xfbfbf820,0xe80c5cd0,
+        0xedc25817,0x540ac363 },
+      { 0xfe7f43df,0xa71969a9,0x2c1b9e4c,0xe6653808,0x859c2917,0xad9677d8,
+        0x96aa4404,0xbaca9545,0xff1297da,0x0e9d855f,0x22aea7de,0x1f61897b,
+        0x36f13f8e,0x96edccfd,0x16e200df,0x627d3070,0xc98988a4,0x729f0736,
+        0x97f231d2,0x95e25e60,0xf6048752,0xaf7f221b,0x4019b299,0xd6682609,
+        0x26b4b1d9,0x1d99de09,0x1acdd7a3,0xec47cf66,0x6ebe15e9,0x4de9f2b3,
+        0xfa16974f,0x17db32ec } },
+    /* 177 */
+    { { 0x6cf40599,0x75ef6919,0x00c020ea,0x7ea10dfb,0xfcaaf679,0x3da5ae7b,
+        0x88ddd678,0x0d663ca3,0x255bcfcd,0x5a21f8fe,0xe344bc7e,0xe9c3f538,
+        0x548e0632,0x35f62b1d,0x43c6e64d,0x654f2425,0x26993627,0xc755a7a6,
+        0xb0f41324,0xa3b7c5f7,0x3a2180f3,0x05697f79,0x1e81675b,0x6cf85fb1,
+        0xe53428f5,0x6d3cdb35,0x52d28b02,0xe3aa1591,0xf7a3fb78,0xa8470255,
+        0xa194445d,0x460bd01b },
+      { 0xc24d8077,0xbc34dc23,0x4c720d2c,0x82f4b580,0x6f5d1ffe,0xa29da911,
+        0x92783ce2,0x578af520,0xb5904af3,0xe29f51ab,0xf7aa1190,0x46c570d7,
+        0x571bddf0,0x4a522fba,0xae89bb51,0xbf4e2a06,0x59f3444d,0x799b35cc,
+        0x26cc2557,0xc3028367,0xafcec177,0x94a4e985,0x7c36cbd0,0xadaf7dcb,
+        0x75d39077,0xed31b787,0x2d3e24bc,0x52d6904f,0x1f95421b,0xc5ca2669,
+        0x1734878d,0x7d342c3c } },
+    /* 178 */
+    { { 0x11fd127f,0xe5cf2c0a,0x119e4c5e,0x66d36bb8,0x6ef56ac3,0x621ab252,
+        0xe5430675,0x30cfeaee,0xac3e9619,0x2ede27d2,0xf8fce671,0x6413513a,
+        0x075f4c3d,0x6159c61b,0x59069d98,0xd447efe9,0xea76aea9,0xaf8d6f68,
+        0x0f5bd164,0xac5dc61b,0x1e88bb98,0xdbab446e,0x1ba92320,0x618b8b16,
+        0x78989865,0xa0eafb3c,0xc08b7e82,0x0c7abcc2,0x20d160bb,0x10f09b6e,
+        0x8e4c63a7,0x5be0afa6 },
+      { 0x1bbbf49c,0x82ab6d38,0x8c0703fe,0x3e09ce49,0xe10f4263,0xeca58b5d,
+        0xda5a4532,0xd9cc6581,0xf618f7b7,0x07e18876,0x250f7fe7,0x0419a5e3,
+        0xde6b86be,0xbb1a9e90,0x37359169,0x584a7deb,0x5149db2c,0x38eb3489,
+        0xb0ebabb8,0x14546a33,0xc2f88a92,0x0067f0b0,0x0a2db019,0xbde0dfe7,
+        0xc63e6f3e,0xba51b06c,0xe9206fad,0xa19127b9,0xfe80dc0a,0xe4eb5e87,
+        0xd4de30ae,0x1e6fccf5 } },
+    /* 179 */
+    { { 0xaa8ac924,0xb57dff66,0xc298b3e8,0x06e9ad31,0x65fb080c,0xd140e329,
+        0x1d95c93f,0x7dab211d,0x8a180caa,0x6d68d842,0xa20ded69,0x1a929408,
+        0x38df461f,0xa8151753,0x60eae932,0xff5604ae,0x7dae4c0b,0x901b9e49,
+        0xde262e89,0x4573a97f,0xf1084983,0xed69d9a4,0x64724f1d,0x8ffa022f,
+        0xea85a15f,0xd5f1c2e4,0x01453794,0x4c626ce9,0xbf0907dd,0x80440cd6,
+        0x5ddaa837,0x4522d461 },
+      { 0xebfbe7c5,0x8895f079,0x84ef3446,0x30ea1ded,0xd4a1ab96,0x716a9eb6,
+        0x50a30c68,0x1a4a5d22,0x0043bbaa,0x5a16631c,0x5010e5f5,0xbd107502,
+        0x3d8c0556,0xbffe3e9d,0x07772419,0x31b30b18,0x84b82297,0x90ff7ef0,
+        0xf21a18c3,0x00c37d75,0x565bb8f8,0x18d0a635,0x45e3bceb,0xbac1da2a,
+        0x23f0b08d,0x1c38e90c,0x5fbc5ac5,0xf1ba1aa2,0xdda71fc6,0x09d5256b,
+        0x6d7e40ba,0x346501a9 } },
+    /* 180 */
+    { { 0xcc2b0f1d,0x86be448c,0xac4c3703,0xe3eb45c9,0x9fc96bbf,0x5387f65d,
+        0x5ae27fda,0xcef3c4e9,0x1bc18089,0xa008f776,0x22ca18a1,0xf374a084,
+        0x53b73371,0xee882842,0x7cc09354,0xcb6fc6d8,0x61496d6b,0x8489ec1b,
+        0x49e325c4,0xa92c29b9,0x7bdec166,0x15c6ca52,0xdcea2813,0x95444eee,
+        0x3a21154f,0x34683eb3,0xd39061cf,0x8fb26f98,0x06c940bb,0xc3b08aa8,
+        0xe554c96d,0x7c1d42cf },
+      { 0xdc110aa7,0x766e703f,0xf362e378,0xab7b79d7,0x5aadca3c,0xd259c75d,
+        0x60be3373,0x2a6eca79,0x06c4e8ff,0xf4744a4b,0xf3b705bf,0xb2842cce,
+        0xae304b53,0x1a3af5aa,0x1b2d31b8,0x7bbfa201,0x4bee88d9,0xc4ba6eba,
+        0x565cb839,0x2d3565ce,0xdaf7ece8,0x24808696,0xe6959745,0x2c7ccce7,
+        0xe94f9837,0xefd6eb3c,0x3811a326,0x0a33b4cf,0xfffa93a6,0x14203f43,
+        0x73c31d90,0x031e9828 } },
+    /* 181 */
+    { { 0x765a17ff,0x4fefecfc,0xd1290a65,0xa09f3888,0x938da038,0xbf265c46,
+        0xa169ad46,0x4bb6145d,0x23a62fe8,0x33cf8214,0xabc860a5,0x562df571,
+        0x815c38c4,0xbf2a90fa,0x17eda875,0x45ba1d6e,0x946fa5e1,0x799d881a,
+        0xb90f5a3b,0x6c1be784,0xb10ff52a,0x0910a37c,0xa4f4fd36,0xc38c1fe4,
+        0x8e2d3ba0,0xc3180fc5,0xb17a6187,0x3e2ff050,0x943a35c2,0x3a00059b,
+        0xa28cc51c,0x494d3645 },
+      { 0x4ba021f8,0x398426b6,0x796deb6c,0xd14c9083,0x7e36c762,0x6d2e5395,
+        0x751cf216,0x8f556eca,0x19b24a19,0xdaca1e00,0x4b20c2ae,0x47887da4,
+        0xff41a733,0x93ed4ccd,0x5c7c0cd7,0x8d717c44,0x91bf7009,0xcc48634a,
+        0x3b59bbaf,0xa1f146f9,0xe5624f15,0xdd38bb39,0x303f8443,0x96d41aad,
+        0x4bf104fc,0x6b670f03,0x29706582,0x0503f9ed,0xb34200f5,0x768e1f47,
+        0xbbd4c6f3,0x3cfdcc5e } },
+    /* 182 */
+    { { 0xb523e13d,0x536c2a86,0x2920d0a0,0x1014a458,0xe7571296,0x3d52b478,
+        0x7eb51bea,0x05746066,0x87b0e919,0x709f7861,0x686888e8,0x028aed88,
+        0xd94afcd4,0x79a809d7,0xe2129af3,0x50c6032f,0x983c4082,0x75e4be72,
+        0x7ab3be8e,0x98331bbb,0xb618c728,0xd31a032c,0x3f59c4a4,0x36dd85a1,
+        0xed4f61e2,0xdbece345,0x1e571715,0xba7aaccd,0x64a1ebd7,0x138c58da,
+        0x3d1aeea1,0x89296d0f },
+      { 0xcca82c97,0xb165288f,0x1427e8dc,0x26c6c12d,0x4c3edda9,0x66a94f07,
+        0xeaa01ebe,0x94600e1e,0x30f5e86d,0x14abce7c,0xcb456a31,0x741d7020,
+        0x279f42c2,0xab05aa13,0xd4238468,0x70b60faf,0x318d39e6,0xa18efec1,
+        0x8920b318,0xeb07f1ac,0xd8399e03,0x01e3cba8,0x3c81a301,0x65f8932e,
+        0xccc667d8,0xae8bca7d,0xa268607c,0xcee1ae79,0xcac0a12c,0x3182e64c,
+        0x2b1a4c54,0x9233a2f7 } },
+    /* 183 */
+    { { 0x0acbee17,0x717e8df6,0x5c24fcdc,0x0f0959c2,0xe54ffcb0,0x46f09887,
+        0xd285116b,0xb993deca,0xbba1fa51,0x0bfaa4f8,0xd0f2183e,0x9c9249ef,
+        0x96847779,0xf93cb358,0x2322d421,0x284bfb7f,0xd42af009,0x40cc709a,
+        0x9bb1d615,0xc69f2274,0x717c3c6a,0x76f50b3a,0xbb9c5eeb,0x8b21e985,
+        0xa4783b5f,0x58fb19ae,0x52e1c3e7,0x04c86b9b,0xf2971ac8,0xaca59092,
+        0x21ed8291,0x2bb26a69 },
+      { 0x15f81416,0x98a34435,0xaaff5bb4,0x086e72e7,0x0317261c,0x3d1f64de,
+        0x5c0a1cfe,0x31c0786c,0xb3683401,0x542ea4d8,0x1a39b4cd,0x2f77273a,
+        0xcbef27f1,0x14fe7ee1,0x16bb27dc,0xee7fc09e,0x410e5dc7,0xc0dccc17,
+        0x1943b3dd,0xa3466742,0x3f31c1b7,0x92934b60,0xc22c1070,0x0186ded9,
+        0x799f966b,0xa37ee8ba,0x249b0893,0x0f3bfcb4,0x2e92d4de,0xbae61447,
+        0xe196eb08,0x937cb3f8 } },
+    /* 184 */
+    { { 0x16fbfdce,0x57c0e77c,0xc98d4cc0,0xea034cc9,0x42572d20,0xe7606d72,
+        0x0019a83c,0x9861b55c,0xf1597162,0x80ba2803,0x05a0fd7b,0x0f4141dd,
+        0x4b0daaa2,0x8865913b,0xaa3848ec,0xe6685746,0x3e0485d2,0x16d15a5a,
+        0x3b6905dd,0x81c0c774,0x818af2ba,0xcec31b7d,0xd2b74b78,0x80d8f194,
+        0x543e2f28,0xca659db2,0x9fb07c1c,0x31b83a7d,0x1f1048c0,0x86537fdc,
+        0x78586a11,0x4d57bb07 },
+      { 0x53b396b6,0xbc4b768a,0x93b51dac,0xbc8b24c4,0xa30ae1b3,0x33e511eb,
+        0x945147c5,0x893bbd95,0x179fe3ce,0x6cc86031,0x3f920bd4,0x34b0a167,
+        0x6b256160,0xb32912eb,0x9d168d83,0xbc69a2a4,0xef0dd128,0xb4949e7a,
+        0x872699e1,0x2613419a,0xbf21376b,0x06c58477,0xa4f97147,0xe55b1909,
+        0x7b9b745f,0x63d6eb75,0x08df3c85,0xb5365b29,0x55fcfae3,0x0e257e43,
+        0x979f2aa8,0x1067c118 } },
+    /* 185 */
+    { { 0x32bf8883,0xc8455084,0x6fd06667,0x4755286a,0x77c2335d,0xd70b0f8f,
+        0x2f4a2c94,0x678e60da,0xd118acf5,0xa468d8ac,0xbf5b90d9,0xce93830b,
+        0xed4e9104,0xea4b1c74,0x27776ea4,0xac67316d,0x361bab12,0xb98ad75c,
+        0x99122451,0xc323d482,0x530a43ae,0x26440220,0x3292d5a5,0x3a44532e,
+        0x5fecf1bc,0xdb48694b,0xc667b8b8,0xe4e0516e,0xa4306ade,0xb3aa595f,
+        0xf34e9725,0x7e4f7091 },
+      { 0xb7f70919,0x3f3816e9,0x16b003f5,0x765216ed,0x778c99e5,0x46c6cff4,
+        0x30a51810,0xe6a5abe8,0x45e728db,0xef6f49e6,0xcaccefd6,0x6fdd73ea,
+        0x8c37f3f7,0xec394e6f,0xb6407fc3,0x73320802,0x96625cbd,0x988e8f7a,
+        0x7cabfb00,0x83292363,0x407f359a,0x258ba9df,0xccbfae50,0xff01aee5,
+        0xfe251813,0xfbeaeace,0x83f1cba1,0x9c69f161,0x9eadcdb5,0x512c58ad,
+        0x6ccce8bd,0x2ae49cd4 } },
+    /* 186 */
+    { { 0xc40849f2,0x1239b0e3,0xa441098c,0x5136a4cd,0xe547f649,0x61535a99,
+        0x7a9bbac6,0x92e4bdc4,0x53547af6,0x195a1646,0x8b47a74a,0x85ecb319,
+        0x9de6a2b2,0x278553fc,0x0e2ba52d,0x471c038a,0x35bcba93,0x12ba1b88,
+        0x6f31eca2,0xd4bf50da,0x802b32c6,0xd146e3f6,0x3c64c8c4,0x0c9c0131,
+        0xeed21297,0xad30f12d,0x9c68530f,0x9b75bffb,0x8918de51,0x23c0ad3e,
+        0xa73771b7,0x180e9d52 },
+      { 0x29ab77b0,0xc316542f,0xf7aee628,0xdd411d9c,0x353c2f40,0x044c0685,
+        0x4b0ae4cf,0x638dc7e4,0x95fc266f,0xa0924185,0xfd2feb7d,0x639da671,
+        0x5ea39798,0x56858ed5,0x58f3832a,0x7a694f31,0xd316d831,0xa94233c6,
+        0x30a35a7b,0x2fcacb26,0xf1ff713b,0xfef8f7dd,0x59eee2f3,0x8b9b4525,
+        0x156d064a,0xd1b4f91b,0x2f5cfcfc,0x177866c2,0x3777eb41,0x12bc2566,
+        0xd8ab85b4,0x21ca6f3c } },
+    /* 187 */
+    { { 0xa3e66635,0x0e162b13,0x2a9f76af,0x1ef20a2b,0x46db3356,0xab473a30,
+        0x7802bb8d,0x0840bd77,0xa699b44c,0x5b6baf5e,0x1b2207f1,0xc6e11900,
+        0x790b0105,0xe5de16a9,0xdb67f004,0x22b12f15,0x8a025d25,0x185fad45,
+        0xdf0a1142,0xbccf6953,0xf45034c0,0x4c42129b,0x1c277bff,0x0f740400,
+        0x280a9e18,0x6e440b4c,0x842aa2b4,0x767de8f5,0x05e8d94f,0x3de20ab8,
+        0x20227635,0x5aff5859 },
+      { 0xa8458e40,0x805acd20,0x149732bd,0x5a5557d8,0x5f1ca72d,0xc7074131,
+        0x952b5323,0x7f2e269c,0x6494fadf,0x5c592556,0x1a7d2666,0x153b7acd,
+        0x86fe2865,0xa6df063d,0x57d53b6b,0x1e91db13,0xe93ead01,0x9195bb89,
+        0x2963bfe6,0x3d71e1af,0x88278886,0xfab2b9c2,0x3b859b6f,0x77836692,
+        0xf7029dd1,0x6e695174,0x7b984561,0xc7987876,0x5907d849,0x64fb4f1d,
+        0x88d8a977,0x3eab7e1c } },
+    /* 188 */
+    { { 0x52e5718b,0xc73a94b6,0xf4cee1e9,0xe3aefa54,0x553eedea,0x654e9e63,
+        0x5f3aca1a,0xf2541e1b,0x0d083316,0xd7129489,0xfb7f950e,0x7965af63,
+        0xc74e3e4a,0xd8fc9e0d,0xeaf79ebc,0xb4ee48d2,0x8b7787e6,0xa458a86a,
+        0xf7cceaf0,0xd8c7621f,0xdf67980d,0x8228eeff,0xf9106727,0x210d4742,
+        0xb07e3629,0x91f63501,0x7971e29d,0x441761c6,0x03a3b8a5,0xc0ccc65f,
+        0x38e09544,0x3491da4f },
+      { 0xcb062eae,0x6706d046,0x5d08776d,0xee7db735,0x292315d2,0x80de8052,
+        0xc402bbdb,0x40785662,0x26ed3337,0x5f93525c,0x7d568ed3,0x6cea14d6,
+        0x66888b1e,0x916a1189,0x5dc71675,0x0fbd5205,0xe4575df2,0x833d1077,
+        0xec092335,0x4e93100a,0x6cd85389,0x2f9e1d01,0x43226368,0xeebd3725,
+        0x1ba4cfd7,0x401d172b,0x574c5838,0x377dab9d,0x80d517de,0xaeaa6958,
+        0x6ad15a18,0x0c843dfd } },
+    /* 189 */
+    { { 0xc9373300,0x455811ff,0x99fdc300,0x1c39332a,0x353cb655,0xe19bb81c,
+        0x96a83d27,0x774b924a,0xb2ee3f1a,0xcbfc8fcb,0x010d56c7,0xaf278ec4,
+        0xe0abaf79,0x6fde682f,0x7339aebf,0x7566d072,0x71205db6,0xbd35ad5d,
+        0x7051c9d0,0xb5bbe694,0xd3a3067c,0x577db480,0x572d7530,0x2c70ff54,
+        0xe06d853d,0xe8615aec,0x05abfb5d,0x71999ccb,0xea0a8ed7,0xeeefc96b,
+        0x35f6df69,0x2dcc469d },
+      { 0xc65f0e77,0xcca6cd06,0xbd71b14a,0xddcc7980,0x3c93cc00,0xb6221f8b,
+        0xae8cbf57,0xddfcd5b3,0x76f8e63f,0xbc92973f,0x06e132b7,0xe9848a34,
+        0xd51ec9e2,0x4cc59a03,0x3a33081a,0x9c9d32bb,0x80e8466b,0x00121052,
+        0x1bbe7295,0xc2b0032a,0x24938448,0xdbfc6572,0xb6bba0ff,0xe972a0ce,
+        0xc0a94802,0xf60c0a4f,0x599d8bc7,0xf62c41cc,0x312da0b8,0x820c96ee,
+        0xcdbdf9fc,0x5a1a65db } },
+    /* 190 */
+    { { 0x42485684,0xbfba691a,0x29c470c9,0x613116b9,0xe62a0519,0xb4b01971,
+        0x5ff499da,0xf3245aa6,0xa5238eff,0xc2ef87f4,0xcc9d5515,0xc16dc6ba,
+        0x2dbdacac,0x5a7f227e,0xa9bbaecb,0x8dedaac4,0x2e7c9885,0xff308a6d,
+        0xe6895593,0x4c6f2fc2,0x177e0611,0x3655f285,0x300b1bee,0xa63e8d06,
+        0x13c17b54,0xbed0ce79,0xc4974262,0xca4abe35,0xbc4e4037,0xf4b44a17,
+        0xefe5fbd9,0x5ae95099 },
+      { 0x804f7455,0x122e5ee7,0x22066682,0x341a4997,0x7795e333,0x97d24c31,
+        0xe48efced,0x12f4123c,0x19fbc21c,0xe8738d92,0x0663a3ae,0xbb3bdc61,
+        0x8593a6db,0x3603d8c2,0xe3c1ac75,0x926227f2,0x5eaae519,0xfea92ac0,
+        0xfd6812ac,0x5b596f0b,0xfc2a82dc,0x3ce7e844,0x63522b27,0x3840481a,
+        0x52867895,0x836088b1,0x26588688,0x21ffb7cc,0x2f4a7cac,0x0ca33161,
+        0xa3edd298,0x4110667e } },
+    /* 191 */
+    { { 0xc2d04b63,0x81830357,0xf4929a18,0x3fc5a34d,0x22d195df,0xc73bf6da,
+        0xcb432473,0x14df2f89,0xe997f138,0x345afe5c,0x8b9604f4,0xd8e3f5f9,
+        0x50c10ae5,0xad7942e9,0xeed25ff3,0xcefd5447,0x0e73c0cc,0xbf68e51e,
+        0xab54fa4c,0x5b1ad591,0x12b61c8c,0x8bbc1105,0xb5abf760,0xbb932913,
+        0x01e79649,0xdb1231be,0x040ccbe7,0xd0a83e91,0x90a96db9,0x3dde426f,
+        0x34df11ea,0x1cceb645 },
+      { 0x0c6d0f55,0x2d210c4f,0x9c673c9d,0x6cadf61b,0xa9ce3fbb,0xdd7f9919,
+        0x93b063e4,0x135f494c,0x145a93be,0x580bdb3c,0x0f52ef7c,0x4d872332,
+        0x8814bb6a,0x74d876e8,0xc7a97dee,0x4f6f723a,0x3e3cd833,0x7de2b8f0,
+        0xae720270,0x6162f082,0xddfa486e,0xe88ec2d4,0x8d3a17c6,0xd965c859,
+        0x3980171a,0x62e59e54,0xbbef6b22,0x0ab6285d,0x4d48b203,0x3cf45195,
+        0x4ea25ea3,0x1f175233 } },
+    /* 192 */
+    { { 0x3467ea91,0x808a765b,0xfd2d9c45,0x3f4632ee,0x9cf2bc6f,0x7b75dc6d,
+        0x359813ae,0xefc8d240,0xe44cbd8d,0x23ecb209,0x21525622,0x59ba10e3,
+        0x3f1ee19a,0xfa14d934,0xfb0c48f7,0xdf97c21b,0xea30d437,0xc4e62890,
+        0x651475c2,0xb286e2a4,0x126672a5,0x291f01e4,0x31aab3b8,0x9c6fda5c,
+        0xe17d22ec,0xb7277a5a,0x914f0bad,0xbd88ed83,0x6a2392e1,0xd0b05d1b,
+        0x65893c2b,0x4cb8af90 },
+      { 0xbb4b1953,0xa2b02057,0xf597f6ee,0x4ce08b44,0x5e6412c8,0x854f5d9b,
+        0xb3cd4919,0x1913262d,0x6e42bb5d,0x902762e4,0xd78e7f60,0x8355c8e6,
+        0x38b6c16c,0x8efaa824,0xe550f618,0xd0173790,0xe57d778e,0x118af462,
+        0x715b4714,0xa16ad5e8,0x41dea4f9,0x900596c3,0x280ca610,0x2a957c32,
+        0x374c65a1,0x2faee800,0x50080414,0xdb105127,0xff080fa1,0x8c1db931,
+        0xd79878fc,0x486a5c25 } },
+    /* 193 */
+    { { 0x941b4f36,0x0521e213,0xf803b4f9,0xbaacfb14,0x52a54ba8,0xfdf1e22e,
+        0x8fe4796c,0xacfabbba,0x58dbacb6,0xae0788db,0xc19dfa51,0xdf98d736,
+        0x35a716ee,0x155c286a,0x9c86461b,0xbe7d4676,0x63a64a5e,0x50b6380f,
+        0x9f609262,0x14b41914,0xa2dfc5b3,0x0919a7d0,0xcef466ac,0xc454da55,
+        0x6986aaec,0x93fa4a24,0x71a49ced,0x5090b171,0xc1fa75ad,0x602f1d6c,
+        0x78e4c054,0x5d269f89 },
+      { 0x14920419,0x3a74030c,0x90968739,0x0845d868,0xeeb70fa6,0x81b994c4,
+        0xd9fc5bcb,0xabcaa06d,0xf58f8f2d,0x06539427,0xb1dc52aa,0x35c85f67,
+        0x2c911baa,0x5a7d8d72,0xaec2d834,0x4041005c,0x7a8e5347,0xb5868a44,
+        0x8de512c3,0x04ee180b,0x211168eb,0x4daa66e5,0x2317cd8a,0xc0bd5dab,
+        0x61164df6,0xa1d4185d,0x1dbad7c9,0xacedca26,0x09b02683,0x0fe4b5ac,
+        0x26d9550f,0x8ac9995a } },
+    /* 194 */
+    { { 0x2640a39d,0xb2c8dc9b,0xede0c9f9,0x21ff0b38,0xa1ecba0a,0x74f469bd,
+        0x080d0417,0x8a902ccd,0xf4994604,0xe956fa32,0x9776ab15,0x348f85cf,
+        0x0066f492,0xc21fc6ee,0xfeeef367,0x35b1ebfe,0x4613e5ed,0x7804581c,
+        0xea6ba071,0xcbdfe8e6,0x950d73ed,0xddfcaa32,0x1da48889,0xc9747936,
+        0xdbaffbd1,0xce867c8c,0x1cbaeae7,0xd267431f,0x897912c8,0x68255045,
+        0xd7ea1e4d,0x0c7c1ddc },
+      { 0x1ce963a7,0x53aa30cc,0xc4c5fade,0x7352f64c,0x2828afbf,0x2b9aa2f8,
+        0xca212107,0x64273c56,0x85a576dc,0xaadd7654,0x90b5c77c,0x6196ac3e,
+        0xd1aaf39b,0x20d43e9f,0xcd05cbc4,0xfc392062,0x4c0ff2fd,0x14163872,
+        0x2ae821e6,0xcf32b8d8,0x3fa7a3f0,0x5f58f943,0xf644ca92,0xaebf1d2d,
+        0x1918a75f,0x0c061563,0x6b876118,0x7989b5ed,0xad412441,0xbf342445,
+        0x1df633ab,0x24ffc9ae } },
+    /* 195 */
+    { { 0x93c7cb2b,0x89fcdc05,0x590053fb,0xc1243b95,0x6182343c,0x601debcf,
+        0x66c18a63,0x364546ef,0xec913287,0xa5290701,0xf9788c31,0xc35b8026,
+        0x92d1f7d7,0x852b862a,0x0aa79728,0x1809cb05,0xa3cb2005,0x897d467c,
+        0x9ef5b946,0xf20c77c0,0xf2241984,0xc3372c42,0xf35bb206,0xda053e0d,
+        0xa9c140b5,0xbc26c6d0,0xcb56fb33,0x61cfcc0c,0x299b3968,0x1c3cf9ef,
+        0x40621ba4,0x89e4d3d1 },
+      { 0xa45a9be3,0xd35e80e7,0x07356fbd,0xc4daa578,0xb967bc2f,0x0186d62e,
+        0x47cd16e3,0xa702679e,0x5f30ce9b,0xca2f1c02,0x1f864f50,0xf1205b46,
+        0x85061d66,0x7fd6d797,0x8a08809e,0x47edc4f6,0x9a4d3ae2,0x5dac0449,
+        0x6d1f9da8,0xf844664a,0xd7a83a71,0x9f30ce84,0xeaac33f1,0xe9382bac,
+        0x948622ab,0x1f033831,0xf7681eb2,0xb037a4ba,0x99a1b5c7,0xd156a908,
+        0xe6f1d0fb,0x675d3e6f } },
+    /* 196 */
+    { { 0x707193e5,0xd9767ffd,0x810358e5,0xe478aa91,0x328d8ef7,0x5634f9ff,
+        0x6dbbd9a7,0x913a0ee8,0x7e215686,0x379b2968,0x89d9da38,0x903f410a,
+        0x1b1334d2,0xd9f8d7b9,0xbd82efb5,0x9fe74229,0x3803c778,0xdb568b62,
+        0xd3d25344,0x93e9a350,0x724497e8,0x559c35b0,0xa169e23b,0xc472d436,
+        0xcc5b4c69,0x09864632,0x83c7f531,0x9f6d759d,0x1e497888,0xa91cf1db,
+        0x60af1a4b,0x5f7f92fe },
+      { 0x0545167e,0xf18a1cc6,0xaffa88e0,0x55ee2e02,0x432a7bcf,0x24cdff51,
+        0xa7510866,0x7382da42,0x40511af7,0xe894c11f,0x2aaf1423,0xaa4e4e31,
+        0xf63dd2ae,0x8c3d36f0,0xd7660635,0xfc5c9550,0x37ea7eab,0x01253731,
+        0x39b950f6,0x2a5cd598,0x40e63442,0x95a0f601,0xf2ac7045,0x905e238e,
+        0x446b0f73,0x44bacc0e,0xc448578a,0x4cd4206e,0xa5bd7803,0x367b1aaa,
+        0x0a2b458d,0x25beced9 } },
+    /* 197 */
+    { { 0x0c33a8fb,0x079a7382,0x0f25dc1d,0xcfbf6cd1,0xc6d482b6,0x4ffc73f8,
+        0x07bf844a,0x3e51f18c,0x599162f0,0xa7651236,0x14013811,0xac59a74e,
+        0xe55018a0,0x957a6865,0xe3ca09b1,0xe1ec51bd,0xa960253f,0xbc0c7eb3,
+        0x7de03f84,0xe83bfd14,0x52fbdb09,0xc0540ed1,0xcea15ec1,0x6ba52edd,
+        0x4b261307,0xf3d30ed5,0xe8397206,0x9bd7bae8,0x096373aa,0xf20d8692,
+        0xc3b0bf63,0x0a616a4b },
+      { 0x6e1339c9,0x2075f3ed,0xbf8b00a6,0x7afaa072,0xbccd9b47,0xdfafec82,
+        0x00ca54c7,0x4713158f,0x38bc31ae,0x449102f1,0x310dfc8a,0xaf98f158,
+        0x59e954d4,0xc9ef2075,0xc527a0c4,0xe8021af9,0x7a192023,0x6e801277,
+        0x7fb02377,0x635f538c,0xe8c9e951,0x5df1974f,0x15cc9097,0x0287faed,
+        0xf7a5115c,0xfa0728f0,0x0fac623d,0x90dbfbe6,0x0311ba09,0xa8d40fd4,
+        0x07c6464c,0x876d154e } },
+    /* 198 */
+    { { 0xc2d3ea8a,0xd3a4d6d2,0xa842600e,0x36be681b,0xe4070672,0xc53f100d,
+        0x6a7d7a7b,0xe3e5b6fe,0x5d5e1a83,0x6e6994f9,0x76097c2a,0x07cacd22,
+        0xa6791011,0x12d98dba,0x102e0e24,0xddfc4461,0xd493272a,0x4815dbc2,
+        0xa9436696,0x7e38e64b,0x32b2bf90,0x4960eb1a,0xd928e28b,0xda457525,
+        0x2a077c9e,0x72f75b39,0x7fd61d00,0x27760cbb,0x0f4b1456,0xaf235d1b,
+        0xe76d1700,0x3040c23b },
+      { 0x4efa9a70,0xb10dc55b,0x53e86610,0xd4de414f,0x09f8a27f,0x3d95c113,
+        0x06661d3c,0x505109a5,0x60eb513e,0xcaa2994a,0x1e7d338b,0x3ee41537,
+        0x4651e71f,0x4fd145fc,0xcbc313b4,0x51bbf838,0x1eb92150,0xb039e078,
+        0x14bf5ac7,0xe8696b44,0x8be0d48c,0x2d667188,0xdd8f2b6f,0xbe93b2f5,
+        0xeb8a7f8a,0xc1dfd1e7,0x90f751c5,0x862b3dd9,0xa32a74be,0x1eb1ad58,
+        0x1ebbc9a2,0x5486d79a } },
+    /* 199 */
+    { { 0xa1359e13,0xcb2e34ff,0x28196051,0x202d8dbf,0x23564b5e,0xe95e023d,
+        0x42f6ac12,0xfb1340b6,0xb653725d,0x543ba852,0x8d2466ad,0x81aedcd6,
+        0x547c728b,0xbf780224,0x9569fb65,0x559f8a11,0xdfb22ec9,0x505b7a62,
+        0x9eed5e52,0x07107540,0x299f6f11,0x9c899288,0x3db6f8c7,0xa7d69261,
+        0xb3ca79a9,0x30eb7fb3,0xfb2160b0,0xcab99bb8,0xd28b409a,0xd2012568,
+        0x5ac45f8b,0x380f1b0f },
+      { 0xe6a0068f,0xc0b99e6b,0xc8a73753,0x4b67cf2a,0xb2faeb7c,0xa6c9a548,
+        0x340260c3,0x7f417f99,0xcc0f739e,0x8ee56855,0x780949da,0xf08b510f,
+        0x8d5c6eff,0xb1770fc2,0xfd96a7bb,0xb4f5abee,0xf2665a2a,0xa07b1136,
+        0xb601dcf9,0x2fb380a4,0x162becc6,0xcc803614,0xee6b83b3,0x3498fb96,
+        0xa8c17eeb,0xea9b0fd6,0xa177efc2,0x5834b5ba,0x5b110b3e,0x929044f5,
+        0xebd7285e,0x4abedded } },
+    /* 200 */
+    { { 0x700ef376,0x3355e1b9,0x66cdabff,0xd56e5d9a,0x47e87646,0xb3dc2575,
+        0x00f79369,0x28f44b8a,0xa0c52e29,0x08c32b1e,0x3729b392,0x5a78de12,
+        0xb26d239d,0x4184519a,0xe0ce4a6b,0x23f6b4b7,0xacb2a9f9,0x235f6f8a,
+        0xe2064a59,0xbb8bc454,0x1bf3062e,0x37efd034,0x94dff6f9,0x6bac683b,
+        0x8aa7fa06,0xc3364b1e,0xce0b3745,0x0616772a,0xd1e3fb0f,0x46f08d08,
+        0x18e132d3,0x6a20abb3 },
+      { 0x6a85cbc7,0xea831016,0x934f9aa7,0xd0990946,0xe778f1b3,0xc2211088,
+        0x2247b799,0x7ea4ff8f,0x454484ce,0xb3171d71,0x4f98c364,0x29403949,
+        0x97df1458,0x5da911f3,0x09439116,0xa6b58093,0x174238bc,0x75f9509a,
+        0x8209758d,0xfeb51821,0xa47925d0,0xae0c6021,0xaf8a315e,0x0e946694,
+        0x6bad04b7,0xae7af8a3,0xf072447d,0x44c15e7f,0xa5456ffe,0x5184668a,
+        0xbf36b977,0x45e353a7 } },
+    /* 201 */
+    { { 0x93092f71,0x76056764,0xf5b92d71,0xeb66b6c2,0xe2c8b6c5,0x9db3149b,
+        0x20c0363e,0xf62f583a,0x03cd7097,0x688acd33,0xebb916ac,0x85d0c0f8,
+        0x84c19b0e,0x1bf7462c,0x7c4a6ad1,0xc76ed5f9,0xd119f369,0xec8b88ba,
+        0xebe50b83,0x59b8371b,0x866706a6,0x0cc69508,0xf8373d2c,0x531c75a3,
+        0x2a5a02fb,0x4e1cd3a3,0xda39a1d0,0xe8274778,0x75da333e,0xedfc5bbb,
+        0xca79bd36,0x15941f24 },
+      { 0xa77dd512,0x42e8c0f8,0x1dc365f6,0xa91b59a7,0x08753862,0xe80d14cd,
+        0xd272faca,0x1624230d,0x4027cb5a,0xeea3ec16,0xc1ef9f03,0xc1700b59,
+        0x0da3148d,0xd411c127,0xc4181af1,0x801ee448,0x9e3a900b,0xedf28559,
+        0x0d09affd,0x5d67b0bd,0x8b370024,0xd839df96,0xe6f836b8,0x3b6307e0,
+        0xbd3201c9,0x5382e588,0x7a1d02bb,0x636d8a6b,0x968641e9,0x70b7db76,
+        0x118fad03,0x6d17c34a } },
+    /* 202 */
+    { { 0xc181c99b,0xcf608841,0xc87bdcaf,0xb65dc901,0x3720dabe,0xb460b447,
+        0x5377515b,0x4c79c396,0x0a96c277,0xd447f22e,0x2ac0f440,0x0d952130,
+        0xc90583ad,0x8330b26b,0x928904a0,0xe25e977a,0x85c50b18,0x1deaffd9,
+        0xa5ad5f6a,0xcf4dbcb7,0xc8a37ed5,0xcbcd0019,0x1e9850b6,0x7846dd90,
+        0xb0b8e605,0x1ac8194a,0x34132f90,0xb9728571,0xf56ee28b,0x4ce9f149,
+        0x3e9e1d4e,0x1ab9b5a4 },
+      { 0x314fa7a3,0x206dab92,0x478ff963,0xcc4af0f0,0x904d9fdb,0x4cce1713,
+        0x12c045fe,0xac20a2eb,0xfd8f6d7d,0x44fc5478,0xca7b6ffa,0x886e72c5,
+        0x6fd6f758,0x7fa4529b,0x92a820d5,0x4df1d1b1,0x2789f149,0x3d812f9f,
+        0xaabb53d2,0x9842f083,0x2a03ab32,0x2648539b,0xb1512502,0x631ce090,
+        0x731f6bd5,0xe1294d15,0x9436e634,0xb229361d,0x3ca966af,0x8c4281c4,
+        0xc21ab3ed,0x24b34956 } },
+    /* 203 */
+    { { 0x659824e2,0x49bdcb86,0x4e13e74c,0x6dc4ce48,0x6bbe1eea,0xa4c01a26,
+        0x1e3ec457,0x47b2b8e7,0x2f5a8e4b,0x7e8b15e0,0xe333530d,0xe81eb6e6,
+        0x17a45202,0xacba369e,0xd70e4c9f,0x81241431,0x3e12beb8,0xc190af4b,
+        0x11f486fd,0x53270523,0x29fb2bce,0x9f6c41e1,0xb70f6c08,0xbe6287eb,
+        0x3feb4477,0x1479850a,0x9bcf18bb,0xfcfdfb11,0xda80d040,0x925c292f,
+        0x7e3c5bf9,0x212d65e5 },
+      { 0xca15cf08,0x23adb386,0x81e172eb,0x4dfa4ac4,0x4d42d0c0,0x9d1dbf93,
+        0x74404dc7,0xd9cf6073,0xe932bfcd,0x60508441,0x1c682a98,0x9ae910ca,
+        0x41ac1cc0,0x9528fc18,0xdbbed630,0xe6a120ae,0x30ccf250,0x94e0e1ec,
+        0xe58bbf2f,0xfe84ba54,0x9faa4415,0xc66d0b4f,0xecee7ce5,0x0c58f1e7,
+        0x6fa6873a,0x7a1d43eb,0x399f1348,0x96c6c5a0,0xe6727ab7,0xe6ef9aaa,
+        0x9a5c2447,0x66afa554 } },
+    /* 204 */
+    { { 0xc980e91d,0xda5aaba8,0x6ac98efa,0xa93cf509,0x8da32662,0xb0990e0a,
+        0x0081453e,0x01d21530,0x3d71de84,0x2bb0d33e,0x3e19a012,0x465f6d80,
+        0x78a838e7,0x5902ff4c,0x1931348c,0x74e2afb7,0x9cfb057b,0xa4932757,
+        0x3ad03f8f,0x761ea642,0x58ffa40a,0xb7d4c245,0x77a87e30,0xb5e9c0d9,
+        0xc9c84d26,0xd1c5edba,0x3d1963a0,0xeca8839a,0xebf6bf0d,0xbc6f2f35,
+        0x0d58abdf,0x01ef0631 },
+      { 0x3ecdcbb0,0x2bf90316,0x27c1c955,0x19e2d728,0x9575c930,0x9e527030,
+        0x96983930,0x0dc1c5a9,0x7cd082df,0xef9f80ff,0xdf97e051,0xcd915075,
+        0x9cc61b55,0xf286fffe,0x80f24cc4,0x352db38f,0x36523ae3,0xed9b99ec,
+        0x10b104a9,0x109a8ca8,0x305203ad,0xc2700fe7,0x769400f5,0x2a2ee24e,
+        0xee0c452c,0xd595d399,0xf7f02a41,0x0ab75d6a,0x0db730b7,0x34108099,
+        0x5e8d1202,0x0e4f5ffd } },
+    /* 205 */
+    { { 0x0ff14c38,0xbd1c6444,0xaece11f2,0x9a5b59fa,0x22af6330,0xaa4605a7,
+        0x82af24ee,0xddc9f65a,0xeb9a1159,0xf4ee4bfe,0x74e84eaf,0x2463d076,
+        0x0e0baace,0x88cbe1e0,0xd5fabdcb,0x7ca568ea,0xc57eb99d,0xbd80d524,
+        0xe9be9873,0x9c46572c,0x7300b85e,0x918a1dcd,0x40f54176,0x49221312,
+        0xb5b14236,0xf7e324ff,0x2434f16a,0x40dda501,0xa133d97c,0x08833421,
+        0x0876f020,0x33d41161 },
+      { 0x9878e5ec,0x7531a36b,0x46918232,0x5de3e321,0xd0a30464,0xd15f9a33,
+        0xaa173659,0x734c1b87,0xf925d4fe,0xac2094a2,0xc262b0f4,0x43c965a1,
+        0x447d5cbc,0x759c903e,0x05239300,0x92af215e,0x1f593f34,0xfffb6d5f,
+        0xc3cddb5f,0x65943b4b,0xbfdd5408,0x9d03a29c,0x198d76c0,0x8f7cda6b,
+        0xc0f27b59,0xc0790a22,0x8cb58ccf,0xba557a84,0x76c54fdc,0x5922052d,
+        0x47b6b466,0x2d3de7aa } },
+    /* 206 */
+    { { 0x65add3b7,0xaade7462,0xabf24c2a,0xe5888f35,0xe1a57d93,0xd41549ca,
+        0x2c76f7bf,0x0e22e18e,0xbe3202b3,0x67f288ea,0x1d1d0f0a,0xb79a66ba,
+        0x2881ad18,0x0e0ab749,0xc7adb0e9,0x7d424086,0x2842132f,0x870c32c5,
+        0x58f9a09e,0x858477f1,0xec025589,0x422a9372,0xa5098777,0xbe428c5c,
+        0x57660058,0x45b79564,0x957f37cf,0x6c7fc631,0xd6316289,0x8b7023dd,
+        0x5b1c12a6,0x47003bb6 },
+      { 0xc91c1c96,0xd99401c1,0x27a12970,0xaa5dcdf9,0xc3c29107,0x3ab92e17,
+        0xa3fe4710,0x26fce8f7,0x4ee998ee,0xb0d09d5e,0x8e3a41f8,0xafa62204,
+        0xa26ca506,0xb1c012a5,0x99b57252,0x2c6f734c,0x512f7fe1,0x1093d79f,
+        0xacee19a6,0x2f30906e,0x056d1ea6,0x6bff8381,0xeff35f21,0x61c75856,
+        0xc1ad2224,0x6e07e978,0x6b20fde8,0x2cca6ca1,0x633fe81b,0xab4d6d2d,
+        0xb06a2ce6,0x73dff504 } },
+    /* 207 */
+    { { 0xd8e20fb8,0x8b615805,0x82b533f0,0x7c6873e4,0x56a854ca,0x5205f001,
+        0xcb369211,0x87fec6ac,0xc7f092b7,0x1fa3c0ec,0xe845fe4c,0x5b36647e,
+        0xf8b1f112,0xd4781e85,0x8b0f1a6f,0xc6526839,0xdcb8eb92,0xceeb8c6c,
+        0x8e5f6d52,0x133f0ead,0xc8d934dc,0x31883e23,0x428ac45a,0x214ed5bd,
+        0xdbbfca85,0xf77ca492,0x07e5ae13,0xdf4113fe,0x72ab05fb,0x63e4a0d2,
+        0x7148f535,0x7544d0b7 },
+      { 0x80797ace,0x4fe8d134,0xaf86d97e,0x216d6aa0,0xef5a68fc,0xdbf0a688,
+        0x9f9b2684,0x18b26f45,0x8999d2fc,0x52fefcfa,0x62423955,0xd5af8d82,
+        0xf63a3780,0x8f123469,0xdcd4feaf,0x2933454f,0xa73b5d09,0xba8018b7,
+        0xe5552c18,0x9af1f276,0xff26bb1c,0xc5d4773d,0x06dd4f44,0x9ef49410,
+        0x5f39ba49,0xad8f12f9,0xf66ca4f2,0x5767f6dc,0x7922f59a,0xba8773f1,
+        0xc1e42d49,0x220081ea } },
+    /* 208 */
+    { { 0xba37a0ba,0x3043d573,0xdd176df6,0x05a431bc,0xc42070f7,0x03322cfc,
+        0x67c2d109,0x5cabd30e,0xcbf8bcfa,0x362c95de,0x7787b10b,0xd767d277,
+        0x6ec05e64,0x612c915e,0xce69c30e,0x9e669631,0x682e2635,0x27c9dd8f,
+        0x95ffcc38,0x79021f12,0x8a2adca2,0x06a8ee79,0x4b5d500a,0x8e00e784,
+        0x8d80d6c5,0x87746fc7,0x915f10cc,0x246053be,0x219f6fd8,0x844e328b,
+        0x11bd3733,0x620541ac },
+      { 0x509e5a29,0x0f7fd382,0xb432531e,0x8748d7d0,0xcd3883b9,0x8f749354,
+        0x8bfbb17a,0xc6b8ac74,0x05f2d2c5,0xa4616a66,0x1bcb1b83,0xb3d96625,
+        0x2fee265a,0xcf753104,0xdb225058,0xc70d73fb,0xf0c2d556,0x1211d434,
+        0x54b259b3,0x862061d8,0xc42b3f7d,0xffe4606d,0xe86a4949,0x4c5c8585,
+        0x160eedac,0x04ddcc8b,0x568e2420,0x1804ce67,0x42141656,0x91f3855a,
+        0xf932be97,0x7f378198 } },
+    /* 209 */
+    { { 0xdfa6639a,0x9a374bda,0x02ab7391,0x0cbd48d4,0x47031e2d,0x5c5ef236,
+        0xd0599d1f,0xb49ee2bc,0xe0d38443,0xd285eb60,0x269392e8,0xdbbea92f,
+        0xb8bc538f,0x91455fbf,0xe469b768,0xae259ff1,0x41de5682,0xc1cecb1f,
+        0x9952d1ae,0xc876f071,0xe7bf7446,0x1ce25181,0x282ad2f1,0xcb93ad86,
+        0x6ba4ef67,0x8fa3cd31,0xe507aa3e,0xfce68a04,0xa61bb608,0xced74170,
+        0xf6ac10d0,0x6de716b3 },
+      { 0x172d6dc5,0xd4e58d04,0x6397c65c,0xbed2cde6,0x0c9eb4e8,0x7ae77e18,
+        0x75fa2edb,0x56275468,0xa91e6738,0x4b30324e,0x235c8b2e,0x6023a856,
+        0xa8f92887,0x9df6d6c2,0xf6f5e8b5,0xec2c185f,0x3ad5748a,0x7892e12b,
+        0xd54aefbc,0x7aebb4f2,0xee868821,0x14915448,0xb1d9bd5b,0xa26c5f71,
+        0x2ff00df7,0xe5ccd166,0xb95b1dee,0xebc99f17,0x3fe1f774,0x90983616,
+        0xbb3d25b0,0x51f90830 } },
+    /* 210 */
+    { { 0xf2922461,0x49376fa1,0x1650d0d1,0xdbb1b1c3,0x0dd8608d,0x92b91c33,
+        0x36b89906,0x3e612c4b,0xdf560052,0xe1977b0b,0x636a2545,0xf8afff70,
+        0x11723d8e,0xcda7d278,0x81bde7ba,0x0b0bc4bb,0xed2a578e,0x3cb080b2,
+        0x171b2e02,0x5bda0d0d,0x941bb9ae,0xf6df38cf,0xc14a65c5,0x85dd81db,
+        0xc19dd98e,0x7f98c82d,0x52206f93,0xc613747f,0x5f5bbe78,0x9e13a2c2,
+        0x0aa34be7,0x5eed218e },
+      { 0x01d4dc0b,0xe1565754,0xf566bb07,0xa1ae5f27,0xb82225d5,0xe985ebeb,
+        0x1189ec6b,0x5f3ad21c,0xecce4d9d,0x17da518c,0xd6b65b59,0xc84a2d3e,
+        0x8ffa771c,0x7f988175,0x2ac69a7a,0x50d6ae12,0xc6e6846d,0xcb7f30b1,
+        0x5bd0bb13,0x8c023a60,0xd73f2407,0x9a10fecd,0xe5f0a996,0x8c5158cc,
+        0xbd8f5806,0xd26bf615,0x915a46e1,0xaf32ea87,0x0287d308,0xeaf74e81,
+        0xa6264254,0x8c14ba06 } },
+    /* 211 */
+    { { 0xb17ee201,0x0c877895,0x88e57a77,0xc05aa471,0x97822456,0x19c3e763,
+        0xc9c3ba1d,0x0be6f8c0,0xb4389ebe,0xfe85f4ff,0x0ce7fbb6,0x538bccce,
+        0x65266c64,0x876eab2a,0xcf9a3842,0x5c9ac690,0xccc8f981,0x9f5cf3b1,
+        0x9cf687de,0xfa17be6a,0x83835c15,0xfcfc10fc,0x150ef2eb,0x086b0fdb,
+        0x884a52e6,0x9f97ecd9,0xb0cd1eb8,0x416e6fa2,0x3ecc03ba,0xe2bd1599,
+        0xeabb165e,0x645c0a5d },
+      { 0x50aa7e31,0xd94c4205,0x2f851da5,0xaec8df0c,0x3c726e6a,0x99646909,
+        0x2619bf9a,0x72dbdc36,0xe253fbd5,0x1b4260e0,0x8c709e06,0x97c259fb,
+        0xcddaec5b,0xfabf7cbb,0xe4b703e9,0xb4d5e8b1,0x0734efdd,0x1b06e56e,
+        0x1f55f8a5,0x02d4a4f9,0x3f565c8d,0x7f8608ba,0x816d1d94,0x822f47d2,
+        0x5ce7b136,0x0cc36156,0x31d04242,0xe46ee5ef,0x683567f6,0xb2a65f70,
+        0xd2fa6c91,0x27e9ff40 } },
+    /* 212 */
+    { { 0xd7e952e7,0x75251893,0xc735bf18,0x15b30583,0x96fe0491,0x732b5992,
+        0x806d2fca,0x27451858,0x1b885ed9,0x71ab76a0,0x6d9f55ec,0xbdce9d97,
+        0x48f2ba9c,0x3da60b20,0x592b132b,0x6977c086,0x099051d7,0xb6dca9cb,
+        0xd188ae25,0xd9c2ab23,0xe20aaf3d,0x9f469f3f,0x5aad74d0,0xdbd1f7cf,
+        0x22a9eb3b,0x3d5efe5c,0x137010c4,0x8c5edfa2,0x57870260,0xada2217b,
+        0x3dac9776,0x4feee567 },
+      { 0xb5d3d780,0x30e18d52,0x07166744,0x4dadb5d3,0x5a742156,0x320d386e,
+        0x8d6bbb86,0x5d8c290e,0x2d263dd1,0x981a4323,0x98984636,0x33d0e7ca,
+        0xa519acb1,0x5138784d,0xdddc81ff,0x832e3fab,0x3199a43a,0xfc278594,
+        0x32743163,0x5b4cabcf,0x74f94fa7,0x9fa010bd,0x5694a627,0xc28a743d,
+        0xcb657a24,0xc1d2a888,0xe86a25ea,0x7eef2503,0x04c561ff,0xed11a5d3,
+        0x9c9ede0e,0x4fe818e7 } },
+    /* 213 */
+    { { 0x7fc1c7ff,0x00252c9d,0x9fa89ad1,0xa9bd419d,0x4064e9cc,0xc93a124a,
+        0x43942ecc,0x384cbcb8,0x8749695b,0x004c21fd,0x421165bf,0x69c81d9f,
+        0xdde01102,0xe2325628,0x5a9b004d,0xec937457,0xf6dcfc21,0xfb3346bf,
+        0x4d372c7d,0xac4da64b,0xf20494e2,0xcecb7ad3,0xe867c150,0x562c41b5,
+        0xc2b723d8,0x299395ce,0x7ee53231,0xc91adfc5,0xf10b6597,0xe06f1161,
+        0xb74d3ffc,0x81915529 },
+      { 0x6ed9d4ee,0x8ec12431,0x689aff01,0x3dffa154,0x2a89a3f4,0x4aba349f,
+        0xd467efb2,0x2db1e8e2,0x039102e2,0x18dea354,0xe52f082b,0x422ab853,
+        0xed36dd47,0x7130a2c1,0x0295d1ee,0xca60e86d,0x7c7f5ad3,0xe6ac6808,
+        0xde864658,0x0f83cecf,0x461d1265,0x72e66c21,0xbd385099,0xfeef4150,
+        0xa6632289,0x0f183f3a,0x792dc795,0x275454be,0x11367702,0x2744c11b,
+        0xe8ea6ef3,0x7d06bcc7 } },
+    /* 214 */
+    { { 0x7090212f,0x89285942,0x5521e844,0x691b7d4c,0xbe2dbb92,0x4c038422,
+        0xbd81f880,0x317721ed,0xac89bc36,0xc136cbee,0x7b8f004d,0x4f71b60b,
+        0x4e218ab8,0x269132d0,0xe6cc814d,0xb0e2496e,0x75fadc15,0x0b2ce317,
+        0x66d223c5,0x82e3c084,0x4c612f8b,0x9721caa6,0xa4b65355,0x59a751eb,
+        0xc7d3d9d1,0x3433aad5,0xe80d4246,0x1e61b9d2,0xfc673caa,0x149f655f,
+        0xd0f9cb92,0x48b52b99 },
+      { 0xefdc05be,0xa3915399,0x13e095e9,0xde70db18,0xcddb3fda,0x447862e9,
+        0x1a009451,0xa2b03162,0x23920ea3,0x4b27980c,0xa23b8feb,0xac5394f1,
+        0x3e5616d4,0x163f7256,0xb714219a,0xaa0ff93f,0x93d62474,0xd26f96d2,
+        0x7dcfe276,0xdd212ea8,0x47038d15,0xab27bf2f,0xf418168e,0xe58c8325,
+        0xb32a989a,0xe3704222,0xbfc9f13b,0xa3694390,0x0d0684ad,0xf16e2606,
+        0x9d8c76ec,0x17c0de87 } },
+    /* 215 */
+    { { 0xdcc01958,0xbca5f453,0x1ce88393,0x7d945954,0x561f5b6d,0x5e6350a1,
+        0x7e2d36bc,0x291c3c86,0xa5ac3a6c,0xf6c7ed84,0xd98006cd,0x7913c40b,
+        0x5671ec3b,0xf78bb087,0xb43e89a9,0x1c928f6e,0xae1ea1ed,0xfdf28df3,
+        0xb924b2b5,0x62bba5b1,0x1a116e05,0x491d2705,0x167ed3e3,0x08ec02b7,
+        0x5bc0b046,0xe291cf7b,0x8c5d7f59,0x30e50169,0xf5c799b7,0x0c7c350d,
+        0x0ac6e1d7,0x6862b9e2 },
+      { 0x9ffa1f64,0x56c6f4e7,0xa1e24349,0xfed6a91a,0xcdb75232,0xe9a0ee0c,
+        0x0322d607,0xbfc90b37,0x462fef87,0x29480ad2,0xc2bfcf34,0xfc214969,
+        0xa539e38f,0x6e5211e0,0x12a5149c,0x2a59ec26,0xd706b532,0x195fe212,
+        0xe99c8429,0xf77fb108,0x5dc80482,0x74ceaea3,0xbd92d298,0xa5a6030b,
+        0xaaea15ee,0xad42dca5,0x4987109c,0xd6ac3bc7,0x290af649,0xc64e1c40,
+        0x51f8de6c,0x5093fa2d } },
+    /* 216 */
+    { { 0x4c2d553b,0xc4cf3280,0x3b966c29,0xdc1abe22,0x2296914a,0x556a549c,
+        0x999976c9,0xd8c9f8b5,0x776e83f3,0xc22c57bd,0x7c85ec57,0x4f2942ab,
+        0x6e2c61f5,0xef3407e5,0xf213db48,0xf005e8ca,0xf32698c7,0x470c853d,
+        0xcac0a54b,0xe6f488d7,0x60b7501e,0xb6bd6bed,0x714a4bd9,0xf0103106,
+        0x6e098894,0x5285bc3b,0xf5f92a00,0xec06741a,0xef7ef24a,0x32f16426,
+        0x6c77a438,0x12f9c44d },
+      { 0x83313a1c,0x1951e964,0x33c58b37,0x98edd3da,0xc7ac4044,0x4edbbf52,
+        0x0dcb5ee8,0x866ca6f7,0x6dd422f8,0xec0ae8f5,0x0661ec2e,0x1077bc54,
+        0xd422523c,0x6d39913a,0x58e7cb3e,0xd105e1e8,0xc979bb45,0x47c9397f,
+        0x0997b592,0x3221d4a9,0xe8952fe7,0x0ef628a3,0x4e946241,0xd08d5827,
+        0x59780f40,0x64cbed0f,0x08e110ec,0x13d7c227,0x7679b1a3,0xd186d866,
+        0x26ae1d18,0x02f75e4e } },
+    /* 217 */
+    { { 0x47f307d7,0x1b637ebf,0xd0141477,0x6b644a6a,0x2e05a80c,0x82a33d65,
+        0xfed07b31,0xc8f1a0f3,0x3696e597,0xc09ee7f9,0xc7ffc01e,0xcdaa7ec3,
+        0xf8f373b9,0x549f88fe,0xc3bb8989,0xc88d1961,0xdfcaa7b7,0xd92a4fe9,
+        0x3ae4ab20,0x12ff9ee2,0xf5ecb1a5,0xf5aea641,0xe32fb47d,0xe769237f,
+        0x25d085c0,0x96a5c420,0x26c755a2,0xdc912558,0x9bce9723,0x580b985f,
+        0x63961941,0x72b1b566 },
+      { 0x790e5558,0x9d708a08,0x0689af80,0x98536041,0x42313b5f,0xe85e7b8a,
+        0x55a49d1a,0xe6ba1292,0xac371b0b,0x5e76c4b0,0x938e6e19,0x58504f39,
+        0x60ae9a21,0x8dd41422,0x968485ce,0xd8b04e9b,0x887efe43,0xf94c4ba5,
+        0xf11c5e73,0x11268e67,0xcf6b99c4,0x92623e28,0x7a0a9662,0xf2d0aaa8,
+        0x4ca02ed3,0xb266772a,0x2d63b551,0x68ee8e4e,0x2e78b5b5,0xcdebb299,
+        0xe17225ad,0x5df19216 } },
+    /* 218 */
+    { { 0x8df2e7e3,0x20027e1e,0xd8da07de,0xb183cc68,0x4b4ae694,0xce35ba69,
+        0x3ca62e88,0x896d97df,0x52efed2c,0x3de4713b,0x26bd084f,0xd006c40e,
+        0xfc81923b,0x1e9b71bb,0x1aacc6b0,0x9991c7b6,0x8f656840,0x650c9364,
+        0x87f47524,0x138561d1,0xbffd3ca2,0x610f2b11,0xfa191418,0x96915faf,
+        0x955e5309,0x8f1236de,0xa1872d79,0x613cbeea,0x66a2a48b,0x7f7b44ea,
+        0xe0a89c32,0x452265c2 },
+      { 0x25430010,0x4ad5ec79,0xebd090c0,0xcac786ff,0x20a9d3f5,0xa5f9f4ff,
+        0xa3edc65f,0xfcbf4112,0x0cf3eb11,0x8824839c,0x8aa5b700,0xb8dd6d4e,
+        0xb7568ab8,0xe2271dfd,0xb744560e,0xe43ec373,0x1cf75296,0x78eaf926,
+        0x3fa96d9b,0x1809ae0e,0xdc25dfd5,0x0b312d2d,0x6bab7711,0x6b8f78b4,
+        0xb5ecf1e4,0x069efc8d,0x609fecaa,0xc1952bae,0x5f4dbde1,0x43e302ed,
+        0x1e078555,0x14b02bf9 } },
+    /* 219 */
+    { { 0xb87e5b57,0x2c71c768,0xf531a557,0x0bcc78f7,0xf7597dc8,0x4ff93f8b,
+        0x139e175f,0xb28e026d,0xcb94ca6c,0x6b83b727,0x0079f7fc,0x2eafe3b2,
+        0xcf3bd170,0x2aca54de,0x6af0dc6c,0x17c4133c,0xccf5e35e,0xbea1e665,
+        0x345505c6,0xa6691a48,0xe6100b89,0x2633abd0,0xc17d0388,0x966c6706,
+        0x1a0cf90c,0x7aefffbe,0xd0add64c,0x4d847be7,0xaea2aa46,0xd49bcdfb,
+        0x2cc7d0a5,0x85e07e74 },
+      { 0x0bc25bca,0x23aae0a6,0xe44f64ec,0x6e8e55f1,0xb607b773,0xe1e696d8,
+        0xd3005909,0xaa90a746,0x2cbc4990,0x072b1ccd,0xc68e2f5d,0x0d0fe6c6,
+        0x53e28ec9,0x920ec5f0,0xf0040cc1,0x79b21fb4,0xfcc4a2c7,0xa7375bd3,
+        0xe1bac7dd,0xf5f5def9,0x35c0f8d3,0xdc315d79,0x2cacd318,0x7117c170,
+        0xe926f71c,0x6f2823c4,0xed02f39a,0x38db58bb,0x7db69323,0xe5b49231,
+        0x8d49f430,0x0964039f } },
+    /* 220 */
+    { { 0x56999eba,0x21774f16,0xb1de6305,0x3d8ee287,0xde0b2669,0xd81af726,
+        0x3f8942a1,0x37446939,0xea03e13c,0xbcf6b615,0x94e273cf,0xd30c0c35,
+        0xc6725c56,0x4fd33a56,0xa8be97a2,0xa57534ad,0x7c22a251,0x799242a6,
+        0x9d0c5c49,0x4e51bdb5,0xc6a42768,0xd7cd76cc,0xd426bf59,0x914097ac,
+        0x66e9beb2,0x59404a2c,0x5c96e3e9,0x4738fe98,0xaad666d0,0xbcbb3e0e,
+        0x63bc5e56,0x626b0fd2 },
+      { 0xe1a1ec42,0x47217dba,0xab5acc50,0xaa6ae7db,0x865331d1,0xb7e1ab1e,
+        0x3d30126f,0xb8453070,0xdee61851,0x280649e0,0xea689544,0x8806f4a3,
+        0xcb56f632,0x4bbe43ad,0xbcaff94f,0x036b9bda,0xbd0637be,0x0d941e65,
+        0x686f3abb,0x82179d44,0xaad6afd6,0x1486912c,0xff7e1534,0x9a3b891e,
+        0xeb86fd96,0x88c426ce,0x117928c3,0xb56e6a81,0x96399e00,0x933e7135,
+        0xa17b6ac1,0x09bbddd9 } },
+    /* 221 */
+    { { 0xe4fd3673,0x75e39c1d,0xa65c8e07,0xf880d9d1,0x7289c7fe,0x4725c1dc,
+        0x3529d200,0x5b6735ee,0x3c747af3,0xc1f8f2ed,0x912efdf5,0x5cf3998f,
+        0x49859c39,0xed722618,0x0e69795d,0x23793a2f,0x86b1d2a7,0x8a6ab8d6,
+        0x22a882e4,0x00c815de,0xf9db8d7e,0xbe77d6fc,0x02267547,0x0886fb32,
+        0x49c10edc,0xb62687d4,0x7c83ed4c,0x9f1c3e17,0x5af366ea,0xe6d5d7f0,
+        0xd1efad24,0x2eaa01b8 },
+      { 0x1f357c74,0x5e47fb70,0xa9e3b794,0x93085c4a,0x6e85a905,0x4f098733,
+        0xbe0244c9,0xf53808ff,0xa3b5660d,0x91dddf93,0xf3b95ed6,0x8b76377b,
+        0xbb3920d4,0x91b911b7,0x86a13cf3,0x7ccf08bf,0xea018e58,0x53ed8f97,
+        0x78c55194,0xb1ea4343,0xe0d2d5a6,0x8e6adde9,0x9b96259a,0xfc2b248f,
+        0xeef17ddd,0x96ebceae,0x557f9c85,0xf694b443,0x07d5bba8,0x48cd150f,
+        0xb4c1986b,0x02d31de9 } },
+    /* 222 */
+    { { 0xde79499d,0xa6bb9e1e,0xfd0fc2ad,0xf6ca8ff8,0x1a7d9356,0xbec0f8e8,
+        0xe8f06327,0xbc3d1c9f,0x3b300beb,0x805c7217,0x413c181b,0x00420a08,
+        0xf0ca9d01,0x9e9a167e,0x1aeeddd6,0x076c909d,0x8e3a8a72,0x64a1997f,
+        0xa77b429e,0x3ce7f7a7,0x5c94d3e9,0xaac0fbf4,0xe6d48407,0xf37694a7,
+        0xa91921e7,0xf56679e2,0xee1dbbd6,0xf23fe0f3,0xcbf9fa99,0xc7917566,
+        0xe0f4d765,0x965860f2 },
+      { 0x7fa5f79c,0xe734702b,0x5af2d26d,0x930bd426,0x6c73e0ce,0x45bd8b98,
+        0x4ee44a2d,0x7dbe7bed,0x956c8a1a,0xc129e024,0x77cdf80e,0x6fdc05ac,
+        0x589ca59b,0x70a6ba2b,0x999825af,0xfc484021,0x7a23f0b6,0x1d284b54,
+        0x28a0a8af,0xb1da10a4,0x2b2af6d8,0xb1eb1b31,0x33935ee3,0xf051443a,
+        0x8effa6ec,0x7a07eb26,0xd662654c,0x16ee4086,0x4549ee4c,0x7a7bc501,
+        0x1fa98a52,0x65081032 } },
+    /* 223 */
+    { { 0xb67ed9b2,0x49f0e460,0xc36d93d2,0x0cda0fd0,0x88c75e1c,0xbb5963e9,
+        0x614bc0c9,0x757bbe93,0x9a768605,0x9a9b8801,0x48edc544,0xa8b7e2af,
+        0xb51a5985,0x9e77ed9e,0xebbf024c,0xdd025274,0x1545c636,0x598b6288,
+        0x4800dba0,0x39bdaed0,0x81e2a23a,0x7fc20139,0x550cb4f2,0xdc66fd5c,
+        0xb52068c7,0xad27032f,0x8169fa15,0xc9a0bcae,0x3a7ca8a2,0x60606f21,
+        0x9862652f,0x98295046 },
+      { 0x2e11c128,0x3e374600,0x0e6dca7e,0x80dfae5d,0xd9552264,0xe44016e2,
+        0x880b7143,0xf65f88f2,0x526b881c,0xca3d28d4,0xdfb86afe,0xf9c59dd1,
+        0x4c74f958,0x548860c2,0x9cb69f4f,0xd06ea43c,0x7334ecec,0x5343c9ae,
+        0x35329713,0x5cc2ccd6,0x5f3a6c0c,0xa95ff403,0xb372653b,0x2e01a1cc,
+        0xa250523d,0x31510fdf,0xa6227eb2,0xeee538e2,0xca23cd10,0xeadfc8a0,
+        0x3e78f54b,0x4b7e6e1b } },
+    /* 224 */
+    { { 0xdb5f928b,0x79c9076f,0xb7347cec,0xe6250bb6,0xac00ec41,0x54b67798,
+        0x9d9619c7,0x900d20ba,0x59e4343f,0xed42c0d0,0x451935d7,0x3df39e85,
+        0x64f701ce,0x26391182,0xe1f87aac,0xce8f2554,0x65f91aaa,0xfddd6789,
+        0xa324539f,0x96cd163f,0x4bace995,0x5c815f2c,0xa94f9ea5,0xd78c8c2a,
+        0xef24e455,0x7ab2aff4,0x1cddc26a,0xf0ed6409,0x00ca2822,0x954a420b,
+        0xd3297658,0x0611c4c5 },
+      { 0xa9e81829,0xf192001c,0x08a282cc,0xded33320,0x8f9ded9b,0x0bfd7de1,
+        0xb7889003,0x6793ac0d,0x3577a5dd,0xbb00d91d,0x802d3c2b,0xe17a23a7,
+        0xfb549014,0xff95f88c,0xc71b6e07,0x7cd1bf4b,0x23588c8b,0x2e3b24a0,
+        0xa4112076,0x9b5335b8,0xc4056d30,0x2481c05e,0xe916a1b5,0x55c7410c,
+        0x850179f4,0xbbe03271,0xb3cd1208,0x15e6c177,0x90cbfe50,0x509a24c0,
+        0x1c108566,0x82079529 } },
+    /* 225 */
+    { { 0x1c7d353e,0x5d2d3cff,0x7de0ce3b,0xd5e7eccd,0x6ca87635,0xb4b1075f,
+        0x25f9ad3e,0xda8404e0,0x205cb5ae,0x6b963e89,0x09f221a1,0x9e5ee0d8,
+        0xea41aca4,0xd64c85d9,0x34442a34,0x6a46c4e9,0x3cf655a4,0xac6ff97e,
+        0xe5417d7c,0x76565c1e,0xeebf9c4c,0x681009a9,0x88da6388,0x95b61d39,
+        0xf6b472c6,0x6402b46a,0x0b7f1171,0x1fde5165,0xbe0c05e3,0x94f8f273,
+        0xa88344a7,0x7487b036 },
+      { 0x9c3e2370,0xa860e575,0xf8048719,0x19d58193,0xa6e2f9aa,0x3a0dbf3c,
+        0x6144719b,0xb6c7e959,0xdeffec21,0xa9049c74,0x3f50cebf,0x8ba064b2,
+        0x49a1de15,0xb12822c0,0xb1d527f2,0xb654b7d9,0x0ffd0430,0xc470859d,
+        0x4f05446b,0x37c74a67,0xa3add995,0xe553251b,0xe33533b5,0x4a3ed6cb,
+        0x27e419ce,0x2f2f44d0,0xa5d1b979,0x2d84ee82,0xdb6fa69f,0xcc76b123,
+        0x21fa3bdd,0x834f85c5 } },
+    /* 226 */
+    { { 0x2ce9b31a,0x329347c1,0xfe3fb3b7,0x1d88522a,0x52ff90fd,0x4bcefb4d,
+        0x2b1a081d,0x53b17386,0x2a411f08,0x538c11ba,0x141b603a,0x7895b93c,
+        0xb10bd741,0x2993b9aa,0x09912986,0xccbbd046,0xeea0aba5,0x669fafb0,
+        0x35661897,0xd4844622,0x367ffa54,0x4a63b89c,0x1c3478da,0xcbad5d1d,
+        0xaa6034f7,0xc5339227,0xe61b1391,0x0e6d705f,0xf74ff515,0xdd14b660,
+        0x5332b54c,0x639d8b0a },
+      { 0x162217cd,0xfa423162,0x811c28e6,0x2e0e4a2a,0x21766dc0,0x68d9ce18,
+        0x046a06ef,0x51263739,0xdde92101,0x44eea231,0x114298d3,0x0607c8f2,
+        0x63d957e9,0x27f272ba,0xa5e8cae1,0xe7ce80cc,0x24f7a63f,0x5816ebe2,
+        0x89673e34,0x4dece5a7,0x536babd4,0x13756a22,0xe3bf77af,0x644d61ae,
+        0x2bcf98bc,0x60b2bf6e,0x29fa962c,0x3b0b59f3,0xabb50023,0xb0769a1a,
+        0x0c75402c,0x40903136 } },
+    /* 227 */
+    { { 0x1670433f,0x84d2873a,0x25493dfc,0xc9394df6,0x80fcf89e,0xeb05a19a,
+        0xdb297616,0xe39e4310,0xd9e63046,0x50742dc9,0x1de9ca9e,0xf31ad8c8,
+        0xfb7b1d0d,0x86aabf94,0x1b3c82d1,0x36cda27a,0x39702d84,0xfb1a2ef4,
+        0x46081299,0x280bfddc,0xd2396238,0xe4b2b48d,0x7b3c9353,0x2db2c2f3,
+        0x12fb8a69,0xd5b5b317,0x08180474,0xf9b87a3b,0x1e952578,0xd8590986,
+        0xf37a2bc8,0x80668eed },
+      { 0xb39a0249,0xe2edcd35,0xb2f8aeae,0xaf230cd4,0x7223df05,0x295b15e4,
+        0xe0e937f4,0xbb66982a,0x8cbc9162,0x019d2b72,0xcf49dca1,0x5c512ae9,
+        0x630f07b4,0x11b491a7,0xa03874e9,0x48d4f34c,0x44cb7433,0xc1fd0ea6,
+        0xf95b30c3,0x13f79ae1,0xed8b60ac,0x40362d4d,0x61ead81c,0x9e8314ff,
+        0x498c3d28,0xed600dd4,0xc2521702,0x5fcb1c19,0x3a9c1f33,0x592329fc,
+        0x1bde6ce9,0x04677548 } },
+    /* 228 */
+    { { 0x39233c96,0xee3de56e,0x80737eaf,0x868c409c,0x201abc68,0xacae11bd,
+        0x2b486205,0x0f2cea9b,0x6f19056c,0xe32387e1,0xa5dc2a41,0xea75365a,
+        0x12b4be86,0x76c29acc,0x8d63294d,0xa01fcab7,0x0cab9f24,0x81dbe88b,
+        0xf414c054,0x76646e5b,0xcb96b7aa,0xfe111893,0x7664e097,0xb649f5b1,
+        0x53fcf5a9,0xa196422e,0x0b7ff634,0x5978c9bd,0x3c229895,0xb5feb38e,
+        0x0833c456,0x038a49fb },
+      { 0x13e93257,0x35e3818c,0xa612741b,0x14cebc9d,0x7caac06b,0x4f6e9249,
+        0x3daa1116,0x82278e33,0x4de2034a,0xe7cc565e,0x0a1ba630,0xbb7dc95f,
+        0x66956fbd,0x81dd9f23,0xbb132dd6,0xc63e6319,0xfc241337,0x6e22b022,
+        0x7e8beb1c,0x23848193,0xd8c938ac,0x83b1994d,0xa6bb5644,0xb54cfaca,
+        0x06f91807,0x1a7cd44e,0xa8f8d9f3,0x1dd439bb,0x7f74a8e6,0x660c2a78,
+        0x121b5660,0x4bb76e22 } },
+    /* 229 */
+    { { 0xe6354817,0x7a151e8a,0xf038b438,0x33d494ea,0x85958986,0x4c86c688,
+        0x1dcbac12,0x72153827,0xc0edad06,0xf487af8c,0xe500e5d6,0xad33051f,
+        0xd6e47f55,0x0a711b1b,0x8c746ad5,0xa68709a7,0x6402f35e,0x27f17262,
+        0xfb30c130,0xc6d08efa,0xc06c7497,0x9ef1c041,0xdcc3e2da,0xd0c74ece,
+        0x092e1073,0x30c5f96e,0x2aa12b74,0x0f1393cf,0x2107eb02,0x24584016,
+        0x7b76f98b,0x8843d25f },
+      { 0xedb2a83e,0x4e1501dc,0x2bb8d724,0xbcfe8fb0,0xd925df62,0x09020659,
+        0x42ab6fc3,0x3c715dcf,0xa0f09dfd,0x73c05055,0xe3590aea,0x126745d8,
+        0x76ff749e,0x5382f4d8,0xa920c663,0xfc69feef,0x9fd711ca,0xde160211,
+        0x9075c4d5,0x4219c3bd,0x3ded6bf2,0x3800cbd1,0x6263a116,0x8c7ea0eb,
+        0x7d264c37,0x35bd7958,0x7159c98c,0x56e22e45,0xfa7373b5,0x71bf2a2d,
+        0x8935c949,0x0503f939 } },
+    /* 230 */
+    { { 0x71dad4f6,0x65addc66,0x024bea1b,0x238e4889,0xf605d3dd,0xfb76c8e2,
+        0xb0d96b89,0x13d5f5de,0x6601b2cb,0xe0b5ba35,0x83e3d254,0xe37d491d,
+        0x240c8ea7,0xe8860423,0xe91c99ba,0x374182f3,0xa87ad919,0x26c2caf9,
+        0xf574f295,0x4b13040a,0x944000a3,0x5b9bced1,0x06df42e7,0x4ccc57be,
+        0x4bd1089d,0x22e8ec50,0xdddbb500,0x0c53177a,0x9ecfeadb,0x690d31d2,
+        0x176668f9,0x735778fe },
+      { 0x843c1137,0x0f86ee3e,0x3f0b73cd,0x3c1c42fa,0x8ab20e3a,0x0e75679d,
+        0x16242fae,0x6f95f1f4,0x39b092e4,0x7b88e11c,0x4c236ac0,0x1629403e,
+        0x2dac02e6,0x66105f41,0x862e0632,0x74dc28a7,0xf3b23c8d,0x2118ffb2,
+        0x0745ffbf,0x1182417c,0x4c05711e,0x49b55a04,0xcefbe4de,0x2c665b74,
+        0x97bf7107,0x1cc4c01d,0xc54f0676,0xb2ca06da,0x7450d0f8,0xfc599daa,
+        0x1a3182a1,0x52e637a6 } },
+    /* 231 */
+    { { 0x6bebc6db,0x481700f1,0xf9503d92,0x4a6b45db,0x5d153919,0xc715cd3c,
+        0xe5ad2abc,0x942a1c05,0xab7b466f,0x36a82433,0xba13918b,0xba413bed,
+        0x90f4e6ce,0x698a5624,0xf3f1f3ca,0xbb720da6,0x63471ab3,0x2116d41d,
+        0x303d3609,0xe00d2227,0x463ba69e,0x7fd4cc00,0x62845fd1,0xac609e4d,
+        0x80adc9c7,0x63603b2c,0x45fafbca,0xbf16fc9a,0xc4bc94ab,0x41007f7f,
+        0xa74b1698,0x7c916b4f },
+      { 0x78bac2d4,0xc1026f91,0x2601a875,0x8a2e8098,0x0073d640,0xad2f276e,
+        0xfcc1fb88,0x443610c4,0xca6b291f,0x5727b822,0x88ec60fc,0x0645532c,
+        0xed9ad48b,0x51e48899,0xf543f103,0x841b48b5,0xd591ceeb,0xa6ccb1be,
+        0x9dcf5a8b,0xfc4adf0f,0xb347ddb4,0x3a7ca020,0xcb44c521,0xaa1accc2,
+        0x0527c0c4,0x773b6828,0x7023cf50,0xaa374c10,0x6b74c926,0x733d1000,
+        0x77a8d07c,0x1ff3916f } },
+    /* 232 */
+    { { 0xf997939d,0xaa218fe4,0x791583b3,0x3d4dfbbb,0x87f7560b,0xb3a7b5da,
+        0x5da92c98,0xa9c02801,0x46666f4a,0xe1eb4aad,0x14ce9dd7,0x2eb17a51,
+        0xef8f3076,0xf46a66a4,0x810e546e,0x900b45c6,0x4baf04dd,0xf7af2258,
+        0x5c84d42f,0x3cc1c872,0x8e4c83de,0x3093f225,0x170d88b2,0x62fade41,
+        0xac076e44,0xe19612e4,0x32dd141b,0xf48d7346,0x925e34da,0xc1b1f759,
+        0x072b90c9,0x19ed1a56 },
+      { 0x6c735473,0x9cf7fcde,0x6003bc3e,0xaab88e67,0xfb199bb8,0x12187cbc,
+        0x9accccbd,0xbb730441,0xb0f65459,0x214aff3c,0x6f926282,0x6aec81a3,
+        0x9f9d20b8,0xaa82cb32,0x5773cc90,0x82f3f90f,0xf62257e1,0x4af60e6b,
+        0xbd4762df,0xf18b44bf,0xdb970753,0x3948b129,0x7c22c18e,0xc6e920e9,
+        0x57be97ad,0x393d6208,0x46b637f9,0xe8d7382c,0xf1fed1d5,0xf6625ccb,
+        0x68681599,0x6f31e0f9 } },
+    /* 233 */
+    { { 0x82b8f204,0xc45afe55,0xd358b54a,0xac0441b6,0xacd5f5ed,0x7213e7bf,
+        0x139bcd93,0x1914c70b,0x96dbcbb0,0x714b4581,0x1ed35d21,0xe9297d35,
+        0x6a3e1f20,0x8f640837,0x2f3cd705,0x150a8a9d,0xdcdd9f6d,0xfb36e801,
+        0x5cf56d82,0x5a54eb65,0x92aa5a21,0x7610500c,0x3b089f03,0xd10d0ae2,
+        0xc42b66e8,0x491b2079,0x0eee8d48,0x4af1ae3d,0x41556f45,0x137e4c28,
+        0x63d8a7e6,0x875e3308 },
+      { 0xaf6c0acc,0xdc80fddc,0xbb1e7c08,0xd5ad1e66,0x828585ad,0xdc717ae1,
+        0x275c7da6,0xbdc54340,0xd26b9e15,0xf4b4c852,0x6a05fa50,0x5f0a1fbf,
+        0x817bcb32,0xc6f81e47,0x70ff2e1d,0x2cbd4328,0x67c7f7fc,0x8a249016,
+        0xb585a6c4,0xd045acb7,0x4666c057,0x2e972ad4,0xe6d7d63d,0xc74d87cf,
+        0x0e274144,0xf7067d87,0x8b2584ae,0xb2ca157a,0x75f0fdeb,0x495c5bfb,
+        0xf386e009,0x5abb0581 } },
+    /* 234 */
+    { { 0xf0c97f57,0x8be62d2b,0x962f28c7,0x0fe04871,0x47b50abb,0xc548a467,
+        0x44fa09ed,0xf6b26e03,0xab05a96e,0xfd44c6e3,0x70e6ae82,0xedb0032c,
+        0xd7e4899d,0x28bd402b,0x9b7c11c2,0x43f2e963,0xce913716,0x0ec3fc0e,
+        0x02fd0f8c,0x769b8bc9,0x7cabc3ac,0x9d9cb3aa,0x06924cc9,0xe88a8892,
+        0x42609014,0xa51461aa,0x962e79e0,0xc7f4aa8b,0x8b1b3e80,0x4ef0210a,
+        0x1bfee4bc,0x70544680 },
+      { 0x121901c1,0xfab3d713,0xfead54aa,0xe90a2627,0xbc08ba23,0x64f6d285,
+        0x36ec227e,0x8d993015,0x06c191ab,0x99a16ab9,0xf649ce2c,0x86b1cf5b,
+        0x66be3a80,0x59206759,0xccba2cf0,0x18836279,0xeff53486,0x2c157b87,
+        0x4b223af2,0xbfac9896,0x0aae7a57,0xcd0fd4f0,0x63218a80,0xdaddb940,
+        0xdf88f14e,0x3844bb79,0xb71ed9fd,0xc1b3e3d4,0xd6205036,0x6c634a13,
+        0xb8680a6b,0x6f56aecf } },
+    /* 235 */
+    { { 0xd9205c5d,0xb01dc803,0x67123929,0x68955f7d,0x9d9b6565,0x3debbffd,
+        0xd3b1acfe,0xb844395e,0x6094eeff,0x04328b21,0x22991feb,0x6631ffa8,
+        0x190dd075,0x0dde66e6,0xe8577c05,0x75b03c55,0x91722407,0x6c91ce5f,
+        0x8ebb3a3f,0x9a288a40,0x058a1396,0x1d376f8a,0x9a6e0676,0xf3a59457,
+        0x7b71d288,0x103029c5,0xb44c30c0,0x0843f428,0x730e0b9c,0xd8e6aff8,
+        0x4ed644ad,0x7b6be811 },
+      { 0x3d3aa54e,0x3ec38e4a,0xd83d509a,0x10233943,0x243955e2,0xf84aa621,
+        0xf51d3d44,0x29104717,0x7eca4e37,0x62d2442c,0x85fa55de,0x8c5a523d,
+        0x851da1b5,0xc6f5ccda,0x20001468,0x044bcaa8,0xe01702e0,0xf7501e68,
+        0xe6a0acec,0xf0819359,0xac0ef0b2,0x33dda6ad,0xfd964f01,0x97aeedc8,
+        0x530b90d8,0x48dacd0e,0xb84122eb,0x4c5fad6f,0xd700a1de,0x2284ec1e,
+        0xdbca5474,0x86f9a835 } },
+    /* 236 */
+    { { 0x450cc69f,0x0e1d9055,0xc9edf98f,0x50eb14bc,0xee7eba01,0x1bb94e77,
+        0x998f8e53,0x5f7a6737,0x1b16eef0,0x588384e3,0xd85c5e15,0xbb928723,
+        0xcbd952aa,0xfe51e345,0x7e241674,0xc5d0ee28,0x100182f0,0xfdc146ef,
+        0xe7f5be2c,0x0f739e92,0xb656bd3e,0x501ab3af,0x5168e289,0xb1552dde,
+        0xb8ee104a,0x940dfe31,0xc4304475,0x42923603,0xc460a913,0x9306f114,
+        0x03b51f86,0x5bfa9faf },
+      { 0x107b258e,0x2a23f52c,0xd66341dc,0x989e82bb,0x823cff1a,0x54a3ced8,
+        0x719b491f,0xf45b7794,0x2433dfb8,0x898c2218,0xc49250ee,0x0f9dd91c,
+        0x4fa17655,0x50c2a2ae,0x2c327f45,0xf7aa1ce4,0x583b1e41,0x13a15ad6,
+        0xa1bfad9e,0x9aa0d5a5,0x8e1fbdcd,0x9b1caa28,0x915f7f87,0xaf9283b6,
+        0x87e81a1e,0xc10e4e0c,0x1080d296,0x04fdca56,0x12755bd8,0x6acc9616,
+        0x828feeda,0x1b1266aa } },
+    /* 237 */
+    { { 0x774ee49c,0x4ebc0a00,0xcb6237d7,0x776f6852,0x5df938a3,0xfc0544ac,
+        0xb6fbfbbd,0xc3388ec8,0x745f2eae,0x84ac8bcd,0xb1ece937,0xa9c56609,
+        0x7de8fa13,0x656fb6ac,0xa532b871,0x5f8ded74,0xaa889f09,0xab0d428b,
+        0x10b7aec2,0x43b27f28,0xfeecb34c,0x26426e1e,0x9e89c2db,0x44431b6b,
+        0x39211090,0xaac4bc5d,0x4fd81058,0x926f7368,0x471ef60e,0x452fa691,
+        0x218d7a23,0x33517fdb },
+      { 0x593c4a36,0xa9c33f46,0x36b1a9ee,0xac69d718,0x4277beec,0x55a20c1d,
+        0x7e4f179c,0x3e8ca24e,0xd46d88a2,0x57373369,0x730702f8,0x71ceb1cc,
+        0x35eed574,0x8b184d97,0x0704cec2,0x7f4517a2,0xd7062a53,0x7f129d18,
+        0xb1d77e1c,0x07a4571b,0x8350d8b2,0x774ac309,0x61fab8ef,0x27b2919f,
+        0xb5dd801b,0xa7c4cc13,0x1434591f,0xe7e6255b,0x5a3592b3,0x349937b8,
+        0x30c77549,0x31fac63d } },
+    /* 238 */
+    { { 0x04913fb6,0x2ee8cf1b,0x1769a6b3,0x7e401350,0x783e61f0,0x790ebb71,
+        0xe27f2ffe,0x1e5107f9,0xedaf89bf,0x124ba67f,0xe58de68d,0x189200e1,
+        0x6df5abee,0x962732a3,0xacbeb4aa,0x72cc37cf,0xe93c5a76,0xb0c5fa96,
+        0xde63393b,0x4c2a317c,0x830b2d6c,0x97f65e67,0x1be5b96a,0x4afc3504,
+        0x730ce66d,0x0bf40a60,0x9340d84f,0x96a1ba79,0x07626b08,0x3ee18254,
+        0x7ab0cbf5,0x01db35db },
+      { 0xac0efee2,0x6e0fbc2d,0xd71dbb45,0x8406ebcd,0x19b69abe,0xe72bde3e,
+        0x37e01822,0x49cb7e61,0x11458b4c,0xcbb8c01c,0x687c5d63,0x420b4847,
+        0x454c6776,0x1847dfa1,0xd1839d18,0xbede911d,0x278df046,0x1b9dc9c9,
+        0x881a336c,0x294bd62b,0x93e77adc,0x7f096879,0x43ce3ba7,0x7ac90665,
+        0x7764eefc,0x148695fd,0x9ac465cf,0xe0c20f0b,0xa6e2cdb1,0x636e8d28,
+        0xd755341d,0x7b6ba98c } },
+    /* 239 */
+    { { 0xc1881ab4,0xcb1d9e03,0xb3168c88,0x19c25d55,0x282364ce,0xa82d3d47,
+        0xf161aa24,0x95994390,0xe1ebb2c9,0x7838bc00,0xbdec7a75,0x8fd5dfcc,
+        0x4ff7220a,0x4dd203c2,0x0efeff48,0x5ec173b3,0x16428b35,0x99f1d2b3,
+        0x056e813f,0xc06bd9e5,0xc0b319f1,0x929172ba,0xfd223b15,0x6ae0e384,
+        0x98d091ed,0xbd01059e,0xa654648e,0x6b3168e4,0x3375e798,0x2211447f,
+        0x71eb4508,0x47e81019 },
+      { 0xbc8c290d,0x7045d45a,0x810fb33a,0xa33d1355,0x46fbbf2f,0x2baf0092,
+        0x385c7cd9,0xacff3f1b,0xe161985c,0xc5b150ec,0x2a888748,0xc6ee0a7f,
+        0x5e88dcc8,0x9d888c8e,0xccb86443,0x4dd735f2,0x3c40f6f2,0xcc1e13b7,
+        0xf3fed691,0xfc3a25ff,0x257ee5c7,0x4cb43b17,0xf32db135,0xaa654f93,
+        0x02dff2d3,0x44f58d0a,0xa8ca6394,0x78e3f188,0xf3e86697,0x39646cce,
+        0xe0dce87b,0x785b1902 } },
+    /* 240 */
+    { { 0xa92f9a20,0xfcce2361,0x9d64540e,0xb7bdca87,0x1d00d7c5,0xd4739a85,
+        0x2e97c926,0x067ac8dc,0x78da6a8b,0x2aea3ffe,0x63c51b69,0x6828bf54,
+        0x7155141a,0x76f1c479,0x3977d810,0xf4bcbef6,0x541bce7a,0x75bc4949,
+        0xd17041a5,0xe01f4066,0x87755eaf,0xd282d5bd,0x59e7ae80,0x6e2107dd,
+        0x382ab36f,0xaa56e166,0xb9d1d634,0x65ee8ef6,0xce4ed844,0x99a2160a,
+        0xb7712c27,0x6557c367 },
+      { 0xd75b6e52,0x561b0268,0x118d0e89,0xb0813640,0x6a2eb1ae,0xcff53330,
+        0x6d090894,0x4e462226,0xb5fc1d48,0xbb351227,0x57a3062d,0x9365ea07,
+        0xd66e2dc5,0x4caca37b,0xb9095887,0x220d7d23,0x8c4473bf,0x9c0fd393,
+        0x6787da4f,0xadff370a,0xd057f4b8,0xef0aebcc,0x1173f33a,0x205e744c,
+        0x925a26b4,0xb8d1f0a5,0x722fbbfd,0xa9364f49,0x8227d284,0xc891ae77,
+        0xa0e08ab4,0x15c40d04 } },
+    /* 241 */
+    { { 0x2a0e18d1,0x9baf169a,0x4c0327c2,0x9971c017,0x7bc262ce,0xd81a323f,
+        0x818ff379,0x2099db8d,0x4cd3c330,0x663f663d,0x011a0553,0xef5325c3,
+        0xf980a470,0x9cd70bdc,0x1c9ed070,0xe64452d1,0xac676e13,0xafbf43f4,
+        0xae85c2a5,0x97bec0a6,0x470490c4,0x2faae550,0x491e6ba9,0x0ab97a87,
+        0xaafa9914,0x4055f537,0x36726557,0xfc95adbb,0xd119d6bf,0x646343b9,
+        0x9d341e37,0x788e94a0 },
+      { 0x9c53461a,0x053a6fe5,0x08e3b6ed,0x75ec897e,0x0768d939,0xa8f5d2f3,
+        0xcc213d4f,0x9bd6bff6,0x05b0147c,0x590c7b41,0x7c7b8169,0x20a3628b,
+        0x5bce78e9,0xc66a086e,0x4dec1d8f,0x3dd4d282,0xc19dcce9,0x890acf44,
+        0xd8435a7e,0x6632d875,0xea6381b2,0x590167c1,0xf0dcc128,0xb2259797,
+        0x46f8d463,0x91a612b4,0xc15efa39,0x42185d78,0x119f6788,0xdf55ec37,
+        0x780dea93,0x91b19cc6 } },
+    /* 242 */
+    { { 0xcb5d8b80,0xebf2709d,0xfc35660e,0x03b96182,0x055ef969,0xb873d991,
+        0xe47c4342,0xd1ea4b4d,0xd54f8867,0xcc4b9244,0xfd8d77ef,0x93b1a2ca,
+        0xe8c1f563,0x068d24e7,0x49973056,0x5f5fabb6,0x0542374f,0x83248c50,
+        0x3f38e913,0xc36de2b5,0x7bb680be,0xed07e8eb,0xd8f313b5,0x964813d7,
+        0xafd2d392,0x7bb6a069,0x0848a31a,0xc06d848e,0xe4f0c325,0x6867fb2f,
+        0x067343af,0x3c2ba834 },
+      { 0x9d3ad63b,0xab62d775,0x59e0eb1f,0x3f9cab97,0x3885e117,0x70332a63,
+        0xe20b2f9e,0xf22cafce,0x49eca947,0xb529ba7e,0x6228d88d,0x24954216,
+        0x39239561,0x80ea23ec,0xd4370644,0x1b8907e7,0x563e4e44,0x4b7fa455,
+        0xb2a4b0fa,0xcca9829e,0x48060792,0xd0a720a4,0x246991ce,0x8ccdda0c,
+        0x348d086b,0x37a2325b,0xf60aee13,0x566ed509,0x147f253f,0x3d30e091,
+        0xc1073bd8,0x1fa627a5 } },
+    /* 243 */
+    { { 0x42478fd4,0xa11222a2,0x670b2000,0xacf4c6f1,0x8359c6de,0xf71bb04f,
+        0x7b93cdbc,0x618e2829,0x230db60b,0x96e1bae3,0x965b3b29,0xf17fd3b4,
+        0xbc7055dd,0xa58639c6,0x4b817d7f,0xc3ea92ed,0xd23b08a4,0x9082b2a6,
+        0xdc17010e,0x8471228a,0x20e89d97,0x753b9e46,0x03ff77c9,0xcf7e4f97,
+        0x2bbe60e5,0x6c3f8245,0xb80e017d,0x9e432cbc,0xc0a45edb,0x150a5acd,
+        0x4798743e,0x67b8bd05 },
+      { 0xf4797cf7,0xe66079b4,0xd03fde02,0xe31c998a,0x54caaef1,0x5aa3763a,
+        0xf7649711,0x64d9a1fe,0xaf29b1a7,0x7ce0dc73,0xfb66ca93,0x6661b083,
+        0x32fb6a78,0xbf4d74fe,0xdf00a561,0x25f6ef09,0x831d1159,0x2bc4383f,
+        0x536bde37,0x6d5cc10c,0x882cc65b,0xd4945f9f,0x451a99b8,0x81f48f13,
+        0x6bac11a4,0x140161cd,0xf18a4a0a,0x9d94d4ed,0xa467a824,0x65363165,
+        0xa4c9aedf,0x74297aa9 } },
+    /* 244 */
+    { { 0xe21124ba,0xc49758a4,0xa87ffbd2,0x99bd8198,0x3d6638a8,0x45fbcdd1,
+        0x15f7bf76,0x94645ff8,0xc4e6d57e,0x5fa6736f,0x92e61db9,0x1eae6475,
+        0xcbdf944a,0x79575c0c,0x25b31d74,0xa3d13047,0x4cab5ae6,0x7881df22,
+        0x1a2887f2,0x8dbfd299,0xa26ac459,0x23d07590,0xd8661d4a,0x2e589852,
+        0x8a0140f7,0x37b5c13b,0x3fb3782a,0x0f94199e,0x1bc14e90,0x722aa059,
+        0xd55bbb12,0x89aab7ba },
+      { 0xd656bdc7,0x8b345a96,0xe176cd3b,0x43bdc8af,0x32d64c43,0xd69518b6,
+        0x79b82b41,0xfcf364a7,0xffb0cf82,0x907b344e,0x5101287b,0xf3d0c83c,
+        0x34cd90ef,0xe9f26a59,0x07082b5c,0xe5f5aaf2,0xece7c165,0x4eb72c75,
+        0xbe986cd6,0xe9590a81,0xff1536aa,0xfeef498f,0xa8263d5e,0x04560243,
+        0x54ae872b,0x940be14f,0xe3207686,0xbee7bcc9,0xc1bc4d7a,0xd496a27d,
+        0x5940ab46,0x002dc297 } },
+    /* 245 */
+    { { 0xb69d60c3,0xee533937,0xfe972755,0x260be552,0xc0c725a6,0xb11fb78d,
+        0xcab2e7c2,0x6982c27e,0xee2322cb,0x4bceedd9,0x122704f7,0x952b19ed,
+        0x854a6165,0x2df4c285,0x7b192485,0xba40b5bf,0x0119f52a,0xfcbca950,
+        0xe5add86f,0x7467d1cb,0xd9d0f2c1,0x9bf536fb,0xb8d4ebc9,0x3c296e34,
+        0x05a81317,0x0495f8f4,0x73335f76,0x8c59e8d6,0xe0542122,0x0b53d324,
+        0x3c3bda73,0x4d564535 },
+      { 0x7e5c0877,0x7322f800,0x0ca9a764,0x481b43e6,0xa2c12716,0x231f4f4b,
+        0xed3136c2,0x09596857,0x38db30de,0xae826322,0x99908ebc,0x652fad40,
+        0xaf0d231e,0x0b8d1814,0x09cbc349,0x2680c54b,0x4bf3bf8e,0xfd4562f3,
+        0x092b595f,0x2985090b,0x5e15fc34,0xe6f39ca4,0xbc378168,0x70175191,
+        0x845a4a87,0x906944b3,0x82a1541a,0xacc6d74a,0xb155c8b4,0xadc9bab3,
+        0x77306c62,0x1f2f89ce } },
+    /* 246 */
+    { { 0x9affefdf,0x8253ef41,0x4cf9256b,0x05d7ece5,0xb444e483,0x377002f2,
+        0xcba5471f,0xb189755f,0xd5cbe015,0xc88483cb,0x6a0b8429,0x254f7c69,
+        0x61f3f61d,0x18850bd4,0x0a247157,0x7ba21089,0xd92eeb0d,0x35abbc2e,
+        0x965dec89,0xfb56cabe,0xbc55684a,0x9da23724,0x6a7a7492,0xd8ba396f,
+        0x2ef4ba46,0xfcb90db7,0x9909b27a,0xdd234fe0,0x76f4366e,0xbdf3c164,
+        0x17e50d47,0x09c8097f },
+      { 0x60050c07,0x6a04b140,0x43a8e37e,0xc29e8318,0xbb55e41f,0xcb9429b2,
+        0x2ce60e3a,0xed2fea5a,0xdb9d82f4,0xdc7b1ff3,0x687d37fa,0x48ebecc3,
+        0xecb07539,0x79153e32,0x57075692,0x6a60054f,0x800759ba,0x3871cd0c,
+        0x30922df1,0x17a7386f,0x83357b7c,0x4e9fc59e,0x39415186,0x1d26b3a9,
+        0xd34db889,0x912a0222,0x59fcdb71,0x6672fcf4,0x44ff3036,0x5a3f268d,
+        0x6911e16c,0x6f113ed3 } },
+    /* 247 */
+    { { 0x1836f1c9,0x52a9df59,0x4232307d,0xfa6519f5,0x5ded285a,0x8406c701,
+        0xaf627f75,0x0a1545ca,0xace0417d,0xae1111ee,0xa6113443,0xfb28bdf6,
+        0x52dbcbcb,0xde9ef0ab,0x7813e658,0xe9dc181b,0x99127225,0x0b1dabdb,
+        0x22814c59,0x5f0598e3,0xd934ee7e,0x5c3b966e,0xb99ba4bf,0x4eb84eda,
+        0x3c1b55e7,0xb2919a34,0x94aa860f,0xa9addb49,0xf6811ff6,0x1b7220df,
+        0xd1a183e2,0x6636a23b },
+      { 0x20587283,0xdf5d5a2d,0xef07fc5d,0x0b3822c9,0x0ef6de38,0x1786bd55,
+        0x25d1671d,0x163cf907,0x1cdb1def,0x74bf971f,0x0842fc4a,0x5749e830,
+        0x27f854f7,0x0e2edbc7,0xbce24acb,0xbb27bbda,0x05bed08d,0xc1b19cec,
+        0xf7c904bc,0xaada123e,0xd89982db,0x02429f1b,0x65f6e632,0x49d3616e,
+        0xee59fd32,0xa3789fa8,0xfe9f29f5,0x160ba3ba,0xaf5378a0,0x0f2d3b61,
+        0x73c2a6f8,0x7aeecc76 } },
+    /* 248 */
+    { { 0xdc43b0db,0xf3a4757c,0x98119cad,0x3d8a4e85,0x4616c156,0xf8095bf6,
+        0x4f533e97,0x3e2a07bc,0x39cfc5ad,0xa9824367,0xcd68052c,0x18a6ba3a,
+        0x8a1cec66,0xbd60e590,0x02b1b695,0xae3841a5,0x190a195b,0x986dff12,
+        0xad31fd9b,0x2df2beac,0xcc728f7b,0x7d893224,0x0cf0a992,0xc38ea738,
+        0x586a44ea,0xa8439a80,0x1615f03c,0xede7f7f0,0x27a1f885,0x48249908,
+        0xb78a7645,0x28ec4006 },
+      { 0xa2fe0009,0xe1820c2e,0xf13874e9,0xe11ba5d2,0xc524db52,0x97522454,
+        0x7fede529,0x4d477426,0x9b2500d4,0x01d3419a,0x1869244b,0xce08a492,
+        0xdd1be1b9,0xba169023,0x32a301e0,0x242c3e54,0x70906788,0x9b56f7ba,
+        0xc74a8cc4,0xf0ad2a09,0xd76f9439,0x99cd1841,0x621fb60e,0xeddafe0b,
+        0xbc397634,0x056bee54,0xff7f0a84,0x4653f860,0x2011c0af,0x6bd4876f,
+        0x0c9525c3,0x134f4cc7 } },
+    /* 249 */
+    { { 0xe938dff4,0x9621a3ec,0x486a79a3,0x7d101a7b,0xde950537,0xf2c4ef97,
+        0xe65d87db,0xf3184099,0x373b8cfa,0xb89c7ffb,0xe842916e,0x68baa505,
+        0x4ebea764,0xa790fd09,0xe592892b,0x679df6d4,0xfcfed741,0x2023331c,
+        0x9880ff21,0x0bf4efd2,0xd0344501,0x7ca78ddd,0x342858c8,0x2cb09ecb,
+        0x2575487a,0x9e5eb6dc,0xebcb0491,0x50675a15,0x7381d471,0x09d2e74f,
+        0x83d3d6f4,0x6ea37829 },
+      { 0x4e5cc40a,0xc65c094b,0x1af37dfb,0x7a2e3f6a,0xf9026e44,0xef677e9d,
+        0x93880f53,0xb7878c95,0x7f644aa9,0x4aa30b07,0x2f208c3c,0xa0c51683,
+        0x658d663b,0x7c0277ae,0xae1d9130,0xef0b3c38,0x695c3ea4,0x302f37a7,
+        0x6a0c5e0d,0xe004c1c5,0x20cbcf9f,0x9fd495c4,0x568a0e7c,0x706d5b9d,
+        0x59286454,0x8b225dff,0x8d9a709c,0x527d4465,0x87c08d68,0x47c558da,
+        0xbb4ef07d,0x606ee6e6 } },
+    /* 250 */
+    { { 0x57c621f6,0x02d99fc7,0x7fe83d48,0x292e40c1,0x9ef199b0,0x1bdfc7a1,
+        0xe62c7666,0x78a04102,0xe6738753,0x16cda370,0x1e3a65af,0xbc81974d,
+        0xf78fe209,0x19742048,0xbf5981c6,0xc83a058a,0x9c89702d,0xf26b2434,
+        0x9d1a678a,0x988b2f1e,0xff29ae29,0x472bf9b0,0x1d7cf5ec,0xa143e398,
+        0xb268ddd8,0x9c9d7e45,0x5fc4ff76,0x166cda55,0xa4aa7673,0x6044cdf0,
+        0xe9148707,0x49dba6f7 },
+      { 0xa758e37a,0x20e47fb2,0x2d8eaf66,0xaf6b31d7,0x6f9c2210,0x352ad5f9,
+        0x90efc32b,0x0093f727,0x41e4b264,0x435c99dc,0x05b15795,0xbfa878e0,
+        0x0e673575,0x99c520a4,0x87eea759,0xca682594,0xf12a348b,0x029f7b81,
+        0x2aa2ce35,0xa547cc18,0xead5e2c5,0xa11d874b,0x55682cdf,0x9af0349b,
+        0x8bbe8e66,0xf86ebfea,0xf55394ab,0x3dab8782,0xebc8eb8f,0x458bf797,
+        0x9b7de78c,0x4890a7a4 } },
+    /* 251 */
+    { { 0x8da995f6,0xd7299689,0xec6156ef,0xd39eaae7,0x356a82d5,0x6959040c,
+        0xc135bcfe,0xb2046b21,0x0f595c78,0xea720b64,0xe7c5fb40,0x02824efa,
+        0x0edb3bfc,0x97d8fd4c,0x79f24ebe,0x12f02905,0x187ea6b9,0x16fc47cf,
+        0x789d5c23,0xc219fd27,0x89263ecc,0x233a6b6c,0x8b6d30a6,0x823634b2,
+        0xc9b33680,0xca352e25,0x40c77456,0x9388d6ca,0x3c92065b,0xf8e55b0b,
+        0x02439a76,0x5c17474b },
+      { 0x8aaccab5,0xd888e7c2,0xaaced05b,0x18027836,0xccec0f65,0x185b877d,
+        0x125c2882,0x93cadc1c,0x67fdc54c,0x45df540a,0xc2788a33,0x4f3c86e2,
+        0xe3a0fa2c,0x3e874469,0x273983cf,0xc59daa47,0x4a96d8a5,0x3063c48b,
+        0xc2e58915,0xc38d2bcf,0x84e428c3,0x90e78b87,0xf0c4fd53,0x900a292c,
+        0x941e6005,0xb7f92db7,0x6ca53a1c,0x95679241,0xb1ab0fa7,0x35f6f31d,
+        0x7b58408c,0x5d675eb4 } },
+    /* 252 */
+    { { 0x870c6025,0xaeee1a77,0x91a2dfca,0xfc4a23b7,0x386b64c4,0x7b0e60c4,
+        0xe5ae72b1,0xd5d5b17d,0x9eefa212,0x6dfc88ac,0xd4038b96,0x4feaefbe,
+        0x8e2d2ecc,0x099ac356,0x012af207,0x548ea612,0x89c31218,0x4ffed9db,
+        0xe0e67331,0x1c1e91c4,0xaf8300e0,0x009bb64f,0x6773c3be,0x8780501c,
+        0xc08219fa,0xe0cd6ede,0xf81b06ff,0x7c055e07,0xe080b36f,0x82b63f9c,
+        0x0a9feca3,0x02fccbaf },
+      { 0xb47cac61,0x9991d4d1,0xab86e12c,0x2e9d1687,0x2b94f042,0x8c6855ec,
+        0x48e648e5,0xca400519,0xef89ac57,0x9ba91fb2,0x1be792cd,0x4f419206,
+        0xbd0f1e15,0x82d221cb,0xfc444019,0x062eb13b,0x99790fdc,0xf3a97c32,
+        0x6067a64b,0x4e796d94,0x6d23775a,0xc46dd300,0xed7f0f23,0x8672c4d5,
+        0x3b4f63d7,0x821851dc,0xd26273f2,0x50a3ae0c,0xeac60f6f,0x800e58fc,
+        0x13845545,0x56f1e456 } },
+    /* 253 */
+    { { 0x32c24f3b,0x01ccb3f6,0x06d817e6,0x99eb1c7f,0x6aa26776,0x8dc640bb,
+        0x0845d5e0,0x7838affe,0xf81a79a8,0xf34fecb1,0x3e6819b0,0x6a2e282d,
+        0x8237a4b8,0xc4b977ce,0x87636439,0x0f46b3db,0x97970497,0xa465f540,
+        0x8791be43,0xd7e08762,0x34198ec6,0x00220b6c,0x093d94bb,0x57b38637,
+        0x29d690b2,0x84012e16,0x20aad1a4,0x02ec9db5,0x85dc34e3,0xafee2fc6,
+        0x25500cf8,0x911d1936 },
+      { 0xf5e5af5b,0x13b1bd58,0x7b6a22a7,0xa7ca263b,0xf3af2adc,0xab6bec4d,
+        0xa04420bd,0x16651e59,0x4ba36c11,0x3b448b3b,0xff424310,0x3c62bfcd,
+        0xf1a96cbb,0xde15c4a5,0xe4d1f980,0xbe0ad8a1,0x36673a3a,0x812bd14e,
+        0x9212acdd,0x40303af6,0x576095ce,0x8f6dab9c,0x107f5ca5,0x7df1882a,
+        0x8896a3b0,0xb903e63c,0xd863b3f0,0xf5048544,0xc09887de,0x5e5019b9,
+        0xa0f53865,0x2be744fe } },
+    /* 254 */
+    { { 0x5b50f324,0x054cd05f,0x1ea3c7a2,0xb9b1eb24,0x7ff8e6b7,0x4a858a5c,
+        0xec040882,0xd83902fe,0xd0cba9bd,0x72b26494,0xb29c9e1e,0xd0176f90,
+        0xcebadb81,0x05d4eb02,0x372b8bfc,0x874405b1,0x79ead190,0x5c412881,
+        0xec2b48cd,0xd44a3dd3,0x3f4d5033,0x84499a77,0x564c3a09,0xb37b38cd,
+        0xf42e803b,0x80e99497,0xb8f518b2,0xc07b47a0,0x3568fde4,0xc710e3c5,
+        0xcead0e7a,0x735f542f },
+      { 0x38380039,0xcaa9a171,0xf74d19c8,0xadfafe17,0xccbc1a8b,0x92d4393e,
+        0xfe029705,0x3c5dbf39,0x930e9b36,0x4552b5ab,0x2afd494a,0x7ee63032,
+        0x3f02ac43,0x826a9ad7,0x99356298,0x98c53562,0x7342bb39,0x0c869f87,
+        0xe4f9b79a,0xd7510020,0xd34789a9,0x6361d1a4,0xcfa85637,0xf0ded5ba,
+        0x88ac07e4,0x407ee73f,0x09ef1cbd,0xfac7d03f,0x4d475bad,0x25d697cb,
+        0x14bd399e,0x1e984c9d } },
+    /* 255 */
+    { { 0x4850c817,0xc76d0561,0x3489812d,0xb08a5b19,0x5e58cbbe,0x7273d154,
+        0x4be61e5a,0x8900b5fa,0xd7aeb8e1,0xaa088691,0xd35a3d4b,0xe66666af,
+        0x57ec7d3d,0x38a2c199,0x668d6f5c,0xa0648e8f,0x7adc1746,0x1f9fc92c,
+        0x843065c3,0x23a116c0,0x61e6ae69,0x36370a20,0x2aa47e73,0x626c3736,
+        0xdeff6d84,0x540c25f2,0xcdbed2d4,0x9804824c,0x039a9492,0x4b5bfce0,
+        0x76942e01,0x6c474a56 },
+      { 0x7d88e3a1,0x3aeb9a41,0xc484742a,0x105d3c88,0x3fe61131,0xe59de8d1,
+        0x1a869e8b,0x148f5b6b,0xaa75d90a,0x7a8abc59,0x62146013,0x2f0c9bc7,
+        0xc3824cd9,0x43faa747,0x6a5d0b92,0x81763a18,0x9bcbaebc,0xbbc341bc,
+        0xf745d1dd,0xe1813160,0xb75ce5f4,0xa53ce52d,0xd50de4c2,0x15eae66c,
+        0x75d7656d,0x5ed8996c,0xc4ca552a,0xe4ff5711,0x3c5305b4,0x215e985a,
+        0xfa1ba2ce,0x6b258954 } },
+};
+
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^128, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_base_32(sp_point_1024* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_1024_ecc_mulmod_stripe_32(r, &p1024_base, p1024_table,
+                                      k, map, ct, heap);
+}
+
+#endif
+
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 p;
+    sp_digit kd[32];
+#endif
+    sp_point_1024* point;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_1024_point_new_32(heap, p, point);
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#else
+    k = kd;
+#endif
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 32, km);
+
+            err = sp_1024_ecc_mulmod_base_32(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_32(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(point, 0, heap);
+
+    return err;
+}
+
+/* Multiply the base point of P1024 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montogmery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 p;
+    sp_point_1024 a;
+    sp_digit kd[32];
+    sp_digit t[32 * 2 * 5];
+#endif
+    sp_point_1024* point;
+    sp_point_1024* addP = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_1024_point_new_32(heap, p, point);
+    if (err == MP_OKAY) {
+        err = sp_1024_point_new_32(heap, a, addP);
+    }
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 + 32 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL) {
+            err = MEMORY_E;
+        }
+        else {
+            tmp = k + 32;
+        }
+    }
+#else
+    k = kd;
+    tmp = t;
+#endif
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 32, km);
+        sp_1024_point_from_ecc_point_32(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_32(addP->x, addP->x, p1024_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_32(addP->y, addP->y, p1024_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_1024_mod_mul_norm_32(addP->z, addP->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_1024_ecc_mulmod_base_32(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_1024_proj_point_add_32(point, point, addP, tmp);
+
+        if (map) {
+                sp_1024_map_32(point, point, tmp);
+        }
+
+        err = sp_1024_point_to_ecc_point_32(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(addP, 0, heap);
+    sp_1024_point_free_32(point, 0, heap);
+
+    return err;
+}
+
+#ifndef WOLFSSL_SP_SMALL
+/* Generate a pre-computation table for the point.
+ *
+ * gm     Point to generate table for.
+ * table  Buffer to hold pre-computed points table.
+ * len    Length of table.
+ * heap   Heap to use for allocation.
+ * returns BAD_FUNC_ARG when gm or len is NULL, LENGTH_ONLY_E when table is
+ * NULL and length is returned, BUFFER_E if length is too small and 0 otherwise.
+ */
+int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
+    void* heap)
+{
+    int err = 0;
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 p;
+#endif
+    sp_point_1024* point = NULL;
+    sp_digit t[5 * 2 * 32];
+
+    if ((gm == NULL) || (len == NULL)) {
+        err = BAD_FUNC_ARG;
+    }
+
+    if ((err == 0) && (table == NULL)) {
+        *len = sizeof(sp_table_entry_1024) * 256;
+        err = LENGTH_ONLY_E;
+    }
+    if ((err == 0) && (*len < (int)(sizeof(sp_table_entry_1024) * 256))) {
+        err = BUFFER_E;
+    }
+
+    if (err == 0) {
+        err = sp_1024_point_new_32(heap, p, point);
+    }
+    if (err == 0) {
+        sp_1024_point_from_ecc_point_32(point, gm);
+            err = sp_1024_gen_stripe_table_32(point,
+                (sp_table_entry_1024*)table, t, heap);
+    }
+    if (err == 0) {
+        *len = sizeof(sp_table_entry_1024) * 256;
+    }
+
+    sp_1024_point_free_32(point, 0, heap);
+
+    return err;
+}
+#else
+/* Generate a pre-computation table for the point.
+ *
+ * gm     Point to generate table for.
+ * table  Buffer to hold pre-computed points table.
+ * len    Length of table.
+ * heap   Heap to use for allocation.
+ * returns BAD_FUNC_ARG when gm or len is NULL, LENGTH_ONLY_E when table is
+ * NULL and length is returned, BUFFER_E if length is too small and 0 otherwise.
+ */
+int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
+    void* heap)
+{
+    int err = 0;
+
+    if ((gm == NULL) || (len == NULL)) {
+        err = BAD_FUNC_ARG;
+    }
+
+    if ((err == 0) && (table == NULL)) {
+        *len = 0;
+        err = LENGTH_ONLY_E;
+    }
+    if ((err == 0) && (*len != 0)) {
+        err = BUFFER_E;
+    }
+    if (err == 0) {
+        *len = 0;
+    }
+
+    (void)heap;
+
+    return err;
+}
+#endif
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km     Scalar to multiply by.
+ * gm     Point to multiply.
+ * table  Pre-computed points.
+ * r      Resulting point.
+ * map    Indicates whether to convert result to affine.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
+        ecc_point* r, int map, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024 p;
+    sp_digit kd[32];
+#endif
+    sp_point_1024* point;
+    sp_digit* k = NULL;
+    int err = MP_OKAY;
+
+    err = sp_1024_point_new_32(heap, p, point);
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#else
+    k = kd;
+#endif
+    if (err == MP_OKAY) {
+        sp_1024_from_mp(k, 32, km);
+        sp_1024_point_from_ecc_point_32(point, gm);
+
+#ifndef WOLFSSL_SP_SMALL
+            err = sp_1024_ecc_mulmod_stripe_32(point, point,
+                (const sp_table_entry_1024*)table, k, map, 0, heap);
+#else
+        (void)table;
+        err = sp_1024_ecc_mulmod_32(point, point, k, map, 0, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_point_to_ecc_point_32(point, r);
+    }
+
+#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL) {
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+    sp_1024_point_free_32(point, 0, heap);
+
+    return err;
+}
+
+/* Multiply p* in projective co-ordinates by q*.
+ *
+ * r.x = p.x - (p.y * q.y)
+ * r.y = (p.x * q.y) + p.y
+ *
+ * px  [in,out]  A single precision integer - X ordinate of number to multiply.
+ * py  [in,out]  A single precision integer - Y ordinate of number to multiply.
+ * q   [in]      A single precision integer - multiplier.
+ * t   [in]      Two single precision integers - temps.
+ */
+static void sp_1024_proj_mul_qx1_32(sp_digit* px, sp_digit* py,
+        const sp_digit* q, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 32;
+
+    /* t1 = p.x * q.y */
+    sp_1024_mont_mul_32(t1, px, q, p1024_mod, p1024_mp_mod);
+    /* t2 = p.y * q.y */
+    sp_1024_mont_mul_32(t2, py, q, p1024_mod, p1024_mp_mod);
+    /* r.x = p.x - (p.y * q.y) */
+    sp_1024_mont_sub_32(px, px, t2, p1024_mod);
+    /* r.y = (p.x * q.y) + p.y */
+    sp_1024_mont_add_32(py, t1, py, p1024_mod);
+}
+
+/* Square p* in projective co-ordinates.
+ *
+ *   px' = (p.x + p.y) * (p.x - p.y) = p.x^2 - p.y^2
+ *   py' = 2 * p.x * p.y
+ *
+ * px  [in,out]  A single precision integer - X ordinate of number to square.
+ * py  [in,out]  A single precision integer - Y ordinate of number to square.
+ * t   [in]      Two single precision integers - temps.
+ */
+static void sp_1024_proj_sqr_32(sp_digit* px, sp_digit* py, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 32;
+
+    /* t1 = p.x + p.y */
+    sp_1024_mont_add_32(t1, px, py, p1024_mod);
+    /* t2 = p.x - p.y */
+    sp_1024_mont_sub_32(t2, px, py, p1024_mod);
+    /* r.y = p.x * p.y */
+    sp_1024_mont_mul_32(py, px, py, p1024_mod, p1024_mp_mod);
+    /* r.x = (p.x + p.y) * (p.x - p.y) */
+    sp_1024_mont_mul_32(px, t1, t2, p1024_mod, p1024_mp_mod);
+    /* r.y = (p.x * p.y) * 2 */
+    sp_1024_mont_dbl_32(py, py, p1024_mod);
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Perform the modular exponentiation in Fp* for SAKKE.
+ *
+ * Simple square and multiply when expontent bit is one algorithm.
+ * Square and multiply performed in Fp*.
+ *
+ * base  [in]   Base. MP integer.
+ * exp   [in]   Exponent. MP integer.
+ * res   [out]  Result. MP integer.
+ * returns 0 on success and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
+{
+    sp_digit t[4 * 2 * 32];
+    sp_digit tx[2 * 32];
+    sp_digit ty[2 * 32];
+    sp_digit b[2 * 32];
+    sp_digit e[2 * 32];
+    sp_digit* r = ty;
+    int err = MP_OKAY;
+    int bits;
+    int i;
+
+    if (err == MP_OKAY) {
+        bits = mp_count_bits(exp);
+        sp_1024_from_mp(b, 32, base);
+        sp_1024_from_mp(e, 32, exp);
+
+        XMEMCPY(tx, p1024_norm_mod, sizeof(sp_digit) * 32);
+        sp_1024_mul_32(b, b, p1024_norm_mod);
+        err = sp_1024_mod_32(b, b, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        XMEMCPY(ty, b, sizeof(sp_digit) * 32);
+
+        for (i = bits - 2; i >= 0; i--) {
+            sp_1024_proj_sqr_32(tx, ty, t);
+            if ((e[i / 32] >> (i % 32)) & 1) {
+                sp_1024_proj_mul_qx1_32(tx, ty, b, t);
+            }
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_1024_mont_inv_32(tx, tx, t);
+
+        XMEMSET(tx + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(tx, p1024_mod, p1024_mp_mod);
+        XMEMSET(ty + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(ty, p1024_mod, p1024_mp_mod);
+
+        sp_1024_mul_32(r, tx, ty);
+        err = sp_1024_mod_32(r, r, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_to_mp(r, res);
+    }
+
+    return err;
+}
+
+#else
+/* Pre-computed table for exponentiating g.
+ * Striping: 8 points at a distance of (128 combined for
+ * a total of 256 points.
+ */
+static const sp_digit sp_1024_g_table[256][32] = {
+    { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+      0x00000000, 0x00000000 },
+    { 0x335c1685, 0x170a46d2, 0xe1007a58, 0xeac9e971, 0x43ca4a73,
+      0x40e8f3df, 0x82642475, 0x2646f815, 0xb36576d1, 0x3af49bb4,
+      0x72bf1afb, 0xd89e2d14, 0x2fd151e6, 0x27be882c, 0x8f88717c,
+      0xaddedc85, 0x16ac6c6f, 0xd6d859bf, 0x2d8eae58, 0x0e741a1b,
+      0x61c1f30d, 0x6faf7a00, 0x9b67e096, 0x66dbd09a, 0x7d3b4f7d,
+      0x21f11c06, 0xc727c98e, 0x6152ba02, 0xe86cb221, 0xafd58891,
+      0x6bd3baf4, 0x59e93c6a },
+    { 0x71dd4594, 0xe54dd36f, 0x00aef1e6, 0xbbc9cc9f, 0xa19f6530,
+      0x9ea5a44e, 0x3f520928, 0x8588aa99, 0x8f5c1418, 0x9753794c,
+      0xc11399fa, 0x118bd792, 0xf5cb6ab5, 0xb9bd3afd, 0x2ecb9652,
+      0x813d1cb2, 0x40389813, 0xfd456267, 0x4ac8431c, 0x51f7119b,
+      0x0a180eb6, 0xdd9f6a91, 0x9f7bfa2e, 0x13946d17, 0x50a9d0d9,
+      0x16f18631, 0x6f8373d3, 0x5f19c20d, 0x9b6a52b9, 0xbe85ac6a,
+      0x74f62e03, 0x63ef187b },
+    { 0x016f45e7, 0x7c376b7f, 0x2bec82f8, 0x1c1bdb57, 0xce429b60,
+      0x7392f741, 0xc7afd81d, 0x6fdbf0a2, 0x7241098b, 0xbda41b1f,
+      0xbb60f8cf, 0x5b407474, 0xb330bc4d, 0x933e0d41, 0x733fa3be,
+      0xae182830, 0x0f5c6cd1, 0xa0ed299b, 0x3f9860c8, 0x7ff3354e,
+      0x15559c41, 0xb1360986, 0x129f85cb, 0xab0cb63c, 0x47685fbe,
+      0x682ecc49, 0xeb199633, 0x505e8ec2, 0xddac2cda, 0x90dcc794,
+      0xf192da23, 0x4fe6791c },
+    { 0x05e8733c, 0x94a423d5, 0x1d5717c1, 0xcc845e65, 0xe961b322,
+      0x237c7e88, 0xdb4181cc, 0x0c4471c6, 0x713bd721, 0x00c875e2,
+      0xb2c17b09, 0x9dfde9ed, 0xe88ceaf6, 0x430a6de5, 0x7b81cea6,
+      0xaaa7a61a, 0x233f98d5, 0xea52d026, 0x60689a9a, 0xb55efdd0,
+      0x5cac4aab, 0x30cfa7ce, 0x8e950761, 0xfa4db114, 0x4e9a1e52,
+      0x309570c4, 0x1a040170, 0x18c21f61, 0xbe78d9d2, 0x555d1ffe,
+      0x561db297, 0x04482a18 },
+    { 0x73d486d8, 0xe7758ac2, 0x61cdc1e7, 0x8169f946, 0x2188ab4f,
+      0x723c99fc, 0xf3373630, 0xa0e54f02, 0xbd8c2260, 0x560bee25,
+      0x4531bc60, 0x28fc307c, 0x7e44feb5, 0xd6f21f1a, 0x57128d37,
+      0xc8e4499c, 0xd7b2ea45, 0x963b053e, 0x32a3d222, 0x40c27a04,
+      0x35459668, 0x5b51854d, 0xd73557e9, 0x66e1a49f, 0x8692077a,
+      0x0d267fd9, 0xe7342702, 0xfa1350d3, 0x68ccdb44, 0x1a9c3f25,
+      0xdedbf89f, 0x833a0ff8 },
+    { 0xab376b76, 0xa8c419c7, 0x27d0f0cc, 0x3b7294f3, 0xa90c514d,
+      0xe56bb9e2, 0xa62575a6, 0x931ba51e, 0x098c0a88, 0x56fee07b,
+      0xb4c16a2a, 0x04be5aee, 0xe6eb260b, 0xe513350b, 0xa1d5c270,
+      0x339edad6, 0xe9dbadd1, 0xf366ed59, 0x2dd06ec0, 0x4213be88,
+      0xcb1187db, 0x22d639c8, 0xd8a1058a, 0x1fec95e1, 0xa2b744f1,
+      0x03f73ea6, 0xf4f05c0c, 0x741fd51a, 0x85f811a0, 0x2e2df95a,
+      0xeb24965f, 0x692b3ce3 },
+    { 0xd2a127b4, 0x0ce6cb72, 0x8f92816f, 0x66a46ea5, 0x47a37616,
+      0x43ecf463, 0xe0ab96ee, 0x163d9a01, 0xb2edbe8c, 0xc8145c6d,
+      0x4de4e665, 0x2f426cae, 0x74e252f9, 0x174d0b40, 0x7d2af831,
+      0x54c240d7, 0x3d652936, 0x581fa397, 0xa09d4695, 0x05b9491c,
+      0x5452643c, 0x8c4e8533, 0xd4128327, 0x32d64331, 0x70361f25,
+      0x64479038, 0x89ef09f2, 0x774191b1, 0x81de5fe0, 0xc0cf0aaf,
+      0xf40042d6, 0x333e430a },
+    { 0xcf26d3b7, 0x5df04de4, 0xb53f79be, 0x57a77306, 0x1808b664,
+      0xa4013c5f, 0x85037360, 0xef291ea4, 0x0b061037, 0x1ffc9d7d,
+      0x65c913bb, 0xd9d04dd9, 0xf13b8587, 0x948a37af, 0xfe3ee755,
+      0xb5443483, 0x04631386, 0x3fc21e74, 0xcddeb58c, 0xb3a104e5,
+      0x6572cd52, 0x94fe1862, 0x15aaa408, 0xeb9a71a1, 0x459ea462,
+      0x8adc6fe5, 0x4aeb02a3, 0xbb18d175, 0x2f7791d1, 0xae127636,
+      0xd6bbd708, 0x10e8b31d },
+    { 0x3ed9f1af, 0xb87f03e5, 0x56676166, 0x03ad2477, 0x74ce15b8,
+      0x38dcd630, 0x26b1e85b, 0x1877e2b0, 0x1af99c15, 0xb1654d17,
+      0x9382547a, 0x9782e9e4, 0x26d55ef5, 0x6dc7fc7c, 0x2fbeb54c,
+      0x9038f95d, 0x036c0357, 0xfe590dfe, 0x4fdc3f7f, 0xcfcb6eae,
+      0xf35e1a88, 0xcb1fbc54, 0xda0a5568, 0x3c8e1db2, 0x5b6f5557,
+      0x9a87393f, 0xe7ac0a06, 0x38646b32, 0x2a8495ab, 0xfd261c83,
+      0x0cdcc4bc, 0x6485524c },
+    { 0xc4a6ff2a, 0x1abfb3e2, 0x35a6428a, 0x2aa03fba, 0x89aff742,
+      0x884227f0, 0xba5dbd93, 0x2337883a, 0xd2a182cb, 0x38186ae9,
+      0x49a01f05, 0xb9f0764d, 0x917b1e7a, 0x92411feb, 0x570cbb5b,
+      0x700b1903, 0xb914be7c, 0x5d5181d5, 0x1981182d, 0x135c4437,
+      0x574b9997, 0x32758d24, 0x632d28b2, 0xa650a8f5, 0xfa383f09,
+      0x24078bac, 0x00a33d80, 0x6546a60c, 0x2df8b449, 0xa4061c7a,
+      0xf234563c, 0x1f76f3f2 },
+    { 0x44c436b0, 0x9aa2c143, 0x1f69c87a, 0x79070556, 0x5f6db2df,
+      0x35f3117b, 0xed56ba82, 0x85761f41, 0x7d0afa48, 0xf831464f,
+      0x3adce71e, 0xa99f2915, 0x116b7488, 0xb27bf693, 0x9bb9443a,
+      0xa98a5a8c, 0x2ee5fde8, 0x7f878026, 0x1812acb7, 0x3a6f93dd,
+      0xdc84bc92, 0xaf92a4cc, 0xf1d4995a, 0x3c2562af, 0x04ed899d,
+      0xfd9fc33c, 0x4ed2a538, 0xc028ca94, 0x049ea726, 0xd0f367bb,
+      0x3d108e05, 0x04924ffb },
+    { 0xc673562f, 0x06548e3d, 0xe2eae48c, 0xd3b33025, 0x5e1c6977,
+      0xe61fd32b, 0x6ebe557b, 0x424e2064, 0x41d6e18e, 0x767391c0,
+      0x14d7e95b, 0x4b8ebb8e, 0x20991b8c, 0x4ae8b7d4, 0xe01290d3,
+      0xf8a0df66, 0x925e5f4e, 0xc97e24a3, 0x1508272a, 0x79a7b2cb,
+      0x25072661, 0xb40b072e, 0x9062fa49, 0xdad9e182, 0xf3c53bce,
+      0x8780a784, 0x9f142799, 0x58a82b76, 0xc1468426, 0x08cd849c,
+      0xc380ae35, 0x4dfce809 },
+    { 0xd527b780, 0x45069cb2, 0x977930dd, 0xd52da015, 0xe27d0263,
+      0x10cc600b, 0xbb2d1b2b, 0x34102c26, 0x554adf3c, 0x4c652623,
+      0x45f0ff47, 0xd6891382, 0xca916e7c, 0x83fa8cc5, 0xd15c8d8a,
+      0x1e10f139, 0x81dc56b3, 0xf173dc2e, 0x5c4ed9ba, 0x7fcecb04,
+      0x47d01228, 0x307fd7d8, 0x9f3a532f, 0x24a57153, 0xe2153c22,
+      0x59e9e81d, 0xe428a408, 0xc562595d, 0x9339bd23, 0xdc7daff8,
+      0xb8a06802, 0x0d075908 },
+    { 0xde085f2a, 0x870af2a7, 0xbe99b2e5, 0x88fcd24f, 0x59ca413b,
+      0x88c0d261, 0x8559f851, 0x1f02a2e4, 0xf622da0d, 0x83b96021,
+      0x6dca3615, 0x5c05c2f5, 0x7910c682, 0x0148cf1c, 0x272695be,
+      0x392f2896, 0xa8d64ef6, 0x883d0bb5, 0x1cfcbc52, 0xef0d2244,
+      0x526117e5, 0xf5dafcec, 0xf04928e9, 0xb68612b9, 0x393f2e2a,
+      0x283f744d, 0x700c1151, 0xfbeed7ed, 0xa4360dfe, 0xf2cde215,
+      0x2f08535a, 0x24fa961c },
+    { 0x616df7f6, 0x0767db3f, 0xfbd90326, 0x643057d8, 0x6e82d544,
+      0x174daa90, 0x689643db, 0x2284f345, 0xcc89a060, 0x18b191df,
+      0xd6c27d12, 0xbab46af4, 0xc9895145, 0x5a57f486, 0xcc942f9e,
+      0xc03214e9, 0x41950158, 0x273e1c8f, 0x39ad43ab, 0x8ceb759f,
+      0xe50ee173, 0x5e1b8b7f, 0x8f4d7d4e, 0xf635b1fc, 0x755603f3,
+      0x8eff77e3, 0x7752fa60, 0x201f61d1, 0x4a6fb6e1, 0x94d7a03d,
+      0xfc4f0114, 0x371cc23d },
+    { 0xda90c351, 0x289b115d, 0x364d9c06, 0x6d196ebf, 0xf650b31b,
+      0x77a89202, 0x6f57642f, 0xcc28c164, 0x08100127, 0xdc4f7e36,
+      0xdc4c807b, 0x8836cd08, 0xe00240f2, 0x1280f156, 0x99cb3953,
+      0x3f9a6d78, 0x3a802038, 0x40a494d3, 0xe87d3474, 0x45697e91,
+      0x26dde24a, 0x70d97d07, 0x7640c30e, 0x06f6a58d, 0x5ba6e6c6,
+      0x03c2c0e8, 0xf1bc13e8, 0x330f6a7a, 0xc9f4d78f, 0x3e602e4f,
+      0x0c80fb7f, 0x92b6bca0 },
+    { 0x5f00822e, 0x2e3d5c83, 0xb8b16f12, 0x0e825712, 0x92b0a330,
+      0x81c329c4, 0xa7cc1954, 0x6b4e32ad, 0x1bb1413f, 0x0bee9cee,
+      0x4a92ca27, 0xedfb7baa, 0xea3b9153, 0xcd472afa, 0x00f0c0f9,
+      0xe8f09e7e, 0x5cdebb70, 0xa4e1d872, 0x4a9b63b6, 0xfe2bae08,
+      0x3fd58f65, 0xf40141b8, 0xa3b62759, 0xd7ec5eda, 0x790e3088,
+      0x9aaf6e67, 0x1f277e31, 0x215ad830, 0xcf33871c, 0xe7db4b98,
+      0x4f02f89d, 0x71ff62c9 },
+    { 0x2a4a84d9, 0xaa4c7102, 0x5ebc71e6, 0xe2ee4acd, 0xf1cd6578,
+      0x3b11a8a5, 0xfff120a5, 0x83f5ef9f, 0x09e65033, 0xa4c598e1,
+      0xca044180, 0xe1e9f990, 0xf59828c1, 0x8b832d46, 0x33af536b,
+      0x753f28a0, 0xb6d4f68a, 0x92edc4b1, 0x72ccd1f0, 0xedde692a,
+      0xd2226432, 0xd3aa0f7d, 0xa3d2661c, 0x38dbb63e, 0xfdc37dda,
+      0xf1e19fc6, 0x84ef6b4c, 0x6c18b350, 0xdf1bba69, 0xe6a83fe9,
+      0x5f958273, 0x40fd47e7 },
+    { 0x267140a4, 0x5b88b746, 0xeab6f2fb, 0x6dbbfc1e, 0x69862548,
+      0xdd9ec88e, 0x2eb6efc2, 0x69beeba1, 0x8ac8ff88, 0xcfc2214a,
+      0xb5a21950, 0x95d5c96e, 0x4171fb69, 0x93389c05, 0x1b468337,
+      0x2d85d452, 0x4113425c, 0x14d68a08, 0xec6c2174, 0xe52c0139,
+      0xf730084d, 0x20cf0b97, 0x1f578aa3, 0x1ac16a26, 0xf9b6ae43,
+      0x18b9fab3, 0xd854a695, 0x68d82111, 0xdffbe286, 0x0b334d98,
+      0xe639338c, 0x5b1c1157 },
+    { 0x72b6bb8f, 0x90edaab1, 0x02fc92c2, 0x8dc64ed2, 0xfe694c73,
+      0xf42ba3c5, 0xcb54dce4, 0x316dc65f, 0x632420dc, 0xcb2d66a3,
+      0x056dcf94, 0x16e706e7, 0xa4f32c9d, 0x2809c764, 0xea6edca8,
+      0xab18d830, 0x81c65f57, 0x4fd1ace6, 0x7da12c10, 0x1f91651c,
+      0xc7791a48, 0x0ac3bd66, 0x785e67a3, 0xb6ad1cf4, 0xda0fd591,
+      0xe4d3fc44, 0x6e1c6344, 0xce164801, 0x33e50ab3, 0x84de9cb8,
+      0xa756eef4, 0x963ab83a },
+    { 0xdf4ea5a3, 0x944b47d8, 0x5cfe45fe, 0x96568815, 0x8a3c3564,
+      0xd16e7d58, 0xe7c99e15, 0x84e55b3e, 0xf55071bc, 0x3fee204d,
+      0x04057dce, 0x71006f29, 0xbba75570, 0xfe8c390d, 0x3319adac,
+      0x3645bcb6, 0x7c20bfd8, 0x8189e8b0, 0x7d7d9578, 0x8e550969,
+      0xb99f4e3b, 0x037d1321, 0xa60cfb6a, 0x011b2521, 0x837382da,
+      0x66594aaa, 0x83c1dc07, 0xc89b91fd, 0x076b9884, 0x6b82b899,
+      0xbe45c558, 0x443480fc },
+    { 0x9114221a, 0xf8ffffb4, 0x3e857a7a, 0x4aec4f2e, 0x0fa54787,
+      0x42e2d0e4, 0xd6f96152, 0xef3e6b31, 0xfbfe9b77, 0xb2296537,
+      0xfb43a86a, 0xc2a9d0f2, 0x24572ac6, 0x241284ed, 0xe721ba7b,
+      0xa3868917, 0xc117a78d, 0xdbef7c00, 0xd31605ac, 0x38149071,
+      0x065a8ee9, 0xc2dada9e, 0xc442be82, 0xd5b138d8, 0xf6d72b58,
+      0x9b6c224b, 0x8eb03e6d, 0xb9d355cf, 0xa1700371, 0xab6d1eb0,
+      0xcffaa7eb, 0x97118a88 },
+    { 0xcdecb5d8, 0xbf9c59a2, 0xa93a6866, 0x8083c81b, 0x04774fbf,
+      0x24e0dd81, 0xa02070b4, 0xe779a3ca, 0x0fbfb781, 0x9d352fbb,
+      0x3ef2a1c4, 0xa8b0d820, 0x14b3e501, 0xb858637b, 0x8a882ff2,
+      0x5ba70a49, 0x3b06efa5, 0xa2730083, 0x102fee2a, 0xa42c02f4,
+      0x8a0223a5, 0xe4e76299, 0x85c3fc72, 0xdba2ba26, 0xfe52eae7,
+      0x554fe763, 0x270f45f6, 0x30b5405a, 0xa573387c, 0xd56a177a,
+      0x4b71fa82, 0x17c0778d },
+    { 0x2735e37b, 0x0e6dff1d, 0x656ec572, 0xc9884e56, 0x9ebba978,
+      0xa2f5ac9d, 0xba09f3c4, 0x40fa4518, 0xf5b04377, 0x8c3fa177,
+      0x967a2eca, 0xa1a1decd, 0x0528bd40, 0x768bca70, 0x18691c4a,
+      0xf224952b, 0xe86d5fd5, 0x16e12c45, 0x37859a6a, 0x7a0d9157,
+      0xa0ffce0e, 0x723f4309, 0xa96cc9a3, 0x5a8db79b, 0x1ad23a38,
+      0x6dd12ae0, 0xe2bf5d84, 0x9ffec3a1, 0xa452ed66, 0xd6ce84e1,
+      0x571fe4c6, 0x1219d5c8 },
+    { 0x262969eb, 0x43eaa67f, 0x2f03e773, 0x3a3ab39d, 0x57bb0909,
+      0xe6127e51, 0x8d150274, 0x0f82b0ed, 0xe580bdbd, 0xffffcad8,
+      0xa9743e6b, 0x51d3d075, 0x8bac11d6, 0x1484bdb1, 0xeb24c388,
+      0x95cd9990, 0x7fac67c6, 0x216a61d0, 0xa04e6b87, 0x4308f762,
+      0xcba57cc8, 0x2865dd61, 0xd234a07a, 0x3c296b0d, 0x3a0793f9,
+      0x76f92839, 0x0be29ece, 0x70b57e1f, 0x7e626f42, 0x1314a82f,
+      0xd657f230, 0x2c8d7ab2 },
+    { 0x0825e4d6, 0x67cf5892, 0x6ef83b44, 0xdf51eaa5, 0x1310108d,
+      0x63e665d8, 0x8dd0963f, 0x229f89f5, 0x9df6436a, 0x8c4b14dd,
+      0xd45ebba7, 0x99dae469, 0x5a4df381, 0x118aab77, 0x29e37feb,
+      0xda8978bd, 0xaca2d7ef, 0x69ced5aa, 0xc67d6a8a, 0x6c98d05d,
+      0x77f84a34, 0x7474bf0d, 0xed8cd59a, 0xd4428b2e, 0xd1d398fb,
+      0xb0fd1cd5, 0x94a20b11, 0x596013db, 0x1b404c44, 0x96eb705a,
+      0x4b09d958, 0x2299d277 },
+    { 0xc64397e6, 0x5b9cd58d, 0xbf6dd31e, 0xac198f1e, 0x3e9f1db2,
+      0x5866d8e1, 0x8fcdc68c, 0x405ae287, 0xe53c01fd, 0xa4b280cd,
+      0x411db5f6, 0xdc963f2d, 0xbec4f8a0, 0xed5d5189, 0x916ee98b,
+      0x336fd13d, 0x042df48e, 0x6925b1b3, 0xace0074e, 0x0cf56291,
+      0x25317e95, 0xe8d38b48, 0x821c446b, 0xc7ad1d2b, 0xf0b65934,
+      0x71c44135, 0x52ca0d50, 0x971b736f, 0x27b46c26, 0xaf9ffa57,
+      0x1936618e, 0x21ac6779 },
+    { 0x2d7fbcd2, 0xab420e3f, 0x97bdfc18, 0x12722473, 0x4df5d4b4,
+      0x492033f8, 0x3807b7d3, 0x6fcd4236, 0xb33c3625, 0xdfc19b09,
+      0xa0f22814, 0x13d6f375, 0x037c19b8, 0x70978a59, 0x0ff27b9c,
+      0x4f398997, 0x615a4389, 0xfc0e1a45, 0x3e602f74, 0xffa3496a,
+      0xb261ca1c, 0xc3f1c431, 0xee0164cd, 0x612211db, 0xe7f7be9f,
+      0x30463ee4, 0x92c2e1bb, 0x015f7e78, 0x24483a56, 0x663d88d6,
+      0x0e62d9d8, 0x0e8ec1e7 },
+    { 0x8a0878dd, 0xa88ccc29, 0x6640071a, 0x99ac175d, 0xa5173617,
+      0x90344820, 0xdd58a315, 0x316d023e, 0x88d221a1, 0x30785bd4,
+      0x959c48e3, 0xb74b3de7, 0x4c67a771, 0x42ee0382, 0xe0b91453,
+      0x59ef6cdd, 0x9b237e91, 0x7830ae28, 0x495d8325, 0xe1847a4c,
+      0xd0773666, 0x67b1217e, 0xa294a325, 0x58192c86, 0x864d8326,
+      0x76aa0f56, 0xf4b13e5b, 0xe2a2bd12, 0x1b6b73fd, 0xd850c1c0,
+      0x5d103635, 0x653a795f },
+    { 0x50dcb199, 0xcfe28985, 0x7fa02b60, 0xb35b8e5e, 0xc97603d0,
+      0xbca7d7c3, 0x27f131b5, 0xb0e5288d, 0xe2b12d52, 0x3aa704de,
+      0x1db725c7, 0xe206b1d8, 0xc5d1b113, 0x0b12839a, 0xdb45d763,
+      0x14f970cb, 0xb2125e8e, 0xc997f93e, 0xee7daa26, 0xbd75739c,
+      0x1fef20e9, 0x46ecbd3f, 0x7c6a42b1, 0xf994a114, 0x27fb0fd1,
+      0xd289eb4f, 0x9a40da4b, 0x11186d31, 0xfb9d7976, 0x083f65a5,
+      0xd444675e, 0x30dfc47b },
+    { 0x9eaadfe8, 0xbcfc5ae2, 0xb4d4e812, 0x25027e54, 0x8b533561,
+      0xab0702df, 0x56a6a214, 0xa2b9c204, 0x3059068e, 0xb1a3df7a,
+      0x9883110f, 0xa3514b21, 0xc4b78e1c, 0xb7be2336, 0x3e2f6984,
+      0x17073ce6, 0x2ddf7ac6, 0x86e114a6, 0x07d7c3c8, 0x276192bf,
+      0xeb1ae289, 0x5da69e0b, 0x25184939, 0x983af175, 0x407a3aa0,
+      0x9ac52a4d, 0xae0fe218, 0x1535c7da, 0x397f2501, 0xe16fe872,
+      0x54c212cf, 0x572a591f },
+    { 0x09a5553a, 0x49668419, 0x327733bc, 0x3f054318, 0x3eefd690,
+      0xf9ceb4b2, 0xf22126d4, 0xbd3cbf9b, 0x2fed9578, 0x6d9671c0,
+      0xca0306d8, 0xbba597ce, 0x3d674fe5, 0xb705ed61, 0x67f33f76,
+      0xf1d3622b, 0x11cb8c31, 0x15bcf3c6, 0xe53d1aa9, 0xa38467dc,
+      0xf908ab43, 0x902fe929, 0x8d15767a, 0x6e3e499d, 0x90afd07b,
+      0x8142db5c, 0x6c8b190e, 0x120c6fbc, 0x24919a4e, 0x80c86553,
+      0xd8c82c3c, 0x65c2cbe1 },
+    { 0xa660bb63, 0x684cda20, 0x86e86245, 0x27dc3b0a, 0x6ba0eed7,
+      0x76472cf6, 0x679dd158, 0x79c162e5, 0x08452d44, 0xb6884277,
+      0x413f579e, 0x829bc6b3, 0x95011770, 0x92ea15ec, 0x47738183,
+      0x5e34e300, 0x73e1d2f1, 0x8c3ca349, 0x229bd3de, 0xa5c4f1dc,
+      0x94ef7ed3, 0x783eff1b, 0xdfae7a1a, 0x46db738d, 0x1a099852,
+      0x4353d72e, 0xa0dcf4ab, 0x2533ad58, 0x0e7888b9, 0xd8055016,
+      0x3ba77f66, 0x831440d5 },
+    { 0xf611b2da, 0xf43e2e32, 0xd0fa46ac, 0x5d066e29, 0x820b3c0d,
+      0xe897f3e8, 0x1d3e44f0, 0xc45c28e6, 0xdfd27a66, 0x929d7f66,
+      0x101e8517, 0x735b860a, 0x3de078dd, 0xea3fce98, 0x638ce11a,
+      0xc9977db5, 0x48536b3b, 0x0488382f, 0x64cadfc6, 0x7e0c7a3c,
+      0x82147b71, 0x3cd17f7f, 0x1b411e3e, 0xe95663cc, 0x985fb46d,
+      0x5739ac8f, 0xbcf119ca, 0x385399cd, 0xe15a2815, 0x4a985a70,
+      0x6d5f4566, 0x504c3a8a },
+    { 0xb8fa53c7, 0x00b55283, 0x509474e3, 0x985cff38, 0x437ce25f,
+      0x234d241c, 0xe5a129ed, 0x29832430, 0xaabcc674, 0x6ad38956,
+      0x7ee81ee1, 0xa2dc001d, 0x670b2702, 0x4c23c6b6, 0xa6e8a3bb,
+      0xb35e567e, 0xa69673ea, 0xbc70b3ce, 0xe6e28eac, 0x85a7a9c3,
+      0x5537b7da, 0x2ae684de, 0x6de937dc, 0x5ecac3e5, 0xf8430422,
+      0xbf2ea6c9, 0x77fdc520, 0x38caf7d0, 0x69f56add, 0xc27af0b1,
+      0xc71d21d2, 0x496e4699 },
+    { 0x9fa93467, 0xba14fc82, 0x0eb2a614, 0xc2e37684, 0x4833e09b,
+      0x659bcfaf, 0x3686bdcc, 0xbc859752, 0x81f3216a, 0x40bfd080,
+      0x17c081b8, 0xc463bda6, 0xbb04793b, 0xbd01fa86, 0x2cd640c5,
+      0x5a21ece6, 0x2203d5c4, 0x97bf6a54, 0x951167b7, 0xceb40edc,
+      0x765ba268, 0xd67aacaf, 0xaeab51f9, 0x8ba0d9e9, 0xb0d6863a,
+      0xc14b215e, 0xe5f06952, 0x354cdcdb, 0xcb3744b5, 0x4f2b5ccf,
+      0x13037fe8, 0x13389173 },
+    { 0x45003cd1, 0xee680640, 0x44ae2ac6, 0xfdac17bc, 0xde8e5314,
+      0x4bcd419f, 0xc7cea95c, 0x81e34eb9, 0x38f37e01, 0xbb57762d,
+      0x260990c8, 0xecc4cfb0, 0x50a34a7b, 0x0bc493f9, 0x543304ef,
+      0x68074172, 0x6bc8aa2a, 0xaec0fcb2, 0x3b45fea5, 0x9e7a9b46,
+      0x55fbdbac, 0x4bb2952e, 0x0485dff4, 0x50f0c0a6, 0x4dea4796,
+      0x02c5104d, 0x695e3a02, 0xd2cefa09, 0x6da1f345, 0x4c8102b4,
+      0xf3833fbd, 0x422eb573 },
+    { 0xa6ad3f47, 0xac592eb6, 0x9714ba0e, 0xb0861f6d, 0x07281459,
+      0x57c1e919, 0x64ea5803, 0xcf7c94e2, 0x54b12723, 0x725376ac,
+      0xdafb736a, 0xf2a6ba41, 0xcba03cdc, 0xc89e8920, 0x5b0fd3ad,
+      0xf2e20cb4, 0xd66059fe, 0x26ea5a54, 0x889df8bc, 0xee63fa8b,
+      0x66a3f2bf, 0x40f1c7e1, 0x747312e1, 0x09febc9c, 0x727999ff,
+      0x7d19b9c2, 0xb7fd2b05, 0xa9fbbb4c, 0xa0da2dc6, 0xcfba27d7,
+      0x2c252582, 0x368541cf },
+    { 0x22799d37, 0x510d3c9e, 0xacfa333a, 0x1b677de5, 0x080f795b,
+      0x4e6ae18f, 0xafc8dfc2, 0x69b53c2a, 0x0e842dc2, 0x797541b6,
+      0xac067fe8, 0xd5a6f2af, 0xbd07d877, 0xd0208a03, 0x654be2f2,
+      0x34b473f0, 0xf515e23e, 0xe67c102a, 0x2ac1af48, 0xb00dbf9d,
+      0xb6a13d00, 0xe264fa41, 0x97e94c11, 0x1669786a, 0x86a586f4,
+      0x09d8cf2d, 0xc7f927e9, 0x073bf869, 0x2241a566, 0xb8977880,
+      0x22261334, 0x59a5bf59 },
+    { 0x81347191, 0xe9d1c91e, 0xeb969972, 0x186c1abc, 0xa9d46a7f,
+      0x07888767, 0xdaa7d397, 0xda93cfcc, 0xd91b9aa0, 0x08bee9f1,
+      0xf8dd3c6c, 0x8267fd78, 0x94228100, 0xf93860d0, 0xdadb47fb,
+      0x6a6a71aa, 0xa6156f8a, 0x9caa06b7, 0x39848bc9, 0xaa1b05e0,
+      0x2aaa9135, 0x36ddc237, 0xb13f3bd1, 0x77e7e079, 0x4acc5f4d,
+      0x8d0b5cbe, 0x984cfd36, 0x04da45f8, 0xd3d3e0f8, 0xf14ef618,
+      0x43eb799c, 0x467564c1 },
+    { 0xb6fff5d7, 0x8d725904, 0x92dc4752, 0x037f33af, 0x6d20b8aa,
+      0x9095d575, 0x43baec39, 0x32235fc1, 0x68a2b9b0, 0xa2feb4af,
+      0x94d35c61, 0x61c50318, 0xea877486, 0xac92b6a2, 0x011bc6f3,
+      0x8eb48b15, 0xc79edcb2, 0xa28fe128, 0xa5d2a006, 0x9f71bc0c,
+      0x2f15b850, 0xf3167732, 0x7a036218, 0xfe8d728c, 0x4f81e09e,
+      0x068f39cb, 0x7b7c50d9, 0x1773f016, 0xed6a1e03, 0x0d0f7adb,
+      0x4ee984d5, 0x8a0dee16 },
+    { 0x47366e6f, 0x504991bf, 0xe86c3005, 0xb8084d9f, 0xa40cce36,
+      0x14c4c751, 0x3f1961e2, 0xbbb46aa6, 0x40445e43, 0x56a785f9,
+      0xc91e215f, 0xdb8d1b57, 0xc7ee808d, 0x6a8e453e, 0xbbaa1e8c,
+      0xc0367ef8, 0xe3e18109, 0x310d91f1, 0x7e20a2c3, 0xf97cfd0e,
+      0x554cc277, 0xf1e80c84, 0x7b628403, 0xe89bbc1d, 0x3fe0a17c,
+      0x7778a966, 0xc1f00073, 0x9e9db19f, 0xb6f6bed2, 0x2ce7fe7d,
+      0xee97ce23, 0x7b04b5d2 },
+    { 0x82c5faf8, 0x5b546bc7, 0x8eb81097, 0x1a734c5e, 0xe77851e0,
+      0x3d566861, 0xe956d51f, 0x833a1013, 0xc3c3c37c, 0xc7351731,
+      0xe0c148ec, 0x607738fb, 0xe1bbef41, 0x2ec6f0bb, 0xcfa51857,
+      0x0aa2ac6e, 0x66e3adf0, 0x072902d7, 0xc622d6e3, 0xcd4d5089,
+      0xa6dd802f, 0x3ae21b23, 0x33886372, 0xe5465a55, 0xa8d81822,
+      0xd85119a0, 0x3786977a, 0x4f14d032, 0x9c7b272c, 0x515b081c,
+      0xc99be31c, 0x1c6a95a4 },
+    { 0xc2821363, 0xa6b14ad5, 0x4d17de1c, 0x829c1823, 0xccade848,
+      0xaef5d2c4, 0x82489e27, 0xf412ab39, 0xf081d927, 0x92c9c098,
+      0x75cbad1f, 0x6f87bdf4, 0x1a1d9fb1, 0xf4aadab8, 0xb75f3b76,
+      0x475a7923, 0xdbbba8fe, 0x99dd0ad6, 0x4b70ab45, 0x836f6164,
+      0x34bd9af1, 0x2a464881, 0xba9abda3, 0x5c91226e, 0xe65625fb,
+      0x4cec8709, 0x0818e4be, 0xd4b3919e, 0x14f6879c, 0xa5c09c84,
+      0x30a864c9, 0x72708a02 },
+    { 0xf34a466c, 0x4f33c0b1, 0x7f9d45ba, 0xa1bae09c, 0x0e28785c,
+      0xd70f0fee, 0x90880881, 0x824c7146, 0xbb043da3, 0xe2416c2a,
+      0xcec6f432, 0x733da713, 0xc9793e1c, 0x2b590649, 0xb35c9365,
+      0xdb62d5b0, 0x3e5c1b2a, 0x355eb6e2, 0xbb16b515, 0xcfe8b5ce,
+      0xf709691c, 0x9e081869, 0x61a85bd5, 0xc865f9fb, 0xfae103f7,
+      0xf169d3cc, 0x73467e9d, 0x9525c473, 0x43695113, 0x7db55c0b,
+      0x73265d21, 0x7491c74c },
+    { 0x80d2b94d, 0x312ed5bf, 0xba4b260b, 0x1b8ac633, 0xd62219a1,
+      0xac86c58c, 0xaeb82c8e, 0x317ccf6b, 0x59ef9ced, 0x2dfb29ee,
+      0xe42bcd5a, 0xdaa7d898, 0x5974b201, 0x93e295c8, 0xd9fc5adc,
+      0x69e75784, 0x012aa3ba, 0xd6c4709f, 0xc85d3cb9, 0x1fda9f37,
+      0xd3dd4abd, 0xe5487e25, 0x0b3ba22e, 0x00fd4b01, 0xc6e8dcbb,
+      0xcb591493, 0xbce68664, 0xb7329fab, 0x68906b76, 0x6829d1c2,
+      0x74176841, 0x8bcfd3e5 },
+    { 0xd3c8c314, 0x06882734, 0x11870833, 0x95f0b2f1, 0xc068ba16,
+      0xb937f7c3, 0x77924787, 0x5365e0d8, 0x1f992227, 0x15527e5e,
+      0x27dffd4f, 0x0a069648, 0x2f586389, 0xd58b3df2, 0x6af20ead,
+      0x83446b89, 0x50746257, 0x09d7970b, 0x4022a691, 0xd9e8d206,
+      0x671ec379, 0xd1e5f8af, 0x057fe91e, 0x6f542509, 0x52890418,
+      0xf14dda81, 0x1db932ad, 0xbd78010e, 0x905a9378, 0x3e18d1e4,
+      0xbd37ab49, 0x53cadcf7 },
+    { 0x5e53d0ff, 0x1bb5edf7, 0x888abf67, 0xd886606c, 0x12206d15,
+      0x6491b0f8, 0xe22b6a33, 0xb3018345, 0xb173b317, 0xaba6794b,
+      0x7dc9e595, 0x8c1e5867, 0x239624d1, 0x4e106482, 0xda55dd53,
+      0x61752e59, 0x9e42879c, 0x018b4eab, 0x491f2bed, 0xcaf6784b,
+      0x1e79429e, 0x3dcdb9d2, 0x10f26224, 0x36941485, 0xa650ec5c,
+      0x106f190a, 0xb69a9760, 0x7542a5ae, 0xc32d1046, 0x69bd75e9,
+      0xbf8c62b1, 0x90849964 },
+    { 0x5a93c661, 0xb1390cf6, 0x9db5f056, 0x18486264, 0xa51a1788,
+      0x92a93a9d, 0x6772de9a, 0x1b0cbb8f, 0x7c71487c, 0x6e67febd,
+      0x4e62423e, 0xf9b4382d, 0xbb5a42f8, 0x96fda50e, 0x6089a4f2,
+      0xc921b337, 0x875ec516, 0x49d32d7b, 0xc410124b, 0xbd86d2ca,
+      0xc421fb7a, 0xf6862209, 0xf6b7de33, 0x3e1949ab, 0xe93c9268,
+      0xcdee18f0, 0x08dc4cc0, 0xd4edbd5e, 0x73580d22, 0xc2b75be4,
+      0x468cd7e8, 0x3d7f6ffa },
+    { 0xdffbd5d1, 0xea7b290c, 0x970338df, 0x9d759da6, 0x90feedc9,
+      0x56680b08, 0x42dce68e, 0xbc690af5, 0xb2ae4d82, 0x8519df2b,
+      0x7f195b60, 0x5612467f, 0xd83c21f4, 0x659a342c, 0x55651633,
+      0x55771bf5, 0x548ba562, 0x5fc68935, 0x9492f23a, 0xb5419203,
+      0x9c9c6017, 0x567528e3, 0x511e6019, 0x3f064ed4, 0x1d16a555,
+      0x303f9eb9, 0x2254abee, 0x3e18c4fd, 0xfd434e7c, 0x40994d6f,
+      0x6dde74e6, 0x8fb12d3f },
+    { 0x293cb7a4, 0x6c6381a2, 0xb87b7e4d, 0x453e09f0, 0x078ac3ef,
+      0x4f212823, 0x578cae91, 0xe89ffad0, 0x716ba4dd, 0x4a2b696a,
+      0xf6f580a0, 0x14681a14, 0x4c2f1307, 0x1358f97b, 0x2932fb89,
+      0x87896996, 0x268a5af7, 0x29dd850a, 0xfe239f83, 0xaf771f6d,
+      0x4f47499d, 0x5f20fd2e, 0x867ca0e9, 0x9b643e77, 0x375981ec,
+      0xe7858ecd, 0x19ab1c97, 0xbe946a59, 0x06ff3453, 0x4f9303a2,
+      0x75d237b1, 0x3fcc6731 },
+    { 0xdf21f920, 0x509debd5, 0xc1401b90, 0xfaf70e1f, 0x95a64aaf,
+      0x2429cbfd, 0x2c37a122, 0xf2120855, 0x7deb926b, 0x1d4c93f4,
+      0x9fb3f1dc, 0x12f3e4c0, 0x5b51bc46, 0x56085a59, 0xf10fdbd2,
+      0x2a2f5d62, 0xdf0cb3c2, 0x60dd62cf, 0x6b0f254b, 0x154424a3,
+      0x564612b7, 0xc3a5a05d, 0xa1f5249c, 0xbebe30cf, 0x7e62a188,
+      0x24ec6903, 0xaf429939, 0x75f0fbac, 0xb3fa8685, 0xd41345dc,
+      0xc7151c34, 0x645146fd },
+    { 0xba1924f9, 0xecec633a, 0x006326e1, 0xbba6f136, 0x7e50fc17,
+      0x203757ac, 0xef3d8e00, 0xca531919, 0x51dc5a74, 0x9545a6aa,
+      0xd31412b8, 0x6e21d58f, 0x7bb1d000, 0x01bc3005, 0x6ed1a9c3,
+      0xf1789c69, 0x9858fa48, 0x7af2d35f, 0x8197be85, 0x434d09b9,
+      0x29aa265d, 0x1dc07755, 0xc058fa80, 0xcad03be7, 0x54ba14ce,
+      0x92d70a9f, 0x6c050a74, 0x6dc78505, 0x4d005dda, 0x2a7ca4a9,
+      0xabfb9f2e, 0x448d3d72 },
+    { 0x29b33989, 0xdc56f145, 0xa9ae815a, 0x868351bc, 0x4b074414,
+      0xb3f45613, 0x3cd9f33b, 0x955ce42a, 0x5ff6e4a3, 0x13ade4ec,
+      0xa50eaa91, 0xd3aac715, 0x5666efdf, 0x0c61ec99, 0xf6a4470a,
+      0x108a28b8, 0xe54844c9, 0x402ef584, 0xd0e2f337, 0xb825b162,
+      0xb46f7cbc, 0x3dcd131f, 0x96f2fd89, 0x208178ec, 0x25928c78,
+      0x4d8c5d67, 0x9963c459, 0x285a33df, 0xd92a309f, 0x72497175,
+      0xcb7019a5, 0x76881479 },
+    { 0x91767eed, 0xba43a114, 0x92bf65db, 0x5e11b9ad, 0x03a5e21a,
+      0xe8a22ce0, 0x2a335415, 0x63604421, 0x4a9ead62, 0xc2c563b4,
+      0xa0b2aee5, 0x4bc06264, 0x8bf2e1d7, 0x75b8d575, 0xd08a265d,
+      0x1cff0ee7, 0xb0b712a7, 0x17914e1d, 0x4b18692d, 0xc35925d0,
+      0x56cce815, 0xde253f4c, 0x9fff0e3a, 0xa479241c, 0xddabed19,
+      0x50b9d06e, 0x59fae506, 0x67135260, 0x532ce180, 0xf37600fb,
+      0x5e5a8626, 0x670eb01c },
+    { 0x73cdbb43, 0xdf73c0af, 0x7f2431ad, 0xcf08ecc5, 0x2a1a3845,
+      0x91780541, 0x9224ddf1, 0x69a104f2, 0xbeac7eff, 0x4352f38d,
+      0x7c2d1322, 0xfc3b3b4e, 0xb5e4b476, 0xa69e9430, 0x975a46f0,
+      0x7d932340, 0x5d64eece, 0x8093899e, 0xdb2345e9, 0x7b821250,
+      0x7f4b796b, 0x23552932, 0x4bb90b1f, 0x2ee9cc15, 0x9112f7d6,
+      0x1fa9c8f5, 0x1cbaae32, 0x2d0f2f98, 0x0075166a, 0xb77f0366,
+      0x635dff27, 0x504852e7 },
+    { 0xa2f392fa, 0x2f0f3ce5, 0xec6c9078, 0x326c076a, 0x84baaaf6,
+      0xad01de92, 0xcbe8e993, 0xb01b16d3, 0x2d950908, 0x71305c24,
+      0x3853af38, 0xc66fd617, 0xd3c429a0, 0x7735140e, 0x1fabf027,
+      0x8a31b12a, 0x058b3177, 0xa0530002, 0xa9c7deb9, 0xabffd9fc,
+      0xe8667d30, 0xd05ef69b, 0xe9a9e13f, 0x2f3a7308, 0xb91eae9c,
+      0x3f4c9a19, 0x618ce6c4, 0x50d0cee7, 0x5240f8b0, 0xfb24dc40,
+      0xf7e90cc4, 0x992fe151 },
+    { 0x38f197aa, 0x4454db31, 0x87872f98, 0xa4ded69d, 0x44f0a828,
+      0x97b427b0, 0xa31e48c6, 0x9821e1ae, 0xdd98efec, 0xe38cb09f,
+      0x480cb3ae, 0x20b84fa8, 0x47475573, 0xba5bb4a8, 0xcd50e96b,
+      0xa9be080a, 0xef103550, 0xc4451e9c, 0xc441325c, 0x626ee75f,
+      0x38a5e33d, 0x6eea5e98, 0xa2b0abd2, 0x7321beb9, 0x9b6082a9,
+      0xca92e484, 0x992bcc2a, 0x1dc8168a, 0x9c8eb9fb, 0x134ecf4b,
+      0x4c5b71e0, 0x5a68bfa8 },
+    { 0xff0a2bfb, 0xb4ff3b45, 0x5502f8b0, 0xd105fff9, 0x5b1c0c26,
+      0x14de5885, 0x0d3b9d04, 0xed16865b, 0x026d3917, 0x2f5a2453,
+      0xf4db3c0e, 0x6a22f493, 0xe2418f2e, 0x4871548a, 0x509bef61,
+      0x6ab363a8, 0xb8cbbbec, 0x91ca1e3a, 0x4011a396, 0x71e0dc98,
+      0x0d5ca577, 0xff982e0a, 0x81897bc1, 0xeb40b045, 0x085ad5e7,
+      0x4bc24a46, 0xa6337b7c, 0xd15c8fa0, 0xbef1628f, 0x56ce6ef7,
+      0x9f5ef439, 0x78acfdf9 },
+    { 0xf8520189, 0x45bf7f15, 0xc77f61c4, 0x954202a0, 0xdfa22e1b,
+      0x39edc6b9, 0x1f4a3487, 0xd2d60267, 0x4814cc52, 0xcd933929,
+      0x05e9f123, 0xde76a124, 0xae36b6f7, 0xe2306ea0, 0xb83a58e0,
+      0x53815218, 0xa041231a, 0x9862bb76, 0xbf31be71, 0xe8da253c,
+      0x37de861f, 0x2dfc5332, 0x90ae4890, 0xf25c93f6, 0x8baa6ed2,
+      0x66bcb8f0, 0x908b4a29, 0x6f10ae0f, 0xb061c949, 0x8cb4b48c,
+      0xd075a366, 0x0ad92d73 },
+    { 0xc2ca548a, 0xbfb95fed, 0x80cd89ab, 0x4778c620, 0x3466c280,
+      0xbe99154b, 0xd4be8902, 0xea3be093, 0x13e681ed, 0x847b7995,
+      0x02f40161, 0xf22a8f4b, 0x4aeb7fe8, 0x3ef2cb4d, 0xb3aed5f6,
+      0x9adc5151, 0x98c31163, 0xec1ccfd1, 0xa3d7d88f, 0xdc2ac17b,
+      0x46421097, 0x08fa64d3, 0x94b90bcf, 0x5ebf80b7, 0x0b50a9eb,
+      0x1b78b4ba, 0x279aa66b, 0x1a4fe934, 0x075b3ced, 0x8ef4dcaf,
+      0x70a6e9ae, 0x95bbd8a0 },
+    { 0xe614bbd0, 0x59f92495, 0xb823e363, 0x7567a887, 0xfc1bd6a7,
+      0xe247c9ec, 0x8e835c42, 0x2bfaaf47, 0xaade066a, 0x314ef4e0,
+      0x5c16d336, 0x072baa63, 0xe2f0e389, 0xfa429c71, 0xbd07d90f,
+      0xcac1e5d0, 0x514f5c04, 0x69ff35ea, 0xc0554ec1, 0x893053fc,
+      0x2a35947f, 0xab1d86b7, 0x2aebe487, 0xe29fb060, 0xdfb9cf21,
+      0xa0a10d6d, 0xf20dfcf5, 0xad147059, 0xb8867a2a, 0x480dc66f,
+      0xc125a919, 0x375a884f },
+    { 0x1217f7ea, 0x178cbe2e, 0x875c6dab, 0x1a161e2a, 0x1bdb1a54,
+      0xf7707ec0, 0xe4fd73ca, 0x678864a0, 0xd13a0d86, 0xbaebc664,
+      0xc8d30668, 0x40325f99, 0x2f1c5950, 0xb93ed9c9, 0x541e0667,
+      0xfdf36763, 0xb91a6763, 0xfd97fbb0, 0x6079c9a0, 0x26aa69ea,
+      0x1eaa8c47, 0xc7303c80, 0xafa63c55, 0xdec75c81, 0x4fd12adb,
+      0x01cdcde2, 0x1968838a, 0x9fe0dda7, 0x38415379, 0x66bb093b,
+      0x08cb84ec, 0x268d818b },
+    { 0x41580555, 0x73dae358, 0x473d103b, 0x4fc32e67, 0xbeccc1ab,
+      0x240c1013, 0xb24ee9de, 0xda4099f2, 0x9fa8e066, 0x37b0cb5b,
+      0x6438d7ee, 0xb5ae04e4, 0x2b720140, 0x7f7d3164, 0x339e4a78,
+      0x86ef4edb, 0x3a7d8375, 0xa5e77eed, 0xbd707c2e, 0x883fad37,
+      0x0f979189, 0x816b633a, 0x2e7a208e, 0xe24c028a, 0x4435516a,
+      0x1171fe3c, 0x4f5f2bf5, 0x3eb93b33, 0x01b53a56, 0x8419ed4b,
+      0x056ca44b, 0x8b02735c },
+    { 0xe1019195, 0xb89bb464, 0xf3fc28c1, 0x1de4c026, 0x2bfc3b21,
+      0xac120e6e, 0x91bdf92f, 0xec71bc5a, 0x0d995bc9, 0x485d7ab4,
+      0xe6491ffe, 0x97c6768e, 0xafbce265, 0xd9552d19, 0x8e1b76c2,
+      0xbae6c7fe, 0xd7e3ad1b, 0x167d8281, 0x5e989734, 0x3e149af9,
+      0x8a0c8182, 0xd1f0024c, 0xc3006c0d, 0xf571ffdb, 0x58773d4c,
+      0xb32ecf7e, 0xfd3540d8, 0x5822a782, 0x04365042, 0x5ab45c3f,
+      0x4b4d85fe, 0x400e3aa0 },
+    { 0x5e46e4a2, 0x47321649, 0x24136074, 0x37a2ed64, 0xc60ec77d,
+      0x659223b1, 0xe5e0ac2e, 0x5e13aac3, 0xc5107ab7, 0xda17c41b,
+      0x73c253db, 0x65b22ec9, 0xa5012296, 0xff3867b8, 0x0621a99b,
+      0xfed660d5, 0xc89fc3f5, 0xa3c28506, 0xf16451a7, 0x3ed350b9,
+      0x67cb586f, 0x27c3e032, 0x967185b1, 0xc807c779, 0x4a13009b,
+      0x09c157d4, 0xadaf1f4d, 0x362f7647, 0xf3a6a198, 0x4a42b9ac,
+      0x8da6e039, 0x131c3da2 },
+    { 0xa7da83ba, 0x4a785ff1, 0xd04f4436, 0xf415b425, 0xec03f812,
+      0x7c0899bd, 0x80f5f4a2, 0xc58d411a, 0xfda251b9, 0x3d32d610,
+      0xcd3b2f32, 0x99bb4504, 0xf4c2083c, 0x198c444b, 0x730e83fd,
+      0x60c261af, 0xcb02db90, 0x060ca4df, 0x9df1e7c8, 0x0ff7838b,
+      0xc4c690c9, 0x6b79cf97, 0x5d75f154, 0x131514d7, 0x1cb0e8ff,
+      0xa7c074f1, 0xb2c17615, 0xb920aac1, 0x44aa0ff0, 0xde8098ad,
+      0x34545ce9, 0x71d1a46a },
+    { 0xfa1b382e, 0x76178f76, 0x772dda0d, 0xa0d8ecc3, 0xc5d4d130,
+      0xaa5aab2a, 0x8d72622c, 0x27d38ba4, 0xca3bed06, 0xc5410db6,
+      0x793ceccf, 0xf637a588, 0x6e65e3d7, 0x1f65dafd, 0x60a45641,
+      0xc3b44a85, 0x4f78540b, 0x0f47b3a8, 0x5e4d60f6, 0x824fdadd,
+      0x17d3b6d5, 0xd8ccf90c, 0x325fc13a, 0x008eabdf, 0x3648fab9,
+      0x3e90d716, 0x24c52d4b, 0x3964ff3a, 0x533d0acb, 0xb95cc416,
+      0x1167f521, 0x6cd2699f },
+    { 0x12f4f3ac, 0x2d8c0b3b, 0x99d1bdfb, 0xb03dcfe2, 0x30f37326,
+      0x540034f8, 0x7c5a8c82, 0x22dd6893, 0xcd8f1442, 0xeb7093d0,
+      0x585742f2, 0x892795a7, 0x087adadd, 0xe15f282c, 0x16ab7b5e,
+      0x7bbdc749, 0xa58acbb4, 0xd30fe40b, 0xe2bac39b, 0x0de417eb,
+      0xc61a04bc, 0x4b4b19a6, 0xf2735569, 0x9338c34d, 0x30ab196f,
+      0xe8f03742, 0x6c88c965, 0xfa2efcb8, 0xc7eeb826, 0x19eee274,
+      0xda345dc2, 0x327c063f },
+    { 0x5b47cd53, 0xab399eff, 0x1943aefe, 0xbbe9869d, 0x1402a866,
+      0xe64ecc7b, 0xb1c25a16, 0xc3e7c2aa, 0x022de271, 0xc4216b79,
+      0x366d6a5f, 0xe58dfcc8, 0xda813336, 0xd159509e, 0x130bfb7c,
+      0x370400f2, 0x93b48780, 0x1be4e059, 0x39f3cd22, 0x0623a1fe,
+      0xeecb4f87, 0x72aa22b2, 0x6c27b83b, 0x1af4c496, 0xda5fa5bf,
+      0x7a42a94b, 0x48b01af2, 0x9afba822, 0x3670112c, 0xeb6b9d2a,
+      0xc0df6856, 0x020f19d1 },
+    { 0xa4dbba20, 0x37051a86, 0xdb1de5c5, 0xb618ebc6, 0xe6525840,
+      0x9a780a19, 0xd2bccc4d, 0x9440302d, 0x10285a24, 0xe9ff023d,
+      0x3a486268, 0x3b937ee3, 0x4cd61147, 0xe37ee2f2, 0xa3d057cf,
+      0x79fbbfd3, 0xccddefce, 0x5fba16d3, 0x5b231727, 0x916058ec,
+      0x720c3adb, 0x47699ebe, 0x8b4f6bba, 0x26274386, 0xf18a0770,
+      0x54b0092a, 0xacca1160, 0x99d090eb, 0x0c888f60, 0xf757e1ff,
+      0xb0050544, 0x79e72720 },
+    { 0x2820a239, 0x632acf25, 0xaae6b310, 0xb1a3974e, 0x48c0a1df,
+      0xd61fd6ba, 0x5a3ee7aa, 0xd2453c39, 0xb980446d, 0x548455a0,
+      0xde16676f, 0x9f29d97b, 0x789375a1, 0xf252ca0c, 0x7743a985,
+      0xe961af3e, 0x66cdbd8d, 0x70c79c56, 0xcbc538f9, 0x14a3854e,
+      0xa126851c, 0x58daa73a, 0x2a9f558c, 0xe9b5bb45, 0xfbd15e05,
+      0x37af7f83, 0x38a1939d, 0xa4487927, 0x9511a056, 0xe428b2b5,
+      0x7015846d, 0x001d3ce3 },
+    { 0xe145b1d7, 0xd6be36b9, 0x009c5664, 0xf3e3938a, 0xe7c0f6db,
+      0x2e562e7d, 0xc343f539, 0x951044e6, 0xd90897b1, 0xa5ab62b8,
+      0x512f797c, 0xb1a1f70b, 0x750f28e4, 0x91cdd754, 0xffb8165d,
+      0xb4c80e2f, 0x594d02b3, 0x65ed39c7, 0x56833edc, 0xcc12a49d,
+      0xf3693a18, 0xe73694bc, 0xfcd2c404, 0x34cc134a, 0x11d40194,
+      0x071bd5fc, 0xfc585e46, 0x05759047, 0x790b7a04, 0xb3280360,
+      0x40afc684, 0x4bb8c6fc },
+    { 0xfd0f8796, 0x3120e2dd, 0xb133c9de, 0x6968a40d, 0xa9369c6e,
+      0xfea366c0, 0x6007273b, 0x37e5b6d6, 0x8cb81439, 0x39e4ecf0,
+      0x9febc005, 0x487fe9cd, 0x0199b53c, 0xeb8af444, 0x293519eb,
+      0x2f124e3b, 0xc82c9c16, 0x860c218a, 0x709dc590, 0xacd1d6f2,
+      0x36d50529, 0x5696d545, 0x59120bfc, 0xc03f5df9, 0x10ffa690,
+      0x99a3e88d, 0x6c432827, 0xd4f9cfa5, 0x9a135d89, 0x2e8fea9e,
+      0xb6a77e78, 0x3699a881 },
+    { 0x1eb1c64d, 0x5bca3372, 0xf1d28154, 0xe9cf3a2d, 0x6537106f,
+      0xb7e2e9b3, 0x4f7cbf4d, 0x06c17151, 0x2058b37f, 0xcbde416e,
+      0x8834e9c5, 0x82c53a7e, 0xe9ac3a75, 0x94dbdfe2, 0xc5e67c02,
+      0x795ec6cb, 0x1426a80d, 0x8c23c25f, 0x6a8d4f9f, 0xee2cd20d,
+      0xd3b7c235, 0x838daa54, 0x3d7a4d52, 0xb9e08ec0, 0x781cb473,
+      0xca9475e9, 0x5ec31caa, 0x7271f39e, 0x82535187, 0x1df08e9f,
+      0x208aff8b, 0x4f3a4b03 },
+    { 0x1ed095f8, 0x0f7b8107, 0xda226d4e, 0x23e37fa6, 0xafb36d1d,
+      0x8b0f9852, 0x07d8e311, 0xb114634e, 0xe3e0f16e, 0xb9634a97,
+      0x421eec37, 0x2454bb9c, 0xd72b21c1, 0xb4ecd5db, 0x6df20d7c,
+      0xf9603868, 0xdf86e0a2, 0x9f5359fd, 0x5ac488aa, 0xc43d54fa,
+      0xd1049df4, 0x56d714ab, 0xb020607a, 0x13152b3e, 0x7a02325e,
+      0x49be1c18, 0x52ae84db, 0x44f24f4a, 0x0b5a7b80, 0x9e525c03,
+      0xa6d179fd, 0x6d874446 },
+    { 0xbe9a42f5, 0xd29d07aa, 0x3781ccc8, 0x1fd5316c, 0x9dc69ea1,
+      0x71a75a6d, 0x88fee91a, 0x4e19e0df, 0xf8d44f12, 0x99c2b4dc,
+      0x31ae94e4, 0x05f6df92, 0xcf28ccc2, 0x27fba876, 0xf57f7ceb,
+      0x6e1a0f01, 0xf3fd3b74, 0xe03f1f34, 0x42c1d213, 0xa0edc4a7,
+      0x7deb8580, 0x5caac270, 0xaf0848bc, 0x0f5d791f, 0x07ac759d,
+      0x17f514ad, 0x904fc531, 0x95a39734, 0x7bb70f3d, 0x95a4aca9,
+      0xff9c5609, 0x3cf384c9 },
+    { 0xce1fc9e3, 0x700506ba, 0x676b0399, 0x49721742, 0xe72bf7b3,
+      0x2b4a1b8d, 0x79b209f7, 0xca8602a8, 0xce26a8e1, 0x90580b90,
+      0xfe24f39a, 0x1ef339b7, 0x629362e1, 0xb6c5d991, 0x577b24f4,
+      0x51174e1a, 0x05e451e9, 0xf380fcb5, 0x148321bd, 0xf4d97afb,
+      0x747e5d2a, 0x099806bb, 0xbe99a608, 0x85525d65, 0xd455e820,
+      0x264828d9, 0xd8560a65, 0x8c8c5405, 0x71030770, 0x3c67e73c,
+      0xee73df26, 0x2b248850 },
+    { 0x8541159f, 0x2173cde6, 0x4fb410b2, 0x78224c18, 0x1f2ca1c7,
+      0x07a28619, 0xa8b23e40, 0x52c207d6, 0xa6b2344a, 0x071a0210,
+      0xb5ed2945, 0xdb0e587c, 0x810fcc6c, 0x6c56b8ef, 0x62d843b9,
+      0x1248c58f, 0x74c66975, 0x4b90363d, 0xe66c66f6, 0x6348f7f2,
+      0xc126bcbe, 0xb2f9d441, 0x73ce49e8, 0xac07f2a3, 0xe81b0df0,
+      0x52486758, 0x1d4621d1, 0xa108b54d, 0x74414a1c, 0x17261ece,
+      0x6a3ac215, 0x938b3bcc },
+    { 0xe4ded340, 0xa9e4a16b, 0x80e88036, 0x8e65fb2a, 0xdcd73acb,
+      0x97089606, 0xaaa657a9, 0x1c3a0434, 0x49101b06, 0xf304fc58,
+      0xda0bb64c, 0xe60fb61a, 0xf5542df5, 0x818c2aec, 0x56f76d5f,
+      0x74020576, 0x92533d97, 0xb566b790, 0x74d6eb5f, 0xae4655e5,
+      0xa55b44b7, 0x60f7a1b5, 0x93747ea5, 0x7970179b, 0xf2dace56,
+      0x8ae7e0e8, 0x84e83c06, 0x98474607, 0x15307341, 0x24e8c9ed,
+      0xd9e89d6b, 0x6cff58a5 },
+    { 0x03e51f68, 0x508c01b0, 0x1d2fe7d6, 0xe1d1f225, 0x09bd8805,
+      0xf7998d0b, 0x03e415b7, 0x255e907a, 0x607d9798, 0xd148467d,
+      0x9b453896, 0x055c3b1e, 0x809f50f4, 0x35001013, 0xd0233fdc,
+      0xfbbb2fa6, 0xff1820b8, 0x0b680b0a, 0x38d317e0, 0xb1d404dc,
+      0xccc8c7df, 0x133d5444, 0x6ec13f84, 0x7fa847e6, 0x046e2e48,
+      0xc33f83d8, 0x4863b3ac, 0x3c627fc5, 0xeb936af7, 0x5f67f8aa,
+      0x31b79327, 0x5fe4ac8f },
+    { 0x8b6f401e, 0x581aa4bf, 0xad5c7ed4, 0x05db12a3, 0x6fb07b4a,
+      0x7b018726, 0x9c22bcd4, 0xfdd11f04, 0x69371c95, 0x5454a7d4,
+      0x99a46eaf, 0x066c55fb, 0x7fef96d0, 0x18637c7c, 0x6b83e95c,
+      0xbafc1d34, 0x00bb42dc, 0x55c38593, 0x34e7e712, 0xdd8dec2b,
+      0xb184cee8, 0x69c9cfb0, 0x49a27864, 0x8dcc0c42, 0x2010f2e7,
+      0x290d95f2, 0x6977a420, 0x86e254c9, 0xeb2abdad, 0x20931c89,
+      0x121c0548, 0x81377164 },
+    { 0x9c5a8edf, 0x6266b25e, 0x1078a7ad, 0x6e1388c2, 0x4876eedf,
+      0x5f02737d, 0x62744617, 0x242fa7f9, 0xb385382a, 0x3e2cfbd9,
+      0x02f71bef, 0xbadad7b1, 0x677d0a92, 0x562abcfa, 0x51fdff34,
+      0x573ebd17, 0x7c250c78, 0xd7f65852, 0xc47ca896, 0xe0cf16ee,
+      0x67622c9e, 0x8ccd79b0, 0xf8f2c075, 0x31fc5882, 0xa6008515,
+      0x9232b37e, 0x82e8c5ba, 0x4d7bb361, 0xd2f146fe, 0xbf24735c,
+      0x9cd2db98, 0x79c280ee },
+    { 0xf2b48122, 0xbdcc8203, 0xb04ac48e, 0xa8c04916, 0x9fc4885e,
+      0xacf064dc, 0x82c1001c, 0xab838997, 0x676de250, 0x7339e721,
+      0x8e1ab820, 0x17aa5aea, 0x6bc14b2e, 0x24d28ca0, 0x816b6230,
+      0x570c5bb7, 0xcee6b606, 0x6c51235c, 0x183eae42, 0x1b2bf89f,
+      0x9c66274b, 0x3e3af3c6, 0xb51e38bc, 0xe0b04426, 0x73e40e3b,
+      0x26dbc58e, 0xb5be5be4, 0x3f9dd578, 0x52c8f408, 0x9fd9f791,
+      0xa9e3ff4f, 0x758073a4 },
+    { 0x8691ca22, 0x7d27b057, 0x13a2a1b6, 0xf206bfd6, 0xac795413,
+      0xe84bd385, 0x75536607, 0xc5d18a2a, 0xc8a0e24c, 0x2e166de7,
+      0x3c474dbd, 0x56d5750c, 0x1366843a, 0xdef444c1, 0xcf4b8432,
+      0x14646e53, 0xa9fd9783, 0x4bc0d030, 0x297ee203, 0xbda4c824,
+      0xfd7be6c7, 0x3d0b10bf, 0x08c7f3ff, 0x2d216476, 0xb4fd4c45,
+      0x06e52599, 0x49e9e104, 0xfbab9fa1, 0x8661d32d, 0x9342a7fa,
+      0xfaf66aa8, 0x3f3e3458 },
+    { 0x951597aa, 0x51ec35af, 0x49df64eb, 0xb677d4ac, 0x9bf4eff5,
+      0x0276cd9c, 0x515a2935, 0x423eca49, 0xfd9bb9c3, 0x8a696553,
+      0xede1f09c, 0xf99ee9df, 0x199e5f98, 0xb8fa2956, 0x35292c32,
+      0xb7638758, 0xfc40e81b, 0x8734eddc, 0x65457d95, 0xd82d5e9f,
+      0x30c78d2b, 0xc8ee323e, 0xc1433d67, 0xe77b2e4c, 0x3c8314ae,
+      0x56d9f807, 0x2a0e2f63, 0x441eede2, 0x6c48295e, 0x1e9e17ed,
+      0x34c294ef, 0x640d20c4 },
+    { 0x3284d513, 0x4e9a0b8e, 0xf315053a, 0x074c3545, 0x45acd52a,
+      0xb36e7407, 0x1de50db7, 0xd80bdcfc, 0x2549fc46, 0x8d9d47dc,
+      0x303f07a8, 0x29b6ef13, 0x6d4ad4c2, 0x4e461aca, 0xfc9f1b73,
+      0xca8e351d, 0x57460e65, 0x8bc4094d, 0x0f32d367, 0xb6302b33,
+      0x285742e8, 0x69a074b6, 0x876c29c3, 0xdfe52b11, 0x912bd17a,
+      0xf39e4609, 0x349aa639, 0x8ee40d66, 0xc72e05c1, 0xb968902a,
+      0xc0d92816, 0x0f9c1ca8 },
+    { 0x67433df3, 0x1ebbaab3, 0x15d3628c, 0xb6aa5347, 0x97f0c5cc,
+      0x13a320d8, 0x65e408f9, 0x72c918cb, 0xd5373451, 0x4b638854,
+      0x0b4dca09, 0x731399a3, 0x0a3b1326, 0xcf256730, 0x6608b388,
+      0x5ea60dfa, 0x7b290dfd, 0x58ad74b0, 0xd7694f9b, 0x83202789,
+      0xb6630fb1, 0x48593db8, 0xc65e3eaf, 0x3db47f70, 0x3e7263f8,
+      0x63949c91, 0xe6e6ff33, 0x9b9acec6, 0x098a8240, 0x34bd9ba7,
+      0x45d36ec5, 0x7e31c12f },
+    { 0x0dfd2dd7, 0xbe281d68, 0x24ab61d8, 0x1efacb00, 0x94431f97,
+      0xb9c3005f, 0x959cb3bc, 0x660c8dfa, 0xcffbb406, 0xfdd5fc30,
+      0x7969a10d, 0x7a4631be, 0xde13fd1b, 0x336e309e, 0xfc947076,
+      0x76b3bfad, 0xdcc72223, 0xfa91925d, 0x156c4ee1, 0x741f0d73,
+      0x0e2b3747, 0x4f64ee41, 0xefc4d93c, 0x86be92d3, 0xfc4fbb2e,
+      0xc53b7e03, 0x337ca1bb, 0xac196cf5, 0x7e23ba60, 0x4de41a30,
+      0x326d5357, 0x1a219c45 },
+    { 0xaa4db0bc, 0xfdcf7ef8, 0x7b6c9963, 0x2e231806, 0x3d8a192f,
+      0xc2639067, 0xffdc7771, 0xc0cec2e2, 0xa2fc0edb, 0x997c8e35,
+      0x82cc6043, 0x78e10ec1, 0x2b0c8120, 0xfd0de2cb, 0x69e57f8e,
+      0x4d6c457f, 0x5b53f1c3, 0x953e69b2, 0xc4f89cb8, 0x422a330a,
+      0x95566be6, 0x92ff2329, 0x437442d1, 0x73cd502d, 0xbea69403,
+      0xf04ce590, 0xf8030662, 0x6ac1537e, 0xb6d0bf93, 0xe02bcf77,
+      0xbc90192f, 0x17aaa999 },
+    { 0x8e55db2e, 0x0d3d5643, 0x3b946851, 0x835dee43, 0x5b88462f,
+      0x1a1440e5, 0xea17e27c, 0xa6ff3b35, 0xdd95f7a9, 0x23f99c36,
+      0xbdd672cf, 0x7217fdd9, 0xdd2045c0, 0xf400ac1e, 0x4ff06b25,
+      0x94b55c87, 0x0e4a49be, 0x0a44a0e5, 0xb43b6813, 0xe8925e91,
+      0x214f96c5, 0x78bedde1, 0x0f97fa97, 0x0f456a4c, 0xa5bfd267,
+      0xa28fd86b, 0xbe7608ef, 0x3b4b2d8f, 0x226474bc, 0xfbd5ff8c,
+      0xa5f3b24a, 0x6b282af0 },
+    { 0x6341a595, 0x78fc025f, 0xa445e28c, 0x591c38d6, 0xeb446842,
+      0x72bd6e3d, 0x75547833, 0x3f9466d3, 0x083e16c4, 0x911414d3,
+      0x95a7acb4, 0x145d9466, 0x8fd2fb64, 0x102ddf09, 0x0bfd87b1,
+      0x2a2b2d2d, 0x59455088, 0x69e9be5c, 0xa80245de, 0xee378bf4,
+      0xb2306b0e, 0x80b0bd68, 0xc2be9f3d, 0x76a545c6, 0x4802c245,
+      0x429d167b, 0x2b412dfb, 0x13e64427, 0xee8d9762, 0xb664f529,
+      0x54706ebf, 0x6d4f5d23 },
+    { 0x00ba9f88, 0x35c8f2b6, 0x7bb6d0bf, 0xfdc807e0, 0xb3b81e5b,
+      0x0a126d42, 0xa7ac781e, 0x335ce6ce, 0xf37dcba6, 0x3e308e6f,
+      0x63c96487, 0x028dca62, 0x8818434d, 0x72eba57e, 0x79b78a26,
+      0xa9e3d59f, 0x2f07aea3, 0xd2f0a7dd, 0x24d05f74, 0xe0fe4678,
+      0x0116deb6, 0xb2085170, 0x58f37580, 0x9c2a5e92, 0x74070bb3,
+      0xe78bd7a5, 0xb9977d90, 0x551fc872, 0x40db81b4, 0x6eda93c4,
+      0xd65d34ad, 0x4aaf0b4f },
+    { 0x3514c7af, 0x9bef2506, 0xbc181ead, 0xb09e7dad, 0x8fa3ec58,
+      0xef3cae87, 0x173b8685, 0xd8dbfab5, 0x921d32dd, 0xb2490fc0,
+      0x8bd9c466, 0x4eef386b, 0xa061dbdb, 0xc1cdd52f, 0x25bc04db,
+      0x64de989a, 0x85728636, 0x06f9836b, 0x8be44aa0, 0x11a5a804,
+      0x097018c7, 0x16dede4e, 0xb2c11fb1, 0x72aec577, 0xa721ecd9,
+      0x144dade1, 0xd6ebf3a9, 0xf99c526b, 0x1c2e14d7, 0xa1d4165b,
+      0x82bc6337, 0x8b2cbd39 },
+    { 0x8a52e991, 0x28ec1bf2, 0xcf9d42ec, 0x0ba202f6, 0xc634ea45,
+      0x8307d130, 0xc5762b9c, 0x3fc257b3, 0x487c2a2d, 0xbd3298d1,
+      0xa319488a, 0xca14f1a7, 0x06ba06d2, 0xc70ca93b, 0xee405e89,
+      0x9aa3f4b3, 0x35deeae7, 0xcc64eeb3, 0x03bf1d4c, 0xd155f578,
+      0x45616bfd, 0x041ec0b5, 0x086e33f6, 0x23df80e6, 0xf0243cf5,
+      0x399a79c8, 0x874ccd58, 0x86c2824e, 0x8fc5c831, 0x220eeaec,
+      0x7dbe3670, 0x57e28304 },
+    { 0xfbcdf666, 0x6e60b698, 0x8bebb1d2, 0xbdd06a99, 0x80498436,
+      0x4044adba, 0x522bc88d, 0xd76bf75e, 0x28423b20, 0x655c4b9b,
+      0x53398a72, 0x65c0f492, 0x0ca37601, 0x76d4f2b7, 0x2030fa5a,
+      0x46989925, 0xb6054705, 0x96b37e87, 0x53de1b2f, 0xef96f731,
+      0xad54ef05, 0x5ecbbc8c, 0xa93617b0, 0xeb289d0a, 0x7cba217d,
+      0x3ac0fbd5, 0x19d4a2d7, 0xd0d3cb56, 0xc91d6063, 0xe8bee9d4,
+      0x696ffda6, 0x4f12e037 },
+    { 0x15f1a610, 0x4ccfa422, 0x3786519a, 0x804a5c55, 0x73838134,
+      0x1246a454, 0x4b284e2a, 0xfa15b484, 0x146d1320, 0x36464c65,
+      0x70a8a0fa, 0xfb6ba88c, 0x93c4804e, 0x74e7cee7, 0xb95ae16a,
+      0x8c34d22c, 0xf9c1d4dd, 0x9d9ed89f, 0x32025371, 0x61a0866d,
+      0x9bd6444a, 0x45b232b2, 0xf277bab1, 0xf888e92c, 0xa9448b02,
+      0x73e69c6e, 0x5b521ecb, 0x1a496ea9, 0x5858afb2, 0xa8f78ea7,
+      0xb1266f91, 0x83d2333e },
+    { 0x67b478d7, 0x1c633288, 0x50a2fc9c, 0xa1ee1ae1, 0x18d2241b,
+      0x05b6ab30, 0x893cd696, 0x69f1f288, 0xa8117a87, 0x159d6660,
+      0x70e73d77, 0xe8120119, 0x93f55f0a, 0x528fef00, 0xd854dfb2,
+      0xb3978db8, 0xf45d9fbb, 0xd6b43ef6, 0xd5bee397, 0x17de4bfe,
+      0x6bf76dad, 0xa01e0f59, 0x3d40754c, 0x28b2280e, 0xf8e86ef3,
+      0x8edb6122, 0xb7d1e586, 0x8226b6af, 0x2f40a55b, 0x46353215,
+      0xc5a31621, 0x7362f13e },
+    { 0x73c0c430, 0x792eb27c, 0xa51c3657, 0x8cc0a65f, 0xd2194f1b,
+      0x50a5cece, 0x814b4947, 0x18945688, 0x4b6fbbf4, 0xbbf0a81a,
+      0xf0aa8608, 0x376f4f58, 0x3987795e, 0xd9361d68, 0xe3a8d0d5,
+      0xb6510cd8, 0xb6c1a455, 0x63e2fdbf, 0xaec891f9, 0x2c91154e,
+      0xff568f64, 0x0eb1e715, 0x2f2b399e, 0xe7af9cd7, 0x89f0bf0b,
+      0x1fc39bac, 0x90983695, 0xf0861d92, 0xda0a20a8, 0xd9b16f02,
+      0xa38c0ead, 0x2f10693f },
+    { 0x0c06ded2, 0x07a6ce91, 0x2fd9087b, 0xf974842f, 0xa9f635a6,
+      0xe468bfd6, 0x1ed60626, 0x04b61891, 0x369ee548, 0x1fb2f89f,
+      0xdc96a201, 0x9cbd1113, 0x10d633ac, 0x6759acfe, 0x8faa629e,
+      0x64ba66fc, 0x47f38283, 0xa686ae49, 0xd59cda99, 0x828c3a05,
+      0x08ea2f6e, 0x7c7afb14, 0xaf3953c8, 0x2551c8e4, 0x9daa9e4f,
+      0x5b53d279, 0xad6f1940, 0x1eff68d4, 0x96437cdb, 0x2775dbdd,
+      0x4fe7a043, 0x985f83e4 },
+    { 0xeaf45294, 0x89603c16, 0xc24b5751, 0x70131160, 0x39d6b52d,
+      0x4c112018, 0xed943340, 0x7079cf02, 0x74f41b68, 0x0c5b028b,
+      0x9c8ac1e1, 0x3dc3f076, 0xf8b24f0e, 0x5ac5eea3, 0xe34c5c22,
+      0xee6684ba, 0x9abc452a, 0xa5259e63, 0xe9df45cc, 0xb07d2cd1,
+      0x1a443cfa, 0x07019c93, 0x92c003b3, 0x68fddaa9, 0x0d8cbc2e,
+      0x2d9f179c, 0x1e781ca7, 0xbbf15a6f, 0x50dcc799, 0x54d779d5,
+      0x0fe962f1, 0x0c88e540 },
+    { 0xe8f44357, 0x84f71a6a, 0x3a3cab6a, 0xf75b4bf6, 0x5aebc680,
+      0x334c9d9e, 0x8a753ef2, 0xcecaf084, 0x075e3c8e, 0xe28014c1,
+      0xf74f8d3a, 0xbb9d5a38, 0xb80e32ae, 0x75988464, 0xf2bc3792,
+      0x7b328e6f, 0xeed0e197, 0xebbb1faf, 0x5a33065a, 0x674eac95,
+      0x922dbce8, 0x8c19fd8f, 0x987b907a, 0x8c17ae85, 0x3b3a2cd7,
+      0x89f33627, 0xfa87772f, 0xebaea019, 0x3a25ced6, 0x4e5de499,
+      0xaf110715, 0x8e2560b8 },
+    { 0x3141aba6, 0x56d3746c, 0xbab2cf9e, 0x45a1079f, 0x9cdd27c7,
+      0xb6382831, 0x9dfd950e, 0x22237632, 0x3a9408ff, 0x1e0b15cd,
+      0xb1160118, 0x49a80200, 0xa383bba7, 0x2719db5d, 0x651046d5,
+      0x6078340a, 0x97523b1f, 0x8929d4de, 0x8e0a28ab, 0x4040345c,
+      0x0adf09c7, 0x61275ac2, 0x2331d611, 0xb41ab265, 0x5391ca50,
+      0x230cc77c, 0x8f922315, 0x88be0c92, 0x92fd9a29, 0xfef3d92b,
+      0x8324f2e5, 0x59005f22 },
+    { 0x3c4c1c74, 0x6bb1750c, 0xe966fb79, 0xbe73aac0, 0x66c5973f,
+      0x85a75d92, 0x3a8656b6, 0x8c97f932, 0x50446cde, 0x2b7043b1,
+      0x3ff3897f, 0x548916f7, 0xb18b72b2, 0x913dd01c, 0x488c0de6,
+      0xd0a751f1, 0x8558ca58, 0x19175714, 0x44a663da, 0x97714301,
+      0xb0e08618, 0x2df190ac, 0xf39ead9c, 0x0080fc0c, 0x17382da1,
+      0x0085ac6e, 0x3262a338, 0xe9791851, 0xb43bae8d, 0xe4495936,
+      0xd783df6e, 0x57a78e26 },
+    { 0x40dbddd8, 0x161b346f, 0x9410c3ac, 0x2b49a927, 0x1886cf3b,
+      0x8c542783, 0x33b93deb, 0x72df3232, 0x40df579d, 0x9c8d59f5,
+      0xc20ef500, 0xe5d7a67d, 0x67f08643, 0xc46b3918, 0xad96adc3,
+      0xecfa2445, 0x0c4544d0, 0x658f589b, 0xe08417d7, 0xe6ec9301,
+      0xc454e288, 0x6ca5ef6a, 0xac0f462d, 0x4191048f, 0x08d8a036,
+      0x852407d8, 0xf6d35b7e, 0xb4c533a7, 0x8f6ada87, 0x3251e412,
+      0x81c472e8, 0x1ca370c5 },
+    { 0xa801b68a, 0x94bd5171, 0xfd1998b3, 0x7312879c, 0x41163202,
+      0x4905aabf, 0xf5b01fdb, 0xb5fe87f4, 0x9cda128b, 0x78de523a,
+      0xc7bd31f7, 0x0bf161a1, 0x23904c35, 0xb5decfd0, 0xe188f12d,
+      0x224b2882, 0xf99dae74, 0x0dd2801d, 0x08cd1cd2, 0xcad467b5,
+      0xc0867e39, 0x6c311c3d, 0x2b425072, 0x71a11720, 0x2efd9003,
+      0x83bf464e, 0x1dbd3b03, 0x53d0448a, 0xe6265baa, 0x32db52f4,
+      0x4c33ac79, 0x2584b34c },
+    { 0x2aeec688, 0x3cb86389, 0x45fbe523, 0xa5e740ba, 0xfd60b5f8,
+      0x422e71f7, 0x4874913d, 0x455d185c, 0xfa17d80d, 0x04c2bb36,
+      0xac054524, 0x3f271854, 0xa8b9a657, 0x76dd3045, 0x62ee7cc8,
+      0x2e42c3e1, 0x4df6c7d0, 0x00266706, 0xdc7cb488, 0x5927dd51,
+      0x187897e0, 0x6b3faabe, 0xf2d5737c, 0xfe6ad22e, 0xff51a9ff,
+      0xafb60269, 0x69807baa, 0xe1c83545, 0x951ca49a, 0xacddb6ff,
+      0x3f9ab085, 0x7e811374 },
+    { 0x830a88b1, 0xad722a8b, 0xce1117e1, 0x91918ea8, 0x0409b47d,
+      0x3e02d0b8, 0x6c46d1d3, 0xb53812d3, 0xe589669c, 0x2fd09db0,
+      0x15b0cd5e, 0x9845cd06, 0x2386c453, 0x0c1c155a, 0xf5ff43cb,
+      0xda774de5, 0xe391c0cd, 0xbb076b98, 0x5004f286, 0x97d71eff,
+      0xaeec0bfe, 0x23e0b46c, 0x32a1ad94, 0xe4538667, 0x396da422,
+      0xfe0c9f81, 0x63db2bfe, 0x6376c1a2, 0xba56fa91, 0x001c7918,
+      0xdf8485a6, 0x436b8c64 },
+    { 0x8ab764bc, 0x88117e9d, 0xa077df84, 0xdfa61e94, 0x0c18eebd,
+      0x5a7765d3, 0xfc9451dc, 0x548916af, 0x071a347a, 0x01a52e33,
+      0xb23b41df, 0x633b95de, 0x43c8c286, 0xdd7d68c9, 0x18d97068,
+      0xe4f9d41e, 0x8c92799d, 0x79908b90, 0xd47394a3, 0xe614148e,
+      0xcd51e53f, 0xe5018517, 0x0243dcb6, 0x5060075e, 0x17954405,
+      0xe5dcde62, 0x537da5ff, 0x6f7c90e1, 0x0768cb66, 0x1df7aae4,
+      0x6dbe95e1, 0x5266ca9e },
+    { 0x1386b3db, 0x84ddee6d, 0x7c38e540, 0xf9e4af5a, 0xeb04f49d,
+      0xb3418440, 0xfde5a4fd, 0x2138a1e8, 0x30257cfc, 0x3e6e6924,
+      0x19fd70c1, 0x3519c6e3, 0x86c31ff0, 0x8f34e174, 0x940ce1e8,
+      0xf1e298fd, 0x14960d7c, 0x6fb8cb1d, 0x2b2f3bff, 0x207c1347,
+      0x146ef8ff, 0x899a20b4, 0x7bd3e220, 0x7dec362b, 0x626bea27,
+      0xa975044e, 0x4fb4cb67, 0x0f32b449, 0x1fc6703a, 0xc17a0920,
+      0x9cd84a2b, 0x41f325b9 },
+    { 0xce2843a4, 0x312ed513, 0x00728afc, 0xe748498e, 0x4d864ce5,
+      0xa8ef2822, 0xa620083b, 0x34064704, 0x4bed338d, 0x5905e1d9,
+      0x063e7b38, 0x2a578cb5, 0x289e7bb9, 0x98276d96, 0xf17b7341,
+      0xdfe2dc47, 0x1dac8944, 0x5923521f, 0x23400aa7, 0x3db6d28d,
+      0xa761ba43, 0xc647705e, 0x9bfd07dd, 0x8947ba6d, 0x242ca8fd,
+      0x00f2e3ac, 0xeb8c3468, 0x49ef4670, 0xd9aa18fd, 0x7db3d37b,
+      0xe58cea9e, 0x56b30fb6 },
+    { 0xcd80a428, 0x07ecdcaa, 0x8732c891, 0x7af922dc, 0x3ada441f,
+      0x20d88798, 0x924b008a, 0x3bed9a44, 0xb2e81c3a, 0x2123533c,
+      0x65f807d3, 0xc34e4075, 0x1f2faecb, 0x0bfaefa5, 0xade8a88d,
+      0x78b634a5, 0x94392a91, 0xc4e0b7f8, 0x90bb1cd8, 0x30922377,
+      0xf87204ae, 0xdea9b4fa, 0x85d3cd83, 0x3edf81f5, 0xc6523a79,
+      0x58f88c51, 0x17c0d969, 0xe472fb8b, 0xdccf7f07, 0x899081e5,
+      0x58bdd146, 0x1353cc57 },
+    { 0x39bf6e18, 0x28a56497, 0x649b89c7, 0x59e8b5a2, 0xdce8b8e7,
+      0x8d9434a0, 0x2047040c, 0xd935bf51, 0x6a7b8e82, 0x2ab3a164,
+      0x27f81294, 0xf1583ed6, 0x72d67297, 0x8416a7e0, 0xcd39e42b,
+      0x49685d86, 0x958ddbad, 0x8a797fc7, 0x155ce6de, 0xa558f928,
+      0xf8a36235, 0x75f4e570, 0x52877ae5, 0xbc69cfc0, 0xa6b16ebd,
+      0x8f4193a9, 0xbb1cc1f1, 0x8d1df43c, 0x5a21e789, 0x723a830e,
+      0xf451df58, 0x3ec2185d },
+    { 0x1f0bc2d7, 0xb9d4c7d7, 0x6e51d412, 0x6982c6cc, 0xa09f80f6,
+      0x92e02d93, 0x047ae09c, 0xb7dd2d25, 0x37f351f9, 0x3503149f,
+      0xc77850be, 0x69d49ce1, 0x12f0d2c8, 0x60242acb, 0x7bc28b9d,
+      0xba188c56, 0x06bc0550, 0x8e406121, 0x8d7d4329, 0xb0d84b1f,
+      0xd38951e0, 0xb4a67ae7, 0x8bc97607, 0xb527c57b, 0x5497aa72,
+      0xbc93c5f3, 0x39bdd666, 0x5f1de8cc, 0xe9d447a3, 0x3087dc5c,
+      0xa211abe5, 0x89b356b6 },
+    { 0xdfdcc837, 0xed6db0af, 0xa871b7a9, 0x0fb80baa, 0x1c1d4b72,
+      0x413abfc9, 0xadac9e5c, 0xf5b56bf7, 0x8b8657a3, 0x5664a2da,
+      0x0e41d94e, 0x11b04f72, 0x37433658, 0x63e11d26, 0xf426daea,
+      0xee628ece, 0xcb162dc2, 0x011619c9, 0x87648643, 0x9cf5817f,
+      0x5584bc86, 0xe1bb9702, 0x00bf7928, 0x2cc27cef, 0xdc60eee5,
+      0x4ef3a80e, 0x87adc2f9, 0x7e1202be, 0x8a0d4f52, 0x656f18e0,
+      0x57c5d126, 0x39c4f10d },
+    { 0xe88aecd3, 0xb3a9b68c, 0xa518aa9d, 0x555b0918, 0x4bd4ee54,
+      0xedc1cdad, 0x02068d84, 0x79b68b67, 0x811ac72d, 0x7dac80d0,
+      0xa81a0a78, 0x6d1e6d35, 0x3bd16283, 0xc841e9ea, 0x894c4444,
+      0xa7bc1775, 0xf1aa1202, 0xf2b63725, 0xc7d4c556, 0xbec7767e,
+      0xd46ff51b, 0x2817ebb3, 0x73f7e339, 0xfde5be8d, 0x5aed24c4,
+      0x44c6c977, 0xb6e579cf, 0x0b9a1707, 0x9069fbcc, 0xcff16478,
+      0x49152b00, 0x414b542d },
+    { 0x606e173b, 0x33c31e58, 0x90e6713a, 0x5b7f4e1b, 0xdebb20af,
+      0x425fb512, 0x05120e70, 0xc788c617, 0x9013e4ec, 0x3ef05602,
+      0x81c6e6d7, 0x9f9d35ac, 0x9450690a, 0xe131e88f, 0x44af082e,
+      0x708f9b32, 0x1ba2aea9, 0xb2e4d66c, 0x740db29c, 0xaf1f4a6e,
+      0xd1843007, 0x74ab9248, 0xed556a6c, 0x13338ef8, 0x270d17a6,
+      0xf48e623e, 0x9608f5bf, 0x3c7362fa, 0x444e8515, 0x43977874,
+      0xe00b8b2a, 0x52678d6a },
+    { 0xdf36aeb4, 0x5dff1c59, 0xa92bc0ab, 0x52d6653c, 0x927a5f81,
+      0x0e03f496, 0x2dfd491f, 0x8509d414, 0xa571f89b, 0x258c2c52,
+      0x93334485, 0x2bd61804, 0x3f7d9e09, 0x1a33e94f, 0x2c1bf906,
+      0xfab418d3, 0x5aa5695c, 0xf39c490e, 0xf6d2d7ff, 0x0e41196e,
+      0x0f7948a9, 0x3ecd4075, 0xd3053b4f, 0x4b58f9b2, 0x5d9974c9,
+      0xb8ee842a, 0xbf22f682, 0x23a59c1d, 0xc8efcea6, 0x045ac614,
+      0xc10ceedd, 0x7040ba5b },
+    { 0x515a1a96, 0x2c364f81, 0x184327e0, 0x31a63503, 0x1ad93d4f,
+      0x0a096650, 0x273b6173, 0x9d7694f1, 0xd2cda9d2, 0x8886d876,
+      0x2814c177, 0x1e01a742, 0x8667696b, 0x3492276b, 0x5b25f006,
+      0x2fd4f0c6, 0xfb294c4a, 0x6527349f, 0xde1d336f, 0xc1fe0d8a,
+      0xe7e3860e, 0xaf9a23e8, 0xb774c31e, 0x97d2b721, 0x4365784a,
+      0xfac3e582, 0x70f4eaa3, 0xff2dff4e, 0xfe873248, 0x3d281e1a,
+      0x0bd1c9c1, 0x9043a6d6 },
+    { 0x766c7937, 0x1511a0fe, 0xabbc3be3, 0x1b2ded5c, 0xe00888ac,
+      0x2ac160cc, 0x616200f3, 0x928754bd, 0x34a2ea06, 0xb801c83d,
+      0x9cbe106f, 0x8ad7a03a, 0xcedfcd94, 0x996b0822, 0xe4069880,
+      0xc3c3463a, 0xf597f663, 0xfb12ea4d, 0x40c92af9, 0x2c8d3834,
+      0x4e8da154, 0x79bc85c6, 0xdb4e801a, 0x95771fa2, 0x1e3579b2,
+      0x7bd2c138, 0xffaad078, 0xe45c75df, 0xb73eac46, 0xb0760a3c,
+      0x3a125f35, 0x26362b48 },
+    { 0xeefc3e89, 0x25c68d28, 0x69e9ee71, 0x2d0ee877, 0xaf5e4b75,
+      0x8b07bb86, 0xcb86b333, 0xdb709072, 0xff552bac, 0xfd3d20ea,
+      0x4c0da1e9, 0xa5eeb2b1, 0x44f97145, 0x391f688a, 0x1e06d485,
+      0x21fbd310, 0xbea9cd49, 0x45e4f2a5, 0xa7bf21da, 0x7b60d464,
+      0x054d5471, 0x193f88c8, 0xbee0f2e9, 0x5ace53d1, 0xc1439273,
+      0x92c26563, 0x96c6b5ee, 0x9c86e0b2, 0x09ff59ba, 0x452fe231,
+      0x555c935e, 0x2e952b20 },
+    { 0xd75f886e, 0x2a846bca, 0xd43dfc58, 0xe68a5dbe, 0x007b1b86,
+      0x103e45b6, 0x355ff2b5, 0x580e2ec9, 0xa263ecc9, 0xbc702f26,
+      0x181e5e33, 0x2835b386, 0x6c122076, 0x025113ec, 0x7fbd856d,
+      0xa5c26e3a, 0x9d6ebcb1, 0x8ef83fb3, 0xa44d2fa8, 0x7aaa53f2,
+      0x53b1fa97, 0x7c14ef33, 0x17559a30, 0xff604a11, 0xb09377e0,
+      0x2bcd96b0, 0xdb2f0273, 0xa5c14896, 0xeb53ef06, 0x1c0a84c9,
+      0x30378e4b, 0x1236d017 },
+    { 0xc084373b, 0xd7481c8f, 0x646097ae, 0x29ae4768, 0x613bc34b,
+      0x1300dfa0, 0x934bc2b0, 0x3712714c, 0x0e2be7e2, 0x86524629,
+      0xed010800, 0x554fbb9f, 0x42314576, 0xf0ec0b38, 0x330a3282,
+      0x65baf594, 0x706ef817, 0x3bdde1a8, 0xba7530e9, 0x7d2c727d,
+      0x74cc95cb, 0xbb0c5d66, 0x2438906d, 0xb3fcd365, 0xd14658f3,
+      0x19881941, 0x6c97f0e9, 0xe616f555, 0x4b9ec7ea, 0x353c2d85,
+      0x620cb56e, 0x02a48014 },
+    { 0x506ccd38, 0x11d6d23d, 0x9059baa6, 0x229a1c54, 0x69d011c5,
+      0x717c9c27, 0xd828937d, 0xe87e1b46, 0x83835083, 0xf5d63bbb,
+      0xaadac258, 0xf0a7b427, 0x9f154d1f, 0x99ab26bd, 0x8ec955fd,
+      0xdec0ffbf, 0x49fcb880, 0xee957c67, 0x1e0114de, 0x32395dee,
+      0x369f46c7, 0x192a64b7, 0x91eb2599, 0x43044660, 0xa2e8c3da,
+      0xbe2da887, 0xc3556d18, 0xa44e2c25, 0xb55f75f3, 0x31390414,
+      0x8f217fe0, 0x1d8bde6f },
+    { 0xa2028924, 0x03cd39f8, 0xb06ecb9f, 0x6e54f19c, 0xd6f05846,
+      0x862bbcb7, 0x5a060776, 0xdbe06716, 0xb10fec10, 0x9397c97a,
+      0x6f1bb65c, 0xf4213826, 0xa672ba38, 0x414deccb, 0xf88b05e6,
+      0x594d4d43, 0xac94d4d1, 0x7993f57a, 0xbfb17638, 0x74fc2a6a,
+      0xb6fc655a, 0xd8196b5b, 0xee8d2139, 0xdc375c84, 0x360d3a26,
+      0xb9b00a02, 0xdeb93b87, 0xb36ed35c, 0xcc83209e, 0xf565b28b,
+      0xc61013c1, 0x349c6943 },
+    { 0x4de6c88a, 0xd1b39444, 0x4700207e, 0xd5c2c471, 0x21c2b780,
+      0xb6f458a2, 0x0850993e, 0x749f7564, 0xbaef0c18, 0x400ba579,
+      0x737c70f0, 0x2d742938, 0x21467ebf, 0xc5a8e2ec, 0x5337f453,
+      0x243a666e, 0xed0bd50a, 0xc991f1c7, 0xf4bd1f91, 0x3a7f3e90,
+      0x5f0e129b, 0x96089e8a, 0x07389635, 0xd0d3a177, 0x27182ac9,
+      0x9cf842d5, 0x0817c5c2, 0x21195299, 0x87255769, 0xa32f327e,
+      0x89c2d8fa, 0x056587ab },
+    { 0x1ce4733d, 0x008562ed, 0x98e51444, 0x5faff7cb, 0xa9ab46b9,
+      0x5f03021f, 0xb61a8c13, 0x89494c5e, 0x36b35976, 0x57c95036,
+      0x2ac2d2f6, 0x6be84c8f, 0x9bd2703e, 0x0e5b34d8, 0x7e872abb,
+      0xc4ad918f, 0xc4052ee1, 0xc2a89e9f, 0x3190b51e, 0xc2caee3f,
+      0x6fff254f, 0x58fd1437, 0x883e0972, 0x6f3c0d68, 0x0fb15438,
+      0x63d0a0e9, 0xf6caae00, 0xc438764b, 0x3f1d0f6c, 0x815f1565,
+      0xb86cdbde, 0x1b87f2ed },
+    { 0x2b0b15b1, 0x35792bbb, 0xce6ba779, 0xa3e4b5a7, 0xdd8f3779,
+      0xfbacffd9, 0xc298d1ef, 0x005450bd, 0xc47031c6, 0x0e3f5556,
+      0x95d68066, 0x0770f07a, 0x2d1052c2, 0xce3e84e0, 0x7aa8cc54,
+      0xb050791e, 0xba3223a3, 0x4d621e73, 0x39632990, 0x87b9b94d,
+      0x7eb8056d, 0x8df9cb47, 0xedfca0cc, 0xe2430de8, 0x9712a0ca,
+      0x374bf416, 0x88848a99, 0xbe3f3c77, 0xc4a3e59e, 0xb22b87b1,
+      0x3e95bc23, 0x8e0227c4 },
+    { 0x3210964d, 0x000e22a8, 0xff056eeb, 0xdccd5df5, 0xdaf1ead7,
+      0x02173a1f, 0x67cdcae3, 0xd02833e0, 0x8bdcc90c, 0x1cc574cb,
+      0x3224b4f5, 0x86eca714, 0xbb3f8298, 0xd00e603a, 0x0c1a8deb,
+      0xb98ece1b, 0x378c261d, 0x228a46e4, 0xa6165e5d, 0xc6f9dd0d,
+      0x4b7ef0e2, 0xb3ae3899, 0xbda9f306, 0x3a3c16b3, 0x38a084db,
+      0x5e9a26d3, 0x5394e950, 0x528e5993, 0x4ea206bc, 0x848ecb11,
+      0x40545d6e, 0x14b15ab5 },
+    { 0x664c59a2, 0x0f6d86c9, 0x60fd7aa5, 0x3dfe2be1, 0x9072cb8e,
+      0x33f9b569, 0x8176a7e0, 0x5f2325d9, 0x4587080b, 0x79a0d4e7,
+      0x0d5d4e05, 0xa4ee0def, 0xc87b28e1, 0xc0ad9ffa, 0x3f09b4ee,
+      0xd6f18d2f, 0x292e9d87, 0xcc896ae7, 0x6094763c, 0xca88953d,
+      0x18fbf9fa, 0xdbee97a8, 0x4b63d701, 0xdf20e0e9, 0x47ea722f,
+      0xcbba6e30, 0x612b571f, 0xce57e1ca, 0x009a55f5, 0x1e16ac76,
+      0xc4389e2e, 0x742bbed8 },
+    { 0xc1dc2c73, 0x23ea86dc, 0xc1643abf, 0x4bbbfd5b, 0x24d8ca1f,
+      0x07f8fa1f, 0x8cb5cac7, 0xde68a6e0, 0x54e66a7d, 0x7d54c64b,
+      0xa9b7ad78, 0x789dba22, 0xe364ab94, 0x4d88d540, 0x1f72e011,
+      0xc8c2e02d, 0x46e2a278, 0x4c826057, 0x4b187c7d, 0xe6c35bb3,
+      0xeb8fe0c9, 0xed8b3dfe, 0x7d11e415, 0xb6bc34e8, 0xb865c7f9,
+      0xb3908bbf, 0xe1ecc17c, 0x717d1ce6, 0xf7cdd69b, 0x151e3308,
+      0xb5c94124, 0x97bd5a14 },
+    { 0x81e82861, 0xe01c62fe, 0xdd42c40e, 0x703d4b6d, 0xe65e91e5,
+      0x7e52e55b, 0x5abbbfdd, 0xb8b49374, 0xc72a45f4, 0xb4f15f52,
+      0x550f29d8, 0xce8435a8, 0x582de75f, 0x9df76b9b, 0xa20c8b96,
+      0x52e84c5f, 0x0a8a0af4, 0xaf77d2d1, 0xca6013c3, 0x0389bbd8,
+      0x26f8305f, 0xb0d9b9ba, 0x0cec8b9a, 0xf053e848, 0xffabda18,
+      0x4d63367a, 0xa6424c2a, 0x50f53be4, 0x864fba2e, 0xf892c58c,
+      0x48cc5469, 0x317c6d31 },
+    { 0x2cb7d42b, 0x0c3525b0, 0x310facae, 0x55240bc9, 0xff20408f,
+      0x8d5d2022, 0xe0c10ea0, 0x6b01402f, 0x718eb23d, 0x7fbef68a,
+      0x41252a19, 0xa0146b5a, 0x110e0d6e, 0x59afce48, 0x022de181,
+      0xe9a1d27f, 0xdc3f49da, 0x6db96d16, 0xefbe4008, 0xfc1ae3f5,
+      0xeccbc11c, 0xf9d70641, 0x525f8636, 0x49022279, 0xc2763c30,
+      0x3769796a, 0x1d90630b, 0x9cc3483c, 0xee3d3f17, 0x451651f0,
+      0x9da0b8fd, 0x6ae59739 },
+    { 0xbff4d2ee, 0x57b13bc7, 0x30b173d8, 0x20754229, 0x0794936c,
+      0xb6254bd5, 0x5efd55be, 0x1d5f232a, 0x4e0c3389, 0xc06f4a85,
+      0x8e61f944, 0xcf2c5b59, 0xfd5f87b7, 0xc564861f, 0x5a2afa4c,
+      0xee261fb1, 0x2d97a774, 0xb0ff7226, 0xd6cf007a, 0x1a89ae22,
+      0xd346f214, 0x28880534, 0x97b6497e, 0x8fe73bff, 0xfa2afffc,
+      0x8a8595b2, 0xf151a726, 0x9ef9cf3e, 0xe744b82b, 0xa84ee5f1,
+      0xbc63fe72, 0x6649048d },
+    { 0x1e8b760d, 0x91b7bb78, 0x25aadaa0, 0xd47b0bd8, 0xfab5226f,
+      0x81493d9f, 0xbffc148e, 0x4a6dd226, 0xa29be3db, 0x5a032f8a,
+      0x34b0ab0b, 0x318dbc70, 0x7d654868, 0xdcccbfb5, 0x9c581e46,
+      0x8506ab37, 0x2830ece2, 0x09136a6e, 0xcf6c80c7, 0x48b79356,
+      0xef6b1e86, 0xfa176377, 0x83f0f1c9, 0x2c9c1cc1, 0x16abeddd,
+      0x96f0526d, 0xa93b0de4, 0x3e0e98e2, 0x0f13873a, 0x6f2d7ada,
+      0xf3fa49ec, 0x4eb93b5c },
+    { 0xe11fae32, 0xbd89f7e5, 0xc4023f51, 0xd13d74f5, 0x491c3f6f,
+      0x1b0014df, 0x555279b7, 0x1d849a57, 0x05ba0068, 0xbb9e8897,
+      0xc13ca2ca, 0x82222419, 0xfd33676f, 0xafbbb685, 0x75878a2a,
+      0x931c3f52, 0xef3d5173, 0x12aeefef, 0xbd8a6878, 0x189a5cc8,
+      0xd99f0c16, 0x82cffdb3, 0xa19d48b6, 0xbf565406, 0xe9c6c4e0,
+      0x5605e223, 0x86804172, 0x53e781de, 0xc7001cc8, 0xcdf5c90b,
+      0x7c043f68, 0x2b582d93 },
+    { 0x81abc2ae, 0xa1165c82, 0xe2b69eca, 0xa73380f5, 0x07fff66f,
+      0xc097b3d2, 0x54776506, 0x5d603826, 0xb57fa21c, 0xdcbac9f3,
+      0xc98dbdd5, 0x78750db4, 0xd9eff32a, 0x85e21103, 0x2f11c41c,
+      0xceed172c, 0x9e348c09, 0xa8e39264, 0x831eddfb, 0x71cb936b,
+      0xf50864a3, 0x915c3d06, 0xe93acfcd, 0xfe8e33cd, 0xb3f2f7aa,
+      0x4bee10d7, 0xeb7cee9a, 0xc1d8eb48, 0xfa574afd, 0x4fa49ce3,
+      0x862db4c0, 0x78615109 },
+    { 0x7ae72c21, 0x3fe3f480, 0xfd0f0da5, 0x631aa144, 0xf8c3a454,
+      0xc76ee1e8, 0x51b4f1ab, 0x379ae094, 0xd7cdbb24, 0x2a3a4397,
+      0x82bd5fcd, 0x7a14cffe, 0xf427ef5a, 0xbbe4ed12, 0x284d3ccf,
+      0x9b0a43ee, 0x8eec6e1e, 0x57b78b93, 0x67b8e87b, 0x18d404e4,
+      0x34374c20, 0x0c8adc05, 0x5428deb5, 0x64373605, 0xc3afa2cf,
+      0xb4d80ec0, 0x3aa956f9, 0x6d51f93c, 0x84161c68, 0x9f9a28ab,
+      0x6bc9c025, 0x540b6bb7 },
+    { 0x321d315d, 0x04e1734c, 0xd86e05d0, 0x4ef56612, 0xbba8cd81,
+      0xeafae145, 0xacdc789a, 0x1fb07a49, 0x5877570f, 0x6a21e9ad,
+      0xb9bc53de, 0x2e4a837e, 0x1d6298eb, 0x436db293, 0xea362f45,
+      0x43afbc78, 0xaabf6585, 0x2a973d97, 0x0c924d60, 0xdce7dabe,
+      0x7cadf0e9, 0xf69d98f0, 0x75020538, 0xe0b505a1, 0x4461cd29,
+      0x3db7d1a3, 0x5e20e818, 0xe1c28776, 0x52dd50f6, 0x2ca25867,
+      0x92e0388c, 0x897cab14 },
+    { 0x0d8bab8a, 0x59ed3813, 0xa438200a, 0xc11d364c, 0x40581415,
+      0x0687bf2c, 0x7ac89674, 0x86ad0d3a, 0xb97411a0, 0x44928105,
+      0xf383371c, 0x74984b11, 0x0d1a831e, 0x70d2ed84, 0x6c912fe0,
+      0xd883628b, 0x14fa88d2, 0x44f8f7fb, 0xcf0ac93e, 0x564f2a4d,
+      0xa6c24fa6, 0x82f629aa, 0xbf6cd949, 0xab906ba3, 0x20a5182d,
+      0x2c822e67, 0x30eb93a5, 0x2ff47dac, 0xfff673aa, 0xdc62c4a4,
+      0x476b0ec5, 0x64b00763 },
+    { 0xb3c9a404, 0x1e3f533e, 0xb7ef9952, 0xb1db7f73, 0x6c253693,
+      0xc7f13e29, 0x0738eed4, 0x7ce7f4c4, 0xce26cad0, 0xccfd3b33,
+      0x01ec5cf1, 0xd8784935, 0xdc084e01, 0x3f8fc09d, 0xc39b5acf,
+      0x217cab32, 0x9ef5551c, 0x42daf0bb, 0xe1217a95, 0xfbc76f56,
+      0xc237002a, 0x80178b12, 0xb070a293, 0x0b52c39f, 0x576ca964,
+      0xe3925153, 0x19d68e36, 0x25559424, 0x09e50e84, 0x291fb82c,
+      0x6618ed8c, 0x7dd22ea6 },
+    { 0x49cbb3bf, 0x7ffe844b, 0x5562fb25, 0xde0cc704, 0x9f5a845a,
+      0x1e6ee537, 0xe51277fc, 0x956d7f26, 0x30635718, 0x2c75d4b9,
+      0x96957f34, 0x39a14892, 0x82e5742b, 0x8cf4eb32, 0x83247b72,
+      0x6b0d3ddd, 0x201a4237, 0x67a9f633, 0x1414a485, 0x416403c1,
+      0xb6f6a916, 0x60afd447, 0xdac6f790, 0x95f94930, 0xbd3b9d82,
+      0x685ff94b, 0x51cadf0f, 0x5c8f98fc, 0xb13b7489, 0x9559c88a,
+      0x5f18fcc8, 0x31377c66 },
+    { 0x7dcfb35f, 0x35c5de09, 0x01cc36f8, 0x2dccca9f, 0x7576cb63,
+      0x7e93e85d, 0xf7b4b375, 0x0c2dd48a, 0xb09a19b5, 0x9d95cd4f,
+      0x71bfe607, 0x752ed159, 0x2596dad2, 0x439880cf, 0x69e90a6f,
+      0xe52efb53, 0x03d3e60a, 0x44097663, 0xa95070e0, 0xfcf364fa,
+      0x05624dd2, 0xd8f993b6, 0x00d5e467, 0xb35a9824, 0x0c8f4524,
+      0xe289d024, 0x648a0179, 0xef45423c, 0x587edabd, 0x3a5fd695,
+      0xa11e5271, 0x3dacc50c },
+    { 0x6499ae4c, 0xcb3e4f94, 0x7053c527, 0xa46dcbe1, 0xbe782e8a,
+      0x807f5ce9, 0xd8481e45, 0xb6c64d28, 0xaa286fd0, 0xf35e4518,
+      0xdf1cdb49, 0xf7b7b9ba, 0xaec23eaf, 0xf3fb6210, 0xb9bfd2fb,
+      0x0a9ba385, 0x8807f3a0, 0xe51a0d53, 0xb17b2842, 0x7ab24404,
+      0xf9dd9f0a, 0x6fd57687, 0xf3e9df64, 0xcd1efdb4, 0x60df194d,
+      0x5dd2df7a, 0xe069df05, 0xbed3f2c3, 0x23248a31, 0x469b7561,
+      0x694744f7, 0x866949e1 },
+    { 0x3f4ab07a, 0x3a9a0da5, 0xf54a6fbf, 0x2cd6f333, 0xb23cf290,
+      0x0c92e921, 0x848e3d58, 0xc9581c3e, 0xd3b218ab, 0x93af1fbd,
+      0x066cb4d7, 0x38598ea1, 0x990c03a0, 0x5001394e, 0x7d0877b5,
+      0x3b664b1e, 0xd74c7091, 0xd79db1bb, 0x4e2d5dd0, 0x852d4435,
+      0x3329db82, 0x0d2b841b, 0x7b96d480, 0xfa844eb0, 0xc295dc46,
+      0x37a50569, 0x94f7ec4e, 0xc2d38373, 0x5b083177, 0xdc3884ff,
+      0x8b1fa598, 0x574352b8 },
+    { 0x0d5d7ce9, 0xed2193f7, 0x0b487eaf, 0x3c19fd26, 0x7be65fd0,
+      0x7c44ab59, 0x78270d56, 0xdd9da860, 0xbaa70198, 0x8a84ec00,
+      0x285985df, 0x2ec27e49, 0xde2028d8, 0x996ccaf0, 0x61c2201d,
+      0x4e7648c7, 0x091c19eb, 0xa96335bc, 0xf0d6782b, 0x253a3a69,
+      0xd2946493, 0x3f204340, 0x099f6873, 0x444521a1, 0x6996011a,
+      0x5fcbcc09, 0xf853a94e, 0x3884d5d8, 0xd3b6a3a1, 0x2418c624,
+      0x06ae3c4f, 0x3e431af2 },
+    { 0x83d381f1, 0xf967d939, 0xd0c033c3, 0x36501aae, 0x54410768,
+      0xbf3af4d0, 0x5093a6d3, 0xa86d1598, 0xd92f2900, 0x43ae0741,
+      0x36f0b755, 0xfeb2afa6, 0xaa456d6f, 0xd090a6a3, 0xaefdb646,
+      0x336a4fda, 0x1a942f7d, 0xfd1bfe44, 0x851ee41e, 0x7fc2a3ed,
+      0x11e935c5, 0x4f1c9686, 0x53bbb343, 0xcd577666, 0xad896c2a,
+      0xf26931ba, 0x86bbfa41, 0x8a0fbbd1, 0xa203cef1, 0x1c3d7d82,
+      0xe2664d35, 0x6dad3f15 },
+    { 0x12ec35a1, 0xd1940b7d, 0xe7dfb128, 0x6219c5b6, 0xf13321d5,
+      0x2cc278c6, 0x33c58eb6, 0x5e76904a, 0xd9903c43, 0x15090f55,
+      0xc3d96a19, 0x061bc926, 0x8c0acba7, 0x974a9f03, 0x7198b21b,
+      0x7a414021, 0xf8958c6f, 0xb069599d, 0xbebd0129, 0x517f2f1d,
+      0xdf3a8dc3, 0x1109a613, 0x672375c5, 0x08e58448, 0x9383d2d3,
+      0x56590ba4, 0x0bff837c, 0xfc3ee7c6, 0x27d2d55f, 0xc87a5390,
+      0x5f517a3f, 0x2438e9d4 },
+    { 0x8815af3c, 0xc4a45308, 0xf3c9bed5, 0xe55f1a32, 0x97b65ddf,
+      0xaef1cdc9, 0x12e51eb5, 0x61c61d94, 0xe63f2490, 0xbd0dac54,
+      0xd0b3e231, 0x6f14429c, 0xf1da6010, 0xf737c3c2, 0x6bbc4fb1,
+      0x7150e04b, 0x1be281cb, 0x205b4c89, 0xd7701f5b, 0xf1b4633c,
+      0x2a513490, 0x8b33ef46, 0x68f1f7f2, 0xddb47c73, 0xbd416b67,
+      0xf4ada511, 0xff795bb3, 0x9d2a97cd, 0x96200e67, 0x00a8b7b2,
+      0xafe30e01, 0x13f39011 },
+    { 0x7bd0c827, 0x3dd296ef, 0x4a29ff46, 0x506110f3, 0x1c9a515a,
+      0xf8793068, 0x268bca77, 0xde8d8045, 0x998045df, 0xcbb83024,
+      0x68c0e584, 0x3f90d710, 0x263b6062, 0x2a838ca8, 0x535c5d0b,
+      0x293bb5e7, 0x56415110, 0xceea99d5, 0x1bbda005, 0xfe311ad0,
+      0xa4d8d018, 0x2497e0bf, 0x1cf2b866, 0x33dd77a0, 0xd8c4ba8b,
+      0xbc075b73, 0x722b7bc9, 0x298466d4, 0xcbda1b0b, 0x17a7ce24,
+      0x680703b6, 0x458d4b6b },
+    { 0x4d54d8b2, 0x8a26a20e, 0x4d320a0d, 0x05a5696e, 0xf994f700,
+      0x698b5858, 0x2f6549a8, 0x7a4adc3c, 0x3694d00d, 0x1812e819,
+      0x730402bd, 0x46b9b000, 0xa1b36410, 0xe10a1449, 0x99230220,
+      0xeae95ea5, 0x1b4820c3, 0x3efc2e9b, 0x85c9eb8a, 0xfe5b5cb5,
+      0x97847064, 0x21ae0319, 0x8f27d49f, 0x68ef0b70, 0x2f72556b,
+      0x3259ef18, 0x624db01a, 0x00ae0457, 0x5668f95c, 0x628e3b06,
+      0xb6fbbf91, 0x5f13f5fa },
+    { 0x3a9b0dc6, 0x7c6ed9ae, 0x6f883ec8, 0xaea1bde9, 0xea8b3677,
+      0xea66bf88, 0x9a66e3ab, 0xdefa6abc, 0x68217ffd, 0xc4d3317b,
+      0x290df05c, 0xf741c8f2, 0x7d11674e, 0x1f0fdf17, 0xc35989ca,
+      0xfdf0ece7, 0x6b9c482d, 0x0eed92df, 0x55bf1ca7, 0x73713e66,
+      0x25cec99c, 0x90acb290, 0xe803e69c, 0x37c9e3a2, 0x17713a1a,
+      0x7c0a3c53, 0x6f5a174d, 0x350dc565, 0x05f802f6, 0x11625a44,
+      0xa37ba4a2, 0x2196495d },
+    { 0x13142680, 0x00cb2fd3, 0x65d14cf4, 0xab9e91d7, 0xdfe2669e,
+      0xc6a0ceab, 0x0ae22bc5, 0xbeefce58, 0xcb6ec250, 0x3c2b7986,
+      0xd738f1ff, 0x84adb1a2, 0x516ec8ec, 0x9709bc28, 0x8e8f7db5,
+      0xf3693129, 0x95b197f9, 0xc48efc6b, 0x9aaaa404, 0x9ff10952,
+      0x144154b0, 0x2c3c8cbd, 0x427f3435, 0x33ef7bc3, 0xd21897c1,
+      0x04a17940, 0x6ce548a0, 0x5aa0c47d, 0x3d56fa62, 0x2971cea7,
+      0x04475f08, 0x93ad0eb0 },
+    { 0x988a9963, 0x7a0b6967, 0x6515e8dd, 0x61e477f7, 0x3b6b50f2,
+      0x6274e386, 0xd33922de, 0x63a9b8d5, 0x687a5b3d, 0x3c38d3fb,
+      0x1302e323, 0x18f6f09c, 0xe02fcccf, 0x254c05c3, 0x26e662f7,
+      0xc04ed0b7, 0x143fe079, 0x1d5646b8, 0xc9016c8c, 0xef8a9448,
+      0xf823d797, 0xe5674c4b, 0xbccde451, 0x0586f72f, 0x4417eade,
+      0xc5fc88d5, 0x576e588d, 0x2b952209, 0x5844d1f9, 0x4408dd42,
+      0xea41c034, 0x73f8c3f0 },
+    { 0x5df763dd, 0x89534fc8, 0x3ac71836, 0x3b1427f3, 0x6e8f15a0,
+      0x0db5be17, 0xcb20888e, 0x1d390944, 0x857caea6, 0x7804c9ad,
+      0x519f7bf3, 0xaa584428, 0x293aa8cf, 0x626eecf1, 0xea36a015,
+      0x749e0d98, 0x3321edcd, 0xefff6dae, 0x28b791cc, 0x963deea6,
+      0x2d16e361, 0xa14e0552, 0xb15ae206, 0xa2e058fc, 0xfca325e4,
+      0x0f268745, 0x21341a8a, 0x7cf9d407, 0x7caa51b8, 0xdfed25d9,
+      0xadbedd75, 0x0108ae39 },
+    { 0xa9e88f63, 0x54d178f3, 0xab0c7325, 0xaa05b11e, 0xe261d8a6,
+      0x773a53e6, 0x8d0b91c8, 0x24db7dae, 0xe9bb004d, 0xde10b073,
+      0x54e3090b, 0xfc8befe7, 0x0cc69c89, 0x16af0599, 0x9d59511a,
+      0xddc83803, 0x46c5dafc, 0xc3f65b99, 0x1ee0a599, 0xfbbe4be8,
+      0xfb3a9b17, 0x88891e36, 0x445dad00, 0x0c9aad75, 0xd5097e1f,
+      0xdffc46ab, 0xac85a4e1, 0x8848089b, 0xa0c45233, 0x348bb42f,
+      0xeb13c1df, 0x807c06d8 },
+    { 0x98ee0ef6, 0x00a969ec, 0x8bb7b7af, 0xba9d5483, 0xa02f8fdb,
+      0x24484c92, 0x8b70557c, 0x7bdb201a, 0x60ad1af2, 0xe59343e4,
+      0x998c95fb, 0x53a9a942, 0xda861d3b, 0x974db3de, 0xed399c0e,
+      0xce1525c9, 0xf72109bd, 0x89b56881, 0x998211a4, 0x08ff7d15,
+      0xef0f275a, 0x5df76b3a, 0xfa2f358b, 0x93f180f7, 0xc39b0634,
+      0xaac4ffcf, 0x17583b53, 0x2692c626, 0xb55399fc, 0xb2fdfa36,
+      0x99607a61, 0x16424c6c },
+    { 0xdd2744a9, 0x5dd65c55, 0xfe3af418, 0x2544c1c2, 0xefe8b089,
+      0x32c82e99, 0xa9df691a, 0x30b7ab25, 0x9be99674, 0x98384550,
+      0xcaf2d122, 0xbcecd258, 0xbcc77272, 0x88ae4098, 0x4b8efa0c,
+      0xd4396141, 0xed64d12c, 0x44ff67b9, 0x2e7f3404, 0xa9e655e4,
+      0x45b0e9eb, 0x3d16fc45, 0xf03ded28, 0x474a3e14, 0xacccb85c,
+      0xa3c9adff, 0x7253a51b, 0x3dfe6bc1, 0xfb5831b1, 0xdddaf4b9,
+      0xa4f4478a, 0x5544e602 },
+    { 0xbaa80b4f, 0x897c5313, 0x63bdc8ef, 0x0122716f, 0x7b42c5a8,
+      0xae2742db, 0x0883308c, 0xe9d9e1e9, 0x2d341ab1, 0x352c8c3f,
+      0xed945870, 0x163d0500, 0xc290d9d8, 0x8349dd73, 0x1f6c7d29,
+      0x2053c5e0, 0xcb42033c, 0x83107446, 0x09d09af1, 0x76c88bd2,
+      0xb2794681, 0xd0f70e6e, 0x19b1b540, 0x720b59de, 0x22994b43,
+      0x80b7ecdc, 0x2dec53cf, 0xc1a4cdce, 0x1ed60f42, 0xdd7d3edd,
+      0xe241d261, 0x5735995c },
+    { 0xa0237056, 0xdc4ba3fb, 0x33ab3388, 0x6856c164, 0x271ec612,
+      0xc01eebbd, 0xe3031bec, 0xabdeb033, 0x6118a1f5, 0x4eee4419,
+      0x5b600f33, 0xec497421, 0x08868773, 0x1b7185cf, 0x7c1b7dfd,
+      0x7b0c46cd, 0x4a4c5e89, 0xd143b2da, 0xbb1ff94d, 0xdb9a5984,
+      0xc9cf3465, 0xac3904e4, 0xeace64c9, 0xf8729bc0, 0x768ad99a,
+      0x5cc22821, 0x8a9540c2, 0xbbd3b081, 0x049a6917, 0xe468ed5f,
+      0x3ec45ef0, 0x885486df },
+    { 0x4bdff464, 0x6a942c93, 0x25a7b451, 0x3db2719f, 0x325be324,
+      0xccb0070b, 0x19fe3339, 0x2055a31b, 0x241ee8ff, 0xaca69ae8,
+      0x55ef8def, 0x7607dd08, 0x1a1b73c6, 0x9e24960f, 0x71d36810,
+      0xbcb0e8a2, 0x6885e6b9, 0x29e11aa2, 0x185eae19, 0x98b5d0ab,
+      0x0f81f91c, 0x1a0b96e4, 0x994fc503, 0x4d0e8bcf, 0xf119d6e0,
+      0x33d81697, 0xaaa4ce0c, 0x29083287, 0xc91ff9d7, 0xc5dd4d3e,
+      0xd4ab962d, 0x31cecfe8 },
+    { 0xfc8b21e8, 0x437bfd9a, 0xb19436df, 0xe5dd32b3, 0x921c36a0,
+      0xfe5902d4, 0xa3d0fa90, 0x8e9de84d, 0x5bb523bd, 0x9663e6ad,
+      0xaecd6975, 0x9800a23f, 0xb4fbb59c, 0x1009c0d9, 0xc9d20ff1,
+      0x839aa7bd, 0xecd6fa3d, 0xf502f66d, 0xc5516ca9, 0x480ed4fb,
+      0x6c742ac4, 0x65ffa5f6, 0xff3252f8, 0x2b7c7945, 0x75d9cb3d,
+      0x72fefc05, 0xd6d6f1d2, 0x11b0863b, 0x9a6a4ec3, 0x5d8f3cf0,
+      0xda2547b3, 0x6961b46a },
+    { 0xcb35e2ac, 0xd07b587e, 0x57af14d9, 0x1ed5546b, 0xdb28a04c,
+      0xeca17a5b, 0x709d54f0, 0xa1f91d44, 0x9c6f400e, 0xa6e719fd,
+      0xfb8ce190, 0x4e4b88ed, 0x246e3fd2, 0xf9781edd, 0xb655af5d,
+      0xd67120e6, 0x93413ca7, 0xda782d1d, 0x9707fa21, 0x697e20a2,
+      0x54e84123, 0x1eb51f32, 0x36051f9f, 0x2e254d9e, 0x73ce5be9,
+      0xddaec42b, 0xcd3f794f, 0x89a9a32e, 0x0781aad9, 0x1964e22f,
+      0x53755212, 0x6a63a90c },
+    { 0x3d7acbbb, 0x76554e00, 0xb74f6108, 0x2c01668a, 0x388c519b,
+      0xe4a29672, 0x3eb94d4f, 0x01667714, 0x0cd6d2f6, 0x086a3cdf,
+      0x7b370f7f, 0xf8658021, 0x5a4d3e7c, 0x658880c1, 0x5ba3f4a1,
+      0xd6ed5816, 0x5ca471dd, 0xabcc7813, 0xe844a576, 0x809bf074,
+      0x6ea502ea, 0xa53a81b3, 0x0e021ed3, 0xc20b9307, 0x8617f165,
+      0x8c27f892, 0x8235cd0b, 0xa5476446, 0x82552961, 0xffc89ffd,
+      0xd151d90e, 0x51ed4a22 },
+    { 0x449701b4, 0x37d6963a, 0xbb27caf2, 0xea8d91a3, 0xb572965f,
+      0x3ef9be15, 0xdb50bf7d, 0x75a7a055, 0xce643b9b, 0xfd67480e,
+      0x6ceb5d5e, 0xf2a60d2d, 0x5ed7c897, 0x68fc320c, 0x28ce685f,
+      0x41c53cf6, 0x7106615e, 0x0e29711f, 0x23500ecc, 0x7a872138,
+      0x6c29fe48, 0xaf0a9260, 0xe1ef9712, 0x93df3f2a, 0xd2d169bf,
+      0x0d5f6fb1, 0x74a9793c, 0xeb7afe26, 0xe9f49256, 0x4173d94a,
+      0x2b8b5ce5, 0x2d6951bc },
+    { 0x904e222e, 0xdd007d9f, 0x86f4e109, 0x333f248f, 0x8f429eee,
+      0xd4994e8b, 0xcfc77518, 0x29573415, 0x0b0f42f1, 0x6e7fea3a,
+      0xc2743519, 0xc795cb7d, 0x711e71a0, 0x820a8f66, 0x2b874f55,
+      0x83d95d9c, 0xe70e1627, 0xd4b64d78, 0x8b92a742, 0x924353f5,
+      0x447b5e6d, 0x322048b1, 0xbcf931a0, 0x0bad730c, 0xa7af2268,
+      0x75c4d089, 0xb83b93f9, 0x464904c1, 0x165b3aee, 0xa24eba02,
+      0xe08cc5f0, 0x65c48e78 },
+    { 0xde222c22, 0x1a1c73ce, 0xfcea23b4, 0x5683d8cd, 0xb2143b06,
+      0x0301cb14, 0x59fcec77, 0x284adf8f, 0x31204cef, 0xfb1c581c,
+      0x94735107, 0xf54d3eee, 0x4d3188c0, 0xdbf67f0b, 0x10f18d12,
+      0x76a3f2d1, 0x07d3e013, 0x3809fa28, 0x25e7ece0, 0xf06f0a46,
+      0xb2895d2e, 0xd82867ed, 0x08b0553a, 0xe106f489, 0xef245445,
+      0xe2280fa6, 0xa8d9a3cb, 0x402d5785, 0xd438ba2d, 0xf63dd9ff,
+      0x7a6b226f, 0x36b5cd2c },
+    { 0x545679a7, 0x87ff4e20, 0x4520c750, 0x64d80b41, 0x9b459cd8,
+      0x90a357fa, 0xc85af1a3, 0xa19eaf39, 0x8d935a5e, 0x0d475d79,
+      0x781a678a, 0x74501983, 0x0cc2e810, 0x74839779, 0x2f412244,
+      0xc6a21d11, 0x36a51a37, 0x8d0e85f9, 0xeaa74df8, 0xff50151e,
+      0x93cf99c4, 0x14e182a7, 0x376a9ab6, 0x45593df1, 0x522389ff,
+      0x18f73caf, 0xf7445e8a, 0xd27cc960, 0x39a51dc8, 0x0692f4c5,
+      0xdb39bfd8, 0x08d7c144 },
+    { 0x3ecca773, 0x809c0d96, 0xd48c2156, 0x87ea9192, 0xdb6bd641,
+      0xf0eccd74, 0x2a678cdf, 0x77312374, 0xd1587b7e, 0x7a966d8b,
+      0x6130a4c6, 0xf3c1a101, 0x5fce17bd, 0x7cc6e838, 0xa8de7aa4,
+      0x95e95bb8, 0x898308e3, 0x3fe1e8b5, 0xe347694a, 0x0197243e,
+      0xbb0cd2bf, 0xf3fe9c42, 0x0f9b2b49, 0xb5905264, 0xc7367d1f,
+      0x4c385e8b, 0xb5ee147b, 0x1d3050ae, 0x04004ad9, 0x8e2c3879,
+      0xbab70202, 0x5f2aa8ee },
+    { 0x1266524b, 0xe208d464, 0xd0a19f66, 0xb7bf3880, 0xda106ebf,
+      0xa5aa685e, 0xe642dd46, 0x0a69e8d3, 0xc682e4d6, 0xef349c61,
+      0x0fcb534c, 0x26f6ee3b, 0x05eb67b8, 0x7daba127, 0x18be05f6,
+      0x2babb27e, 0x8e2d85d1, 0x959afcba, 0xe2d9d386, 0xedcf2d1a,
+      0x1ea6f06e, 0x59dc52e6, 0x866e5ae8, 0xc28278b4, 0x02bcd3c7,
+      0xd9ff0340, 0x784be82f, 0xe884ac76, 0x83c9f224, 0xa3164980,
+      0xb46ff949, 0x62501a98 },
+    { 0xad264086, 0x563f7d9a, 0xa5e0e4bd, 0xca6a33db, 0x8c8d3d67,
+      0xe8253002, 0x46e64b19, 0xa288dac8, 0x20aa4536, 0xfa3c9197,
+      0xed553eac, 0x8130c9b0, 0x2ea8abd3, 0x622806e0, 0xceccfe77,
+      0x52fbf54d, 0x4f0d1b70, 0xbd9a8e31, 0xd59b1741, 0x519d2133,
+      0x9a6fea8a, 0xfd74101c, 0xb5c4eb10, 0xd1acf7a0, 0x91f9da5e,
+      0x78499b73, 0xc0dea586, 0xabaa4c49, 0xa1f3531a, 0xcc9c5f73,
+      0xfd3fc665, 0x497b15fe },
+    { 0xf45568e9, 0x8a56cbaa, 0xc7192a6f, 0xf491a0fe, 0x9ab2539a,
+      0xdbb03dd3, 0x4ac37da9, 0xc86522f8, 0x02a0f5b4, 0x8c8cdba2,
+      0xa29c539f, 0x8109fc75, 0xca90f02e, 0x9cd06d31, 0x3e216dbf,
+      0x8f31f044, 0xba3ebd91, 0x99aa68ac, 0x42c007f4, 0x2a80d0d2,
+      0x86a9b7ce, 0xdd8dffbf, 0xd6308edc, 0x405d3e84, 0x068012ca,
+      0xdafa33fe, 0xedea1071, 0xc2eebd13, 0x2ff637e6, 0xb7ae7e5c,
+      0x9e514cb7, 0x18d46a6c },
+    { 0xa78b7802, 0x868cbb22, 0x497cbaf4, 0x0745ddb2, 0x42ae8add,
+      0xc4eb2f3e, 0xb4ceb4e4, 0xac0abcda, 0xa325fd40, 0x2e0d8325,
+      0x13ac7345, 0x6cfe0571, 0xb14171b9, 0x7407a788, 0x6da7a52b,
+      0x70eb0603, 0xd85176ac, 0xab0b36f9, 0x7c2954f3, 0x14109d29,
+      0xdcd705ad, 0x370de9c8, 0x7bb5e751, 0x3f0db5cd, 0xa06e708c,
+      0x45f93d41, 0x7e93050d, 0x10d54f8a, 0x5a38fef9, 0x69e6f8e4,
+      0xd3f62e40, 0x55044601 },
+    { 0x06cb9cc9, 0xd1c5c910, 0x41d00014, 0x542074d7, 0x11236fb8,
+      0x7cd8663e, 0x29ad5f82, 0x39721ffe, 0x2951fc83, 0x1d21fbfa,
+      0x400d144f, 0x1cde06e7, 0x91792e6b, 0x9042596b, 0x29ad5166,
+      0x3365c8e5, 0x9aeefe98, 0xe2220e85, 0x70c2aee3, 0xbcb53189,
+      0x9ff100bc, 0x477ca3db, 0xf532973f, 0x27074176, 0x9a2bd01b,
+      0xa12118ac, 0x3dd79f93, 0xf3425209, 0xc6f5d7db, 0x563a8ff7,
+      0xd7b0ec4f, 0x0da313fc },
+    { 0x15aa2557, 0x37125a8c, 0x00893e9c, 0xca21d70c, 0x67b8a823,
+      0x48713994, 0x7cb0042a, 0x0d3e9a74, 0xc9e2ce18, 0x2d2bf4ff,
+      0x049aeac2, 0xd5531a0d, 0xf03d0660, 0x4d29a616, 0x1f1b7f00,
+      0x473d50d6, 0xca3de50c, 0x3af0ecbb, 0x09c28f27, 0xe2959bea,
+      0xf8704664, 0x6d7c2ea0, 0x731083ef, 0xadfae4e1, 0x941c2554,
+      0x50940c26, 0xa1162d03, 0x44167410, 0x1e82290e, 0x620230d8,
+      0xdb414acc, 0x63630be8 },
+    { 0x8a7d2e41, 0xbf8d5222, 0xeb62f879, 0x49e75823, 0x6c402d89,
+      0x1b4d33dd, 0xde2c59ad, 0x883e04d6, 0x49b9dc38, 0xbf3f38f4,
+      0xb4b70c4c, 0x9d997d18, 0x13cea045, 0x1f69b20c, 0x58e2606d,
+      0xca3d7025, 0x261d1b79, 0x3d4fd977, 0x5a1436fa, 0x56aeafa8,
+      0xbb443c07, 0x369b3e98, 0xe558f6be, 0xfce5186c, 0xf8ac8f89,
+      0xeb0cd478, 0xd5e5aa72, 0x68074f37, 0x68544eb0, 0x295845c0,
+      0xf16688ed, 0x306a9871 },
+    { 0x634ec136, 0xbc451e9d, 0x0e6f658f, 0x1edf27ca, 0xc0db4120,
+      0xa9be0152, 0xc5bfee67, 0x87b6ef20, 0x9a2d6023, 0x35283238,
+      0xc7afb899, 0x60e564d8, 0x0ac9c2de, 0x4af22bc0, 0x82a9d22b,
+      0x28e6f631, 0xf532701b, 0xc075c701, 0x82075f91, 0xf6d418f8,
+      0x1beaa511, 0xf9fa628d, 0x6e72a13d, 0x551e7a17, 0x77f4c01c,
+      0x9306215b, 0x93c9d588, 0x71aba731, 0x58e57cd4, 0x6443ebe0,
+      0xe8103e37, 0x2833ac41 },
+    { 0x8da5ec5c, 0x7e564b86, 0x1c08db24, 0xac3d9da8, 0x8c57a728,
+      0x9d7c1f0b, 0x9d343dc2, 0x3512afe7, 0xfdc60339, 0xb438e4cf,
+      0xdcfa1941, 0x7d5a2700, 0x27320449, 0xd5f323f8, 0x1393c6e6,
+      0x1b87a58e, 0x04baa431, 0xecb68bd1, 0x4722b4d7, 0xc09c1c5a,
+      0x206b5faa, 0xf42faa97, 0x9976327e, 0xe1dcbcd6, 0x087787d9,
+      0x655ba9e4, 0xde5c0191, 0xbd59c757, 0x0bcf3538, 0x673020ed,
+      0xa49d6303, 0x120cd454 },
+    { 0xcab0f9ee, 0xebfdb8f4, 0x2cce58ee, 0xbc003ef0, 0x5a8d0665,
+      0x9b6a6841, 0x9b957774, 0x642ed3a6, 0x4721ab5c, 0x3de487f0,
+      0x21a4f0d3, 0xef2ff380, 0x29dbddcd, 0xbd16f558, 0x0e93dff2,
+      0x2ef05b4b, 0x0bc9aec1, 0xde1faa12, 0xd467fa92, 0x66dae2c2,
+      0x5eb33e34, 0x758daf64, 0x8f0103cb, 0xa67ad9f6, 0x9be02430,
+      0x151f693a, 0xeb4054bc, 0xd5698496, 0x7019336e, 0x8ef1677e,
+      0x7fdeea3e, 0x021cfd16 },
+    { 0xdf5c36f3, 0x5c73715f, 0xd64ad254, 0x703bde37, 0xf2cf7713,
+      0x55368d10, 0x0f3993c8, 0x1e5ec7b7, 0x304ae4ca, 0xfdb16776,
+      0x3d3bb18b, 0x0d8f717e, 0x66343d5a, 0x5267073f, 0x156008b5,
+      0xfaeb52ef, 0x224a470f, 0xb97ad5f9, 0xed2ab51a, 0xaf86e391,
+      0x9974302c, 0xdc0c7e57, 0xfd0ae28a, 0xc88fa817, 0xbf8ed59c,
+      0x807c22df, 0xeb128bb6, 0x5dedc231, 0xa20595a3, 0x71edcd9c,
+      0xc73cf78e, 0x07265b46 },
+    { 0xbd66232f, 0x73dd99f0, 0xc4027716, 0xc59aaf89, 0x5b860fc4,
+      0xaf826dfa, 0x7a943f3b, 0x239ea8aa, 0x523c428d, 0x0e0e1b1a,
+      0x6973b95a, 0x55ea0e3a, 0x2557753b, 0xea399caa, 0x06957b1f,
+      0xf8adf72f, 0x3bd34302, 0x0389f341, 0xf8a43a97, 0x333f27d0,
+      0xadaf796f, 0xcd9c0c08, 0x49c12aa2, 0x6dcca49b, 0x7a0ac6e9,
+      0xdd88deee, 0x0644080e, 0x8f47575d, 0x0cc2f4bd, 0x6e9d667d,
+      0x31d1496c, 0x36c5754b },
+    { 0xf323d84b, 0x9120046e, 0x7e789c4f, 0xa6991122, 0x921b8055,
+      0x4b0eaf4e, 0x8079974e, 0x6339844a, 0x740f8c79, 0xc905466a,
+      0xcd6def49, 0x1c18d0f7, 0x4b23e4ba, 0x5297da6b, 0xc41800c5,
+      0x1c09dff3, 0x37ef6777, 0x6c49075b, 0x50513ded, 0xa94c3a40,
+      0x6b0b1705, 0x3d6742e9, 0xc48af5ae, 0xc0784494, 0xc95822de,
+      0x40c01532, 0xc164d94f, 0xa2ddade5, 0xa2975eb5, 0xfc8a8ac9,
+      0x1946944e, 0x06fbf861 },
+    { 0x3f45aa97, 0x2d65338e, 0x1d040feb, 0xd83b58c8, 0x0fdef8b9,
+      0x05fef59b, 0xe4d7417c, 0x7beb071a, 0xb30a1a23, 0x982b61f5,
+      0xfb65bd03, 0x4c5f2a2a, 0x5cbf6bf3, 0xe40abc9d, 0xf06612a5,
+      0x422c326d, 0x9571ae28, 0xc921e69d, 0x23d3434e, 0x7c88b10b,
+      0x9da07933, 0x96d2e957, 0x3619cf4d, 0x833d46a1, 0xd95eefa1,
+      0xd9d19653, 0xa03e8f0e, 0x2a7d8411, 0x04bb5ab1, 0x5e642953,
+      0x1f0fa9ea, 0x5e9ca0fd },
+    { 0x197c5dc4, 0x5bd54571, 0xe78a95a2, 0xe2da40bf, 0xffdb0eb2,
+      0x65fb9efc, 0x0d17467c, 0xe952dc2c, 0xc758c6a3, 0xc1fc9c7b,
+      0xd4034a9a, 0xfc79562c, 0x61f64b56, 0x26e36fbe, 0x1e84728b,
+      0x6adc4b9e, 0xa8f9ac8a, 0x7f165fd3, 0x03e3e013, 0x7bc93a45,
+      0x656478e3, 0xeacc5513, 0x064ddc77, 0xd3391717, 0x76936914,
+      0x75b318dc, 0x362424a6, 0x69b1f1c7, 0x49955f34, 0x8cc2045b,
+      0xc6836af8, 0x940622b3 },
+    { 0x0d997973, 0x4710ccb7, 0xd3f8f115, 0x3b29625d, 0x5b97abd5,
+      0x8cf0c4d5, 0x673e14a5, 0xc6321e0a, 0x3d262246, 0x0541af9d,
+      0x6fc83b11, 0xde6d8754, 0xf01652a4, 0x47e97da8, 0xad9802b6,
+      0x0f82b3a6, 0xae9c44b2, 0x69aa4075, 0xced2bf77, 0xaf3f5de2,
+      0x497a40da, 0x1ef1ea8a, 0x3c23ba9c, 0x2e0f8608, 0xf190a2c8,
+      0xd8a998a4, 0xcfde3368, 0xe2b49c8c, 0xbde6bd71, 0xb9f49824,
+      0x785bedb6, 0x80bb1664 },
+    { 0xfd145cb5, 0x05e575fe, 0xac5e6883, 0x155ee561, 0x8793b273,
+      0x461e70cf, 0x133b2338, 0x9f1553de, 0xa2a7ba07, 0x2fb9e0c3,
+      0x3e7086fa, 0xc3bfd6a8, 0x8bb4cb93, 0xb6ba8500, 0x76f82dbd,
+      0x0b66d789, 0x54eb49ff, 0x7d5a6ff6, 0x1f20b322, 0xcd65d237,
+      0x54e29cdc, 0x79ea49c2, 0xcb118ff9, 0x64975963, 0xcc58000b,
+      0x969598dd, 0x110c779c, 0x95107918, 0x63b85a35, 0xedfc1548,
+      0x41212350, 0x077ba5ea },
+    { 0xcdd86f61, 0x0b3a38d3, 0x0502a0ab, 0x43121445, 0x806d0272,
+      0x1912edc5, 0x8a32f10f, 0x01dc1f98, 0x0e80c760, 0xbb1d31d1,
+      0xf464e8b3, 0xd46ec7e5, 0x9abf49ee, 0xd569af36, 0x2cdade77,
+      0x9d286ea7, 0x45ad5920, 0x2be7020d, 0x6299ae7f, 0xabe5236e,
+      0xd3f55c07, 0xc93179bd, 0x52350e80, 0x8138995a, 0xaff07586,
+      0x0901265c, 0xf4739653, 0x5b3c81b2, 0x9bc77d21, 0xbaf7581d,
+      0x4591a2e2, 0x6b2006df },
+    { 0x965b1bc1, 0xb2fe50a8, 0x962bb4fd, 0x931f536a, 0x000e7f99,
+      0xd5718d33, 0x53d5125e, 0x84728f25, 0xd2125caf, 0x4f8a6184,
+      0x357f679e, 0x54f1a701, 0x1531c05a, 0x70a9f40c, 0x6fa8b775,
+      0x10d0cb97, 0x9dc12ce9, 0xb476f41e, 0x2755f894, 0x5c8d7a75,
+      0x625741a4, 0xd6c12e10, 0xc917b16c, 0x262a6fb8, 0x38d6b0a0,
+      0x24d116e6, 0x32c38e83, 0x849540c0, 0x66868afc, 0x855b911c,
+      0xbd26b550, 0x53217ea6 },
+    { 0x259f52b4, 0xfc840473, 0xe621146c, 0x968da9cb, 0xcacbd26e,
+      0x964eb85e, 0xe4a54344, 0xab7daa2d, 0x381a4ff7, 0x6dc3b848,
+      0x41c815ef, 0xa07a96b3, 0xc3d4b1e1, 0xc4fae9e8, 0x42ce9ea8,
+      0x0f938d1e, 0x35cc052f, 0xa727dacc, 0xe9a06f07, 0xc81e01c9,
+      0x4a6d65a1, 0xa9e08dcb, 0x6044a9a6, 0xf8e2d173, 0xf2bd295b,
+      0x99893dd0, 0xf9781b12, 0xa08d3379, 0x61830ac2, 0x64bd6001,
+      0xd9adbeef, 0x0386931e },
+    { 0xd09885a5, 0xd0d7abb3, 0xe355bb07, 0xed9d2b67, 0x536ebaed,
+      0x3bc238cf, 0x699ce4d6, 0x61ca2e78, 0x111594cd, 0x354ff447,
+      0x03316ad2, 0x55cbe709, 0x49fff5c4, 0x418679fd, 0x0f9c6c40,
+      0x75bacd75, 0x2972721a, 0x677edc88, 0xe5ef502f, 0x82596887,
+      0xbf320e0e, 0x459e9367, 0x8bbdccb2, 0x81ce36ef, 0xb766863d,
+      0x1ba097fc, 0xd58c6db8, 0xcd3a21d6, 0xb4a8748b, 0x0e4967cd,
+      0x15041c20, 0x2caaf749 },
+    { 0x6ed20424, 0x44f98006, 0x22471545, 0xb3e4ea23, 0x781a8c86,
+      0x268ed1a5, 0x7ae5b70b, 0x48d0ab75, 0x356d3982, 0x6ca8b320,
+      0x2df31fa4, 0x9ce8e681, 0xd925dcf2, 0xb909d232, 0xf56723de,
+      0x302c8f78, 0xabac96f9, 0x11725d69, 0x57d1a170, 0x656a47ca,
+      0xc18a2be7, 0x6bb5d511, 0xad50d9d9, 0xb56e45f1, 0x70b05518,
+      0x36e886e2, 0x09d8ff91, 0xc7c71f3d, 0x9350361e, 0x65a1bbe2,
+      0x45fe3bd8, 0x86d7f532 },
+    { 0xb0bf719a, 0x99f16eb6, 0x8bc3d913, 0xb6975098, 0x26cd01b4,
+      0xfae50e52, 0x90898d1c, 0xd3e3ac54, 0x887ec666, 0x4da3b9db,
+      0xfbea45b8, 0x58300644, 0x8355b058, 0x369f3bd9, 0x579bcc13,
+      0x0fb239a8, 0x6e2bd811, 0x4f5b4539, 0x24198fd2, 0x007f3baf,
+      0x8837d51d, 0x68a676db, 0xeae75b16, 0x68eeea62, 0x3db6083c,
+      0x5ffe5f94, 0x7d836c5a, 0x52c94d0f, 0xcbc1ff85, 0x5a4c3c6f,
+      0x86c0b4dd, 0x682a55e3 },
+    { 0x587495aa, 0xc8f235a4, 0x34c7245d, 0x2276026c, 0xb75a46e3,
+      0xd6ae0cc5, 0xecc3e5e7, 0x890d3965, 0x14296629, 0x1b13342f,
+      0x8a877227, 0xc89927e6, 0x2324a68b, 0x1543f27e, 0x49cdc21a,
+      0x6c447684, 0x1452d0ac, 0x9bc7fd4f, 0xff4b045c, 0x2cc30a31,
+      0x852f7611, 0x415d46a0, 0xc6fdd7a6, 0xad737052, 0x7b4c7c91,
+      0xdcecc3ab, 0x7688d70c, 0xd2cdf01b, 0xe40d3905, 0x054f2542,
+      0xfefe4dcd, 0x02227fa6 },
+    { 0xb751948b, 0x1805efd9, 0xfdfd225d, 0x8efeed46, 0x4f2c8b22,
+      0xcb128e09, 0x96f7c5e5, 0x9d1090bf, 0xb4cbeca0, 0x0959d044,
+      0x8e08cb04, 0x21c955f9, 0x68fa4fce, 0xbc1f279d, 0x0710ae9a,
+      0xb021e14e, 0x881167f4, 0x64d16e9f, 0xbbc9f1a5, 0xf5a5c22e,
+      0xe3420eea, 0x5f3716df, 0xd5c4e843, 0x971eb915, 0x28ffba81,
+      0x64fc55fc, 0x7dd37578, 0x3427e54d, 0x15ebc7d0, 0x446e6a62,
+      0x29269778, 0x547e249a },
+    { 0xa1ffda27, 0x4706868a, 0x7955cf50, 0xb4e6cdcc, 0x0a63f3d8,
+      0xf65151e1, 0x9de5e70a, 0x5b4127ea, 0xf9342823, 0x3d2c09ba,
+      0xaa2f7d51, 0x18c99d83, 0xddeec025, 0xa0c5bb1d, 0x03dcf1ce,
+      0x7ffddf84, 0x616fdeda, 0xe57e4d29, 0x7932a1f0, 0xd2456569,
+      0x3191d4e3, 0x7475e0e8, 0xc220218b, 0x3479bea1, 0x8bcb2505,
+      0xfceb5c90, 0x3c6132e6, 0x1c685cea, 0xbfe6c1eb, 0xc42dc745,
+      0xd2b08eea, 0x45a41cc0 },
+    { 0x4dbbf0e1, 0x3ea9b2c7, 0xa17cf70e, 0x41ff962f, 0x5eeb4c66,
+      0xdc1ea758, 0xa9beb17e, 0x4f5412d2, 0xa285741a, 0x2c9e4f52,
+      0x984fd11f, 0x93df7da4, 0x0df3184e, 0xb2afbddc, 0x2421e375,
+      0x96323d25, 0x49df781e, 0xc87be1e4, 0x3d589bea, 0x145601ed,
+      0x28fff6dd, 0x0f0bd9bd, 0x8a0f298c, 0x2d3259d4, 0xd88e6944,
+      0x362d7a77, 0xb6ac2af6, 0xa84c06b6, 0xd087da02, 0xba850ac9,
+      0x42ee40c8, 0x128763c9 },
+    { 0xacbac178, 0x29a80f07, 0x34b08f6e, 0x7cc20044, 0x70feded2,
+      0xe9631d14, 0x86615767, 0xb2115da3, 0xcb088548, 0x7c75f5c4,
+      0x9a2e8e03, 0x5b29d213, 0x8b881752, 0xfe9fda66, 0xc1de7ebc,
+      0x3f1d8d88, 0x03218123, 0xb476565e, 0xb1c995f3, 0x07365561,
+      0xb13eb71b, 0x2160cb18, 0x99b3a0eb, 0x7e8da513, 0xb20fcd74,
+      0x5e8ca1f9, 0xb4126d72, 0x6a7e0067, 0x68bb637f, 0x1e8204b7,
+      0xfc4f74d2, 0x75e96bcc },
+    { 0x0d19716e, 0x189d1fdc, 0x7c384525, 0xdf585058, 0xea987d2a,
+      0x64a846d1, 0x6c07150f, 0x12b6bf83, 0x4d6fd5b7, 0x91d85d46,
+      0x4f53f55f, 0xa9788836, 0x81509129, 0x60083bd8, 0xea876f48,
+      0xa7672683, 0xc15b2489, 0xe80b2e7a, 0x42d1d992, 0x985ef8d2,
+      0xcf3de492, 0x9c57b029, 0xb1487627, 0xfe02f83c, 0x8ae5b687,
+      0xaeba4fe4, 0x5d6b8196, 0x8a86f09b, 0xa16e523d, 0xd88f566b,
+      0xba268949, 0x309a6e9a },
+    { 0xbdfbe97a, 0xef27ee50, 0xb8c50c4d, 0x1a5fe70f, 0x7fe09f5c,
+      0xcc7beb01, 0xbed36cc5, 0x8fa15a85, 0x7550ed3a, 0xc0c3acdb,
+      0xeb908681, 0xc581ef87, 0xc49d5ccb, 0xa15b3362, 0x1fa264e8,
+      0x0fbb1714, 0x8e1eee88, 0x267f8d8f, 0x21c2b63d, 0xd31ccfd6,
+      0x53be7efd, 0x924dbe7d, 0xdb2a358a, 0xd42e877f, 0x75d68ac1,
+      0xcf9673c7, 0x714fea55, 0xe35978fd, 0x5769b202, 0xeeb36653,
+      0xd7593789, 0x0458258a },
+    { 0xa042dbdf, 0x5df71a74, 0x5779dfa2, 0x2d405857, 0x0d2e6657,
+      0x0e66cba7, 0xca2e892e, 0x285d6745, 0x0f0e6b5f, 0xf56a8def,
+      0xa30767c3, 0xe0ee851d, 0x43346b9c, 0x98c05658, 0xd6b3c742,
+      0xb35fce26, 0x39777e00, 0xc0895bff, 0xe7b6d886, 0x83c8f6a6,
+      0x4f02904b, 0xbee14843, 0x2e84ec34, 0x7f74915b, 0x96d10991,
+      0xbaaf663c, 0xe41facc0, 0x004b8757, 0x6f86c029, 0xa2b880e5,
+      0x95b77358, 0x53f4a3e0 },
+    { 0x89fc48e7, 0x11bb08ce, 0xafab5aeb, 0xba60c577, 0xa0c1cb5a,
+      0xf06bcbf8, 0x79757cb6, 0x7d2efaea, 0x76319160, 0xe26d90b1,
+      0x2b77b7a9, 0x42aa1ab6, 0x285df2bf, 0x38eec0cd, 0xf3a8f7f0,
+      0xd35947f5, 0xfc1cb5b5, 0x97c8dc0e, 0xc45845cf, 0xfeb8cca0,
+      0x249e26f2, 0x16e8d989, 0x483ed89a, 0x7c264e6d, 0x51d91073,
+      0x13a3f145, 0x305e99f0, 0x8501562e, 0x6908d563, 0xaaf98d74,
+      0xd723d236, 0x0a99e653 },
+    { 0xabbc0559, 0x23536f46, 0x9aa1a160, 0xc163067b, 0x0c1681b5,
+      0x229fd229, 0x1378e907, 0x61254be1, 0xab793a2d, 0xc60ff57a,
+      0x466552db, 0xa6f2df8b, 0x8c170a36, 0x9ad31893, 0x29b74d9a,
+      0xc5cd9abe, 0xf7848523, 0xcf747273, 0x0d0e3063, 0xc126a93a,
+      0x4248e3d8, 0xfe2021e3, 0x8323ddfa, 0xd97343ee, 0x332639e7,
+      0x9f768775, 0x75325548, 0x9650fc31, 0x3eebf7ea, 0xb595dbd1,
+      0x010fcbc0, 0x3a95cb45 },
+    { 0x39d7ff2e, 0x954e68cb, 0xc1d5c48f, 0x8dd1cb4b, 0x7169438a,
+      0x02a92c77, 0x91cad8ce, 0x7965c0b0, 0x32cd08d2, 0x0c5798ab,
+      0xa6902bda, 0x1a5bc3c3, 0x5186d218, 0x545d0925, 0xd27e64db,
+      0xf0077cdb, 0x8cd092da, 0x0157caa4, 0x24532ab3, 0x2a2fa3a0,
+      0x41ccaba3, 0xa5fb639b, 0x4744aee6, 0x01702dc1, 0xcdba93da,
+      0x485bb436, 0x329784f1, 0x93597f66, 0xdad672c3, 0x5d713c1d,
+      0x030b7245, 0x366d222e },
+    { 0x573ea5b2, 0xd50b4875, 0xa90da44d, 0x0fce401b, 0x7a1a0310,
+      0x7b53fa65, 0xcf114460, 0x722a80a5, 0xa538bf49, 0x0b8ebf05,
+      0xd32acd21, 0xae141147, 0x7b5ad07d, 0x6692712c, 0x3f48ca07,
+      0x6dc5fee7, 0x2b8a78d8, 0x98ed1499, 0xdd2f1759, 0x4e8b3145,
+      0x5f971b8e, 0x43408de1, 0xadf1b368, 0x055ea6dd, 0xe5932b7e,
+      0x4bb76e73, 0xd30893fd, 0x44287153, 0x0661bfda, 0x173dccd2,
+      0x79defd25, 0x9072ba99 },
+    { 0x9620ea39, 0x474de4dd, 0xc831cee8, 0xfbf1649f, 0xcd3a9c43,
+      0x0b0e8bb1, 0x3f3df1d5, 0x6a38286f, 0x8f0ec9b3, 0x4ed072b3,
+      0x729c09e3, 0xa6e4c987, 0x8ad12242, 0xea3e8ac6, 0xfbdfa5ba,
+      0x6ae0e22b, 0xb0a0f592, 0x56171ecf, 0x6b871f8d, 0x33b2886d,
+      0x35e11bda, 0x6b19bea9, 0x7f0f153f, 0x4d815a40, 0x7d6c02ee,
+      0x7e608d97, 0xb6a88f46, 0x7e8f23d9, 0x439d1654, 0x26ac9652,
+      0x35546c29, 0x8d92c6bd },
+    { 0xabeb0ff7, 0xb3e0d7ce, 0x3e0e42f8, 0xfbe35254, 0xde808499,
+      0x57d1b226, 0x1cd44bc3, 0x9ece2e1f, 0x435cfee1, 0x1245adbc,
+      0xf93f581c, 0x874ee840, 0xbda0b947, 0x916a779c, 0xfa57ae0a,
+      0xabcc815a, 0xf0a621b0, 0x97adec2d, 0x81f90bdc, 0xbe6a502b,
+      0x53bde63d, 0x54bf9de1, 0x78884c25, 0xa88fdabf, 0xcbbb5470,
+      0x30aa52b1, 0x29053ef5, 0xf805396c, 0x8dd827ea, 0x8d43d898,
+      0x5c1ae5c0, 0x4e4bec17 },
+    { 0xfcc09676, 0xbf8483a2, 0x19ea9a94, 0x457c4a3f, 0xd702a5dd,
+      0xa6852ef3, 0x843fe7d8, 0xe7915fd2, 0x16e35158, 0x644bba98,
+      0x9ed746f0, 0x8d1b95d0, 0xb90af0b5, 0x47704581, 0xd4fd135e,
+      0x0bd4bc6b, 0xb4e833a5, 0xa6dce067, 0xff56a9a1, 0x2c0e8f30,
+      0xec2c63fe, 0xa9c80800, 0x98f508a8, 0x449c20a5, 0x3292813a,
+      0x02b94cb3, 0xec7e81a2, 0x647e3d28, 0xb4877677, 0x72e67d1a,
+      0x6f9ded24, 0x7a4aa3f5 },
+    { 0xe27a0045, 0x559ef1ba, 0xb242cb50, 0xdc812d4f, 0x39cf8d24,
+      0x23a478e4, 0x9b3f9c54, 0x97544fc5, 0xaffa1fcf, 0x5ac68132,
+      0x34a2c83b, 0x74f8fee0, 0xcd3f4bb7, 0x96cc640f, 0xb0512ea6,
+      0x775dce9d, 0xcdce381e, 0x67dca19d, 0xa9d3fe55, 0xc1eeb3f3,
+      0x1a19274f, 0x38e0bf42, 0x28d69b12, 0x15992fb4, 0x9fd09df8,
+      0x48fcebde, 0xb41ab5df, 0xdc9dfa4f, 0xc0a269c5, 0x0cbd7dc8,
+      0xf7f0ade1, 0x60282a7b },
+    { 0xdceea2e7, 0x7c07e538, 0x3c42061d, 0x38a322c8, 0x4f1f6516,
+      0x676828f9, 0xc7776a10, 0xf21b69fb, 0xb5e6b405, 0xc63a3417,
+      0x91a7b642, 0x4c99f258, 0x2cad1440, 0x38692ca8, 0x00869bcd,
+      0xf1e82ffe, 0x16fe466a, 0xc30b714e, 0x19019138, 0x5fb742f9,
+      0x0fa516ae, 0xe90166d0, 0xd8c73a43, 0x5550f7ac, 0xfbc5c372,
+      0x2d6a407d, 0x68cc39ed, 0xe47a7539, 0x4a5fbe70, 0x3fd286d9,
+      0x23c6b942, 0x5f4ae9c7 },
+    { 0x53f4d561, 0xd96a2dda, 0x16da1992, 0x286d45d0, 0xfdd4b051,
+      0x449a01fb, 0x9f2195ea, 0x25488a0d, 0xa37661b3, 0xc4151b0a,
+      0xf9e5ee02, 0xb98c471e, 0xa8658817, 0xa4bca86e, 0x7a68fc0a,
+      0xbbcadb87, 0x6b7366a9, 0x88b34649, 0x15661c2d, 0x32ee98d4,
+      0xc901420c, 0xf5b3b4c6, 0x2f2752af, 0xa2352735, 0x510e4d9c,
+      0x2f64ce73, 0xaca4aa80, 0x939a7f26, 0x401aa503, 0x9cd3e291,
+      0xdc46afd2, 0x92a01423 },
+    { 0x1c2f7dbd, 0xe9f24be1, 0xb7d527fa, 0xda8c900f, 0x8648f128,
+      0x963e25bb, 0x48141941, 0x9ab713e2, 0x7a6756fb, 0xe87f7d01,
+      0x058d90bd, 0x274dd85e, 0x82566abd, 0x823fee7a, 0x74240195,
+      0x9f6230d7, 0xacb5e46e, 0x04579f2c, 0x16a4c87e, 0x2a226263,
+      0xd99b0857, 0x9ca19a43, 0xe488789e, 0x86dc2ba3, 0x9406c3bd,
+      0xf960b5b9, 0x8960957e, 0x6f2c428b, 0x161c515b, 0x90748706,
+      0xaa88cb9b, 0x0fc8fe1e },
+    { 0xfeb90f2d, 0x68ae1bed, 0xa48b1559, 0xf393bb3c, 0xf64e9635,
+      0x2be62f9c, 0xf8be75c2, 0x354c2410, 0x5e6f7529, 0xbd7ea703,
+      0x162cab31, 0xc264868e, 0xc860f3ff, 0xb1391e70, 0x1d89837e,
+      0xdf367c75, 0x2bf32941, 0xe150b6b4, 0x78c1318f, 0x95e8f46e,
+      0xa2c4b160, 0x2b3f1dab, 0x701afbf3, 0xc6ccf5ce, 0x5e8874c5,
+      0x3ad27530, 0x5dc6dcbe, 0x39285e51, 0xd99892dd, 0x3c954d86,
+      0xdfd3789f, 0x2d0ba862 },
+    { 0xb472e1af, 0xeacd8ee8, 0xb76abbcc, 0xeb354eae, 0xd0d93fbd,
+      0x9b520bf8, 0xfe6fc706, 0xfccd60d7, 0xa4ee2f39, 0xa9353dde,
+      0x9a81e51e, 0x5eb0925e, 0xd1366777, 0xee334da1, 0xd5354d69,
+      0xc1d28c9f, 0x92a5ed54, 0xb9771755, 0xb7f70d81, 0x5d3e367f,
+      0xa933ae7a, 0x7be7eeca, 0xe23cfbb7, 0x264cf1f9, 0x89497681,
+      0x0d129f4a, 0x09b6235b, 0x705375a4, 0x48a376da, 0xccf64c75,
+      0x4d41dbfc, 0x963c8712 },
+    { 0xde36a814, 0xbae290cb, 0x733b12b5, 0x9bdb0195, 0xf77fe0e1,
+      0x0ebad867, 0x29720cea, 0x0a7d19fd, 0x9029ec72, 0x434d7651,
+      0xbb51911e, 0x856aff17, 0xd80a7f60, 0xd0a25d9a, 0xf848c106,
+      0xffca86af, 0x43ad749c, 0x53e8bdf9, 0xe3e696bb, 0xfb9e0284,
+      0xeeee4215, 0x3eb6630a, 0x2ecf3c63, 0x9d8fbb9e, 0x4e00c0c0,
+      0x71da4ffa, 0x5d57beac, 0xb296be59, 0xa8cec7ef, 0x1751fbad,
+      0xff55d7bd, 0x2d03eb3c },
+    { 0x04f2ec1d, 0xeb16925f, 0x0d147ee2, 0xa878f276, 0xaad9d9e0,
+      0x442df604, 0x3f71035b, 0x891df44b, 0x8cb95d5b, 0xc28272b3,
+      0x5ee8ed23, 0x6f14efb5, 0x13b0f3e3, 0xf3c4460f, 0x6bd7335e,
+      0x889f9bd7, 0xf755ba6e, 0x889ee771, 0xed219b6c, 0x626984fe,
+      0xec2ee411, 0x2d44c737, 0x63efcd37, 0xb94385a2, 0x6637826b,
+      0xd909321b, 0x3ee6b7a7, 0xc24f8a79, 0xa7cf61b7, 0xa3ca8d24,
+      0xc54bacd9, 0x842e40c1 },
+    { 0xa661d843, 0x5a268ed6, 0x4f5b30cd, 0x02328cca, 0x1311e177,
+      0x16e6fed1, 0xc6695967, 0x690decb4, 0x57b2e280, 0xbdac5bf6,
+      0x1efe42d0, 0x827f82ca, 0xca5fca2f, 0xc554ec0a, 0xdde45506,
+      0xac5276c1, 0xe3077513, 0xb7f4cb08, 0xcc8797cc, 0x8caf6d9a,
+      0x0d9332d2, 0xd5964814, 0x285a409f, 0xcc6ae297, 0x6223d093,
+      0x7773c2a5, 0x5128fc09, 0x2d5266ac, 0xbc31fe6c, 0xa596b7cb,
+      0xcac91328, 0x0e63319a },
+    { 0xf0360ac2, 0xb5cd2fad, 0x285e605a, 0x86b660de, 0xe25b9b14,
+      0x82c6cf10, 0xaa9ac554, 0x9d5fa38d, 0x526c070e, 0x3dfcf1b8,
+      0x3fccc52d, 0x0379a96b, 0x0bfcc7f5, 0xe3659c29, 0x69d3e6a1,
+      0x5b1a3db5, 0x9b7b42d5, 0xb41528b5, 0x9c22a006, 0x934defa4,
+      0x9b4ce3b6, 0x90f38018, 0xb3abaf32, 0xb073bc04, 0xff8389e2,
+      0x27a5a222, 0xffa5a35b, 0x0b7a9d51, 0x28e1a7c2, 0x4939ecef,
+      0x1872705a, 0x88839da2 },
+    { 0x701ce29a, 0x56b66c30, 0x58981d50, 0x3acaf126, 0x105f9f21,
+      0xd4dafc0c, 0x373e3d13, 0xfee571e6, 0xfa2ee3ca, 0xe7269c86,
+      0xdd20385a, 0xf5cca64a, 0x3000e9ac, 0x217f2757, 0x0e7273ef,
+      0xc934db47, 0x355b6776, 0x4294f4f7, 0x6fc05180, 0x1faa36b9,
+      0xb052190b, 0x8f88b1db, 0xe9eaef52, 0x35791b90, 0xdb681b90,
+      0xf37fb2eb, 0x4415c369, 0x39d0a51d, 0x1d2e21c9, 0xfc59cca7,
+      0xa1f50c26, 0x64128cfe },
+    { 0xe8f5b0b5, 0xf03678a2, 0xd340f059, 0x5c7e249c, 0x93ca7cec,
+      0x41440441, 0xbc83af98, 0x075ca346, 0xfaa8bbb0, 0xf39f0033,
+      0xf38230f7, 0x3d18f0ed, 0xd448f345, 0x78dff00c, 0xd51aa475,
+      0x849228c0, 0x30c928d1, 0xdd4e2708, 0x8f12cfd3, 0xc66ba686,
+      0x88b3a206, 0x091049db, 0x016dae01, 0xd865d059, 0xe253e37d,
+      0x4599e905, 0x7ce9871b, 0x322cf0c2, 0x174a132e, 0x014f54da,
+      0xbdabcbda, 0x93634a09 },
+    { 0xa9a2e304, 0x62826b27, 0xc1a4c124, 0xc57e1866, 0x22381710,
+      0x913ab832, 0xa9847cfe, 0x7e9b6b85, 0x2b5f46fd, 0x29655cf1,
+      0x8038e66d, 0x7295572b, 0x6fa95eab, 0xe4cba601, 0xb9deda81,
+      0xbbc11071, 0x3f1cf61e, 0x97f0009a, 0x373e0cfb, 0x5372777b,
+      0xd139d63b, 0x302f909c, 0x4f87d78e, 0x1ed672da, 0xb4048763,
+      0x362077a3, 0x9dcc22b2, 0xc408c32d, 0x26deeee7, 0x4b4c5bf2,
+      0xbc06357e, 0x266cb467 },
+    { 0xb56363e8, 0x6faa4154, 0x3c1aa4db, 0x4b4fd078, 0x2b9e6597,
+      0x14358dde, 0xfa004b84, 0x5b34ae3e, 0xf19911a6, 0xcf44b2ec,
+      0xa536bf78, 0x55caa833, 0x8870dc95, 0x606e1eb9, 0x09f3511d,
+      0xe3c3287d, 0x9d5cf364, 0x68b2f4eb, 0x63ab8c9e, 0xc154e892,
+      0xc36ab611, 0x1548828e, 0xa1b7d120, 0x0932bfcb, 0x5315b8d7,
+      0x7ee7b5bc, 0xf7473ac1, 0x782fd0d1, 0x3c8f2af3, 0xbcb029a8,
+      0x52454ee1, 0x4b1d5a1b },
+    { 0x63d52c0c, 0x12fe5174, 0x188c099d, 0x3735525e, 0x360e3956,
+      0x5c621563, 0xacfa5a43, 0x88b3f1ca, 0x797e8107, 0x90123a0a,
+      0xb15e080a, 0xba31f6b5, 0xfca3dada, 0xd7de5e12, 0x0df511c8,
+      0x3287361b, 0x65757d4e, 0x7cc800d4, 0x5207ec91, 0x10810f3d,
+      0x30eea0e3, 0x0d4e56f1, 0x3ea5a2ec, 0xbbf7ee13, 0xbe6abbd0,
+      0x6fc07762, 0x120bf619, 0xc831fdce, 0xb622d42a, 0xe07439fa,
+      0x508e4b27, 0x8186b93f },
+    { 0x09312867, 0xc619d154, 0xbfaf7db4, 0x7e042c05, 0x1f5f5dda,
+      0xc1cf1668, 0xa4fc3d82, 0x50aa5057, 0xce68b8fe, 0xed30ed65,
+      0xbeb4d644, 0xecb01c0b, 0x831c0497, 0x7b5dc444, 0x9b7d9b1c,
+      0x351e6a00, 0xd9477c91, 0x4bb863b9, 0x05d4110a, 0xaba65891,
+      0x43580b7a, 0x30086cf4, 0x90be357e, 0xb139c076, 0x27b5214e,
+      0x12bfff1a, 0x22c3ab57, 0x79cfc6d7, 0xf34a9bfa, 0x4743de57,
+      0xc9ee2b2a, 0x0bf97e97 },
+    { 0xdda19e96, 0x96ec4ec8, 0x6c306e8b, 0x54ce18ea, 0x65f6918a,
+      0x7e83612b, 0x0d9a0d99, 0x1ac6f68b, 0x62fdcc09, 0x98a697a4,
+      0x95bc3e13, 0x65ce25f1, 0xb3939730, 0x1896ecda, 0x32f12806,
+      0x9eb81a0f, 0x1d2dc7df, 0xd3d7416e, 0xad473599, 0xe22c7976,
+      0x9f5ef439, 0x3de37a9a, 0x9e69d94e, 0x6b7ac0ab, 0x0a9d0bc8,
+      0xe6bfa9e0, 0x5676f120, 0x576a870d, 0xfeaac23f, 0x3bd91bb4,
+      0x3e40aabb, 0x8fe5482c },
+    { 0xce9a4d1e, 0x85ae67c2, 0x4f1d2038, 0x4c3eb803, 0x25d06192,
+      0x5c6c8f3a, 0x308fb41c, 0x803de0ad, 0xe71c294e, 0x9961f5bc,
+      0xf02eb0da, 0xdc62078d, 0xb64ae8b6, 0xc87ef515, 0x50b4d18f,
+      0x69679f1e, 0x52199f43, 0xc5c009a1, 0x0f640a5f, 0xa7d484be,
+      0x23dab566, 0x4c918bb1, 0x64275d2c, 0xa67c114c, 0xcad2ded6,
+      0x95a913b9, 0x6b4b5c8d, 0x189ed18b, 0xb42d3bf6, 0x4aeb6206,
+      0xbbc8bc3f, 0x3928c669 },
+    { 0xdacb4b64, 0xde4bea4a, 0xf26179a1, 0x03f62a44, 0x7a9112a4,
+      0xf3aac94e, 0xd36f331e, 0x90448fbd, 0x407b85c4, 0x426042bc,
+      0x2121b77b, 0x5ad8a596, 0x67cee984, 0x31674a4f, 0x4e3b2f0d,
+      0x7fae8bbe, 0xa7c930eb, 0x681df6dd, 0xc259d0d4, 0xadeefa98,
+      0xbea1c1fd, 0x1b14d9e6, 0x21d405d1, 0x3baadc8b, 0x73892754,
+      0xf01dff93, 0xf071cde4, 0x81c35b3e, 0x9150d0d9, 0x1704d2e1,
+      0x355134f6, 0x6ccc888f },
+    { 0x7ad7504c, 0xf8d36f0e, 0xf7959ddd, 0xbca3265f, 0xfede67aa,
+      0x0dcd1ede, 0xbaebf32f, 0x1276f4ce, 0x014edcfc, 0x6825a6e6,
+      0x99ad8eb7, 0x0b8c1a82, 0x09b8ce1e, 0x312024a9, 0x9cbd351a,
+      0xcb8fd98b, 0xfab1e8be, 0xa4841378, 0x3973cacf, 0x17ed0f5d,
+      0x259d5254, 0xa17e1484, 0x74b91393, 0x53d5b843, 0x1aca3ce9,
+      0x8f792b21, 0xc8c0f815, 0x035ff110, 0xad4ed7bd, 0x6afa6357,
+      0xb26faef9, 0x2f151980 },
+    { 0x29d2d439, 0x0c8631da, 0xbc039955, 0x121fbbc2, 0x6c05b75b,
+      0x3e5a9792, 0xb6ce47ec, 0x6d6cf4c0, 0x9d88c658, 0xbaaa1767,
+      0xf3355a17, 0x031db9e7, 0x0aef5a85, 0x8381e3d8, 0x15a31bdf,
+      0xc71db290, 0x9498fd7d, 0x638f6b74, 0x13beeef6, 0x44edf3f9,
+      0xf4ab67b3, 0xe6173271, 0xfd22df11, 0x3a202c70, 0x205c4e92,
+      0xf7be0389, 0xa8eb9920, 0x1c219085, 0xbeb54aaa, 0x6c805ce8,
+      0x0ac58d65, 0x354b05b7 },
+    { 0x7a9170e9, 0x7171e236, 0x4cad50cd, 0x01eec42d, 0x3cddccfb,
+      0xffbe824f, 0xa66cae1a, 0xa73e8ce3, 0x965c7d01, 0xb7138a7f,
+      0x5c3d971e, 0x00058e3f, 0x2ff0a72b, 0x52591ac3, 0xbbbce76f,
+      0xa32fb5bc, 0xa9f81a18, 0xf3241ab8, 0xeca68630, 0xf31d3332,
+      0x4482f13b, 0x847af9fc, 0xa4681be2, 0x6196e217, 0xe55efcf9,
+      0x9938f932, 0x70acc705, 0x3e7dacb8, 0xcf09fac2, 0xd41be893,
+      0xae3523a1, 0x48dc55c4 },
+    { 0xa5092193, 0x8e623826, 0x6898970c, 0xe46ec362, 0x25c9eb41,
+      0x2f1356af, 0x83c7d245, 0x41780640, 0x97d00e38, 0x982def67,
+      0xa512151c, 0x382eb6e7, 0x8af58869, 0x154e1077, 0x8a51cf02,
+      0x18707075, 0x71313c58, 0xcdeba9f7, 0xba155904, 0x5d67b973,
+      0x1d0d7b3a, 0x851c9f4b, 0x8b8af2cd, 0x19f29d71, 0x986b8d62,
+      0xcb94ccff, 0xb93b9c33, 0x8725e24b, 0x66e38c68, 0x405ce4c5,
+      0x0b6dc021, 0x5f6a8edd },
+    { 0x8f9a8690, 0x83704ca5, 0x2f76a407, 0x3f369766, 0x69201028,
+      0xfbc12d8c, 0xbce3a4cf, 0x4cd58f16, 0x04aab26d, 0x7804664a,
+      0x4ea457a8, 0x005cfbba, 0xb8a59794, 0x537951b3, 0x4fe1f739,
+      0x4ca2b9e4, 0xdf325797, 0xe4428acd, 0x0ea243db, 0x648da342,
+      0xf43ce01e, 0xcce6562b, 0xf27db490, 0x840f0421, 0x8bfb7cf0,
+      0x156ccb70, 0x5a8797d3, 0x9b33480d, 0x9eb814bb, 0x2e12e07a,
+      0xca7f87ac, 0x1ca65072 },
+    { 0x2b9d25a0, 0xfbb321cf, 0x40a746db, 0x66affdca, 0x59e368b5,
+      0xc1c1530e, 0x7d80068f, 0x56ed1ea4, 0x5647dd68, 0x9b74d8fe,
+      0x89b78da8, 0x1d96b507, 0x8bbe3391, 0x39b75243, 0x0d858c5f,
+      0xef8d443e, 0x9646aa34, 0x4dd2db49, 0xe667543c, 0x7fad3bd1,
+      0x68980985, 0xd0d710c0, 0x49facaba, 0x9f7aff32, 0x14f9a192,
+      0x055dec1c, 0x1fb307a1, 0xaca66399, 0x35ffff64, 0xac44fd91,
+      0xcbad3cee, 0x462cafb6 },
+    { 0xde3237dd, 0x1660a647, 0x82b87404, 0x95f735cc, 0xddfa55f8,
+      0xf7879f59, 0x726b914a, 0x15ef043e, 0x1c93e298, 0x1875393d,
+      0x6ef18331, 0xa1a2be74, 0x25a9a12b, 0x4e7e8dfc, 0xa9c3917f,
+      0xdfefc97d, 0x0a2ebe41, 0xbc875d03, 0xa732d1cc, 0x0f75d235,
+      0xd9baa6d3, 0x06fee7fe, 0x65f48576, 0xaa784fab, 0x513f83c0,
+      0x23155e22, 0x3e8f9d13, 0xd2fb7718, 0xb546eafd, 0x2a291503,
+      0x6cd93608, 0x1293c98c },
+    { 0x49d53b77, 0x72781251, 0x96eafac7, 0xa6ab403d, 0x4a36b711,
+      0xb7d7c7db, 0x87e771c1, 0x8238c708, 0x33b37522, 0x495f6abf,
+      0x8c87530d, 0xb0b0289c, 0xe77b111a, 0xca83cb86, 0xa1bd189e,
+      0xbe1c0fb8, 0x1ae9d7c7, 0x58cfb2fb, 0x4940c3e8, 0xd05c23c5,
+      0x74ad9107, 0x16e79e41, 0x064e7142, 0xa0a47f05, 0xfdfd614f,
+      0xc6929cd4, 0x3946988b, 0xedb2584c, 0xe46f8fb1, 0x73e4b5f3,
+      0x68ea94ba, 0x53b79aa1 },
+    { 0x44bbb6a1, 0x216fafce, 0x67821728, 0xd3a5bba0, 0xa9dd939a,
+      0xef1e4b30, 0xf19efafe, 0x022eaf3d, 0x7b4ec014, 0xfed5abce,
+      0x512c6738, 0x64968ee6, 0x29fe89a2, 0x23119869, 0x47397c05,
+      0x0d539d8d, 0x234596c4, 0x6400bc54, 0x5346611d, 0xb9287f58,
+      0xc9d5da0f, 0x04099903, 0xc83af2a8, 0xe5ef4997, 0x328151e1,
+      0xc89dc01b, 0x58401104, 0x150fb4a9, 0xf3872c9d, 0x40a6f7d5,
+      0x56c2e833, 0x8290d6d1 },
+    { 0xd8546946, 0xf84637c6, 0x69ec57fa, 0xda134a39, 0xd789007e,
+      0xd42359a4, 0x0dc7b809, 0xb42557fe, 0x2d6784a9, 0xe62ae52d,
+      0x0bcadb5f, 0xa2714ca6, 0x33aafca5, 0xcc208de6, 0xed967811,
+      0x2380ed5c, 0xdb321660, 0x6e6b55e9, 0xa675235a, 0x1bead02c,
+      0xb33fa0e1, 0x51cc6ef9, 0xf06a2a08, 0xfd223e26, 0xec47b3cf,
+      0x00f332e1, 0xa0aa984e, 0x459f297b, 0xee952e14, 0x6fa1d969,
+      0x304fabb0, 0x506ef1ab },
+    { 0x35bff163, 0x11b4eb27, 0xea9fa984, 0x7130b96f, 0x9deb27ce,
+      0x66aceb3f, 0x9dd1c3d5, 0xa2daf1a5, 0xa73075aa, 0xf5090a7e,
+      0xe3071b58, 0x36a6af39, 0xdf73ad9c, 0xa28d633d, 0xbdc89a16,
+      0xdd354cac, 0xd4dcbc3c, 0xdfea3423, 0x379d92d1, 0x6eec74d2,
+      0x8eed6765, 0xe14a456f, 0xfa8feb1f, 0xfabe7743, 0xb98fcbc7,
+      0x1404ccf8, 0xf71a706e, 0x6ccd2fbf, 0x4d85c678, 0xdaaf3fdb,
+      0x15200344, 0x415b7dbf },
+    { 0x7d8377a7, 0x97010586, 0xcb803272, 0x068a3d68, 0xf03a4c32,
+      0xfd67d289, 0x93c8f290, 0x4bc7095d, 0xe9e5a2b8, 0x712fa13c,
+      0x0feb9f3b, 0xfc6ac6c6, 0x6e0e54c2, 0x0cda36d9, 0x86320a01,
+      0x45499751, 0x97f00f11, 0xf9318c91, 0xe6936508, 0x01dc4c3f,
+      0x85f068aa, 0x769a2ef9, 0xa2b5511c, 0x3522cef0, 0xb4122e05,
+      0x006965ed, 0xc175d43f, 0xfce0fafc, 0xec831d59, 0x525dc9bd,
+      0xaf58879d, 0x1ec314f1 },
+    { 0x2c8310c2, 0x0663feef, 0x457e3f74, 0xaa7e14da, 0xe5346887,
+      0x392b10fc, 0x637ec2c5, 0xcde4a38f, 0xb542f8df, 0x50773320,
+      0xf7de1711, 0x341302f9, 0xae4b9bc6, 0x018b1c63, 0xdd2f9e6f,
+      0xf001c46e, 0x26eccfa0, 0xd3bb0a97, 0x7746e0c7, 0xa931b99d,
+      0xf5875aec, 0xe0c8b6f7, 0x96939c82, 0xbb32f17c, 0x3de5a664,
+      0x765135d2, 0x52abfa6b, 0x71936cb4, 0x2dc105de, 0xad5cc08f,
+      0x7fff5788, 0x17e91d12 },
+    { 0xb7e051ca, 0xbe92ced3, 0x19c776d4, 0xc644d4fd, 0x0086784b,
+      0xc8ab4b52, 0xce9d6b31, 0x3ea66227, 0xd289e9c7, 0x395249a3,
+      0xd12a19ee, 0x54509e65, 0x8c365aec, 0xa7bd4692, 0x77963e0e,
+      0x354997e4, 0xb599732d, 0x0d765957, 0x91d4a3b6, 0x99584aeb,
+      0x1deb3e28, 0x6e653ea4, 0x572571df, 0xca7c98ed, 0xb18ae1f9,
+      0xf301a38f, 0x63f7b97e, 0x1629f7c2, 0xafc4a0d5, 0xdf242282,
+      0x3ddd0c01, 0x118f3b4b },
+    { 0x7ad4762b, 0x74a0a0a8, 0x8c58d175, 0x1aef84da, 0x4cf76d86,
+      0x16ff4960, 0x7e60d98b, 0xc0be8786, 0x3ecc1dba, 0x83637ffb,
+      0x5dd6147a, 0xc244a609, 0x5b0846e5, 0xa3e17834, 0xe77a4c05,
+      0x735eb686, 0xdf758695, 0x5bc18b4f, 0x1bdfe52f, 0x15618d0b,
+      0x00715ba1, 0x878ecc0d, 0xc2dd617f, 0x1dbdbd1a, 0x21b61710,
+      0x21d2b631, 0x44f593c2, 0x22ce8a79, 0x44f17024, 0x3b9b536a,
+      0x8d03e727, 0x01d0a67c },
+    { 0x1e46533c, 0x7b964236, 0xfb88c2ae, 0xe9477990, 0xa42c4a18,
+      0x019b5d16, 0xd83c7a45, 0x7135e81d, 0x4cb663e3, 0x74a69bdd,
+      0xe76c0d63, 0x7b67ecdb, 0x11e68da6, 0x03d54521, 0xd2e8650a,
+      0x596cceb5, 0x2af03b37, 0xcd572dfd, 0xfabd5952, 0x52364ba1,
+      0xb4ed8569, 0x7f47d456, 0xc950d5d4, 0x5ad8b572, 0x486e2f84,
+      0xcadd2dfa, 0xc56bb044, 0xdd527b43, 0x997c08e6, 0xc9adba24,
+      0x7da6320f, 0x1b625b06 },
+    { 0x4fd8446d, 0x44dfaa7b, 0xaf6febeb, 0xc01b2f01, 0xfe8838b5,
+      0xbf444388, 0xbba9758b, 0xf33c434f, 0x87156bc9, 0x2b971cba,
+      0x1f49098b, 0x6b245e5c, 0x2b41c5dd, 0x87dcb534, 0x34d852d7,
+      0xdb1f80c6, 0x2433da34, 0x6d6e3258, 0x3f7df0c2, 0xf6682065,
+      0x360cb365, 0xc4ca567c, 0x9826656a, 0x321faac2, 0xbf069768,
+      0x13f5ca6f, 0xa7076639, 0x15397921, 0x8400736e, 0xbdf14328,
+      0x19fc948d, 0x333eca96 },
+    { 0xac775d81, 0x23337948, 0xd41dbbca, 0x38c2518f, 0xbcfce948,
+      0x623c7a4f, 0x54703fe7, 0xaad36236, 0x13fb3b5b, 0x2b3a13a4,
+      0x7f5c01f0, 0x5db3565a, 0x52359661, 0xd72408dc, 0x1d616e91,
+      0x5a17f8e5, 0xcb25b999, 0x90c16eeb, 0x3393743e, 0xf35e8cf1,
+      0xe54b64a7, 0x987da74a, 0x65cd449d, 0x557b322a, 0x37e7b15d,
+      0x765082a5, 0xf2cd134f, 0x4d25c742, 0x4ccf0746, 0xae9d9c07,
+      0x8728d135, 0x72fc2110 },
+    { 0xf96004c8, 0xa906b203, 0x458055ff, 0xd83f95cf, 0x55f35909,
+      0xd77d5867, 0xe550c8ee, 0x4a9ea6fb, 0x55a06081, 0x91c8cca9,
+      0xbce82062, 0x4a1fee78, 0x9a3df85e, 0xeb9ade06, 0x7d3de666,
+      0xfbbdcf0c, 0x5d336d51, 0x228a391b, 0x5c2ffc3c, 0x760f8d28,
+      0x2f7b165b, 0x1ee48de3, 0x56177040, 0x03803d84, 0x9deff9a0,
+      0xe573f648, 0xa17e35a4, 0xe1a2738e, 0x8840a6c6, 0x238ef17c,
+      0xb11ed92d, 0x480946f8 },
+    { 0xfd71f119, 0x84c747a8, 0x53eb3695, 0x19e65c5e, 0x6298587a,
+      0x0e2f6786, 0xab18d6f4, 0x48a48899, 0xc630b8c0, 0xa1a99024,
+      0x2caaf892, 0x84975096, 0xe20fd624, 0xc8869aba, 0x6c2b7dd4,
+      0x3b72b04d, 0x0992f7d0, 0xe2775eb6, 0x7d06e684, 0x0089c06e,
+      0xe4bbd007, 0xcb3b4361, 0x4ba846e4, 0xa1ae666b, 0x46464d9e,
+      0xc01c2eb2, 0xc1f8539f, 0xf86f2be6, 0xcf68afc7, 0x16e8e8ae,
+      0xc7386902, 0x8dab61fd },
+    { 0xd54d1d45, 0x42a5c903, 0xff4f9ba2, 0xacd4297e, 0x34d478b4,
+      0x2d88b520, 0x08c4621a, 0x35b2ba2b, 0x34865402, 0xd3d239bb,
+      0x911f32e6, 0x1de76aed, 0x3f06fdc2, 0x877f8bcf, 0x9ec51502,
+      0x802714c1, 0xa590700d, 0xa10444eb, 0x31dcc957, 0x8694229f,
+      0xb8169fed, 0x5ece77ab, 0x2caf080e, 0x55be8a15, 0xcbd7cef1,
+      0x3eb21b14, 0x67b97ee1, 0x9def7ad1, 0x118f690c, 0xe03ca879,
+      0xf99b29e7, 0x6f77e62d },
+    { 0xe40bbf59, 0xa271bded, 0x6401aad6, 0x177ba453, 0x73541cd1,
+      0x1755e035, 0x4b71b02f, 0x3465b466, 0xa813359f, 0x22eb7113,
+      0x6f38eac7, 0x9792a8fd, 0xff3bf3b5, 0x11aa012f, 0xf85c3fbf,
+      0x99aafabf, 0x06c0cc42, 0x91e0a2ef, 0x773b7b3a, 0x314d5d57,
+      0xd669840a, 0xae5e2e76, 0x2e5a8be6, 0x86136073, 0xc1cf5580,
+      0xee6d7578, 0x68bed102, 0x2344e00f, 0x8184f0eb, 0x799d7886,
+      0xc3d2cf80, 0x63819c91 },
+    { 0x7884b073, 0xca5392e1, 0xeb1267ea, 0x9ec3a1fc, 0x907038a7,
+      0x3d07f5f0, 0xe4c47b70, 0xcb2ac07c, 0x1bf96b91, 0xf96664ee,
+      0x2aea4fbf, 0xebf57589, 0xfade6500, 0x5aabf391, 0x171d1204,
+      0xc5b3376f, 0xa0d3d81a, 0x1ff60c51, 0x976a844b, 0x10b2cfe7,
+      0xbda6125a, 0xe131cc9a, 0x4ebd453e, 0xe0fc16d3, 0x504b6bc1,
+      0xc0d0319a, 0x0a2f8cab, 0xe43a0be7, 0x55e49b47, 0xc80afeec,
+      0x8265d7ee, 0x67d48d12 },
+    { 0xea2d56d6, 0x068d59a7, 0x27480a63, 0xd71abd0e, 0xae7366cd,
+      0x6bd11db0, 0x07204ebc, 0xfbb639ca, 0xf77e6293, 0x89a242e7,
+      0x75ba8c3d, 0xdee7ca2b, 0x64a2f9a8, 0x472ddc3d, 0x7561a010,
+      0x84229df4, 0xc5b649d4, 0x95f62c85, 0x4dc927cd, 0xfdd56b1b,
+      0x5ee60596, 0xfe8bb120, 0xabf29401, 0x3efcaa50, 0x10d1c184,
+      0xd4900d0f, 0x28b01df5, 0x2cf113a9, 0x1f0e43f5, 0xa3d7ebc3,
+      0xe8384dc7, 0x27950e38 },
+    { 0xe1d0fa79, 0xeab21ff0, 0x048b5de9, 0x4b9fd033, 0x2fe374cb,
+      0x4c934689, 0x4eb21f6b, 0xbb4827fa, 0xa925e7e7, 0x46716f79,
+      0x7dd4c531, 0x1442bf36, 0xd2e96ddf, 0x2073954c, 0x8502aa89,
+      0x4e0141ae, 0x8eef6cc9, 0x8ee00e1a, 0x5880cdaf, 0x55ce8491,
+      0x69628046, 0xff3aba5c, 0x5d15dfbf, 0x335cc4f8, 0x9f684f25,
+      0xa7f0440c, 0xbb1e5bd8, 0xae80453f, 0xff2225ab, 0xa1c99813,
+      0x79b25d71, 0x54ff7884 },
+    { 0xde40b068, 0x27c6ee30, 0xe6f3a51e, 0x9226465b, 0xfa3b21f6,
+      0xe24a4604, 0xc0418115, 0x50a5a5ad, 0x8df90d2b, 0xe3285441,
+      0xdcb0c00f, 0xbb74e58f, 0x4a2c08e3, 0xc68f1b3b, 0x0ccd9ec9,
+      0x339df081, 0xb786ea9f, 0x915362dc, 0xc955aead, 0x28945e31,
+      0x8b6a6c6b, 0xd6a2c01d, 0x3678a427, 0x069e82dc, 0x28c9302c,
+      0x17875500, 0x9fa101e6, 0x8acda965, 0xee30b286, 0x4e4e4573,
+      0x3f1830fe, 0x8adbad85 },
+    { 0x0969d524, 0x060ae11f, 0xf39bcc79, 0xf42fdaf7, 0x7cc1fcc2,
+      0x3cec6766, 0xe2336d4f, 0x456b9cf2, 0x8e1c0f7f, 0x6aa1f5de,
+      0x0984fb0e, 0xcdbc2ad2, 0x1b464b28, 0x4090cfa6, 0x1243f3ef,
+      0x40d86f30, 0xcd5e87e7, 0x95b16ccc, 0x3026cd41, 0x403f168c,
+      0x816c0730, 0xdbe386cb, 0x58407a1d, 0x14eb86f3, 0x1717e1af,
+      0xf588b4f8, 0x66cbc96c, 0xb75c41a6, 0x027e71c1, 0xf342c1aa,
+      0xc0945e5f, 0x73930036 },
+    { 0x22cdaf42, 0x954f757d, 0xf4181aab, 0x788b591d, 0xf5514f25,
+      0x8b986819, 0xf18fd5bc, 0x69642e08, 0x022ceb91, 0x92b305d1,
+      0x6a4f6985, 0x1715903e, 0x61179cae, 0x4bd7d69d, 0xd29c01aa,
+      0xdacdfd5d, 0xd91108cc, 0x705ddd5a, 0x64ac8f15, 0x434ac7b1,
+      0xb524632f, 0x61a514e1, 0x731fc447, 0x45b9e61b, 0xe0961b31,
+      0xcf561348, 0x73eaf223, 0x9c28a967, 0xaa7c99d3, 0x5bd10182,
+      0xe42965e2, 0x8bc6ec4a },
+    { 0xe7f2a32b, 0xd096e5c0, 0x09388a30, 0xff54800c, 0x401e360c,
+      0x06fe437c, 0xbb6054a6, 0x6655fc9c, 0x8457aa6e, 0x510e1860,
+      0x2b29b2b7, 0xa0acfca2, 0x51b7da61, 0x732483e3, 0x6be6c8ca,
+      0xe31471ee, 0x8b65c9a1, 0xe565431c, 0x48d65cbb, 0xfc9ac3b9,
+      0xae9b2aa8, 0xd308fc21, 0xaa60aa6a, 0xd6a7df0d, 0x982fc0d4,
+      0x2844d96a, 0x5847a4d7, 0xab012c2c, 0xdceb8955, 0x2b3c8f71,
+      0xbe9c7e15, 0x8e85437d },
+};
+
+/* Perform the modular exponentiation in Fp* for SAKKE.
+ *
+ * Base is fixed to be the g parameter - a precomputed table is used.
+ *
+ * Striping: 128 points at a distance of 8 combined.
+ * Total of 256 points in table.
+ * Square and multiply performed in Fp*.
+ *
+ * base  [in]   Base. MP integer.
+ * exp   [in]   Exponent. MP integer.
+ * res   [out]  Result. MP integer.
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_Fp_star_1024(const mp_int* base, mp_int* exp, mp_int* res)
+{
+    sp_digit t[4 * 2 * 32];
+    sp_digit tx[2 * 32];
+    sp_digit ty[2 * 32];
+    sp_digit* r = ty;
+    unsigned char e[128];
+    int err = MP_OKAY;
+    int i;
+    int y;
+
+    (void)base;
+
+    if (err == MP_OKAY) {
+        (void)mp_to_unsigned_bin_len(exp, e, 128);
+
+        XMEMCPY(tx, p1024_norm_mod, sizeof(sp_digit) * 32);
+        y  =  e[112] >> 7;
+        y |= (e[96] >> 7) << 1;
+        y |= (e[80] >> 7) << 2;
+        y |= (e[64] >> 7) << 3;
+        y |= (e[48] >> 7) << 4;
+        y |= (e[32] >> 7) << 5;
+        y |= (e[16] >> 7) << 6;
+        y |= (e[0] >> 7) << 7;
+        XMEMCPY(ty, sp_1024_g_table[y], sizeof(sp_digit) * 32);
+        for (i = 126; i >= 0; i--) {
+            y  =  (e[127 - (i / 8)] >> (i & 0x7)) & 1;
+            y |= ((e[111 - (i / 8)] >> (i & 0x7)) & 1) << 1;
+            y |= ((e[95 - (i / 8)] >> (i & 0x7)) & 1) << 2;
+            y |= ((e[79 - (i / 8)] >> (i & 0x7)) & 1) << 3;
+            y |= ((e[63 - (i / 8)] >> (i & 0x7)) & 1) << 4;
+            y |= ((e[47 - (i / 8)] >> (i & 0x7)) & 1) << 5;
+            y |= ((e[31 - (i / 8)] >> (i & 0x7)) & 1) << 6;
+            y |= ((e[15 - (i / 8)] >> (i & 0x7)) & 1) << 7;
+
+            sp_1024_proj_sqr_32(tx, ty, t);
+            sp_1024_proj_mul_qx1_32(tx, ty, sp_1024_g_table[y], t);
+        }
+    }
+
+    if (err == MP_OKAY) {
+        sp_1024_mont_inv_32(tx, tx, t);
+        sp_1024_mont_mul_32(r, tx, ty, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(r, p1024_mod, p1024_mp_mod);
+
+        err = sp_1024_to_mp(r, res);
+    }
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Multiply p* by q* in projective co-ordinates.
+ *
+ *   p.x' = (p.x * q.x) - (p.y * q.y)
+ *   p.y' = (p.x * q.y) + (p.y * q.x)
+ * But applying Karatsuba:
+ *   v0 = p.x * q.x
+ *   v1 = p.y * q.y
+ *   p.x' = v0 - v1
+ *   p.y' = (px + py) * (qx + qy) - v0 - v1
+ *
+ * px  [in,out]  A single precision integer - X ordinate of number to multiply.
+ * py  [in,out]  A single precision integer - Y ordinate of number to multiply.
+ * qx  [in]      A single precision integer - X ordinate of number of
+ *               multiplier.
+ * qy  [in]      A single precision integer - Y ordinate of number of
+ *               multiplier.
+ * t   [in]      Two single precision integers - temps.
+ */
+static void sp_1024_proj_mul_32(sp_digit* px, sp_digit* py,
+        const sp_digit* qx, const sp_digit* qy, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 32;
+
+    /* t1 = px + py */
+    sp_1024_mont_add_32(t1, px, py, p1024_mod);
+    /* t2 = qx + qy */
+    sp_1024_mont_add_32(t2, qx, qy, p1024_mod);
+    /* t2 = (px + py) * (qx + qy) */
+    sp_1024_mont_mul_32(t2, t1, t2, p1024_mod, p1024_mp_mod);
+    /* t1 = py * qy */
+    sp_1024_mont_mul_32(t1, py, qy, p1024_mod, p1024_mp_mod);
+    /* t2 = (px + py) * (qx + qy) - (py * qy) */
+    sp_1024_mont_sub_32(t2, t2, t1, p1024_mod);
+    /* px = px * qx */
+    sp_1024_mont_mul_32(px, px, qx, p1024_mod, p1024_mp_mod);
+    /* py = (px + py) * (qx + qy) - (py * qy) - (px * qx) */
+    sp_1024_mont_sub_32(py, t2, px, p1024_mod);
+    /* px = (px * qx) - (py * qy)*/
+    sp_1024_mont_sub_32(px, px, t1, p1024_mod);
+}
+
+#ifndef WOLFSSL_SP_SMALL
+/*
+ * Convert point from projective to affine but keep in Montgomery form.
+ *
+ * p  [in,out]  Point to convert.
+ * t  [in]      Temporary numbers: 2.
+ */
+static void sp_1024_mont_map_32(sp_point_1024* p, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 32;
+
+    sp_1024_mont_inv_32(t1, p->z, t2);
+    sp_1024_mont_sqr_32(t2, t1, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(t1, t2, t1, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(p->x, p->x, t2, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_mul_32(p->y, p->y, t1, p1024_mod, p1024_mp_mod);
+    XMEMCPY(p->z, p1024_norm_mod, sizeof(sp_digit) * 32);
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/*
+ * Calculate gradient of line through P, P and [-2]P, accumulate line and
+ * double P.
+ *
+ * Calculations:
+ *   l = 3 * (p.x^2 - p.z^4) = 3 * (p.x - p.z^2) * (p.x + p.z^2)
+ *   r.x = l * (p.x + q.x * p.z^2) - 2 * p.y^2
+ *   r.y = 2 * p.y * p.z^3 * q.y (= p'.z * p.z^2 * q.y)
+ *   v* = v*^2 * r*
+ *   p'.x = l^2 - 8 * p.y^2 * p.x
+ *   p'.y = (4 * p.y^2 * p.x - p'.x) * l - 8 * p.y^4
+ *   p'.z = 2 * p.y * p.z
+ *
+ * @param  [in,out]  vx  X-ordinate of projective value in F*.
+ * @param  [in,out]  vy  Y-ordinate of projective value in F*.
+ * @param  [in,out]  p   ECC point - point on E(F_p^2) to double.
+ * @param  [in]      q   ECC point - second point on E(F_P^2).
+ * @param  [in]      t   SP temporaries (6 used).
+ */
+static void sp_1024_accumulate_line_dbl_32(sp_digit* vx, sp_digit* vy,
+        sp_point_1024* p, const sp_point_1024* q, sp_digit* t)
+{
+    sp_digit* t1  = t +  0 * 32;
+    sp_digit* pz2 = t +  2 * 32;
+    sp_digit* rx  = t +  4 * 32;
+    sp_digit* ry  = t +  6 * 32;
+    sp_digit* l   = t +  8 * 32;
+    sp_digit* ty  = t + 10 * 32;
+
+    /* v = v^2 */
+    sp_1024_proj_sqr_32(vx, vy, t);
+    /* pz2 = p.z^2 */
+    sp_1024_mont_sqr_32(pz2, p->z, p1024_mod, p1024_mp_mod);
+    /* t1 = p.x + p.z^2 */
+    sp_1024_mont_add_32(ty, p->x, pz2, p1024_mod);
+    /* l = p.x - p.z^2 */
+    sp_1024_mont_sub_32(l, p->x, pz2, p1024_mod);
+    /* t1 = (p.x + p.z^2) * (p.x - p.z^2) = p.x^2 - p.z^4 */
+    sp_1024_mont_mul_32(t1, l, ty, p1024_mod, p1024_mp_mod);
+    /* l = 3 * (p.x^2 - p.z^4) */
+    sp_1024_mont_tpl_32(l, t1, p1024_mod);
+    /* t1 = q.x * p.z^2 */
+    sp_1024_mont_mul_32(t1, q->x, pz2, p1024_mod, p1024_mp_mod);
+    /* t1 = p.x + q.x * p.z^2 */
+    sp_1024_mont_add_32(t1, p->x, t1, p1024_mod);
+    /* r.x = l * (p.x + q.x * p.z^2) */
+    sp_1024_mont_mul_32(rx, l, t1, p1024_mod, p1024_mp_mod);
+    /* r.y = 2 * p.y */
+    sp_1024_mont_dbl_32(ry, p->y, p1024_mod);
+    /* ty = 4 * p.y ^ 2 */
+    sp_1024_mont_sqr_32(ty, ry, p1024_mod, p1024_mp_mod);
+    /* t1 = 2 * p.y ^ 2 */
+    sp_1024_div2_32(t1, ty, p1024_mod);
+    /* r.x -= 2 * (p.y ^ 2) */
+    sp_1024_mont_sub_32(rx, rx, t1, p1024_mod);
+    /* p'.z = p.y * 2 * p.z */
+    sp_1024_mont_mul_32(p->z, p->z, ry, p1024_mod, p1024_mp_mod);
+    /* r.y = p'.z * p.z^2 */
+    sp_1024_mont_mul_32(t1, p->z, pz2, p1024_mod, p1024_mp_mod);
+    /* r.y = p'.z * p.z^2 * q.y */
+    sp_1024_mont_mul_32(ry, t1, q->y, p1024_mod, p1024_mp_mod);
+    /* v = v^2 * r */
+    sp_1024_proj_mul_32(vx, vy, rx, ry, t);
+
+    /* Double point using previously calculated values
+     *   l = 3 * (p.x - p.z^2).(p.x + p.z^2)
+     *   ty = 4 * p.y^2
+     *   p'.z = 2 * p.y * p.z
+     */
+    /* t1 = (4 * p.y^2) ^ 2 = 16 * p.y^4 */
+    sp_1024_mont_sqr_32(t1, ty, p1024_mod, p1024_mp_mod);
+    /* t1 = 16 * p.y^4 / 2 = 8 * p.y^4 */
+    sp_1024_div2_32(t1, t1, p1024_mod);
+    /* p'.y = 4 * p.y^2 * p.x */
+    sp_1024_mont_mul_32(p->y, ty, p->x, p1024_mod, p1024_mp_mod);
+    /* p'.x = l^2 */
+    sp_1024_mont_sqr_32(p->x, l, p1024_mod, p1024_mp_mod);
+    /* p'.x = l^2 - 4 * p.y^2 * p.x */
+    sp_1024_mont_sub_32(p->x, p->x, p->y, p1024_mod);
+    /* p'.x = l^2 - 8 * p.y^2 * p.x */
+    sp_1024_mont_sub_32(p->x, p->x, p->y, p1024_mod);
+    /* p'.y = 4 * p.y^2 * p.x - p.x' */
+    sp_1024_mont_sub_32(ty, p->y, p->x, p1024_mod);
+    /* p'.y = (4 * p.y^2 * p.x - p'.x) * l */
+    sp_1024_mont_mul_32(p->y, ty, l, p1024_mod, p1024_mp_mod);
+    /* p'.y = (4 * p.y^2 * p.x - p'.x) * l - 8 * p.y^4 */
+    sp_1024_mont_sub_32(p->y, p->y, t1, p1024_mod);
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/*
+ * Calculate gradient of line through C, P and -C-P, accumulate line and
+ * add P to C.
+ *
+ * Calculations:
+ *   r.x = (q.x + p.x) * c.y - (q.x * c.z^2 + c.x) * p.y * c.z
+ *   r.y = (c.x - p.x * c.z^2) * q.y * c.z
+ *   v* = v* * r*
+ *   r = p.y * c.z^3 - c.y
+ *   c'.x = r^2 + h^3 - 2 * c.x * h^2
+ *   c'.y = r * (c'.x - c.x * h^2) - c.y * h^3
+ *   c'.z = (c.x - p.x * c.z^2) * c.z
+ *
+ * @param  [in,out]  vx     X-ordinate of projective value in F*.
+ * @param  [in,out]  vy     Y-ordinate of projective value in F*.
+ * @param  [in,out]  c      ECC point - current point on E(F_p^2) to be added
+ *                          to.
+ * @param  [in]      p      ECC point - point on E(F_p^2) to add.
+ * @param  [in]      q      ECC point - second point on E(F_P^2).
+ * @param  [in]      qx_px  SP that is a constant value across adds.
+ * @param  [in]      t      SP temporaries (6 used).
+ */
+static void sp_1024_accumulate_line_add_one_32(sp_digit* vx, sp_digit* vy,
+        sp_point_1024* c, sp_point_1024* p, sp_point_1024* q, sp_digit* qx_px,
+        sp_digit* t)
+{
+    sp_digit* t1  = t;
+    sp_digit* t2  = t +  2 * 32;
+    sp_digit* rx  = t +  4 * 32;
+    sp_digit* ry  = t +  6 * 32;
+    sp_digit* h   = t +  8 * 32;
+    sp_digit* r   = t + 10 * 32;
+
+    /* r.x = (q.x + p.x) * c.y */
+    sp_1024_mont_mul_32(rx, qx_px, c->y, p1024_mod, p1024_mp_mod);
+    /* t2 = c.z^2 */
+    sp_1024_mont_sqr_32(t2, c->z, p1024_mod, p1024_mp_mod);
+    /* t1 = q.x * c.z^2 */
+    sp_1024_mont_mul_32(t1, q->x, t2, p1024_mod, p1024_mp_mod);
+    /* t1 = q.x * c.z^2 + c.x */
+    sp_1024_mont_add_32(h, t1, c->x, p1024_mod);
+    /* r = p.y * c.z */
+    sp_1024_mont_mul_32(ry, p->y, c->z, p1024_mod, p1024_mp_mod);
+    /* t1 = (q.x * c.z^2 + c.x) * p.y * c.z */
+    sp_1024_mont_mul_32(t1, h, ry, p1024_mod, p1024_mp_mod);
+    /* r = p.y * c.z * c.z^2 = p.y * c.z^3  */
+    sp_1024_mont_mul_32(r, ry, t2, p1024_mod, p1024_mp_mod);
+    /* r.x -= (q.x * c.z^2 + c.x) * p.y * c.z */
+    sp_1024_mont_sub_32(rx, rx, t1, p1024_mod);
+    /* t1 = p.x * c.z^2 */
+    sp_1024_mont_mul_32(t1, p->x, t2, p1024_mod, p1024_mp_mod);
+    /* h = c.x - p.x * c.z^2 */
+    sp_1024_mont_sub_32(h, c->x, t1, p1024_mod);
+    /* c'.z = (c.x - p.x * c.z^2) * c.z */
+    sp_1024_mont_mul_32(c->z, h, c->z, p1024_mod, p1024_mp_mod);
+    /* r.y = (c.x - p.x * c.z^2) * c.z * q.y */
+    sp_1024_mont_mul_32(ry, c->z, q->y, p1024_mod, p1024_mp_mod);
+    /* v = v * r */
+    sp_1024_proj_mul_32(vx, vy, rx, ry, t);
+
+    /* Add p to c using previously calculated values.
+     *   h = c.x - p.x * c.z^2
+     *   r = p.y * c.z^3
+     *   c'.z = (c.x - p.x * c.z^2) * c.z
+     */
+
+    /* r = p.y * c.z^3 - c.y */
+    sp_1024_mont_sub_32(r, r, c->y, p1024_mod);
+    /* t1 = r^2 */
+    sp_1024_mont_sqr_32(t1, r, p1024_mod, p1024_mp_mod);
+    /* t2 = h^2 */
+    sp_1024_mont_sqr_32(rx, h, p1024_mod, p1024_mp_mod);
+    /* ry = c.x * h^2 */
+    sp_1024_mont_mul_32(ry, c->x, rx, p1024_mod, p1024_mp_mod);
+    /* t2 = h^3 */
+    sp_1024_mont_mul_32(t2, rx, h, p1024_mod, p1024_mp_mod);
+    /* c->x = r^2 + h^3 */
+    sp_1024_mont_add_32(c->x, t1, t2, p1024_mod);
+    /* t1 = 2 * c.x * h^2 */
+    sp_1024_mont_dbl_32(t1, ry, p1024_mod);
+    /* c'.x = r^2 + h^3 - 2 * c.x * h^2 */
+    sp_1024_mont_sub_32(c->x, c->x, t1, p1024_mod);
+    /* ry = c'.x - c.x * h^2 */
+    sp_1024_mont_sub_32(t1, c->x, ry, p1024_mod);
+    /* ry = r * (c'.x - c.x * h^2) */
+    sp_1024_mont_mul_32(ry, t1, r, p1024_mod, p1024_mp_mod);
+    /* t2 = c.y * h^3 */
+    sp_1024_mont_mul_32(t1, t2, c->y, p1024_mod, p1024_mp_mod);
+    /* c'.y = r * (c'.x - c.x * h^2) - c.y * h^3 */
+    sp_1024_mont_sub_32(c->y, ry, t1, p1024_mod);
+}
+
+/*
+ * Calculate r = pairing <P, Q>.
+ *
+ * That is, multiply base in PF_p[q] by the scalar s, such that s.P = Q.
+ *
+ * @param  [in]  key  SAKKE key.
+ * @param  [in]  p    First point on E(F_p)[q].
+ * @param  [in]  q    Second point on E(F_p)[q].
+ * @param  [in]  r    Result of calculation.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
+{
+    int err;
+    sp_digit vx[2 * 32];
+    sp_digit vy[2 * 32];
+    sp_digit qx_px[2 * 32];
+    sp_digit* r = vy;
+    sp_point_1024 p[1];
+    sp_point_1024 q[1];
+    sp_point_1024 c[1];
+    sp_digit t[6 * 2 * 32];
+    int i;
+
+    sp_1024_point_from_ecc_point_32(p, pm);
+    sp_1024_point_from_ecc_point_32(q, qm);
+
+    err = sp_1024_mod_mul_norm_32(p->x, p->x, p1024_mod);
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->y, p->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->z, p->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->x, q->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->y, q->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        XMEMCPY(c, p, sizeof(sp_point_1024));
+        XMEMSET(vx, 0, sizeof(sp_digit) * 2 * 32);
+        vx[0] = 1;
+        XMEMSET(vy, 0, sizeof(sp_digit) * 2 * 32);
+
+        sp_1024_mont_add_32(qx_px, q->x, p->x, p1024_mod);
+
+        for (i = 1020; i >= 0; i--) {
+            /* Accumulate line into v and double point. */
+            sp_1024_accumulate_line_dbl_32(vx, vy, c, q, t);
+
+            if ((i > 0) && ((p1024_order[i / 32] >> (i % 32)) & 1)) {
+                /* Accumulate line into v and add P into C. */
+                sp_1024_accumulate_line_add_one_32(vx, vy, c, p, q, qx_px, t);
+            }
+        }
+
+        /* Final exponentiation */
+        sp_1024_proj_sqr_32(vx, vy, t);
+        sp_1024_proj_sqr_32(vx, vy, t);
+
+        /* Convert from PF_p[q] to F_p */
+        sp_1024_mont_inv_32(vx, vx, t);
+        sp_1024_mont_mul_32(r, vx, vy, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(r, p1024_mod, p1024_mp_mod);
+
+        err = sp_1024_to_mp(r, res);
+    }
+
+    return err;
+}
+
+#else
+/*
+ * Calculate gradient of line through C, P and -C-P, accumulate line and
+ * add P to C.
+ *
+ * Both C and P have z ordinates to use in the calculation.
+ *
+ * Calculations:
+ *   r.x  = (q.x * c.z^2 + c.x) * p.y * c.z - (q.x * p.z^2 + p.x) * c.y * p.z
+ *   r.y  = (p.x * c.z^2 - c.x * p.z^2) * q.y * p.z * c.z
+ *   v*   = v* * r*
+ *   h    = p.x * c.z^2 - c.x * p.z^2
+ *   r    = p.y * c.z^3 - c.y * p.z^3
+ *   c'.x = r^2 - h^3 - 2 * c.x * p.z^2 * h^2
+ *   c'.y = r * (c.x * p.z^2 * h^2 - c'.x) - c.y * p.z^3 * h^3
+ *   c'.z = (p.x * c.z^2 - c.x * p.z^2) * c.z
+ *
+ * @param  [in,out]  vx     X-ordinate of projective value in F*.
+ * @param  [in,out]  vy     Y-ordinate of projective value in F*.
+ * @param  [in,out]  c      ECC point - current point on E(F_p^2) to be added
+ *                          to.
+ * @param  [in,out]  p      ECC point - point on E(F_p^2) to add.
+ * @param  [in,out]  q      ECC point - second point on E(F_P^2).
+ * @param  [in,out]  t      SP temporaries (6 used).
+ * @param  [in,out]  neg    Indicates to use negative P.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Other -ve value on internal failure.
+ */
+static void sp_1024_accumulate_line_add_n_32(sp_digit* vx, sp_digit* vy,
+        const sp_point_1024* p, const sp_point_1024* q,
+        sp_point_1024* c, sp_digit* t, int neg)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t +  2 * 32;
+    sp_digit* rx = t +  4 * 32;
+    sp_digit* ry = t +  6 * 32;
+    sp_digit* h  = t +  8 * 32;
+    sp_digit* r  = t + 10 * 32;
+
+    /* h = p.z^2 */
+    sp_1024_mont_sqr_32(h, p->z, p1024_mod, p1024_mp_mod);
+    /* rx = q.x * p.z^2 */
+    sp_1024_mont_mul_32(rx, q->x, h, p1024_mod, p1024_mp_mod);
+    /* rx = q.x * p.z^2 + p.x */
+    sp_1024_mont_add_32(t2, rx, p->x, p1024_mod);
+    /* c.y = c.y * p.z */
+    sp_1024_mont_mul_32(t1, c->y, p->z, p1024_mod, p1024_mp_mod);
+    /* r.x = (q.x * p.z^2 + p.x) * c.y * p.z */
+    sp_1024_mont_mul_32(rx, t2, t1, p1024_mod, p1024_mp_mod);
+    /* c.y = c.y * p.z^3 */
+    sp_1024_mont_mul_32(c->y, t1, h, p1024_mod, p1024_mp_mod);
+    /* t2 = c.z^2 */
+    sp_1024_mont_sqr_32(t2, c->z, p1024_mod, p1024_mp_mod);
+    /* t1 = q.x * c.z^2 */
+    sp_1024_mont_mul_32(t1, q->x, t2, p1024_mod, p1024_mp_mod);
+    /* t1 = q.x * c.z^2 + c.x */
+    sp_1024_mont_add_32(t1, t1, c->x, p1024_mod);
+    /* c.x = c.x * p.z^2 */
+    sp_1024_mont_mul_32(c->x, c->x, h, p1024_mod, p1024_mp_mod);
+    /* r = p.y * c.z */
+    sp_1024_mont_mul_32(r, p->y, c->z, p1024_mod, p1024_mp_mod);
+    if (neg) {
+        /* r = -p.y * c.z */
+        sp_1024_mont_sub_32(r, p1024_mod, r, p1024_mod);
+    }
+    /* t1 = (q.x * c.z^2 + c.x) * p.y * c.z */
+    sp_1024_mont_mul_32(ry, t1, r, p1024_mod, p1024_mp_mod);
+    /* r.x -= (q.x * c.z^2 + c.x) * p.y * c.z */
+    sp_1024_mont_sub_32(rx, ry, rx, p1024_mod);
+    /* t1 = p.x * c.z^2 */
+    sp_1024_mont_mul_32(t1, p->x, t2, p1024_mod, p1024_mp_mod);
+    /* h = p.x * c.z^2 - c.x * p.z^2 */
+    sp_1024_mont_sub_32(h, t1, c->x, p1024_mod);
+    /* c'.z = (p.x * c.z^2 - c.x * p.z^2) * c.z */
+    sp_1024_mont_mul_32(t1, h, c->z, p1024_mod, p1024_mp_mod);
+    /* c'.z = (p.x * c.z^2 - c.x * p.z^2) * c.z * p.z */
+    sp_1024_mont_mul_32(c->z, t1, p->z, p1024_mod, p1024_mp_mod);
+    /* r.y = (p.x * c.z^2 - c.x * p.z^2) * c.z * p.z * q.y */
+    sp_1024_mont_mul_32(ry, c->z, q->y, p1024_mod, p1024_mp_mod);
+    /* r = p.y * c.z^3 */
+    sp_1024_mont_mul_32(t1, r, t2, p1024_mod, p1024_mp_mod);
+    /* r = p.y * c.z^3 - c.y * p.z^3 */
+    sp_1024_mont_sub_32(r, t1, c->y, p1024_mod);
+    /* v = v * r */
+    sp_1024_proj_mul_32(vx, vy, rx, ry, t);
+
+    /* Add p to c using previously calculated values.
+     *   h = p.x * c.z^2 - c.x * p.z^2
+     *   r = p.y * c.z^3 - c.y * p.z^3
+     *   c'.z = (p.x * c.z^2 - c.x * p.z^2) * c.z
+     */
+
+    /* t1 = r^2 */
+    sp_1024_mont_sqr_32(t1, r, p1024_mod, p1024_mp_mod);
+    /* t2 = h^2 */
+    sp_1024_mont_sqr_32(rx, h, p1024_mod, p1024_mp_mod);
+    /* ry = c.x * p.z^2 * h^2 */
+    sp_1024_mont_mul_32(ry, rx, c->x, p1024_mod, p1024_mp_mod);
+    /* t2 = h^3 */
+    sp_1024_mont_mul_32(t2, rx, h, p1024_mod, p1024_mp_mod);
+    /* c'.x = r^2 - h^3 */
+    sp_1024_mont_sub_32(c->x, t1, t2, p1024_mod);
+    /* t1 = 2 * c.x * p.z^2 * h^2 */
+    sp_1024_mont_dbl_32(t1, ry, p1024_mod);
+    /* c'.x = r^2 - h^3 - 2 * c.x * p.z^2 * h^2 */
+    sp_1024_mont_sub_32(c->x, c->x, t1, p1024_mod);
+    /* ry = c.x * p.z^2 * h^2 - c'.x */
+    sp_1024_mont_sub_32(t1, ry, c->x, p1024_mod);
+    /* ry = r * (c.x * p.z^2 * h^2 - c'.x) */
+    sp_1024_mont_mul_32(ry, t1, r, p1024_mod, p1024_mp_mod);
+    /* t2 = c.y * p.z^3 * h^3 */
+    sp_1024_mont_mul_32(t1, t2, c->y, p1024_mod, p1024_mp_mod);
+    /* c'.y = r * (c.x * p.z^2 * h^2 - c'.x) - c.y * p.z^3 * h^3 */
+    sp_1024_mont_sub_32(c->y, ry, t1, p1024_mod);
+}
+
+/*
+ * Perform n accumulate doubles and doubles of P.
+ *
+ * py = 2 * p.y
+ *
+ * For each double:
+ * Calculate gradient of line through P, P and [-2]P, accumulate line and
+ * double P.
+ *
+ * Calculations:
+ *   l = 3 * (p.x^2 - p.z^4) = 3 * (p.x - p.z^2) * (p.x + p.z^2)
+ *   r.x = l * (p.x + q.x * p.z^2) - py^2 / 2
+ *   r.y = py * p.z^3 * q.y (= p'.z * p.z^2 * q.y)
+ *   v* = v*^2 * r*
+ *   p'.x = l^2 - 2 * py^2 * p.x
+ *   py' = (py^2 * p.x - p'.x) * l - py^4 (= 2 * p'.y)
+ *   p'.z = py * p.z
+ *
+ * Finally:
+ *   p'.y = py' / 2
+ *
+ * @param  [in,out]  vx  X-ordinate of projective value in F*.
+ * @param  [in,out]  vy  Y-ordinate of projective value in F*.
+ * @param  [in,out]  p   ECC point - point on E(F_p^2) to double.
+ * @param  [in]      q   ECC point - second point on E(F_P^2).
+ * @param  [in]      n   Number of times to double.
+ * @param  [in]      t   SP temporaries (6 used).
+ */
+static void sp_1024_accumulate_line_dbl_n_32(sp_digit* vx, sp_digit* vy,
+        sp_point_1024* p, const sp_point_1024* q, int n, sp_digit* t)
+{
+    sp_digit* t1  = t +  0 * 32;
+    sp_digit* pz2 = t +  2 * 32;
+    sp_digit* rx  = t +  4 * 32;
+    sp_digit* ry  = t +  6 * 32;
+    sp_digit* l   = t +  8 * 32;
+    sp_digit* ty  = t + 10 * 32;
+    int i;
+
+    /* py = 2 * p.y */
+    sp_1024_mont_dbl_32(p->y, p->y, p1024_mod);
+
+    for (i = 0; i < n; i++) {
+        /* v = v^2 */
+        sp_1024_proj_sqr_32(vx, vy, t);
+        /* pz2 = p.z^2 */
+        sp_1024_mont_sqr_32(pz2, p->z, p1024_mod, p1024_mp_mod);
+        /* t1 = p.x + p.z^2 */
+        sp_1024_mont_add_32(t1, p->x, pz2, p1024_mod);
+        /* l = p.x - p.z^2 */
+        sp_1024_mont_sub_32(l, p->x, pz2, p1024_mod);
+        /* t1 = (p.x + p.z^2) * (p.x - p.z^2) = p.x^2 - p.z^4 */
+        sp_1024_mont_mul_32(ty, l, t1, p1024_mod, p1024_mp_mod);
+        /* l = 3 * (p.x^2 - p.z^4) */
+        sp_1024_mont_tpl_32(l, ty, p1024_mod);
+        /* t1 = q.x * p.z^2 */
+        sp_1024_mont_mul_32(t1, q->x, pz2, p1024_mod, p1024_mp_mod);
+        /* t1 = p.x + q.x * p.z^2 */
+        sp_1024_mont_add_32(t1, p->x, t1, p1024_mod);
+        /* r.x = l * (p.x + q.x * p.z^2) */
+        sp_1024_mont_mul_32(rx, l, t1, p1024_mod, p1024_mp_mod);
+        /* ty = py ^ 2 */
+        sp_1024_mont_sqr_32(ty, p->y, p1024_mod, p1024_mp_mod);
+        /* t1 = py ^ 2 / 2 */
+        sp_1024_div2_32(t1, ty, p1024_mod);
+        /* r.x -= py ^ 2 / 2 */
+        sp_1024_mont_sub_32(rx, rx, t1, p1024_mod);
+        /* p'.z = py * pz */
+        sp_1024_mont_mul_32(p->z, p->z, p->y, p1024_mod, p1024_mp_mod);
+        /* r.y = p'.z * p.z^2 */
+        sp_1024_mont_mul_32(t1, p->z, pz2, p1024_mod, p1024_mp_mod);
+        /* r.y = p'.z * p.z^2 * q.y */
+        sp_1024_mont_mul_32(ry, t1, q->y, p1024_mod, p1024_mp_mod);
+        /* v = v^2 * r */
+        sp_1024_proj_mul_32(vx, vy, rx, ry, t);
+
+        /* Double point using previously calculated values
+         *   l = 3 * (p.x - p.z^2).(p.x + p.z^2)
+         *   ty = py^2
+         *   p'.z = py * p.z
+         */
+        /* t1 = py^2 ^ 2 = py^4 */
+        sp_1024_mont_sqr_32(t1, ty, p1024_mod, p1024_mp_mod);
+        /* py' = py^2 * p. x */
+        sp_1024_mont_mul_32(p->y, ty, p->x, p1024_mod, p1024_mp_mod);
+        /* p'.x = l^2 */
+        sp_1024_mont_sqr_32(p->x, l, p1024_mod, p1024_mp_mod);
+        /* p'.x = l^2 - py^2 * p.x */
+        sp_1024_mont_sub_32(p->x, p->x, p->y, p1024_mod);
+        /* p'.x = l^2 - 2 * p.y^2 * p.x */
+        sp_1024_mont_sub_32(p->x, p->x, p->y, p1024_mod);
+        /* py' = py^2 * p.x - p.x' */
+        sp_1024_mont_sub_32(ty, p->y, p->x, p1024_mod);
+        /* py' = (p.y^2 * p.x - p'.x) * l */
+        sp_1024_mont_mul_32(p->y, ty, l, p1024_mod, p1024_mp_mod);
+        /* py' = (p.y^2 * p.x - p'.x) * l * 2 */
+        sp_1024_mont_dbl_32(p->y, p->y, p1024_mod);
+        /* py' = (p.y^2 * p.x - p'.x) * l * 2 - p.y^4 */
+        sp_1024_mont_sub_32(p->y, p->y, t1, p1024_mod);
+    }
+
+    /* p'.y = py' / 2 */
+    sp_1024_div2_32(p->y, p->y, p1024_mod);
+}
+
+/* Operations to perform based on order - 1.
+ * Sliding window. Start at bottom and stop when bottom bit is one.
+ * Subtract if top bit in window is one.
+ * Width of 6 bits.
+ * Pairs: #dbls, add/subtract window value
+ */
+static const signed char sp_1024_order_op[] = {
+   5,   6, -13,   9, -21,   6,  -5,   8,  31,   6,   3,   6, -27,   6,  25,   9,
+  -1,   6, -11,   6, -13,   6,  -7,   6, -15,   6, -29,   7,  25,   6,  -9,   6,
+ -19,   7,   3,   6,  11,   9, -23,   6,   1,   6,  27,   6,   1,   7, -25,   8,
+  13,   7, -13,   7, -23,  10,  19,   7,   7,   7,  -3,   7,  27,   6,  -7,   7,
+ -21,   7,  11,   7,  31,   8,   1,   7, -23,   6, -17,   6,  -3,  10,  11,   6,
+ -21,   7, -27,  11, -29,   6,  -1,  10,  15,   8,  27,   7,  17,   6,  17,   7,
+ -13,   8,  13,   6,  21,   7, -29,   6,  19,   7, -25,   6,  11,   9,  29,   7,
+  -7,   8,  27,   7,  29,  10,  -1,   8,  -7,   8,  17,   6,  17,   7, -27,   7,
+ -21,   6,  -9,   6, -27,  12, -23,   6,  19,   6,  13,   6, -11,   7,  27,   6,
+  17,   6,  -7,   6, -25,   7, -29,   6,   9,   7,   7,   6,  13,   6, -25,   6,
+ -19,   6,  13,   6, -11,   6,   5,   8,  19,   6, -21,   8,  23,   7,  27,   6,
+ -13,   6, -19,  11,  29,   7, -15,   6,  -9,   7, -21,  10,  -3,   7,  21,  10,
+  25,   6, -15,   6, -23,   6,  21,   6,   1,   6,  21,   7,  -3,   6,  -3,   7,
+  -7,   6, -23,   7,   7,   8,  15,   9,   5,   6, -11,   6,  21,  11, -27,   7,
+  27,   6, -11,   6,  31,   6, -21,   6,  19,   6,  -7,   8,  -7,  13,  -3,   6,
+  -7,   7,  -3,   6,   1,   6,   7,   8,  19,   8,  11,   9,  -9,   7, -31,  12,
+  25,   6, -17,   9, -15,   7,   5,   6,  25,   7,  -5,   7, -25,   6,  17,   8,
+ -19,   6, -13,   6,  27,   8,   1,   7,  -5,   7,  -1,   6,  21,   6,   3,  10,
+  -3,   1,
+};
+/*
+ * Calculate r = pairing <P, Q>.
+ *
+ * That is, multiply base in PF_p[q] by the scalar s, such that s.P = Q.
+ *
+ * Sliding window. Start at bottom and stop when bottom bit is one.
+ * Subtract if top bit in window is one.
+ * Width of 6 bits.
+ *
+ * @param  [in]  pm   First point on E(F_p)[q].
+ * @param  [in]  qm   Second point on E(F_p)[q].
+ * @param  [in]  res  Result of calculation.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_Pairing_1024(const ecc_point* pm, const ecc_point* qm, mp_int* res)
+{
+    int err;
+    sp_digit vx[2 * 32];
+    sp_digit vy[2 * 32];
+    sp_digit* r = vy;
+    sp_point_1024 p[1];
+    sp_point_1024 q[1];
+    sp_point_1024 c[1];
+    sp_point_1024 pre_p[16];
+    sp_digit pre_vx[16][64];
+    sp_digit pre_vy[16][64];
+    sp_digit pre_nvy[16][64];
+    sp_digit t[6 * 2 * 32];
+    int i;
+    int j;
+
+    sp_1024_point_from_ecc_point_32(p, pm);
+    sp_1024_point_from_ecc_point_32(q, qm);
+
+    err = sp_1024_mod_mul_norm_32(p->x, p->x, p1024_mod);
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->y, p->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->z, p->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->x, q->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->y, q->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        /* Generate pre-computation table: 1, 3, ... , 31 */
+        XMEMCPY(&pre_p[0], p, sizeof(sp_point_1024));
+        XMEMSET(pre_vx[0], 0, sizeof(sp_digit) * 2 * 32);
+        pre_vx[0][0] = 1;
+        XMEMSET(pre_vy[0], 0, sizeof(sp_digit) * 2 * 32);
+        sp_1024_mont_sub_32(pre_nvy[0], p1024_mod, pre_vy[0], p1024_mod);
+
+        /* [2]P for adding */
+        XMEMCPY(c, p, sizeof(sp_point_1024));
+        XMEMSET(vx, 0, sizeof(sp_digit) * 2 * 32);
+        vx[0] = 1;
+        XMEMSET(vy, 0, sizeof(sp_digit) * 2 * 32);
+        sp_1024_accumulate_line_dbl_32(vx, vy, c, q, t);
+
+        /* 3, 5, ... */
+        for (i = 1; i < 16; i++) {
+            XMEMCPY(&pre_p[i], &pre_p[i-1], sizeof(sp_point_1024));
+            XMEMCPY(pre_vx[i], pre_vx[i-1], sizeof(sp_digit) * 2 * 32);
+            XMEMCPY(pre_vy[i], pre_vy[i-1], sizeof(sp_digit) * 2 * 32);
+            sp_1024_proj_mul_32(pre_vx[i], pre_vy[i], vx, vy, t);
+            sp_1024_accumulate_line_add_n_32(pre_vx[i], pre_vy[i], c,
+                    q, &pre_p[i], t, 0);
+            sp_1024_mont_sub_32(pre_nvy[i], p1024_mod, pre_vy[i], p1024_mod);
+        }
+
+        j = sp_1024_order_op[0] / 2;
+        XMEMCPY(c, &pre_p[j], sizeof(sp_point_1024));
+        XMEMCPY(vx, pre_vx[j], sizeof(sp_digit) * 2 * 32);
+        XMEMCPY(vy, pre_vy[j], sizeof(sp_digit) * 2 * 32);
+
+        /* Accumulate line into v and double point n times. */
+        sp_1024_accumulate_line_dbl_n_32(vx, vy, c, q,
+                sp_1024_order_op[1], t);
+
+        for (i = 2; i < 290; i += 2) {
+            j = sp_1024_order_op[i];
+            if (j > 0) {
+                j /= 2;
+                /* Accumulate line into v and add P into C. */
+                sp_1024_proj_mul_32(vx, vy, pre_vx[j], pre_vy[j], t);
+                sp_1024_accumulate_line_add_n_32(vx, vy, &pre_p[j], q, c,
+                    t, 0);
+            }
+            else {
+                j = -j / 2;
+                /* Accumulate line into v and add P into C. */
+                sp_1024_proj_mul_32(vx, vy, pre_vx[j], pre_nvy[j], t);
+                sp_1024_accumulate_line_add_n_32(vx, vy, &pre_p[j], q, c,
+                    t, 1);
+            }
+
+            /* Accumulate line into v and double point n times. */
+            sp_1024_accumulate_line_dbl_n_32(vx, vy, c, q,
+                    sp_1024_order_op[i + 1], t);
+        }
+
+        /* Final exponentiation */
+        sp_1024_proj_sqr_32(vx, vy, t);
+        sp_1024_proj_sqr_32(vx, vy, t);
+
+        /* Convert from PF_p[q] to F_p */
+        sp_1024_mont_inv_32(vx, vx, t);
+        sp_1024_mont_mul_32(r, vx, vy, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(r, p1024_mod, p1024_mp_mod);
+
+        err = sp_1024_to_mp(r, res);
+    }
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/*
+ * Generate table for pairing.
+ *
+ * Small implementation does not use a table - returns 0 length.
+ *
+ * pm     [in]      Point to generate table for.
+ * table  [in]      Generated table.
+ * len    [in,out]  On in, the size of the buffer.
+ *                  On out, length of table generated.
+ * @return  0 on success.
+ *          LENGTH_ONLY_E when table is NULL and only length returned.
+ *          BUFFER_E when len is too small.
+ */
+int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table,
+        word32* len)
+{
+    int err = 0;
+
+    if (table == NULL) {
+        *len = 0;
+        err = LENGTH_ONLY_E;
+    }
+    else if (*len != 0) {
+        err = BUFFER_E;
+    }
+
+    (void)*pm;
+
+    return err;
+}
+
+/*
+ * Calculate r = pairing <P, Q>.
+ *
+ * That is, multiply base in PF_p[q] by the scalar s, such that s.P = Q.
+ *
+ * Small implementation does not use a table - use the normal implementation.
+ *
+ * @param  [in]  pm     First point on E(F_p)[q].
+ * @param  [in]  qm     Second point on E(F_p)[q].
+ * @param  [in]  res    Result of calculation.
+ * @param  [in]  table  Precomputed table of values.
+ * @param  [in]  len    Length of precomputed table of values in bytes.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm,
+    mp_int* res, const byte* table, word32 len)
+{
+    (void)table;
+    (void)len;
+    return sp_Pairing_1024(pm, qm, res);
+}
+
+#else
+/*
+ * Calc l and c for the point when doubling p.
+ *
+ * l = 3 * (p.x^2 - 1) / (2 * p.y)
+ * c = l * p.x - p.y
+ *
+ * @param  [out]  lr  Gradient result - table entry.
+ * @param  [out]  cr  Constant result - table entry.
+ * @param  [in]   px  X-ordinate of point to double.
+ * @param  [in]   py  Y-ordinate of point to double.
+ * @param  [in]   t   SP temporaries (3 used).
+ */
+static void sp_1024_accum_dbl_calc_lc_32(sp_digit* lr, sp_digit* cr,
+        const sp_digit* px, const sp_digit* py, sp_digit* t)
+{
+    sp_digit* t1 = t + 0 * 2 * 32;
+    sp_digit* t2 = t + 2 * 2 * 32;
+    sp_digit* l  = t + 4 * 2 * 32;
+
+
+    /* l = 1 / 2 * p.y */
+    sp_1024_mont_dbl_32(l, py, p1024_mod);
+    sp_1024_mont_inv_32(l, l, t);
+
+    /* t1 = p.x^2 */
+    sp_1024_mont_sqr_32(t1, px, p1024_mod, p1024_mp_mod);
+    /* t1 = p.x - 1 */
+    sp_1024_mont_sub_32(t1, t1, p1024_norm_mod, p1024_mod);
+    /* t1 = 3 * (p.x^2 - 1) */
+    sp_1024_mont_dbl_32(t2, t1, p1024_mod);
+    sp_1024_mont_add_32(t1, t1, t2, p1024_mod);
+    /* t1 = 3 * (p.x^2 - 1) / (2 * p.y) */
+    sp_1024_mont_mul_32(l, l, t1, p1024_mod, p1024_mp_mod);
+    /* t2 = l * p.x */
+    sp_1024_mont_mul_32(t2, l, px, p1024_mod, p1024_mp_mod);
+    /* c = t2 = l * p.x - p.y */
+    sp_1024_mont_sub_32(t2, t2, py, p1024_mod);
+
+    XMEMCPY(lr, l, sizeof(sp_digit) * 32);
+    XMEMCPY(cr, t2, sizeof(sp_digit) * 32);
+}
+
+/*
+ * Calc l and c when adding p and c.
+ *
+ * l = (c.y - p.y) / (c.x - p.x)
+ * c = (p.x * c.y - cx * p.y) / (cx - p.x)
+ *
+ * @param  [out]  lr  Gradient result - table entry.
+ * @param  [out]  cr  Constant result - table entry.
+ * @param  [in]   px  X-ordinate of point to add.
+ * @param  [in]   py  Y-ordinate of point to add.
+ * @param  [in]   cx  X-ordinate of current point.
+ * @param  [in]   cy  Y-ordinate of current point.
+ * @param  [in]   t   SP temporaries (3 used).
+ */
+static void sp_1024_accum_add_calc_lc_32(sp_digit* lr, sp_digit* cr,
+        const sp_digit* px, const sp_digit* py, const sp_digit* cx,
+        const sp_digit* cy, sp_digit* t)
+{
+    sp_digit* t1 = t + 0 * 2 * 32;
+    sp_digit* c  = t + 2 * 2 * 32;
+    sp_digit* l  = t + 4 * 2 * 32;
+
+
+    /* l = 1 / (c.x - p.x) */
+    sp_1024_mont_sub_32(l, cx, px, p1024_mod);
+    sp_1024_mont_inv_32(l, l, t);
+
+    /* c = p.x * c.y */
+    sp_1024_mont_mul_32(c, px, cy, p1024_mod, p1024_mp_mod);
+    /* t1 = c.x * p.y */
+    sp_1024_mont_mul_32(t1, cx, py, p1024_mod, p1024_mp_mod);
+    /* c = (p.x * c.y) - (c.x * p.y) */
+    sp_1024_mont_sub_32(c, c, t1, p1024_mod);
+    /* c = ((p.x * c.y) - (c.x * p.y)) / (c.x - p.x) */
+    sp_1024_mont_mul_32(c, c, l, p1024_mod, p1024_mp_mod);
+    /* t1 = c.y - p.y */
+    sp_1024_mont_sub_32(t1, cy, py, p1024_mod);
+    /* l = (c.y - p.y) / (c.x - p.x) */
+    sp_1024_mont_mul_32(l, t1, l, p1024_mod, p1024_mp_mod);
+
+    XMEMCPY(lr, l, sizeof(sp_digit) * 32);
+    XMEMCPY(cr, c, sizeof(sp_digit) * 32);
+}
+
+/*
+ * Calculate vx and vy given gradient l and constant c and point q.
+ *
+ * l is a the gradient and is multiplied by q->x.
+ * c is a the constant that is added to the multiplicative result.
+ * q->y is the y-ordinate in result to multiply.
+ *
+ * if dbl
+ *   v*  = v*^2
+ * r.x = l * q.x + c
+ * r.y = q->y
+ * v*  = v* * r*
+ *
+ * @param  [in,out]  vx     X-ordinate of projective value in F*.
+ * @param  [in,out]  vy     Y-ordinate of projective value in F*.
+ * @param  [in]      l      Gradient to multiply with.
+ * @param  [in]      c      Constant to add with.
+ * @param  [in]      q      ECC point - second point on E(F_P^2).
+ * @param  [in]      t      SP temporaries (3 used).
+ * @param  [in]      dbl    Indicates whether this is for doubling. Otherwise
+ *                          adding.
+ */
+static void sp_1024_accumulate_line_lc_32(sp_digit* vx, sp_digit* vy,
+        const sp_digit* l, const sp_digit* c, const sp_point_1024* q,
+        sp_digit* t, int dbl)
+{
+    sp_digit* rx = t + 4 * 2 * 32;
+
+    /* v = v^2 */
+    if (dbl) {
+        sp_1024_proj_sqr_32(vx, vy, t);
+    }
+    /* rx = l * q.x + c */
+    sp_1024_mont_mul_32(rx, l, q->x, p1024_mod, p1024_mp_mod);
+    sp_1024_mont_add_32(rx, rx, c, p1024_mod);
+    /* v = v^2 * r */
+    sp_1024_proj_mul_32(vx, vy, rx, q->y, t);
+}
+
+/* Operations to perform based on order - 1.
+ * Sliding window. Start at bottom and stop when bottom bit is one.
+ * Subtract if top bit in window is one.
+ * Width of 6 bits.
+ * Pairs: #dbls, add/subtract window value
+ */
+static const signed char sp_1024_order_op_pre[] = {
+   5,   6, -13,   9, -21,   6,  -5,   8,  31,   6,   3,   6, -27,   6,  25,   9,
+  -1,   6, -11,   6, -13,   6,  -7,   6, -15,   6, -29,   7,  25,   6,  -9,   6,
+ -19,   7,   3,   6,  11,   9, -23,   6,   1,   6,  27,   6,   1,   7, -25,   8,
+  13,   7, -13,   7, -23,  10,  19,   7,   7,   7,  -3,   7,  27,   6,  -7,   7,
+ -21,   7,  11,   7,  31,   8,   1,   7, -23,   6, -17,   6,  -3,  10,  11,   6,
+ -21,   7, -27,  11, -29,   6,  -1,  10,  15,   8,  27,   7,  17,   6,  17,   7,
+ -13,   8,  13,   6,  21,   7, -29,   6,  19,   7, -25,   6,  11,   9,  29,   7,
+  -7,   8,  27,   7,  29,  10,  -1,   8,  -7,   8,  17,   6,  17,   7, -27,   7,
+ -21,   6,  -9,   6, -27,  12, -23,   6,  19,   6,  13,   6, -11,   7,  27,   6,
+  17,   6,  -7,   6, -25,   7, -29,   6,   9,   7,   7,   6,  13,   6, -25,   6,
+ -19,   6,  13,   6, -11,   6,   5,   8,  19,   6, -21,   8,  23,   7,  27,   6,
+ -13,   6, -19,  11,  29,   7, -15,   6,  -9,   7, -21,  10,  -3,   7,  21,  10,
+  25,   6, -15,   6, -23,   6,  21,   6,   1,   6,  21,   7,  -3,   6,  -3,   7,
+  -7,   6, -23,   7,   7,   8,  15,   9,   5,   6, -11,   6,  21,  11, -27,   7,
+  27,   6, -11,   6,  31,   6, -21,   6,  19,   6,  -7,   8,  -7,  13,  -3,   6,
+  -7,   7,  -3,   6,   1,   6,   7,   8,  19,   8,  11,   9,  -9,   7, -31,  12,
+  25,   6, -17,   9, -15,   7,   5,   6,  25,   7,  -5,   7, -25,   6,  17,   8,
+ -19,   6, -13,   6,  27,   8,   1,   7,  -5,   7,  -1,   6,  21,   6,   3,  10,
+  -3,   1,
+};
+
+/*
+ * Generate table for pairing.
+ *
+ * Calculate the graident (l) and constant (c) at each step of the way.
+ * Sliding window. Start at bottom and stop when bottom bit is one.
+ * Subtract if top bit in window is one.
+ * Width of 6 bits.
+ *
+ * pm     [in]      Point to generate table for.
+ * table  [in]      Generated table.
+ * len    [in,out]  On in, the size of the buffer.
+ *                  On out, length of table generated.
+ * @return  0 on success.
+ *          LENGTH_ONLY_E when table is NULL and only length returned.
+ *          BUFFER_E when len is too small.
+ *          MEMORY_E when dynamic memory allocation fauls.
+ */
+int sp_Pairing_gen_precomp_1024(const ecc_point* pm, byte* table,
+        word32* len)
+{
+    int err = 0;
+    sp_point_1024 p[1];
+    sp_point_1024 c[1];
+    sp_point_1024 neg[1];
+    sp_point_1024 pre_p[16];
+    sp_digit t[6 * 2 * 32];
+    int i;
+    int j;
+    int k;
+    sp_table_entry_1024* precomp = (sp_table_entry_1024*)table;
+
+    if (table == NULL) {
+        *len = sizeof(sp_table_entry_1024) * 1167;
+        err = LENGTH_ONLY_E;
+    }
+
+    if ((err == MP_OKAY) &&
+            (*len < (int)(sizeof(sp_table_entry_1024) * 1167))) {
+        err = BUFFER_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_1024_point_from_ecc_point_32(p, pm);
+
+        err = sp_1024_mod_mul_norm_32(p->x, p->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->y, p->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        XMEMCPY(p->z, p1024_norm_mod, sizeof(p1024_norm_mod));
+        neg->infinity = 0;
+        c->infinity = 0;
+
+        /* Generate pre-computation table: 1, 3, ... , 31 */
+        XMEMCPY(&pre_p[0], p, sizeof(sp_point_1024));
+        /* [2]P for adding */
+        sp_1024_proj_point_dbl_32(c, p, t);
+
+        /* 1, 3, ... */
+        for (i = 1; i < 16; i++) {
+            sp_1024_proj_point_add_32(&pre_p[i], &pre_p[i-1], c, t);
+            sp_1024_mont_map_32(&pre_p[i], t);
+        }
+
+        k = 0;
+        j = sp_1024_order_op_pre[0] / 2;
+        XMEMCPY(c, &pre_p[j], sizeof(sp_point_1024));
+
+        for (j = 0; j < sp_1024_order_op_pre[1]; j++) {
+            sp_1024_accum_dbl_calc_lc_32(precomp[k].x, precomp[k].y, c->x, c->y, t);
+            k++;
+            sp_1024_proj_point_dbl_32(c, c, t);
+            sp_1024_mont_map_32(c, t);
+        }
+
+        for (i = 2; i < 290; i += 2) {
+            j = sp_1024_order_op_pre[i];
+            if (j > 0) {
+                sp_1024_accum_add_calc_lc_32(precomp[k].x, precomp[k].y,
+                    pre_p[j/2].x, pre_p[j/2].y, c->x, c->y, t);
+                k++;
+                sp_1024_proj_point_add_32(c, c, &pre_p[j/2], t);
+                sp_1024_mont_map_32(c, t);
+            }
+            else {
+                XMEMCPY(neg->x, pre_p[-j / 2].x, sizeof(pre_p->x));
+                sp_1024_mont_sub_32(neg->y, p1024_mod, pre_p[-j / 2].y,
+                        p1024_mod);
+                XMEMCPY(neg->z, pre_p[-j / 2].z, sizeof(pre_p->z));
+
+                sp_1024_accum_add_calc_lc_32(precomp[k].x, precomp[k].y,
+                    neg->x, neg->y, c->x, c->y, t);
+                k++;
+                sp_1024_proj_point_add_32(c, c, neg, t);
+                sp_1024_mont_map_32(c, t);
+            }
+
+            for (j = 0; j < sp_1024_order_op_pre[i + 1]; j++) {
+                sp_1024_accum_dbl_calc_lc_32(precomp[k].x, precomp[k].y, c->x, c->y, t);
+                k++;
+                sp_1024_proj_point_dbl_32(c, c, t);
+                sp_1024_mont_map_32(c, t);
+            }
+        }
+
+        *len = sizeof(sp_table_entry_1024) * 1167;
+    }
+
+    return err;
+}
+
+/*
+ * Calculate r = pairing <P, Q>.
+ *
+ * That is, multiply base in PF_p[q] by the scalar s, such that s.P = Q.
+ *
+ * Sliding window. Start at bottom and stop when bottom bit is one.
+ * Subtract if top bit in window is one.
+ * Width of 6 bits.
+ * Pre-generate values in window (1, 3, ...) - only V.
+ * Table contains all gradient l and a constant for each point on the path.
+ *
+ * @param  [in]  pm     First point on E(F_p)[q].
+ * @param  [in]  qm     Second point on E(F_p)[q].
+ * @param  [in]  res    Result of calculation.
+ * @param  [in]  table  Precomputed table of values.
+ * @param  [in]  len    Length of precomputed table of values in bytes.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_Pairing_precomp_1024(const ecc_point* pm, const ecc_point* qm,
+    mp_int* res, const byte* table, word32 len)
+{
+    int err = 0;
+    sp_digit vx[2 * 32];
+    sp_digit vy[2 * 32];
+    sp_digit* r = vy;
+    sp_point_1024 p[1];
+    sp_point_1024 q[1];
+    sp_point_1024 c[1];
+    sp_digit pre_vx[16][64];
+    sp_digit pre_vy[16][64];
+    sp_digit pre_nvy[16][64];
+    sp_digit t[6 * 2 * 32];
+    int i;
+    int j;
+    int k;
+    const sp_table_entry_1024* precomp = (const sp_table_entry_1024*)table;
+
+    if (len < (int)(sizeof(sp_table_entry_1024) * 1167)) {
+        err = BUFFER_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_1024_point_from_ecc_point_32(p, pm);
+        sp_1024_point_from_ecc_point_32(q, qm);
+
+        err = sp_1024_mod_mul_norm_32(p->x, p->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->y, p->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(p->z, p->z, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->x, q->x, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_1024_mod_mul_norm_32(q->y, q->y, p1024_mod);
+    }
+    if (err == MP_OKAY) {
+        /* Generate pre-computation table: 1, 3, ... , 31 */
+        XMEMSET(pre_vx[0], 0, sizeof(sp_digit) * 2 * 32);
+        pre_vx[0][0] = 1;
+        XMEMSET(pre_vy[0], 0, sizeof(sp_digit) * 2 * 32);
+        sp_1024_mont_sub_32(pre_nvy[0], p1024_mod, pre_vy[0], p1024_mod);
+
+        /* [2]P for adding */
+        XMEMCPY(c, p, sizeof(sp_point_1024));
+        XMEMSET(vx, 0, sizeof(sp_digit) * 2 * 32);
+        vx[0] = 1;
+        XMEMSET(vy, 0, sizeof(sp_digit) * 2 * 32);
+        sp_1024_accumulate_line_dbl_32(vx, vy, c, q, t);
+
+        /* 3, 5, ... */
+        for (i = 1; i < 16; i++) {
+            XMEMCPY(pre_vx[i], pre_vx[i-1], sizeof(sp_digit) * 2 * 32);
+            XMEMCPY(pre_vy[i], pre_vy[i-1], sizeof(sp_digit) * 2 * 32);
+            sp_1024_proj_mul_32(pre_vx[i], pre_vy[i], vx, vy, t);
+            sp_1024_accumulate_line_add_n_32(pre_vx[i], pre_vy[i], c,
+                q, p, t, 0);
+            sp_1024_mont_sub_32(pre_nvy[i], p1024_mod, pre_vy[i],
+                p1024_mod);
+        }
+
+        XMEMCPY(c->z, p1024_norm_mod, sizeof(sp_digit) * 32);
+        c->infinity = 0;
+        j = sp_1024_order_op_pre[0] / 2;
+        XMEMCPY(vx, pre_vx[j], sizeof(sp_digit) * 2 * 32);
+        XMEMCPY(vy, pre_vy[j], sizeof(sp_digit) * 2 * 32);
+
+        k = 0;
+        for (j = 0; j < sp_1024_order_op_pre[1]; j++) {
+            /* Accumulate line into v and double point. */
+            sp_1024_accumulate_line_lc_32(vx, vy, precomp[k].x,
+                precomp[k].y, q, t, 1);
+            k++;
+        }
+
+        for (i = 2; i < 290; i += 2) {
+            sp_1024_accumulate_line_lc_32(vx, vy, precomp[k].x,
+                precomp[k].y, q, t, 0);
+            k++;
+
+            j = sp_1024_order_op_pre[i];
+            if (j > 0) {
+                j /= 2;
+                /* Accumulate line into v. */
+                sp_1024_proj_mul_32(vx, vy, pre_vx[j], pre_vy[j], t);
+            }
+            else {
+                j = -j / 2;
+                /* Accumulate line into v. */
+                sp_1024_proj_mul_32(vx, vy, pre_vx[j], pre_nvy[j], t);
+            }
+
+            for (j = 0; j < sp_1024_order_op_pre[i + 1]; j++) {
+                /* Accumulate line into v and double point. */
+                sp_1024_accumulate_line_lc_32(vx, vy, precomp[k].x,
+                    precomp[k].y, q, t, 1);
+                k++;
+            }
+        }
+
+        /* Final exponentiation */
+        sp_1024_proj_sqr_32(vx, vy, t);
+        sp_1024_proj_sqr_32(vx, vy, t);
+
+        /* Convert from PF_p[q] to F_p */
+        sp_1024_mont_inv_32(vx, vx, t);
+        sp_1024_mont_mul_32(r, vx, vy, p1024_mod, p1024_mp_mod);
+        XMEMSET(r + 32, 0, sizeof(sp_digit) * 32);
+        sp_1024_mont_reduce_32(r, p1024_mod, p1024_mp_mod);
+
+        err = sp_1024_to_mp(r, res);
+    }
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+#endif /* WOLFSSL_SP_1024 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
 #endif /* WOLFSSL_SP_ARM_THUMB_ASM */
-#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_ECC */
+#endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH | WOLFSSL_HAVE_SP_ECC */

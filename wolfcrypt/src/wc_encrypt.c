@@ -511,6 +511,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     }
 
     if (ret != 0) {
+        ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -642,6 +643,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #endif /* !NO_AES && HAVE_AES_CBC */
 
         default:
+            ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -649,6 +651,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             return ALGO_ID_E;
     }
 
+    ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

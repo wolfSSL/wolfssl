@@ -1164,8 +1164,8 @@ WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
 #ifndef NO_CERTS
 
-WOLFSSL_LOCAL int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer,
-                                        size_t bufSz);
+WOLFSSL_LOCAL int wc_EncryptedInfoParse(EncryptedInfo* info,
+                                        const char** pBuffer, size_t bufSz);
 
 WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
                           DerBuffer** pDer, void* heap, EncryptedInfo* info,

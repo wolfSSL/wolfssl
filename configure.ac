@@ -94,6 +94,9 @@ AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
+AS_IF([test "$ax_enable_debug" = "yes"],
+      [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
+      [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
 
 
@@ -3317,6 +3320,35 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
 fi
 
+# Elliptic Curve-Based Certificateless Signatures for Identity-Based Encryption (ECCSI)
+AC_ARG_ENABLE([eccsi],
+    [AS_HELP_STRING([--enable-eccsi],[Enable ECCSI (default: disabled)])],
+    [ ENABLED_ECCSI=$enableval ],
+    [ ENABLED_ECCSI=no ]
+    )
+
+if test "x$ENABLED_ECCSI" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_ECCSI -DWOLFSSL_PUBLIC_MP"
+fi
+
+# Sakai-Kasahara Key Encryption (SAKKE)
+AC_ARG_ENABLE([sakke],
+    [AS_HELP_STRING([--enable-sakke],[Enable SAKKE - paring based crypto (default: disabled)])],
+    [ ENABLED_SAKKE=$enableval ],
+    [ ENABLED_SAKKE=no ]
+    )
+
+if test "x$ENABLED_SAKKE" = "xsmall"
+then
+    ENABLED_SAKKE="yes"
+    ENABLED_SAKKE_SMALL="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_SAKKE_SMALL"
+fi
+if test "x$ENABLED_SAKKE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SAKKE"
+fi
 
 # Indefinite length encoded BER message support
 AC_ARG_ENABLE([indef],
@@ -4012,6 +4044,11 @@ then
         # Have settings.h set FP_MAX_BITS higher if user didn't set directly
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
+
+    if test "$ENABLED_SAKKE" = "yes" && test "$ENABLED_SAKKE_SMALL" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -funroll-loops -DTFM_SMALL_SET"
+    fi
 fi
 
 
@@ -4299,6 +4336,7 @@ ENABLED_SP_FF_4096=no
 ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
+ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
 for v in `echo $ENABLED_SP | tr "," " "`
@@ -4351,6 +4389,15 @@ do
   ec384 | p384 | 384)
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_384=yes
+    ;;
+  smallec1024 | smallp1024 | small1024)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_SAKKE_1024=yes
+    ;;
+  ec1024 | p1024 | 1024)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SAKKE_1024=yes
     ;;
 
   small2048)
@@ -4469,6 +4516,10 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_EC_384" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_384"
+    fi
+    if test "$ENABLED_SP_SAKKE_1024" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_1024"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_1024"
     fi
 fi
 if test "$ENABLED_SP_SMALL" = "yes"; then
@@ -5326,6 +5377,8 @@ AM_CONDITIONAL([BUILD_USER_CRYPTO],[test "x$ENABLED_USER_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_NTRU],[test "x$ENABLED_NTRU" = "xyes"])
 AM_CONDITIONAL([BUILD_WNR],[test "x$ENABLED_WNR" = "xyes"])
 AM_CONDITIONAL([BUILD_SRP],[test "x$ENABLED_SRP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -5625,6 +5678,8 @@ echo "   * PKCS#7                      $ENABLED_PKCS7"
 echo "   * wolfSSH                     $ENABLED_WOLFSSH"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
+echo "   * ECCSI                       $ENABLED_ECCSI"
+echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"

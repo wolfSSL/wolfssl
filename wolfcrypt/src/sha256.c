@@ -167,6 +167,9 @@ where 0 <= L < 2^64.
     #ifndef NO_AVX2_SUPPORT
         #define HAVE_INTEL_AVX2
     #endif
+#else
+    #undef HAVE_INTEL_AVX1
+    #undef HAVE_INTEL_AVX2
 #endif /* USE_INTEL_SPEEDUP */
 
 #if defined(HAVE_INTEL_AVX2)
@@ -805,7 +808,7 @@ static int InitSha256(wc_Sha256* sha256)
             S[i] = sha256->digest[i];
 
         for (i = 0; i < 16; i++)
-            W[i] = *((word32*)&data[i*sizeof(word32)]);
+            W[i] = *((const word32*)&data[i*sizeof(word32)]);
 
         for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
             W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];

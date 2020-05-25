@@ -5548,21 +5548,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case CTC_SHA256wECDSA:
             case CTC_SHA384wECDSA:
             case CTC_SHA512wECDSA:
-                WOLFSSL_MSG("ECDSA cert signature");
-                if (ssl)
-                    ssl->options.haveECDSAsig = 1;
-                else if (ctx)
-                    ctx->haveECDSAsig = 1;
-                break;
             case CTC_ED25519:
-                WOLFSSL_MSG("ED25519 cert signature");
-                if (ssl)
-                    ssl->options.haveECDSAsig = 1;
-                else if (ctx)
-                    ctx->haveECDSAsig = 1;
-                break;
             case CTC_ED448:
-                WOLFSSL_MSG("ED448 cert signature");
+                WOLFSSL_MSG("ECDSA/Ed25519/Ed448 cert signature");
                 if (ssl)
                     ssl->options.haveECDSAsig = 1;
                 else if (ctx)
@@ -6103,7 +6091,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 #endif
     }
     else {
-        InitDecodedCert(cert, (byte*)buff, (word32)sz, cm->heap);
+        InitDecodedCert(cert, buff, (word32)sz, cm->heap);
     }
 
     if (ret == 0)
@@ -10707,8 +10695,10 @@ int wolfSSL_restore_session_cache(const char *fname)
 #endif /* NO_SESSION_CACHE */
 
 
-void wolfSSL_load_error_strings(void)   /* compatibility only */
-{}
+void wolfSSL_load_error_strings(void)
+{
+    /* compatibility only */
+}
 
 
 int wolfSSL_library_init(void)
@@ -12618,7 +12608,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     if (idx < 0)
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+    for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
         ClientSession   clSess;
 
@@ -12642,6 +12632,8 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         } else {
             WOLFSSL_MSG("ServerID not a match from client table");
         }
+
+        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
     wc_UnLockMutex(&session_mutex);
@@ -12743,7 +12735,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
     if (idx < 0)
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+    for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
 
         if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
@@ -12765,6 +12757,8 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         } else {
             WOLFSSL_MSG("SessionID not a match at this idx");
         }
+
+        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
     wc_UnLockMutex(&session_mutex);
@@ -20031,6 +20025,8 @@ static const char* wolfssl_ffdhe_name(word16 group)
         case WOLFSSL_FFDHE_8192:
             str = "FFDHE_8192";
             break;
+        default:
+            break;
     }
     return str;
 }
@@ -26183,7 +26179,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
             idx = ctx->certChain->length;
         }
         c32to24(derSz, chain + idx);
-        idx += OPAQUE24_LEN,
+        idx += OPAQUE24_LEN;
         XMEMCPY(chain + idx, der, derSz);
         idx += derSz;
 #ifdef WOLFSSL_TLS13
@@ -38423,7 +38419,8 @@ err:
     }
 #endif
 
-    int wolfSSL_PEM_get_EVP_CIPHER_INFO(char* header, EncryptedInfo* cipher)
+    int wolfSSL_PEM_get_EVP_CIPHER_INFO(const char* header,
+                                        EncryptedInfo* cipher)
     {
         if (header == NULL || cipher == NULL)
             return WOLFSSL_FAILURE;

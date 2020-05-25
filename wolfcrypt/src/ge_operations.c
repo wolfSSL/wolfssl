@@ -95,7 +95,7 @@ Representations:
 #define ORDER_4     0x1dea2f
 #define ORDER_5     0xa6f7c
 
-#ifdef CURVED25519_ASM_32BIT
+#ifdef WOLFSSL_ARMASM
 uint64_t load_3(const unsigned char *in)
 {
   uint64_t result;

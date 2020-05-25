@@ -1031,7 +1031,7 @@ void XFREE(void *p, void* heap, int type)
 void *xmalloc(size_t n, void* heap, int type, const char* func,
               const char* file, unsigned int line)
 {
-    void*   p;
+    void*   p = NULL;
     word32* p32;
 
     if (malloc_function)
@@ -1039,11 +1039,14 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     else
         p32 = malloc(n + sizeof(word32) * 4);
 
-    p32[0] = (word32)n;
-    p = (void*)(p32 + 4);
+    if (p32 != NULL) {
+        p32[0] = (word32)n;
+        p = (void*)(p32 + 4);
 
-    fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", p, (word32)n, type,
-                                                              func, file, line);
+        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", p, (word32)n,
+                                                        type, func, file, line);
+
+    }
 
     (void)heap;
 

@@ -745,7 +745,7 @@ static Error caamAes(struct DescStruct* desc)
     }
 
     /* get key */
-    for (i = 0; i < desc->DescriptorCount; i++) {
+    for (i = 0; i < desc->DescriptorCount && ctxIdx < sizeof(ctx); i++) {
         struct buffer* buf = &desc->buf[i];
         unsigned char* local = (unsigned char*)desc->ctxBuf;
 
@@ -796,7 +796,7 @@ static Error caamAes(struct DescStruct* desc)
 
             sz = 0;
             offset = 0;
-            for (; i < desc->DescriptorCount; i++) {
+            for (; i < desc->DescriptorCount && ivIdx < sizeof(iv); i++) {
                 struct buffer* buf = &desc->buf[i];
                 unsigned char* local = (unsigned char*)desc->iv;
 
@@ -944,7 +944,7 @@ static Error caamAead(struct DescStruct* desc)
     }
 
     /* get key */
-    for (i = 0; i < desc->DescriptorCount; i++) {
+    for (i = 0; i < desc->DescriptorCount && ctxIdx < sizeof(ctx); i++) {
         struct buffer* buf = &desc->buf[i];
         unsigned char* local = (unsigned char*)desc->ctxBuf;
 
@@ -997,7 +997,8 @@ static Error caamAead(struct DescStruct* desc)
                 if ((state & CAAM_ALG_INIT) == CAAM_ALG_INIT) {
                     sz = 0;
                     offset = 0;
-                    for (; i < desc->DescriptorCount; i++) {
+                    for (; i < desc->DescriptorCount && ivIdx < sizeof(iv);
+                                                                          i++) {
                         struct buffer* buf = &desc->buf[i];
                         unsigned char* local = (unsigned char*)desc->iv;
 
@@ -1413,7 +1414,7 @@ static Error caamTransferStart(IODeviceVector ioCaam,
             break;
 
         case CAAM_AESCCM:
-            memset((unsigned char*)desc->aadSzBuf, 0, sizeof(desc->aadSzBuf));
+            XMEMSET((unsigned char*)desc->aadSzBuf, 0, sizeof(desc->aadSzBuf));
             if (args[3] > 0) {
                 /* encode the length in */
                 if (args[3] <= 0xFEFF) {

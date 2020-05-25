@@ -123,16 +123,16 @@ static const uint64_t L_SHA512_transform_neon_len_ror8[] = {
 void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
 #ifndef __APPLE__
-        "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+        "adrp	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+        "add	x3, x3, :lo12:%[L_SHA512_transform_neon_len_k]\n\t"
 #else
         "adrp	x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
         "add	x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        "adr	x27, %[L_SHA512_transform_neon_len_ror8]\n\t"
+        "adrp	x27, %[L_SHA512_transform_neon_len_ror8]\n\t"
+        "add	x27, x27, :lo12:%[L_SHA512_transform_neon_len_ror8]\n\t"
 #else
         "adrp	x27, %[L_SHA512_transform_neon_len_ror8]@PAGE\n\t"
         "add	x27, x27, %[L_SHA512_transform_neon_len_ror8]@PAGEOFF\n\t"
@@ -1031,7 +1031,8 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x5, x5, x20\n\t"
         "add	x4, x4, x19\n\t"
 #ifndef __APPLE__
-        "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+        "adrp	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+        "add	x3, x3, :lo12:%[L_SHA512_transform_neon_len_k]\n\t"
 #else
         "adrp	x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
         "add	x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
@@ -1042,7 +1043,6 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "stp	x6, x7, [%x[sha512], #16]\n\t"
         "stp	x8, x9, [%x[sha512], #32]\n\t"
         "stp	x10, x11, [%x[sha512], #48]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
         : [L_SHA512_transform_neon_len_k] "S" (L_SHA512_transform_neon_len_k), [L_SHA512_transform_neon_len_ror8] "S" (L_SHA512_transform_neon_len_ror8)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"

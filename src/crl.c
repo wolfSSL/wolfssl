@@ -896,7 +896,7 @@ static void* DoMonitor(void* arg)
     if (kevent(crl->mfd, &change, 1, NULL, 0, NULL) < 0) {
         WOLFSSL_MSG("kevent monitor customer event failed");
         SignalSetup(crl, MONITOR_SETUP_E);
-        close(crl->mfd);
+        (void)close(crl->mfd);
         return NULL;
     }
 
@@ -908,7 +908,7 @@ static void* DoMonitor(void* arg)
         if (fPEM == -1) {
             WOLFSSL_MSG("PEM event dir open failed");
             SignalSetup(crl, MONITOR_SETUP_E);
-            close(crl->mfd);
+            (void)close(crl->mfd);
             return NULL;
         }
     }
@@ -918,8 +918,8 @@ static void* DoMonitor(void* arg)
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
             if (fPEM != -1)
-                close(fPEM);
-            close(crl->mfd);
+                (void)close(fPEM);
+            (void)close(crl->mfd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -936,10 +936,10 @@ static void* DoMonitor(void* arg)
     /* signal to calling thread we're setup */
     if (SignalSetup(crl, 1) != 0) {
         if (fPEM != -1)
-            close(fPEM);
+            (void)close(fPEM);
         if (fDER != -1)
-            close(fDER);
-        close(crl->mfd);
+            (void)close(fDER);
+        (void)close(crl->mfd);
         return NULL;
     }
 
@@ -965,11 +965,11 @@ static void* DoMonitor(void* arg)
     }
 
     if (fPEM != -1)
-        close(fPEM);
+        (void)close(fPEM);
     if (fDER != -1)
-        close(fDER);
+        (void)close(fDER);
 
-    close(crl->mfd);
+    (void)close(crl->mfd);
 
     return NULL;
 }
@@ -1030,7 +1030,7 @@ static void* DoMonitor(void* arg)
     notifyFd = inotify_init();
     if (notifyFd < 0) {
         WOLFSSL_MSG("inotify failed");
-        close(crl->mfd);
+        (void)close(crl->mfd);
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
@@ -1040,8 +1040,8 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             WOLFSSL_MSG("PEM notify add watch failed");
-            close(crl->mfd);
-            close(notifyFd);
+            (void)close(crl->mfd);
+            (void)close(notifyFd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -1052,8 +1052,8 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             WOLFSSL_MSG("DER notify add watch failed");
-            close(crl->mfd);
-            close(notifyFd);
+            (void)close(crl->mfd);
+            (void)close(notifyFd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -1073,8 +1073,8 @@ static void* DoMonitor(void* arg)
 
         if (wd > 0)
             inotify_rm_watch(notifyFd, wd);
-        close(crl->mfd);
-        close(notifyFd);
+        (void)close(crl->mfd);
+        (void)close(notifyFd);
         return NULL;
     }
 
@@ -1118,8 +1118,8 @@ static void* DoMonitor(void* arg)
 
     if (wd > 0)
         inotify_rm_watch(notifyFd, wd);
-    close(crl->mfd);
-    close(notifyFd);
+    (void)close(crl->mfd);
+    (void)close(notifyFd);
 
     return NULL;
 }

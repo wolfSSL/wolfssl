@@ -20924,7 +20924,7 @@ static int test_wc_EccPrivateKeyToDer (void)
         }
         if (ret == 0) {
             ret = wc_EccPrivateKeyToDer(&eccKey, NULL, inLen);
-            if (ret == BAD_FUNC_ARG) {
+            if (ret == LENGTH_ONLY_E) {
                 ret = 0;
             }
         }
@@ -21217,7 +21217,7 @@ static int test_wc_Ed448PrivateKeyToDer (void)
 static int test_wc_SetSubjectBuffer (void)
 {
     int ret = 0;
-#if defined(WOLFSSL_CERT_GEN) 
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
     Cert    cert;
     FILE*   file;
     byte*   der;
@@ -28324,15 +28324,15 @@ static void test_wolfSSL_ERR_print_errors(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     ERR_clear_error(); /* clear out any error nodes */
     ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
-    /* Choosing -295 as an unused errno between MIN_CODE_E < x < WC_LAST_E. */
-    ERR_put_error(0,SYS_F_BIND, -295, "asn.c", 100);
+    /* Choosing -299 as an unused errno between MIN_CODE_E < x < WC_LAST_E. */
+    ERR_put_error(0,SYS_F_BIND, -299, "asn.c", 100);
 
     ERR_print_errors(bio);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 56);
     AssertIntEQ(XSTRNCMP("error:173:wolfSSL library:Bad function argument:ssl.c:0",
                 buf, 55), 0);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 57);
-    AssertIntEQ(XSTRNCMP("error:295:wolfSSL library:unknown error number:asn.c:100",
+    AssertIntEQ(XSTRNCMP("error:299:wolfSSL library:unknown error number:asn.c:100",
                 buf, 56), 0);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
     AssertIntEQ(ERR_get_error_line(NULL, NULL), 0);

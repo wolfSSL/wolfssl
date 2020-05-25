@@ -376,7 +376,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 
     (void)heap;
 
-    if (output == NULL || passLen < 0 || saltLen < 0 || kLen < 0) {
+    if (output == NULL || passLen <= 0 || saltLen <= 0 || kLen < 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -387,11 +387,15 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     ret = wc_HashGetDigestSize(hashT);
     if (ret < 0)
         return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
     u = ret;
 
     ret = wc_HashGetBlockSize(hashT);
     if (ret < 0)
         return ret;
+    if (ret == 0)
+        return BAD_STATE_E;
     v = ret;
 
 #ifdef WOLFSSL_SMALL_STACK

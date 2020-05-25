@@ -54,5 +54,21 @@
         <li>\ref RSA</li>
         <li>\ref SHA</li>
         <li>\ref SRP</li>
+        <li>\ref ECCSI</li>
+        <li>\ref SAKKE</li>
     </ul>
 */
+/*!
+    \page ECCSI ECCSI API Reference
+    - \ref ECCSI_Overview
+    - \ref ECCSI_Setup
+    - \ref ECCSI_Operations
+*/
+/*!
+    \page SAKKE SAKKE API Reference
+    - \ref SAKKE_Overview
+    - \ref SAKKE_Setup
+    - \ref SAKKE_RSK
+    - \ref SAKKE_Operations
+*/
+

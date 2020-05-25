@@ -1124,6 +1124,26 @@ const ecc_set_type ecc_sets[] = {
     },
     #endif /* !NO_ECC_SECP */
 #endif /* ECC521 */
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    {
+        128,
+        ECC_SAKKE_1,
+        "SAKKE1",
+        "997ABB1F0A563FDA65C61198DAD0657A416C0CE19CB48261BE9AE358B3E01A2EF40AAB27E2FC0F1B228730D531A59CB0E791B39FF7C88A19356D27F4A666A6D0E26C6487326B4CD4512AC5CD65681CE1B6AFF4A831852A82A7CF3C521C3C09AA9F94D6AF56971F1FFCE3E82389857DB080C5DF10AC7ACE87666D807AFEA85FEB",
+        "997ABB1F0A563FDA65C61198DAD0657A416C0CE19CB48261BE9AE358B3E01A2EF40AAB27E2FC0F1B228730D531A59CB0E791B39FF7C88A19356D27F4A666A6D0E26C6487326B4CD4512AC5CD65681CE1B6AFF4A831852A82A7CF3C521C3C09AA9F94D6AF56971F1FFCE3E82389857DB080C5DF10AC7ACE87666D807AFEA85FE8",
+        "0",
+        "265EAEC7C2958FF69971846636B4195E905B0338672D20986FA6B8D62CF8068BBD02AAC9F8BF03C6C8A1CC354C69672C39E46CE7FDF222864D5B49FD2999A9B4389B1921CC9AD335144AB173595A07386DABFD2A0C614AA0A9F3CF14870F026AA7E535ABD5A5C7C7FF38FA08E2615F6C203177C42B1EB3A1D99B601EBFAA17FB",
+        "53FC09EE332C29AD0A7990053ED9B52A2B1A2FD60AEC69C698B2F204B6FF7CBFB5EDB6C0F6CE2308AB10DB9030B09E1043D5F22CDB9DFA55718BD9E7406CE8909760AF765DD5BCCB337C86548B72F2E1A702C3397A60DE74A7C1514DBA66910DD5CFB4CC80728D87EE9163A5B63F73EC80EC46C4967E0979880DC8ABEAE63895",
+        "0A8249063F6009F1F9F1F0533634A135D3E82016029906963D778D821E141178F5EA69F4654EC2B9E7F7F5E5F0DE55F66B598CCF9A140B2E416CFF0CA9E032B970DAE117AD547C6CCAD696B5B7652FE0AC6F1E80164AA989492D979FC5A4D5F213515AD7E9CB99A980BDAD5AD5BB4636ADB9B5706A67DCDE75573FD71BEF16D7",
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            NULL, 0,
+        #else
+            {0}, 0,
+        #endif
+        0,
+        4,
+    },
+#endif
 #if defined(WOLFSSL_CUSTOM_CURVES) && defined(ECC_CACHE_CURVE)
     /* place holder for custom curve index for cache */
     {
@@ -2462,8 +2482,8 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 #define WINSIZE  4
 #define M_POINTS 8
 
-static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
-    mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
+static int ecc_mulmod(const mp_int* k, ecc_point* tG, ecc_point* R,
+    ecc_point** M, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
 {
    int      err = MP_OKAY;
    int      i;
@@ -2641,8 +2661,8 @@ static int wc_ecc_gen_z(WC_RNG* rng, int size, ecc_point* p,
    #define M_POINTS 5
 #endif
 
-static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
-    mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
+static int ecc_mulmod(const mp_int* k, ecc_point* tG, ecc_point* R,
+    ecc_point** M, mp_int* a, mp_int* modulus, mp_digit mp, WC_RNG* rng)
 {
    int      err = MP_OKAY;
    int      i;
@@ -2930,10 +2950,11 @@ static void ecc_key_tmp_final(ecc_key* key, void* heap)
    return MP_OKAY on success
 */
 #ifdef FP_ECC
-static int normal_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
-                             mp_int* modulus, WC_RNG* rng, int map, void* heap)
+static int normal_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
+                             mp_int* a, mp_int* modulus, WC_RNG* rng, int map,
+                             void* heap)
 #else
-int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                      mp_int* modulus, int map, void* heap)
 #endif
 #ifndef WOLFSSL_SP_MATH
@@ -3218,7 +3239,7 @@ exit:
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
-int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                   mp_int* modulus, int map)
 {
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
@@ -3291,12 +3312,21 @@ void wc_ecc_del_point(ecc_point* p)
     wc_ecc_del_point_h(p, NULL);
 }
 
+void wc_ecc_forcezero_point(ecc_point* p)
+{
+    if (p != NULL) {
+        mp_forcezero(p->x);
+        mp_forcezero(p->y);
+        mp_forcezero(p->z);
+    }
+}
+
 
 /** Copy the value of a point to an other one
   p    The point to copy
   r    The created point
 */
-int wc_ecc_copy_point(ecc_point* p, ecc_point *r)
+int wc_ecc_copy_point(const ecc_point* p, ecc_point *r)
 {
     int ret;
 
@@ -5117,6 +5147,142 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 }
 #elif !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
       !defined(WOLFSSL_CRYPTOCELL)
+
+#ifndef WOLFSSL_SP_MATH
+static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
+                            ecc_curve_spec* curve, mp_int* e, mp_int* r,
+                            mp_int* s)
+{
+    int err = MP_OKAY;
+    int loop_check = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* b = NULL;
+#else
+    mp_int  b[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    b = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
+    if (b == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        err = mp_init(b);
+    }
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    /* if custom curve, apply params to pubkey */
+    if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
+        err = wc_ecc_set_custom_curve(pubkey, key->dp);
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        /* Generate blinding value - non-zero value. */
+        do {
+            if (++loop_check > 64) {
+                 err = RNG_FAILURE_E;
+                 break;
+            }
+
+            err = wc_ecc_gen_k(rng, key->dp->size, b, curve->order);
+        }
+        while (err == MP_ZERO_E);
+        loop_check = 0;
+    }
+
+    for (; err == MP_OKAY;) {
+        if (++loop_check > 64) {
+             err = RNG_FAILURE_E;
+             break;
+        }
+#ifdef WOLFSSL_ECDSA_SET_K
+        if (key->sign_k != NULL) {
+            if (loop_check > 1) {
+               err = RNG_FAILURE_E;
+               break;
+            }
+
+            err = mp_copy(key->sign_k, &pubkey->k);
+            if (err != MP_OKAY) break;
+
+            mp_forcezero(key->sign_k);
+            mp_free(key->sign_k);
+            XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+            key->sign_k = NULL;
+            err = ecc_make_pub_ex(pubkey, curve, NULL, NULL);
+        }
+        else
+#endif
+        {
+            err = wc_ecc_make_key_ex(rng, key->dp->size, pubkey, key->dp->id);
+        }
+        if (err != MP_OKAY) break;
+
+        /* find r = x1 mod n */
+        err = mp_mod(pubkey->pubkey.x, curve->order, r);
+        if (err != MP_OKAY) break;
+
+        if (mp_iszero(r) == MP_YES) {
+        #ifndef ALT_ECC_SIZE
+            mp_clear(pubkey->pubkey.x);
+            mp_clear(pubkey->pubkey.y);
+            mp_clear(pubkey->pubkey.z);
+        #endif
+            mp_forcezero(&pubkey->k);
+        }
+        else {
+            /* find s = (e + xr)/k
+                      = b.(e/k.b + x.r/k.b) */
+
+            /* k = k.b */
+            err = mp_mulmod(&pubkey->k, b, curve->order, &pubkey->k);
+            if (err != MP_OKAY) break;
+
+            /* k = 1/k.b */
+            err = mp_invmod(&pubkey->k, curve->order, &pubkey->k);
+            if (err != MP_OKAY) break;
+
+            /* s = x.r */
+            err = mp_mulmod(&key->k, r, curve->order, s);
+            if (err != MP_OKAY) break;
+
+            /* s = x.r/k.b */
+            err = mp_mulmod(&pubkey->k, s, curve->order, s);
+            if (err != MP_OKAY) break;
+
+            /* e = e/k.b */
+            err = mp_mulmod(&pubkey->k, e, curve->order, e);
+            if (err != MP_OKAY) break;
+
+            /* s = e/k.b + x.r/k.b
+                 = (e + x.r)/k.b */
+            err = mp_add(e, s, s);
+            if (err != MP_OKAY) break;
+
+            /* s = b.(e + x.r)/k.b
+                 = (e + x.r)/k */
+            err = mp_mulmod(s, b, curve->order, s);
+            if (err != MP_OKAY) break;
+
+            /* s = (e + xr)/k */
+            err = mp_mod(s, curve->order, s);
+            if (err != MP_OKAY) break;
+
+            if (mp_iszero(s) == MP_NO)
+                break;
+         }
+    }
+    mp_clear(b);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
+#endif
+
+   return err;
+}
+#endif
+
 /**
   Sign a message digest
   in        The message digest to sign
@@ -5299,7 +5465,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        /* truncate down to byte size, may be all that's needed */
        if ((WOLFSSL_BIT_SIZE * inlen) > orderBits)
            inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(e, (byte*)in, inlen);
+       err = mp_read_unsigned_bin(e, in, inlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
@@ -5308,7 +5474,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    /* make up a key and export the public copy */
    if (err == MP_OKAY) {
-       int      loop_check = 0;
    #ifdef WOLFSSL_SMALL_STACK
        ecc_key* pubkey;
    #else
@@ -5396,139 +5561,15 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    #endif
 
        /* don't use async for key, since we don't support async return here */
-       if (err == MP_OKAY && (err = wc_ecc_init_ex(pubkey, key->heap,
-                                                   INVALID_DEVID)) == MP_OKAY) {
-       #ifdef WOLFSSL_SMALL_STACK
-           mp_int* b = NULL;
-       #else
-           mp_int  b[1];
-       #endif
-
-       #ifdef WOLFSSL_SMALL_STACK
+       if (err == MP_OKAY) {
+           err = wc_ecc_init_ex(pubkey, key->heap, INVALID_DEVID);
            if (err == MP_OKAY) {
-               b = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
-                                                              DYNAMIC_TYPE_ECC);
-               if (b == NULL)
-                   err = MEMORY_E;
+              err = ecc_sign_hash_sw(key, pubkey, rng, curve, e, r, s);
+              wc_ecc_free(pubkey);
+           #ifdef WOLFSSL_SMALL_STACK
+              XFREE(pubkey, key->heap, DYNAMIC_TYPE_ECC);
+           #endif
            }
-       #endif
-
-           if (err == MP_OKAY) {
-               err = mp_init(b);
-           }
-
-       #ifdef WOLFSSL_CUSTOM_CURVES
-           /* if custom curve, apply params to pubkey */
-           if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
-               err = wc_ecc_set_custom_curve(pubkey, key->dp);
-           }
-       #endif
-
-           if (err == MP_OKAY) {
-               /* Generate blinding value - non-zero value. */
-               do {
-                   if (++loop_check > 64) {
-                        err = RNG_FAILURE_E;
-                        break;
-                   }
-
-                   err = wc_ecc_gen_k(rng, key->dp->size, b, curve->order);
-               }
-               while (err == MP_ZERO_E);
-               loop_check = 0;
-           }
-
-           for (; err == MP_OKAY;) {
-               if (++loop_check > 64) {
-                    err = RNG_FAILURE_E;
-                    break;
-               }
-       #ifdef WOLFSSL_ECDSA_SET_K
-               if (key->sign_k != NULL) {
-                   if (loop_check > 1) {
-                      err = RNG_FAILURE_E;
-                      break;
-                   }
-
-                   err = mp_copy(key->sign_k, &pubkey->k);
-                   if (err != MP_OKAY) break;
-
-                   mp_forcezero(key->sign_k);
-                   mp_free(key->sign_k);
-                   XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
-                   key->sign_k = NULL;
-                   err = ecc_make_pub_ex(pubkey, curve, NULL, rng);
-               }
-               else
-       #endif
-               {
-                   err = wc_ecc_make_key_ex(rng, key->dp->size, pubkey,
-                                                                   key->dp->id);
-               }
-               if (err != MP_OKAY) break;
-
-               /* find r = x1 mod n */
-               err = mp_mod(pubkey->pubkey.x, curve->order, r);
-               if (err != MP_OKAY) break;
-
-               if (mp_iszero(r) == MP_YES) {
-                #ifndef ALT_ECC_SIZE
-                   mp_clear(pubkey->pubkey.x);
-                   mp_clear(pubkey->pubkey.y);
-                   mp_clear(pubkey->pubkey.z);
-                #endif
-                   mp_forcezero(&pubkey->k);
-               }
-               else {
-                   /* find s = (e + xr)/k
-                             = b.(e/k.b + x.r/k.b) */
-
-                   /* k = k.b */
-                   err = mp_mulmod(&pubkey->k, b, curve->order, &pubkey->k);
-                   if (err != MP_OKAY) break;
-
-                   /* k = 1/k.b */
-                   err = mp_invmod(&pubkey->k, curve->order, &pubkey->k);
-                   if (err != MP_OKAY) break;
-
-                   /* s = x.r */
-                   err = mp_mulmod(&key->k, r, curve->order, s);
-                   if (err != MP_OKAY) break;
-
-                   /* s = x.r/k.b */
-                   err = mp_mulmod(&pubkey->k, s, curve->order, s);
-                   if (err != MP_OKAY) break;
-
-                   /* e = e/k.b */
-                   err = mp_mulmod(&pubkey->k, e, curve->order, e);
-                   if (err != MP_OKAY) break;
-
-                   /* s = e/k.b + x.r/k.b
-                        = (e + x.r)/k.b */
-                   err = mp_add(e, s, s);
-                   if (err != MP_OKAY) break;
-
-                   /* s = b.(e + x.r)/k.b
-                        = (e + x.r)/k */
-                   err = mp_mulmod(s, b, curve->order, s);
-                   if (err != MP_OKAY) break;
-
-                   /* s = (e + xr)/k */
-                   err = mp_mod(s, curve->order, s);
-                   if (err != MP_OKAY) break;
-
-                   if (mp_iszero(s) == MP_NO)
-                       break;
-                }
-           }
-           mp_clear(b);
-       #ifdef WOLFSSL_SMALL_STACK
-           XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
-       #endif
-           wc_ecc_free(pubkey);
-       #ifdef WOLFSSL_SMALL_STACK
-           XFREE(pubkey, key->heap, DYNAMIC_TYPE_ECC);
-       #endif
        }
    }
 
@@ -5836,10 +5877,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                                    a, modulus, mp);
   if (err == MP_OKAY)
     /* precomp [0,i](A + B) table */
-    err = ecc_projective_dbl_point(precomp[1<<2], precomp[2<<2], a, modulus, mp);
+    err = ecc_projective_dbl_point(precomp[4], precomp[8], a, modulus, mp);
 
   if (err == MP_OKAY)
-    err = ecc_projective_add_point(precomp[1<<2], precomp[2<<2], precomp[3<<2],
+    err = ecc_projective_add_point(precomp[4], precomp[8], precomp[12],
                                    a, modulus, mp);
 
   if (err == MP_OKAY) {
@@ -5861,10 +5902,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
     bitbufB = tB[0];
 
     /* for every byte of the multiplicands */
-    for (x = 0;; ) {
+    for (x = 0; x < (int)len || nibble != 3; ) {
         /* grab a nibble */
         if (++nibble == 4) {
-            if (x == (int)len) break;
             bitbufA = tA[x];
             bitbufB = tB[x];
             nibble  = 0;
@@ -6620,8 +6660,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import point from der
  * if shortKeySize != 0 then keysize is always (inLen-1)>>1 */
-int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
-                               ecc_point* point, int shortKeySize)
+int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
+                               const int curve_idx, ecc_point* point,
+                               int shortKeySize)
 {
     int err = 0;
 #ifdef HAVE_COMP_KEY
@@ -6686,7 +6727,7 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
 
     /* read data */
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(point->x, (byte*)in, keysize);
+        err = mp_read_unsigned_bin(point->x, in, keysize);
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
@@ -6772,7 +6813,7 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
 #ifdef HAVE_COMP_KEY
         if (compressed == 0)
 #endif
-            err = mp_read_unsigned_bin(point->y, (byte*)in + keysize, keysize);
+            err = mp_read_unsigned_bin(point->y, in + keysize, keysize);
      }
     if (err == MP_OKAY)
         err = mp_set(point->z, 1);
@@ -6787,7 +6828,7 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
 }
 
 /* function for backwards compatiblity with previous implementations */
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
 {
     return wc_ecc_import_point_der_ex(in, inLen, curve_idx, point, 1);
@@ -7591,7 +7632,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
     /* read data */
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(key->pubkey.x, (byte*)in, keysize);
+        err = mp_read_unsigned_bin(key->pubkey.x, in, keysize);
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
@@ -7678,7 +7719,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         if (compressed == 0)
     #endif
         {
-            err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in + keysize,
+            err = mp_read_unsigned_bin(key->pubkey.y, in + keysize,
                                                                       keysize);
         }
     }
@@ -8398,7 +8439,7 @@ int wc_ecc_sig_size_calc(int sz)
 }
 
 /* maximum signature size based on actual key curve */
-int wc_ecc_sig_size(ecc_key* key)
+int wc_ecc_sig_size(const ecc_key* key)
 {
     int maxSigSz;
     int orderBits, keySz;
@@ -9244,10 +9285,10 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 }
 
 /* perform a fixed point ECC mulmod */
-static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
+static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
                         mp_int* modulus, mp_digit mp, int map)
 {
-#define KB_SIZE 128
+#define KB_SIZE 256
 
 #ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb = NULL;
@@ -9260,6 +9301,9 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
    if (mp_init_multi(&tk, &order, NULL, NULL, NULL, NULL) != MP_OKAY)
        return MP_INIT_E;
+
+   if ((err = mp_copy(k, &tk)) != MP_OKAY)
+       goto done;
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(k) > mp_unsigned_bin_size(modulus)) {
@@ -9278,18 +9322,10 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
       }
 
       /* k must be less than modulus */
-      if (mp_cmp(k, &order) != MP_LT) {
-         if ((err = mp_mod(k, &order, &tk)) != MP_OKAY) {
+      if (mp_cmp(&tk, &order) != MP_LT) {
+         if ((err = mp_mod(&tk, &order, &tk)) != MP_OKAY) {
             goto done;
          }
-      } else {
-         if ((err = mp_copy(k, &tk)) != MP_OKAY) {
-            goto done;
-         }
-      }
-   } else {
-      if ((err = mp_copy(k, &tk)) != MP_OKAY) {
-         goto done;
       }
    }
 
@@ -9870,7 +9906,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
-int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int* modulus, int map, void* heap)
 {
 #ifndef WOLFSSL_SP_MATH

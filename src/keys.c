@@ -1203,6 +1203,9 @@ int SetCipherSpecs(WOLFSSL* ssl)
             break;
     #endif
 #endif /* WOLFSSL_TLS13 */
+
+        default:
+            break;
         }
     }
 

@@ -8,6 +8,7 @@ EXTRA_DIST += wolfcrypt/src/asm.c
 EXTRA_DIST += wolfcrypt/src/aes_asm.asm
 EXTRA_DIST += wolfcrypt/src/wc_dsp.c
 EXTRA_DIST += wolfcrypt/src/sp_dsp32.c
+EXTRA_DIST += wolfcrypt/src/sp_x86_64_asm.asm
 
 EXTRA_DIST += \
               wolfcrypt/src/ecc_fp.c \

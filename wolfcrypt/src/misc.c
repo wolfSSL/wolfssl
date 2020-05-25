@@ -180,9 +180,13 @@ WC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 of wolfssl_words, placing the result in <*r>. */
 WC_STATIC WC_INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 {
-    word32 i;
+    word32 i, j;
 
-    for (i = 0; i < n; i++) r[i] ^= a[i];
+    i = 0;
+    for (j = 0; j < n; j += WOLFSSL_WORD_SIZE) {
+        r[i] ^= a[i];
+        i++;
+    }
 }
 
 /* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
@@ -190,9 +194,10 @@ counts, placing the result in <*buf>. */
 
 WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
-    if (((wolfssl_word)buf | (wolfssl_word)mask | count) % WOLFSSL_WORD_SIZE == 0)
-        XorWords( (wolfssl_word*)buf,
-                  (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
+    wolfssl_word offset = (wolfssl_word)buf | (wolfssl_word)mask | count;
+    if ((offset % WOLFSSL_WORD_SIZE) == 0) {
+        XorWords( (wolfssl_word*)buf, (const wolfssl_word*)mask, count);
+    }
     else {
         word32 i;
         byte*       b = (byte*)buf;
@@ -220,8 +225,8 @@ WC_STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
         len -= l;
         while (l--) *z++ = 0;
     #endif
-    for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
-        *w++ = 0;
+    for (w = (volatile word64*)z; len >= sizeof(*w); w++, len -= sizeof(*w))
+        *w = 0;
     z = (volatile byte*)w;
 #endif
 

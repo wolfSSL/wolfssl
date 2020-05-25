@@ -176,20 +176,24 @@ void wolfSSL_Debugging_OFF(void)
  */
 void WOLFSSL_START(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
 #ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+        fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
 #endif
-    wc_func_start[funcNum] = now;
+        wc_func_start[funcNum] = now;
+    }
 }
 
 void WOLFSSL_END(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
-    wc_func_time[funcNum] += now - wc_func_start[funcNum];
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
+        wc_func_time[funcNum] += now - wc_func_start[funcNum];
 #ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+        fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
 #endif
+    }
 }
 
 void WOLFSSL_TIME(int count)
@@ -817,7 +821,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         while (current != NULL)
         {
             next = current->next;
-            cb(current->error, strlen(current->error), u);
+            cb(current->error, XSTRLEN(current->error), u);
             XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
             current = next;
         }

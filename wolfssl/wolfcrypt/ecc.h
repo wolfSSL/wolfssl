@@ -81,7 +81,9 @@
 
 
 /* Determine max ECC bits based on enabled curves */
-#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+#if defined(WOLFCRYPT_HAVE_SAKKE)
+    #define MAX_ECC_BITS    1024
+#elif defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
     #define MAX_ECC_BITS    521
 #elif defined(HAVE_ECC512)
     #define MAX_ECC_BITS    512
@@ -124,10 +126,15 @@ enum {
     ECC_PRIVATEKEY_ONLY = 3,
     ECC_MAXNAME     = 16,   /* MAX CURVE NAME LENGTH */
     SIG_HEADER_SZ   =  7,   /* ECC signature header size (30 81 87 02 42 [R] 02 42 [S]) */
-    ECC_BUFSIZE     = 256,  /* for exported keys temp buffer */
+    ECC_BUFSIZE     = 257,  /* for exported keys temp buffer */
     ECC_MINSIZE     = 20,   /* MIN Private Key size */
+#if defined(WOLFCRYPT_HAVE_SAKKE)
+    ECC_MAXSIZE     = 128,  /* MAX Private Key size */
+    ECC_MAXSIZE_GEN = 128,  /* MAX Buffer size required when generating ECC keys*/
+#else
     ECC_MAXSIZE     = 66,   /* MAX Private Key size */
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
+#endif
     ECC_MAX_OID_LEN = 16,
     ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
 
@@ -203,6 +210,10 @@ typedef enum ecc_curve_id {
 #endif
 #ifdef HAVE_CURVE448
     ECC_X448,
+#endif
+
+#ifdef WOLFCRYPT_HAVE_SAKKE
+    ECC_SAKKE_1,
 #endif
 
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -596,7 +607,9 @@ void wc_ecc_del_point(ecc_point* p);
 WOLFSSL_API
 void wc_ecc_del_point_h(ecc_point* p, void* h);
 WOLFSSL_API
-int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
+void wc_ecc_forcezero_point(ecc_point* p);
+WOLFSSL_API
+int wc_ecc_copy_point(const ecc_point* p, ecc_point *r);
 WOLFSSL_API
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
@@ -606,10 +619,10 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 WOLFSSL_API
-int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
 WOLFSSL_LOCAL
-int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
 WOLFSSL_LOCAL
 int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
@@ -688,10 +701,11 @@ int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
 
 #ifdef HAVE_ECC_KEY_IMPORT
 WOLFSSL_API
-int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
-                               ecc_point* point, int shortKeySize);
+int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
+                               const int curve_idx, ecc_point* point,
+                               int shortKeySize);
 WOLFSSL_API
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+int wc_ecc_import_point_der(const byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 #endif /* HAVE_ECC_KEY_IMPORT */
 
@@ -701,7 +715,7 @@ int wc_ecc_size(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_sig_size_calc(int sz);
 WOLFSSL_API
-int wc_ecc_sig_size(ecc_key* key);
+int wc_ecc_sig_size(const ecc_key* key);
 
 WOLFSSL_API
 int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz);

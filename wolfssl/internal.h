@@ -2220,9 +2220,9 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
-WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length,
-                                      byte msgType, int* found);
-WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
+WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
+                                      word16 length, byte msgType, int* found);
+WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType, Suites *suites);
 
 #elif defined(HAVE_SNI)                           \
@@ -2502,7 +2502,7 @@ typedef struct Cookie {
     byte   data;
 } Cookie;
 
-WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len,
+WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, const byte* data, word16 len,
                                   byte* mac, byte macSz, int resp);
 
 
@@ -2556,7 +2556,7 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
                                                  word16* pSz);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
                                                    byte msgType, word16* pSz);
-WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity,
+WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity,
                                         word16 len, word32 age, byte hmac,
                                         byte cipherSuite0, byte cipherSuite,
                                         byte resumption,

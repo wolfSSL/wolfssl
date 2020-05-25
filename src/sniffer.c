@@ -5200,7 +5200,7 @@ int ssl_Trace(const char* traceFile, char* error)
     if (traceFile) {
         /* Don't try to reopen the file */
         if (TraceFile == NULL) {
-            TraceFile = fopen(traceFile, "a");
+            TraceFile = XFOPEN(traceFile, "a");
             if (!TraceFile) {
                 SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
                 return -1;

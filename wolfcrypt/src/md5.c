@@ -195,7 +195,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 
 static int Transform(wc_Md5* md5, const byte* data)
 {
-    word32* buffer = (word32*)data;
+    const word32* buffer = (const word32*)data;
     /* Copy context->state[] to working vars  */
     word32 a = md5->digest[0];
     word32 b = md5->digest[1];

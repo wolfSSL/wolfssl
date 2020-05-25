@@ -234,8 +234,9 @@ enum {
     PSS_SALTLEN_RECOVER_E=-273,  /* PSS slat length not recoverable */
     CHACHA_POLY_OVERFLOW =-274,  /* ChaCha20Poly1305 limit overflow */
     ASN_SELF_SIGNED_E   = -275,  /* ASN self-signed certificate error */
+    SAKKE_VERIFY_FAIL_E = -276,  /* SAKKE derivation verification error */
 
-    WC_LAST_E           = -275,  /* Update this to indicate last error */
+    WC_LAST_E           = -276,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

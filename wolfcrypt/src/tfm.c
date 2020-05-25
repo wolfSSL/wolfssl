@@ -1454,12 +1454,15 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
 
   fp_sub_d(b, 2, e);
   /* Highest bit is always set. */
-  for (i = fp_count_bits(e)-2, j = 1; i >= 0; i--, j++) {
+  j = 1;
+  for (i = fp_count_bits(e)-2; i >= 0; i--) {
       if (!fp_is_bit_set(e, i) || j == CT_INV_MOD_PRE_CNT)
           break;
+      j++;
   }
   fp_copy(&pre[j-1], t);
-  for (j = 0; i >= 0; i--) {
+  j = 0;
+  for (; i >= 0; i--) {
     int set = fp_is_bit_set(e, i);
 
     if ((j == CT_INV_MOD_PRE_CNT) || (!set && j > 0)) {
@@ -3590,10 +3593,11 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 {
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
-   int i, j;
+   int i;
+   int j = 0;
    fp_digit n;
 
-   for (j=0,i=0; i<t->used-1; ) {
+   for (i = 0; i < t->used-1; ) {
        b[x++] = (unsigned char)(t->dp[i] >> j);
        j += 8;
        i += j == DIGIT_BIT;
@@ -3643,9 +3647,11 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 {
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
-  int i, j, x;
+  int i = 0;
+  int j = 0;
+  int x;
 
-  for (x=c-1, j=0, i=0; x >= 0 && i < a->used; x--) {
+  for (x=c-1; x >= 0 && i < a->used; x--) {
      b[x] = (unsigned char)(a->dp[i] >> j);
      j += 8;
      i += j == DIGIT_BIT;
@@ -3685,7 +3691,7 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 #endif
 }
 
-int fp_unsigned_bin_size(fp_int *a)
+int fp_unsigned_bin_size(const fp_int *a)
 {
   int     size = fp_count_bits (a);
   return (size / 8 + ((size & 7) != 0 ? 1 : 0));
@@ -3773,7 +3779,7 @@ int fp_set_bit (fp_int * a, fp_digit b)
     return MP_OKAY;
 }
 
-int fp_count_bits (fp_int * a)
+int fp_count_bits (const fp_int * a)
 {
   int     r;
   fp_digit q;
@@ -4215,7 +4221,7 @@ int mp_cmp_d(mp_int * a, mp_digit b)
 }
 
 /* get the size for an unsigned equivalent */
-int mp_unsigned_bin_size (mp_int * a)
+int mp_unsigned_bin_size (const mp_int * a)
 {
   return fp_unsigned_bin_size(a);
 }
@@ -4269,7 +4275,7 @@ int mp_div_2d(fp_int* a, int b, fp_int* c, fp_int* d)
   return MP_OKAY;
 }
 
-void fp_copy(fp_int *a, fp_int *b)
+void fp_copy(const fp_int *a, fp_int *b)
 {
     /* if source and destination are different */
     if (a != b) {
@@ -4315,7 +4321,7 @@ void fp_init_copy(fp_int *a, fp_int* b)
 }
 
 /* fast math wrappers */
-int mp_copy(fp_int* a, fp_int* b)
+int mp_copy(const fp_int* a, fp_int* b)
 {
     fp_copy(a, b);
     return MP_OKAY;
@@ -4331,7 +4337,7 @@ int mp_iszero(mp_int* a)
     return fp_iszero(a);
 }
 
-int mp_count_bits (mp_int* a)
+int mp_count_bits (const mp_int* a)
 {
     return fp_count_bits(a);
 }

@@ -4125,12 +4125,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
 
 #ifdef OPENSSL_EXTRA
-    if (aes != NULL) {
-        XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
-        aes->aadLen = 0;
-    }
+    XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
+    aes->aadLen = 0;
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);

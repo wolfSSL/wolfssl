@@ -670,6 +670,41 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 }
 #endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
 
+static word32 poly1305_leftover(Poly1305* ctx, const byte* m, word32 bytes)
+{
+    size_t want = (POLY1305_BLOCK_SIZE - ctx->leftover);
+    size_t i;
+
+    if (want > bytes)
+        want = bytes;
+
+    for (i = 0; i < want; i++)
+        ctx->buffer[ctx->leftover + i] = m[i];
+    bytes -= (word32)want;
+    m += want;
+    ctx->leftover += want;
+    if (ctx->leftover < sizeof(ctx->buffer))
+        return 0;
+
+#ifdef USE_INTEL_SPEEDUP
+    #ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_AVX2(intel_flags)) {
+            if (!ctx->started)
+                poly1305_calc_powers_avx2(ctx);
+            poly1305_blocks_avx2(ctx, ctx->buffer, sizeof(ctx->buffer));
+        }
+    }
+    else
+    #endif
+#endif
+    {
+        poly1305_block(ctx, ctx->buffer);
+    }
+
+    ctx->leftover = 0;
+
+    return (word32)want;
+}
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
 {
@@ -692,32 +727,16 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
     }
     printf("\n");
 #endif
-    if (ctx == NULL || (m == NULL && bytes > 0))
-        return BAD_FUNC_ARG;
+
+    if (ctx->leftover) {
+        word32 consumed = poly1305_leftover(ctx, m, bytes);
+        bytes -= consumed;
+        m += consumed;
+    }
 
 #ifdef USE_INTEL_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
-        /* handle leftover */
-        if (ctx->leftover) {
-            size_t want = sizeof(ctx->buffer) - ctx->leftover;
-            if (want > bytes)
-                want = bytes;
-
-            for (i = 0; i < want; i++)
-                ctx->buffer[ctx->leftover + i] = m[i];
-            bytes -= (word32)want;
-            m += want;
-            ctx->leftover += want;
-            if (ctx->leftover < sizeof(ctx->buffer))
-                return 0;
-
-            if (!ctx->started)
-                poly1305_calc_powers_avx2(ctx);
-            poly1305_blocks_avx2(ctx, ctx->buffer, sizeof(ctx->buffer));
-            ctx->leftover = 0;
-        }
-
         /* process full blocks */
         if (bytes >= sizeof(ctx->buffer)) {
             size_t want = bytes & ~(sizeof(ctx->buffer) - 1);
@@ -740,22 +759,6 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
     #endif
 #endif
     {
-        /* handle leftover */
-        if (ctx->leftover) {
-            size_t want = (POLY1305_BLOCK_SIZE - ctx->leftover);
-            if (want > bytes)
-                want = bytes;
-            for (i = 0; i < want; i++)
-                ctx->buffer[ctx->leftover + i] = m[i];
-            bytes -= (word32)want;
-            m += want;
-            ctx->leftover += want;
-            if (ctx->leftover < POLY1305_BLOCK_SIZE)
-                return 0;
-            poly1305_block(ctx, ctx->buffer);
-            ctx->leftover = 0;
-        }
-
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
             size_t want = (bytes & ~(POLY1305_BLOCK_SIZE - 1));
@@ -795,8 +798,8 @@ int wc_Poly1305_Pad(Poly1305* ctx, word32 lenToPad)
     XMEMSET(padding, 0, sizeof(padding));
 
     /* Pad length to 16 bytes */
-    paddingLen = -(int)lenToPad & (WC_POLY1305_PAD_SZ - 1);
-    if (paddingLen > 0) {
+    paddingLen = (-(int)lenToPad) & (WC_POLY1305_PAD_SZ - 1);
+    if ((paddingLen > 0) && (paddingLen < WC_POLY1305_PAD_SZ)) {
         ret = wc_Poly1305Update(ctx, padding, paddingLen);
     }
     return ret;
@@ -837,8 +840,8 @@ int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz, word32 dataSz)
     tagSz      : Size of input tag buffer (must be at least
                  WC_POLY1305_MAC_SZ(16))
  */
-int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
-                    byte* input, word32 sz, byte* tag, word32 tagSz)
+int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional, word32 addSz,
+                    const byte* input, word32 sz, byte* tag, word32 tagSz)
 {
     int ret;
 

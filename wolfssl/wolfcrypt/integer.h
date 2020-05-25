@@ -281,7 +281,7 @@ MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero(mp_int * a);
-MP_API int  mp_unsigned_bin_size(mp_int * a);
+MP_API int  mp_unsigned_bin_size(const mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
@@ -292,10 +292,10 @@ MP_API int  mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P,
 /* end functions needed by Rsa */
 
 /* functions added to support above needed, removed TOOM and KARATSUBA */
-MP_API int  mp_count_bits (mp_int * a);
+MP_API int  mp_count_bits (const mp_int * a);
 MP_API int  mp_leading_bit (mp_int * a);
 MP_API int  mp_init_copy (mp_int * a, mp_int * b);
-MP_API int  mp_copy (mp_int * a, mp_int * b);
+MP_API int  mp_copy (const mp_int * a, mp_int * b);
 MP_API int  mp_grow (mp_int * a, int size);
 MP_API int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
 MP_API void mp_zero (mp_int * a);

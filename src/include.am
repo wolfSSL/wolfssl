@@ -491,6 +491,13 @@ if BUILD_PKCS7
 src_libwolfssl_la_SOURCES += wolfcrypt/src/pkcs7.c
 endif
 
+if BUILD_ECCSI
+src_libwolfssl_la_SOURCES += wolfcrypt/src/eccsi.c
+endif
+if BUILD_SAKKE
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sakke.c
+endif
+
 if BUILD_SRP
 src_libwolfssl_la_SOURCES += wolfcrypt/src/srp.c
 endif

@@ -536,6 +536,7 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     /* get hash type used and resulting size of HMAC key */
     hashT = wc_OidGetHash(mac->oid);
     if (hashT == WC_HASH_TYPE_NONE) {
+        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
         WOLFSSL_MSG("Unsupported hash used");
         return BAD_FUNC_ARG;
     }
@@ -543,14 +544,17 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
     /* check out buffer is large enough */
     if (kLen < 0 || outSz < (word32)kLen) {
+        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
         return BAD_FUNC_ARG;
     }
 
     /* idx contains size of unicodePasswd */
     if ((ret = wc_PKCS12_PBKDF_ex(key, unicodePasswd, idx, mac->salt,
               mac->saltSz, mac->itt, kLen, (int)hashT, id, pkcs12->heap)) < 0) {
+        ForceZero(unicodePasswd, MAX_UNICODE_SZ);
         return ret;
     }
+    ForceZero(unicodePasswd, MAX_UNICODE_SZ);
 
     /* now that key has been created use it to get HMAC hash on data */
     if ((ret = wc_HmacInit(&hmac, pkcs12->heap, INVALID_DEVID)) != 0) {

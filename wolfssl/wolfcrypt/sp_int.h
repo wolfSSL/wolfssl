@@ -68,46 +68,49 @@ This library provides single precision (SP) integer math functions.
     #undef SP_WORD_SIZE
     #define SP_WORD_SIZE 32
 #elif !defined(WOLFSSL_SP_ASM)
-  #if SP_WORD_SIZE == 32
-    typedef int32_t sp_digit;
-    typedef uint32_t sp_int_digit;
-    typedef uint64_t sp_int_word;
-    typedef int64_t sp_int_sword;
-  #elif SP_WORD_SIZE == 64
-    typedef int64_t sp_digit;
-    typedef uint64_t sp_int_digit;
-    #ifdef __SIZEOF_INT128__
-      typedef __uint128_t uint128_t;
-      typedef __int128_t int128_t;
+    #if SP_WORD_SIZE == 32
+        typedef int32_t sp_digit;
+        typedef uint32_t sp_int_digit;
+        typedef uint64_t sp_int_word;
+        typedef int64_t sp_int_sword;
+    #elif SP_WORD_SIZE == 64
+        typedef int64_t sp_digit;
+        typedef uint64_t sp_int_digit;
+        #ifdef __SIZEOF_INT128__
+            typedef __uint128_t uint128_t;
+            typedef __int128_t int128_t;
+        #else
+            typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+            typedef long int128_t __attribute__ ((mode(TI)));
+        #endif
+        typedef uint128_t sp_int_word;
+        typedef int128_t sp_int_sword;
     #else
-      typedef unsigned long uint128_t __attribute__ ((mode(TI)));
-      typedef long int128_t __attribute__ ((mode(TI)));
+        #error Word size not defined
     #endif
-    typedef uint128_t sp_int_word;
-    typedef int128_t sp_int_sword;
-  #else
-    #error Word size not defined
-  #endif
 #else
-  #if SP_WORD_SIZE == 32
-    typedef uint32_t sp_digit;
-    typedef uint32_t sp_int_digit;
-    typedef uint64_t sp_int_word;
-    typedef int64_t sp_int_sword;
-  #elif SP_WORD_SIZE == 64
-    typedef uint64_t sp_digit;
-    typedef uint64_t sp_int_digit;
-    #ifdef __SIZEOF_INT128__
-      typedef __uint128_t uint128_t;
-      typedef __int128_t int128_t;
+    #if SP_WORD_SIZE == 32
+        typedef uint32_t sp_digit;
+        typedef uint32_t sp_int_digit;
+        typedef uint64_t sp_int_word;
+        typedef int64_t sp_int_sword;
+    #elif SP_WORD_SIZE == 64
+        typedef uint64_t sp_digit;
+        typedef uint64_t sp_int_digit;
+        /* Visual Studio has no support for 128-bit integer type. */
+        #if !defined(_WIN64)
+            #ifdef __SIZEOF_INT128__
+                typedef __uint128_t uint128_t;
+                typedef __int128_t int128_t;
+            #else
+                typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+                typedef long int128_t __attribute__ ((mode(TI)));
+            #endif
+            typedef uint128_t sp_int_word;
+            typedef int128_t sp_int_sword;
+        #endif
     #else
-      typedef unsigned long uint128_t __attribute__ ((mode(TI)));
-      typedef long int128_t __attribute__ ((mode(TI)));
-    #endif
-    typedef uint128_t sp_int_word;
-    typedef int128_t sp_int_sword;
-  #else
-    #error Word size not defined
+        #error Word size not defined
   #endif
 #endif
 
@@ -191,16 +194,16 @@ MP_API int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d,
                          sp_int* e, sp_int* f);
 MP_API void sp_free(sp_int* a);
 MP_API void sp_clear(sp_int* a);
-MP_API int sp_unsigned_bin_size(sp_int* a);
+MP_API int sp_unsigned_bin_size(const sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
 MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
-MP_API int sp_count_bits(sp_int* a);
+MP_API int sp_count_bits(const sp_int* a);
 MP_API int sp_leading_bit(sp_int* a);
 MP_API int sp_to_unsigned_bin(sp_int* a, byte* out);
 MP_API int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz);
 MP_API void sp_forcezero(sp_int* a);
-MP_API int sp_copy(sp_int* a, sp_int* r);
+MP_API int sp_copy(const sp_int* a, sp_int* r);
 MP_API int sp_set(sp_int* a, sp_int_digit d);
 MP_API void sp_clamp(sp_int* a);
 MP_API int sp_grow(sp_int* a, int l);
@@ -226,7 +229,7 @@ MP_API int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
 MP_API int sp_prime_is_prime(mp_int* a, int t, int* result);
 MP_API int sp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 MP_API int sp_exch(sp_int* a, sp_int* b);
-MP_API int sp_get_digit_count(sp_int *a);
+MP_API int sp_get_digit_count(const sp_int *a);
 MP_API int sp_init_copy (sp_int * a, sp_int * b);
 MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);

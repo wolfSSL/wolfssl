@@ -35,10 +35,7 @@
 void fe_init()
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : 
         :
         : "memory"
@@ -48,14 +45,11 @@ void fe_init()
 void fe_frombytes(fe out, const unsigned char* in)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "ldp	x2, x3, [%x[in]]\n\t"
         "ldp	x4, x5, [%x[in], #16]\n\t"
         "and	x5, x5, #0x7fffffffffffffff\n\t"
         "stp	x2, x3, [%x[out]]\n\t"
         "stp	x4, x5, [%x[out], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6"
@@ -65,8 +59,6 @@ void fe_frombytes(fe out, const unsigned char* in)
 void fe_tobytes(unsigned char* out, const fe n)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "mov	x7, #19\n\t"
         "ldp	x2, x3, [%x[n]]\n\t"
         "ldp	x4, x5, [%x[n], #16]\n\t"
@@ -82,7 +74,6 @@ void fe_tobytes(unsigned char* out, const fe n)
         "and	x5, x5, #0x7fffffffffffffff\n\t"
         "stp	x2, x3, [%x[out]]\n\t"
         "stp	x4, x5, [%x[out], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7"
@@ -92,13 +83,10 @@ void fe_tobytes(unsigned char* out, const fe n)
 void fe_1(fe n)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Set one */
         "mov	x1, #1\n\t"
         "stp	x1, xzr, [%x[n]]\n\t"
         "stp	xzr, xzr, [%x[n], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [n] "+r" (n)
         :
         : "memory", "x1"
@@ -108,12 +96,9 @@ void fe_1(fe n)
 void fe_0(fe n)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Set zero */
         "stp	xzr, xzr, [%x[n]]\n\t"
         "stp	xzr, xzr, [%x[n], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [n] "+r" (n)
         :
         : "memory"
@@ -123,14 +108,11 @@ void fe_0(fe n)
 void fe_copy(fe r, const fe a)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Copy */
         "ldp	x2, x3, [%x[a]]\n\t"
         "ldp	x4, x5, [%x[a], #16]\n\t"
         "stp	x2, x3, [%x[r]]\n\t"
         "stp	x4, x5, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x2", "x3", "x4", "x5"
@@ -140,8 +122,6 @@ void fe_copy(fe r, const fe a)
 void fe_sub(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Sub */
         "ldp	x3, x4, [%x[a]]\n\t"
         "ldp	x5, x6, [%x[a], #16]\n\t"
@@ -163,7 +143,6 @@ void fe_sub(fe r, const fe a, const fe b)
         "adc	x6, x6, x13\n\t"
         "stp	x3, x4, [%x[r]]\n\t"
         "stp	x5, x6, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13"
@@ -173,8 +152,6 @@ void fe_sub(fe r, const fe a, const fe b)
 void fe_add(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Add */
         "ldp	x3, x4, [%x[a]]\n\t"
         "ldp	x5, x6, [%x[a], #16]\n\t"
@@ -196,7 +173,6 @@ void fe_add(fe r, const fe a, const fe b)
         "sbc	x6, x6, x13\n\t"
         "stp	x3, x4, [%x[r]]\n\t"
         "stp	x5, x6, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13"
@@ -206,8 +182,6 @@ void fe_add(fe r, const fe a, const fe b)
 void fe_neg(fe r, const fe a)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "ldp	x2, x3, [%x[a]]\n\t"
         "ldp	x4, x5, [%x[a], #16]\n\t"
         "mov	x6, #-19\n\t"
@@ -220,7 +194,6 @@ void fe_neg(fe r, const fe a)
         "sbc	x9, x9, x5\n\t"
         "stp	x6, x7, [%x[r]]\n\t"
         "stp	x8, x9, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
@@ -230,8 +203,6 @@ void fe_neg(fe r, const fe a)
 int fe_isnonzero(const fe a)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "mov	x6, #19\n\t"
         "ldp	x1, x2, [%x[a]]\n\t"
         "ldp	x3, x4, [%x[a], #16]\n\t"
@@ -248,7 +219,6 @@ int fe_isnonzero(const fe a)
         "orr	%x[a], x1, x2\n\t"
         "orr	x3, x3, x4\n\t"
         "orr	%x[a], %x[a], x3\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [a] "+r" (a)
         :
         : "memory", "x1", "x2", "x3", "x4", "x5", "x6"
@@ -259,8 +229,6 @@ int fe_isnonzero(const fe a)
 int fe_isnegative(const fe a)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         "mov	x6, #19\n\t"
         "ldp	x1, x2, [%x[a]]\n\t"
         "ldp	x3, x4, [%x[a], #16]\n\t"
@@ -270,7 +238,6 @@ int fe_isnegative(const fe a)
         "adc	x5, x4, xzr\n\t"
         "and	%x[a], x1, #1\n\t"
         "eor	%x[a], %x[a], x5, lsr 63\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [a] "+r" (a)
         :
         : "memory", "x1", "x2", "x3", "x4", "x5", "x6"
@@ -495,8 +462,6 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
 void fe_mul(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Multiply */
         "ldp	x14, x15, [%x[a]]\n\t"
         "ldp	x16, x17, [%x[a], #16]\n\t"
@@ -637,7 +602,6 @@ void fe_mul(fe r, const fe a, const fe b)
         /* Store */
         "stp	x6, x7, [%x[r]]\n\t"
         "stp	x8, x9, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22"
@@ -647,8 +611,6 @@ void fe_mul(fe r, const fe a, const fe b)
 void fe_sq(fe r, const fe a)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-16]!\n\t"
-        "add	x29, sp, #0\n\t"
         /* Square */
         "ldp	x13, x14, [%x[a]]\n\t"
         "ldp	x15, x16, [%x[a], #16]\n\t"
@@ -755,7 +717,6 @@ void fe_sq(fe r, const fe a)
         /* Store */
         "stp	x5, x6, [%x[r]]\n\t"
         "stp	x7, x8, [%x[r], #16]\n\t"
-        "ldp	x29, x30, [sp], #16\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16"
@@ -771,6 +732,9 @@ void fe_invert(fe r, const fe a)
         "str	%x[r], [x29, #144]\n\t"
         "str	%x[a], [x29, #152]\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "ldr	x1, [x29, #152]\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
@@ -783,12 +747,18 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "ldr	x1, [x29, #152]\n\t"
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
@@ -805,6 +775,9 @@ void fe_invert(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #16\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
@@ -819,12 +792,18 @@ void fe_invert(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #4\n\t"
+        "mov	x23, #3\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert1_%=: \n\t"
@@ -833,10 +812,12 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert1_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert1_%=\n\t"
         "add	x0, x29, #48\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -850,7 +831,10 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #9\n\t"
+        "mov	x23, #8\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert2_%=: \n\t"
@@ -859,9 +843,14 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert2_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert2_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -869,12 +858,18 @@ void fe_invert(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #19\n\t"
+        "mov	x23, #18\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_fe_invert3_%=: \n\t"
@@ -883,17 +878,22 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert3_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert3_%=\n\t"
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #10\n\t"
+        "mov	x23, #9\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert4_%=: \n\t"
@@ -902,10 +902,12 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert4_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert4_%=\n\t"
         "add	x0, x29, #48\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -919,7 +921,10 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #49\n\t"
+        "mov	x23, #48\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert5_%=: \n\t"
@@ -928,9 +933,14 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert5_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert5_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -938,12 +948,18 @@ void fe_invert(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #0x63\n\t"
+        "mov	x23, #0x62\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_fe_invert6_%=: \n\t"
@@ -952,17 +968,22 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert6_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert6_%=\n\t"
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #50\n\t"
+        "mov	x23, #49\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert7_%=: \n\t"
@@ -971,17 +992,22 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert7_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert7_%=\n\t"
         "add	x0, x29, #48\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x20, #5\n\t"
+        "mov	x23, #4\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_invert8_%=: \n\t"
@@ -990,10 +1016,12 @@ void fe_invert(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x20, x20, #1\n\t"
-        "cmp	x20, #0\n\t"
-        "bne	L_fe_invert8_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_invert8_%=\n\t"
         "ldr	x0, [x29, #144]\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -1003,7 +1031,7 @@ void fe_invert(fe r, const fe a)
         "ldp	x29, x30, [sp], #0xa0\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x20"
+        : "memory", "x2", "x23"
     );
 }
 
@@ -2334,12 +2362,18 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #16\n\t"
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
@@ -2356,6 +2390,9 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
@@ -2370,12 +2407,18 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #4\n\t"
+        "mov	x24, #3\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_1_%=: \n\t"
@@ -2384,10 +2427,12 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_1_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_1_%=\n\t"
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2401,7 +2446,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #9\n\t"
+        "mov	x24, #8\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_2_%=: \n\t"
@@ -2410,9 +2458,14 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_2_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_2_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2420,12 +2473,18 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x90\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #19\n\t"
+        "mov	x24, #18\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x90\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x90\n\t"
         "\n"
     "L_curve25519_inv_3_%=: \n\t"
@@ -2434,17 +2493,22 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_3_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_3_%=\n\t"
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x90\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x70\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #10\n\t"
+        "mov	x24, #9\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_4_%=: \n\t"
@@ -2453,10 +2517,12 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_4_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_4_%=\n\t"
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2470,7 +2536,10 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #49\n\t"
+        "mov	x24, #48\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_5_%=: \n\t"
@@ -2479,9 +2548,14 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_5_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_5_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2489,12 +2563,18 @@ int curve25519(byte* r, const byte* n, const byte* a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x90\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #0x63\n\t"
+        "mov	x24, #0x62\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x90\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x90\n\t"
         "\n"
     "L_curve25519_inv_6_%=: \n\t"
@@ -2503,17 +2583,22 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_6_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_6_%=\n\t"
         "add	x0, x29, #0x70\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x90\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x70\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #50\n\t"
+        "mov	x24, #49\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_7_%=: \n\t"
@@ -2522,17 +2607,22 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_7_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_7_%=\n\t"
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x70\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #0x50\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x24, #5\n\t"
+        "mov	x24, #4\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_curve25519_inv_8_%=: \n\t"
@@ -2541,10 +2631,12 @@ int curve25519(byte* r, const byte* n, const byte* a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x24, x24, #1\n\t"
-        "cmp	x24, #0\n\t"
-        "bne	L_curve25519_inv_8_%=\n\t"
+        "subs	x24, x24, #1\n\t"
+        "bcs	L_curve25519_inv_8_%=\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2710,6 +2802,9 @@ void fe_pow22523(fe r, const fe a)
         "str	%x[r], [x29, #112]\n\t"
         "str	%x[a], [x29, #120]\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "ldr	x1, [x29, #120]\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
@@ -2722,12 +2817,18 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "ldr	x1, [x29, #120]\n\t"
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
@@ -2743,11 +2844,20 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #16\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #16\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
+#ifndef NDEBUG
+        "add	x0, x29, #16\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
@@ -2762,7 +2872,10 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #4\n\t"
+        "mov	x23, #3\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_1_%=: \n\t"
@@ -2771,10 +2884,12 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_1_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_1_%=\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2788,7 +2903,10 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #9\n\t"
+        "mov	x23, #8\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_2_%=: \n\t"
@@ -2797,9 +2915,14 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_2_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_2_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2807,12 +2930,18 @@ void fe_pow22523(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #19\n\t"
+        "mov	x23, #18\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_pow22523_3_%=: \n\t"
@@ -2821,17 +2950,22 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_3_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_3_%=\n\t"
         "add	x0, x29, #48\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #10\n\t"
+        "mov	x23, #9\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_4_%=: \n\t"
@@ -2840,10 +2974,12 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_4_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_4_%=\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2857,7 +2993,10 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #49\n\t"
+        "mov	x23, #48\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_5_%=: \n\t"
@@ -2866,9 +3005,14 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_5_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_5_%=\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2876,12 +3020,18 @@ void fe_pow22523(fe r, const fe a)
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
 #ifndef __APPLE__
         "bl	fe_sq\n\t"
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #0x63\n\t"
+        "mov	x23, #0x62\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_pow22523_6_%=: \n\t"
@@ -2890,17 +3040,22 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_6_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_6_%=\n\t"
         "add	x0, x29, #48\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #0x50\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #48\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #50\n\t"
+        "mov	x23, #49\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_7_%=: \n\t"
@@ -2909,17 +3064,22 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_7_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_7_%=\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #48\n\t"
+#endif /* !NDEBUG */
         "add	x2, x29, #16\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
 #else
         "bl	_fe_mul\n\t"
 #endif /* __APPLE__ */
-        "mov	x21, #2\n\t"
+        "mov	x23, #1\n\t"
+#ifndef NDEBUG
+        "add	x0, x29, #16\n\t"
+#endif /* !NDEBUG */
         "add	x1, x29, #16\n\t"
         "\n"
     "L_fe_pow22523_8_%=: \n\t"
@@ -2928,10 +3088,12 @@ void fe_pow22523(fe r, const fe a)
 #else
         "bl	_fe_sq\n\t"
 #endif /* __APPLE__ */
-        "sub	x21, x21, #1\n\t"
-        "cmp	x21, #0\n\t"
-        "bne	L_fe_pow22523_8_%=\n\t"
+        "subs	x23, x23, #1\n\t"
+        "bcs	L_fe_pow22523_8_%=\n\t"
         "ldr	x0, [x29, #112]\n\t"
+#ifndef NDEBUG
+        "add	x1, x29, #16\n\t"
+#endif /* !NDEBUG */
         "ldr	x2, [x29, #120]\n\t"
 #ifndef __APPLE__
         "bl	fe_mul\n\t"
@@ -2941,7 +3103,7 @@ void fe_pow22523(fe r, const fe a)
         "ldp	x29, x30, [sp], #0x80\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
-        : "memory", "x21"
+        : "memory", "x2", "x23"
     );
 }
 
@@ -3391,7 +3553,7 @@ void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz, con
 void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-80]!\n\t"
+        "stp	x29, x30, [sp, #-96]!\n\t"
         "add	x29, sp, #0\n\t"
         "str	%x[ry], [x29, #16]\n\t"
         "str	%x[rz], [x29, #24]\n\t"
@@ -3959,7 +4121,7 @@ void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe 
         /* Store */
         "stp	x3, x4, [x0]\n\t"
         "stp	x5, x6, [x0, #16]\n\t"
-        "ldp	x29, x30, [sp], #0x50\n\t"
+        "ldp	x29, x30, [sp], #0x60\n\t"
         : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt)
         :
         : "memory", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26"
@@ -4513,8 +4675,11 @@ void fe_ge_dbl(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
 void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qxy2d, const fe qyplusx, const fe qyminusx)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-80]!\n\t"
+        "stp	x29, x30, [sp, #-112]!\n\t"
         "add	x29, sp, #0\n\t"
+        "str	%x[qyminusx], [sp, #104]\n\t"
+        "str	%x[qyplusx], [sp, #96]\n\t"
+        "str	%x[qxy2d], [sp, #88]\n\t"
         "str	%x[rx], [x29, #16]\n\t"
         "str	%x[ry], [x29, #24]\n\t"
         "str	%x[rz], [x29, #32]\n\t"
@@ -4560,7 +4725,7 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "adcs	x10, x10, x28\n\t"
         "adc	x11, x11, x26\n\t"
         "ldr	x0, [x29, #32]\n\t"
-        "ldr	x2, [x29, #168]\n\t"
+        "ldr	x2, [sp, #96]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x2]\n\t"
         "ldp	x23, x24, [x2, #16]\n\t"
@@ -4698,7 +4863,7 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "adc	x15, x15, xzr\n\t"
         /* Store */
         "ldr	x0, [x29, #24]\n\t"
-        "ldr	x1, [x29, #176]\n\t"
+        "ldr	x1, [sp, #104]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x1]\n\t"
         "ldp	x23, x24, [x1, #16]\n\t"
@@ -4872,7 +5037,7 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "stp	x16, x17, [x1]\n\t"
         "stp	x19, x20, [x1, #16]\n\t"
         "ldr	x0, [x29, #40]\n\t"
-        "ldr	x1, [x29, #160]\n\t"
+        "ldr	x1, [sp, #88]\n\t"
         "ldr	x3, [x29, #72]\n\t"
         /* Multiply */
         "ldp	x16, x17, [x1]\n\t"
@@ -5066,21 +5231,21 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "stp	x14, x15, [x0, #16]\n\t"
         "stp	x16, x17, [x1]\n\t"
         "stp	x19, x20, [x1, #16]\n\t"
-        "ldp	x29, x30, [sp], #0x50\n\t"
-        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt)
+        "ldp	x29, x30, [sp], #0x70\n\t"
+        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt), [qxy2d] "+r" (qxy2d), [qyplusx] "+r" (qyplusx), [qyminusx] "+r" (qyminusx)
         :
-        : "memory", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
+        : "memory", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
-    (void)qxy2d;
-    (void)qyplusx;
-    (void)qyminusx;
 }
 
 void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qxy2d, const fe qyplusx, const fe qyminusx)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-80]!\n\t"
+        "stp	x29, x30, [sp, #-112]!\n\t"
         "add	x29, sp, #0\n\t"
+        "str	%x[qyminusx], [sp, #104]\n\t"
+        "str	%x[qyplusx], [sp, #96]\n\t"
+        "str	%x[qxy2d], [sp, #88]\n\t"
         "str	%x[rx], [x29, #16]\n\t"
         "str	%x[ry], [x29, #24]\n\t"
         "str	%x[rz], [x29, #32]\n\t"
@@ -5126,7 +5291,7 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "adcs	x10, x10, x28\n\t"
         "adc	x11, x11, x26\n\t"
         "ldr	x0, [x29, #32]\n\t"
-        "ldr	x2, [x29, #176]\n\t"
+        "ldr	x2, [sp, #104]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x2]\n\t"
         "ldp	x23, x24, [x2, #16]\n\t"
@@ -5264,7 +5429,7 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "adc	x15, x15, xzr\n\t"
         /* Store */
         "ldr	x0, [x29, #24]\n\t"
-        "ldr	x1, [x29, #168]\n\t"
+        "ldr	x1, [sp, #96]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x1]\n\t"
         "ldp	x23, x24, [x1, #16]\n\t"
@@ -5438,7 +5603,7 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "stp	x16, x17, [x1]\n\t"
         "stp	x19, x20, [x1, #16]\n\t"
         "ldr	x0, [x29, #40]\n\t"
-        "ldr	x1, [x29, #160]\n\t"
+        "ldr	x1, [sp, #88]\n\t"
         "ldr	x3, [x29, #72]\n\t"
         /* Multiply */
         "ldp	x16, x17, [x1]\n\t"
@@ -5632,21 +5797,22 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe p
         "stp	x14, x15, [x1, #16]\n\t"
         "stp	x16, x17, [x0]\n\t"
         "stp	x19, x20, [x0, #16]\n\t"
-        "ldp	x29, x30, [sp], #0x50\n\t"
-        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt)
+        "ldp	x29, x30, [sp], #0x70\n\t"
+        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt), [qxy2d] "+r" (qxy2d), [qyplusx] "+r" (qyplusx), [qyminusx] "+r" (qyminusx)
         :
-        : "memory", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
+        : "memory", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
-    (void)qxy2d;
-    (void)qyplusx;
-    (void)qyminusx;
 }
 
 void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qz, const fe qt2d, const fe qyplusx, const fe qyminusx)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-80]!\n\t"
+        "stp	x29, x30, [sp, #-128]!\n\t"
         "add	x29, sp, #0\n\t"
+        "str	%x[qyminusx], [sp, #120]\n\t"
+        "str	%x[qyplusx], [sp, #112]\n\t"
+        "str	%x[qt2d], [sp, #104]\n\t"
+        "str	%x[qz], [sp, #96]\n\t"
         "str	%x[rx], [x29, #16]\n\t"
         "str	%x[ry], [x29, #24]\n\t"
         "str	%x[rz], [x29, #32]\n\t"
@@ -5692,7 +5858,7 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "adcs	x10, x10, x28\n\t"
         "adc	x11, x11, x26\n\t"
         "ldr	x0, [x29, #32]\n\t"
-        "ldr	x2, [x29, #176]\n\t"
+        "ldr	x2, [sp, #112]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x2]\n\t"
         "ldp	x23, x24, [x2, #16]\n\t"
@@ -5830,7 +5996,7 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "adc	x15, x15, xzr\n\t"
         /* Store */
         "ldr	x0, [x29, #24]\n\t"
-        "ldr	x1, [x29, #184]\n\t"
+        "ldr	x1, [sp, #120]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x1]\n\t"
         "ldp	x23, x24, [x1, #16]\n\t"
@@ -6005,7 +6171,7 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "stp	x19, x20, [x1, #16]\n\t"
         "ldr	x0, [x29, #48]\n\t"
         "ldr	x1, [x29, #64]\n\t"
-        "ldr	x2, [x29, #160]\n\t"
+        "ldr	x2, [sp, #96]\n\t"
         /* Multiply */
         "ldp	x12, x13, [x1]\n\t"
         "ldp	x14, x15, [x1, #16]\n\t"
@@ -6161,7 +6327,7 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "sbcs	x6, x6, x28\n\t"
         "sbc	x7, x7, x26\n\t"
         "ldr	x0, [x29, #40]\n\t"
-        "ldr	x1, [x29, #168]\n\t"
+        "ldr	x1, [sp, #104]\n\t"
         "ldr	x2, [x29, #72]\n\t"
         /* Multiply */
         "ldp	x16, x17, [x1]\n\t"
@@ -6337,22 +6503,22 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "stp	x14, x15, [x0, #16]\n\t"
         "stp	x16, x17, [x1]\n\t"
         "stp	x19, x20, [x1, #16]\n\t"
-        "ldp	x29, x30, [sp], #0x50\n\t"
-        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt)
+        "ldp	x29, x30, [sp], #0x80\n\t"
+        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt), [qz] "+r" (qz), [qt2d] "+r" (qt2d), [qyplusx] "+r" (qyplusx), [qyminusx] "+r" (qyminusx)
         :
-        : "memory", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
+        : "memory", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
-    (void)qz;
-    (void)qt2d;
-    (void)qyplusx;
-    (void)qyminusx;
 }
 
 void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz, const fe pt, const fe qz, const fe qt2d, const fe qyplusx, const fe qyminusx)
 {
     __asm__ __volatile__ (
-        "stp	x29, x30, [sp, #-80]!\n\t"
+        "stp	x29, x30, [sp, #-128]!\n\t"
         "add	x29, sp, #0\n\t"
+        "str	%x[qyminusx], [sp, #120]\n\t"
+        "str	%x[qyplusx], [sp, #112]\n\t"
+        "str	%x[qt2d], [sp, #104]\n\t"
+        "str	%x[qz], [sp, #96]\n\t"
         "str	%x[rx], [x29, #16]\n\t"
         "str	%x[ry], [x29, #24]\n\t"
         "str	%x[rz], [x29, #32]\n\t"
@@ -6398,7 +6564,7 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "adcs	x10, x10, x28\n\t"
         "adc	x11, x11, x26\n\t"
         "ldr	x0, [x29, #32]\n\t"
-        "ldr	x2, [x29, #184]\n\t"
+        "ldr	x2, [sp, #120]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x2]\n\t"
         "ldp	x23, x24, [x2, #16]\n\t"
@@ -6536,7 +6702,7 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "adc	x15, x15, xzr\n\t"
         /* Store */
         "ldr	x0, [x29, #24]\n\t"
-        "ldr	x1, [x29, #176]\n\t"
+        "ldr	x1, [sp, #112]\n\t"
         /* Multiply */
         "ldp	x21, x22, [x1]\n\t"
         "ldp	x23, x24, [x1, #16]\n\t"
@@ -6711,7 +6877,7 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "stp	x19, x20, [x1, #16]\n\t"
         "ldr	x0, [x29, #48]\n\t"
         "ldr	x1, [x29, #64]\n\t"
-        "ldr	x2, [x29, #160]\n\t"
+        "ldr	x2, [sp, #96]\n\t"
         /* Multiply */
         "ldp	x12, x13, [x1]\n\t"
         "ldp	x14, x15, [x1, #16]\n\t"
@@ -6867,7 +7033,7 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "sbcs	x6, x6, x28\n\t"
         "sbc	x7, x7, x26\n\t"
         "ldr	x0, [x29, #40]\n\t"
-        "ldr	x1, [x29, #168]\n\t"
+        "ldr	x1, [sp, #104]\n\t"
         "ldr	x2, [x29, #72]\n\t"
         /* Multiply */
         "ldp	x16, x17, [x1]\n\t"
@@ -7043,15 +7209,11 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
         "stp	x14, x15, [x0, #16]\n\t"
         "stp	x16, x17, [x1]\n\t"
         "stp	x19, x20, [x1, #16]\n\t"
-        "ldp	x29, x30, [sp], #0x50\n\t"
-        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt)
+        "ldp	x29, x30, [sp], #0x80\n\t"
+        : [rx] "+r" (rx), [ry] "+r" (ry), [rz] "+r" (rz), [rt] "+r" (rt), [px] "+r" (px), [py] "+r" (py), [pz] "+r" (pz), [pt] "+r" (pt), [qz] "+r" (qz), [qt2d] "+r" (qt2d), [qyplusx] "+r" (qyplusx), [qyminusx] "+r" (qyminusx)
         :
-        : "memory", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
+        : "memory", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
-    (void)qz;
-    (void)qt2d;
-    (void)qyplusx;
-    (void)qyminusx;
 }
 
 #endif /* __aarch64__ */

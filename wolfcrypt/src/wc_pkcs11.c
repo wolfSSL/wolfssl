@@ -1805,6 +1805,9 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0 && info->pk.eccsign.outlen == NULL) {
         ret = BAD_FUNC_ARG;
     }
+    if (ret == 0 && info->pk.eccsign.out == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Signing Operation");
 
@@ -2397,6 +2400,8 @@ static int Pkcs11RandomBlock(Pkcs11Session* session, wc_CryptoInfo* info)
     int                ret = 0;
     CK_RV              rv;
 
+    WOLFSSL_MSG("PKCS#11: Generate Random for Block");
+
     rv = session->func->C_GenerateRandom(session->handle, info->rng.out,
                                                                   info->rng.sz);
     if (rv != CKR_OK)
@@ -2417,6 +2422,8 @@ static int Pkcs11RandomSeed(Pkcs11Session* session, wc_CryptoInfo* info)
 {
     int                ret = 0;
     CK_RV              rv;
+
+    WOLFSSL_MSG("PKCS#11: Generate Random for Seed");
 
     rv = session->func->C_GenerateRandom(session->handle, info->seed.seed,
                                                                  info->seed.sz);

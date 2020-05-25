@@ -336,9 +336,12 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
         inLen -= 3;
 
         /* Insert newline after BASE64_LINE_SZ, unless no \n requested */
-        if (escaped != WC_NO_NL_ENC && (++n % (BASE64_LINE_SZ/4)) == 0 && inLen) {
-            ret = CEscape(escaped, '\n', out, &i, *outLen, 1, getSzOnly);
-            if (ret != 0) break;
+        if (escaped != WC_NO_NL_ENC) {
+            n++;
+            if ((n % (BASE64_LINE_SZ/4)) == 0 && inLen) {
+                ret = CEscape(escaped, '\n', out, &i, *outLen, 1, getSzOnly);
+                if (ret != 0) break;
+            }
         }
     }
 

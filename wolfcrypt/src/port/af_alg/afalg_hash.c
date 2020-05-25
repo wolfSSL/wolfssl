@@ -44,11 +44,11 @@ static void AfalgHashFree(wolfssl_AFALG_Hash* hash)
         return;
 
     if (hash->alFd > 0) {
-        close(hash->alFd);
+        (void)close(hash->alFd);
         hash->alFd = -1; /* avoid possible double close on socket */
     }
     if (hash->rdFd > 0) {
-        close(hash->rdFd);
+        (void)close(hash->rdFd);
         hash->rdFd = -1; /* avoid possible double close on socket */
     }
 
@@ -86,7 +86,7 @@ static int AfalgHashInit(wolfssl_AFALG_Hash* hash, void* heap, int devId,
 
     hash->rdFd = wc_Afalg_CreateRead(hash->alFd, WC_TYPE_HASH, type);
     if (hash->rdFd < 0) {
-        close(hash->alFd);
+        (void)close(hash->alFd);
         return WC_AFALG_SOCK_E;
     }
 
