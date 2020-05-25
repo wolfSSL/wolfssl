@@ -7317,10 +7317,11 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                     return ret;
                 }
 
-                XMEMCPY(ssl->buffers.outputBuffer.buffer,
+                XMEMCPY(ssl->buffers.outputBuffer.buffer +
+                        ssl->buffers.outputBuffer.idx +
+                        ssl->buffers.outputBuffer.length,
                         pool->buf, pool->sz);
-                ssl->buffers.outputBuffer.idx = 0;
-                ssl->buffers.outputBuffer.length = pool->sz;
+                ssl->buffers.outputBuffer.length += pool->sz;
             }
             else {
                 /* Handle sending packets from previous epoch */
@@ -7377,11 +7378,9 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                 ssl->buffers.outputBuffer.length += sendSz;
             }
 
-            ret = SendBuffered(ssl);
-            if (ret < 0) {
-                WOLFSSL_ERROR(ret);
-                return ret;
-            }
+
+            if (!ssl->options.groupMessages)
+                ret = SendBuffered(ssl);
 
             /**
              * on server side, retransmission is being triggered only by sending
@@ -7392,14 +7391,15 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
              * be enough to do the trick.
              */
             if (sendOnlyFirstPacket &&
-                ssl->options.side == WOLFSSL_SERVER_END) {
-
+                ssl->options.side == WOLFSSL_SERVER_END)
                 pool = NULL;
-            }
             else
                 pool = pool->next;
             ssl->dtls_tx_msg = pool;
         }
+
+        if (ret == 0 && ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
     }
 
     WOLFSSL_LEAVE("DtlsMsgPoolSend()", ret);
@@ -8339,13 +8339,28 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 }
 
 
-/* check available size into output buffer, make room if needed */
+/* Check available size into output buffer, make room if needed.
+ * This function needs to be called before anything gets put
+ * into the output buffers since it flushes pending data if it
+ * predicts that the msg will exceed MTU. */
 int CheckAvailableSize(WOLFSSL *ssl, int size)
 {
     if (size < 0) {
         WOLFSSL_MSG("CheckAvailableSize() called with negative number");
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_DTLS
+    if (size + ssl->buffers.outputBuffer.length - ssl->buffers.outputBuffer.idx
+            > ssl->dtls_expected_rx) {
+        int ret;
+        WOLFSSL_MSG("CheckAvailableSize() flushing buffer "
+                    "to make room for new message");
+        if ((ret = SendBuffered(ssl)) != 0) {
+            return ret;
+        }
+    }
+#endif
 
     if (ssl->buffers.outputBuffer.bufferSize - ssl->buffers.outputBuffer.length
                                              < (word32)size) {
