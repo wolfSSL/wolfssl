@@ -15459,15 +15459,20 @@ int ProcessReply(WOLFSSL* ssl)
                     }
 
                     if (IsEncryptionOn(ssl, 0) && ssl->options.handShakeDone) {
-                        ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
-                        ssl->curSize -= (word16)ssl->keys.padSz;
 #ifdef HAVE_AEAD
-                        if (ssl->specs.cipher_type == aead &&
-                            ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-                            ssl->curSize -= AESGCM_EXP_IV_SZ;
+                        if (ssl->specs.cipher_type == aead) {
+                            if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
+                                ssl->curSize -= AESGCM_EXP_IV_SZ;
+                            ssl->buffers.inputBuffer.idx += ssl->specs.aead_mac_size;
+                            ssl->curSize -= ssl->specs.aead_mac_size;
+                        }
                         else
 #endif
+                        {
+                            ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
+                            ssl->curSize -= (word16)ssl->keys.padSz;
                             ssl->curSize -= ssl->specs.iv_size;
+                        }
 
             #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
                         if (ssl->options.startedETMRead) {

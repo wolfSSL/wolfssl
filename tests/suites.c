@@ -822,6 +822,34 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    /* add dtls grouping suites */
+    strcpy(argv0[1], "tests/test-dtls-group.conf");
+    printf("starting dtls message grouping tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* add dtls renegotiation tests */
+    strcpy(argv0[1], "tests/test-dtls-reneg-client.conf");
+    printf("starting dtls secure renegotiation client tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    strcpy(argv0[1], "tests/test-dtls-reneg-server.conf");
+    printf("starting dtls secure renegotiation server tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls-sha2.conf");
