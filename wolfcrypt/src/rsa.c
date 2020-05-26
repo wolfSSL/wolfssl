@@ -1847,11 +1847,15 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             }
 
             if (ret == 0) {
-                if (XSecure_RsaPrivateDecrypt(&rsa, (u8*)in, inLen, out) != XST_SUCCESS) {
+                if (XSecure_RsaPrivateDecrypt(&rsa, (u8*)in, inLen, out) !=
+                        XST_SUCCESS) {
                     ret = BAD_STATE_E;
                 }
             }
-            XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+
+            if (d != NULL) {
+                XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+            }
         }
     #endif
         break;
