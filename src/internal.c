@@ -13094,7 +13094,6 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E) {
-            ssl->keys.dtls_expected_peer_handshake_number--;
             break;
         }
     #endif
