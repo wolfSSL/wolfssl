@@ -14809,7 +14809,9 @@ int ProcessReply(WOLFSSL* ssl)
             }
 
             if (IsEncryptionOn(ssl, 0)) {
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
                 int tooLong = 0;
+#endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -14822,13 +14824,13 @@ int ProcessReply(WOLFSSL* ssl)
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     tooLong = ssl->curSize > MAX_TLS_CIPHER_SZ;
 #endif
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
                 if (tooLong) {
                     WOLFSSL_MSG("Encrypted data too long");
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
                     SendAlert(ssl, alert_fatal, record_overflow);
-#endif
                     return BUFFER_ERROR;
                 }
+#endif
             }
             ssl->keys.padSz = 0;
 

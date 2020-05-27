@@ -3349,7 +3349,7 @@ int DeriveKeys(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
-
+    XMEMSET(shaOutput, 0, WC_SHA_DIGEST_SIZE);
     ret = wc_InitMd5(md5);
     if (ret == 0) {
         ret = wc_InitSha(sha);
@@ -3479,6 +3479,7 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
         return MEMORY_E;
     }
 #endif
+    XMEMSET(shaOutput, 0, WC_SHA_DIGEST_SIZE);
 
     ret = wc_InitMd5(md5);
     if (ret == 0) {

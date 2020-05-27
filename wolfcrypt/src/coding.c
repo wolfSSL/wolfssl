@@ -141,8 +141,6 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         e4 = in[j++];
         inLen--;
 
-        if (e1 == 0)            /* end file 0's */
-            break;
         if (e3 == PAD)
             pad3 = 1;
         if (e4 == PAD)

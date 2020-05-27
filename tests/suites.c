@@ -673,6 +673,9 @@ int SuiteTest(int argc, char** argv)
     char argv0[3][80];
     char* myArgv[3];
 
+    (void)argc;
+    (void)argv;
+
     printf(" Begin Cipher Suite Tests\n");
 
     /* setup */
@@ -1026,6 +1029,4 @@ exit:
 #else
     return NOT_COMPILED_IN;
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
-    (void)argc;
-    (void)argv;
 }

@@ -695,37 +695,43 @@ static void test_for_double_Free(void)
 
     if (skipTest != 1) {
 #ifndef NO_WOLFSSL_SERVER
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        AssertNotNull(ctx);
 #else
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        AssertNotNull(ctx);
 #endif
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
         AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
-
-        AssertNotNull(ssl = wolfSSL_new(ctx));
+        ssl = wolfSSL_new(ctx);
+        AssertNotNull(ssl);
 
         /* First test freeing SSL, then CTX */
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
 #ifndef NO_WOLFSSL_CLIENT
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        AssertNotNull(ctx);
 #else
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        AssertNotNull(ctx);
 #endif
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
         AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
-
-        AssertNotNull(ssl = wolfSSL_new(ctx));
+        ssl = wolfSSL_new(ctx);
+        AssertNotNull(ssl);
 
         /* Next test freeing CTX then SSL */
         wolfSSL_CTX_free(ctx);
         wolfSSL_free(ssl);
 
 #ifndef NO_WOLFSSL_SERVER
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        AssertNotNull(ctx);
 #else
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        AssertNotNull(ctx);
 #endif
         /* Test setting ciphers at ctx level */
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
@@ -736,13 +742,16 @@ static void test_for_double_Free(void)
         wolfSSL_free(ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        AssertNotNull(ctx);
 #else
-        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        AssertNotNull(ctx);
 #endif
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
         AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
-        AssertNotNull(ssl = wolfSSL_new(ctx));
+        ssl = wolfSSL_new(ctx);
+        AssertNotNull(ssl);
         /* test setting ciphers at SSL level */
         AssertTrue(wolfSSL_set_cipher_list(ssl, optionsCiphers));
         wolfSSL_CTX_free(ctx);
@@ -1229,8 +1238,8 @@ static void test_wolfSSL_CTX_load_verify_locations_ex(void)
     WOLFSSL_CTX* ctx;
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
-
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
 
     /* test good CA */
     AssertTrue(WOLFSSL_SUCCESS ==
@@ -1327,9 +1336,11 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
     WOLFSSL_CTX* ctx;
 
   #ifndef NO_WOLFSSL_CLIENT
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
   #else
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
   #endif
 
     AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file_format(ctx,
@@ -1404,9 +1415,11 @@ static void test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
     WOLFSSL_CTX *ctx;
 
   #ifndef NO_WOLFSSL_CLIENT
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
   #else
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
   #endif
 
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetMinDhKey_Sz(ctx, 3072));
@@ -1500,8 +1513,8 @@ static void test_wolfSSL_CTX_enable_disable(void)
     #ifdef HAVE_EXTENDED_MASTER
     AssertIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), BAD_FUNC_ARG);
     #endif
-
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
 
     #ifdef HAVE_EXTENDED_MASTER
     AssertIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), WOLFSSL_SUCCESS);
@@ -1686,21 +1699,24 @@ static void test_wolfSSL_SetMinMaxDhKey_Sz(void)
 #if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx, *ctx2;
     WOLFSSL *ssl, *ssl2;
-
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
     AssertTrue(wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
                 sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
                 sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetMinDhKey_Sz(ctx, 3072));
-    AssertNotNull(ssl = wolfSSL_new(ctx));
-    AssertNotNull(ctx2 = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
+    ctx2 = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx2);
     AssertTrue(wolfSSL_CTX_use_certificate_buffer(ctx2, server_cert_der_2048,
                 sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_buffer(ctx2, server_key_der_2048,
                 sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetMaxDhKey_Sz(ctx, 1024));
-    AssertNotNull(ssl2 = wolfSSL_new(ctx2));
+    ssl2 = wolfSSL_new(ctx2);
+    AssertNotNull(ssl2);
 
     AssertIntEQ(DH_KEY_SIZE_E, wolfSSL_SetTmpDH_buffer(ssl, dh_key_der_2048,
                 sizeof_dh_key_der_2048, WOLFSSL_FILETYPE_ASN1));
@@ -2365,14 +2381,24 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load server key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
@@ -2396,15 +2422,24 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         wolfSSL_dtls_set_using_nonblock(ssl, 1);
     }
 #endif
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_use_certificate_file(ssl, svrCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load server key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
@@ -2760,14 +2795,25 @@ static void test_client_nofail(void* args, void *cb)
         /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load client cert file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
+
         /*err_sys("can't load client key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
@@ -2782,15 +2828,24 @@ static void test_client_nofail(void* args, void *cb)
     if (ssl == NULL) {
         goto done;
     }
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (sharedCtx && wolfSSL_use_certificate_file(ssl, cliCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_use_certificate_file(ssl, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load client cert file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#else
+    if (wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+#endif
         /*err_sys("can't load client key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
@@ -16214,6 +16269,7 @@ static int test_wc_ecc_signVerify_hash (void)
 
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
+    XMEMSET(&key, 0, sizeof(ecc_key));
 
     /* Init structs. */
     ret = wc_InitRng(&rng);
@@ -31645,10 +31701,11 @@ static void test_SetTmpEC_DHE_Sz(void)
 #if defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
-
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpEC_DHE_Sz(ctx, 32));
-    AssertNotNull(ssl = wolfSSL_new(ctx));
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetTmpEC_DHE_Sz(ssl, 32));
 
     wolfSSL_free(ssl);
