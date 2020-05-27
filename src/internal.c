@@ -6197,6 +6197,7 @@ void FreeKeyExchange(WOLFSSL* ssl)
         ssl->async.freeArgs(ssl, ssl->async.args);
         ssl->async.freeArgs = NULL;
     }
+    FreeBuildMsgArgs(&ssl->async.buildArgs);
 #endif
 }
 
@@ -8351,8 +8352,9 @@ int CheckAvailableSize(WOLFSSL *ssl, int size)
     }
 
 #ifdef WOLFSSL_DTLS
-    if (size + ssl->buffers.outputBuffer.length - ssl->buffers.outputBuffer.idx
-            > ssl->dtls_expected_rx) {
+    if (ssl->options.dtls &&
+            size + ssl->buffers.outputBuffer.length -
+            ssl->buffers.outputBuffer.idx > ssl->dtls_expected_rx) {
         int ret;
         WOLFSSL_MSG("CheckAvailableSize() flushing buffer "
                     "to make room for new message");
@@ -15340,8 +15342,8 @@ int ProcessReply(WOLFSSL* ssl)
             }
             else
        #endif
-            if (ssl->buffers.inputBuffer.length - ssl->keys.padSz -
-                              ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ) {
+            if (ssl->buffers.inputBuffer.length -
+                    ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ) {
                 WOLFSSL_MSG("Plaintext too long");
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
                 SendAlert(ssl, alert_fatal, record_overflow);
@@ -16021,28 +16023,12 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 }
 
 #ifndef WOLFSSL_NO_TLS12
-/* Persistable BuildMessage arguments */
-typedef struct BuildMsgArgs {
-    word32 digestSz;
-    word32 sz;
-    word32 pad;
-    word32 idx;
-    word32 headerSz;
-    word16 size;
-    word32 ivSz;      /* TLSv1.1  IV */
-    byte*  iv;
-} BuildMsgArgs;
-
-static void FreeBuildMsgArgs(WOLFSSL* ssl, void* pArgs)
+void FreeBuildMsgArgs(BuildMsgArgs* args)
 {
-    BuildMsgArgs* args = (BuildMsgArgs*)pArgs;
-
-    (void)ssl;
-    (void)args;
-
-    if (args->iv) {
-        XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
-        args->iv = NULL;
+    if (args) {
+        if (args->iv)
+            XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
+        XMEMSET(args, 0, sizeof(BuildMsgArgs));
     }
 }
 #endif
@@ -16057,9 +16043,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     BuildMsgArgs* args;
     BuildMsgArgs  lcl_args;
 #ifdef WOLFSSL_ASYNC_CRYPT
-    args = (BuildMsgArgs*)ssl->async.args;
-    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
-    (void)sizeof(args_test);
+    args = &ssl->async.buildArgs;
 #endif
 #endif
 
@@ -16107,9 +16091,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         args->sz = RECORD_HEADER_SZ + inSz;
         args->idx  = RECORD_HEADER_SZ;
         args->headerSz = RECORD_HEADER_SZ;
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        ssl->async.freeArgs = FreeBuildMsgArgs;
-    #endif
     }
 
     switch (ssl->options.buildMsgState) {
@@ -16486,10 +16467,7 @@ exit_buildmsg:
         ret = args->sz;
 
     /* Final cleanup */
-    FreeBuildMsgArgs(ssl, args);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    ssl->async.freeArgs = NULL;
-#endif
+    FreeBuildMsgArgs(args);
 
     return ret;
 #endif /* !WOLFSSL_NO_TLS12 */
@@ -16882,7 +16860,8 @@ int SendCertificate(WOLFSSL* ssl)
         #endif
         }
 
-        sendSz += cipherExtraData(ssl);
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += cipherExtraData(ssl);
 
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -28231,6 +28210,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         #endif
         }
+
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += cipherExtraData(ssl);
+
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;

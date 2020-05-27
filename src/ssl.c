@@ -2642,7 +2642,7 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
 /* do a secure renegotiation handshake, user forced, we discourage */
 static int _Rehandshake(WOLFSSL* ssl)
 {
-    int ret;
+    int ret, err;
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -2705,7 +2705,21 @@ static int _Rehandshake(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
         }
     }
-    ret = wolfSSL_negotiate(ssl);
+
+    do {
+        err = 0; /* reset error */
+        ret = wolfSSL_negotiate(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) break;
+        }
+#endif
+        }
+    } while (err == WC_PENDING_E);
+
     ssl->secure_rene_count++;
     return ret;
 }

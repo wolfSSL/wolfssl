@@ -3815,6 +3815,20 @@ typedef struct HS_Hashes {
 } HS_Hashes;
 
 
+#ifndef WOLFSSL_NO_TLS12
+/* Persistable BuildMessage arguments */
+typedef struct BuildMsgArgs {
+    word32 digestSz;
+    word32 sz;
+    word32 pad;
+    word32 idx;
+    word32 headerSz;
+    word16 size;
+    word32 ivSz;      /* TLSv1.1  IV */
+    byte*  iv;
+} BuildMsgArgs;
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #define MAX_ASYNC_ARGS 18
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
@@ -3823,6 +3837,7 @@ typedef struct HS_Hashes {
         WC_ASYNC_DEV* dev;
         FreeArgsCb    freeArgs; /* function pointer to cleanup args */
         word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
+        BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
     };
 #endif
 
@@ -4603,6 +4618,10 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
 
+
+#ifndef WOLFSSL_NO_TLS12
+WOLFSSL_LOCAL void FreeBuildMsgArgs(BuildMsgArgs* args);
+#endif
 WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type, int hashOutput,
                         int sizeOnly, int asyncOkay, int epochOrder);
