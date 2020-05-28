@@ -1,3 +1,33 @@
+# wolfSSL Release 4.4.1 (XX/XX/2020) **IN DEVELOPMENT**
+
+If you have questions about this release, then feel free to contact us on our
+info@ address.
+
+Release 4.4.1 of wolfSSL embedded TLS has bug fixes and new features including:
+
+## New Feature Additions
+
+ * Place holder.
+
+## Fixes
+
+ * Place holder.
+
+## Improvements/Optimizations
+
+ * Place holder.
+
+## This release of wolfSSL includes fixes for X security vulnerabilities.
+
+ * Place holder.
+
+For additional vulnerability information visit the vulnerability page at
+https://www.wolfssl.com/docs/security-vulnerabilities/
+
+See INSTALL file for build instructions.
+More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
+
+
 # wolfSSL Release 4.4.0 (04/22/2020)
 
 If you have questions about this release, then feel free to contact us on our
