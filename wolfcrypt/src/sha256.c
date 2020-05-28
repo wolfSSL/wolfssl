@@ -494,6 +494,7 @@ static int InitSha256(wc_Sha256* sha256)
         (void)devId;
         (void)heap;
 
+        XMEMSET(sha256, 0, sizeof(wc_Sha256));
         wc_Stm32_Hash_Init(&sha256->stmCtx);
         return 0;
     }
