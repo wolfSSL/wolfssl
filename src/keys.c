@@ -1074,7 +1074,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.hash_size             = WC_SHA256_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = WC_SHA256_DIGEST_SIZE / 2;
+        ssl->specs.key_size              = WC_SHA256_DIGEST_SIZE;
         ssl->specs.block_size            = 0;
         ssl->specs.iv_size               = HMAC_NONCE_SZ;
         ssl->specs.aead_mac_size         = WC_SHA256_DIGEST_SIZE;
@@ -1092,7 +1092,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->specs.hash_size             = WC_SHA384_DIGEST_SIZE;
         ssl->specs.pad_size              = PAD_SHA;
         ssl->specs.static_ecdh           = 0;
-        ssl->specs.key_size              = WC_SHA384_DIGEST_SIZE / 2;
+        ssl->specs.key_size              = WC_SHA384_DIGEST_SIZE;
         ssl->specs.block_size            = 0;
         ssl->specs.iv_size               = HMAC_NONCE_SZ;
         ssl->specs.aead_mac_size         = WC_SHA384_DIGEST_SIZE;
@@ -2931,11 +2931,15 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
             if (side == WOLFSSL_CLIENT_END) {
                 if (enc) {
+                    XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
+                            HMAC_NONCE_SZ);
                     hmacRet = wc_HmacSetKey(enc->hmac, hashType,
                                        keys->client_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
                 }
                 if (dec) {
+                    XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
+                            HMAC_NONCE_SZ);
                     hmacRet = wc_HmacSetKey(dec->hmac, hashType,
                                        keys->server_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
@@ -2943,11 +2947,15 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             }
             else {
                 if (enc) {
+                    XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
+                            HMAC_NONCE_SZ);
                     hmacRet = wc_HmacSetKey(enc->hmac, hashType,
                                        keys->server_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
                 }
                 if (dec) {
+                    XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
+                            HMAC_NONCE_SZ);
                     hmacRet = wc_HmacSetKey(dec->hmac, hashType,
                                        keys->client_write_key, specs->key_size);
                     if (hmacRet != 0) return hmacRet;
