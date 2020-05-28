@@ -227,20 +227,6 @@ static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
     return ssl->options.dtls;
 #endif
 }
-
-int IsInitialRenegotiationState(WOLFSSL* ssl)
-{
-    if (ssl->options.acceptState == ACCEPT_FIRST_REPLY_DONE
-    #ifdef HAVE_SECURE_RENEGOTIATION
-            || ssl->options.acceptState == ACCEPT_BEGIN_RENEG
-    #endif
-       ) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
 #endif /* DTLS || !WOLFSSL_NO_TLS12 */
 
 
@@ -17692,11 +17678,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     WOLFSSL_ENTER("ReceiveData()");
 
     /* reset error state */
-    if (ssl->error == WANT_READ
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        || ssl->error == WC_PENDING_E
-    #endif
-    ) {
+    if (ssl->error == WANT_READ) {
         ssl->error = 0;
     }
 
@@ -17709,10 +17691,16 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
 #endif /* WOLFSSL_DTLS */
 
-    if (ssl->error != 0 && ssl->error != WANT_WRITE) {
+    if (ssl->error != 0 && ssl->error != WANT_WRITE
+#ifdef WOLFSSL_ASYNC_CRYPT
+            && ssl->error != WC_PENDING_E
+#endif
+    ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return ssl->error;
     }
+
+    if (ssl->error != 0) fprintf(stderr, "ignoring err %d\n", ssl->error);
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
@@ -26914,7 +26902,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(&pv, input + i, OPAQUE16_LEN);
         ssl->chVersion = pv;   /* store */
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && !IsInitialRenegotiationState(ssl)) {
+        if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl)) {
             #if defined(NO_SHA) && defined(NO_SHA256)
                 #error "DTLS needs either SHA or SHA-256"
             #endif /* NO_SHA && NO_SHA256 */
@@ -27064,7 +27052,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && !IsInitialRenegotiationState(ssl)) {
+        if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl)) {
             ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
             if (ret != 0) return ret;
         }
@@ -27097,7 +27085,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl) && !IsInitialRenegotiationState(ssl)) {
+            if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl)) {
                 ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
                 if (ret != 0) return ret;
             }
@@ -27182,7 +27170,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl) && !IsInitialRenegotiationState(ssl)) {
+        if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl)) {
             ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
                                     clSuites.suiteSz + OPAQUE16_LEN);
@@ -27208,7 +27196,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            if (!IsInitialRenegotiationState(ssl)) {
+            if (!IsSCR(ssl)) {
                 byte newCookie[MAX_COOKIE_LEN];
 
                 ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);

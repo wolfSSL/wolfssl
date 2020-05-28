@@ -2642,7 +2642,7 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
 /* do a secure renegotiation handshake, user forced, we discourage */
 static int _Rehandshake(WOLFSSL* ssl)
 {
-    int ret, err;
+    int ret;
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -2705,22 +2705,9 @@ static int _Rehandshake(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
         }
     }
-
-    do {
-        err = 0; /* reset error */
-        ret = wolfSSL_negotiate(ssl);
-        if (ret != WOLFSSL_SUCCESS) {
-            err = wolfSSL_get_error(ssl, 0);
-#ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
-            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-            if (ret < 0) break;
-        }
-#endif
-        }
-    } while (err == WC_PENDING_E);
-
-    ssl->secure_rene_count++;
+    ret = wolfSSL_negotiate(ssl);
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->secure_rene_count++;
     return ret;
 }
 
@@ -12176,6 +12163,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
+            /* This may be necessary in async so that we don't try to
+             * renegotiate again */
+            if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+                ssl->secure_renegotiation->startScr = 0;
+            }
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_SESSION_EXPORT
             if (ssl->dtls_export) {

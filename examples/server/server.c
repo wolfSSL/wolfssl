@@ -2385,8 +2385,23 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 printf("not doing secure renegotiation on example with"
                        " nonblocking yet\n");
             } else {
-                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
-                    printf("not doing secure renegotiation\n");
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+                    err = wolfSSL_get_error(ssl, 0);
+                    while (err == WC_PENDING_E) {
+                        err = 0;
+                        ret = wolfSSL_negotiate(ssl);
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            if (err == WC_PENDING_E) {
+                                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                                if (ret < 0) break;
+                            }
+                        }
+                    }
+                    if (ret != WOLFSSL_SUCCESS)
+#endif
+                        printf("not doing secure renegotiation\n");
                 }
                 else {
                     printf("RENEGOTIATION SUCCESSFUL\n");
