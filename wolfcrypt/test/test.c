@@ -343,7 +343,9 @@ int scrypt_test(void);
     #ifdef HAVE_ECC_ENCRYPT
         int  ecc_encrypt_test(void);
     #endif
-    #ifdef USE_CERT_BUFFERS_256
+    #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
+        !defined(WOLFSSL_ATECC608A)
+        /* skip for ATECC508/608A, cannot import private key buffers */
         int ecc_test_buffers(void);
     #endif
 #endif
@@ -1013,7 +1015,9 @@ initDefaultName();
         else
             test_pass("ECC Enc  test passed!\n");
     #endif
-    #ifdef USE_CERT_BUFFERS_256
+    #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
+        !defined(WOLFSSL_ATECC608A)
+        /* skip for ATECC508/608A, cannot import private key buffers */
         if ( (ret = ecc_test_buffers()) != 0)
             return err_sys("ECC buffer test failed!\n", ret);
         else
@@ -18535,7 +18539,8 @@ done:
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int curve_id, const ecc_set_type* dp)
 {
-#if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
+#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
 #endif
@@ -18543,7 +18548,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     byte    exportBuf[MAX_ECC_BYTES * 2 + 32];
 #endif
     word32  x = 0;
-#if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
+#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     word32  y;
 #endif
 #ifdef HAVE_ECC_SIGN
@@ -18607,6 +18613,9 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         goto done;
     TEST_SLEEP();
+
+/* ATECC508/608 configuration may not support more than one ECDH key */
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userB, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -18695,6 +18704,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_set_flags(&userA, 0);
     wc_ecc_set_flags(&userB, 0);
 #endif /* HAVE_ECC_CDH */
+#endif /* WOLFSSL_ATECC508A */
 
 #ifdef HAVE_ECC_KEY_EXPORT
     x = sizeof(exportBuf);
@@ -18713,6 +18723,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         goto done;
 
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 #ifdef HAVE_ECC_DHE
     y = ECC_SHARED_SIZE;
     do {
@@ -18768,6 +18779,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         TEST_SLEEP();
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
+#endif /* WOLFSSL_ATECC508A */
 
 #endif /* HAVE_ECC_KEY_IMPORT */
 #endif /* HAVE_ECC_KEY_EXPORT */
@@ -18852,7 +18864,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
 
-#ifdef HAVE_ECC_KEY_EXPORT
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(WOLFSSL_ATECC508) && \
+    !defined(WOLFSSL_ATECC608A)
     x = sizeof(exportBuf);
     ret = wc_ecc_export_private_only(&userA, exportBuf, &x);
     if (ret != 0)
@@ -18931,8 +18944,8 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 }
 
 #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
-#if !defined(WOLFSSL_ATECC508A) && defined(HAVE_ECC_KEY_IMPORT) && \
-     defined(HAVE_ECC_KEY_EXPORT)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
 static int ecc_point_test(void)
 {
     int        ret;
@@ -19225,7 +19238,8 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
 }
 #endif
 
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 static int ecc_exp_imp_test(ecc_key* key)
 {
     int        ret;
@@ -19336,7 +19350,8 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -19450,12 +19465,14 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
-#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     ret = ecc_exp_imp_test(&key);
     if (ret < 0)
         goto done;
 #endif
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
@@ -20024,8 +20041,8 @@ int ecc_test(void)
     if (ret < 0) {
         goto done;
     }
-#if !defined(WOLFSSL_ATECC508A) && defined(HAVE_ECC_KEY_IMPORT) && \
-     defined(HAVE_ECC_KEY_EXPORT)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
     ret = ecc_point_test();
     if (ret < 0) {
         goto done;
@@ -20082,13 +20099,14 @@ int ecc_test(void)
         goto done;
     }
 #endif
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_STM32_PKA)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_STM32_PKA)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);
         goto done;
     }
-#else
+#elif defined(HAVE_ECC_KEY_IMPORT)
     (void) ecc_test_make_pub;/* for compiler warning */
 #endif
 #ifdef WOLFSSL_CERT_GEN
@@ -20275,7 +20293,8 @@ done:
 
 #endif /* HAVE_ECC_ENCRYPT */
 
-#ifdef USE_CERT_BUFFERS_256
+#if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A)
 int ecc_test_buffers(void) {
     size_t bytes;
     ecc_key cliKey;

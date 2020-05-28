@@ -1607,6 +1607,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
+#elif (defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC_RNG)) && \
+      !defined(WOLFSSL_PIC32MZ_RNG)
+    /* enable ATECC RNG unless using PIC32MZ one instead */
+    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+
+        (void)os;
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        ret = atmel_get_random_number(sz, output);
+
+        return ret;
+    }
 
 #elif defined(MICROCHIP_PIC32)
 
@@ -2114,23 +2132,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         wc_UnLockMutex(&wnr_mutex);
 
         return 0;
-    }
-
-#elif defined(WOLFSSL_ATMEL)
-    #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
-
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        int ret = 0;
-
-        (void)os;
-        if (output == NULL) {
-            return BUFFER_E;
-        }
-
-        ret = atmel_get_random_number(sz, output);
-
-        return ret;
     }
 
 #elif defined(INTIME_RTOS)

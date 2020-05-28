@@ -17310,7 +17310,8 @@ static int test_wc_ecc_pointFns (void)
     int         ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A)
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A)
     ecc_key     key;
     WC_RNG      rng;
     ecc_point*  point = NULL;
@@ -17485,7 +17486,8 @@ static int test_wc_ecc_shared_secret_ssh (void)
     int         ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
-    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A)
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A)
     ecc_key     key, key2;
     WC_RNG      rng;
     int         keySz = KEY32;
@@ -17572,7 +17574,8 @@ static int test_wc_ecc_verify_hash_ex (void)
     int             ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP) \
-     && !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A)
+     && !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A) && \
+    !defined(WOLFSSL_ATECC608A)
     ecc_key         key;
     WC_RNG          rng;
     mp_int          r;
@@ -17702,7 +17705,8 @@ static int test_wc_ecc_mulmod (void)
     int         ret = 0;
 
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
-    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_VALIDATE_ECC_IMPORT))
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
+      defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     ecc_key     key1, key2, key3;
     WC_RNG      rng;
 
