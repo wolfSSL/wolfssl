@@ -34639,7 +34639,8 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
     RsaKey* iRsa = NULL;
     int i = 0;
     mp_int *rsaElem = NULL;
-    char rsaStr[][20] = { "Modulus:",
+    const char *rsaStr[] = {
+                          "Modulus:",
                           "PublicExponent:",
                           "PrivateExponent:",
                           "Prime1:",
