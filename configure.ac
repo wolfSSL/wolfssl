@@ -14,10 +14,6 @@ AC_CONFIG_AUX_DIR([build-aux])
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
-# Test ar for the "U" option. Should be checked before the libtool macros.
-xxx_ar_flags=$(ar --help 2>&1)
-AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
-
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_CANONICAL_HOST
@@ -2558,6 +2554,12 @@ AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" != "xrand"],
 [
     AS_IF([test "x$ENABLED_FORTRESS" = "xyes"],[ENABLED_DES3="yes"])
 ])
+
+AS_IF([test "x$ENABLED_FIPS" = "xyes"],[
+    # Test ar for the "U" option. Should be checked before the libtool macros.
+    AS_CASE([$(ar --help 2>&1)],[*'use actual timestamps and uids/gids'*],[AR_FLAGS="U$AR_FLAGS"])
+])
+        
 
 
 # SELFTEST
