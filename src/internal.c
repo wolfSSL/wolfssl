@@ -212,14 +212,7 @@ static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
         return 0;
     #endif /* WOLFSSL_DTLS */
 
-#ifdef WOLFSSL_TLS13
-    if (isSend)
-        return ssl->encrypt.setup;
-    else
-        return ssl->decrypt.setup;
-#else
     return ssl->keys.encryptionOn;
-#endif
 }
 
 
@@ -17519,10 +17512,11 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
         ssl->options.isClosed = 1;  /* Don't send close_notify */
     }
 
-    /* only send encrypted alert if handshake actually complete, otherwise
-       other side may not be able to handle it */
-    if (IsEncryptionOn(ssl, 1) && (IsAtLeastTLSv1_3(ssl->version) ||
-                                                         ssl->encrypt.setup)) {
+    /* send encrypted alert if encryption is on - can be a rehandshake over
+     * an existing encrypted channel.
+     * TLS 1.3 encrypts handshake packets after the ServerHello
+     */
+    if (IsEncryptionOn(ssl, 1)) {
         sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert,
                                                                        0, 0, 0);
     }
