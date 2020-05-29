@@ -15155,10 +15155,17 @@ int ProcessReply(WOLFSSL* ssl)
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
                                       ssl->curSize - digestSz);
-                         ssl->keys.padSz =
-                              in->buffer[in->idx + ssl->curSize - digestSz - 1];
-                         ssl->keys.padSz += 1;
-                         ssl->keys.decryptedCur = 1;
+                        if (ret == 0) {
+                            ssl->keys.padSz =
+                                    in->buffer[in->idx + ssl->curSize -
+                                               digestSz - 1];
+                            ssl->keys.padSz += 1;
+                            ssl->keys.decryptedCur = 1;
+                        }
+                        else {
+                            ssl->keys.padSz += 1;
+                            ssl->keys.padSz -= 1;
+                        }
                     }
                     else
             #endif
