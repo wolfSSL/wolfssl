@@ -15162,10 +15162,6 @@ int ProcessReply(WOLFSSL* ssl)
                             ssl->keys.padSz += 1;
                             ssl->keys.decryptedCur = 1;
                         }
-                        else {
-                            ssl->keys.padSz += 1;
-                            ssl->keys.padSz -= 1;
-                        }
                     }
                     else
             #endif
@@ -23855,7 +23851,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendCertificateVerify");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
+    /* BuildMessage does its own Pop */
+    if (ssl->error != WC_PENDING_E ||
+            ssl->options.asyncState != TLS_ASYNC_END)
+        ret = wolfSSL_AsyncPop(ssl, &ssl->options.asyncState);
     if (ret != WC_NOT_PENDING_E) {
         /* Check for error */
         if (ret < 0)
