@@ -2836,11 +2836,13 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 
    /* setup sliding window */
    mode   = 0;
-   bitcnt = 1;
-   buf    = 0;
    digidx = get_digit_count(modulus) - 1;
    /* The order MAY be 1 bit longer than the modulus. */
-   digidx += (modulus->dp[digidx] >> (DIGIT_BIT-1));
+   digidx += modulus->dp[digidx] >> (DIGIT_BIT-1);
+   bitcnt = (mp_count_bits(modulus) + 1) % DIGIT_BIT;
+   buf    = get_digit(k, digidx) << (DIGIT_BIT - bitcnt);
+   bitcnt = (bitcnt + 1) % DIGIT_BIT;
+   digidx -= bitcnt != 1;
 
    /* perform ops */
    if (err == MP_OKAY) {
