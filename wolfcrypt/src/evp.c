@@ -33,11 +33,10 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
+#if defined(OPENSSL_EXTRA)
 
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
-
-#if defined(OPENSSL_EXTRA)
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
