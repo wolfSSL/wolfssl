@@ -43,7 +43,6 @@
  * WOLFSSL_SP_NO_MALLOC:        Always use stack, no heap XMALLOC/XFREE allowed
  * WOLFSSL_SP_NO_2048:          Disable RSA/DH 2048-bit support
  * WOLFSSL_SP_NO_3072:          Disable RSA/DH 3072-bit support
- * WOLFSSL_SP_NO_4096:          Disable RSA/DH 4096-bit support
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
@@ -1659,7 +1658,7 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         }
         else
 #endif
-#ifdef WOLFSSL_SP_NO_4096
+#ifdef WOLFSSL_SP_4096
         if ((mBits == 4096) && sp_isodd(m) && (bBits <= 4096) &&
             (eBits <= 4096)) {
             err = sp_ModExp_4096(b, e, m, r);

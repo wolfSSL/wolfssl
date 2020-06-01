@@ -1485,7 +1485,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         }
         else
 #endif
-#ifdef WOLFSSL_SP_NO_4096
+#ifdef WOLFSSL_SP_4096
         if (mp_count_bits(&key->p) == 4096) {
             ret = sp_ModExp_4096(y, q, p, y);
             if (ret != 0)
