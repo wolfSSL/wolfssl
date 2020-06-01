@@ -4399,7 +4399,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     int ret = 0;
     int length;
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #if !defined(HAVE_FIPS) || \
+        ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
     word32 oid = 0, temp = 0;
+    #endif
     #endif
 
     WOLFSSL_ENTER("wc_DhKeyDecode");
@@ -4409,7 +4412,6 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     #if !defined(HAVE_FIPS) || \
         ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
