@@ -33,15 +33,6 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#if defined(HAVE_FIPS) && \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) )
-    /* aes.h is locked w/ FIPS, have to add new enums in non-boundary location
-     * when building in FIPS mode */
-enum {
-    GCM_NONCE_MID_SZ = 12 /* The usual default nonce size for AES-GCM. */
-};
-#endif
-
 #if defined(OPENSSL_EXTRA)
 
 #include <wolfssl/openssl/ecdsa.h>

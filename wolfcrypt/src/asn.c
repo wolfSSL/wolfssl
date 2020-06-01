@@ -141,14 +141,6 @@ extern int wc_InitRsaHw(RsaKey* key);
     };
     #endif
 #endif
-#if defined(HAVE_FIPS) && \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) )
-    /* aes.h is locked w/ FIPS, have to add new enums in non-boundary location
-     * when building in FIPS mode */
-enum {
-    GCM_NONCE_MID_SZ = 12 /* The usual default nonce size for AES-GCM. */
-};
-#endif
 
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
 void tsip_inform_key_position(const word32 key_n_start,
