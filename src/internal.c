@@ -9870,6 +9870,8 @@ static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
     alertWhy = bad_certificate;
     if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
         alertWhy = certificate_expired;
+    } else if (ret == ASN_NO_SIGNER_E) {
+        alertWhy = unknown_ca;
     }
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
     else if (ret == CRL_CERT_REVOKED) {
