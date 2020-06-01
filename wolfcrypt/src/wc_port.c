@@ -46,6 +46,10 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
+#ifdef WOLFSSL_PSOC6_CRYPTO
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif
+
 #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
     defined(WOLFSSL_ATECC608A)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
@@ -199,6 +203,14 @@ int wolfCrypt_Init(void)
     #endif
     #if defined(WOLFSSL_STSAFEA100)
         stsafe_interface_init();
+    #endif
+
+    #if defined(WOLFSSL_PSOC6_CRYPTO)
+        ret = psoc6_crypto_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("PSoC6 crypto engine init failed");
+            return ret;
+        }
     #endif
 
     #ifdef WOLFSSL_ARMASM
