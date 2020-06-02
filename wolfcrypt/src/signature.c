@@ -195,14 +195,27 @@ int wc_SignatureVerifyHash(
 #else /* WOLFSSL_CRYPTOCELL */
 
             word32 plain_len = hash_len;
+        #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             byte *plain_data;
+        #else
+            byte  plain_data[MAX_ENCODED_SIG_SZ];
+        #endif
+            
 
             /* Make sure the plain text output is at least key size */
             if (plain_len < sig_len) {
                 plain_len = sig_len;
             }
+        #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
             plain_data = (byte*)XMALLOC(plain_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (plain_data) {
+            if (plain_data)
+        #else
+            if (plain_len <= sizeof(plain_data))
+        #endif
+            {
+            	byte* plain_ptr = NULL;
+            	XMEMSET(plain_data, 0, plain_len);
+            	XMEMCPY(plain_data, sig, sig_len);
                 /* Perform verification of signature using provided RSA key */
                 do {
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -210,12 +223,11 @@ int wc_SignatureVerifyHash(
                         WC_ASYNC_FLAG_CALL_AGAIN);
                 #endif
                 if (ret >= 0)
-                    ret = wc_RsaSSL_Verify(sig, sig_len, plain_data,
-                        plain_len, (RsaKey*)key);
+                	ret = wc_RsaSSL_VerifyInline(plain_data, sig_len, &plain_ptr, (RsaKey*)key);
                 } while (ret == WC_PENDING_E);
-                if (ret >= 0) {
+                if (ret >= 0 && plain_ptr) {
                     if ((word32)ret == hash_len &&
-                            XMEMCMP(plain_data, hash_data, hash_len) == 0) {
+                            XMEMCMP(plain_ptr, hash_data, hash_len) == 0) {
                         ret = 0; /* Success */
                     }
                     else {
@@ -223,7 +235,9 @@ int wc_SignatureVerifyHash(
                         ret = SIG_VERIFY_E;
                     }
                 }
+            #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
                 XFREE(plain_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             }
             else {
                 ret = MEMORY_E;

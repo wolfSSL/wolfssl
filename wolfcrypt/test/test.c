@@ -8880,7 +8880,7 @@ int aesgcm_test(void)
         WC_RNG rng;
         byte randIV[12];
 
-        result = wc_InitRng(&rng);
+        result = wc_InitRng_ex(&rng, HEAP_HINT, devId);
         if (result != 0)
             return -6135;
 
