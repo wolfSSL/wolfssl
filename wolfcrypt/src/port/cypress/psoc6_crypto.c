@@ -48,7 +48,63 @@ int psoc6_crypto_port_init(void)
     return 0;
 }
 
+#ifdef WOLFSSL_SHA512
+int wc_InitSha512(wc_Sha512* sha)
+{
+    cy_en_crypto_status_t res;
+    if (!sha)
+        return BAD_FUNC_ARG;
+    Cy_Crypto_Core_MemSet(crypto_base, sha, 0, sizeof(sha));
+    res = Cy_Crypto_Core_Sha_Init(crypto_base, &sha->hash_state, CY_CRYPTO_MODE_SHA512, &sha->sha_buffers);
+    if (res != CY_CRYPTO_SUCCESS)
+       return (int)res;
+    return (int) Cy_Crypto_Core_Sha_Start(crypto_base, &sha->hash_state);
+}
+
+int wc_Sha512Update(wc_Sha512* sha, const byte* in, word32 sz)
+{
+    if ((!sha) || (!in))
+        return BAD_FUNC_ARG;
+    if (sz == 0)
+        return 0;
+
+    return (int)Cy_Crypto_Core_Sha_Update(crypto_base, &sha->hash_state, in, sz);
+}
+
+int wc_Sha512Final(wc_Sha512* sha, byte* hash)
+{
+    if ((!sha) || (!hash))
+        return BAD_FUNC_ARG;
+    return (int)Cy_Crypto_Core_Sha_Finish(crypto_base, &sha->hash_state, hash);
+}
+
+int wc_Sha512GetHash(wc_Sha512* sha, byte* hash)
+{
+    if ((!sha) || (!hash))
+        return BAD_FUNC_ARG;
+    Cy_Crypto_Core_MemCpy(crypto_base, hash, sha->hash_state.hash, WC_SHA512_DIGEST_SIZE);
+    return 0;
+}
+
+int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
+{
+    cy_en_crypto_status_t res;
+    if ((!dst) || (!src))
+        return BAD_FUNC_ARG;
+    Cy_Crypto_Core_MemCpy(crypto_base, dst, src, sizeof(wc_Sha512));
+    return (int)Cy_Crypto_Core_Sha_Init(crypto_base, &dst->hash_state, CY_CRYPTO_MODE_SHA512, &dst->sha_buffers);
+}
+
+void wc_Sha512Free(wc_Sha512* sha)
+{
+    if (sha)
+        Cy_Crypto_Core_Sha_Free(crypto_base, &sha->hash_state);
+}
+
+#endif
+
 #ifndef NO_SHA256
+
 
 int wc_InitSha256(wc_Sha256* sha)
 {

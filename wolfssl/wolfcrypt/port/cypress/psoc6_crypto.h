@@ -36,9 +36,19 @@
 #include "cy_crypto_common.h"
 #include "cy_crypto_core.h"
 
+#ifdef WOLFSSL_SHA512
+typedef struct wc_Sha512 {
+    cy_stc_crypto_sha_state_t hash_state;
+    cy_en_crypto_sha_mode_t sha_mode;
+    cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
+} wc_Sha512;
+
+#define WC_SHA512_TYPE_DEFINED
+#include <wolfssl/wolfcrypt/sha512.h>
+#endif
+
 #ifndef NO_SHA256
 
-#include "cy_crypto_core_sha.h"
 typedef struct wc_Sha256 {
     cy_stc_crypto_sha_state_t hash_state;
     cy_en_crypto_sha_mode_t sha_mode;
