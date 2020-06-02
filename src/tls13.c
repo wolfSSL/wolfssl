@@ -4198,7 +4198,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
     ssl->keys.encryptionOn = 1;
 
-#ifndef WOLFSSL_NO_SERVER_GROUPS_EXT
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
     if ((ret = TLSX_SupportedCurve_CheckPriority(ssl)) != 0)
         return ret;
 #endif

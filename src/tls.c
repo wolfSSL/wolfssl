@@ -3744,7 +3744,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
                        && !defined(HAVE_FFDHE)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
        Use --enable-ecc in the configure script or define HAVE_ECC. \
-       Alternatively use FFDHE for DH ciperhsuites.
+       Alternatively use FFDHE for DH ciphersuites.
 #endif
 
 static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
@@ -3901,7 +3901,7 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
 }
 
-#endif
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -3933,7 +3933,8 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 #endif
 }
 
-#endif
+#endif /* !NO_WOLFSSL_SERVER */
+
 #ifndef NO_WOLFSSL_CLIENT
 
 static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
@@ -4117,7 +4118,7 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
     return 0;
 }
 
-#endif
+#endif /* WOLFSSL_TLS13 && !WOLFSSL_NO_SERVER_GROUPS_EXT */
 
 #if defined(HAVE_FFDHE) && !defined(WOLFSSL_NO_TLS12)
 /* Set the highest priority common FFDHE group on the server as compared to
@@ -4267,7 +4268,7 @@ int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl, int checkSupported)
     return BAD_FUNC_ARG;
 }
 
-#endif
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -9756,8 +9757,6 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
     int ret = WOLFSSL_SUCCESS;
 #ifdef WOLFSSL_TLS13
-    int i;
-
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     if (ssl->options.resuming && ssl->session.namedGroup != 0) {
         return TLSX_UseSupportedCurve(extensions, ssl->session.namedGroup,
@@ -9765,7 +9764,9 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     }
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
     if (ssl->numGroups != 0) {
+        int i;
         for (i = 0; i < ssl->numGroups; i++) {
             ret = TLSX_UseSupportedCurve(extensions, ssl->group[i], ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
@@ -9773,6 +9774,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         }
         return WOLFSSL_SUCCESS;
     }
+#endif /* HAVE_SUPPORTED_CURVES */
 #endif /* WOLFSSL_TLS13 */
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)

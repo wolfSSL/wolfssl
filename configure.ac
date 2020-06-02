@@ -326,7 +326,7 @@ AC_ARG_ENABLE([tls13-draft18],
 
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
-    [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
+    [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: enabled)])],
     [ ENABLED_TLS13=$enableval ],
     [ ENABLED_TLS13=yes ]
     )
@@ -334,11 +334,6 @@ if test "x$FIPS_VERSION" = "xv1"
 then
     ENABLED_TLS13="no"
 fi
-if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_TLS13_DRAFT18" = "yes"
-then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
-fi
-
 
 # Post-handshake Authentication
 AC_ARG_ENABLE([postauth],
@@ -3141,6 +3136,19 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
+
+# TLS 1.3 Requires either ECC, CURVE25519, CURVE448 or DH
+if test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && test "x$ENABLED_CURVE448" = "xno" && test "x$ENABLED_DH" = "xno"
+then
+    # disable TLS 1.3
+    ENABLED_TLS13=no
+    ENABLED_TLS13_DRAFT18=no
+fi
+if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_TLS13_DRAFT18" = "yes"
+then
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+fi
+
 
 # Session Ticket Extension
 AC_ARG_ENABLE([session-ticket],
