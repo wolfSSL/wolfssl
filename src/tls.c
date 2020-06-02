@@ -4852,7 +4852,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
             }
         #endif
         }
-        else {
+        else if (ssl->secure_renegotiation != NULL) {
         #ifndef NO_WOLFSSL_CLIENT
             if (!ssl->secure_renegotiation->enabled) {
                 if (*input == 0) {
