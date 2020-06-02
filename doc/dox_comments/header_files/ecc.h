@@ -395,6 +395,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     byte digest[] = { initialize with message hash };
     wc_InitRng(&rng); // initialize rng
     wc_ecc_init(&key); // initialize key
+    mp_init(&r); // initialize r component
+    mp_init(&s); // initialize s component
     wc_ecc_make_key(&rng, 32, &key); // make public/private key pair
     ret = wc_ecc_sign_hash_ex(digest, sizeof(digest), &rng, &key, &r, &s);
 
