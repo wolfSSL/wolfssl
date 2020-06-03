@@ -31,11 +31,11 @@
     #undef ECC_USER_CURVES
     #define ECC_USER_CURVES
 
-    #undef ECC_ALT_SIZE
-    #define ECC_ALT_SIZE
+    #undef ALT_ECC_SIZE
+    #define ALT_ECC_SIZE
 
     #undef FP_MAX_BITS_ECC
-    #define FP_MAX_BITS_ECC 528
+    #define FP_MAX_BITS_ECC (256 * 2)
 
     #undef TFM_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT

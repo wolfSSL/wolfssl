@@ -22,7 +22,8 @@
 
 #define FP_LUT                   4
 #define FP_MAX_BITS              2048 /* 4096 */
-#define FP_MAX_BITS_ECC          512
+#define ECC_USER_CURVES /* Disables P-112, P-128, P-160, P-192, P-224, P-384, P-521 but leaves P-256 enabled */
+#define FP_MAX_BITS_ECC          (256 * 2)
 #define ALT_ECC_SIZE
 #define USE_FAST_MATH
 #define SMALL_SESSION_CACHE
@@ -52,7 +53,6 @@
 #define NO_64BIT
 #define NO_WOLFSSL_SERVER
 #define NO_OLD_TLS
-#define ECC_USER_CURVES /* Disables P-112, P-128, P-160, P-192, P-224, P-384, P-521 but leaves P-256 enabled */
 #define NO_DES3
 #define NO_MD5
 #define NO_RC4
