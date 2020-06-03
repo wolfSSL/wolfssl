@@ -11783,6 +11783,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* WOLFSSL_DTLS */
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
+            /* This may be necessary in async so that we don't try to
+             * renegotiate again */
+            if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+                ssl->secure_renegotiation->startScr = 0;
+            }
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+
             WOLFSSL_LEAVE("SSL_connect()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
 

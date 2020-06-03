@@ -7042,7 +7042,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
 DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq)
 {
-    while (head != NULL && head->epoch == epoch && head->seq != seq) {
+    while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
         head = head->next;
     }
     return head;
@@ -7111,7 +7111,8 @@ void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq, const byte* data,
 /* DtlsMsgInsert() is an in-order insert. */
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 {
-    if (head == NULL || item->seq < head->seq) {
+    if (head == NULL || (item->epoch <= head->epoch &&
+                         item->seq   <  head->seq)) {
         item->next = head;
         head = item;
     }
@@ -7122,7 +7123,8 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
         DtlsMsg* cur = head->next;
         DtlsMsg* prev = head;
         while (cur) {
-            if (item->seq < cur->seq) {
+            if (item->epoch <= head->epoch &&
+                item->seq   <  head->seq) {
                 item->next = cur;
                 prev->next = item;
                 break;
@@ -11910,10 +11912,13 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     if (IsEncryptionOn(ssl, 0)) {
+        /* If size == totalSz then we are in DtlsMsgDrain so no need to worry
+         * about padding */
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead) {
             word32 digestSz = MacSize(ssl);
-            if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+            if (size != totalSz &&
+                    *inOutIdx + ssl->keys.padSz + digestSz > totalSz)
                 return BUFFER_E;
             *inOutIdx += ssl->keys.padSz + digestSz;
         }
@@ -11921,7 +11926,8 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
         {
             /* access beyond input + size should be checked against totalSz */
-            if (*inOutIdx + ssl->keys.padSz > totalSz)
+            if (size != totalSz &&
+                    *inOutIdx + ssl->keys.padSz > totalSz)
                 return BUFFER_E;
 
             *inOutIdx += ssl->keys.padSz;
@@ -11957,7 +11963,10 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (finishedSz != size)
         return BUFFER_ERROR;
 
-    /* check against totalSz */
+    /* check against totalSz
+     * If size == totalSz then we are in DtlsMsgDrain so no need to worry about
+     * padding */
+    if (size != totalSz) {
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead) {
             if (*inOutIdx + size + ssl->keys.padSz + MacSize(ssl) > totalSz)
@@ -11969,6 +11978,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             if (*inOutIdx + size + ssl->keys.padSz > totalSz)
                 return BUFFER_E;
         }
+    }
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
@@ -12304,9 +12314,6 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
         case change_cipher_hs:
             if (ssl->msgsReceived.got_change_cipher) {
                 WOLFSSL_MSG("Duplicate ChangeCipher received");
-    #ifdef WOLFSSL_EXTRA_ALERTS
-                SendAlert(ssl, alert_fatal, unexpected_message);
-    #endif
                 return DUPLICATE_MSG_E;
             }
             /* DTLS is going to ignore the CCS message if the client key
@@ -12641,11 +12648,14 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         }
     #endif
+        /* If size == totalSz then we are in DtlsMsgDrain so no need to worry
+         * about padding */
         if (IsEncryptionOn(ssl, 0)) {
         #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (ssl->options.startedETMRead) {
                 word32 digestSz = MacSize(ssl);
-                if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+                if (size != totalSz &&
+                        *inOutIdx + ssl->keys.padSz + digestSz > totalSz)
                     return BUFFER_E;
                 *inOutIdx += ssl->keys.padSz + digestSz;
             }
@@ -12654,9 +12664,9 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             {
                 /* access beyond input + size should be checked against totalSz
                  */
-                if (*inOutIdx + ssl->keys.padSz > totalSz)
+                if (size != totalSz &&
+                        *inOutIdx + ssl->keys.padSz > totalSz)
                     return BUFFER_E;
-
                 *inOutIdx += ssl->keys.padSz;
             }
         }
@@ -13073,11 +13083,10 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
             item->fragSz == item->sz &&
             ret == 0) {
         word32 idx = 0;
-        /* If item is from the wrong epoch then just ignore it */
-        if (ssl->keys.dtls_epoch == item->epoch &&
-                (ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
-                                          item->sz, item->sz)) == 0) {
-            ssl->keys.dtls_expected_peer_handshake_number++;
+        if ((ret = DoHandShakeMsgType(ssl, item->msg, &idx, item->type,
+                                      item->sz, item->sz)) == 0) {
+            if (item->type != finished)
+                ssl->keys.dtls_expected_peer_handshake_number++;
             DtlsTxMsgListClean(ssl);
         }
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -13106,17 +13115,6 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int ignoreFinished = 0;
 
     WOLFSSL_ENTER("DoDtlsHandShakeMsg()");
-
-    /* process any pending DTLS messages - this flow can happen with async */
-    if (ssl->dtls_rx_msg_list != NULL) {
-        ret = DtlsMsgDrain(ssl);
-        if (ret != 0)
-            return ret;
-
-        /* if done processing fragment exit with success */
-        if (totalSz == *inOutIdx)
-            return ret;
-    }
 
     /* parse header */
     if (GetDtlsHandShakeHeader(ssl, input, inOutIdx, &type,
@@ -13274,7 +13272,33 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     else {
         /* This branch is in order next, and a complete message. On success
          * clean the tx list. */
+#ifdef WOLFSSL_ASYNC_CRYPT
+        word32 idx = *inOutIdx;
+#endif
         WOLFSSL_MSG("Branch is in order and a complete message");
+#ifdef WOLFSSL_ASYNC_CRYPT
+        /* In async mode always store the message and process it with
+         * DtlsMsgDrain because in case of a WC_PENDING_E it will be
+         * easier this way. */
+        if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
+            DtlsMsgStore(ssl, ssl->keys.curEpoch,
+                         ssl->keys.dtls_peer_handshake_number,
+                         input + idx, size, type,
+                         fragOffset, fragSz, ssl->heap);
+        }
+        if (idx + fragSz + ssl->keys.padSz > totalSz)
+            return BUFFER_E;
+        *inOutIdx = idx + fragSz + ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.startedETMRead && ssl->keys.curEpoch != 0) {
+            word32 digestSz = MacSize(ssl);
+            if (*inOutIdx + digestSz > totalSz)
+                return BUFFER_E;
+            *inOutIdx += digestSz;
+        }
+#endif
+        ret = DtlsMsgDrain(ssl);
+#else
         ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
         if (ret == 0) {
             DtlsTxMsgListClean(ssl);
@@ -13284,6 +13308,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = DtlsMsgDrain(ssl);
             }
         }
+#endif
     }
 
     WOLFSSL_LEAVE("DoDtlsHandShakeMsg()", ret);
@@ -14876,6 +14901,17 @@ int ProcessReply(WOLFSSL* ssl)
         return ssl->error;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* process any pending DTLS messages - this flow can happen with async */
+    if (ssl->dtls_rx_msg_list != NULL) {
+        ret = DtlsMsgDrain(ssl);
+        if (ret != 0) {
+            WOLFSSL_ERROR(ret);
+            return ret;
+        }
+    }
+#endif
+
     for (;;) {
         switch (ssl->options.processReply) {
 
@@ -15319,9 +15355,15 @@ int ProcessReply(WOLFSSL* ssl)
 
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                if (ssl->buffers.inputBuffer.length - ssl->keys.padSz -
-                                              ssl->buffers.inputBuffer.idx -
-                                              MacSize(ssl) > MAX_PLAINTEXT_SZ) {
+                if ((ssl->buffers.inputBuffer.length -
+                        ssl->keys.padSz -
+                        MacSize(ssl) -
+                        ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ)
+#ifdef WOLFSSL_ASYNC_CRYPT
+                        && ssl->buffers.inputBuffer.length !=
+                                ssl->buffers.inputBuffer.idx
+#endif
+                                ) {
                     WOLFSSL_MSG("Plaintext too long - Encrypt-Then-MAC");
             #if defined(WOLFSSL_EXTRA_ALERTS)
                     SendAlert(ssl, alert_fatal, record_overflow);
@@ -15332,7 +15374,13 @@ int ProcessReply(WOLFSSL* ssl)
             else
        #endif
             if (ssl->buffers.inputBuffer.length -
-                    ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ) {
+                    ssl->keys.padSz -
+                    ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ
+#ifdef WOLFSSL_ASYNC_CRYPT
+                        && ssl->buffers.inputBuffer.length !=
+                                ssl->buffers.inputBuffer.idx
+#endif
+                                ) {
                 WOLFSSL_MSG("Plaintext too long");
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
                 SendAlert(ssl, alert_fatal, record_overflow);
@@ -15340,11 +15388,11 @@ int ProcessReply(WOLFSSL* ssl)
                 return BUFFER_ERROR;
             }
 
-        #ifdef WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
                 DtlsUpdateWindow(ssl);
             }
-        #endif /* WOLFSSL_DTLS */
+#endif /* WOLFSSL_DTLS */
 
             WOLFSSL_MSG("received record layer msg");
 
@@ -15392,7 +15440,15 @@ int ProcessReply(WOLFSSL* ssl)
                         ret = BUFFER_ERROR;
 #endif
                     }
-                    if (ret != 0) {
+                    if (ret != 0
+#ifdef WOLFSSL_ASYNC_CRYPT
+                    /* In async case, on pending, move onto next message.
+                     * Current message should have been DtlsMsgStore'ed and
+                     * should be processed with DtlsMsgDrain */
+                            && (!ssl->options.dtls
+                                || ret != WC_PENDING_E)
+#endif
+                    ) {
                         WOLFSSL_ERROR(ret);
                         return ret;
                     }
@@ -15597,7 +15653,7 @@ int ProcessReply(WOLFSSL* ssl)
 
             /* input exhausted? */
             if (ssl->buffers.inputBuffer.idx >= ssl->buffers.inputBuffer.length)
-                return 0;
+                return ret;
 
             /* more messages per record */
             else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
@@ -15632,15 +15688,19 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                     }
                 }
-
-                continue;
             }
             /* more records */
             else {
                 WOLFSSL_MSG("More records in input");
-                continue;
             }
-
+#ifdef WOLFSSL_ASYNC_CRYPT
+            /* We are setup to read next message/record but we had an error
+             * (probably WC_PENDING_E) so return that so it can be handled
+             * by higher layers. */
+            if (ret != 0)
+                return ret;
+#endif
+            continue;
         default:
             WOLFSSL_MSG("Bad process input state, programming error");
             return INPUT_CASE_ERROR;
