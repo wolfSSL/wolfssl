@@ -307,21 +307,21 @@
         if (ret != 0)
             return ret;
 
-    #ifdef STM32_CRYPTO_AES_ONLY
+    #if defined(STM32_HAL_V2)
+        hcryp.Init.Algorithm  = CRYP_AES_ECB;
+    #elif defined(STM32_CRYPTO_AES_ONLY)
         hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_ECB;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
-    #elif defined(STM32_HAL_V2)
-        hcryp.Init.Algorithm  = CRYP_AES_ECB;
     #endif
         HAL_CRYP_Init(&hcryp);
 
-    #ifdef STM32_CRYPTO_AES_ONLY
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
-            outBlock, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_HAL_V2)
+    #if defined(STM32_HAL_V2)
         ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)inBlock, AES_BLOCK_SIZE,
             (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
+        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
+            outBlock, STM32_HAL_TIMEOUT);
     #else
         ret = HAL_CRYP_AESECB_Encrypt(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
             outBlock, STM32_HAL_TIMEOUT);
@@ -391,21 +391,21 @@
         if (ret != 0)
             return ret;
 
-    #ifdef STM32_CRYPTO_AES_ONLY
+    #if defined(STM32_HAL_V2)
+        hcryp.Init.Algorithm  = CRYP_AES_ECB;
+    #elif defined(STM32_CRYPTO_AES_ONLY)
         hcryp.Init.OperatingMode = CRYP_ALGOMODE_KEYDERIVATION_DECRYPT;
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_ECB;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
-    #elif defined(STM32_HAL_V2)
-        hcryp.Init.Algorithm  = CRYP_AES_ECB;
     #endif
         HAL_CRYP_Init(&hcryp);
 
-    #ifdef STM32_CRYPTO_AES_ONLY
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
-            outBlock, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_HAL_V2)
+    #if defined(STM32_HAL_V2)
         ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)inBlock, AES_BLOCK_SIZE,
             (uint32_t*)outBlock, STM32_HAL_TIMEOUT);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
+        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
+            outBlock, STM32_HAL_TIMEOUT);
     #else
         ret = HAL_CRYP_AESECB_Decrypt(&hcryp, (uint8_t*)inBlock, AES_BLOCK_SIZE,
             outBlock, STM32_HAL_TIMEOUT);
@@ -2963,23 +2963,23 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return ret;
         }
 
-    #ifdef STM32_CRYPTO_AES_ONLY
+    #if defined(STM32_HAL_V2)
+        hcryp.Init.Algorithm  = CRYP_AES_CBC;
+        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
         hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_CBC;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
-    #elif defined(STM32_HAL_V2)
-        hcryp.Init.Algorithm  = CRYP_AES_CBC;
-        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
     #endif
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         HAL_CRYP_Init(&hcryp);
 
-    #ifdef STM32_CRYPTO_AES_ONLY
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_HAL_V2)
+    #if defined(STM32_HAL_V2)
         ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, blocks * AES_BLOCK_SIZE,
             (uint32_t*)out, STM32_HAL_TIMEOUT);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
+        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
+            out, STM32_HAL_TIMEOUT);
     #else
         ret = HAL_CRYP_AESCBC_Encrypt(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
             out, STM32_HAL_TIMEOUT);
@@ -3016,24 +3016,24 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
-    #ifdef STM32_CRYPTO_AES_ONLY
+    #if defined(STM32_HAL_V2)
+        hcryp.Init.Algorithm  = CRYP_AES_CBC;
+        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
         hcryp.Init.OperatingMode = CRYP_ALGOMODE_KEYDERIVATION_DECRYPT;
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_CBC;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
-    #elif defined(STM32_HAL_V2)
-        hcryp.Init.Algorithm  = CRYP_AES_CBC;
-        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
     #endif
 
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         HAL_CRYP_Init(&hcryp);
 
-    #ifdef STM32_CRYPTO_AES_ONLY
-        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
-            out, STM32_HAL_TIMEOUT);
-    #elif defined(STM32_HAL_V2)
+    #if defined(STM32_HAL_V2)
         ret = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in, blocks * AES_BLOCK_SIZE,
             (uint32_t*)out, STM32_HAL_TIMEOUT);
+    #elif defined(STM32_CRYPTO_AES_ONLY)
+        ret = HAL_CRYPEx_AES(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
+            out, STM32_HAL_TIMEOUT);
     #else
         ret = HAL_CRYP_AESCBC_Decrypt(&hcryp, (uint8_t*)in, blocks * AES_BLOCK_SIZE,
             out, STM32_HAL_TIMEOUT);
@@ -3739,26 +3739,26 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 return ret;
             }
 
-        #ifdef STM32_CRYPTO_AES_ONLY
+        #if defined(STM32_HAL_V2)
+            hcryp.Init.Algorithm  = CRYP_AES_CTR;
+            ByteReverseWords(iv, aes->reg, AES_BLOCK_SIZE);
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)iv;
+        #elif defined(STM32_CRYPTO_AES_ONLY)
             hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
             hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_CTR;
             hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
-        #elif defined(STM32_HAL_V2)
-            hcryp.Init.Algorithm  = CRYP_AES_CTR;
-            ByteReverseWords(iv, aes->reg, AES_BLOCK_SIZE);
-            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)iv;
         #else
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         #endif
             HAL_CRYP_Init(&hcryp);
 
-        #ifdef STM32_CRYPTO_AES_ONLY
-            ret = HAL_CRYPEx_AES(&hcryp, (byte*)in, AES_BLOCK_SIZE,
-                out, STM32_HAL_TIMEOUT);
-        #elif defined(STM32_HAL_V2)
+        #if defined(STM32_HAL_V2)
             ret = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, AES_BLOCK_SIZE,
                 (uint32_t*)out, STM32_HAL_TIMEOUT);
+        #elif defined(STM32_CRYPTO_AES_ONLY)
+            ret = HAL_CRYPEx_AES(&hcryp, (byte*)in, AES_BLOCK_SIZE,
+                out, STM32_HAL_TIMEOUT);
         #else
             ret = HAL_CRYP_AESCTR_Encrypt(&hcryp, (byte*)in, AES_BLOCK_SIZE,
                 out, STM32_HAL_TIMEOUT);
@@ -5982,7 +5982,22 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
 
-#ifdef STM32_CRYPTO_AES_ONLY
+#if defined(STM32_HAL_V2)
+    hcryp.Init.Algorithm  = CRYP_AES_GCM;
+    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
+    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
+    HAL_CRYP_Init(&hcryp);
+
+    /* GCM payload phase - can handle partial blocks */
+    status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in,
+        (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK) {
+        /* Compute the authTag */
+        status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
+            STM32_HAL_TIMEOUT);
+    }
+#elif defined(STM32_CRYPTO_AES_ONLY)
     /* Set the CRYP parameters */
     hcryp.Init.HeaderSize = authPadSz;
     if (authPadSz == 0)
@@ -6019,21 +6034,6 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         /* GCM final phase */
         hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
         status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (uint8_t*)tag, STM32_HAL_TIMEOUT);
-    }
-#elif defined(STM32_HAL_V2)
-    hcryp.Init.Algorithm  = CRYP_AES_GCM;
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
-    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
-    HAL_CRYP_Init(&hcryp);
-
-    /* GCM payload phase - can handle partial blocks */
-    status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in,
-        (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
-    if (status == HAL_OK) {
-        /* Compute the authTag */
-        status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
-            STM32_HAL_TIMEOUT);
     }
 #else
     hcryp.Init.HeaderSize = authPadSz;
@@ -6425,7 +6425,22 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
 
-#ifdef STM32_CRYPTO_AES_ONLY
+#if defined(STM32_HAL_V2)
+    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
+    hcryp.Init.Algorithm = CRYP_AES_GCM;
+    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
+    HAL_CRYP_Init(&hcryp);
+
+    /* GCM payload phase - can handle partial blocks */
+    status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
+        (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK) {
+        /* Compute the authTag */
+        status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
+            STM32_HAL_TIMEOUT);
+    }
+#elif defined(STM32_CRYPTO_AES_ONLY)
     /* Set the CRYP parameters */
     hcryp.Init.HeaderSize = authPadSz;
     if (authPadSz == 0)
@@ -6462,21 +6477,6 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         /* GCM final phase */
         hcryp.Init.GCMCMACPhase = CRYP_FINAL_PHASE;
         status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag, STM32_HAL_TIMEOUT);
-    }
-#elif defined(STM32_HAL_V2)
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
-    hcryp.Init.Algorithm = CRYP_AES_GCM;
-    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
-    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
-    HAL_CRYP_Init(&hcryp);
-
-    /* GCM payload phase - can handle partial blocks */
-    status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
-        (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
-    if (status == HAL_OK) {
-        /* Compute the authTag */
-        status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
-            STM32_HAL_TIMEOUT);
     }
 #else
     hcryp.Init.HeaderSize = authPadSz;
