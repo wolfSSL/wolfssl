@@ -141,7 +141,6 @@ extern int wc_InitRsaHw(RsaKey* key);
     };
     #endif
 #endif
-
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
 void tsip_inform_key_position(const word32 key_n_start,
                 const word32 key_n_len, const word32 key_e_start,
@@ -4399,8 +4398,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     int ret = 0;
     int length;
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || \
-        ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     word32 oid = 0, temp = 0;
     #endif
     #endif
@@ -4413,8 +4412,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || \
-        ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     temp = *inOutIdx;
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif
@@ -4426,8 +4425,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     }
 
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || \
-        ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     /* If ASN_DH_KEY_E: Check if input started at beginning of key */
     if (ret == ASN_DH_KEY_E) {
         /* rewind back to after the first sequence */

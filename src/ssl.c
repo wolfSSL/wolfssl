@@ -18553,8 +18553,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Converts DER encoded DH parameters to a WOLFSSL_DH structure.
  *
  * dh   : structure to copy DH parameters into.
@@ -28579,8 +28578,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
     }
 }
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int SetDhInternal(WOLFSSL_DH* dh)
 {
     int            ret = WOLFSSL_FATAL_ERROR;
@@ -29123,8 +29121,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
     return bn;
 }
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -32629,8 +32626,7 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -32976,8 +32972,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST)
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -33241,8 +33236,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 
 /* End EC_POINT */
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
 {
     size_t i, min_nitems;
@@ -35021,8 +35015,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 
 #if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
         defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 static int hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -35576,8 +35569,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 {
     word32 idx = 0;
@@ -39679,8 +39671,7 @@ WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
 
 
 #ifndef NO_DH
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         pem_password_cb *cb, void *u)
 {
@@ -39896,8 +39887,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     return idx;
 }
 
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
 {
     word32 sz = 0;

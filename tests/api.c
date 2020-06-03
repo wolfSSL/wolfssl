@@ -1786,9 +1786,8 @@ static int test_wolfSSL_SetMinVersion(void)
     EC_GROUP_new_by_curve_name, EC_GROUP_order_bits
  */
 
-# if defined(OPENSSL_EXTRA) && ( !defined(HAVE_FIPS) || \
-                                 ( defined(HAVE_FIPS_VERSION) && \
-                                   (HAVE_FIPS_VERSION > 2) ) )
+# if defined(OPENSSL_EXTRA) && \
+  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
 static void test_wolfSSL_EC(void)
 {
 #if defined(HAVE_ECC)
@@ -28048,8 +28047,7 @@ static void test_wolfSSL_OBJ_ln(void)
     AssertIntEQ(OBJ_ln2nid(NULL), NID_undef);
 
 #ifdef HAVE_ECC
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     {
         int nCurves = 27;
         EC_builtin_curve r[nCurves];
@@ -28718,8 +28716,7 @@ static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 static void test_wolfSSL_EC_get_builtin_curves(void)
 {
 #if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EC_builtin_curve* curves = NULL;
     size_t crv_len = 0;
     size_t i = 0;
@@ -29298,8 +29295,7 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
     !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
@@ -29383,8 +29379,7 @@ static void test_EVP_PKEY_rsa(void)
 static void test_EVP_PKEY_ec(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     WOLFSSL_EC_KEY* ecKey;
     WOLFSSL_EVP_PKEY* pkey;
 
@@ -32429,8 +32424,7 @@ void ApiTest(void)
     /*wolfSSL_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EVP_CIPHER_CTX();
-#if !defined(HAVE_FIPS) || \
-    ( defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2) )
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     test_wolfSSL_EC();
 #endif
     test_wolfSSL_ECDSA_SIG();
