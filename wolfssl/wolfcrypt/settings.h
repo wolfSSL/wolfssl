@@ -1203,7 +1203,7 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
-    defined(WOLFSSL_STM32L4)
+    defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1224,7 +1224,7 @@ extern void uITRON4_free(void *p) ;
         #undef  STM32_CRYPTO
         #define STM32_CRYPTO
 
-        #ifdef WOLFSSL_STM32L4
+        #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5)
             #define NO_AES_192 /* hardware does not support 192-bit */
         #endif
     #endif
@@ -1239,6 +1239,8 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_STM32_CUBEMX
         #if defined(WOLFSSL_STM32F2)
             #include "stm32f2xx_hal.h"
+		#elif defined(WOLFSSL_STM32L5)
+            #include "stm32l5xx_hal.h"
         #elif defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_hal.h"
         #elif defined(WOLFSSL_STM32F4)
@@ -1272,7 +1274,15 @@ extern void uITRON4_free(void *p) ;
             #ifdef STM32_HASH
                 #include "stm32f4xx_hash.h"
             #endif
-        #elif defined(WOLFSSL_STM32L4)
+		#elif defined(WOLFSSL_STM32L5)
+            #include "stm32l5xx.h"
+            #ifdef STM32_CRYPTO
+                #include "stm32l5xx_cryp.h"
+            #endif
+            #ifdef STM32_HASH
+                #include "stm32l5xx_hash.h"
+            #endif
+    	#elif defined(WOLFSSL_STM32L4)
             #include "stm32l4xx.h"
             #ifdef STM32_CRYPTO
                 #include "stm32l4xx_cryp.h"
@@ -1286,7 +1296,7 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || WOLFSSL_STM32F7 */
+#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || WOLFSSL_STM32L5 || WOLFSSL_STM32F7 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
