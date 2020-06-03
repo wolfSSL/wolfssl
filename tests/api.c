@@ -31034,16 +31034,16 @@ static void test_wolfSSL_ASN1_INTEGER_set()
     wolfSSL_ASN1_INTEGER_free(a);
 
 #ifndef TIME_T_NOT_64BIT
-    /* 2147483648 */
+    /* int max (2147483647) */
     a = wolfSSL_ASN1_INTEGER_new();
-    val = 2147483648;
+    val = 2147483647;
     ret = ASN1_INTEGER_set(a, val);
     AssertIntEQ(ret, 1);
     wolfSSL_ASN1_INTEGER_free(a);
 
-    /* -2147483648 */
+    /* int min (-2147483648) */
     a = wolfSSL_ASN1_INTEGER_new();
-    val = -2147483648;
+    val = -2147483647 - 1;
     ret = ASN1_INTEGER_set(a, val);
     AssertIntEQ(a->negative, 1);
     AssertIntEQ(ret, 1);
