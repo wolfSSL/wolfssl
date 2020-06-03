@@ -4869,16 +4869,21 @@ static void test_wolfSSL_PKCS12(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) \
     && defined(HAVE_ECC) && defined(WOLFSSL_ENCRYPTED_KEYS)
+
+/* used to keep track if FailTestCallback was called */
+static int failTestCallbackCalled = 0;
+
 static WC_INLINE int FailTestCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)passwd;
     (void)sz;
     (void)rw;
     (void)userdata;
-    Fail(("Password callback should not be called by default"),
-            ("Password callback was called without attempting "
-             "to first decipher private key without password."));
-    return 0;
+
+    /* mark called, test_wolfSSL_no_password_cb() will check and fail if set */
+    failTestCallbackCalled = 1;
+
+    return -1;
 }
 #endif
 
@@ -4917,6 +4922,12 @@ static void test_wolfSSL_no_password_cb(void)
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
+
+    if (failTestCallbackCalled != 0) {
+        Fail(("Password callback should not be called by default"),
+            ("Password callback was called without attempting "
+             "to first decipher private key without password."));
+}
 
     printf(resultFmt, passed);
 #endif
