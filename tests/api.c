@@ -4786,8 +4786,8 @@ static void test_wolfSSL_PKCS12(void)
     WOLFSSL_X509     *cert;
     WOLFSSL_X509     *tmp;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
-    || defined(WOLFSSL_NGINX)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)) && defined(SESSION_CERTS)
     WOLFSSL_CTX      *ctx;
     WOLFSSL          *ssl;
     WOLF_STACK_OF(WOLFSSL_X509) *tmp_ca = NULL;
@@ -4833,11 +4833,11 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(cert);
     AssertNotNull(ca);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
-    || defined(WOLFSSL_NGINX)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)) && defined(SESSION_CERTS)
 
     /* Check that SSL_CTX_set0_chain correctly sets the certChain buffer */
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && defined(SESSION_CERTS)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -31263,7 +31263,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
 #endif
 }
 
-static void test_wolfSSL_X509V3_EXT_d2i(void) {
+static void test_wolfSSL_X509V3_EXT(void) {
 #if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
     FILE* f;
     int numOfExt = 0, nid = 0, i = 0, expected, actual;
@@ -31272,6 +31272,7 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     const WOLFSSL_v3_ext_method* method;
     WOLFSSL_X509* x509;
     WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_X509_EXTENSION* ext2;
     WOLFSSL_ASN1_OBJECT *obj, *adObj;
     WOLFSSL_ASN1_STRING* asn1str;
     WOLFSSL_AUTHORITY_KEYID* aKeyId;
@@ -31309,6 +31310,8 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_subject_key_identifier);
 
     AssertNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_subject_key_identifier, 0,
+                                                asn1str));
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(method->i2s);
     AssertNotNull(str = method->i2s((WOLFSSL_v3_ext_method*)method, asn1str));
@@ -35695,7 +35698,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_get_len();
     test_wolfSSL_RSA_verify();
     test_wolfSSL_X509V3_EXT_get();
-    test_wolfSSL_X509V3_EXT_d2i();
+    test_wolfSSL_X509V3_EXT();
     test_wolfSSL_X509_get_ext();
     test_wolfSSL_X509_get_ext_by_NID();
     test_wolfSSL_X509_get_ext_count();

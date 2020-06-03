@@ -8629,11 +8629,8 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         WOLFSSL_MSG("Passed an invalid X509_EXTENSION*");
         return NULL;
     }
-    /* Initialize all methods to NULL */
-    method.d2i = NULL;
-    method.i2v = NULL;
-    method.i2s = NULL;
-    method.i2r = NULL;
+    /* Initialize method to 0 */
+    XMEMSET(&method, 0, sizeof(struct WOLFSSL_v3_ext_method));
 
     nid = ex->obj->nid;
     if (nid <= 0) {
@@ -9601,6 +9598,161 @@ void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
 }
 #endif /* !NO_WOLFSSL_STUB */
 
+#if defined(OPENSSL_ALL)
+static WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_STRING(WOLFSSL_ASN1_STRING **out,
+                                                    const unsigned char **in,
+                                                    long inSz)
+{
+    WOLFSSL_ASN1_STRING* ret = NULL;
+    WOLFSSL_ASN1_STRING* tmp = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_ASN1_STRING";)
+
+    if (!in || !*in || inSz <= 0) {
+        WOLFSSL_MSG("Bad parameters")
+        return NULL;
+    }
+
+    if (!out || !*out) {
+        if (!(ret = tmp = wolfSSL_ASN1_STRING_new())) {
+            WOLFSSL_MSG("wolfSSL_ASN1_STRING_new error");
+            return NULL;
+        }
+    }
+    else {
+        ret = *out;
+    }
+
+    if (wolfSSL_ASN1_STRING_set(ret, *in, inSz) != WOLFSSL_SUCCESS) {
+        if (tmp) {
+            wolfSSL_ASN1_STRING_free(tmp);
+        }
+        return NULL;
+    }
+
+    *in += inSz;
+    *out = ret;
+    return ret;
+}
+
+static int wolfSSL_i2d_ASN1_STRING(WOLFSSL_ASN1_STRING *s, unsigned char **out)
+{
+    if (!s)
+        return WOLFSSL_FAILURE;
+
+    if (!out)
+        return s->length;
+
+    if (s->length) {
+        XMEMCPY(*out, s->data, s->length);
+        *out += s->length;
+    }
+    return s->length;
+}
+
+static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
+                                               int nid)
+{
+    if (!method)
+        return;
+
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_METHOD_populate");
+    switch (nid) {
+    case NID_subject_key_identifier:
+        method->i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+        FALL_THROUGH;
+    case NID_authority_key_identifier:
+    case NID_key_usage:
+        method->i2d = (X509V3_EXT_I2D)wolfSSL_i2d_ASN1_STRING;
+        method->d2i = (X509V3_EXT_D2I)wolfSSL_d2i_ASN1_STRING;
+        break;
+    case NID_certificate_policies:
+    case NID_policy_mappings:
+    case NID_subject_alt_name:
+    case NID_issuer_alt_name:
+    case NID_basic_constraints:
+    case NID_name_constraints:
+    case NID_policy_constraints:
+    case NID_ext_key_usage:
+    case NID_crl_distribution_points:
+    case NID_inhibit_any_policy:
+    case NID_info_access:
+        WOLFSSL_MSG("Nothing to populate for current NID");
+        break;
+    default:
+        WOLFSSL_MSG("Unknown or unsupported NID");
+        break;
+    }
+
+    return;
+}
+
+WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
+                                               void *data)
+{
+    WOLFSSL_X509_EXTENSION *ext = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_i2d");
+
+    if (!data) {
+        return NULL;
+    }
+
+    if (!(ext = wolfSSL_X509_EXTENSION_new())) {
+        return NULL;
+    }
+
+    wolfSSL_X509V3_EXT_METHOD_populate(&ext->ext_method, nid);
+
+    switch (nid) {
+    case NID_subject_key_identifier:
+    case NID_authority_key_identifier:
+    case NID_key_usage:
+    {
+        WOLFSSL_ASN1_STRING* asn1str = (WOLFSSL_ASN1_STRING*)data;
+        ext->value = *asn1str;
+        if (asn1str->isDynamic) {
+            ext->value.data = (char*)XMALLOC(asn1str->length, NULL,
+                                             DYNAMIC_TYPE_OPENSSL);
+            if (!ext->value.data) {
+                WOLFSSL_MSG("malloc failed");
+                /* Zero so that no existing memory is freed */
+                XMEMSET(&ext->value, 0, sizeof(WOLFSSL_ASN1_STRING));
+                goto err_cleanup;
+            }
+            XMEMCPY(ext->value.data, asn1str->data, asn1str->length);
+        }
+        else {
+            ext->value.data = ext->value.strData;
+        }
+        break;
+    }
+    case NID_certificate_policies:
+    case NID_policy_mappings:
+    case NID_subject_alt_name:
+    case NID_issuer_alt_name:
+    case NID_basic_constraints:
+    case NID_name_constraints:
+    case NID_policy_constraints:
+    case NID_ext_key_usage:
+    case NID_crl_distribution_points:
+    case NID_inhibit_any_policy:
+    case NID_info_access:
+    default:
+        WOLFSSL_MSG("Unknown or unsupported NID");
+        break;
+    }
+
+    ext->crit = crit;
+
+    return ext;
+err_cleanup:
+    if (ext) {
+        wolfSSL_X509_EXTENSION_free(ext);
+    }
+    return NULL;
+}
+
 /* Returns pointer to ASN1_OBJECT from an X509_EXTENSION object */
 WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object \
     (WOLFSSL_X509_EXTENSION* ext)
@@ -9610,6 +9762,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object \
         return NULL;
     return ext->obj;
 }
+#endif /* OPENSSL_ALL */
 
 /* Returns pointer to ASN1_STRING in X509_EXTENSION object */
 WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ext)
@@ -20438,9 +20591,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             asn1->data = NULL;
         }
 
-        if (sz + 1 > CTC_NAME_SIZE) {
-            /* create new data buffer and copy over  +1 for null */
-            asn1->data = (char*)XMALLOC(sz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (sz + 1 > CTC_NAME_SIZE) { /* account for null char */
+            /* create new data buffer and copy over */
+            asn1->data = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
             if (asn1->data == NULL) {
                 return WOLFSSL_FAILURE;
             }
@@ -24902,6 +25055,14 @@ long wolfSSL_num_renegotiations(WOLFSSL* s)
     }
 
     return s->secure_rene_count;
+}
+
+
+/* Is there a renegotiation currently in progress? */
+int  wolfSSL_SSL_renegotiate_pending(WOLFSSL *s)
+{
+    return s && s->options.handShakeDone &&
+            s->options.handShakeState != HANDSHAKE_DONE ? 1 : 0;
 }
 #endif /* HAVE_SECURE_RENEGOTIATION || HAVE_SERVER_RENEGOTIATION_INFO */
 
