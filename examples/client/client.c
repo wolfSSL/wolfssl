@@ -3077,15 +3077,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
     if (sendGET) {
-        printf("SSL connect ok, sending GET...\n");
         char msgGet[GETMSGSZ] = "GET /index.html HTTP/1.0\r\n\r\n";
+        printf("SSL connect ok, sending GET...\n");
+
         XMEMSET(msg, 0, MSG32);
         XMEMSET(resumeMsg, 0, MSG32);
         msgSz = GETMSGSZ-1;
-        XSTRNCPY(msg, msgGet, msgSz);
+        XMEMCPY(msg, msgGet, msgSz);
 
         resumeSz = msgSz;
-        XSTRNCPY(resumeMsg, msgGet, resumeSz);
+        XMEMCPY(resumeMsg, msgGet, resumeSz);
     }
 
 /* allow some time for exporting the session */
