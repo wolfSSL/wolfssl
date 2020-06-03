@@ -2404,11 +2404,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             /* Write data */
             if (!useWebServerMsg) {
                 write_msg = msg;
-                write_msg_sz = sizeof(msg);
+                write_msg_sz = XSTRLEN(msg);
             }
             else {
                 write_msg = webServerMsg;
-                write_msg_sz = sizeof(webServerMsg);
+                write_msg_sz = XSTRLEN(webServerMsg);
             }
             ServerWrite(ssl, write_msg, write_msg_sz);
 
