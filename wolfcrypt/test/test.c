@@ -18310,7 +18310,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_sign_hash(msg, XSTRLEN((const char* )msg), tmp, &tmpSz, rng, &key);
+            ret = wc_ecc_sign_hash(msg, (word32)XSTRLEN((const char* )msg), tmp, &tmpSz, rng, &key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9629, done);
@@ -18325,7 +18325,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, XSTRLEN((const char* )msg), &verify, &key);
+            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, (word32)XSTRLEN((const char* )msg), &verify, &key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9630, done);
