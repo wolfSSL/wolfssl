@@ -18556,6 +18556,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Converts DER encoded DH parameters to a WOLFSSL_DH structure.
  *
  * dh   : structure to copy DH parameters into.
@@ -18604,6 +18605,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
 
     return newDH;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 /* Converts internal WOLFSSL_DH structure to DER encoded DH.
  *
@@ -28574,6 +28576,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
     }
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int SetDhInternal(WOLFSSL_DH* dh)
 {
     int            ret = WOLFSSL_FATAL_ERROR;
@@ -28713,6 +28716,7 @@ int SetDhExternal(WOLFSSL_DH *dh)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
 /* return code compliant with OpenSSL :
@@ -29115,6 +29119,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
     return bn;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -29329,6 +29334,7 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     return WOLFSSL_SUCCESS;
 }
 #endif /* v1.1.0 or later */
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #endif /* NO_DH */
 
@@ -32628,6 +32634,7 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -32730,6 +32737,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
 
     return (size_t)min_len;
 }
+
 
 int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_EC_POINT *p, const unsigned char *buf,
@@ -32838,6 +32846,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     return ret;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {
@@ -32971,6 +32980,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -33110,6 +33120,7 @@ cleanup:
     wc_ecc_del_point(tmp);
     return ret;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
         * !defined(HAVE_SELFTEST) */
 
@@ -33233,6 +33244,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 
 /* End EC_POINT */
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
 {
     size_t i, min_nitems;
@@ -33254,6 +33266,7 @@ size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
 
     return min_nitems;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 /* Start ECDSA_SIG */
 void wolfSSL_ECDSA_SIG_free(WOLFSSL_ECDSA_SIG *sig)
@@ -35010,6 +35023,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 
 #if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
         defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 static int hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -35259,7 +35273,10 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* WC_RSA_PSS && (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY
+        *                || WOLFSSL_NGINX)
+        */
 
 #if defined(OPENSSL_EXTRA)
 WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
@@ -35560,6 +35577,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 {
     word32 idx = 0;
@@ -35583,6 +35601,7 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* ! NO_DH && WOLFSSL_QT || OPENSSL_ALL */
 
 #endif /* OPENSSL_EXTRA */
@@ -39660,6 +39679,7 @@ WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
 
 
 #ifndef NO_DH
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         pem_password_cb *cb, void *u)
 {
@@ -39789,6 +39809,7 @@ end:
     return NULL;
 #endif
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #ifndef NO_FILESYSTEM
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
@@ -39874,6 +39895,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     return idx;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
 {
     word32 sz = 0;
@@ -40139,6 +40161,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* !NO_FILESYSTEM */
 #endif /* !NO_DH */

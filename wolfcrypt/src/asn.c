@@ -4400,7 +4400,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     int ret = 0;
     int length;
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     word32 oid = 0, temp = 0;
+    #endif
     #endif
 
     WOLFSSL_ENTER("wc_DhKeyDecode");
@@ -4410,9 +4413,11 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     temp = *inOutIdx;
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif
 
     /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
@@ -4422,6 +4427,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     }
 
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+                                (HAVE_FIPS_VERSION>2))
     /* If ASN_DH_KEY_E: Check if input started at beginning of key */
     if (ret == ASN_DH_KEY_E) {
         /* rewind back to after the first sequence */
@@ -4466,6 +4473,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
             ret = 0;
         }
     }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
     WOLFSSL_MSG("wc_DhKeyDecode Success");
