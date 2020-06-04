@@ -3082,10 +3082,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         XMEMSET(msg, 0, MSG32);
         XMEMSET(resumeMsg, 0, MSG32);
-        msgSz = GETMSGSZ-1;
+        msgSz = resumeSz = sizeof(msgGet) - 1;
         XMEMCPY(msg, msgGet, msgSz);
-
-        resumeSz = msgSz;
         XMEMCPY(resumeMsg, msgGet, resumeSz);
     }
 
