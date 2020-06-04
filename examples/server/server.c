@@ -1830,7 +1830,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #if defined(WOLFSSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
-    if (cipherList == NULL) {
+    if (cipherList == NULL && version < 4) {
         if (SSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "server can't set cipher list 3");
     }

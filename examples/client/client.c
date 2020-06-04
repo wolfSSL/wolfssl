@@ -2371,7 +2371,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_SNIFFER)
-    if (cipherList == NULL) {
+    if (cipherList == NULL && version < 4) {
         /* don't use EDH, can't sniff tmp keys */
         if (wolfSSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;

@@ -138,7 +138,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = CyaDTLSv1_2_server_method();
 #elif !defined(NO_TLS)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
+    method = CyaTLSv1_2_server_method();
+    #else
     method = CyaSSLv23_server_method();
+    #endif
 #elif defined(WOLFSSL_ALLOW_SSLV3)
     method = CyaSSLv3_server_method();
 #else
@@ -228,7 +232,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
 #if defined(CYASSL_SNIFFER)
     /* Only set if not running testsuite */
-    if (XSTRNCMP(argv[0], "testsuite", XSTRLEN("testsuite")) != 0) {
+    if (XSTRSTR(argv[0], "testsuite") != 0) {
         /* don't use EDH, can't sniff tmp keys */
         CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
     }

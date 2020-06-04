@@ -121,7 +121,11 @@ void echoclient_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_2_client_method();
 #elif !defined(NO_TLS)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
+    method = CyaTLSv1_2_client_method();
+    #else
     method = CyaSSLv23_client_method();
+    #endif
 #elif defined(WOLFSSL_ALLOW_SSLV3)
     method = SSLv3_client_method();
 #else
@@ -151,7 +155,7 @@ void echoclient_test(void* args)
 
 #if defined(CYASSL_SNIFFER)
     /* Only set if not running testsuite */
-    if (XSTRNCMP(argv[0], "testsuite", XSTRLEN("testsuite")) != 0) {
+    if (XSTRSTR(argv[0], "testsuite") != 0) {
         /* don't use EDH, can't sniff tmp keys */
         SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
     }
