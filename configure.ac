@@ -3137,8 +3137,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
-# TLS 1.3 Requires either ECC, CURVE25519, CURVE448 or DH
-if test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && test "x$ENABLED_CURVE448" = "xno" && test "x$ENABLED_DH" = "xno"
+# TLS 1.3 Requires either ECC, CURVE25519, CURVE448 or RSA
+if test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && test "x$ENABLED_CURVE448" = "xno" && test "x$ENABLED_RSA" = "xno"
 then
     # disable TLS 1.3
     ENABLED_TLS13=no

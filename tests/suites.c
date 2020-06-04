@@ -467,14 +467,16 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     /* verify results */
     if ((cliArgs.return_code != 0 && cliTestShouldFail == 0) ||
         (cliArgs.return_code == 0 && cliTestShouldFail != 0)) {
-        printf("client_test failed\n");
+        printf("client_test failed %d %s\n", cliArgs.return_code, 
+            cliTestShouldFail ? "(should fail)" : "");
         XEXIT(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
     if ((svrArgs.return_code != 0 && svrTestShouldFail == 0) ||
         (svrArgs.return_code == 0 && svrTestShouldFail != 0)) {
-        printf("server_test failed\n");
+        printf("server_test failed %d %s\n", svrArgs.return_code,
+            svrTestShouldFail ? "(should fail)" : "");
         XEXIT(EXIT_FAILURE);
     }
 

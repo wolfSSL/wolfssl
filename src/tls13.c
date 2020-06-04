@@ -5036,6 +5036,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     return ret;
 }
 
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448)
 typedef struct Scv13Args {
     byte*  output; /* not allocated */
     byte*  verify; /* not allocated */
@@ -5420,6 +5422,7 @@ exit_scv:
 
     return ret;
 }
+#endif
 
 /* handle processing TLS v1.3 certificate (11) */
 /* Parse and handle a TLS v1.3 Certificate message.
@@ -7497,7 +7500,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_THIRD:
-        #ifndef NO_CERTS
+        #if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
+             defined(HAVE_ED25519) || defined(HAVE_ED448))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {
@@ -8221,7 +8225,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case TLS13_CERT_SENT :
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
+     defined(HAVE_ED25519) || defined(HAVE_ED448))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13CertificateVerify(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
