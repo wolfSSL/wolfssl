@@ -995,7 +995,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
+#ifndef NO_CERTS
     int mutualAuth = 0;
+#endif
     int postHandAuth = 0;
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
@@ -1081,7 +1083,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
+#ifndef NO_CERTS
     (void)mutualAuth;
+#endif
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
@@ -1413,9 +1417,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+        #ifndef NO_CERTS
             case 'F' :
-                    mutualAuth = 1;
+                mutualAuth = 1;
                 break;
+        #endif
 
             case 'Q' :
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
