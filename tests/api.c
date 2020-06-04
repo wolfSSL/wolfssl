@@ -24991,10 +24991,9 @@ static void test_wolfSSL_BIO_gets(void)
 
     /* try with bad args */
     AssertNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
-    AssertNull(bio = BIO_new_mem_buf((void*)msg, -1));
 
     /* try with real msg */
-    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, sizeof(msg)));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, -1));
     XMEMSET(bio_buffer, 0, bufferSz);
     AssertNotNull(BIO_push(bio, BIO_new(BIO_s_bio())));
     AssertNull(bio2 = BIO_find_type(bio, BIO_TYPE_FILE));
@@ -27193,7 +27192,7 @@ static void test_wolfSSL_AES_cbc_encrypt()
 #endif
 }
 
-#if defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL)
 #if !defined(NO_ASN)
 static void test_wolfSSL_ASN1_STRING_to_UTF8(void)
 {
@@ -27261,7 +27260,7 @@ static void test_wolfSSL_sk_CIPHER_description(void)
 
     printf(testingFmt, "wolfSSL_sk_CIPHER_description");
 
-    AssertNotNull(method = TLSv1_client_method());
+    AssertNotNull(method = TLSv1_2_client_method());
     AssertNotNull(ctx = SSL_CTX_new(method));
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
@@ -27319,7 +27318,7 @@ static void test_wolfSSL_get_ciphers_compat(void)
 
     printf(testingFmt, "wolfSSL_get_ciphers_compat");
 
-    AssertNotNull(method = TLSv1_client_method());
+    AssertNotNull(method = SSLv23_client_method());
     AssertNotNull(ctx = SSL_CTX_new(method));
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
@@ -27626,14 +27625,18 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     AssertIntEQ(SHA1_Final(hash,&sha), WOLFSSL_SUCCESS);
 
     /* Initialize pkey with der format dsa key */
-    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_DSA, &pkey,
+    AssertNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &pkey,
                 &dsaKeyDer ,(long)dsaKeySz));
 
     /* Test wolfSSL_EVP_PKEY_get1_DSA */
     /* Should Fail: NULL argument */
-    AssertNull(dsa = wolfSSL_EVP_PKEY_get1_DSA(NULL));
+    AssertNull(dsa = EVP_PKEY_get0_DSA(NULL));
+    AssertNull(dsa = EVP_PKEY_get1_DSA(NULL));
     /* Should Pass: Initialized pkey argument */
-    AssertNotNull(dsa = wolfSSL_EVP_PKEY_get1_DSA(pkey));
+    AssertNotNull(dsa = EVP_PKEY_get0_DSA(pkey));
+    AssertNotNull(dsa = EVP_PKEY_get1_DSA(pkey));
+
+    AssertIntEQ(DSA_bits(dsa), 2048);
 
     /* Sign */
     AssertIntEQ(wolfSSL_DSA_do_sign(hash, signature, dsa), WOLFSSL_SUCCESS);
@@ -27643,17 +27646,17 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 
     /* Test wolfSSL_EVP_PKEY_set1_DSA */
     /* Should Fail: set1Pkey not initialized */
-    AssertIntNE(wolfSSL_EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
+    AssertIntNE(EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
 
     /* Initialize set1Pkey */
-    set1Pkey = wolfSSL_EVP_PKEY_new();
+    set1Pkey = EVP_PKEY_new();
 
     /* Should Fail Verify: setDsa not initialized from set1Pkey */
     AssertIntNE(wolfSSL_DSA_do_verify(hash,signature,setDsa,&answer),
                 WOLFSSL_SUCCESS);
 
     /* Should Pass: set dsa into set1Pkey */
-    AssertIntEQ(wolfSSL_EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
     printf(resultFmt, passed);
 
     DSA_free(dsa);
@@ -28039,7 +28042,7 @@ static void test_wolfSSL_OBJ_ln(void)
             "jurisdictionStateOrProvinceName",
             "emailAddress",
     };
-    int i = 0, maxIdx = sizeof(ln_set)/sizeof(char*);
+    size_t i = 0, maxIdx = sizeof(ln_set)/sizeof(char*);
 
     printf(testingFmt, "wolfSSL_OBJ_ln");
 
@@ -28047,9 +28050,9 @@ static void test_wolfSSL_OBJ_ln(void)
 
 #ifdef HAVE_ECC
     {
-        int nCurves = 27;
+        size_t nCurves = 27;
         EC_builtin_curve r[nCurves];
-        EC_get_builtin_curves(r,nCurves);
+        nCurves = EC_get_builtin_curves(r,nCurves);
 
         for (i = 0; i < nCurves; i++) {
             AssertIntEQ(OBJ_ln2nid(r[i].comment), r[i].nid);
@@ -28088,7 +28091,7 @@ static void test_wolfSSL_OBJ_sn(void)
 
     printf(resultFmt, passed);
 }
-#endif /* WOLFSSL_QT */
+#endif /* OPENSSL_ALL */
 
 
 static void test_wolfSSL_X509V3_EXT_get(void) {
@@ -32180,8 +32183,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_PKEY_derive();
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
 
-#if defined(WOLFSSL_QT)
-    printf("\n----------------Qt Unit Tests-------------------\n");
+#if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_sk_CIPHER_description();
     test_wolfSSL_get_ciphers_compat();
@@ -32198,9 +32200,7 @@ void ApiTest(void)
     test_wolfSSL_OBJ_ln();
     test_wolfSSL_OBJ_sn();
 
-    printf("\n-------------End Of Qt Unit Tests---------------\n");
-
-#endif /* WOLFSSL_QT */
+#endif /* OPENSSL_ALL */
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);

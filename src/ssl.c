@@ -14924,7 +14924,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_BIO* bio = NULL;
 
-        if (buf == NULL || len < 0) {
+        if (buf == NULL) {
             return bio;
         }
 
@@ -14933,6 +14933,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return bio;
         }
 
+        if (len < 0) {
+            len = (int)XSTRLEN((const char*)buf);
+        }
         bio->num = bio->wrSz = len;
         bio->ptr = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
         if (bio->ptr == NULL) {
@@ -19269,7 +19272,7 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 
 
 /* helper function that takes in a protocol version struct and returns string */
-static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
+static const char* wolfSSL_internal_get_version(const ProtocolVersion* version)
 {
     WOLFSSL_ENTER("wolfSSL_get_version");
 
@@ -19279,21 +19282,14 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 
     if (version->major == SSLv3_MAJOR) {
         switch (version->minor) {
-        #ifndef NO_OLD_TLS
-            #ifdef WOLFSSL_ALLOW_SSLV3
             case SSLv3_MINOR :
                 return "SSLv3";
-            #endif
-            #ifdef WOLFSSL_ALLOW_TLSV10
             case TLSv1_MINOR :
                 return "TLSv1";
-            #endif
             case TLSv1_1_MINOR :
                 return "TLSv1.1";
-        #endif
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
-        #ifdef WOLFSSL_TLS13
             case TLSv1_3_MINOR :
             #ifdef WOLFSSL_TLS13_DRAFT
                 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -19310,7 +19306,6 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
             #else
                 return "TLSv1.3";
             #endif
-        #endif
             default:
                 return "unknown";
         }
@@ -19331,7 +19326,7 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 }
 
 
-const char* wolfSSL_get_version(WOLFSSL* ssl)
+const char* wolfSSL_get_version(const WOLFSSL* ssl)
 {
     if (ssl == NULL) {
         WOLFSSL_MSG("Bad argument");
@@ -19347,6 +19342,13 @@ const char* wolfSSL_lib_version(void)
 {
     return LIBWOLFSSL_VERSION_STRING;
 }
+
+#ifdef OPENSSL_EXTRA
+const char* wolfSSL_OpenSSL_version(void)
+{
+    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+}
+#endif
 
 
 /* current library version in hex */
@@ -21101,6 +21103,8 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     cipher_names = GetCipherNames();
 
     offset = cipher->offset;
+    if (offset >= (unsigned long)GetCipherNamesSize())
+        return WOLFSSL_FAILURE;
     pv.major = cipher_names[offset].major;
     pv.minor = cipher_names[offset].minor;
     protocol = wolfSSL_internal_get_version(&pv);
@@ -26637,9 +26641,6 @@ int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 
 void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    int offset = i;
-#endif
     WOLFSSL_ENTER("wolfSSL_sk_value");
 
     for (; sk != NULL && i > 0; i--)
@@ -26651,9 +26652,6 @@ void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
         case STACK_TYPE_CIPHER:
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            sk->data.cipher.offset = offset;
-        #endif
             return (void*)&sk->data.cipher;
         case STACK_TYPE_GEN_NAME:
             return (void*)sk->data.gn;
@@ -29965,6 +29963,16 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
     return WOLFSSL_SUCCESS;
 }
 
+
+int wolfSSL_DSA_bits(const WOLFSSL_DSA *d)
+{
+    if (!d)
+        return WOLFSSL_FAILURE;
+    if (!d->exSet && SetDsaExternal((WOLFSSL_DSA*)d) != WOLFSSL_SUCCESS)
+        return WOLFSSL_FAILURE;
+    return wolfSSL_BN_num_bits(d->p);
+}
+
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                              WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
@@ -33244,7 +33252,7 @@ size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
         r[i].comment = wolfSSL_OBJ_nid2sn(r[i].nid);
     }
 
-    return ecc_sets_count;
+    return min_nitems;
 }
 
 /* Start ECDSA_SIG */
@@ -42941,6 +42949,8 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
     Suites* suites;
+    const CipherSuiteInfo* cipher_names = GetCipherNames();
+    int cipherSz = GetCipherNamesSize();
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
     if (ssl == NULL || (ssl->suites == NULL && ssl->ctx->suites == NULL)) {
@@ -42957,15 +42967,30 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     /* check if stack needs populated */
     if (suites->stack == NULL) {
         int i;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        int j;
+#endif
         for (i = 0; i < suites->suiteSz; i+=2) {
             WOLFSSL_STACK* add = wolfSSL_sk_new_node(ssl->heap);
             if (add != NULL) {
                 add->type = STACK_TYPE_CIPHER;
                 add->data.cipher.cipherSuite0 = suites->suites[i];
                 add->data.cipher.cipherSuite  = suites->suites[i+1];
+                add->data.cipher.ssl          = ssl;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+                for (j = 0; j < cipherSz; j++) {
+                    if (cipher_names[j].cipherSuite0 ==
+                            add->data.cipher.cipherSuite0 &&
+                            cipher_names[j].cipherSuite ==
+                                    add->data.cipher.cipherSuite) {
+                        add->data.cipher.offset = j;
+                        break;
+                    }
+                }
+#endif
                 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
                 /* in_stack is checked in wolfSSL_CIPHER_description */
-                add->data.cipher.in_stack = 1;
+                add->data.cipher.in_stack     = 1;
                 #endif
 
                 add->next = ret;

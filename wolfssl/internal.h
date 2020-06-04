@@ -1853,11 +1853,10 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #define MAX_DESCRIPTION_SZ 255
 #endif
-/* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
     byte cipherSuite0;
     byte cipherSuite;
-    WOLFSSL* ssl;
+    const WOLFSSL* ssl;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     char description[MAX_DESCRIPTION_SZ];
     unsigned long offset;

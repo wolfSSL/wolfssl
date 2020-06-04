@@ -5799,6 +5799,14 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     return WOLFSSL_SUCCESS;
 }
 
+WOLFSSL_DSA* wolfSSL_EVP_PKEY_get0_DSA(struct WOLFSSL_EVP_PKEY *pkey)
+{
+    if (!pkey) {
+        return NULL;
+    }
+    return pkey->dsa;
+}
+
 WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DSA* local;
