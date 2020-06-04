@@ -1515,7 +1515,7 @@ enum Misc {
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
-    #define WOLFSSL_MAX_SIGALGO 32
+    #define WOLFSSL_MAX_SIGALGO 36
 #endif
 
 

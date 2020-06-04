@@ -3711,6 +3711,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
             /* Default to ciphersuite if cb doesn't specify. */
             ssl->options.resuming = 0;
+            /* Don't send certificate request when using PSK. */
+            ssl->options.verifyPeer = 0;
 
             /* PSK age is always zero. */
             if (current->ticketAge != ssl->session.ticketAdd)
