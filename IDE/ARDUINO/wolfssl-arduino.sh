@@ -32,6 +32,10 @@ if [ "$DIR" = "ARDUINO" ]; then
     mv ./wolfSSL/bio.c ./wolfSSL/wolfssl
 	mv ./wolfSSL/evp.c ./wolfSSL/wolfssl
 
+    #make a copy for ssl.c to include inline
+    cp ./wolfSSL/wolfssl/evp.c ./wolfSSL/wolfcrypt/src/evp.c
+    cp ./wolfSSL/wolfssl/bio.c ./wolfSSL/wolfcrypt/src/bio.c
+
     echo "/* Generated wolfSSL header file for Arduino */" > ./wolfSSL/wolfssl.h
     echo "#include <wolfssl/wolfcrypt/settings.h>" >> ./wolfSSL/wolfssl.h
     echo "#include <wolfssl/ssl.h>" >> ./wolfSSL/wolfssl.h
