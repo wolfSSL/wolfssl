@@ -2098,8 +2098,8 @@ static void test_wolfSSL_ECDSA_SIG(void)
     unsigned char outSig[8];
     unsigned char sigData[8] =
                              { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
-
-    AssertNull(wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData)));
+    sig = wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData));
+    AssertNull(sig);
     cp = sigData;
     AssertNotNull((sig = wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData))));
     AssertIntEQ((cp == sigData + 8), 1);
@@ -12995,6 +12995,7 @@ static int test_RsaDecryptBoundsCheck(void)
     WC_RNG rng;
 
     printf(testingFmt, "RSA decrypt bounds check");
+    XMEMSET(&rng, 0, sizeof(rng));
 
     ret = wc_InitRng(&rng);
 
@@ -13126,6 +13127,8 @@ static int test_wc_RsaKeyToDer (void)
     /* (2 x 256) + 2 (possible leading 00) + (5 x 128) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 17 (ASN length) + 4 seqSz + 3 version */
     #endif
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&genKey, 0, sizeof(genKey));
 
     der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -13230,6 +13233,9 @@ static int test_wc_RsaKeyToPublicDer (void)
     int         bits = 2048;
     word32      derLen = 290;
     #endif
+
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -14461,6 +14467,8 @@ static int test_wc_MakeDsaKey (void)
 #if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey  genKey;
     WC_RNG  rng;
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&genKey, 0, sizeof(genKey));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -14558,7 +14566,10 @@ static int test_wc_DsaKeyToDer (void)
     bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
     XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
-
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&genKey, 0, sizeof(genKey));
+#endif
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_InitDsaKey(&genKey);
@@ -14966,6 +14977,8 @@ static int test_wc_DsaExportKeyRaw (void)
     word32 xOutSz, yOutSz;
 
     printf(testingFmt, "wc_DsaExportKeyRaw()");
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -18059,6 +18072,9 @@ static int test_wc_ecc_check_key (void)
     WC_RNG      rng;
     ecc_key     key;
 
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ecc_init(&key);
@@ -18154,6 +18170,9 @@ static int test_wc_ecc_size (void)
     WC_RNG      rng;
     ecc_key     key;
 
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ecc_init(&key);
@@ -18233,7 +18252,7 @@ static int test_wc_ecc_signVerify_hash (void)
 
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
-    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&key, 0, sizeof(key));
 
     /* Init structs. */
     ret = wc_InitRng(&rng);
@@ -18343,6 +18362,9 @@ static int test_wc_ecc_shared_secret (void)
 
     /* Initialize variables. */
     XMEMSET(out, 0, keySz);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -18413,6 +18435,8 @@ static int test_wc_ecc_export_x963 (void)
 
     /* Initialize variables. */
     XMEMSET(out, 0, outlen);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -18482,6 +18506,8 @@ static int test_wc_ecc_export_x963_ex (void)
 
     /* Init stack variables. */
     XMEMSET(out, 0, outlen);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -18582,6 +18608,10 @@ static int test_wc_ecc_import_x963 (void)
 
     /* Init stack variables. */
     XMEMSET(x963, 0, x963Len);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&pubKey, 0, sizeof(pubKey));
+
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ecc_init(&pubKey);
@@ -18653,6 +18683,9 @@ static int ecc_import_private_key (void)
     /* Init stack variables. */
     XMEMSET(privKey, 0, privKeySz);
     XMEMSET(x963Key, 0, x963KeySz);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&keyImp, 0, sizeof(keyImp));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -18725,6 +18758,8 @@ static int test_wc_ecc_export_private_only (void)
 
     /* Init stack variables. */
     XMEMSET(out, 0, outlen);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -19006,6 +19041,8 @@ static int test_wc_ecc_sig_size (void)
     WC_RNG      rng;
     int         keySz = KEY16;
 
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ecc_init(&key);
@@ -19281,6 +19318,9 @@ static int test_wc_ecc_encryptDecrypt (void)
     /* Init stack variables. */
     XMEMSET(out, 0, outSz);
     XMEMSET(plain, 0, plainSz);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&srvKey, 0, sizeof(srvKey));
+    XMEMSET(&cliKey, 0, sizeof(cliKey));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -19427,6 +19467,8 @@ static int test_wc_ecc_pointFns (void)
 
     /* Init stack variables. */
     XMEMSET(der, 0, derSz);
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -19600,7 +19642,9 @@ static int test_wc_ecc_shared_secret_ssh (void)
 
     /* Init stack variables. */
     XMEMSET(secret, 0, secretLen);
-
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMSET(&key2, 0, sizeof(key2));
     /* Make keys */
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -19894,6 +19938,8 @@ static int test_wc_ecc_is_valid_idx (void)
     int         iVal = -2;
     int         iVal2 = 3000;
 
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
@@ -22951,7 +22997,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         XFCLOSE(file);
 
         /* Test using BIO new mem and loading PEM private key */
-        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        bio = BIO_new_mem_buf(buf, (int)sz);
+        AssertNotNull(bio);
         AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
@@ -23832,8 +23879,9 @@ static void test_wolfSSL_EVP_MD_ecc_signing(void)
     printf(testingFmt, "wolfSSL_EVP_MD_ecc_signing()");
 
     cp = ecc_clikey_der_256;
-    AssertNotNull((privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &cp,
-                                                   sizeof_ecc_clikey_der_256)));
+    privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &cp,
+                                                   sizeof_ecc_clikey_der_256);
+    AssertNotNull(privKey);
     p = ecc_clikeypub_der_256;
     AssertNotNull((pubKey = wolfSSL_d2i_PUBKEY(NULL, &p,
                                                 sizeof_ecc_clikeypub_der_256)));
@@ -23934,7 +23982,8 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
         AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_file(cliEccCertFile,
                     SSL_FILETYPE_PEM));
         #endif
-        AssertNotNull(pkey = X509_get_pubkey(ecX509));
+        pkey = X509_get_pubkey(ecX509);
+        AssertNotNull(pkey);
         /* current ECC key is 256 bit (32 bytes) */
         AssertIntEQ(EVP_PKEY_size(pkey), 32);
 
@@ -24150,7 +24199,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertIntEQ(X509_STORE_add_cert(str, x509), SSL_SUCCESS);
 #ifdef OPENSSL_ALL
     /* sk_X509_new only in OPENSSL_ALL */
-    AssertNotNull(sk = sk_X509_new());
+    sk = sk_X509_new();
+    AssertNotNull(sk);
     AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, sk), SSL_SUCCESS);
 #else
     AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, NULL), SSL_SUCCESS);
@@ -24426,8 +24476,8 @@ static void test_wolfSSL_CTX_add_client_CA(void)
     printf(testingFmt, "wolfSSL_CTX_add_client_CA()");
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
     /* Add client cert */
-    AssertNotNull(x509 = X509_load_certificate_file(cliCertFile,
-                                                      SSL_FILETYPE_PEM));
+    x509 = X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM);
+    AssertNotNull(x509);
     ret = SSL_CTX_add_client_CA(ctx, x509);
     AssertIntEQ(ret, SSL_SUCCESS);
     AssertNotNull(ca_list = SSL_CTX_get_client_CA_list(ctx));
@@ -24723,8 +24773,8 @@ static void test_wolfSSL_BN(void)
     AssertNotNull(d = BN_new());
 
     value[0] = 0x03;
-
-    AssertNotNull(ai = ASN1_INTEGER_new());
+    ai = ASN1_INTEGER_new();
+    AssertNotNull(ai);
     /* at the moment hard setting since no set function */
     ai->data[0] = 0x02; /* tag for ASN_INTEGER */
     ai->data[1] = 0x01; /* length of integer */
@@ -25206,9 +25256,11 @@ static void test_wolfSSL_set_options(void)
     SSL_CTX_free(ctx);
 
 #ifndef NO_WOLFSSL_SERVER
-    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    ctx = SSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
 #else
-    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = SSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
 #endif
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
@@ -26700,8 +26752,8 @@ static void test_wolfSSL_OBJ(void)
          */
         AssertStrEQ((char*)buf_dyn, "www.wolfssl.com");
         OPENSSL_free(buf_dyn);
-
-        AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
+        bio = BIO_new(BIO_s_mem());
+        AssertTrue(bio != NULL);
         for (j = 0; j < numNames; j++)
         {
             AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
@@ -26722,7 +26774,8 @@ static void test_wolfSSL_OBJ(void)
         AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
         wc_PKCS12_free(p12);
         EVP_PKEY_free(pkey);
-        AssertNotNull((x509Name = X509_get_issuer_name(x509)) != NULL);
+        x509Name = X509_get_issuer_name(x509);
+        AssertNotNull(x509Name);
         AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
         AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
         for (j = 0; j < numNames; j++)
@@ -27326,7 +27379,8 @@ static void test_wolfSSL_BIO_should_retry(void)
     tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
 
     /* force retry */
-    AssertNotNull(ssl = wolfSSL_new(ctx));
+    ssl = wolfSSL_new(ctx);
+    AssertNotNull(ssl);
     AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
     wolfSSL_SSLSetIORecv(ssl, forceWantRead);
 
@@ -28554,8 +28608,8 @@ static void test_wolfSSL_DH_1536_prime(void)
     };
 
     printf(testingFmt, "wolfSSL_DH_1536_prime()");
-
-    AssertNotNull(bn = get_rfc3526_prime_1536(NULL));
+    bn = get_rfc3526_prime_1536(NULL);
+    AssertNotNull(bn);
     AssertIntEQ(sz, BN_bn2bin((const BIGNUM*)bn, bits));
     AssertIntEQ(0, XMEMCMP(expected, bits, sz));
 
@@ -29461,9 +29515,10 @@ static void test_wolfSSL_get_ciphers_compat(void)
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
 
     printf(testingFmt, "wolfSSL_get_ciphers_compat");
-
-    AssertNotNull(method = SSLv23_client_method());
-    AssertNotNull(ctx = SSL_CTX_new(method));
+    method = SSLv23_client_method();
+    AssertNotNull(method);
+    ctx = SSL_CTX_new(method);
+    AssertNotNull(ctx);
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
     SSL_CTX_set_verify_depth(ctx, 4);
@@ -31478,8 +31533,8 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     size_t rsaKeySz = 2048/8;  /* Bytes */
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_sign()");
-
-    AssertNotNull(sig = (byte*)XMALLOC(rsaKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    sig = (byte*)XMALLOC(rsaKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(sig);
     XMEMSET(sig, 0, rsaKeySz);
     AssertNotNull(sigVerify = (byte*)XMALLOC(rsaKeySz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
     XMEMSET(sigVerify, 0, rsaKeySz);
@@ -33753,9 +33808,11 @@ static void test_stubs_are_stubs()
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL_CTX* ctxN = NULL;
   #ifndef NO_WOLFSSL_CLIENT
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
   #elif !defined(NO_WOLFSSL_SERVER)
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
   #else
     return;
   #endif

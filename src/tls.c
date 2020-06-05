@@ -3039,8 +3039,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         if (length == 0)
             return 0;
-        if (length < ENUM_LEN)
-            return BUFFER_ERROR;
 
         status_type = input[offset++];
 
@@ -3841,13 +3839,10 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
             return;
         #endif
         }
-        else {
-        #ifdef HAVE_FFDHE
-            return;
-        #endif
-        }
     }
-
+ #ifdef HAVE_FFDHE
+        return;
+ #endif
     /* turns semaphore on to avoid sending this extension. */
     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
 }

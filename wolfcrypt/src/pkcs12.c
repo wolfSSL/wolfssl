@@ -2122,6 +2122,7 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
     XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret < 0) {
         WOLFSSL_LEAVE("wc_PKCS12_create()", ret);
+        XFREE(certCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return NULL;
     }
     *certCiSz = ret;

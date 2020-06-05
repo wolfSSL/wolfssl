@@ -7216,12 +7216,13 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int    ret = 0;
     word32 inputLength;
+    byte   type;
+    word32 size = 0;
 
     WOLFSSL_ENTER("DoTls13HandShakeMsg()");
 
     if (ssl->arrays == NULL) {
-        byte   type;
-        word32 size;
+
 
         if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
                                                                 totalSz) != 0) {
@@ -7238,8 +7239,6 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
     if (ssl->arrays->pendingMsgSz == 0) {
-        byte   type;
-        word32 size;
 
         if (GetHandshakeHeader(ssl,input, inOutIdx, &type, &size, totalSz) != 0)
             return PARSE_ERROR;
@@ -7339,7 +7338,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
     if (ssl->buffers.outputBuffer.length > 0
     #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an 
+        /* do not send buffered or advance state if last error was an
             async pending operation */
         && ssl->error != WC_PENDING_E
     #endif
@@ -8065,7 +8064,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
     if (ssl->buffers.outputBuffer.length > 0
     #ifdef WOLFSSL_ASYNC_CRYPT
-        /* do not send buffered or advance state if last error was an 
+        /* do not send buffered or advance state if last error was an
             async pending operation */
         && ssl->error != WC_PENDING_E
     #endif
