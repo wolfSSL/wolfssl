@@ -28265,7 +28265,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
         }
 
-        if (IsEncryptionOn(ssl, 1))
+        if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
             sendSz += cipherExtraData(ssl);
 
         /* check for available size */
@@ -28326,7 +28326,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         ssl->buffers.outputBuffer.length += sendSz;
 
-        ret = SendBuffered(ssl);
+        if (!ssl->options.groupMessages)
+            ret = SendBuffered(ssl);
 
         WOLFSSL_LEAVE("SendTicket", ret);
         WOLFSSL_END(WC_FUNC_TICKET_SEND);
