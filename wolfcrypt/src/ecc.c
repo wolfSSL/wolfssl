@@ -141,6 +141,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
+#if defined(WOLFSSL_PSOC6_CRYPTO)
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif
+
 #ifdef WOLFSSL_SP_MATH
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -5845,6 +5849,10 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #if defined(WOLFSSL_STM32_PKA)
 {
     return stm32_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+}
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+{
+    return psoc6_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
 }
 #else
 {

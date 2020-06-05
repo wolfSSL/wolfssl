@@ -32,6 +32,16 @@
 #endif
 
 #if defined(WOLFSSL_PSOC6_CRYPTO)
+#ifdef WOLFSSL_SP_MATH
+    struct sp_int;
+    #define MATH_INT_T struct sp_int
+#elif defined(USE_FAST_MATH)
+    struct fp_int;
+    #define MATH_INT_T struct fp_int
+#else
+    struct mp_int;
+	#define MATH_INT_T struct mp_int
+#endif
 
 #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #include <wolfssl/wolfcrypt/random.h>
@@ -47,6 +57,8 @@ int psoc6_crypto_port_init(void)
     Cy_Crypto_Core_Enable(crypto_base);
     return 0;
 }
+
+/* Sha-512 */
 
 #ifdef WOLFSSL_SHA512
 int wc_InitSha512(wc_Sha512* sha)
@@ -103,9 +115,9 @@ void wc_Sha512Free(wc_Sha512* sha)
 
 #endif
 
+/* Sha-256 */
+
 #ifndef NO_SHA256
-
-
 int wc_InitSha256(wc_Sha256* sha)
 {
     cy_en_crypto_status_t res;
@@ -158,6 +170,82 @@ void wc_Sha256Free(wc_Sha256* sha)
         Cy_Crypto_Core_Sha_Free(crypto_base, &sha->hash_state);
 }
 #endif /* NO_SHA256 */
+
+/* ECDSA */
+#ifdef HAVE_ECC
+
+#define MAX_ECC_KEYSIZE 66 /* Supports up to secp521r1 */
+static cy_en_crypto_ecc_curve_id_t psoc6_get_curve_id(int size)
+{
+    switch(size) {
+        case 24:
+            return CY_CRYPTO_ECC_ECP_SECP192R1;
+        case 28:
+            return CY_CRYPTO_ECC_ECP_SECP224R1;
+        case 32:
+            return CY_CRYPTO_ECC_ECP_SECP256R1;
+        case 48:
+            return CY_CRYPTO_ECC_ECP_SECP384R1; 
+        case 66:
+            return CY_CRYPTO_ECC_ECP_SECP521R1;
+        default:
+            return CY_CRYPTO_ECC_ECP_NONE;
+    }
+}
+
+#include <wolfssl/wolfcrypt/ecc.h>
+int psoc6_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
+                    word32 hashlen, int* verif_res, ecc_key* key)
+{
+    uint8_t signature_buf[MAX_ECC_KEYSIZE * 2];
+    cy_stc_crypto_ecc_key ecc_key;
+    uint8_t stat = 0;
+    int res = -1;
+    int szModulus;
+    int szkbin;
+    uint8_t x[MAX_ECC_KEYSIZE], y[MAX_ECC_KEYSIZE];
+
+    if (!key || !verif_res || !r || !s || !hash)
+        return -BAD_FUNC_ARG;
+    
+    /* retrieve and check sizes */
+    szModulus = mp_unsigned_bin_size(key->pubkey.x);
+    szkbin = mp_unsigned_bin_size(r);
+    if (szModulus > MAX_ECC_KEYSIZE)
+        return -BAD_FUNC_ARG;
+
+    /* Prepare ECC key */
+    ecc_key.type = PK_PUBLIC;
+    ecc_key.curveID = psoc6_get_curve_id(szModulus);
+    ecc_key.k = NULL;
+    ecc_key.pubkey.x = x;
+    ecc_key.pubkey.y = y;
+
+    res = mp_to_unsigned_bin(key->pubkey.x, x);
+    if (res == MP_OKAY)
+        res = mp_to_unsigned_bin(key->pubkey.y, y);
+    Cy_Crypto_Core_InvertEndianness(x, szModulus);
+    Cy_Crypto_Core_InvertEndianness(y, szModulus);
+
+    /* Prepare signature buffer */
+    if (res == MP_OKAY)
+        res = mp_to_unsigned_bin(r, signature_buf);
+    if (res == MP_OKAY)
+        res = mp_to_unsigned_bin(s, signature_buf + szkbin);
+    Cy_Crypto_Core_InvertEndianness(signature_buf, szkbin);
+    Cy_Crypto_Core_InvertEndianness(signature_buf + szkbin, szkbin);
+
+    /* perform HW ECDSA */
+    if (res == MP_OKAY)
+        res = Cy_Crypto_Core_ECC_VerifyHash(crypto_base, signature_buf, hash, hashlen, &stat, &ecc_key);
+    if (res == 0) {
+        *verif_res = stat;
+    }
+    return res;
+}
+#endif /* HAVE_ECC */
+
+
 
 #endif /* defined(WOLFSSL_PSOC6_CRYPTO) */
 

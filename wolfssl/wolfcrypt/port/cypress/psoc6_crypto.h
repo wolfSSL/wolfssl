@@ -55,11 +55,16 @@ typedef struct wc_Sha256 {
     cy_stc_crypto_v2_sha256_buffers_t sha_buffers;
 } wc_Sha256;
 
-
-#endif /* !def NO_SHA256 */
-
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
+#endif /* !def NO_SHA256 */
+
+
+#ifdef HAVE_ECC
+#include <wolfssl/wolfcrypt/ecc.h>
+int psoc6_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+                    word32 hashlen, int* verif_res, ecc_key* key);
+#endif /* HAVE_ECC */
 
 #define PSOC6_CRYPTO_BASE ((CRYPTO_Type*) CRYPTO_BASE)
 
