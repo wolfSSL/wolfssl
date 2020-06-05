@@ -28759,6 +28759,20 @@ static void test_no_op_functions(void)
     #endif
 }
 
+static void test_wolfSSL_CRYPTO_memcmp(void)
+{
+#ifdef OPENSSL_EXTRA
+    char a[] = "wolfSSL (formerly CyaSSL) is a small, fast, portable "
+               "implementation of TLS/SSL for embedded devices to the cloud.";
+    char b[] = "wolfSSL (formerly CyaSSL) is a small, fast, portable "
+               "implementation of TLS/SSL for embedded devices to the cloud.";
+    char c[] = "wolfSSL (formerly CyaSSL) is a small, fast, portable "
+               "implementation of TLS/SSL for embedded devices to the cloud!";
+
+    AssertIntEQ(CRYPTO_memcmp(a, b, sizeof(a)), 0);
+    AssertIntNE(CRYPTO_memcmp(a, c, sizeof(a)), 0);
+#endif
+}
 
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
@@ -32237,6 +32251,8 @@ void ApiTest(void)
     test_openssl_generate_key_and_cert();
 
     test_wolfSSL_EC_get_builtin_curves();
+
+    test_wolfSSL_CRYPTO_memcmp();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
