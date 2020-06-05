@@ -3137,14 +3137,16 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
-# TLS 1.3 Requires either ECC, CURVE25519, CURVE448 or RSA
-if test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno" && test "x$ENABLED_CURVE448" = "xno" && test "x$ENABLED_RSA" = "xno"
+# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448
+if test "x$ENABLED_ECC" = "xno" && \
+    (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
+    (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
+    (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno")
 then
     # disable TLS 1.3
     ENABLED_TLS13=no
-    ENABLED_TLS13_DRAFT18=no
 fi
-if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_TLS13_DRAFT18" = "yes"
+if test "$ENABLED_TLS13" = "yes"
 then
     AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
 fi
@@ -3201,7 +3203,7 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
-    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
+    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
