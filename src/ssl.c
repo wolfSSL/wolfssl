@@ -12626,6 +12626,7 @@ int AddSession(WOLFSSL* ssl)
     word32 row = 0;
     word32 idx = 0;
     int    error = 0;
+    const byte* id = NULL;
 #ifdef HAVE_SESSION_TICKET
     byte*  tmpBuff = NULL;
     int    ticLen  = 0;
@@ -12645,10 +12646,21 @@ int AddSession(WOLFSSL* ssl)
         return 0;
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (ssl->options.tls1_3)
+        id = ssl->session.sessionID;
+    else
+#endif
+    if (ssl->arrays)
+        id = ssl->arrays->sessionID;
+    if (id == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef HAVE_SESSION_TICKET
     ticLen = ssl->session.ticketLen;
     /* Alloc Memory here so if Malloc fails can exit outside of lock */
-    if(ticLen > SESSION_TICKET_LEN) {
+    if (ticLen > SESSION_TICKET_LEN) {
         tmpBuff = (byte*)XMALLOC(ticLen, ssl->heap,
                 DYNAMIC_TYPE_SESSION_TICK);
         if(!tmpBuff)
@@ -12675,17 +12687,7 @@ int AddSession(WOLFSSL* ssl)
     {
         /* Use the session object in the cache for external cache if required.
          */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        if (ssl->options.tls1_3) {
-            row = HashSession(ssl->session.sessionID, ID_LEN, &error) %
-                    SESSION_ROWS;
-        }
-        else
-#endif
-        {
-            row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
-                    SESSION_ROWS;
-        }
+        row = HashSession(id, ID_LEN, &error) % SESSION_ROWS;
         if (error != 0) {
             WOLFSSL_MSG("Hash session failed");
 #ifdef HAVE_SESSION_TICKET
@@ -12702,21 +12704,11 @@ int AddSession(WOLFSSL* ssl)
         }
 
         for (i=0; i<SESSIONS_PER_ROW; i++) {
-            if (ssl->options.tls1_3) {
-                if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-                    WOLFSSL_MSG("Session already exists. Overwriting.");
-                    overwrite = 1;
-                    idx = i;
-                    break;
-                }
-            }
-            else {
-                if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-                    WOLFSSL_MSG("Session already exists. Overwriting.");
-                    overwrite = 1;
-                    idx = i;
-                    break;
-                }
+            if (XMEMCMP(id, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                WOLFSSL_MSG("Session already exists. Overwriting.");
+                overwrite = 1;
+                idx = i;
+                break;
             }
         }
 
@@ -12729,22 +12721,19 @@ int AddSession(WOLFSSL* ssl)
         session = &SessionCache[row].Sessions[idx];
     }
 
-    if (!ssl->options.tls1_3)
-        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
-    else
-        XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
-    session->haveEMS = ssl->options.haveEMS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+#ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
-        XMEMCPY(session->sessionID, ssl->session.sessionID, ID_LEN);
+        XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
         session->sessionIDSz = ID_LEN;
     }
     else
 #endif
     {
-        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
         session->sessionIDSz = ssl->arrays->sessionIDSz;
     }
+    XMEMCPY(session->sessionID, id, ID_LEN);
+    session->haveEMS = ssl->options.haveEMS;
 
 #ifdef OPENSSL_EXTRA
     /* If using compatibility layer then check for and copy over session context
@@ -12765,7 +12754,7 @@ int AddSession(WOLFSSL* ssl)
 
     if (error == 0) {
         /* Cleanup cache row's old Dynamic buff if exists */
-        if(session->isDynamic) {
+        if (session->isDynamic) {
             XFREE(session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
             session->ticket = NULL;
         }
