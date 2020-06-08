@@ -22,10 +22,6 @@
 #ifndef WOLFSSL_EXAMPLE_H_
 #define WOLFSSL_EXAMPLE_H_
 
-#include <stm32f4xx_hal.h>
-#include <stm32f4xx.h>
-#include <cmsis_os.h>
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -39,11 +35,18 @@
 #include <wolfcrypt/test/test.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
-#ifndef WOLF_EXAMPLES_STACK
-#define WOLF_EXAMPLES_STACK  (30 * configMINIMAL_STACK_SIZE)
+#ifndef SINGLE_THREADED
+#include <cmsis_os.h>
 #endif
 
-void wolfCryptDemo(void const * argument);
+#ifndef WOLF_EXAMPLES_STACK
+#define WOLF_EXAMPLES_STACK  (30*1024)
+#endif
 
+#ifdef CMSIS_OS2_H_
+void wolfCryptDemo(void* argument);
+#else
+void wolfCryptDemo(void const * argument);
+#endif
 
 #endif /* WOLFSSL_EXAMPLE_H_ */
