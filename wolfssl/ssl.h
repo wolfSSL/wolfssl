@@ -578,7 +578,7 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_VERIFY_PARAM* param; /* certificate validation parameter */
 #endif
     char* domain;                /* subject CN domain name */
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
@@ -945,7 +945,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
 typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
@@ -2045,7 +2045,7 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_
 WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
-#if (defined(HAVE_EX_DATA) || defined(FORTRESS)) && \
+#if defined(HAVE_EX_DATA) && \
     (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
 WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data,
                                             int idx);

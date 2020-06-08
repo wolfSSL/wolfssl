@@ -83,7 +83,7 @@ typedef struct WOLFSSL_RSA {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_RSA_METHOD* meth;
 #endif
-#if defined(HAVE_EX_DATA)
+#ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
