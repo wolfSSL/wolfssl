@@ -9606,7 +9606,7 @@ static WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_STRING(WOLFSSL_ASN1_STRING **out,
     WOLFSSL_ASN1_STRING* ret = NULL;
     WOLFSSL_ASN1_STRING* tmp = NULL;
 
-    WOLFSSL_ENTER("wolfSSL_d2i_ASN1_STRING";)
+    WOLFSSL_ENTER("wolfSSL_d2i_ASN1_STRING");
 
     if (!in || !*in || inSz <= 0) {
         WOLFSSL_MSG("Bad parameters")
@@ -9637,6 +9637,7 @@ static WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_STRING(WOLFSSL_ASN1_STRING **out,
 
 static int wolfSSL_i2d_ASN1_STRING(WOLFSSL_ASN1_STRING *s, unsigned char **out)
 {
+    WOLFSSL_ENTER("wolfSSL_i2d_ASN1_STRING");
     if (!s)
         return WOLFSSL_FAILURE;
 
@@ -9648,6 +9649,47 @@ static int wolfSSL_i2d_ASN1_STRING(WOLFSSL_ASN1_STRING *s, unsigned char **out)
         *out += s->length;
     }
     return s->length;
+}
+
+static int wolfSSL_ASN1_STRING_concat(WOLFSSL_ASN1_STRING *dst,
+                                      WOLFSSL_ASN1_STRING *src)
+{
+    char* tmp = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_concat");
+
+    if (!dst || !src)
+        return WOLFSSL_FAILURE;
+
+    if (dst->length + src->length + 1 > CTC_NAME_SIZE) {
+        if (dst->isDynamic) {
+            tmp = (char*)XREALLOC(dst->data,
+                                        dst->length + src->length + 1,
+                                        NULL, DYNAMIC_TYPE_OPENSSL);
+            if (!tmp) {
+                WOLFSSL_MSG("realloc failed");
+                return WOLFSSL_FAILURE;
+            }
+            dst->data = tmp;
+        }
+        else {
+            tmp = (char*)XMALLOC(dst->length + src->length + 1,
+                                 NULL, DYNAMIC_TYPE_OPENSSL);
+            if (!tmp) {
+                WOLFSSL_MSG("realloc failed");
+                return WOLFSSL_FAILURE;
+            }
+            XMEMCPY(tmp, dst->data, dst->length);
+            dst->data = tmp;
+            dst->isDynamic = 1;
+        }
+    }
+
+    /* dst->data is now big enough to fit dst and src */
+    XMEMCPY(dst->data + dst->length, src->data, src->length);
+    dst->length += src->length;
+    dst->data[dst->length] = '\0';
+    return WOLFSSL_SUCCESS;
 }
 
 static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
@@ -9687,6 +9729,71 @@ static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
     return;
 }
 
+static WOLFSSL_ASN1_STRING* wolfSSL_GENERAL_NAMES_i2d(WOLFSSL_GENERAL_NAMES* gns)
+{
+    WOLFSSL_ASN1_STRING* asn1str = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAMES_i2d");
+
+    while (gns) {
+        WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
+
+        if (!gn) {
+            WOLFSSL_MSG("gns->data.gn not set");
+            goto error;
+        }
+
+        if (!asn1str && !(asn1str = wolfSSL_ASN1_STRING_new())) {
+            WOLFSSL_MSG("wolfSSL_ASN1_STRING_new error");
+            goto error;
+        }
+
+        switch (gn->type) {
+        /* WOLFSSL_ASN1_STRING types */
+        case GEN_DNS:
+            if (wolfSSL_ASN1_STRING_concat(asn1str, gn->d.dNSName) !=
+                    WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_concat error");
+                goto error;
+            }
+            break;
+        case GEN_IPADD:
+            if (wolfSSL_ASN1_STRING_concat(asn1str, gn->d.iPAddress) !=
+                    WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_concat error");
+                goto error;
+            }
+            break;
+        case GEN_OTHERNAME:
+        case GEN_EMAIL:
+        case GEN_X400:
+        case GEN_DIRNAME:
+        case GEN_EDIPARTY:
+        case GEN_URI:
+        case GEN_RID:
+        default:
+            goto error;
+        }
+
+        gns = gns->next;
+    }
+
+    return asn1str;
+
+error:
+    if (asn1str) {
+        wolfSSL_ASN1_STRING_free(asn1str);
+    }
+    return NULL;
+}
+
+/**
+ * @param nid One of the NID_* constants defined in asn.h
+ * @param crit
+ * @param data This data is put in the returned extension. It will be freed
+ *             when the extension is freed.
+ * @return
+ */
 WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
                                                void *data)
 {
@@ -9706,7 +9813,6 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
 
     switch (nid) {
     case NID_subject_key_identifier:
-    case NID_authority_key_identifier:
     case NID_key_usage:
     {
         WOLFSSL_ASN1_STRING* asn1str = (WOLFSSL_ASN1_STRING*)data;
@@ -9727,17 +9833,49 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         }
         break;
     }
-    case NID_certificate_policies:
-    case NID_policy_mappings:
     case NID_subject_alt_name:
     case NID_issuer_alt_name:
-    case NID_basic_constraints:
-    case NID_name_constraints:
-    case NID_policy_constraints:
+    {
+        WOLFSSL_GENERAL_NAMES* gns = data;
+        WOLFSSL_ASN1_STRING* asn1str = wolfSSL_GENERAL_NAMES_i2d(gns);
+
+        if (!asn1str) {
+            WOLFSSL_MSG("wolfSSL_GENERAL_NAMES_i2d failed");
+            goto err_cleanup;
+        }
+
+        ext->value = *asn1str;
+        /* Only free asn1str struct since members will be freed when
+         * ext is freed */
+        XFREE(asn1str, NULL, DYNAMIC_TYPE_OPENSSL);
+        // typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES
+        break;
+    }
     case NID_ext_key_usage:
-    case NID_crl_distribution_points:
-    case NID_inhibit_any_policy:
+        // typedef STACK_OF(ASN1_OBJECT) EXTENDED_KEY_USAGE
+        break;
     case NID_info_access:
+        // typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS
+        break;
+    case NID_basic_constraints:
+        // WOLFSSL_BASIC_CONSTRAINTS
+        break;
+    case NID_inhibit_any_policy:
+        // ASN1_INTEGER
+        break;
+    case NID_authority_key_identifier:
+        // AUTHORITY_KEYID
+        break;
+    case NID_certificate_policies:
+        /* STACK_OF(POLICYINFO) */
+    case NID_policy_mappings:
+        /* STACK_OF(POLICY_MAPPING) */
+    case NID_name_constraints:
+        /* NAME_CONSTRAINTS */
+    case NID_policy_constraints:
+        /* POLICY_CONSTRAINTS */
+    case NID_crl_distribution_points:
+        /* typedef STACK_OF(DIST_POINT) CRL_DIST_POINTS */
     default:
         WOLFSSL_MSG("Unknown or unsupported NID");
         break;
