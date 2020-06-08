@@ -4291,6 +4291,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC */
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_GCM_TYPE ||
@@ -4365,6 +4367,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
+#endif /*!HAVE_FIPS && !HAVE_SELFTEST ||(HAVE_FIPS_VERSION && HAVE_FIPS_VERSION >= 2)*/
 #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CTR_TYPE ||
