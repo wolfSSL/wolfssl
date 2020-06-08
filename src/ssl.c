@@ -46281,22 +46281,7 @@ err_exit:
 }
 
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
-WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void)
-{
-    WOLFSSL_ASN1_TIME* ret = (WOLFSSL_ASN1_TIME*)
-            XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_OPENSSL);
-    if (!ret)
-        return NULL;
-    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TIME));
-    return ret;
-}
 
-void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
-{
-    if (t) {
-        XFREE(t, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-}
 
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
                                     int offset_day, long offset_sec)
@@ -46382,6 +46367,23 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
 #endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES */
 
 #ifndef NO_ASN_TIME
+
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void)
+{
+    WOLFSSL_ASN1_TIME* ret = (WOLFSSL_ASN1_TIME*)
+            XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!ret)
+        return NULL;
+    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TIME));
+    return ret;
+}
+
+void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
+{
+    if (t) {
+        XFREE(t, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
 /* not a compatibility function - length getter for opaque type */
 int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t)
 {
