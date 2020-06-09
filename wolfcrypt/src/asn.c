@@ -5359,7 +5359,7 @@ static int GetKey(DecodedCert* cert)
             cert->srcIdx += length;
             return 0;
         }
-    #endif /* NO_DSA && QT */
+    #endif /* NO_DSA */
         default:
             return ASN_UNKNOWN_OID_E;
     }
