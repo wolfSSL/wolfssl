@@ -25279,7 +25279,7 @@ static void test_wolfSSL_BIO_write(void)
     AssertIntEQ(XMEMCMP(out, msg, sizeof(msg)), 0);
 
     /* now try encoding with no line ending */
-    BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
+    BIO_set_flags(bio64, BIO_FLAGS_BASE64_NO_NL);
     #ifdef HAVE_EX_DATA
     BIO_set_ex_data(bio64, 0, (void*) "data");
     AssertIntEQ(strcmp((const char*)BIO_get_ex_data(bio64, 0), "data"), 0);
