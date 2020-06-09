@@ -119,6 +119,10 @@
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+
 #else
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -164,7 +168,8 @@
     (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH)) && \
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
-    (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH))
+    (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO)
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -662,6 +667,10 @@ static int InitSha256(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1559,6 +1568,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
