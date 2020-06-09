@@ -6183,7 +6183,7 @@ void FreeKeyExchange(WOLFSSL* ssl)
         ssl->async.freeArgs(ssl, ssl->async.args);
         ssl->async.freeArgs = NULL;
     }
-    FreeBuildMsgArgs(&ssl->async.buildArgs);
+    FreeBuildMsgArgs(ssl, &ssl->async.buildArgs);
 #endif
 }
 
@@ -16072,11 +16072,11 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 }
 
 #ifndef WOLFSSL_NO_TLS12
-void FreeBuildMsgArgs(BuildMsgArgs* args)
+void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args)
 {
     if (args) {
-        if (args->iv)
-            XFREE(args->iv, NULL, DYNAMIC_TYPE_SALT);
+        if (ssl && args->iv)
+            XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
     }
 }
@@ -16516,7 +16516,7 @@ exit_buildmsg:
         ret = args->sz;
 
     /* Final cleanup */
-    FreeBuildMsgArgs(args);
+    FreeBuildMsgArgs(ssl, args);
 
     return ret;
 #endif /* !WOLFSSL_NO_TLS12 */

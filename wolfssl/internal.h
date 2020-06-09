@@ -4616,7 +4616,7 @@ WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
 
 
 #ifndef WOLFSSL_NO_TLS12
-WOLFSSL_LOCAL void FreeBuildMsgArgs(BuildMsgArgs* args);
+WOLFSSL_LOCAL void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args);
 #endif
 WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type, int hashOutput,
