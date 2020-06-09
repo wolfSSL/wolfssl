@@ -2200,6 +2200,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef HAVE_EX_DATA
         #define HAVE_EX_DATA
     #endif
+#endif
+
+#ifdef HAVE_EX_DATA
     #define MAX_EX_DATA 5  /* allow for five items of ex_data */
 #endif
 
