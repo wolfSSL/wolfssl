@@ -16076,7 +16076,7 @@ void FreeBuildMsgArgs(BuildMsgArgs* args)
 {
     if (args) {
         if (args->iv)
-            XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
+            XFREE(args->iv, NULL, DYNAMIC_TYPE_SALT);
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
     }
 }
@@ -17762,8 +17762,6 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return ssl->error;
     }
-
-    if (ssl->error != 0) fprintf(stderr, "ignoring err %d\n", ssl->error);
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
