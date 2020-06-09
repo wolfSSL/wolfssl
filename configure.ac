@@ -6,7 +6,7 @@
 #
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
-AC_PREREQ([2.63])
+AC_PREREQ([2.65])
 AC_INIT([wolfssl],[4.4.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -23,7 +23,7 @@ AM_PROG_CC_C_O
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
+AM_INIT_AUTOMAKE([1.15.1 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_ARG_PROGRAM
