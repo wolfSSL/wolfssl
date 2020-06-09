@@ -299,7 +299,7 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     return 0;
 }
 
-#else /* STD_PERI_LIB */
+#else /* Standard Peripheral Library */
 
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
     CRYP_KeyInitTypeDef* keyInit)
@@ -363,9 +363,14 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 
 #ifdef WOLFSSL_STM32_PKA
 #include <stdint.h>
+
+#if defined(WOLFSSL_STM32L5)
+#include <stm32l5xx_hal_conf.h>
+#include <stm32l5xx_hal_pka.h>
+#else
 #include <stm32wbxx_hal_conf.h>
 #include <stm32wbxx_hal_pka.h>
-
+#endif
 extern PKA_HandleTypeDef hpka;
 
 /* Reverse array in memory (in place) */

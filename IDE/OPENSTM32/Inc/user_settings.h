@@ -64,6 +64,7 @@ extern "C" {
 //#define NO_STM32_HASH
 //#define NO_STM32_RNG
 //#define NO_STM32_CRYPTO
+//#define WOLFSSL_STM32_PKA /* WB55 and L5 only */
 
 
 /* ------------------------------------------------------------------------- */

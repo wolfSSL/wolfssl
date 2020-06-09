@@ -13103,10 +13103,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef HAVE_AEAD
 
-#if !defined(NO_PUBLIC_GCM_SET_IV) && \
-    (((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) || \
-    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA)))
+#if (!defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))) || \
+    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA))
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
