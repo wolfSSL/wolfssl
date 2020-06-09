@@ -7164,18 +7164,18 @@ static WC_INLINE void AesCcmCtrIncSet4(byte* B, word32 lenSz)
     XMEMCPY(B + AES_BLOCK_SIZE * 2, B, AES_BLOCK_SIZE * 2);
 
     for (i = 0; i < lenSz; i++) {
-        if (++B[AES_BLOCK_SIZE * 1 - 1 - i] != 0) break;
+        if (++B[AES_BLOCK_SIZE * 2 - 1 - i] != 0) break;
     }
-    B[AES_BLOCK_SIZE * 2 - 1] += 2;
-    if (B[AES_BLOCK_SIZE * 2 - 1] < 2) {
-        for (i = 1; i < lenSz; i++) {
-            if (++B[AES_BLOCK_SIZE * 2 - 1 - i] != 0) break;
-        }
-    }
-    B[AES_BLOCK_SIZE * 3 - 1] += 3;
-    if (B[AES_BLOCK_SIZE * 3 - 1] < 3) {
+    B[AES_BLOCK_SIZE * 3 - 1] += 2;
+    if (B[AES_BLOCK_SIZE * 3 - 1] < 2) {
         for (i = 1; i < lenSz; i++) {
             if (++B[AES_BLOCK_SIZE * 3 - 1 - i] != 0) break;
+        }
+    }
+    B[AES_BLOCK_SIZE * 4 - 1] += 3;
+    if (B[AES_BLOCK_SIZE * 4 - 1] < 3) {
+        for (i = 1; i < lenSz; i++) {
+            if (++B[AES_BLOCK_SIZE * 4 - 1 - i] != 0) break;
         }
     }
 }
@@ -7264,9 +7264,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             in += AES_BLOCK_SIZE * 4;
             out += AES_BLOCK_SIZE * 4;
 
-            if (inSz < AES_BLOCK_SIZE * 4) {
-                AesCcmCtrInc4(B, lenSz);
-            }
+            AesCcmCtrInc4(B, lenSz);
         }
     }
 #endif
@@ -7348,9 +7346,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             in += AES_BLOCK_SIZE * 4;
             o += AES_BLOCK_SIZE * 4;
 
-            if (oSz < AES_BLOCK_SIZE * 4) {
-                AesCcmCtrInc4(B, lenSz);
-            }
+            AesCcmCtrInc4(B, lenSz);
         }
     }
 #endif
