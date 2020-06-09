@@ -22557,7 +22557,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
 {
     unsigned long i;
-    WOLFSSL_STACK* dup = NULL;
+    WOLFSSL_STACK* copy = NULL;
     WOLFSSL_STACK* node = NULL;
     WOLFSSL_STACK *dIdx = NULL, *sIdx = sk;
 
@@ -22571,7 +22571,7 @@ WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
                                          DYNAMIC_TYPE_X509);
         if (node == NULL) {
             if (i != 0) {
-                wolfSSL_sk_free(dup);
+                wolfSSL_sk_free(copy);
             }
             WOLFSSL_MSG("Memory error");
             return NULL;
@@ -22584,7 +22584,7 @@ WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
 
         /* insert node into list, progress idx */
         if (i == 0) {
-            dup = node;
+            copy = node;
         } else {
             dIdx->next = node;
         }
@@ -22593,7 +22593,7 @@ WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
         sIdx = sIdx->next;
     }
 
-    return dup;
+    return copy;
 }
 
 
@@ -22603,7 +22603,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
 {
     unsigned long i;
     WOLFSSL_STACK* ref;
-    WOLFSSL_STACK* dup;
+    WOLFSSL_STACK* copy;
 
     if (ctx == NULL) {
         return NULL;
@@ -22616,14 +22616,14 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     /* create duplicate of ctx chain */
-    dup = wolfSSL_sk_X509_dup(ref);
-    if (dup == NULL) {
+    copy = wolfSSL_sk_X509_dup(ref);
+    if (copy == NULL) {
         return NULL;
     }
 
     /* increase ref counts of inner data X509 */
-    ref = dup;
-    for (i = 0; i < dup->num && ref != NULL; i++) {
+    ref = copy;
+    for (i = 0; i < copy->num && ref != NULL; i++) {
         if (wc_LockMutex(&ref->data.x509->refMutex) != 0) {
             WOLFSSL_MSG("Failed to lock x509 mutex");
         }
@@ -22632,7 +22632,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
         ref = ref->next;
     }
 
-    return dup;
+    return copy;
 }
 
 
@@ -23536,34 +23536,34 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
  */
 WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
 {
-    WOLFSSL_ASN1_INTEGER* dup;
+    WOLFSSL_ASN1_INTEGER* copy;
     WOLFSSL_ENTER("wolfSSL_ASN1_INTEGER_dup");
     if (!src)
         return NULL;
 
-    dup = wolfSSL_ASN1_INTEGER_new();
+    copy = wolfSSL_ASN1_INTEGER_new();
 
-    if (dup == NULL)
+    if (copy == NULL)
         return NULL;
 
-    dup->negative  = src->negative;
-    dup->dataMax   = src->dataMax;
-    dup->isDynamic = src->isDynamic;
+    copy->negative  = src->negative;
+    copy->dataMax   = src->dataMax;
+    copy->isDynamic = src->isDynamic;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    dup->length    = src->length;
+    copy->length    = src->length;
 #endif
-    XSTRNCPY((char*)dup->intData,(const char*)src->intData,WOLFSSL_ASN1_INTEGER_MAX);
+    XSTRNCPY((char*)copy->intData,(const char*)src->intData,WOLFSSL_ASN1_INTEGER_MAX);
 
-    if (dup->isDynamic && src->data && dup->dataMax) {
-        dup->data = (unsigned char*)
+    if (copy->isDynamic && src->data && copy->dataMax) {
+        copy->data = (unsigned char*)
             XMALLOC(src->dataMax,NULL,DYNAMIC_TYPE_OPENSSL);
-        if (dup->data == NULL) {
-            wolfSSL_ASN1_INTEGER_free(dup);
+        if (copy->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(copy);
             return NULL;
         }
-        XMEMCPY(dup->data,src->data,dup->dataMax);
+        XMEMCPY(copy->data, src->data, copy->dataMax);
     }
-    return dup;
+    return copy;
 }
 
 
@@ -36287,7 +36287,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
        Returns a new WOLFSSL_X509_NAME structure or NULL on failure */
     WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME *name)
     {
-        WOLFSSL_X509_NAME* dup = NULL;
+        WOLFSSL_X509_NAME* copy = NULL;
 
         WOLFSSL_ENTER("wolfSSL_X509_NAME_dup");
 
@@ -36296,50 +36296,50 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return NULL;
         }
 
-        if (!(dup = wolfSSL_X509_NAME_new())) {
+        if (!(copy = wolfSSL_X509_NAME_new())) {
             return NULL;
         }
 
         /* copy contents */
-        XMEMCPY(dup, name, sizeof(WOLFSSL_X509_NAME));
-        InitX509Name(dup, 1);
-        dup->sz = name->sz;
+        XMEMCPY(copy, name, sizeof(WOLFSSL_X509_NAME));
+        InitX509Name(copy, 1);
+        copy->sz = name->sz;
 
         /* handle dynamic portions */
         if (name->dynamicName) {
-            if (!(dup->name = (char*)XMALLOC(name->sz, 0,
+            if (!(copy->name = (char*)XMALLOC(name->sz, 0,
                                              DYNAMIC_TYPE_OPENSSL))) {
                 goto err;
             }
         }
-        XMEMCPY(dup->name, name->name, name->sz);
+        XMEMCPY(copy->name, name->name, name->sz);
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         !defined(NO_ASN)
-        if (!(dup->fullName.fullName = (char*)XMALLOC(name->fullName.fullNameLen,
+        if (!(copy->fullName.fullName = (char*)XMALLOC(name->fullName.fullNameLen,
                                                    0, DYNAMIC_TYPE_OPENSSL))) {
             goto err;
         }
-        XMEMCPY(dup->fullName.fullName, name->fullName.fullName,
+        XMEMCPY(copy->fullName.fullName, name->fullName.fullName,
             name->fullName.fullNameLen);
     #endif
 
-        return dup;
+        return copy;
 
     err:
-        if (dup) {
-            if (dup->dynamicName && dup->name) {
-                XFREE(dup->name, 0, DYNAMIC_TYPE_OPENSSL);
-                dup->name = NULL;
+        if (copy) {
+            if (copy->dynamicName && copy->name) {
+                XFREE(copy->name, 0, DYNAMIC_TYPE_OPENSSL);
+                copy->name = NULL;
             }
         #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(NO_ASN)
-            if (dup->fullName.fullName &&
-                dup->fullName.fullName != name->fullName.fullName) {
-                XFREE(dup->fullName.fullName, 0, DYNAMIC_TYPE_OPENSSL);
-                dup->fullName.fullName = NULL;
+            if (copy->fullName.fullName &&
+                copy->fullName.fullName != name->fullName.fullName) {
+                XFREE(copy->fullName.fullName, 0, DYNAMIC_TYPE_OPENSSL);
+                copy->fullName.fullName = NULL;
             }
         #endif
-            wolfSSL_X509_NAME_free(dup);
+            wolfSSL_X509_NAME_free(copy);
         }
         return NULL;
     }
