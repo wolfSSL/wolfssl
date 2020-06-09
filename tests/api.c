@@ -15286,6 +15286,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     int ret = 0;
 
 #if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
+
     int rs;
     curve25519_key  key;
     WC_RNG          rng;
