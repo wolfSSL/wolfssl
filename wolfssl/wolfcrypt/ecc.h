@@ -600,6 +600,9 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
 WOLFSSL_LOCAL
 int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
+WOLFSSL_LOCAL
+int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+                      mp_int* modulus, mp_int* order, int map, void* heap);
 #endif /* !WOLFSSL_ATECC508A */
 
 
