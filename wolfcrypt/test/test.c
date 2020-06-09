@@ -11781,7 +11781,7 @@ done:
 }
 #endif
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
 static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
@@ -13917,7 +13917,7 @@ int rsa_test(void)
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
 
-#ifdef WC_RSA_PSS
+#if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
     ret = rsa_pss_test(&rng, &key);
 #endif
 

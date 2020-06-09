@@ -5162,6 +5162,61 @@ WOLFSSL_API void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX*,
 WOLFSSL_API void wolfSSL_set_psk_server_callback(WOLFSSL*,
                                                     wc_psk_server_callback);
 
+
+/*!
+    \brief Sets a PSK user context in the WOLFSSL structure options member.
+
+    \return WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param psk_ctx void pointer to user PSK context
+
+    \sa wolfSSL_get_psk_callback_ctx
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx);
+
+/*!
+    \brief Sets a PSK user context in the WOLFSSL_CTX structure.
+
+    \return WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
+    \param psk_ctx void pointer to user PSK context
+
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_get_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx);
+
+/*!
+    \brief Get a PSK user context in the WOLFSSL structure options member.
+
+    \return void pointer to user PSK context
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
+
+/*!
+    \brief Get a PSK user context in the WOLFSSL_CTX structure.
+
+    \return void pointer to user PSK context
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
+
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_get_psk_callback_ctx
+*/
+WOLFSSL_API void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
+
 /*!
     \ingroup Setup
 

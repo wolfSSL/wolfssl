@@ -2244,6 +2244,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_CONSTCHARCONST
 #endif
 
+/* FIPS v1 does not support TLS v1.3 (requires RSA PSS and HKDF) */
+#if defined(HAVE_FIPS) && !defined(HAVE_FIPS_VERSION)
+    #undef WC_RSA_PSS
+    #undef WOLFSSL_TLS13
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

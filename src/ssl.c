@@ -12517,10 +12517,8 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     XMEMCPY(&copyInto->ticketNonce, &copyFrom->ticketNonce,
                                                            sizeof(TicketNonce));
-#endif
 #ifdef WOLFSSL_EARLY_DATA
     copyInto->maxEarlyDataSz = copyFrom->maxEarlyDataSz;
 #endif
@@ -12628,6 +12626,7 @@ int AddSession(WOLFSSL* ssl)
     word32 row = 0;
     word32 idx = 0;
     int    error = 0;
+    const byte* id = NULL;
 #ifdef HAVE_SESSION_TICKET
     byte*  tmpBuff = NULL;
     int    ticLen  = 0;
@@ -12647,10 +12646,21 @@ int AddSession(WOLFSSL* ssl)
         return 0;
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (ssl->options.tls1_3)
+        id = ssl->session.sessionID;
+    else
+#endif
+    if (ssl->arrays)
+        id = ssl->arrays->sessionID;
+    if (id == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef HAVE_SESSION_TICKET
     ticLen = ssl->session.ticketLen;
     /* Alloc Memory here so if Malloc fails can exit outside of lock */
-    if(ticLen > SESSION_TICKET_LEN) {
+    if (ticLen > SESSION_TICKET_LEN) {
         tmpBuff = (byte*)XMALLOC(ticLen, ssl->heap,
                 DYNAMIC_TYPE_SESSION_TICK);
         if(!tmpBuff)
@@ -12677,17 +12687,7 @@ int AddSession(WOLFSSL* ssl)
     {
         /* Use the session object in the cache for external cache if required.
          */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-        if (ssl->options.tls1_3) {
-            row = HashSession(ssl->session.sessionID, ID_LEN, &error) %
-                    SESSION_ROWS;
-        }
-        else
-#endif
-        {
-            row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
-                    SESSION_ROWS;
-        }
+        row = HashSession(id, ID_LEN, &error) % SESSION_ROWS;
         if (error != 0) {
             WOLFSSL_MSG("Hash session failed");
 #ifdef HAVE_SESSION_TICKET
@@ -12704,21 +12704,11 @@ int AddSession(WOLFSSL* ssl)
         }
 
         for (i=0; i<SESSIONS_PER_ROW; i++) {
-            if (ssl->options.tls1_3) {
-                if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-                    WOLFSSL_MSG("Session already exists. Overwriting.");
-                    overwrite = 1;
-                    idx = i;
-                    break;
-                }
-            }
-            else {
-                if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-                    WOLFSSL_MSG("Session already exists. Overwriting.");
-                    overwrite = 1;
-                    idx = i;
-                    break;
-                }
+            if (XMEMCMP(id, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                WOLFSSL_MSG("Session already exists. Overwriting.");
+                overwrite = 1;
+                idx = i;
+                break;
             }
         }
 
@@ -12731,22 +12721,19 @@ int AddSession(WOLFSSL* ssl)
         session = &SessionCache[row].Sessions[idx];
     }
 
-    if (!ssl->options.tls1_3)
-        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
-    else
-        XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
-    session->haveEMS = ssl->options.haveEMS;
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+#ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
-        XMEMCPY(session->sessionID, ssl->session.sessionID, ID_LEN);
+        XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
         session->sessionIDSz = ID_LEN;
     }
     else
 #endif
     {
-        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        XMEMCPY(session->masterSecret, ssl->arrays->masterSecret, SECRET_LEN);
         session->sessionIDSz = ssl->arrays->sessionIDSz;
     }
+    XMEMCPY(session->sessionID, id, ID_LEN);
+    session->haveEMS = ssl->options.haveEMS;
 
 #ifdef OPENSSL_EXTRA
     /* If using compatibility layer then check for and copy over session context
@@ -12767,7 +12754,7 @@ int AddSession(WOLFSSL* ssl)
 
     if (error == 0) {
         /* Cleanup cache row's old Dynamic buff if exists */
-        if(session->isDynamic) {
+        if (session->isDynamic) {
             XFREE(session->ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
             session->ticket = NULL;
         }
@@ -12829,10 +12816,8 @@ int AddSession(WOLFSSL* ssl)
     if (error == 0) {
         session->ticketSeen     = ssl->session.ticketSeen;
         session->ticketAdd      = ssl->session.ticketAdd;
-#ifndef WOLFSSL_TLS13_DRAFT_18
         XMEMCPY(&session->ticketNonce, &ssl->session.ticketNonce,
                                                            sizeof(TicketNonce));
-#endif
     #ifdef WOLFSSL_EARLY_DATA
         session->maxEarlyDataSz = ssl->session.maxEarlyDataSz;
     #endif
@@ -13462,7 +13447,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->client_psk_cb = cb;
     }
 
-
     void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,wc_psk_client_callback cb)
     {
         byte haveRSA = 1;
@@ -13488,7 +13472,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveStaticECC, ssl->options.side);
     }
 
-
     void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX* ctx,
                                          wc_psk_server_callback cb)
     {
@@ -13498,7 +13481,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->havePSK = 1;
         ctx->server_psk_cb = cb;
     }
-
 
     void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,wc_psk_server_callback cb)
     {
@@ -13524,7 +13506,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveStaticECC, ssl->options.side);
     }
 
-
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_get_psk_identity_hint");
@@ -13546,7 +13527,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ssl->arrays->client_identity;
     }
 
-
     int wolfSSL_CTX_use_psk_identity_hint(WOLFSSL_CTX* ctx, const char* hint)
     {
         WOLFSSL_ENTER("SSL_CTX_use_psk_identity_hint");
@@ -13562,7 +13542,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return WOLFSSL_SUCCESS;
     }
-
 
     int wolfSSL_use_psk_identity_hint(WOLFSSL* ssl, const char* hint)
     {
@@ -13581,6 +13560,28 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
+    void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl)
+    {
+        return ssl ? ssl->options.psk_ctx : NULL;
+    }
+    void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx)
+    {
+        return ctx ? ctx->psk_ctx : NULL;
+    }
+    int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx)
+    {
+        if (ssl == NULL)
+            return WOLFSSL_FAILURE;
+        ssl->options.psk_ctx = psk_ctx;
+        return WOLFSSL_SUCCESS;
+    }
+    int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx)
+    {
+        if (ctx == NULL)
+            return WOLFSSL_FAILURE;
+        ctx->psk_ctx = psk_ctx;
+        return WOLFSSL_SUCCESS;
+    }
 #endif /* NO_PSK */
 
 
@@ -19293,21 +19294,7 @@ static const char* wolfSSL_internal_get_version(const ProtocolVersion* version)
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
             case TLSv1_3_MINOR :
-            #ifdef WOLFSSL_TLS13_DRAFT
-                #ifdef WOLFSSL_TLS13_DRAFT_18
-                    return "TLSv1.3 (Draft 18)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_22)
-                    return "TLSv1.3 (Draft 22)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_23)
-                    return "TLSv1.3 (Draft 23)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_26)
-                    return "TLSv1.3 (Draft 26)";
-                #else
-                    return "TLSv1.3 (Draft 28)";
-                #endif
-            #else
                 return "TLSv1.3";
-            #endif
             default:
                 return "unknown";
         }
@@ -27043,10 +27030,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef WOLFSSL_TLS13
     /* ticketSeen | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     /* ticketNonce */
     size += OPAQUE8_LEN + sess->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     size += OPAQUE32_LEN;
@@ -27111,11 +27096,9 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     idx += OPAQUE32_LEN;
     c32toa(sess->ticketAdd, data + idx);
     idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     data[idx++] = sess->ticketNonce.len;
     XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
     idx += sess->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         c32toa(sess->maxEarlyDataSz, data + idx);
@@ -27296,7 +27279,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     idx += OPAQUE32_LEN;
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     if (i - idx < OPAQUE8_LEN) {
         ret = BUFFER_ERROR;
         goto end;
@@ -27309,7 +27291,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->ticketNonce.data, data + idx, s->ticketNonce.len);
     idx += s->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     if (i - idx < OPAQUE32_LEN) {

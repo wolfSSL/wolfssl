@@ -5279,9 +5279,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.haveStaticECC = ctx->haveStaticECC;
 
 #ifndef NO_PSK
-    ssl->options.havePSK   = ctx->havePSK;
+    ssl->options.havePSK       = ctx->havePSK;
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
+    ssl->options.psk_ctx       = ctx->psk_ctx;
 #ifdef WOLFSSL_TLS13
     ssl->options.client_psk_tls13_cb = ctx->client_psk_tls13_cb;
     ssl->options.server_psk_tls13_cb = ctx->server_psk_tls13_cb;
@@ -7584,7 +7585,6 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
 }
 #endif /* (HAVE_ED25519 || HAVE_ED448) && !WOLFSSL_NO_CLIENT_AUTH */
 
-#ifndef NO_CERTS
 int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 {
     int ret = 0;
@@ -7635,8 +7635,6 @@ int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 
     return ret;
 }
-#endif /* NO_CERTS */
-
 
 /* add output to md5 and sha handshake hashes, exclude record header */
 int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
@@ -7772,11 +7770,7 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
     rl->pvMajor = ssl->version.major;       /* type and version same in each */
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-#ifdef WOLFSSL_TLS13_DRAFT_18
-        rl->pvMinor = TLSv1_MINOR;
-#else
         rl->pvMinor = TLSv1_2_MINOR;
-#endif
     }
     else
 #endif
@@ -8303,11 +8297,7 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #else
     if (rh->pvMajor != ssl->version.major ||
         (rh->pvMinor != ssl->version.minor &&
-#ifdef WOLFSSL_TLS13_DRAFT_18
-         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_MINOR)
-#else
          (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_2_MINOR)
-#endif
         ))
 #endif
     {
@@ -14880,13 +14870,9 @@ int ProcessReply(WOLFSSL* ssl)
         /* decrypt message */
         case decryptMessage:
 
-#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_TLS13_DRAFT_18)
-            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0)
-#else
             if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
                                         (!IsAtLeastTLSv1_3(ssl->version) ||
                                          ssl->curRL.type != change_cipher_spec))
-#endif
             {
                 bufferStatic* in = &ssl->buffers.inputBuffer;
 
@@ -14949,20 +14935,11 @@ int ProcessReply(WOLFSSL* ssl)
                     else
                     {
                 #ifdef WOLFSSL_TLS13
-                    #if defined(WOLFSSL_TLS13_DRAFT_18) || \
-                        defined(WOLFSSL_TLS13_DRAFT_22) || \
-                        defined(WOLFSSL_TLS13_DRAFT_23)
-                        ret = DecryptTls13(ssl,
-                                           in->buffer + in->idx,
-                                           in->buffer + in->idx,
-                                           ssl->curSize, NULL, 0);
-                    #else
                         ret = DecryptTls13(ssl,
                                         in->buffer + in->idx,
                                         in->buffer + in->idx,
                                         ssl->curSize,
                                         (byte*)&ssl->curRL, RECORD_HEADER_SZ);
-                    #endif
                 #else
                         ret = DECRYPT_ERROR;
                 #endif /* WOLFSSL_TLS13 */
@@ -15033,13 +15010,9 @@ int ProcessReply(WOLFSSL* ssl)
         /* verify digest of message */
         case verifyMessage:
 
-#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_TLS13_DRAFT_18)
-            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0)
-#else
             if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
                                         (!IsAtLeastTLSv1_3(ssl->version) ||
                                          ssl->curRL.type != change_cipher_spec))
-#endif
             {
                 if (!atomicUser
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -15200,12 +15173,6 @@ int ProcessReply(WOLFSSL* ssl)
                     #endif
 
 #ifdef WOLFSSL_TLS13
-    #ifdef WOLFSSL_TLS13_DRAFT_18
-                    if (IsAtLeastTLSv1_3(ssl->version)) {
-                        SendAlert(ssl, alert_fatal, illegal_parameter);
-                        return UNKNOWN_RECORD_TYPE;
-                    }
-    #else
                     if (IsAtLeastTLSv1_3(ssl->version)) {
                         word32 i = ssl->buffers.inputBuffer.idx;
                         if (ssl->options.handShakeState == HANDSHAKE_DONE) {
@@ -15227,7 +15194,6 @@ int ProcessReply(WOLFSSL* ssl)
                         }
                         break;
                     }
-    #endif
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
@@ -15635,9 +15601,6 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 }
 #endif /* !NO_OLD_TLS && !WOLFSSL_AEAD_ONLY */
 
-
-#ifndef NO_CERTS
-
 #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
@@ -15779,8 +15742,6 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
     return ret;
 }
-
-#endif /* !NO_CERTS */
 
 #ifndef WOLFSSL_NO_TLS12
 /* Persistable BuildMessage arguments */
@@ -18762,7 +18723,15 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
 {
     int           ret = BAD_FUNC_ARG;
     int           i;
-    unsigned long len = (unsigned long)XSTRLEN(name);
+    unsigned long len;
+    const char*   nameDelim;
+    
+    /* Support trailing : */
+    nameDelim = XSTRSTR(name, ":");
+    if (nameDelim)
+        len = (unsigned long)(nameDelim - name);
+    else
+        len = (unsigned long)XSTRLEN(name);
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
         if (XSTRNCMP(name, cipher_names[i].name, len) == 0) {
@@ -20292,7 +20261,7 @@ exit_dpk:
         return SetCipherSpecs(ssl);
     }
 
-#endif /* WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 */
 
 
     /* Make sure client setup is valid for this suite, true on success */
@@ -27546,9 +27515,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TLS13
         word32          ageAdd;                /* Obfuscation of age */
         word16          namedGroup;            /* Named group used */
-    #ifndef WOLFSSL_TLS13_DRAFT_18
         TicketNonce     ticketNonce;           /* Ticket nonce */
-    #endif
     #ifdef WOLFSSL_EARLY_DATA
         word32          maxEarlyDataSz;        /* Max size of early data */
     #endif
@@ -27604,10 +27571,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             it.timestamp = TimeNowInMilliseconds();
             /* Resumption master secret. */
             XMEMCPY(it.msecret, ssl->session.masterSecret, SECRET_LEN);
-    #ifndef WOLFSSL_TLS13_DRAFT_18
             XMEMCPY(&it.ticketNonce, &ssl->session.ticketNonce,
                                                            sizeof(TicketNonce));
-    #endif
 #endif
         }
 
@@ -27756,10 +27721,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session.masterSecret, it->msecret, SECRET_LEN);
-    #ifndef WOLFSSL_TLS13_DRAFT_18
                 XMEMCPY(&ssl->session.ticketNonce, &it->ticketNonce,
                                                            sizeof(TicketNonce));
-    #endif
                 ssl->session.namedGroup = it->namedGroup;
 #endif
             }

@@ -802,7 +802,8 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     return WOLFSSL_SUCCESS;
 }
 
-static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
+static int ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str, 
+    int exitWithRet)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -827,8 +828,12 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
     if (ret != msgSz) {
         printf("SSL_write%s msg error %d, %s\n", str, err,
                                         wolfSSL_ERR_error_string(err, buffer));
-        err_sys("SSL_write failed");
+        if (!exitWithRet) {
+            err_sys("SSL_write failed");
+        }
     }
+
+    return err;
 }
 
 static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
@@ -2080,7 +2085,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         #ifndef NO_PSK
         if (usePsk) {
-            done += 1; /* don't perform exernal tests if PSK is enabled */
+            done += 1; /* don't perform external tests if PSK is enabled */
         }
         #endif
 
@@ -2305,16 +2310,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (usePsk) {
 #ifndef NO_PSK
+        const char *defaultCipherList = cipherList;
+
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
     #ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_psk_client_tls13_callback(ctx, my_psk_client_tls13_cb);
     #endif
-        if (cipherList == NULL) {
-            const char *defaultCipherList;
+        if (defaultCipherList == NULL) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
-                                    "TLS13-AES128-GCM-SHA256";
+                defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                    "DHE-PSK-AES128-GCM-SHA256:";
             #else
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
@@ -2323,12 +2329,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
+            if (wolfSSL_CTX_set_cipher_list(ctx, defaultCipherList)
                                                             !=WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("client can't set cipher list 2");
             }
         }
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
 #endif
         if (useClientCert) {
             useClientCert = 0;
@@ -2364,7 +2371,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_SNIFFER)
-    if (cipherList == NULL) {
+    if (cipherList == NULL && version < 4) {
         /* don't use EDH, can't sniff tmp keys */
         if (wolfSSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -3100,7 +3107,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_update_keys(ssl);
 #endif
 
-    ClientWrite(ssl, msg, msgSz, "");
+    err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
+    if (exitWithRet && (err != 0)) {
+        ((func_args*)args)->return_code = err;
+        goto exit;
+    }
 
     err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
@@ -3110,7 +3121,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(WOLFSSL_TLS13)
     if (updateKeysIVs || postHandAuth)
-        ClientWrite(ssl, msg, msgSz, "");
+        (void)ClientWrite(ssl, msg, msgSz, "", 0);
 #endif
     if (sendGET) {  /* get html */
         (void)ClientRead(ssl, reply, sizeof(reply)-1, 0, "", 0);
@@ -3362,12 +3373,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        ClientWrite(sslResume, resumeMsg, resumeSz, " resume");
+        (void)ClientWrite(sslResume, resumeMsg, resumeSz, " resume", 0);
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
         /* try to send session break */
-        ClientWrite(sslResume, msg, msgSz, " resume 2");
+        (void)ClientWrite(sslResume, msg, msgSz, " resume 2", 0);
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)

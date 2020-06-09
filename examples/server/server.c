@@ -995,7 +995,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
+#ifndef NO_CERTS
     int mutualAuth = 0;
+#endif
     int postHandAuth = 0;
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
@@ -1017,7 +1019,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
         /* big enough to handle most cases including session certs */
-        byte memory[204000];
+        byte memory[220000];
     #else
         byte memory[80000];
     #endif
@@ -1081,7 +1083,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
+#ifndef NO_CERTS
     (void)mutualAuth;
+#endif
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
@@ -1413,9 +1417,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+        #ifndef NO_CERTS
             case 'F' :
-                    mutualAuth = 1;
+                mutualAuth = 1;
                 break;
+        #endif
 
             case 'Q' :
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
@@ -1731,20 +1737,20 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (usePsk || usePskPlus) {
 #ifndef NO_PSK
+        const char *defaultCipherList = cipherList;
+
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     #ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_psk_server_tls13_callback(ctx, my_psk_server_tls13_cb);
     #endif
-
         if (sendPskIdentityHint == 1)
             SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
 
-        if (cipherList == NULL && !usePskPlus) {
-            const char *defaultCipherList;
+        if (defaultCipherList == NULL && !usePskPlus) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
-                                    "TLS13-AES128-GCM-SHA256";
+                defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                    "DHE-PSK-AES128-GCM-SHA256";
             #else
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
@@ -1758,7 +1764,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 != WOLFSSL_SUCCESS)
                 err_sys_ex(runWithErrors, "server can't set cipher list 2");
         }
-#endif
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
+#endif /* !NO_PSK */
     }
 #ifndef NO_CERTS
     if (mutualAuth)
@@ -1823,7 +1830,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #if defined(WOLFSSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
-    if (cipherList == NULL) {
+    if (cipherList == NULL && version < 4) {
         if (SSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "server can't set cipher list 3");
     }

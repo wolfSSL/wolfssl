@@ -96,6 +96,32 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+
+# FIPS
+AC_ARG_ENABLE([fips],
+    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
+    [ENABLED_FIPS=$enableval],
+    [ENABLED_FIPS="no"])
+
+AS_CASE([$ENABLED_FIPS],
+    ["v2"],[
+        # FIPS v2
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v2"
+    ],
+    ["rand"],[
+        # FIPS Rand
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="rand"
+    ],
+    ["no"],[FIPS_VERSION="none"],
+    [
+        # FIPS v1
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v1"
+    ])
+    
+
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
     [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
@@ -119,7 +145,11 @@ AC_ARG_ENABLE([all],
 if test "$ENABLED_ALL" = "yes"
 then
     enable_dtls=yes
-    enable_tls13=yes
+    if test "x$FIPS_VERSION" != "xv1"
+    then
+        enable_tls13=yes
+        enable_rsapss=yes
+    fi
     enable_openssh=yes
     enable_opensslextra=yes
     enable_opensslall=yes
@@ -287,83 +317,23 @@ then
 fi
 
 
-# TLS v1.3 Draft 18
+# TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
 AC_ARG_ENABLE([tls13-draft18],
     [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
     [ ENABLED_TLS13_DRAFT18=$enableval ],
     [ ENABLED_TLS13_DRAFT18=no ]
     )
-if test "$ENABLED_TLS13_DRAFT18" = "yes"
-then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_18 $AM_CFLAGS"
-fi
-
-
-# TLS v1.3 Draft 22
-AC_ARG_ENABLE([tls13-draft22],
-    [AS_HELP_STRING([--enable-tls13-draft22],[Enable wolfSSL TLS v1.3 Draft 22 (default: disabled)])],
-    [ ENABLED_TLS13_DRAFT22=$enableval ],
-    [ ENABLED_TLS13_DRAFT22=no ]
-    )
-if test "$ENABLED_TLS13_DRAFT22" = "yes"
-then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_22 $AM_CFLAGS"
-fi
-
-
-# TLS v1.3 Draft 23
-AC_ARG_ENABLE([tls13-draft23],
-    [AS_HELP_STRING([--enable-tls13-draft23],[Enable wolfSSL TLS v1.3 Draft 23 (default: disabled)])],
-    [ ENABLED_TLS13_DRAFT23=$enableval ],
-    [ ENABLED_TLS13_DRAFT23=no ]
-    )
-if test "$ENABLED_TLS13_DRAFT23" = "yes"
-then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_23 $AM_CFLAGS"
-fi
-
-
-# TLS v1.3 Draft 26
-AC_ARG_ENABLE([tls13-draft26],
-    [AS_HELP_STRING([--enable-tls13-draft26],[Enable wolfSSL TLS v1.3 Draft 26 (default: disabled)])],
-    [ ENABLED_TLS13_DRAFT26=$enableval ],
-    [ ENABLED_TLS13_DRAFT26=no ]
-    )
-if test "$ENABLED_TLS13_DRAFT26" = "yes"
-then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_26 $AM_CFLAGS"
-fi
-
-
-# TLS v1.3 Draft 28
-AC_ARG_ENABLE([tls13-draft28],
-    [AS_HELP_STRING([--enable-tls13-draft28],[Enable wolfSSL TLS v1.3 Draft 28 (default: disabled)])],
-    [ ENABLED_TLS13_DRAFT28=$enableval ],
-    [ ENABLED_TLS13_DRAFT28=no ]
-    )
-if test "$ENABLED_TLS13_DRAFT28" = "yes"
-then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT $AM_CFLAGS"
-fi
-
 
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
-    [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
+    [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: enabled)])],
     [ ENABLED_TLS13=$enableval ],
-    [ ENABLED_TLS13=no ]
+    [ ENABLED_TLS13=yes ]
     )
-
-if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes" || test "$ENABLED_TLS13_DRAFT23" = "yes" || test "$ENABLED_TLS13_DRAFT26" = "yes" || test "$ENABLED_TLS13_DRAFT28" = "yes"
+if test "x$FIPS_VERSION" = "xv1"
 then
-    ENABLED_TLS13="yes"
+    ENABLED_TLS13="no"
 fi
-
-if test "$ENABLED_TLS13" = "yes"
-then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
-fi
-
 
 # Post-handshake Authentication
 AC_ARG_ENABLE([postauth],
@@ -2494,14 +2464,8 @@ fi
 
 
 # FIPS
-AC_ARG_ENABLE([fips],
-    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
-    [ENABLED_FIPS=$enableval],
-    [ENABLED_FIPS="no"])
-
-AS_CASE([$ENABLED_FIPS],
-    ["v2"],[FIPS_VERSION="v2"
-        ENABLED_FIPS=yes
+AS_CASE([$FIPS_VERSION],
+    ["v2"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
@@ -2532,14 +2496,9 @@ AS_CASE([$ENABLED_FIPS],
               [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
     ],
     ["rand"],[
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="rand"
         AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=2"
     ],
-    ["no"],[FIPS_VERSION="none"],
-    [
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v1"
+    ["v1"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     ])
 
@@ -3178,6 +3137,21 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
+# TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448
+if test "x$ENABLED_ECC" = "xno" && \
+    (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
+    (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
+    (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno")
+then
+    # disable TLS 1.3
+    ENABLED_TLS13=no
+fi
+if test "$ENABLED_TLS13" = "yes"
+then
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+fi
+
+
 # Session Ticket Extension
 AC_ARG_ENABLE([session-ticket],
     [AS_HELP_STRING([--enable-session-ticket],[Enable Session Ticket (default: disabled)])],
@@ -3229,7 +3203,7 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
-    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
+    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
@@ -4552,6 +4526,11 @@ AC_ARG_ENABLE([fast-rsa],
     [ ENABLED_FAST_RSA=no ],
     )
 
+# Fast RSA does not support RSA-PSS
+if test "$ENABLED_RSAPSS" = "yes"; then
+    ENABLED_FAST_RSA=no
+fi
+
 if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
 
     if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
@@ -5548,11 +5527,6 @@ echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.0:                   $ENABLED_TLSV10"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
-echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
-echo "   * TLS v1.3 Draft 22:          $ENABLED_TLS13_DRAFT22"
-echo "   * TLS v1.3 Draft 23:          $ENABLED_TLS13_DRAFT23"
-echo "   * TLS v1.3 Draft 26:          $ENABLED_TLS13_DRAFT26"
-echo "   * TLS v1.3 Draft 28:          $ENABLED_TLS13_DRAFT28"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
 echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"

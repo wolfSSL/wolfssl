@@ -1210,19 +1210,6 @@ enum Misc {
     TLSv1_2_MINOR   = 3,        /* TLSv1_2 minor version number */
     TLSv1_3_MINOR   = 4,        /* TLSv1_3 minor version number */
     TLS_DRAFT_MAJOR = 0x7f,     /* Draft TLS major version number */
-#ifdef WOLFSSL_TLS13_DRAFT
-#ifdef WOLFSSL_TLS13_DRAFT_18
-    TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
-#elif defined(WOLFSSL_TLS13_DRAFT_22)
-    TLS_DRAFT_MINOR = 0x16,     /* Minor version number of TLS draft */
-#elif defined(WOLFSSL_TLS13_DRAFT_23)
-    TLS_DRAFT_MINOR = 0x17,     /* Minor version number of TLS draft */
-#elif defined(WOLFSSL_TLS13_DRAFT_26)
-    TLS_DRAFT_MINOR = 0x1a,     /* Minor version number of TLS draft */
-#else
-    TLS_DRAFT_MINOR = 0x1c,     /* Minor version number of TLS draft */
-#endif
-#endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
     NO_COMPRESSION  =  0,
@@ -2187,12 +2174,8 @@ typedef enum {
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
     #endif
-    #if defined(WOLFSSL_TLS13_DRAFT_18) || defined(WOLFSSL_TLS13_DRAFT_22)
-    TLSX_KEY_SHARE                  = 0x0028,
-    #else
     TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
     TLSX_KEY_SHARE                  = 0x0033,
-    #endif
 #endif
     TLSX_RENEGOTIATION_INFO         = 0xff01
 } TLSX_Type;
@@ -2534,7 +2517,6 @@ WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-#ifndef WOLFSSL_TLS13_DRAFT_18
 /* Ticket nonce - for deriving PSK.
  * Length allowed to be: 1..255. Only support 4 bytes.
  */
@@ -2542,7 +2524,6 @@ typedef struct TicketNonce {
     byte len;
     byte data[MAX_TICKET_NONCE_SZ];
 } TicketNonce;
-#endif
 
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {
@@ -2767,6 +2748,7 @@ struct WOLFSSL_CTX {
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
+    void*       psk_ctx;
     char        server_hint[MAX_PSK_ID_LEN + NULL_TERM_LEN];
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef WOLFSSL_TLS13
@@ -3169,9 +3151,7 @@ struct WOLFSSL_SESSION {
     #ifdef WOLFSSL_TLS13
     word32             ticketSeen;                /* Time ticket seen (ms) */
     word32             ticketAdd;                 /* Added by client */
-        #ifndef WOLFSSL_TLS13_DRAFT_18
     TicketNonce        ticketNonce;               /* Nonce used to derive PSK */
-        #endif
     #endif
     #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
@@ -3358,6 +3338,7 @@ typedef struct Options {
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
+    void*             psk_ctx;
 #endif /* NO_PSK */
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask; /* store SSL_OP_ flags */
@@ -3983,11 +3964,9 @@ struct WOLFSSL {
 #endif
     word16          pssAlgo;
 #ifdef WOLFSSL_TLS13
-    #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
     word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
     byte            certHashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* cert sig/algo to
                                                            * offer */
-    #endif /* !WOLFSSL_TLS13_DRAFT_18 && !WOLFSSL_TLS13_DRAFT_22 */
 #endif
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;
@@ -4345,11 +4324,7 @@ WOLFSSL_LOCAL int SendTicket(WOLFSSL*);
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 #ifdef WOLFSSL_TLS13
-#ifdef WOLFSSL_TLS13_DRAFT_18
-WOLFSSL_LOCAL int SendTls13HelloRetryRequest(WOLFSSL*);
-#else
 WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL*, byte);
-#endif
 #endif
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
