@@ -41934,7 +41934,7 @@ int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size)
 {
     if (!a || !b)
         return 0;
-    return ConstantCompare(a, b, size);
+    return ConstantCompare((const byte*)a, (const byte*)b, (int)size);
 }
 
 int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
