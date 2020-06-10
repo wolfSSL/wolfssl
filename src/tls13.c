@@ -1474,7 +1474,7 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
  * verifyOrder  Which set of sequence numbers to use.
  * out          The buffer to write into.
  */
-static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
@@ -1510,7 +1510,7 @@ static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
     int  i;
 
     /* The nonce is the IV with the sequence XORed into the last bytes. */
-    WriteSEQ(ssl, order, nonce + AEAD_NONCE_SZ - SEQ_SZ);
+    WriteSEQTls13(ssl, order, nonce + AEAD_NONCE_SZ - SEQ_SZ);
     for (i = 0; i < AEAD_NONCE_SZ - SEQ_SZ; i++)
         nonce[i] = iv[i];
     for (; i < AEAD_NONCE_SZ; i++)

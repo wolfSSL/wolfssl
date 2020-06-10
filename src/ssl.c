@@ -3241,36 +3241,18 @@ const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
         return NULL;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    /* ssl->keys contains the current cipher parameters only for epoch 1. For
-     * epochs >1 ssl->secure_renegotiation->tmp_keys contains the current
-     * cipher parameters */
     switch (epochOrder) {
     case PEER_ORDER:
-        if (ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0 &&
-            ssl->keys.curEpoch ==
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+        if (IsDtlsMsgSCRKeys(ssl))
             keys = &ssl->secure_renegotiation->tmp_keys;
         else
             keys = &ssl->keys;
         break;
     case PREV_ORDER:
-        if (ssl->keys.dtls_epoch > 1 ||
-            (ssl->secure_renegotiation &&
-             ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0))
-            keys = &ssl->keys;
-        else {
-            WOLFSSL_MSG("No previous cipher epoch");
-            return NULL;
-        }
+        keys = &ssl->keys;
         break;
     case CUR_ORDER:
-        if (ssl->secure_renegotiation &&
-                ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0 &&
-                ssl->secure_renegotiation->tmp_keys.dtls_epoch ==
-                        ssl->keys.dtls_epoch)
-            /* new keys are in scr and are only current when the
-             * ssl->keys.dtls_epoch matches */
+        if (DtlsUseSCRKeys(ssl))
             keys = &ssl->secure_renegotiation->tmp_keys;
         else
             keys = &ssl->keys;

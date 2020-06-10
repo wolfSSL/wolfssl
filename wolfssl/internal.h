@@ -4516,10 +4516,14 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL*, int);
 #endif /* WOLFSSL_DTLS */
 
-#ifndef NO_TLS
+#if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
+    WOLFSSL_LOCAL int DtlsSCRKeysSet(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int IsDtlsMsgSCRKeys(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DtlsUseSCRKeys(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DtlsCheckOrder(WOLFSSL* ssl, int order);
+#endif
 
-
-#endif /* NO_TLS */
+    WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);

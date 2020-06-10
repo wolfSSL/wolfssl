@@ -643,79 +643,6 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
 }
 
 
-static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
-{
-    if (verify) {
-        seq[0] = ssl->keys.peer_sequence_number_hi;
-        seq[1] = ssl->keys.peer_sequence_number_lo++;
-        if (seq[1] > ssl->keys.peer_sequence_number_lo) {
-            /* handle rollover */
-            ssl->keys.peer_sequence_number_hi++;
-        }
-    }
-    else {
-        seq[0] = ssl->keys.sequence_number_hi;
-        seq[1] = ssl->keys.sequence_number_lo++;
-        if (seq[1] > ssl->keys.sequence_number_lo) {
-            /* handle rollover */
-            ssl->keys.sequence_number_hi++;
-        }
-    }
-}
-
-
-#ifdef WOLFSSL_DTLS
-static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
-{
-#ifdef HAVE_SECURE_RENEGOTIATION
-    /* if ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch then PREV_ORDER
-     * refers to the current epoch */
-    if (order == PREV_ORDER && ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch) {
-        order = CUR_ORDER;
-    }
-#endif
-    if (order == PREV_ORDER) {
-        /* Previous epoch case */
-        seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
-                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
-        seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
-    }
-    else if (order == PEER_ORDER) {
-        seq[0] = ((word32)ssl->keys.curEpoch << 16) |
-                 (ssl->keys.curSeq_hi & 0xFFFF);
-        seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
-    }
-    else {
-        seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
-                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
-        seq[1] = ssl->keys.dtls_sequence_number_lo;
-    }
-}
-#endif /* WOLFSSL_DTLS */
-
-
-static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
-{
-    word32 seq[2] = {0, 0};
-
-    if (!ssl->options.dtls) {
-        GetSEQIncrement(ssl, verifyOrder, seq);
-    }
-    else {
-#ifdef WOLFSSL_DTLS
-        DtlsGetSEQ(ssl, verifyOrder, seq);
-#endif
-    }
-
-    c32toa(seq[0], out);
-    c32toa(seq[1], out + OPAQUE32_LEN);
-}
-
-
-/*** end copy ***/
-
-
 /* return HMAC digest type in wolfSSL format */
 int wolfSSL_GetHmacType(WOLFSSL* ssl)
 {
@@ -1208,7 +1135,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     }
 #endif
 
-    wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, epochOrder);
+    if (!ssl->options.dtls)
+        wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+    else
+        wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, epochOrder);
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     if (tsip_useable(ssl)) {

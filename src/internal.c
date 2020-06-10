@@ -6723,12 +6723,7 @@ static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
 #ifdef HAVE_SECURE_RENEGOTIATION
-    /* if ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch then PREV_ORDER
-     * refers to the current epoch */
-    if (order == PREV_ORDER && ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch) {
-        order = CUR_ORDER;
-    }
+    order = DtlsCheckOrder(ssl, order);
 #endif
     if (order == PREV_ORDER) {
         /* Previous epoch case */
@@ -6776,12 +6771,7 @@ static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
 {
     word32 seq;
 #ifdef HAVE_SECURE_RENEGOTIATION
-    /* if ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch then PREV_ORDER
-     * refers to the current epoch */
-    if (order == PREV_ORDER && ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch) {
-        order = CUR_ORDER;
-    }
+    order = DtlsCheckOrder(ssl, order);
 #endif
 
     if (order == PREV_ORDER) {
@@ -6809,7 +6799,7 @@ static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
 #endif /* WOLFSSL_DTLS */
 
 #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
-static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
@@ -7232,9 +7222,14 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
 }
 
 
+/**
+ * Verify if message `item` from `ssl->dtls_tx_msg_list` should be deleted
+ * depending on the current state of the handshake negotiation.
+ */
 int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
 {
     if (item->epoch < ssl->keys.dtls_epoch - 1)
+        /* Messages not from current or previous epoch can be deleted */
         return 1;
     switch (ssl->options.side) {
     case WOLFSSL_CLIENT_END:
@@ -7328,8 +7323,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                  * ssl->keys otherwise
                  * PREV_ORDER will always use ssl->keys
                  */
-                if (ssl->secure_renegotiation &&
-                        ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
+                if (DtlsSCRKeysSet(ssl)) {
                     if (pool->epoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
                         epochOrder = CUR_ORDER;
                     else
@@ -14098,17 +14092,10 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                                     ssl->decrypt.additional + AEAD_LEN_OFFSET);
 
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
-            if (ssl->options.dtls && ssl->secure_renegotiation &&
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
-                if (ssl->keys.curEpoch ==
-                        ssl->secure_renegotiation->tmp_keys.dtls_epoch)
-                    XMEMCPY(ssl->decrypt.nonce,
-                            ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
-                            AESGCM_IMP_IV_SZ);
-                else
-                    XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
-                            AESGCM_IMP_IV_SZ);
-            }
+            if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
+                XMEMCPY(ssl->decrypt.nonce,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
+                        AESGCM_IMP_IV_SZ);
             else
         #endif
                 XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
@@ -14237,8 +14224,7 @@ static WC_INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         case CIPHER_STATE_DO:
         {
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
-            if (ssl->options.dtls && ssl->secure_renegotiation &&
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
+            if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in
                  * ssl->secure_renegotiation->tmp_keys. Previous cipher
                  * parameters and for epoch 1 use ssl->keys */
@@ -16154,8 +16140,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
             }
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
-            if (ssl->options.dtls && ssl->secure_renegotiation &&
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
+            if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in
                  * ssl->secure_renegotiation->tmp_keys. Previous cipher
                  * parameters and for epoch 1 use ssl->keys */
@@ -16408,10 +16393,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             word16 dtls_sequence_number_hi;
             word32 dtls_sequence_number_lo;
             int swap_seq = ssl->options.dtls && epochOrder == PREV_ORDER &&
-                    ssl->secure_renegotiation &&
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0 &&
-                    ssl->secure_renegotiation->tmp_keys.dtls_epoch ==
-                        ssl->keys.dtls_epoch;
+                    DtlsUseSCRKeys(ssl);
             if (swap_seq) {
                 dtls_epoch = ssl->keys.dtls_epoch;
                 dtls_sequence_number_hi = ssl->keys.dtls_sequence_number_hi;
@@ -17137,7 +17119,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
     #endif
     }
 
-    sendSz += cipherExtraData(ssl);
+    if (IsEncryptionOn(ssl, 1))
+        sendSz += cipherExtraData(ssl);
 
     /* check for available size */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -17542,6 +17525,59 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_NO_TLS12 */
 
+
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
+/**
+ * Check if the SCR keys are set in ssl->secure_renegotiation->tmp_keys.
+ */
+int DtlsSCRKeysSet(WOLFSSL* ssl)
+{
+    return ssl->secure_renegotiation &&
+           ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0;
+}
+
+/**
+ * ssl->keys contains the current cipher parameters only for epoch 1. For
+ * epochs >1 ssl->secure_renegotiation->tmp_keys contains the current
+ * cipher parameters. This function checks if the message currently being
+ * processed should use ssl->keys or ssl->secure_renegotiation->tmp_keys.
+ */
+int IsDtlsMsgSCRKeys(WOLFSSL* ssl)
+{
+    return DtlsSCRKeysSet(ssl) &&
+           ssl->keys.curEpoch ==
+                   ssl->secure_renegotiation->tmp_keys.dtls_epoch;
+}
+
+/**
+ * ssl->keys contains the current cipher parameters only for epoch 1. For
+ * epochs >1 ssl->secure_renegotiation->tmp_keys contains the current
+ * cipher parameters. This function checks if the message currently being
+ * built should use ssl->keys or ssl->secure_renegotiation->tmp_keys.
+ */
+int DtlsUseSCRKeys(WOLFSSL* ssl)
+{
+    return DtlsSCRKeysSet(ssl) &&
+           ssl->secure_renegotiation->tmp_keys.dtls_epoch ==
+                   ssl->keys.dtls_epoch;
+}
+
+/**
+ * If ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch
+ * then PREV_ORDER refers to the current epoch.
+ * */
+int DtlsCheckOrder(WOLFSSL* ssl, int order)
+{
+    if (order == PREV_ORDER && ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch) {
+        return CUR_ORDER;
+    }
+    else {
+        return order;
+    }
+}
+#endif /* HAVE_SECURE_RENEGOTIATION && WOLFSSL_DTLS */
 
 /* If secure renegotiation is disabled, this will always return false.
  * Otherwise it checks to see if we are currently renegotiating. */
