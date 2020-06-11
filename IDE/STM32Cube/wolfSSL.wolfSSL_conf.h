@@ -139,6 +139,11 @@ extern "C" {
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
     #define HAL_CONSOLE_UART huart2
+#elif defined(STM32H753xx)
+    #define WOLFSSL_STM32H7
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define HAL_CONSOLE_UART huart3
 #elif defined(STM32L4A6xx)
     #define WOLFSSL_STM32L4
     #undef  NO_STM32_HASH

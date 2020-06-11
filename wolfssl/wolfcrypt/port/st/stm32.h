@@ -92,7 +92,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
-			defined(WOLFSSL_STM32L5))
+			defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -113,8 +113,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #endif
 
     /* Detect newer CubeMX crypto HAL (HAL_CRYP_Encrypt / HAL_CRYP_Decrypt) */
-    #if !defined(STM32_HAL_V2) && \
-        (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5)) && defined(CRYP_AES_GCM)
+    #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
+        (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
         #define STM32_HAL_V2
     #endif
 
