@@ -135,6 +135,67 @@ class wolfSSL_Example_IOCallbacks
         return (uint)4;
     }
 
+    /// <summary>
+    /// Example of a certificate verify function
+    /// </summary>
+    /// <param name="preverify"></param>
+    /// <param name="store">pointer to a WOLFSSL_X509_STORE_CTX</param>
+    /// <returns>size of key set</returns>
+    public static int my_verify_cb(int preverify, IntPtr store)
+    {
+        if (store == IntPtr.Zero)
+        {
+            Console.WriteLine("store is null");
+        }
+
+        Console.WriteLine("Status of certificate verify = " + preverify);
+
+        /* look at the current cert in store */
+        try
+        {
+
+            X509 x509 = wolfssl.X509_STORE_CTX_get_current_cert(store);
+
+
+            Console.WriteLine("Issuer : " + x509.Issuer);
+            Console.WriteLine("Subject : " + x509.Subject);
+
+            Console.WriteLine("PEM of certificate:");
+            Console.WriteLine(System.Text.Encoding.UTF8.GetString(x509.Export()));
+
+            Console.WriteLine("DER of certificate:");
+            Console.WriteLine(BitConverter.ToString(x509.Export(wolfssl.SSL_FILETYPE_ASN1)));
+
+            Console.WriteLine("Public key:");
+            Console.WriteLine(BitConverter.ToString(x509.GetPublicKey()));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Unable to get X509's");
+        }
+
+        /* list all certs in store */
+        try
+        {
+            int i;
+            X509[] x509 = wolfssl.X509_STORE_CTX_get_certs(store);
+
+            for (i = 0; i < x509.Length; i++)
+            {
+                Console.WriteLine("CERT[" + i + "]");
+                Console.WriteLine("Issuer : " + x509[i].Issuer);
+                Console.WriteLine("Subject : " + x509[i].Subject);
+                Console.WriteLine("");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Unable to get X509's");
+        }
+
+        /* by returning 1 here we override any failure and report success */
+        return 1;
+    }
 
     private static void clean(IntPtr ssl, IntPtr ctx)
     {
@@ -151,6 +212,7 @@ class wolfSSL_Example_IOCallbacks
         Socket fd;
 
         wolfssl.psk_delegate psk_cb = new wolfssl.psk_delegate(my_psk_server_cb);
+        wolfssl.CallbackVerify_delegate verify_cb = new wolfssl.CallbackVerify_delegate(my_verify_cb);
 
         /* These paths should be changed according to use */
         string fileCert = @"server-cert.pem";
@@ -191,30 +253,7 @@ class wolfSSL_Example_IOCallbacks
             return;
         }
 
-        StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
-        wolfssl.get_ciphers(ciphers, 4096);
-        Console.WriteLine("Ciphers : " + ciphers.ToString());
-
-        Console.Write("Setting cipher suite to ");
-        /* To use static PSK build wolfSSL with WOLFSSL_STATIC_PSK preprocessor flag */
-        StringBuilder set_cipher = new StringBuilder("PSK-AES128-CBC-SHA256");
-        Console.WriteLine(set_cipher);
-        if (wolfssl.CTX_set_cipher_list(ctx, set_cipher) != wolfssl.SUCCESS)
-        {
-            Console.WriteLine("Failed to set cipher suite");
-            Console.WriteLine("If using static PSK make sure wolfSSL was built with preprocessor flag WOLFSSL_STATIC_PSK");
-            wolfssl.CTX_free(ctx);
-            return;
-        }
-
-        /* Test psk use */
-        StringBuilder hint = new StringBuilder("cyassl server");
-        if (wolfssl.CTX_use_psk_identity_hint(ctx, hint) != wolfssl.SUCCESS)
-        {
-            Console.WriteLine("Error setting hint");
-            return;
-        }
-        wolfssl.CTX_set_psk_server_callback(ctx, psk_cb);
+        wolfssl.CTX_set_verify(ctx, wolfssl.SSL_VERIFY_PEER, verify_cb);
 
         /* Set using custom IO callbacks
            delegate memory is allocated when calling SetIO**** function and freed with ctx free
