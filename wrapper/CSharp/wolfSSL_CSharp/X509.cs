@@ -56,6 +56,7 @@ namespace wolfSSL.CSharp
             ret = wolfSSL_X509_get_name_oneline(
                 wolfSSL_X509_get_subject_name(this.x509), IntPtr.Zero, 0);
             this.Subject = Marshal.PtrToStringAnsi(ret);
+            this.isDynamic = isDynamic;
         }
 
         /// <summary>
