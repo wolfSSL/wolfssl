@@ -15686,6 +15686,8 @@ static int test_wc_curve25519_export_key_raw_ex (void)
                 /* no more test*/
                 printf(resultFmt, passed );
                 fflush( stdout );
+                wc_curve25519_free(&key);
+                wc_FreeRng(&rng);
                 return 0;
         }
         else{
