@@ -173,7 +173,6 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Smaller table version of AES encrypt/decrypt.
 * Support IAR with position independent code (ROPI).
 * Improve speed of AArch64 assembly.
-* Support AES-CTR with AES-NI.
 * Support AES-CTR on esp32.
 * Add a no malloc option for small SP math.
 
