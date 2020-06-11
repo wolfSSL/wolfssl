@@ -3323,8 +3323,6 @@ int hash_test(void)
         }
 
         hashType = wc_OidGetHash(ret);
-        if (exp_ret < 0 && ret != exp_ret)
-            return -3338 - i;
         if (exp_ret == 0 && hashType != typesGood[i])
             return -3348 - i;
 #endif /* !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC) */
@@ -18367,7 +18365,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_sign_hash(msg, sizeof(msg), tmp, &tmpSz, rng, &key);
+            ret = wc_ecc_sign_hash(msg, (word32)XSTRLEN((const char* )msg), tmp, &tmpSz, rng, &key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9629, done);
@@ -18382,7 +18380,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &verify, &key);
+            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, (word32)XSTRLEN((const char* )msg), &verify, &key);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-9630, done);

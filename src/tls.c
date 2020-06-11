@@ -1174,15 +1174,17 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     Hmac   hmac;
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     int    ret = 0;
-#ifdef HAVE_TRUNCATED_HMAC
-    word32 hashSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
-                                        : ssl->specs.hash_size;
-#else
-    word32 hashSz = ssl->specs.hash_size;
-#endif
+    word32 hashSz = 0;
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef HAVE_TRUNCATED_HMAC
+    hashSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
+                                        : ssl->specs.hash_size;
+#else
+    hashSz = ssl->specs.hash_size;
+#endif
 
 #ifdef HAVE_FUZZER
     /* Fuzz "in" buffer with sz to be used in HMAC algorithm */
