@@ -882,7 +882,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 
 #if (!defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)) \
-    || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA) && defined(WOLFSSL_QT))
+    || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA))
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -5113,7 +5113,7 @@ static int StoreRsaKey(DecodedCert* cert, word32 bitStringEnd)
 static int GetKey(DecodedCert* cert)
 {
     int length;
-#if !defined(NO_DSA) && defined(WOLFSSL_QT)
+#ifndef NO_DSA
     int tmpLen;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_NTRU)
@@ -5123,7 +5123,7 @@ static int GetKey(DecodedCert* cert)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-#if !defined(NO_DSA) && defined(WOLFSSL_QT)
+#ifndef NO_DSA
     tmpLen = length + 4;
 #endif
 
@@ -5336,7 +5336,7 @@ static int GetKey(DecodedCert* cert)
             return 0;
         }
     #endif /* HAVE_ED448 */
-    #if !defined(NO_DSA) && defined(WOLFSSL_QT)
+    #ifndef NO_DSA
         case DSAk:
         {
             int ret;
@@ -5369,7 +5369,7 @@ static int GetKey(DecodedCert* cert)
             cert->srcIdx += length;
             return 0;
         }
-    #endif /* NO_DSA && QT */
+    #endif /* NO_DSA */
         default:
             return ASN_UNKNOWN_OID_E;
     }
