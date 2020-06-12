@@ -42972,8 +42972,10 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
     Suites* suites;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     const CipherSuiteInfo* cipher_names = GetCipherNames();
     int cipherSz = GetCipherNamesSize();
+#endif
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
     if (ssl == NULL || (ssl->suites == NULL && ssl->ctx->suites == NULL)) {
