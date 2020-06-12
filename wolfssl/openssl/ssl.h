@@ -151,6 +151,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define CRYPTO_cleanup_all_ex_data      wolfSSL_cleanup_all_ex_data
 #define set_ex_data                     wolfSSL_CRYPTO_set_ex_data
 #define get_ex_data                     wolfSSL_CRYPTO_get_ex_data
+#define CRYPTO_memcmp                   wolfSSL_CRYPTO_memcmp
 
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() 0 /* CRYPTO_malloc_init is not needed */

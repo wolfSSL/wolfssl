@@ -3507,6 +3507,8 @@ WOLFSSL_API int wolfSSL_CRYPTO_set_mem_ex_functions(void *(*m) (size_t, const ch
 
 WOLFSSL_API void wolfSSL_CRYPTO_cleanup_all_ex_data(void);
 
+WOLFSSL_API int wolfSSL_CRYPTO_memcmp(const void *a, const void *b, size_t size);
+
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_DH_768_prime(WOLFSSL_BIGNUM* bn);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_DH_1024_prime(WOLFSSL_BIGNUM* bn);
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn);
