@@ -339,6 +339,8 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_X509_STORE_CTX_get_current_cert(IntPtr x509Ctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_X509_STORE_CTX_get_error(IntPtr sk);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSL_X509_STORE_GetCerts(IntPtr x509Ctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_sk_X509_num(IntPtr sk);
@@ -1946,6 +1948,29 @@ namespace wolfSSL.CSharp {
             {
                 log(ERROR_LOG, "wolfssl WOLFSSL_X509_STORE_CTX error " + e.ToString());
                 return ret;
+            }
+        }
+
+
+        /// <summary>
+        /// Get the current WOLFSSL_X509_STORE_CTX error value
+        /// </summary>
+        /// <param name="x509Ctx">pointer to store to get error from</param>
+        public static int X509_STORE_CTX_get_error(IntPtr x509Ctx)
+        {
+            try
+            {
+                if (x509Ctx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "pointer passed in was not set");
+                    return -1;
+                }
+                return wolfSSL_X509_STORE_CTX_get_error(x509Ctx);
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl WOLFSSL_X509_STORE_CTX error " + e.ToString());
+                return -1;
             }
         }
 

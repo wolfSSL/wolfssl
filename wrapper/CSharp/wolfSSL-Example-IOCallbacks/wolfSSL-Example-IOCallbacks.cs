@@ -149,6 +149,7 @@ class wolfSSL_Example_IOCallbacks
         }
 
         Console.WriteLine("Status of certificate verify = " + preverify);
+        Console.WriteLine("Error value for cert store is " + wolfssl.X509_STORE_CTX_get_error(store));
 
         /* look at the current cert in store */
         try
@@ -171,7 +172,7 @@ class wolfSSL_Example_IOCallbacks
         }
         catch (Exception e)
         {
-            Console.WriteLine("Unable to get X509's");
+            Console.WriteLine("Unable to get X509's" + e);
         }
 
         /* list all certs in store */
@@ -190,11 +191,11 @@ class wolfSSL_Example_IOCallbacks
         }
         catch (Exception e)
         {
-            Console.WriteLine("Unable to get X509's");
+            Console.WriteLine("Unable to get X509's" + e);
         }
 
         /* by returning 1 here we override any failure and report success */
-        return 1;
+        return preverify;
     }
 
     private static void clean(IntPtr ssl, IntPtr ctx)
