@@ -15534,7 +15534,8 @@ int ProcessReply(WOLFSSL* ssl)
                          * skipped. Also skip if out of order. */
                             if (ret != DUPLICATE_MSG_E && ret != OUT_OF_ORDER_E)
                                 return ret;
-
+                            /* Reset error */
+                            ret = 0;
                             break;
                         #endif /* WOLFSSL_DTLS */
                         }
@@ -16389,9 +16390,9 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
             /* If we want the PREV_ORDER then modify CUR_ORDER sequence number
              * for all encryption algos that use it for encryption parameters */
-            word16 dtls_epoch;
-            word16 dtls_sequence_number_hi;
-            word32 dtls_sequence_number_lo;
+            word16 dtls_epoch = 0;
+            word16 dtls_sequence_number_hi = 0;
+            word32 dtls_sequence_number_lo = 0;
             int swap_seq = ssl->options.dtls && epochOrder == PREV_ORDER &&
                     DtlsUseSCRKeys(ssl);
             if (swap_seq) {
