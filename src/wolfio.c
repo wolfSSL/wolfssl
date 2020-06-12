@@ -318,7 +318,9 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     WOLFSSL_ENTER("EmbedReceiveFrom()");
 
-    if (ssl->options.handShakeDone)
+    /* Don't use ssl->options.handShakeDone since it is true even if
+     * we are in the process of renegotiation */
+    if (ssl->options.handShakeState == HANDSHAKE_DONE)
         dtls_timeout = 0;
 
     if (!wolfSSL_get_using_nonblock(ssl)) {

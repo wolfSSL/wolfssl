@@ -3003,6 +3003,13 @@ enum CipherType { aead };
     #define CIPHER_NONCE
 #endif
 
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+enum CipherSrc {
+    KEYS_NOT_SET = 0,
+    KEYS,     /* keys from ssl->keys are loaded */
+    SCR       /* keys from ssl->secure_renegotiation->tmp_keys are loaded */
+};
+#endif
 
 /* cipher for now */
 typedef struct Ciphers {
@@ -3042,6 +3049,10 @@ typedef struct Ciphers {
 #endif
     byte    state;
     byte    setup;       /* have we set it up flag for detection */
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+    enum CipherSrc src;  /* DTLS uses this to determine which keys
+                          * are currently loaded */
+#endif
 } Ciphers;
 
 
@@ -3177,7 +3188,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
 WOLFSSL_LOCAL
 int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
 
-typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int);
+typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
     WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
@@ -3734,6 +3745,7 @@ typedef struct DtlsMsg {
     byte*           msg;
     DtlsFrag*       fragList;
     word32          fragSz;    /* Length of fragments received */
+    word16          epoch;     /* Epoch that this message belongs to */
     word32          seq;       /* Handshake sequence number    */
     word32          sz;        /* Length of whole message      */
     byte            type;
@@ -3803,6 +3815,20 @@ typedef struct HS_Hashes {
 } HS_Hashes;
 
 
+#ifndef WOLFSSL_NO_TLS12
+/* Persistable BuildMessage arguments */
+typedef struct BuildMsgArgs {
+    word32 digestSz;
+    word32 sz;
+    word32 pad;
+    word32 idx;
+    word32 headerSz;
+    word16 size;
+    word32 ivSz;      /* TLSv1.1  IV */
+    byte*  iv;
+} BuildMsgArgs;
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #define MAX_ASYNC_ARGS 18
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
@@ -3811,6 +3837,7 @@ typedef struct HS_Hashes {
         WC_ASYNC_DEV* dev;
         FreeArgsCb    freeArgs; /* function pointer to cleanup args */
         word32        args[MAX_ASYNC_ARGS]; /* holder for current args */
+        BuildMsgArgs  buildArgs; /* holder for current BuildMessage args */
     };
 #endif
 
@@ -4451,7 +4478,7 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int  MakeTlsMasterSecret(WOLFSSL*);
 #ifndef WOLFSSL_AEAD_ONLY
     WOLFSSL_LOCAL int  TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
-                                word32 sz, int padSz, int content, int verify);
+                                word32 sz, int padSz, int content, int verify, int epochOrder);
 #endif
 #endif
 
@@ -4473,24 +4500,30 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32, void*);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg*, void*);
     WOLFSSL_LOCAL void DtlsMsgListDelete(DtlsMsg*, void*);
-    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg*, word32, const byte*, byte,
+    WOLFSSL_LOCAL void DtlsTxMsgListClean(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int  DtlsMsgSet(DtlsMsg*, word32, word16, const byte*, byte,
                                                        word32, word32, void*);
-    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32);
-    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL*, word32, const byte*, word32,
+    WOLFSSL_LOCAL DtlsMsg* DtlsMsgFind(DtlsMsg*, word32, word32);
+    WOLFSSL_LOCAL void DtlsMsgStore(WOLFSSL*, word32, word32, const byte*, word32,
                                                 byte, word32, word32, void*);
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgInsert(DtlsMsg*, DtlsMsg*);
 
-    WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL*, const byte*, word32);
+    WOLFSSL_LOCAL int  DtlsMsgPoolSave(WOLFSSL*, const byte*, word32, enum HandShakeType);
     WOLFSSL_LOCAL int  DtlsMsgPoolTimeout(WOLFSSL*);
     WOLFSSL_LOCAL int  VerifyForDtlsMsgPoolSend(WOLFSSL*, byte, word32);
+    WOLFSSL_LOCAL int  VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* head);
     WOLFSSL_LOCAL void DtlsMsgPoolReset(WOLFSSL*);
     WOLFSSL_LOCAL int  DtlsMsgPoolSend(WOLFSSL*, int);
 #endif /* WOLFSSL_DTLS */
 
-#ifndef NO_TLS
+#if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
+    WOLFSSL_LOCAL int DtlsSCRKeysSet(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int IsDtlsMsgSCRKeys(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DtlsUseSCRKeys(WOLFSSL* ssl);
+    WOLFSSL_LOCAL int DtlsCheckOrder(WOLFSSL* ssl, int order);
+#endif
 
-
-#endif /* NO_TLS */
+    WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
@@ -4585,9 +4618,13 @@ WOLFSSL_LOCAL int SetDhExternal(WOLFSSL_DH *dh);
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeHandshakeHashes(WOLFSSL* ssl);
 
+
+#ifndef WOLFSSL_NO_TLS12
+WOLFSSL_LOCAL void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args);
+#endif
 WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         const byte* input, int inSz, int type, int hashOutput,
-                        int sizeOnly, int asyncOkay);
+                        int sizeOnly, int asyncOkay, int epochOrder);
 
 #ifdef WOLFSSL_TLS13
 int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,

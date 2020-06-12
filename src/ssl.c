@@ -1647,7 +1647,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
     if (inSz > maxSize)
         return INPUT_SIZE_E;
 
-    return BuildMessage(ssl, NULL, 0, NULL, inSz, application_data, 0, 1, 0);
+    return BuildMessage(ssl, NULL, 0, NULL, inSz, application_data, 0, 1, 0, CUR_ORDER);
 }
 
 
@@ -2706,7 +2706,8 @@ static int _Rehandshake(WOLFSSL* ssl)
         }
     }
     ret = wolfSSL_negotiate(ssl);
-    ssl->secure_rene_count++;
+    if (ret == WOLFSSL_SUCCESS)
+        ssl->secure_rene_count++;
     return ret;
 }
 
@@ -3227,6 +3228,57 @@ int wolfSSL_UseClientSuites(WOLFSSL* ssl)
 
     return 0;
 }
+
+#ifdef WOLFSSL_DTLS
+const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
+{
+#ifndef WOLFSSL_AEAD_ONLY
+    Keys* keys = NULL;
+
+    (void)epochOrder;
+
+    if (ssl == NULL)
+        return NULL;
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    switch (epochOrder) {
+    case PEER_ORDER:
+        if (IsDtlsMsgSCRKeys(ssl))
+            keys = &ssl->secure_renegotiation->tmp_keys;
+        else
+            keys = &ssl->keys;
+        break;
+    case PREV_ORDER:
+        keys = &ssl->keys;
+        break;
+    case CUR_ORDER:
+        if (DtlsUseSCRKeys(ssl))
+            keys = &ssl->secure_renegotiation->tmp_keys;
+        else
+            keys = &ssl->keys;
+        break;
+    default:
+        WOLFSSL_MSG("Unknown epoch order");
+        return NULL;
+    }
+#else
+    keys = &ssl->keys;
+#endif
+
+    if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
+         (ssl->options.side == WOLFSSL_SERVER_END &&  verify) )
+        return keys->client_write_MAC_secret;
+    else
+        return keys->server_write_MAC_secret;
+#else
+    (void)ssl;
+    (void)verify;
+    (void)epochOrder;
+
+    return NULL;
+#endif
+}
+#endif /* WOLFSSL_DTLS */
 
 const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 {
@@ -11713,6 +11765,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
 #endif /* WOLFSSL_DTLS */
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
+            /* This may be necessary in async so that we don't try to
+             * renegotiate again */
+            if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+                ssl->secure_renegotiation->startScr = 0;
+            }
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+
             WOLFSSL_LEAVE("SSL_connect()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
 
@@ -12093,6 +12153,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 ssl->options.dtlsHsRetain = 1;
             }
 #endif /* WOLFSSL_DTLS */
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
+            /* This may be necessary in async so that we don't try to
+             * renegotiate again */
+            if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+                ssl->secure_renegotiation->startScr = 0;
+            }
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
 
 #ifdef WOLFSSL_SESSION_EXPORT
             if (ssl->dtls_export) {

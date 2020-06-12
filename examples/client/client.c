@@ -3050,13 +3050,28 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         } else {
             if (!resumeScr) {
                 printf("Beginning secure rengotiation.\n");
-                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
-                    printf("err = %d, %s\n", err,
-                                    wolfSSL_ERR_error_string(err, buffer));
-                    wolfSSL_free(ssl); ssl = NULL;
-                    wolfSSL_CTX_free(ctx); ctx = NULL;
-                    err_sys("wolfSSL_Rehandshake failed");
+#ifdef WOLFSSL_ASYNC_CRYPT
+                    while (err == WC_PENDING_E) {
+                        err = 0;
+                        ret = wolfSSL_negotiate(ssl);
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            if (err == WC_PENDING_E) {
+                                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                                if (ret < 0) break;
+                            }
+                        }
+                    }
+#endif
+                    if (ret != WOLFSSL_SUCCESS) {
+                        printf("err = %d, %s\n", err,
+                                        wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_free(ssl); ssl = NULL;
+                        wolfSSL_CTX_free(ctx); ctx = NULL;
+                        err_sys("wolfSSL_Rehandshake failed");
+                    }
                 }
                 else {
                     printf("RENEGOTIATION SUCCESSFUL\n");
@@ -3064,13 +3079,28 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
             else {
                 printf("Beginning secure resumption.\n");
-                if (wolfSSL_SecureResume(ssl) != WOLFSSL_SUCCESS) {
+                if ((ret = wolfSSL_SecureResume(ssl)) != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
-                    printf("err = %d, %s\n", err,
-                                    wolfSSL_ERR_error_string(err, buffer));
-                    wolfSSL_free(ssl); ssl = NULL;
-                    wolfSSL_CTX_free(ctx); ctx = NULL;
-                    err_sys("wolfSSL_SecureResume failed");
+#ifdef WOLFSSL_ASYNC_CRYPT
+                    while (err == WC_PENDING_E) {
+                        err = 0;
+                        ret = wolfSSL_negotiate(ssl);
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            if (err == WC_PENDING_E) {
+                                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                                if (ret < 0) break;
+                            }
+                        }
+                    }
+#endif
+                    if (ret != WOLFSSL_SUCCESS) {
+                        printf("err = %d, %s\n", err,
+                                        wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_free(ssl); ssl = NULL;
+                        wolfSSL_CTX_free(ctx); ctx = NULL;
+                        err_sys("wolfSSL_SecureResume failed");
+                    }
                 }
                 else {
                     printf("SECURE RESUMPTION SUCCESSFUL\n");

@@ -3066,7 +3066,11 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status) {
         keys = &ssl->secure_renegotiation->tmp_keys;
-        copy = 1;
+#ifdef WOLFSSL_DTLS
+        /* For DTLS, copy is done in StoreKeys */
+        if (!ssl->options.dtls)
+#endif
+            copy = 1;
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
@@ -3141,6 +3145,15 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
                   ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
+#ifdef WOLFSSL_DTLS
+    if (ret == 0 && ssl->options.dtls) {
+        if (wc_encrypt)
+            wc_encrypt->src = keys == &ssl->keys ? KEYS : SCR;
+        if (wc_decrypt)
+            wc_decrypt->src = keys == &ssl->keys ? KEYS : SCR;
+    }
+#endif
+
     if (copy) {
         int clientCopy = 0;
 
@@ -3217,11 +3230,26 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
 {
     int sz, i = 0;
     Keys* keys = &ssl->keys;
+#ifdef WOLFSSL_DTLS
+    /* In case of DTLS, ssl->keys is updated here */
+    int scr_copy = 0;
+#endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status ==
-                                                            SCR_CACHE_NEEDED) {
+    if (ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->cache_status == SCR_CACHE_NEEDED) {
         keys = &ssl->secure_renegotiation->tmp_keys;
+#ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            /* epoch is incremented after StoreKeys is called */
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch = ssl->keys.dtls_epoch + 1;
+            /* we only need to copy keys on second and future renegotiations */
+            if (ssl->keys.dtls_epoch > 1)
+                scr_copy = 1;
+            ssl->encrypt.src = KEYS_NOT_SET;
+            ssl->decrypt.src = KEYS_NOT_SET;
+        }
+#endif
         CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -3232,23 +3260,54 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         if (ssl->specs.cipher_type != aead) {
             sz = ssl->specs.hash_size;
     #ifndef WOLFSSL_AEAD_ONLY
+
+    #ifdef WOLFSSL_DTLS
+            if (scr_copy) {
+                XMEMCPY(ssl->keys.client_write_MAC_secret,
+                        keys->client_write_MAC_secret, sz);
+                XMEMCPY(ssl->keys.server_write_MAC_secret,
+                        keys->server_write_MAC_secret, sz);
+            }
+    #endif
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
     #endif
             i += sz;
         }
         sz = ssl->specs.key_size;
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy) {
+            XMEMCPY(ssl->keys.client_write_key,
+                    keys->client_write_key, sz);
+            XMEMCPY(ssl->keys.server_write_key,
+                    keys->server_write_key, sz);
+        }
+    #endif
         XMEMCPY(keys->client_write_key, &keyData[i], sz);
         XMEMCPY(keys->server_write_key, &keyData[i], sz);
         i += sz;
 
         sz = ssl->specs.iv_size;
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy) {
+            XMEMCPY(ssl->keys.client_write_IV,
+                    keys->client_write_IV, sz);
+            XMEMCPY(ssl->keys.server_write_IV,
+                    keys->server_write_IV, sz);
+        }
+    #endif
         XMEMCPY(keys->client_write_IV, &keyData[i], sz);
         XMEMCPY(keys->server_write_IV, &keyData[i], sz);
 
 #ifdef HAVE_AEAD
         if (ssl->specs.cipher_type == aead) {
             /* Initialize the AES-GCM/CCM explicit IV to a zero. */
+        #ifdef WOLFSSL_DTLS
+            if (scr_copy) {
+                XMEMCPY(ssl->keys.aead_exp_IV,
+                        keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
+            }
+        #endif
             XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
         }
 #endif /* HAVE_AEAD */
@@ -3261,12 +3320,22 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         sz = ssl->specs.hash_size;
         if (side & PROVISION_CLIENT) {
     #ifndef WOLFSSL_AEAD_ONLY
+        #ifdef WOLFSSL_DTLS
+            if (scr_copy)
+                XMEMCPY(ssl->keys.client_write_MAC_secret,
+                        keys->client_write_MAC_secret, sz);
+        #endif
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
     #endif
             i += sz;
         }
         if (side & PROVISION_SERVER) {
     #ifndef WOLFSSL_AEAD_ONLY
+        #ifdef WOLFSSL_DTLS
+            if (scr_copy)
+                XMEMCPY(ssl->keys.server_write_MAC_secret,
+                        keys->server_write_MAC_secret, sz);
+        #endif
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
     #endif
             i += sz;
@@ -3274,25 +3343,51 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     }
     sz = ssl->specs.key_size;
     if (side & PROVISION_CLIENT) {
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy)
+            XMEMCPY(ssl->keys.client_write_key,
+                    keys->client_write_key, sz);
+    #endif
         XMEMCPY(keys->client_write_key, &keyData[i], sz);
         i += sz;
     }
     if (side & PROVISION_SERVER) {
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy)
+            XMEMCPY(ssl->keys.server_write_key,
+                    keys->server_write_key, sz);
+    #endif
         XMEMCPY(keys->server_write_key, &keyData[i], sz);
         i += sz;
     }
 
     sz = ssl->specs.iv_size;
     if (side & PROVISION_CLIENT) {
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy)
+            XMEMCPY(ssl->keys.client_write_IV,
+                    keys->client_write_IV, sz);
+    #endif
         XMEMCPY(keys->client_write_IV, &keyData[i], sz);
         i += sz;
     }
-    if (side & PROVISION_SERVER)
+    if (side & PROVISION_SERVER) {
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy)
+            XMEMCPY(ssl->keys.server_write_IV,
+                    keys->server_write_IV, sz);
+    #endif
         XMEMCPY(keys->server_write_IV, &keyData[i], sz);
+    }
 
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
         /* Initialize the AES-GCM/CCM explicit IV to a zero. */
+    #ifdef WOLFSSL_DTLS
+        if (scr_copy)
+            XMEMCPY(ssl->keys.aead_exp_IV,
+                    keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
+    #endif
         XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
     }
 #endif
