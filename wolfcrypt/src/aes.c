@@ -1561,6 +1561,7 @@ static word32 col_mul(word32 t, int i2, int i3, int ia, int ib)
     return GETBYTE(t, ia) ^ GETBYTE(t, ib) ^ t3 ^ tm;
 }
 
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
 static word32 inv_col_mul(word32 t, int i9, int ib, int id, int ie)
 {
     byte t9 = GETBYTE(t, i9);
@@ -1571,8 +1572,10 @@ static word32 inv_col_mul(word32 t, int i9, int ib, int id, int ie)
     return t0 ^ AES_XTIME(AES_XTIME(AES_XTIME(t0 ^ te) ^ td ^ te) ^ tb ^ te);
 }
 #endif
+#endif
 
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM)
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT) || \
+                                    defined(HAVE_AESCCM) || defined(HAVE_AESGCM)
 
 #ifndef WC_CACHE_LINE_SZ
     #if defined(__x86_64__) || defined(_M_X64) || \
