@@ -8408,7 +8408,10 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
             return ASN_PARSE_E;
         }
 
-        DecodeSubtree(input + idx, length, subtree, cert->heap);
+        if (DecodeSubtree(input + idx, length, subtree, cert->heap) < 0) {
+            WOLFSSL_MSG("\terror parsing subtree");
+            return ASN_PARSE_E;
+        }
 
         idx += length;
     }
