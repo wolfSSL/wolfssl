@@ -35,7 +35,7 @@
 #endif
 
 #ifndef WOLFSSL_SNIFFER
-
+#ifndef NO_MAIN_DRIVER
 /* blank build */
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +44,7 @@ int main(void)
     printf("do ./configure --enable-sniffer to enable build support\n");
     return EXIT_SUCCESS;
 }
-
+#endif /* !NO_MAIN_DRIVER */
 #else
 /* do a full build */
 

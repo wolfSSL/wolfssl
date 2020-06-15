@@ -1,0 +1,18 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/STM32Cube/README.md
+EXTRA_DIST+= IDE/STM32Cube/main.c
+EXTRA_DIST+= IDE/STM32Cube/wolfssl_example.c
+EXTRA_DIST+= IDE/STM32Cube/wolfSSL.wolfSSL_conf.h
+EXTRA_DIST+= IDE/STM32Cube/wolfssl_example.h
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32F407.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32F437.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32F777.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32H753.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32L4A6.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32L475.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32L552.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32L562.ioc
+EXTRA_DIST+= IDE/STM32Cube/Boards/STM32WB55.ioc

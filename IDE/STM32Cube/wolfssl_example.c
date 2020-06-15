@@ -30,12 +30,17 @@
 
 #include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 
-#define WOLFSSL_DEBUG_MEMORY
-#ifdef WOLFSSL_DEBUG_MEMORY
-/* for memory debugging */
-#include <task.h>
+#ifndef SINGLE_THREADED
+    #include <cmsis_os.h>
+
+    #ifdef WOLFSSL_DEBUG_MEMORY
+        /* for memory debugging */
+        #include <task.h>
+    #endif
 #endif
 
+#include <stdio.h>
+#include <string.h>
 
 /*****************************************************************************
  * Configuration
@@ -47,9 +52,18 @@
 #define BENCH_RUNTIME_SEC    20
 #define BENCH_SHOW_PEER_INFO 1
 #define TEST_PACKET_SIZE     (2 * 1024)  /* TLS packet size */
+#ifdef BENCH_EMBEDDED
+#define TEST_MAX_SIZE        (4 * 1024)
+#else
 #define TEST_MAX_SIZE        (32 * 1024) /* Total bytes to benchmark */
+#endif
 /* Must be large enough to handle max packet size - TLS header MAX_MSG_EXTRA + MAX DIGEST */
 #define MEM_BUFFER_SZ        (TEST_PACKET_SIZE + 38 + WC_MAX_DIGEST_SIZE)
+/* make sure memory buffer size is large enough */
+#if MEM_BUFFER_SZ < 2048
+	#undef  MEM_BUFFER_SZ
+	#define MEM_BUFFER_SZ 2048
+#endif
 #define SHOW_VERBOSE         0 /* Default output is tab delimited format */
 #ifndef WOLFSSL_CIPHER_LIST_MAX_SIZE
 #define WOLFSSL_CIPHER_LIST_MAX_SIZE 2048
@@ -58,15 +72,41 @@
     /* define this to test only a specific cipher suite(s) (colon separated) */
     #define TEST_CIPHER_SUITE "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"
 #endif
-
+#if 0
+    /* use non-blocking mode for read/write IO */
+    #define BENCH_USE_NONBLOCK
+#endif
 
 /*****************************************************************************
  * Private types/enumerations/variables
  ****************************************************************************/
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    #if 1 /* on-chip RAM */
+        #define RAM_STATIC
+    #else /* external RAM */
+        /* requires .ld to be updated with ".extram" section */
+        #define RAM_STATIC __attribute__ ((section (".extram")))
+    #endif
+    #define WOLF_GEN_MEM         (20*1024)
+    #define WOLF_TLS_GEN_MEM     (90*1024)
+    #define WOLF_TLS_IO_POOL_MEM (35*1024)
+
+    RAM_STATIC static byte gWolfMem[WOLF_GEN_MEM];
+    RAM_STATIC static byte gWolfCTXCli[WOLF_TLS_GEN_MEM];
+    RAM_STATIC static byte gWolfIOCli[WOLF_TLS_IO_POOL_MEM];
+    RAM_STATIC static byte gWolfCTXSrv[WOLF_TLS_GEN_MEM];
+    RAM_STATIC static byte gWolfIOSrv[WOLF_TLS_IO_POOL_MEM];
+
+    WOLFSSL_HEAP_HINT* HEAP_HINT = NULL;
+#endif /* WOLFSSL_STATIC_MEMORY */
+
+
 /* UART definitions */
-extern UART_HandleTypeDef huart4;
-extern SPI_HandleTypeDef hspi1;
+#ifndef HAL_CONSOLE_UART
+#define HAL_CONSOLE_UART huart4
+#endif
+extern UART_HandleTypeDef HAL_CONSOLE_UART;
 
 /*****************************************************************************
  * Public types/enumerations/variables
@@ -77,16 +117,20 @@ typedef struct func_args {
 	int return_code;
 } func_args;
 
-const char menu1[] = "\r\n"
-		"\tt. WolfCrypt Test\r\n"
-		"\tb. WolfCrypt Benchmark\r\n"
-        "\tl. WolfSSL TLS Bench\r\n"
-        "\te. Show Cipher List\r\n";
+const char menu1[] = "\n"
+		"\tt. WolfCrypt Test\n"
+		"\tb. WolfCrypt Benchmark\n"
+        "\tl. WolfSSL TLS Bench\n"
+        "\te. Show Cipher List\n";
 
-static const char* kShutdown = "shutdown";
+static void PrintMemStats(void);
+double current_time(void);
+
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY)
+    !defined(WOLFCRYPT_ONLY) && !defined(SINGLE_THREADED)
+
+static const char* kShutdown = "shutdown";
 
 static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
@@ -220,10 +264,14 @@ typedef struct {
 typedef struct {
     int ret;
 
-    osThreadDef_t threadDef;
     osThreadId threadId;
+#ifdef CMSIS_OS2_H_
+    osSemaphoreId_t mutex;
+#else
+    osThreadDef_t threadDef;
     osSemaphoreDef_t mutexDef;
     osSemaphoreId mutex;
+#endif
 
     byte shutdown:1;
     byte done:1;
@@ -257,29 +305,13 @@ typedef struct {
 } info_t;
 
 
-extern RTC_HandleTypeDef hrtc;
-double current_time(void)
-{
-	RTC_TimeTypeDef time;
-	RTC_DateTypeDef date;
-	uint32_t subsec;
-
-	/* must get time and date here due to STM32 HW bug */
-	HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
-	HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
-	subsec = (255 - time.SubSeconds) * 1000 / 255;
-
-	(void) date;
-
-	/* return seconds.milliseconds */
-	return ((double) time.Hours * 24) + ((double) time.Minutes * 60)
-			+ (double) time.Seconds + ((double) subsec / 1000);
-}
+/*****************************************************************************
+ * Private functions
+ ****************************************************************************/
 static double gettime_secs(int reset)
 {
     return current_time();
 }
-
 
 static void PrintTlsStats(stats_t* wcStat, const char* desc, const char* cipher, int verbose)
 {
@@ -311,30 +343,6 @@ static void PrintTlsStats(stats_t* wcStat, const char* desc, const char* cipher,
            wcStat->txTotal / wcStat->txTime / 1024 / 1024,
            wcStat->connTime * 1000,
            wcStat->connTime * 1000 / wcStat->connCount);
-}
-
-static void ShowCiphers(void)
-{
-    int ret;
-    char* ciphers = (char*)XMALLOC(WOLFSSL_CIPHER_LIST_MAX_SIZE, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (ciphers) {
-        ret = wolfSSL_get_ciphers(ciphers, WOLFSSL_CIPHER_LIST_MAX_SIZE);
-        if (ret == WOLFSSL_SUCCESS)
-            printf("%s\n", ciphers);
-        XFREE(ciphers, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-}
-
-
-static void PrintMemStats(void)
-{
-#ifdef WOLFSSL_DEBUG_MEMORY
-    printf("\nHeap MinEver %d, Free %d, Stack %lu\n",
-        xPortGetMinimumEverFreeHeapSize(),
-        xPortGetFreeHeapSize(),
-        uxTaskGetStackHighWaterMark(NULL));
-#endif
 }
 
 
@@ -481,7 +489,11 @@ static void ShowPeer(WOLFSSL* ssl)
 /* server send callback */
 static int ServerMemSend(info_t* info, char* buf, int sz)
 {
+#ifdef CMSIS_OS2_H_
+	osSemaphoreAcquire(info->client.mutex, osWaitForever);
+#else
     osSemaphoreWait(info->client.mutex, osWaitForever);
+#endif
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
@@ -499,7 +511,11 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
 
+#ifdef CMSIS_OS2_H_
+    osThreadFlagsSet(info->client.threadId, 1);
+#else
     osSignalSet(info->client.threadId, 1);
+#endif
     osSemaphoreRelease(info->client.mutex);
 
 #ifdef BENCH_USE_NONBLOCK
@@ -512,14 +528,23 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
 /* server recv callback */
 static int ServerMemRecv(info_t* info, char* buf, int sz)
 {
+#ifdef CMSIS_OS2_H_
+    osSemaphoreAcquire(info->server.mutex, osWaitForever);
+#else
     osSemaphoreWait(info->server.mutex, osWaitForever);
+#endif
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz &&
             !info->client.done) {
         osSemaphoreRelease(info->server.mutex);
+#ifdef CMSIS_OS2_H_
+        osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
+        osSemaphoreAcquire(info->server.mutex, osWaitForever);
+#else
         osSignalWait(1, osWaitForever);
         osSemaphoreWait(info->server.mutex, osWaitForever);
+#endif
     }
 #else
     if (info->to_server.write_idx - info->to_server.read_idx < sz)
@@ -548,7 +573,11 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
 /* client send callback */
 static int ClientMemSend(info_t* info, char* buf, int sz)
 {
+#ifdef CMSIS_OS2_H_
+    osSemaphoreAcquire(info->server.mutex, osWaitForever);
+#else
     osSemaphoreWait(info->server.mutex, osWaitForever);
+#endif
 
 #ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
@@ -567,7 +596,11 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
 
+#ifdef CMSIS_OS2_H_
+    osThreadFlagsSet(info->server.threadId, 1);
+#else
     osSignalSet(info->server.threadId, 1);
+#endif
     osSemaphoreRelease(info->server.mutex);
 
 #ifdef BENCH_USE_NONBLOCK
@@ -580,14 +613,23 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
 /* client recv callback */
 static int ClientMemRecv(info_t* info, char* buf, int sz)
 {
+#ifdef CMSIS_OS2_H_
+    osSemaphoreAcquire(info->client.mutex, osWaitForever);
+#else
     osSemaphoreWait(info->client.mutex, osWaitForever);
+#endif
 
 #ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz &&
             !info->server.done) {
         osSemaphoreRelease(info->client.mutex);
+#ifdef CMSIS_OS2_H_
+        osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
+        osSemaphoreAcquire(info->client.mutex, osWaitForever);
+#else
         osSignalWait(1, osWaitForever);
         osSemaphoreWait(info->client.mutex, osWaitForever);
+#endif
     }
 #else
     if (info->to_client.write_idx - info->to_client.read_idx < sz)
@@ -645,7 +687,7 @@ static int bench_tls_client(info_t* info)
 {
     byte *writeBuf = NULL, *readBuf = NULL;
     double start, total = 0;
-    int ret, readBufSz;
+    int ret = 0, readBufSz;
     WOLFSSL_CTX* cli_ctx = NULL;
     WOLFSSL* cli_ssl = NULL;
     int haveShownPeerInfo = 0;
@@ -656,20 +698,42 @@ static int bench_tls_client(info_t* info)
 
     /* set up client */
 #ifdef WOLFSSL_TLS13
-    if (tls13)
+    if (tls13) {
+	#ifdef WOLFSSL_STATIC_MEMORY
+    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_3_client_method_ex, 
+            gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
+	#else
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+	#endif
+    }
 #endif
-    if (!tls13)
+    if (!tls13) {
 #if !defined(WOLFSSL_TLS13)
+	#ifdef WOLFSSL_STATIC_MEMORY
+    	ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfSSLv23_client_method_ex, 
+            gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
+	#else
         cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+	#endif
 #elif !defined(WOLFSSL_NO_TLS12)
+	#ifdef WOLFSSL_STATIC_MEMORY
+        ret = wolfSSL_CTX_load_static_memory(&cli_ctx, wolfTLSv1_2_client_method_ex, 
+            gWolfCTXCli, sizeof(gWolfCTXCli), WOLFMEM_GENERAL , 10);
+	#else
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+	#endif
 #endif
+    }
 
-    if (cli_ctx == NULL) {
-        printf("error creating ctx\n");
+    if (cli_ctx == NULL || ret != 0) {
+        printf("error creating ctx: ret %d\n", ret);
         ret = MEMORY_E; goto exit;
     }
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    ret = wolfSSL_CTX_load_static_memory(&cli_ctx, 0, gWolfIOCli, sizeof(gWolfIOCli), 
+        WOLFMEM_IO_POOL, 10 );
+#endif
 
 #ifndef NO_CERTS
 #ifdef HAVE_ECC
@@ -733,7 +797,7 @@ static int bench_tls_client(info_t* info)
         cli_ssl = wolfSSL_new(cli_ctx);
         if (cli_ssl == NULL) {
             printf("error creating client object\n");
-            goto exit;
+            ret = MEMORY_E; goto exit;
         }
 
         wolfSSL_SetIOReadCtx(cli_ssl, info);
@@ -846,6 +910,7 @@ static int bench_tls_client(info_t* info)
 exit:
 
     if (ret != 0 && ret != WOLFSSL_SUCCESS) {
+    	info->doShutdown = 1;
         printf("Client Error: %d (%s)\n", ret,
             wolfSSL_ERR_reason_error_string(ret));
     }
@@ -862,7 +927,11 @@ exit:
     return ret;
 }
 
+#ifdef CMSIS_OS2_H_
+static void client_thread(void* args)
+#else
 static void client_thread(const void* args)
+#endif
 {
     int ret;
     info_t* info = (info_t*)args;
@@ -871,8 +940,13 @@ static void client_thread(const void* args)
         ret = bench_tls_client(info);
 
         /* signal server */
-        if (!info->server.done && info->server.threadId != 0)
+        if (!info->server.done && info->server.threadId != 0) {
+#ifdef CMSIS_OS2_H_
+            osThreadFlagsSet(info->server.threadId, 1);
+#else
         	osSignalSet(info->server.threadId, 1);
+#endif
+        }
         info->client.ret = ret;
         info->client.done = 1;
         osThreadSuspend(NULL);
@@ -888,7 +962,7 @@ static int bench_tls_server(info_t* info)
 {
     byte *readBuf = NULL;
     double start;
-    int ret, len = 0, readBufSz;
+    int ret = 0, len = 0, readBufSz;
     WOLFSSL_CTX* srv_ctx = NULL;
     WOLFSSL* srv_ssl = NULL;
     int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
@@ -896,15 +970,42 @@ static int bench_tls_server(info_t* info)
 
     /* set up server */
 #ifdef WOLFSSL_TLS13
-    if (tls13)
-        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    if (tls13) {
+	#ifdef WOLFSSL_STATIC_MEMORY
+    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_3_server_method_ex, 
+            gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
+	#else
+    	srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+	#endif
+    }
 #endif
-    if (!tls13)
-        srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
-    if (srv_ctx == NULL) {
-        printf("error creating server ctx\n");
+    if (!tls13) {
+#if !defined(WOLFSSL_TLS13)
+	#ifdef WOLFSSL_STATIC_MEMORY
+    	ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfSSLv23_server_method_ex, 
+            gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
+	#else
+    	srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+	#endif
+#elif !defined(WOLFSSL_NO_TLS12)
+	#ifdef WOLFSSL_STATIC_MEMORY
+        ret = wolfSSL_CTX_load_static_memory(&srv_ctx, wolfTLSv1_2_server_method_ex, 
+            gWolfCTXSrv, sizeof(gWolfCTXSrv), WOLFMEM_GENERAL , 10);
+	#else
+        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+	#endif
+#endif
+    }
+
+    if (srv_ctx == NULL || ret != 0) {
+        printf("error creating server ctx: ret %d\n", ret);
         ret = MEMORY_E; goto exit;
     }
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    ret = wolfSSL_CTX_load_static_memory(&srv_ctx, 0, gWolfIOSrv, sizeof(gWolfIOSrv), 
+        WOLFMEM_IO_POOL, 10 );
+#endif
 
 #ifndef NO_CERTS
 #ifdef HAVE_ECC
@@ -1081,6 +1182,7 @@ static int bench_tls_server(info_t* info)
 exit:
 
     if (ret != 0 && ret != WOLFSSL_SUCCESS) {
+    	info->doShutdown = 1;
         printf("Server Error: %d (%s)\n", ret,
             wolfSSL_ERR_reason_error_string(ret));
     }
@@ -1096,7 +1198,11 @@ exit:
     return ret;
 }
 
+#ifdef CMSIS_OS2_H_
+static void server_thread(void* args)
+#else
 static void server_thread(const void* args)
+#endif
 {
     int ret;
     info_t* info = (info_t*)args;
@@ -1105,8 +1211,13 @@ static void server_thread(const void* args)
         ret = bench_tls_server(info);
 
         /* signal client */
-        if (!info->client.done && info->client.threadId != 0)
+        if (!info->client.done && info->client.threadId != 0) {
+#ifdef CMSIS_OS2_H_
+        	osThreadFlagsSet(info->client.threadId, 1);
+#else
             osSignalSet(info->client.threadId, 1);
+#endif
+        }
         info->server.ret = ret;
         info->server.done = 1;
         osThreadSuspend(NULL);
@@ -1117,6 +1228,19 @@ static void server_thread(const void* args)
 
     osThreadTerminate(info->server.threadId);
 }
+
+#ifdef CMSIS_OS2_H_
+static const osThreadAttr_t server_thread_attributes = {
+  .name = "server_thread",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = WOLF_EXAMPLES_STACK
+};
+static const osThreadAttr_t client_thread_attributes = {
+  .name = "client_thread",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = WOLF_EXAMPLES_STACK
+};
+#endif
 
 int bench_tls(void* args)
 {
@@ -1170,6 +1294,10 @@ int bench_tls(void* args)
     info->showPeerInfo = argShowPeerInfo;
     info->showVerbose = argShowVerbose;
 
+#ifdef CMSIS_OS2_H_
+    info->server.mutex = osSemaphoreNew(1, 0, NULL);
+    info->client.mutex = osSemaphoreNew(1, 0, NULL);
+#else
     info->server.mutex = osSemaphoreCreate(&info->server.mutexDef, 1);
     info->client.mutex = osSemaphoreCreate(&info->client.mutexDef, 1);
 
@@ -1183,6 +1311,7 @@ int bench_tls(void* args)
     info->client.threadDef.pthread = client_thread;
     info->client.threadDef.tpriority = osPriorityNormal;
     info->client.threadDef.stacksize = WOLF_EXAMPLES_STACK;
+#endif
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
@@ -1213,13 +1342,21 @@ int bench_tls(void* args)
 
         /* start threads */
         if (info->server.threadId == 0) {
+#ifdef CMSIS_OS2_H_
+            info->server.threadId = osThreadNew(server_thread, info, &server_thread_attributes);
+#else
             info->server.threadId = osThreadCreate(&info->server.threadDef, info);
+#endif
         }
         else {
             osThreadResume(info->server.threadId);
         }
         if (info->client.threadId == 0) {
+#ifdef CMSIS_OS2_H_
+            info->client.threadId = osThreadNew(client_thread, info, &client_thread_attributes);
+#else
             info->client.threadId = osThreadCreate(&info->client.threadDef, info);
+#endif
         }
         else {
             osThreadResume(info->client.threadId);
@@ -1277,19 +1414,84 @@ exit:
 
     return ret;
 }
-#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY && !SINGLE_THREADED */
 
-/*****************************************************************************
- * Private functions
- ****************************************************************************/
+#ifndef WOLFCRYPT_ONLY
+static void ShowCiphers(void)
+{
+    int ret;
+    char* ciphers = (char*)XMALLOC(WOLFSSL_CIPHER_LIST_MAX_SIZE, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (ciphers) {
+        ret = wolfSSL_get_ciphers(ciphers, WOLFSSL_CIPHER_LIST_MAX_SIZE);
+        if (ret == WOLFSSL_SUCCESS)
+            printf("%s\n", ciphers);
+        XFREE(ciphers, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+#endif
+
+static void PrintMemStats(void)
+{
+#ifdef WOLFSSL_DEBUG_MEMORY
+    printf("\nHeap MinEver %d, Free %d, Stack %lu\n",
+        xPortGetMinimumEverFreeHeapSize(),
+        xPortGetFreeHeapSize(),
+        uxTaskGetStackHighWaterMark(NULL));
+#endif
+}
+
+#if 0
+static void* wolfMallocCb(size_t size)
+{
+	void* ptr = malloc(size);
+	if (ptr == NULL) {
+		printf("BREAK!\n");
+	}
+	return ptr;
+}
+static void wolfFreeCb(void *ptr)
+{
+	free(ptr);
+}
+static void* wolfReallocCb(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}
+#endif
 
 /*****************************************************************************
  * Public functions
  ****************************************************************************/
+#ifdef HAL_RTC_MODULE_ENABLED
+extern RTC_HandleTypeDef hrtc;
+double current_time(void)
+{
+	RTC_TimeTypeDef time;
+	RTC_DateTypeDef date;
+	uint32_t subsec;
+
+	/* must get time and date here due to STM32 HW bug */
+	HAL_RTC_GetTime(&hrtc, &time, FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &date, FORMAT_BIN);
+	subsec = (255 - time.SubSeconds) * 1000 / 255;
+
+	(void) date;
+
+	/* return seconds.milliseconds */
+	return ((double) time.Hours * 24) + ((double) time.Minutes * 60)
+			+ (double) time.Seconds + ((double) subsec / 1000);
+}
+#endif /* HAL_RTC_MODULE_ENABLED */
+
+#ifdef CMSIS_OS2_H_
+void wolfCryptDemo(void* argument)
+#else
 void wolfCryptDemo(const void* argument)
+#endif
 {
     HAL_StatusTypeDef halRet;
-	uint8_t buffer[1]; /* single char */
+	uint8_t buffer[2];
 	func_args args;
 
 #ifdef DEBUG_WOLFSSL
@@ -1297,18 +1499,31 @@ void wolfCryptDemo(const void* argument)
 #endif
 
     /* initialize wolfSSL */
+#ifdef WOLFCRYPT_ONLY
+    wolfCrypt_Init();
+#else
     wolfSSL_Init();
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (wc_LoadStaticMemory(&HEAP_HINT, gWolfMem, sizeof(gWolfMem), 
+            WOLFMEM_GENERAL, 10) != 0) {
+    	printf("unable to load static memory");
+    }
+#endif
+
+    //wolfSSL_SetAllocators(wolfMallocCb, wolfFreeCb, wolfReallocCb);
 
 	while (1) {
         memset(&args, 0, sizeof(args));
         args.return_code = NOT_COMPILED_IN; /* default */
 
-		printf("\r\n\t\t\t\tMENU\r\n");
+		printf("\n\t\t\t\tMENU\n");
 		printf(menu1);
 		printf("Please select one of the above options:\n");
 
         do {
-    		halRet = HAL_UART_Receive(&huart4, buffer, sizeof(buffer), 100);
+    		halRet = HAL_UART_Receive(&HAL_CONSOLE_UART, buffer, sizeof(buffer), 100);
         } while (halRet != HAL_OK || buffer[0] == '\n' || buffer[0] == '\r');
 
 		switch (buffer[0]) {
@@ -1317,6 +1532,8 @@ void wolfCryptDemo(const void* argument)
         #ifndef NO_CRYPT_TEST
 			args.return_code = 0;
 			wolfcrypt_test(&args);
+        #else
+            args.return_code = NOT_COMPILED_IN;
         #endif
 			printf("Crypt Test: Return code %d\n", args.return_code);
 			break;
@@ -1326,30 +1543,42 @@ void wolfCryptDemo(const void* argument)
         #ifndef NO_CRYPT_BENCHMARK
 			args.return_code = 0;
 			benchmark_test(&args);
+        #else
+            args.return_code = NOT_COMPILED_IN;
         #endif
 			printf("Benchmark Test: Return code %d\n", args.return_code);
 			break;
 
         case 'l':
             printf("Running TLS Benchmarks...\n");
-        #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY)
+        #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY) && !defined(SINGLE_THREADED)
             bench_tls(&args);
+        #else
+            args.return_code = NOT_COMPILED_IN;
         #endif
             printf("TLS Benchmarks: Return code %d\n", args.return_code);
             break;
 
         case 'e':
+        #ifndef WOLFCRYPT_ONLY
             ShowCiphers();
+        #else
+            printf("Not compiled in\n");
+        #endif
             break;
 
 			// All other cases go here
 		default:
-			printf("\r\nSelection out of range\r\n");
+			printf("\nSelection out of range\n");
 			break;
 		}
 
         PrintMemStats();
 	}
 
+#ifdef WOLFCRYPT_ONLY
+    wolfCrypt_Cleanup();
+#else
     wolfSSL_Cleanup();
+#endif
 }
