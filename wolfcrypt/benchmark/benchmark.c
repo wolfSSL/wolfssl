@@ -5195,16 +5195,11 @@ void bench_ntruKeyGen(void)
 
 #ifdef HAVE_ECC
 
-#ifndef BENCH_ECC_SIZE
-    #ifdef HAVE_ECC384
-        #define BENCH_ECC_SIZE  48
-    #else
-        #define BENCH_ECC_SIZE  32
-    #endif
-#endif
-
 /* Default to testing P-256 */
-static int bench_ecc_size = 32;
+#ifndef BENCH_ECC_SIZE
+    #define BENCH_ECC_SIZE  32
+#endif
+static int bench_ecc_size = BENCH_ECC_SIZE;
 
 void bench_eccMakeKey(int doAsync)
 {

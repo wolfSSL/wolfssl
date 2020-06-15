@@ -4044,7 +4044,7 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         err = WC_KEY_SIZE_E;
 #else
     {
-        mp_digit mp;
+        mp_digit mp = 0;
 
         base = wc_ecc_new_point_h(key->heap);
         if (base == NULL)
