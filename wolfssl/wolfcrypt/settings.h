@@ -301,7 +301,7 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_RENESAS_RA6M3G)
+#if defined(WOLFSSL_RENESAS_RA6M3G) || defined(WOLFSSL_RENESAS_RA6M3)
     /* settings in user_settings.h */
 #endif
 
