@@ -61,7 +61,7 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
     ge_p3 A;
 #endif
 
-    if (key == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
+    if (key == NULL || pubKey == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0)
