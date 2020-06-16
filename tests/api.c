@@ -16998,9 +16998,19 @@ static int test_wc_ecc_import_raw(void)
     #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_import_raw(&key, kNullStr, kNullStr, kNullStr, curveName);
+            if (ret == ECC_INF_E)
+                ret = BAD_FUNC_ARG; /* This is expected by other tests */
         }
     #endif
-        if (ret == BAD_FUNC_ARG || ret == ECC_INF_E) {
+    #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, "0", qy, d, curveName);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, qx, "0", d, curveName);
+        }
+    #endif
+        if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
