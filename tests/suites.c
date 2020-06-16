@@ -509,6 +509,8 @@ static void test_harness(void* vargs)
     int   cliArgsSz;
     char* cursor;
     char* comment;
+    char  lastChar = '\0';
+    int   do_it = 0;
     const char* fname = "tests/test.conf";
     const char* addArgs = NULL;
 
@@ -571,20 +573,27 @@ static void test_harness(void* vargs)
     cliArgs[0] = args->argv[0];
 
     while (*cursor != 0) {
-        int do_it = 0;
-
         switch (*cursor) {
             case '\n':
                 /* A blank line triggers test case execution or switches
                    to client mode if we don't have the client command yet */
-                if (cliMode == 0)
-                    cliMode = 1;  /* switch to client mode processing */
-                /* skip extra newlines */
-                else
-                    do_it = 1;    /* Do It, we have server and client */
+                if (lastChar != '\n' && (cliArgsSz > 1 || svrArgsSz > 1)) {
+                    if (cliMode == 0)
+                        cliMode = 1;  /* switch to client mode processing */
+                    else
+                        do_it = 1;    /* Do It, we have server and client */
+                }
+            #ifdef DEBUG_SUITE_TESTS
+                else {
+                    /* skip extra new-lines */
+                    printf("skipping extra new line\n");
+                }
+            #endif
+                lastChar = *cursor;
                 cursor++;
                 break;
             case '#':
+                lastChar = *cursor;
                 /* Ignore lines that start with a # */
                 comment = XSTRSEP(&cursor, "\n");
             #ifdef DEBUG_SUITE_TESTS
@@ -597,6 +606,7 @@ static void test_harness(void* vargs)
             default:
                 /* Parameters start with a -. They end in either a newline
                  * or a space. Capture until either, save in Args list. */
+                lastChar = *cursor;
                 if (cliMode)
                     cliArgs[cliArgsSz++] = XSTRSEP(&cursor, " \n");
                 else
@@ -659,6 +669,7 @@ static void test_harness(void* vargs)
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
+            do_it     = 0;
         }
     }
 

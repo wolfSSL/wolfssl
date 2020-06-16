@@ -1729,7 +1729,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
 #if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
-/* avoid printing duplicate certs */
+        /* avoid printing duplicate certs */
         if (store->depth == 1) {
             /* retrieve x509 certs and display them on stdout */
             sk = wolfSSL_X509_STORE_GetCerts(store);
