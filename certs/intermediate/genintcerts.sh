@@ -8,32 +8,40 @@
 #      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
 #    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem 
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
-#      SERVER: ./certs/intermediate/server-int-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain/emailAddress=info@wolfssl.com
+#      INTERMEDIATE2: ./certs/intermediate/ca-int2-cert.pem 
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
+#        SERVER: ./certs/intermediate/server-int-cert.pem
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain/emailAddress=info@wolfssl.com
 
 # RSA Client
 #  ROOT: ./certs/ca-cert.pem
 #      C=US, ST=Montana, L=Bozeman, O=Sawtooth, OU=Consulting, CN=www.wolfssl.com/emailAddress=info@wolfssl.com)
 #    INTERMEDIATE: ./certs/intermediate/ca-int-cert.pem 
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA/emailAddress=info@wolfssl.com
-#      CLIENT: ./certs/intermediate/client-int-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain/emailAddress=info@wolfssl.com
+#      INTERMEDIATE: ./certs/intermediate/ca-int2-cert.pem 
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA/emailAddress=info@wolfssl.com
+#        CLIENT: ./certs/intermediate/client-int-cert.pem
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain/emailAddress=info@wolfssl.com
 
 # ECC Server
 #  ROOT: ./certs/ca-ecc-cert.pem
 #      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
 #    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem 
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
-#      SERVER: ./certs/intermediate/server-int-ecc-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain ECC/emailAddress=info@wolfssl.com
+#      INTERMEDIATE2: ./certs/intermediate/ca-int-ecc-cert.pem 
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
+#        SERVER: ./certs/intermediate/server-int-ecc-cert.pem
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Server Chain ECC/emailAddress=info@wolfssl.com
 
 # ECC Client
 #  ROOT: ./certs/ca-ecc-cert.pem
 #      C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=www.wolfssl.com/emailAddress=info@wolfssl.com
 #    INTERMEDIATE: ./certs/intermediate/ca-int-ecc-cert.pem 
 #        C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate CA ECC/emailAddress=info@wolfssl.com
-#      CLIENT: ./certs/intermediate/client-int-ecc-cert.pem
-#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain ECC/emailAddress=info@wolfssl.com
+#      INTERMEDIATE2: ./certs/intermediate/ca-int2-ecc-cert.pem 
+#          C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Intermediate2 CA ECC/emailAddress=info@wolfssl.com
+#        CLIENT: ./certs/intermediate/client-int-ecc-cert.pem
+#            C=US, ST=Washington, L=Seattle, O=wolfSSL, OU=Development, CN=wolfSSL Client Chain ECC/emailAddress=info@wolfssl.com
 
 
 # Run from wolfssl-root as  `./certs/intermediate/genintcerts.sh`
@@ -130,7 +138,13 @@ create_ca_config() {
     echo "[ v3_intermediate_ca ]"                               >> "$1"
     echo "subjectKeyIdentifier = hash"                          >> "$1"
     echo "authorityKeyIdentifier = keyid:always,issuer"         >> "$1"
-    echo "basicConstraints = critical, CA:true, pathlen:0"      >> "$1"
+    echo "basicConstraints = critical, CA:true, pathlen:1"      >> "$1"
+    echo "keyUsage = critical, digitalSignature, cRLSign, keyCertSign">> "$1"
+    echo ""                                                     >> "$1"
+    echo "[ v3_intermediate2_ca ]"                              >> "$1"
+    echo "subjectKeyIdentifier = hash"                          >> "$1"
+    echo "authorityKeyIdentifier = keyid:always,issuer"         >> "$1"
+    echo "basicConstraints = critical, CA:true, pathlen:1"      >> "$1"
     echo "keyUsage = critical, digitalSignature, cRLSign, keyCertSign">> "$1"
     echo ""                                                     >> "$1"
     echo "[ usr_cert ]"                                         >> "$1"
@@ -205,6 +219,7 @@ fi
 echo "Creating RSA CA configuration cnf files"
 create_ca_config ./certs/intermediate/wolfssl_root.cnf certs/ca-key.pem certs/ca-cert.pem
 create_ca_config ./certs/intermediate/wolfssl_int.cnf certs/intermediate/ca-int-key.pem certs/intermediate/ca-int-cert.pem
+create_ca_config ./certs/intermediate/wolfssl_int2.cnf certs/intermediate/ca-int2-key.pem certs/intermediate/ca-int2-cert.pem
 
 if [ ! -f ./certs/intermediate/ca-int-key.pem ]; then
     echo "Make Intermediate RSA CA Key"
@@ -213,32 +228,46 @@ if [ ! -f ./certs/intermediate/ca-int-key.pem ]; then
     openssl rsa -in ./certs/intermediate/ca-int-key.pem -inform PEM -out ./certs/intermediate/ca-int-key.der -outform DER
     check_result $?
 fi
+if [ ! -f ./certs/intermediate/ca-int2-key.pem ]; then
+    echo "Make Intermediate2 RSA CA Key"
+    openssl genrsa -out ./certs/intermediate/ca-int2-key.pem 2048
+    check_result $?
+    openssl rsa -in ./certs/intermediate/ca-int2-key.pem -inform PEM -out ./certs/intermediate/ca-int2-key.der -outform DER
+    check_result $?
+fi
 
 echo "Create RSA Intermediate CA signed by root"
 create_cert wolfssl_int wolfssl_root ./certs/intermediate/ca-int-key.pem ca-int-cert v3_intermediate_ca "wolfSSL Intermediate CA" 7300
 
-echo "Create RSA Server Certificate signed by intermediate"
-create_cert wolfssl_int wolfssl_int ./certs/server-key.pem server-int-cert server_cert "wolfSSL Server Chain" 3650
+echo "Create RSA Intermediate2 CA signed by RSA Intermediate"
+create_cert wolfssl_int2 wolfssl_int ./certs/intermediate/ca-int2-key.pem ca-int2-cert v3_intermediate2_ca "wolfSSL Intermediate2 CA" 7300
 
-echo "Create RSA Client Certificate signed by intermediate"
-create_cert wolfssl_int wolfssl_int ./certs/client-key.pem client-int-cert usr_cert "wolfSSL Client Chain" 3650
+echo "Create RSA Server Certificate signed by intermediate2"
+create_cert wolfssl_int2 wolfssl_int2 ./certs/server-key.pem server-int-cert server_cert "wolfSSL Server Chain" 3650
+
+echo "Create RSA Client Certificate signed by intermediate2"
+create_cert wolfssl_int2 wolfssl_int2 ./certs/client-key.pem client-int-cert usr_cert "wolfSSL Client Chain" 3650
 
 echo "Generate CRLs for new certificates"
 openssl ca -config ./certs/intermediate/wolfssl_root.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int.pem -keyfile ./certs/intermediate/ca-int-key.pem -cert ./certs/intermediate/ca-int-cert.pem
 check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int.pem -keyfile ./certs/server-key.pem -cert ./certs/intermediate/server-int-cert.pem
+openssl ca -config ./certs/intermediate/wolfssl_int.cnf  -gencrl -crldays 1000 -out ./certs/crl/ca-int2.pem -keyfile ./certs/intermediate/ca-int2-key.pem -cert ./certs/intermediate/ca-int2-cert.pem
 check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int.pem -keyfile ./certs/client-key.pem -cert ./certs/intermediate/client-int-cert.pem
+openssl ca -config ./certs/intermediate/wolfssl_int2.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int.pem -keyfile ./certs/server-key.pem -cert ./certs/intermediate/server-int-cert.pem
+check_result $?
+openssl ca -config ./certs/intermediate/wolfssl_int2.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int.pem -keyfile ./certs/client-key.pem -cert ./certs/intermediate/client-int-cert.pem
 check_result $?
 
-echo "Assemble test chains - peer first, then intermediate"
+echo "Assemble test chains - peer first, then intermediate2, then intermediate"
 openssl x509 -in ./certs/intermediate/server-int-cert.pem  > ./certs/intermediate/server-chain.pem
+openssl x509 -in ./certs/intermediate/ca-int2-cert.pem    >> ./certs/intermediate/server-chain.pem
 openssl x509 -in ./certs/intermediate/ca-int-cert.pem     >> ./certs/intermediate/server-chain.pem
-cat ./certs/intermediate/server-int-cert.der ./certs/intermediate/ca-int-cert.der > ./certs/intermediate/server-chain.der
+cat ./certs/intermediate/server-int-cert.der ./certs/intermediate/ca-int2-cert.der ./certs/intermediate/ca-int-cert.der > ./certs/intermediate/server-chain.der
 
 openssl x509 -in ./certs/intermediate/client-int-cert.pem  > ./certs/intermediate/client-chain.pem
+openssl x509 -in ./certs/intermediate/ca-int2-cert.pem    >> ./certs/intermediate/client-chain.pem
 openssl x509 -in ./certs/intermediate/ca-int-cert.pem     >> ./certs/intermediate/client-chain.pem
-cat ./certs/intermediate/client-int-cert.der ./certs/intermediate/ca-int-cert.der > ./certs/intermediate/client-chain.der
+cat ./certs/intermediate/client-int-cert.der ./certs/intermediate/ca-int2-cert.der ./certs/intermediate/ca-int-cert.der > ./certs/intermediate/client-chain.der
 
 echo "Assemble cert chain with extra cert for testing alternate chains"
 cp ./certs/intermediate/server-chain.pem ./certs/intermediate/server-chain-alt.pem
@@ -251,6 +280,7 @@ openssl x509 -in ./certs/external/ca-google-root.pem      >> ./certs/intermediat
 echo "Creating ECC CA configuration cnf files"
 create_ca_config ./certs/intermediate/wolfssl_root_ecc.cnf certs/ca-ecc-key.pem certs/ca-ecc-cert.pem
 create_ca_config ./certs/intermediate/wolfssl_int_ecc.cnf certs/intermediate/ca-int-ecc-key.pem certs/intermediate/ca-int-ecc-cert.pem
+create_ca_config ./certs/intermediate/wolfssl_int2_ecc.cnf certs/intermediate/ca-int2-ecc-key.pem certs/intermediate/ca-int2-ecc-cert.pem
 
 if [ ! -f ./certs/intermediate/ca-int-ecc-key.pem ]; then
     echo "Make Intermediate ECC CA Key"
@@ -259,32 +289,46 @@ if [ ! -f ./certs/intermediate/ca-int-ecc-key.pem ]; then
     openssl ec -in ./certs/intermediate/ca-int-ecc-key.pem -inform PEM -out ./certs/intermediate/ca-int-ecc-key.der -outform DER
     check_result $?
 fi
+if [ ! -f ./certs/intermediate/ca-int2-ecc-key.pem ]; then
+    echo "Make Intermediate2 ECC CA Key"
+    openssl ecparam -name prime256v1 -genkey -noout -out ./certs/intermediate/ca-int2-ecc-key.pem
+    check_result $?
+    openssl ec -in ./certs/intermediate/ca-int2-ecc-key.pem -inform PEM -out ./certs/intermediate/ca-int2-ecc-key.der -outform DER
+    check_result $?
+fi
 
 echo "Create ECC Intermediate CA signed by root"
 create_cert wolfssl_int_ecc wolfssl_root_ecc ./certs/intermediate/ca-int-ecc-key.pem ca-int-ecc-cert v3_intermediate_ca "wolfSSL Intermediate CA ECC" 7300
 
-echo "Create ECC Server Certificate signed by intermediate"
-create_cert wolfssl_int_ecc wolfssl_int_ecc ./certs/ecc-key.pem server-int-ecc-cert server_cert "wolfSSL Server Chain ECC" 3650
+echo "Create ECC Intermediate2 CA signed by Intermediate"
+create_cert wolfssl_int2_ecc wolfssl_int_ecc ./certs/intermediate/ca-int2-ecc-key.pem ca-int2-ecc-cert v3_intermediate2_ca "wolfSSL Intermediate2 CA ECC" 7300
 
-echo "Create ECC Client Certificate signed by intermediate"
-create_cert wolfssl_int_ecc wolfssl_int_ecc ./certs/ecc-client-key.pem client-int-ecc-cert usr_cert "wolfSSL Client Chain ECC" 3650
+echo "Create ECC Server Certificate signed by intermediate2"
+create_cert wolfssl_int2_ecc wolfssl_int2_ecc ./certs/ecc-key.pem server-int-ecc-cert server_cert "wolfSSL Server Chain ECC" 3650
+
+echo "Create ECC Client Certificate signed by intermediate2"
+create_cert wolfssl_int2_ecc wolfssl_int2_ecc ./certs/ecc-client-key.pem client-int-ecc-cert usr_cert "wolfSSL Client Chain ECC" 3650
 
 echo "Generate CRLs for new certificates"
 openssl ca -config ./certs/intermediate/wolfssl_root_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int-ecc.pem -keyfile ./certs/intermediate/ca-int-ecc-key.pem -cert ./certs/intermediate/ca-int-ecc-cert.pem
 check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int-ecc.pem -keyfile ./certs/ecc-key.pem -cert ./certs/intermediate/server-int-ecc-cert.pem
+openssl ca -config ./certs/intermediate/wolfssl_int_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int2-ecc.pem -keyfile ./certs/intermediate/ca-int2-ecc-key.pem -cert ./certs/intermediate/ca-int2-ecc-cert.pem
 check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int-ecc.pem -keyfile ./certs/ecc-client-key.pem -cert ./certs/intermediate/client-int-ecc-cert.pem
+openssl ca -config ./certs/intermediate/wolfssl_int2_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int-ecc.pem -keyfile ./certs/ecc-key.pem -cert ./certs/intermediate/server-int-ecc-cert.pem
+check_result $?
+openssl ca -config ./certs/intermediate/wolfssl_int2_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int-ecc.pem -keyfile ./certs/ecc-client-key.pem -cert ./certs/intermediate/client-int-ecc-cert.pem
 check_result $?
 
-echo "Assemble test chains - peer first, then intermediate"
+echo "Assemble test chains - peer first, then intermediate2, then intermediate"
 openssl x509 -in ./certs/intermediate/server-int-ecc-cert.pem  > ./certs/intermediate/server-chain-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-int2-ecc-cert.pem    >> ./certs/intermediate/server-chain-ecc.pem
 openssl x509 -in ./certs/intermediate/ca-int-ecc-cert.pem     >> ./certs/intermediate/server-chain-ecc.pem
-cat ./certs/intermediate/server-int-ecc-cert.der ./certs/intermediate/ca-int-ecc-cert.der > ./certs/intermediate/server-chain-ecc.der
+cat ./certs/intermediate/server-int-ecc-cert.der ./certs/intermediate/ca-int2-ecc-cert.der ./certs/intermediate/ca-int-ecc-cert.der > ./certs/intermediate/server-chain-ecc.der
 
 openssl x509 -in ./certs/intermediate/client-int-ecc-cert.pem  > ./certs/intermediate/client-chain-ecc.pem
+openssl x509 -in ./certs/intermediate/ca-int2-ecc-cert.pem    >> ./certs/intermediate/client-chain-ecc.pem
 openssl x509 -in ./certs/intermediate/ca-int-ecc-cert.pem     >> ./certs/intermediate/client-chain-ecc.pem
-cat ./certs/intermediate/client-int-ecc-cert.der ./certs/intermediate/ca-int-ecc-cert.der > ./certs/intermediate/client-chain-ecc.der
+cat ./certs/intermediate/client-int-ecc-cert.der ./certs/intermediate/ca-int2-ecc-cert.der ./certs/intermediate/ca-int-ecc-cert.der > ./certs/intermediate/client-chain-ecc.der
 
 echo "Assemble cert chain with extra untrusted cert for testing alternate chains"
 cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-alt-ecc.pem
