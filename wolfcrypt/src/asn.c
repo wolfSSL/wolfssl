@@ -14031,7 +14031,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifdef HAVE_ED448
     /* ED448 public key */
     if (ed448Key != NULL)
-        bufferSz = SetEd448PublicKey(buffer, ed448Key, 0);
+        bufferSz = SetEd448PublicKey(buf, ed448Key, 0);
 #endif
 
     if (bufferSz <= 0) {

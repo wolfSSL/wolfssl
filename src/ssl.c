@@ -42845,7 +42845,7 @@ int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
         return ret;
     }
 
-    if (wc_ed448_sign_msg(msg, msgSz, sig, sigSz, &key) != MP_OKAY)
+    if (wc_ed448_sign_msg(msg, msgSz, sig, sigSz, &key, NULL, 0) != MP_OKAY)
         WOLFSSL_MSG("wc_curve448_shared_secret_ex failed");
     else
         ret = WOLFSSL_SUCCESS;
@@ -42897,7 +42897,7 @@ int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
     }
 
     if ((ret = wc_ed448_verify_msg((byte*)sig, sigSz, msg, msgSz, &check,
-                                   &key)) != MP_OKAY) {
+                                   &key, NULL, 0)) != MP_OKAY) {
         WOLFSSL_MSG("wc_ed448_verify_msg failed");
     }
     else if (!check)

@@ -22282,7 +22282,7 @@ static int ed448_test_cert(void)
     if (wc_ed448_verify_msg(serverCert->signature, serverCert->sigLength,
                             serverCert->source + serverCert->certBegin,
                             serverCert->sigIndex - serverCert->certBegin,
-                            &verify, pubKey) < 0 || verify != 1) {
+                            &verify, pubKey, NULL, 0) < 0 || verify != 1) {
         ERROR_OUT(-11032, done);
     }
 #endif /* HAVE_ED448_VERIFY */
