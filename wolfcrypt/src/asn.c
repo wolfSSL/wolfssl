@@ -16995,64 +16995,56 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     WOLFSSL_ENTER("CompareOcspReqResp");
 
-    if (req == NULL)
-    {
+    if (req == NULL) {
         WOLFSSL_MSG("\tReq missing");
         return -1;
     }
-
-    if (resp == NULL)
-    {
+    if (resp == NULL || resp->issuerHash == NULL || 
+            resp->issuerKeyHash == NULL || resp->status == NULL) {
         WOLFSSL_MSG("\tResp missing");
         return 1;
     }
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (req->nonceSz
+    if (req->nonceSz && resp->nonce != NULL
 #ifndef WOLFSSL_FORCE_OCSP_NONCE_CHECK
             && resp->nonceSz != 0
 #endif
     ) {
         cmp = req->nonceSz - resp->nonceSz;
-        if (cmp != 0)
-        {
+        if (cmp != 0) {
             WOLFSSL_MSG("\tnonceSz mismatch");
             return cmp;
         }
 
         cmp = XMEMCMP(req->nonce, resp->nonce, req->nonceSz);
-        if (cmp != 0)
-        {
+        if (cmp != 0) {
             WOLFSSL_MSG("\tnonce mismatch");
             return cmp;
         }
     }
 
     cmp = XMEMCMP(req->issuerHash, resp->issuerHash, KEYID_SIZE);
-    if (cmp != 0)
-    {
+    if (cmp != 0) {
         WOLFSSL_MSG("\tissuerHash mismatch");
         return cmp;
     }
 
     cmp = XMEMCMP(req->issuerKeyHash, resp->issuerKeyHash, KEYID_SIZE);
-    if (cmp != 0)
-    {
+    if (cmp != 0) {
         WOLFSSL_MSG("\tissuerKeyHash mismatch");
         return cmp;
     }
 
     cmp = req->serialSz - resp->status->serialSz;
-    if (cmp != 0)
-    {
+    if (cmp != 0) {
         WOLFSSL_MSG("\tserialSz mismatch");
         return cmp;
     }
 
     cmp = XMEMCMP(req->serial, resp->status->serial, req->serialSz);
-    if (cmp != 0)
-    {
+    if (cmp != 0) {
         WOLFSSL_MSG("\tserial mismatch");
         return cmp;
     }
