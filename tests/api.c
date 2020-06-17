@@ -15462,7 +15462,8 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
     
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key,privateKey,       NULL,publicKey, &pubkSz,EC25519_LITTLE_ENDIAN)){
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key,privateKey,
+						NULL,publicKey, &pubkSz,EC25519_LITTLE_ENDIAN)){
     
         printf(testingFmt,"failed at bad-arg-case-3.");
         fflush( stdout );
@@ -15526,7 +15527,8 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,       NULL, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
+						NULL, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
 
         printf(testingFmt,"failed at bad-arg-case-8.");
         fflush( stdout );
@@ -15702,7 +15704,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     else{
 
         printf(testingFmt,
-                    "failed due to wc_curve25519_export_key_raw_ex(BIGENDIAN)");
+                   "failed due to wc_curve25519_export_key_raw_ex(BIGENDIAN)");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
