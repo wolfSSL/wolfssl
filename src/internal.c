@@ -15629,6 +15629,10 @@ int ProcessReply(WOLFSSL* ssl)
 
                     if (type == decrypt_error)
                         return FATAL_ERROR;
+
+                    /* Reset error if we got an alert level in ret */
+                    if (ret > 0)
+                        ret = 0;
                     break;
 
                 default:
