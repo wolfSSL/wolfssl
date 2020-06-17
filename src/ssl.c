@@ -22738,12 +22738,7 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
 
 #ifdef HAVE_CRL
-    store->crl = NULL;
-    if ((store->crl = (WOLFSSL_X509_CRL *)XMALLOC(sizeof(WOLFSSL_X509_CRL),
-                                        NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
-        goto err_exit;
-    if (InitCRL(store->crl, NULL) < 0)
-        goto err_exit;
+    store->crl = store->cm->crl;
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -22771,10 +22766,6 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
     if (store != NULL && store->isDynamic) {
         if (store->cm != NULL)
             wolfSSL_CertManagerFree(store->cm);
-#ifdef HAVE_CRL
-        if (store->crl != NULL)
-            wolfSSL_X509_CRL_free(store->crl);
-#endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
         if (store->param != NULL)
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -22989,7 +22980,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             wolfSSL_X509_STORE_CTX_set_error(ctx, error);
             wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
-            ctx->store->verify_cb(0, ctx);
+            if (ctx->store && ctx->store->verify_cb)
+                ctx->store->verify_cb(0, ctx);
         }
 
         error = 0;
@@ -23184,8 +23176,8 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
     if (in == NULL) {
         WOLFSSL_MSG("Bad argument value");
     } else {
-        newcrl = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), NULL,
-                DYNAMIC_TYPE_TMP_BUFFER);
+        newcrl =(WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), NULL,
+                DYNAMIC_TYPE_CRL);
         if (newcrl == NULL){
             WOLFSSL_MSG("New CRL allocation failed");
         } else {

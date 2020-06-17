@@ -490,27 +490,204 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 }
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+/* helper function to create a new dynamic WOLFSSL_X509_CRL structure */
+static WOLFSSL_X509_CRL* wolfSSL_X509_crl_new(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_X509_CRL* ret;
+
+    ret = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), cm->heap,
+                DYNAMIC_TYPE_CRL);
+    if (ret != NULL) {
+        if (InitCRL(ret, cm) < 0) {
+            WOLFSSL_MSG("Unable to initialize new CRL structure");
+            XFREE(ret, cm->heap, DYNAMIC_TYPE_CRL);
+            ret = NULL;
+        }
+    }
+    return ret;
+}
+
+
+/* returns head of copied list that was alloc'd */
+static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
+{
+    RevokedCert* head = NULL;
+    RevokedCert* current = in;
+    RevokedCert* prev = NULL;
+    while (current) {
+        RevokedCert* tmp = (RevokedCert*)XMALLOC(sizeof(RevokedCert), heap,
+                DYNAMIC_TYPE_REVOKED);
+        if (tmp != NULL) {
+            XMEMCPY(tmp->serialNumber, current->serialNumber,
+                    EXTERNAL_SERIAL_SIZE);
+            tmp->serialSz = current->serialSz;
+            tmp->next = NULL;
+            if (prev != NULL)
+                prev->next = tmp;
+            if (head == NULL)
+                head = tmp;
+        }
+        current = current->next;
+    }
+    return head;
+}
+
+
+/* returns a deep copy of ent on success and null on fail */
+static CRL_Entry* DupCRL_Entry(CRL_Entry* ent, void* heap)
+{
+    CRL_Entry *dup;
+
+    dup = (CRL_Entry*)XMALLOC(sizeof(CRL_Entry), heap, DYNAMIC_TYPE_CRL_ENTRY);
+    if (dup == NULL) {
+        WOLFSSL_MSG("alloc CRL Entry failed");
+        return NULL;
+    }
+
+    XMEMCPY(dup->issuerHash, ent->issuerHash, CRL_DIGEST_SIZE);
+    XMEMCPY(dup->lastDate, ent->lastDate, MAX_DATE_SIZE);
+    XMEMCPY(dup->nextDate, ent->nextDate, MAX_DATE_SIZE);
+    dup->lastDateFormat = ent->lastDateFormat;
+    dup->nextDateFormat = ent->nextDateFormat;
+    dup->certs = DupRevokedCertList(ent->certs, heap);
+
+    dup->totalCerts = ent->totalCerts;
+    dup->verified = ent->verified;
+
+    if (!ent->verified) {
+        dup->tbsSz = ent->tbsSz;
+        dup->signatureSz = ent->signatureSz;
+        dup->signatureOID = ent->signatureOID;
+        dup->toBeSigned = (byte*)XMALLOC(dup->tbsSz, heap,
+                                          DYNAMIC_TYPE_CRL_ENTRY);
+        if (dup->toBeSigned == NULL) {
+            XFREE(dup, heap, DYNAMIC_TYPE_CRL_ENTRY);
+            return NULL;
+        }
+
+        dup->signature = (byte*)XMALLOC(dup->signatureSz, heap,
+                                         DYNAMIC_TYPE_CRL_ENTRY);
+        if (dup->signature == NULL) {
+            XFREE(dup, heap, DYNAMIC_TYPE_CRL_ENTRY);
+            XFREE(dup->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
+            return NULL;
+        }
+        XMEMCPY(dup->toBeSigned, ent->toBeSigned, dup->tbsSz);
+        XMEMCPY(dup->signature, ent->signature, dup->signatureSz);
+    #ifndef NO_SKID
+        dup->extAuthKeyIdSet = ent->extAuthKeyIdSet;
+        if (dup->extAuthKeyIdSet)
+            XMEMCPY(dup->extAuthKeyId, ent->extAuthKeyId, KEYID_SIZE);
+    #endif
+    }
+    else {
+        dup->toBeSigned = NULL;
+        dup->tbsSz = 0;
+        dup->signature = NULL;
+        dup->signatureSz = 0;
+    }
+
+    return dup;
+}
+
+
+/* returns the head of a deep copy of the list on success and null on fail */
+static CRL_Entry* DupCRL_list(CRL_Entry* crl, void* heap)
+{
+    CRL_Entry* current;
+    CRL_Entry* head = NULL;
+    CRL_Entry* prev = NULL;
+
+    current = crl;
+    while (current != NULL) {
+        CRL_Entry* tmp = DupCRL_Entry(current, heap);
+        if (tmp != NULL) {
+            tmp->next = NULL;
+            if (head == NULL)
+                head = tmp;
+            if (prev != NULL)
+                prev->next = tmp;
+        }
+        current = current->next;
+    }
+    return head;
+}
+
+
+/* Duplicates everything except the parent cm pointed to.
+ * Expects that Init has already been done to 'dup'
+ * return 0 on success */
+static int DupX509_CRL(WOLFSSL_X509_CRL *dup, WOLFSSL_X509_CRL* crl)
+{
+    if (dup == NULL || crl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    dup->crlList = DupCRL_list(crl->crlList, dup->heap);
+#ifdef HAVE_CRL_IO
+    dup->crlIOCb = crl->crlIOCb;
+#endif
+    if (crl->monitors[0].path) {
+        int pathSz = (int)XSTRLEN(crl->monitors[0].path) + 1;
+        dup->monitors[0].path = (char*)XMALLOC(pathSz, dup->heap,
+                DYNAMIC_TYPE_CRL_MONITOR);
+        if (dup->monitors[0].path != NULL) {
+            XSTRNCPY(dup->monitors[0].path, crl->monitors[0].path, pathSz);
+        }
+    }
+
+    if (crl->monitors[1].path) {
+        int pathSz = (int)XSTRLEN(crl->monitors[1].path) + 1;
+        dup->monitors[1].path = (char*)XMALLOC(pathSz, dup->heap,
+                DYNAMIC_TYPE_CRL_MONITOR);
+        if (dup->monitors[1].path != NULL) {
+            XSTRNCPY(dup->monitors[1].path, crl->monitors[1].path, pathSz);
+        }
+    }
+
+    return 0;
+}
+
+/* returns WOLFSSL_SUCCESS on success. Does not take ownership of newcrl */
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     CRL_Entry   *crle;
-    WOLFSSL_CRL *crl;
+    WOLFSSL_X509_CRL *crl;
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_crl");
-    if (store == NULL || newcrl == NULL)
+    if (store == NULL || newcrl == NULL || store->cm == NULL)
         return BAD_FUNC_ARG;
 
-    crl = store->crl;
-    crle = newcrl->crlList;
-
-    if (wc_LockMutex(&crl->crlLock) != 0)
-    {
-        WOLFSSL_MSG("wc_LockMutex failed");
-        return BAD_MUTEX_E;
+    if (store->cm->crl == NULL) {
+        crl = wolfSSL_X509_crl_new(store->cm);
+        DupX509_CRL(crl, newcrl);
+        store->crl = store->cm->crl = crl;
+        return WOLFSSL_SUCCESS;
     }
-    crle->next = crl->crlList;
-    crl->crlList = crle;
-    newcrl->crlList = NULL;
-    wc_UnLockMutex(&crl->crlLock);
+
+    /* find tail of current list and add new list */
+    crl  = store->cm->crl;
+    crle = crl->crlList;
+    if (newcrl->crlList != NULL) {
+        CRL_Entry *tail = crle;
+        CRL_Entry *toAdd;
+
+        if (wc_LockMutex(&crl->crlLock) != 0)
+        {
+            WOLFSSL_MSG("wc_LockMutex failed");
+            return BAD_MUTEX_E;
+        }
+
+        toAdd = DupCRL_list(newcrl->crlList, crl->heap);
+        if (tail == NULL) {
+            crl->crlList = toAdd;
+        }
+        else {
+            while (tail->next != NULL) tail = tail->next;
+            tail->next = toAdd;
+        }
+        wc_UnLockMutex(&crl->crlLock);
+    }
 
     WOLFSSL_LEAVE("wolfSSL_X509_STORE_add_crl", WOLFSSL_SUCCESS);
 
