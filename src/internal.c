@@ -14887,7 +14887,7 @@ int ProcessReply(WOLFSSL* ssl)
         return ssl->error;
     }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_ASYNC_CRYPT)
     /* process any pending DTLS messages - this flow can happen with async */
     if (ssl->dtls_rx_msg_list != NULL) {
         ret = DtlsMsgDrain(ssl);
