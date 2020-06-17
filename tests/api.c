@@ -1210,7 +1210,6 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
     WOLFSSL_CERT_MANAGER* cm;
     const char* ca_cert = "./certs/test/cert-ext-nc.der";
-    const char* client_cert = "./certs/test/server-goodcn.der";
     int i = 0;
     static const byte extNameConsOid[] = {85, 29, 30};
 
