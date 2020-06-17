@@ -333,6 +333,12 @@
 #ifdef HAVE_PKCS7
     #include <wolfssl/openssl/pkcs7.h>
 #endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/openssl/ed25519.h>
+#endif
+#ifdef HAVE_ED448
+    #include <wolfssl/openssl/ed448.h>
+#endif
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
@@ -2068,6 +2074,58 @@ static void test_ECDSA_size_sign(void)
     EC_KEY_free(key);
 
 #endif /* HAVE_ECC && !NO_ECC256 && !NO_ECC_SECP */
+}
+
+static void test_ED25519(void)
+{
+#if defined(HAVE_ED25519) && defined(WOLFSSL_KEY_GEN)
+    byte         priv[ED25519_PRV_KEY_SIZE];
+    unsigned int privSz = (unsigned int)sizeof(priv);
+    byte         pub[ED25519_PUB_KEY_SIZE];
+    unsigned int pubSz = (unsigned int)sizeof(pub);
+    const char*  msg = "Everyone gets Friday off.";
+    unsigned int msglen = (unsigned int)XSTRLEN(msg);
+    byte         sig[ED25519_SIG_SIZE];
+    unsigned int sigSz = (unsigned int)sizeof(sig);
+
+    AssertIntEQ(wolfSSL_ED25519_generate_key(priv, &privSz, pub, &pubSz),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(privSz, ED25519_PRV_KEY_SIZE);
+    AssertIntEQ(pubSz, ED25519_PUB_KEY_SIZE);
+
+    AssertIntEQ(wolfSSL_ED25519_sign((byte*)msg, msglen, priv, privSz, sig,
+                                      &sigSz), WOLFSSL_SUCCESS);
+    AssertIntEQ(sigSz, ED25519_SIG_SIZE);
+
+    AssertIntEQ(wolfSSL_ED25519_verify((byte*)msg, msglen, pub, pubSz, sig,
+                                       sigSz), WOLFSSL_SUCCESS);
+#endif /* HAVE_ED25519 && WOLFSSL_KEY_GEN */
+}
+
+static void test_ED448(void)
+{
+#if defined(HAVE_ED448) && defined(WOLFSSL_KEY_GEN)
+    byte         priv[ED448_PRV_KEY_SIZE];
+    unsigned int privSz = (unsigned int)sizeof(priv);
+    byte         pub[ED448_PUB_KEY_SIZE];
+    unsigned int pubSz = (unsigned int)sizeof(pub);
+    const char*  msg = "Everyone gets Friday off.";
+    unsigned int msglen = (unsigned int)XSTRLEN(msg);
+    byte         sig[ED448_SIG_SIZE];
+    unsigned int sigSz = (unsigned int)sizeof(sig);
+
+    AssertIntEQ(wolfSSL_ED448_generate_key(priv, &privSz, pub, &pubSz),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(privSz, ED448_PRV_KEY_SIZE);
+    AssertIntEQ(pubSz, ED448_PUB_KEY_SIZE);
+
+    AssertIntEQ(wolfSSL_ED448_sign((byte*)msg, msglen, priv, privSz, sig,
+                                   &sigSz), WOLFSSL_SUCCESS);
+    AssertIntEQ(sigSz, ED448_SIG_SIZE);
+
+    AssertIntEQ(wolfSSL_ED448_verify((byte*)msg, msglen, pub, pubSz, sig,
+                                     sigSz), WOLFSSL_SUCCESS);
+#endif /* HAVE_ED448 && WOLFSSL_KEY_GEN */
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -32518,6 +32576,8 @@ void ApiTest(void)
 #endif
     test_wolfSSL_ECDSA_SIG();
     test_ECDSA_size_sign();
+    test_ED25519();
+    test_ED448();
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
     !defined(HAVE_SELFTEST) && \
