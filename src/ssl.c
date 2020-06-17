@@ -7562,6 +7562,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* NO_DSA */
 
     #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     {
         DhKey dh;
         word32 keyIdx = 0;
@@ -7605,6 +7607,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
         }
         wc_FreeDhKey(&dh);
     }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
     return pkey;
@@ -7729,6 +7732,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
             break;
 #endif /* NO_DSA */
 #ifndef NO_DH
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
         case EVP_PKEY_DH:
             local->ownDh = 1;
             local->dh = wolfSSL_DH_new();
@@ -7743,6 +7747,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
                 return NULL;
             }
             break;
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* HAVE_DH */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
         default:

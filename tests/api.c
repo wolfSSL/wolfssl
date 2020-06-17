@@ -26499,6 +26499,7 @@ static void test_wolfSSL_PEM_write_DHparams(void)
 {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #if defined(OPENSSL_EXTRA) && !defined(NO_DH) && !defined(NO_FILESYSTEM)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     DH* dh;
     BIO* bio;
     XFILE fp;
@@ -26538,6 +26539,7 @@ tgZl96bcAGdru8OpQYP7x/rI4h5+rwA/kwIBAg==\n\
     XFCLOSE(fp);
 
     printf(resultFmt, passed);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* OPENSSL_ALL || OPENSSL_QT */
 #endif
 }
@@ -27444,6 +27446,7 @@ static void test_wolfSSL_X509_PUBKEY_get(void)
 static void test_wolfSSL_d2i_DHparams()
 {
 #if !defined(NO_DH)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE* f = NULL;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
@@ -27498,13 +27501,14 @@ static void test_wolfSSL_d2i_DHparams()
 
     DH_free(dh);
     printf(resultFmt, passed);
-
-#endif
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* !NO_DH */
 }
 
 static void test_wolfSSL_i2d_DHparams()
 {
 #if !defined(NO_DH)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE* f;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
@@ -27557,6 +27561,7 @@ static void test_wolfSSL_i2d_DHparams()
 
     DH_free(dh);
     printf(resultFmt, passed);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif
 }
 
@@ -27772,6 +27777,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
 static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
 {
 #if !defined(NO_DH)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     DH       *dh    = NULL;
     DH       *setDh = NULL;
     EVP_PKEY *pkey  = NULL;
@@ -27814,6 +27820,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
     DH_free(setDh);
     DH_free(dh);
     printf(resultFmt, passed);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* NO_DH */
 } /* END test_EVP_PKEY_set1_get1_DH */
 
@@ -28717,6 +28724,7 @@ static void test_wolfSSL_OCSP_get0_info()
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
 #ifdef OPENSSL_ALL
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EVP_PKEY_CTX *ctx;
     unsigned char *skey;
     size_t skeylen;
@@ -28763,13 +28771,15 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     EVP_PKEY_free(peerkey);
     EVP_PKEY_free(pkey);
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
-#endif
-#endif
+#endif /* HAVE_ECC */
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* OPENSSL_ALL */
 }
 
 static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 {
 #if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     RSA *rsa;
     const unsigned char *derBuf = client_key_der_2048;
     unsigned char em[256] = {0}; /* len = 2048/8 */
@@ -28785,7 +28795,8 @@ static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
     AssertIntEQ(RSA_verify_PKCS1_PSS(rsa, mHash, EVP_sha256(), em, -1), 1);
 
     RSA_free(rsa);
-#endif
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* OPENSSL_ALL && WC_RSA_PSS && !WC_NO_RNG*/
 }
 
 static void test_wolfSSL_EC_get_builtin_curves(void)
@@ -31174,6 +31185,7 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
 {
     /* Testing code used in dpp.c in hostap */
 #if defined(OPENSSL_ALL) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EC_KEY *eckey;
     EVP_PKEY *key;
     size_t len;
@@ -31223,6 +31235,7 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
     EVP_PKEY_free(key);
     EC_KEY_free(eckey);
     DPP_BOOTSTRAPPING_KEY_free(bootstrap);
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* WOLFSSL_WPAS && HAVE_ECC && USE_CERT_BUFFERS_256 */
 }
 

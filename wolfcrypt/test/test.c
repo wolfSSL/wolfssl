@@ -24359,7 +24359,11 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && \
     !defined(NO_SHA) && defined(WOLFSSL_AES_128)
 
-    char password[] = "password";
+    #ifndef HAVE_FIPS
+    char password[] = "password"; /* NOTE: Password is too short for FIPS */
+    #else
+    char password[] = "passwordFIPS_MODE";
+    #endif
 
     byte salt[] = {
         0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12
@@ -24914,7 +24918,11 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
     !defined(NO_SHA) && defined(WOLFSSL_AES_128)
 
+    #ifndef HAVE_FIPS
     char password[] = "password";
+    #else
+    char password[] = "passwordFIPS_MODE";
+    #endif
 
     byte salt[] = {
         0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12

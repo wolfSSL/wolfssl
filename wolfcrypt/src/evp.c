@@ -35,6 +35,19 @@
 
 #if defined(OPENSSL_EXTRA)
 
+#if !defined(HAVE_PKCS7) && \
+    ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION >= 2)) || defined(HAVE_SELFTEST))
+enum {
+    /* In the event of fips cert 3389 or CAVP selftest build, these enums are
+     * not in aes.h for use with evp so enumerate it here outside the fips
+     * boundary */
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+    CCM_NONCE_MIN_SZ = 7,
+};
+#endif
+
+
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
 
@@ -5993,6 +6006,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
     return key->dh;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DH* local = NULL;
@@ -6026,6 +6040,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 
     return local;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* NO_DH && NO_FILESYSTEM */
 
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
