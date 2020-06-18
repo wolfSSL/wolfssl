@@ -34,6 +34,7 @@ EXTRA_DIST += tests/test.conf \
               tests/test-dtls-group.conf \
               tests/test-dtls-reneg-client.conf \
               tests/test-dtls-reneg-server.conf \
+              tests/test-dtls-resume.conf \
               tests/test-dtls-sha2.conf \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \

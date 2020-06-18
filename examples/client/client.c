@@ -3407,8 +3407,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
-        /* try to send session break */
-        (void)ClientWrite(sslResume, msg, msgSz, " resume 2", 0);
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
