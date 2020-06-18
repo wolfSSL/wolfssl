@@ -2484,7 +2484,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-    if (useVerifyCb || myVerifyAction == VERIFY_OVERRIDE_ERROR || 
+    if (useVerifyCb || myVerifyAction == VERIFY_FORCE_FAIL || 
             myVerifyAction == VERIFY_USE_PREVERFIY) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
     }
