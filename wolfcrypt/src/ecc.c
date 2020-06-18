@@ -5236,7 +5236,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                 }
            }
            mp_clear(b);
-           mp_free(b);
        #ifdef WOLFSSL_SMALL_STACK
            XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
        #endif
@@ -6811,7 +6810,7 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
    /* compare to b */
    if (err == MP_OKAY) {
        if (mp_cmp(t1, b) != MP_EQ) {
-          err = MP_VAL;
+          err = IS_POINT_E;
        } else {
           err = MP_OKAY;
        }
@@ -7897,7 +7896,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
     /* import private key */
     if (err == MP_OKAY) {
-        if (d != NULL && d[0] != '\0') {
+        if (d != NULL) {
         #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
             /* Hardware doesn't support loading private key */
             err = NOT_COMPILED_IN;

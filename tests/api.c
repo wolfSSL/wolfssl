@@ -2826,7 +2826,7 @@ static void test_client_nofail(void* args, void *cb)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (cbf != NULL && cbf->ctx) {
         ctx = cbf->ctx;
-        sharedCtx = 1;
+        sharedCtx = cbf->isSharedCtx;
     }
     else
 #endif
@@ -3979,44 +3979,44 @@ static void test_wolfSSL_UseSNI_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case at ctx */
-        {0, use_SNI_at_ctx, 0, 0, 0},
-        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
+        {0, use_SNI_at_ctx, 0, 0, 0, 0},
+        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
 
         /* default mismatch behavior */
-        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0},
-        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0},
+        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0, 0},
+        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0, 0},
 
         /* continue on mismatch */
-        {0, 0, different_SNI_at_ssl,         0, 0},
-        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0},
+        {0, 0, different_SNI_at_ssl,         0, 0, 0},
+        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0, 0},
 
         /* fake answer on mismatch */
-        {0, 0, different_SNI_at_ssl,            0, 0},
-        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0},
+        {0, 0, different_SNI_at_ssl,            0, 0, 0},
+        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0, 0},
 
         /* sni abort - success */
-        {0, use_SNI_at_ctx,           0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
+        {0, use_SNI_at_ctx,           0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
 
         /* sni abort - abort when absent (ctx) */
-        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0},
+        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0, 0},
 
         /* sni abort - abort when absent (ssl) */
-        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0},
-        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0},
+        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0, 0},
+        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0, 0},
 
         /* sni abort - success when overwritten */
-        {0, 0, 0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0},
+        {0, 0, 0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0, 0},
 
         /* sni abort - success when allowing mismatches */
-        {0, 0, different_SNI_at_ssl, 0, 0},
-        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0},
+        {0, 0, different_SNI_at_ssl, 0, 0, 0},
+        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -4455,37 +4455,37 @@ static void test_wolfSSL_UseALPN_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case same list */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0, 0},
 
         /* success case only one for server */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0, 0},
 
         /* success case only one for client */
-        {0, 0, use_ALPN_one, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0},
+        {0, 0, use_ALPN_one, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0, 0},
 
         /* success case none for client */
-        {0, 0, 0, 0, 0},
-        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, 0, 0, 0, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
 
         /* success case mismatch behavior but option 'continue' set */
-        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0},
-        {0, 0, use_ALPN_unknown_continue, 0, 0},
+        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0, 0},
+        {0, 0, use_ALPN_unknown_continue, 0, 0, 0},
 
         /* success case read protocol send by client */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0, 0},
 
         /* mismatch behavior with same list
          * the first and only this one must be taken */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0, 0},
 
         /* default mismatch behavior */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -16959,25 +16959,21 @@ static int test_wc_ecc_rs_to_sig (void)
 
 } /* END test_wc_ecc_rs_to_sig */
 
-static int test_wc_ecc_import_raw (void)
+static int test_wc_ecc_import_raw(void)
 {
     int         ret = 0;
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
     ecc_key     key;
-#ifdef HAVE_ALL_CURVES
-    const char* qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
-    const char* qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
-    const char* d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
-    const char* curveName = "SECP192R1";
-#else
     const char* qx =
-              "6c450448386596485678dcf46ccf75e80ff292443cddab1ff216d0c72cd9341";
+              "bb33ac4c27504ac64aa504c33cde9f36db722dce94ea2bfacb2009392c16e861";
     const char* qy =
-              "9cac72ff8a90e4939e37714bfa07ae4612588535c3fdeab63ceb29b1d80f0d1";
+              "02e9af4dd302939a315b9792217ff0cf18da9111023486e82058330b803489d8";
     const char* d  =
-             "1e1dd938e15bdd036b0b0e2a6dc62fe7b46dbe042ac42310c6d5db0cda63e807";
+             "45b66902739c6c85a1385b72e8e8c7acc4038d533504fa6c28dc348de1a8098c";
     const char* curveName = "SECP256R1";
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    const char* kNullStr = "";
 #endif
 
     ret = wc_ecc_init(&key);
@@ -16999,10 +16995,13 @@ static int test_wc_ecc_import_raw (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_ecc_import_raw(&key, qx, qy, d, NULL);
         }
+    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, kNullStr, kNullStr, kNullStr, curveName);
+        }
+    #endif
+        if (ret == BAD_FUNC_ARG || ret == ECC_INF_E) {
             ret = 0;
-        } else if (ret == 0) {
-            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -17015,6 +17014,80 @@ static int test_wc_ecc_import_raw (void)
     return ret;
 
 } /* END test_wc_ecc_import_raw */
+
+static int test_wc_ecc_import_unsigned(void)
+{
+    int         ret = 0;
+#if defined(HAVE_ECC) && !defined(NO_ECC256)  && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
+    ecc_key     key;
+    const byte  qx[] = {
+        0xbb, 0x33, 0xac, 0x4c, 0x27, 0x50, 0x4a, 0xc6, 
+        0x4a, 0xa5, 0x04, 0xc3, 0x3c, 0xde, 0x9f, 0x36, 
+        0xdb, 0x72, 0x2d, 0xce, 0x94, 0xea, 0x2b, 0xfa, 
+        0xcb, 0x20, 0x09, 0x39, 0x2c, 0x16, 0xe8, 0x61
+    };
+    const byte  qy[] = {
+        0x02, 0xe9, 0xaf, 0x4d, 0xd3, 0x02, 0x93, 0x9a, 
+        0x31, 0x5b, 0x97, 0x92, 0x21, 0x7f, 0xf0, 0xcf, 
+        0x18, 0xda, 0x91, 0x11, 0x02, 0x34, 0x86, 0xe8, 
+        0x20, 0x58, 0x33, 0x0b, 0x80, 0x34, 0x89, 0xd8
+    };
+    const byte  d[] = {
+        0x45, 0xb6, 0x69, 0x02, 0x73, 0x9c, 0x6c, 0x85, 
+        0xa1, 0x38, 0x5b, 0x72, 0xe8, 0xe8, 0xc7, 0xac,
+        0xc4, 0x03, 0x8d, 0x53, 0x35, 0x04, 0xfa, 0x6c, 
+        0x28, 0xdc, 0x34, 0x8d, 0xe1, 0xa8, 0x09, 0x8c
+    };
+#ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+    const byte nullBytes[32] = {0};
+#endif
+    int curveId = ECC_SECP256R1;
+
+    ret = wc_ecc_init(&key);
+ 
+    printf(testingFmt, "wc_ecc_import_unsigned()");
+
+    if (ret == 0) {
+        ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d, 
+            curveId);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_import_unsigned(NULL, (byte*)qx, (byte*)qy, (byte*)d, 
+            curveId);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_unsigned(&key, NULL, (byte*)qy, (byte*)d, 
+                curveId);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_unsigned(&key, (byte*)qx, NULL, (byte*)d, 
+                curveId);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d, 
+                ECC_CURVE_INVALID);
+        }
+    #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_unsigned(&key, (byte*)nullBytes, 
+                (byte*)nullBytes, (byte*)nullBytes, curveId);
+        }
+    #endif
+        if (ret == BAD_FUNC_ARG || ret == ECC_INF_E) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ecc_free(&key);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_ecc_import_unsigned */
 
 
 /*
@@ -22985,16 +23058,19 @@ static void test_wolfSSL_msgCb(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, (void *)msgCb);
     join_thread(serverThread);
-    AssertTrue(client_args.return_code);
-    AssertTrue(server_args.return_code);
-    #endif
+#endif
 
     FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -23039,6 +23115,8 @@ static void test_wolfSSL_either_side(void)
     client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_method());
     AssertNotNull(client_cb.ctx);
     server_cb.ctx = client_cb.ctx;
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
     server_args.signal    = &ready;
     server_args.callbacks = &server_cb;
@@ -23046,18 +23124,20 @@ static void test_wolfSSL_either_side(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
+#endif
+    
+    wolfSSL_CTX_free(client_cb.ctx);
+    FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
     AssertTrue(client_args.return_code);
     AssertTrue(server_args.return_code);
-    #endif
-
-    wolfSSL_CTX_free(client_cb.ctx);
-
-    FreeTcpReady(&ready);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -23103,6 +23183,8 @@ static void test_wolfSSL_DTLS_either_side(void)
     client_cb.ctx = wolfSSL_CTX_new(wolfDTLS_method());
     AssertNotNull(client_cb.ctx);
     server_cb.ctx = client_cb.ctx;
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
     server_args.signal    = &ready;
     server_args.callbacks = &server_cb;
@@ -23110,25 +23192,26 @@ static void test_wolfSSL_DTLS_either_side(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
-    AssertTrue(client_args.return_code);
-    AssertTrue(server_args.return_code);
-    #endif
+#endif
 
     wolfSSL_CTX_free(client_cb.ctx);
-
     FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     printf(resultFmt, passed);
-
 #endif
 }
 
@@ -32629,6 +32712,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_export_private_only(), 0);
     AssertIntEQ(test_wc_ecc_rs_to_sig(), 0);
     AssertIntEQ(test_wc_ecc_import_raw(), 0);
+    AssertIntEQ(test_wc_ecc_import_unsigned(), 0);
     AssertIntEQ(test_wc_ecc_sig_size(), 0);
     AssertIntEQ(test_wc_ecc_ctx_new(), 0);
     AssertIntEQ(test_wc_ecc_ctx_reset(), 0);

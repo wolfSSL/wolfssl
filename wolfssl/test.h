@@ -409,6 +409,7 @@ typedef struct callback_functions {
     ssl_callback ssl_ready;
     ssl_callback on_result;
     WOLFSSL_CTX* ctx;
+    unsigned char isSharedCtx:1;
 } callback_functions;
 
 typedef struct func_args {
