@@ -22921,7 +22921,6 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
     /* Do nothing */
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* Returns corresponding X509 error from internal ASN error <e> */
 static int GetX509Error(int e)
 {
@@ -22947,7 +22946,6 @@ static int GetX509Error(int e)
             return e;
     }
 }
-#endif /* OPENSSL_ALL || WOLFSSL_QT */
 
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 0 on success or < 0 on failure.
@@ -22955,11 +22953,10 @@ static int GetX509Error(int e)
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
     int ret = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int depth = 0;
     int error;
     byte *afterDate, *beforeDate;
-#endif
+
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx != NULL && ctx->store != NULL && ctx->store->cm != NULL
@@ -22969,7 +22966,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         /* If there was an error, process it and add it to CTX */
         if (ret < 0) {
             /* Get corresponding X509 error */
@@ -22980,8 +22976,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             wolfSSL_X509_STORE_CTX_set_error(ctx, error);
             wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             if (ctx->store && ctx->store->verify_cb)
                 ctx->store->verify_cb(0, ctx);
+        #endif
         }
 
         error = 0;
@@ -23004,10 +23002,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         if (error != 0 ) {
             wolfSSL_X509_STORE_CTX_set_error(ctx, error);
             wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             if (ctx->store && ctx->store->verify_cb)
                 ctx->store->verify_cb(0, ctx);
+        #endif
         }
-#endif /* OPENSSL_ALL || WOLFSSL_QT */
         return ret;
     }
     return WOLFSSL_FATAL_ERROR;

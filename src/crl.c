@@ -527,6 +527,16 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
             if (head == NULL)
                 head = tmp;
         }
+        else {
+            WOLFSSL_MSG("Failed to allocate new RevokedCert structure");
+            /* free up any existing list */
+            while (head != NULL) {
+                current = head;
+                head = head->next;
+                XFREE(current, heap, DYNAMIC_TYPE_REVOKED);
+            }
+            return NULL;
+        }
         current = current->next;
     }
     return head;
@@ -534,7 +544,7 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
 
 
 /* returns a deep copy of ent on success and null on fail */
-static CRL_Entry* DupCRL_Entry(CRL_Entry* ent, void* heap)
+static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
 {
     CRL_Entry *dup;
 
@@ -543,6 +553,7 @@ static CRL_Entry* DupCRL_Entry(CRL_Entry* ent, void* heap)
         WOLFSSL_MSG("alloc CRL Entry failed");
         return NULL;
     }
+    XMEMSET(dup, 0, sizeof(CRL_Entry));
 
     XMEMCPY(dup->issuerHash, ent->issuerHash, CRL_DIGEST_SIZE);
     XMEMCPY(dup->lastDate, ent->lastDate, MAX_DATE_SIZE);
@@ -561,6 +572,7 @@ static CRL_Entry* DupCRL_Entry(CRL_Entry* ent, void* heap)
         dup->toBeSigned = (byte*)XMALLOC(dup->tbsSz, heap,
                                           DYNAMIC_TYPE_CRL_ENTRY);
         if (dup->toBeSigned == NULL) {
+            FreeCRL_Entry(dup, heap);
             XFREE(dup, heap, DYNAMIC_TYPE_CRL_ENTRY);
             return NULL;
         }
@@ -568,8 +580,8 @@ static CRL_Entry* DupCRL_Entry(CRL_Entry* ent, void* heap)
         dup->signature = (byte*)XMALLOC(dup->signatureSz, heap,
                                          DYNAMIC_TYPE_CRL_ENTRY);
         if (dup->signature == NULL) {
+            FreeCRL_Entry(dup, heap);
             XFREE(dup, heap, DYNAMIC_TYPE_CRL_ENTRY);
-            XFREE(dup->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
             return NULL;
         }
         XMEMCPY(dup->toBeSigned, ent->toBeSigned, dup->tbsSz);
@@ -617,7 +629,7 @@ static CRL_Entry* DupCRL_list(CRL_Entry* crl, void* heap)
 /* Duplicates everything except the parent cm pointed to.
  * Expects that Init has already been done to 'dup'
  * return 0 on success */
-static int DupX509_CRL(WOLFSSL_X509_CRL *dup, WOLFSSL_X509_CRL* crl)
+static int DupX509_CRL(WOLFSSL_X509_CRL *dup, const WOLFSSL_X509_CRL* crl)
 {
     if (dup == NULL || crl == NULL) {
         return BAD_FUNC_ARG;
@@ -660,7 +672,10 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
 
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
-        DupX509_CRL(crl, newcrl);
+        if (DupX509_CRL(crl, newcrl) != 0) {
+            FreeCRL(crl, 1);
+            return WOLFSSL_FAILURE;
+        }
         store->crl = store->cm->crl = crl;
         return WOLFSSL_SUCCESS;
     }
