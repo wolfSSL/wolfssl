@@ -1677,7 +1677,13 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
     #endif /* !NO_FILESYSTEM || (NO_FILESYSTEM && FORCE_BUFFER_TEST) */
 #endif /* !NO_CERTS */
 
-static int myVerifyFail = 0;
+enum {
+    VERIFY_OVERRIDE_ERROR,
+    VERIFY_FORCE_FAIL,
+    VERIFY_USE_PREVERFIY,
+    VERIFY_OVERRIDE_DATE_ERR,
+};
+static int myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
 /* The verify callback is called for every certificate only when
  * --enable-opensslextra is defined because it sets WOLFSSL_ALWAYS_VERIFY_CB and
@@ -1764,37 +1770,24 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     printf("\tSubject's domain name at %d is %s\n", store->error_depth, store->domain);
 
     /* Testing forced fail case by return zero */
-    if (myVerifyFail) {
+    if (myVerifyAction == VERIFY_FORCE_FAIL) {
         return 0; /* test failure case */
     }
 
+    if (myVerifyAction == VERIFY_OVERRIDE_DATE_ERR && 
+        (store->error == ASN_BEFORE_DATE_E || store->error == ASN_AFTER_DATE_E)) {
+        printf("Overriding cert date error as example for bad clock testing\n");
+        return 1;
+    }
+
     /* If error indicate we are overriding it for testing purposes */
-    if (store->error != 0) {
+    if (store->error != 0 && myVerifyAction == VERIFY_OVERRIDE_ERROR) {
         printf("\tAllowing failed certificate check, testing only "
             "(shouldn't do this in production)\n");
     }
 
     /* A non-zero return code indicates failure override */
-    return 1;
-}
-
-
-static WC_INLINE int myDateCb(int preverify, WOLFSSL_X509_STORE_CTX* store)
-{
-    char buffer[WOLFSSL_MAX_ERROR_SZ];
-    (void)preverify;
-
-    printf("In verification callback, error = %d, %s\n", store->error,
-                                 wolfSSL_ERR_error_string(store->error, buffer));
-    printf("Subject's domain name is %s\n", store->domain);
-
-    if (store->error == ASN_BEFORE_DATE_E || store->error == ASN_AFTER_DATE_E) {
-        printf("Overriding cert date error as example for bad clock testing\n");
-        return 1;
-    }
-    printf("Cert error is not date error, not overriding\n");
-
-    return 0;
+    return (myVerifyAction == VERIFY_OVERRIDE_ERROR) ? 1 : preverify;
 }
 
 

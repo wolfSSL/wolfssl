@@ -572,7 +572,7 @@ static void test_harness(void* vargs)
     cliArgsSz = 1;
     cliArgs[0] = args->argv[0];
 
-    while (*cursor != 0) {
+    while (cursor && *cursor != 0) {
         switch (*cursor) {
             case '\n':
                 /* A blank line triggers test case execution or switches
@@ -611,7 +611,7 @@ static void test_harness(void* vargs)
                     cliArgs[cliArgsSz++] = XSTRSEP(&cursor, " \n");
                 else
                     svrArgs[svrArgsSz++] = XSTRSEP(&cursor, " \n");
-                if (*cursor == '\0') /* eof */
+                if (cursor == NULL || *cursor == '\0') /* eof */
                     do_it = 1;
                 break;
         }

@@ -1444,7 +1444,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    pkCallbacks   = 0;
     PkCbInfo pkCbInfo;
 #endif
-    int    overrideDateErrors = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     char*  alpnList = NULL;
     unsigned char alpn_opt = 0;
@@ -1575,7 +1574,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)ourCert;
     (void)verifyCert;
     (void)useClientCert;
-    (void)overrideDateErrors;
     (void)disableCRL;
     (void)minDhKeyBits;
     (void)alpnList;
@@ -1621,7 +1619,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 XEXIT_T(EXIT_SUCCESS);
 
             case 'D' :
-                overrideDateErrors = 1;
+                myVerifyAction = VERIFY_OVERRIDE_DATE_ERR;
                 break;
 
             case 'C' :
@@ -1733,7 +1731,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
                     printf("Verify should fail\n");
-                    myVerifyFail = 1;
+                    myVerifyAction = VERIFY_FORCE_FAIL;
+                }
+                else if (XSTRNCMP(myoptarg, "verifyInfo", 10) == 0) {
+                    printf("Verify should not override error\n");
+                    myVerifyAction = VERIFY_USE_PREVERFIY;
                 }
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
                     printf("Attempting to test use supported curve\n");
@@ -2445,7 +2447,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     }
 
-    if (!usePsk && !useAnon && !useVerifyCb && !myVerifyFail) {
+    if (!usePsk && !useAnon && !useVerifyCb && myVerifyAction != VERIFY_FORCE_FAIL) {
     #ifndef TEST_LOAD_BUFFER
         unsigned int verify_flags = 0;
     #ifdef TEST_BEFORE_DATE
@@ -2482,12 +2484,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-    if (useVerifyCb || myVerifyFail)
+    if (useVerifyCb || myVerifyAction == VERIFY_OVERRIDE_ERROR || 
+            myVerifyAction == VERIFY_USE_PREVERFIY) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
-    else if (!usePsk && !useAnon && doPeerCheck == 0)
+    }
+    else if (!usePsk && !useAnon && doPeerCheck == 0) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
-    else if (!usePsk && !useAnon && overrideDateErrors == 1)
-        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myDateCb);
+    }
+    else if (!usePsk && !useAnon && myVerifyAction == VERIFY_OVERRIDE_DATE_ERR) {
+        wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    }
 #endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3452,7 +3458,6 @@ exit:
     /* There are use cases  when these assignments are not read. To avoid
      * potential confusion those warnings have been handled here.
      */
-    (void) overrideDateErrors;
     (void) useClientCert;
     (void) verifyCert;
     (void) ourCert;

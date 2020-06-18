@@ -1172,7 +1172,7 @@ static int test_wolfSSL_CertManagerSetVerify(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
     WOLFSSL_CERT_MANAGER* cm;
-    int tmp = myVerifyFail;
+    int tmp = myVerifyAction;
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* expiredCert = "./certs/test/expired/expired-cert.pem";
 
@@ -1185,7 +1185,7 @@ static int test_wolfSSL_CertManagerSetVerify(void)
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
 
     /* Use the test CB that always accepts certs */
-    myVerifyFail = 0;
+    myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
     ret = wolfSSL_CertManagerVerify(cm, expiredCert, WOLFSSL_FILETYPE_PEM);
     AssertIntEQ(ret, WOLFSSL_SUCCESS);
@@ -1194,7 +1194,7 @@ static int test_wolfSSL_CertManagerSetVerify(void)
     {
         const char* verifyCert = "./certs/server-cert.pem";
         /* Use the test CB that always fails certs */
-        myVerifyFail = 1;
+        myVerifyAction = VERIFY_FORCE_FAIL;
 
         ret = wolfSSL_CertManagerVerify(cm, verifyCert, WOLFSSL_FILETYPE_PEM);
         AssertIntEQ(ret, VERIFY_CERT_ERROR);
@@ -1202,7 +1202,7 @@ static int test_wolfSSL_CertManagerSetVerify(void)
 #endif
 
     wolfSSL_CertManagerFree(cm);
-    myVerifyFail = tmp;
+    myVerifyAction = tmp;
 #endif
 
     return ret;
