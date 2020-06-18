@@ -7,10 +7,12 @@
     \defgroup ChaCha Algorithms - ChaCha
     \defgroup ChaCha20Poly1305 Algorithms - ChaCha20_Poly1305
     \defgroup Curve25519 Algorithms - Curve25519
+    \defgroup Curve448 Algorithms - Curve448
     \defgroup DSA Algorithms - DSA
     \defgroup Diffie-Hellman Algorithms - Diffie-Hellman
     \defgroup ECC Algorithms - ECC
     \defgroup ED25519 Algorithms - ED25519
+    \defgroup ED448 Algorithms - ED448
     \defgroup HC128 Algorithms - HC-128
     \defgroup HMAC Algorithms - HMAC
     \defgroup IDEA Algorithms - IDEA
