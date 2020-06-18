@@ -9354,8 +9354,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
 
-            if (cert->ca)
+            if (cert->ca) {
                 WOLFSSL_MSG("CA found");
+            }
         }
 
         if (cert->selfSigned) {
