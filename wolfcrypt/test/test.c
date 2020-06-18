@@ -18353,7 +18353,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #if defined(WOLFSSL_CRYPTOCELL)
     /* create a new key since building private key from public key is unsupported */
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, &key);
-    if (ret == 0) {
+    if (ret != 0) {
         ERROR_OUT(-9628, done);
     }
 #endif
