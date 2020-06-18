@@ -2732,7 +2732,7 @@ static void test_client_nofail(void* args, void *cb)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     if (cbf != NULL && cbf->ctx) {
         ctx = cbf->ctx;
-        sharedCtx = 1;
+        sharedCtx = cbf->isSharedCtx;
     }
     else
 #endif
@@ -3865,44 +3865,44 @@ static void test_wolfSSL_UseSNI_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case at ctx */
-        {0, use_SNI_at_ctx, 0, 0, 0},
-        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
+        {0, use_SNI_at_ctx, 0, 0, 0, 0},
+        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0, 0},
 
         /* default mismatch behavior */
-        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0},
-        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0},
+        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0, 0},
+        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0, 0},
 
         /* continue on mismatch */
-        {0, 0, different_SNI_at_ssl,         0, 0},
-        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0},
+        {0, 0, different_SNI_at_ssl,         0, 0, 0},
+        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0, 0},
 
         /* fake answer on mismatch */
-        {0, 0, different_SNI_at_ssl,            0, 0},
-        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0},
+        {0, 0, different_SNI_at_ssl,            0, 0, 0},
+        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0, 0},
 
         /* sni abort - success */
-        {0, use_SNI_at_ctx,           0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
+        {0, use_SNI_at_ctx,           0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0, 0},
 
         /* sni abort - abort when absent (ctx) */
-        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0},
+        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0, 0},
 
         /* sni abort - abort when absent (ssl) */
-        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0},
-        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0},
+        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0, 0},
+        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0, 0},
 
         /* sni abort - success when overwritten */
-        {0, 0, 0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0},
+        {0, 0, 0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0, 0},
 
         /* sni abort - success when allowing mismatches */
-        {0, 0, different_SNI_at_ssl, 0, 0},
-        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0},
+        {0, 0, different_SNI_at_ssl, 0, 0, 0},
+        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -4341,37 +4341,37 @@ static void test_wolfSSL_UseALPN_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case same list */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0, 0},
 
         /* success case only one for server */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0, 0},
 
         /* success case only one for client */
-        {0, 0, use_ALPN_one, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0},
+        {0, 0, use_ALPN_one, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0, 0},
 
         /* success case none for client */
-        {0, 0, 0, 0, 0},
-        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, 0, 0, 0, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
 
         /* success case mismatch behavior but option 'continue' set */
-        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0},
-        {0, 0, use_ALPN_unknown_continue, 0, 0},
+        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0, 0},
+        {0, 0, use_ALPN_unknown_continue, 0, 0, 0},
 
         /* success case read protocol send by client */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0, 0},
 
         /* mismatch behavior with same list
          * the first and only this one must be taken */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0, 0},
 
         /* default mismatch behavior */
-        {0, 0, use_ALPN_all, 0, 0},
-        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0},
+        {0, 0, use_ALPN_all, 0, 0, 0},
+        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -22932,16 +22932,19 @@ static void test_wolfSSL_msgCb(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, (void *)msgCb);
     join_thread(serverThread);
-    AssertTrue(client_args.return_code);
-    AssertTrue(server_args.return_code);
-    #endif
+#endif
 
     FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -22986,6 +22989,8 @@ static void test_wolfSSL_either_side(void)
     client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_method());
     AssertNotNull(client_cb.ctx);
     server_cb.ctx = client_cb.ctx;
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
     server_args.signal    = &ready;
     server_args.callbacks = &server_cb;
@@ -22993,18 +22998,20 @@ static void test_wolfSSL_either_side(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
+#endif
+    
+    wolfSSL_CTX_free(client_cb.ctx);
+    FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
     AssertTrue(client_args.return_code);
     AssertTrue(server_args.return_code);
-    #endif
-
-    wolfSSL_CTX_free(client_cb.ctx);
-
-    FreeTcpReady(&ready);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -23050,6 +23057,8 @@ static void test_wolfSSL_DTLS_either_side(void)
     client_cb.ctx = wolfSSL_CTX_new(wolfDTLS_method());
     AssertNotNull(client_cb.ctx);
     server_cb.ctx = client_cb.ctx;
+    /* we are responsible for free'ing WOLFSSL_CTX */
+    server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
     server_args.signal    = &ready;
     server_args.callbacks = &server_cb;
@@ -23057,25 +23066,26 @@ static void test_wolfSSL_DTLS_either_side(void)
     client_args.callbacks = &client_cb;
     client_args.return_code = TEST_FAIL;
 
-    #ifndef SINGLE_THREADED
+#ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
-    AssertTrue(client_args.return_code);
-    AssertTrue(server_args.return_code);
-    #endif
+#endif
 
     wolfSSL_CTX_free(client_cb.ctx);
-
     FreeTcpReady(&ready);
+
+#ifndef SINGLE_THREADED
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+#endif
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
 
     printf(resultFmt, passed);
-
 #endif
 }
 
