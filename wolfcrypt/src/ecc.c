@@ -5232,7 +5232,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                 }
            }
            mp_clear(b);
-           mp_free(b);
        #ifdef WOLFSSL_SMALL_STACK
            XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
        #endif
