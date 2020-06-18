@@ -11505,7 +11505,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
         return MEMORY_E;
 #endif
 
-#ifdef HAVE_SELFTEST
+#if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
     /* older version of ecc.c can not handle dp being NULL */
     if (key != NULL && key->dp == NULL) {
         ret = BAD_FUNC_ARG;
@@ -11612,7 +11612,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
         infoSz += TRAILING_ZERO;
     }
 
-#ifdef HAVE_SELFTEST
+#if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
     /* older version of ecc.c can not handle dp being NULL */
     if (key != NULL && key->dp == NULL) {
         keySz = 1 + 2 * MAX_ECC_BYTES;
