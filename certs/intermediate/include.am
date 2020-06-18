@@ -32,10 +32,6 @@ EXTRA_DIST += \
 	     certs/intermediate/client-int-ecc-cert.pem \
 	     certs/intermediate/server-chain-alt-ecc.pem \
 	     certs/intermediate/server-chain-alt.pem \
-		 certs/intermediate/client-int2-cert.der \
-	     certs/intermediate/client-int2-cert.pem \
-	     certs/intermediate/client-int2-ecc-cert.der \
-	     certs/intermediate/client-int2-ecc-cert.pem \
 	     certs/intermediate/server-chain-ecc.der \
 	     certs/intermediate/server-chain-ecc.pem \
 	     certs/intermediate/server-chain.der \
@@ -43,8 +39,4 @@ EXTRA_DIST += \
 	     certs/intermediate/server-int-cert.der \
 	     certs/intermediate/server-int-cert.pem \
 	     certs/intermediate/server-int-ecc-cert.der \
-	     certs/intermediate/server-int-ecc-cert.pem \
-		 certs/intermediate/server-int2-cert.der \
-	     certs/intermediate/server-int2-cert.pem \
-	     certs/intermediate/server-int2-ecc-cert.der \
-	     certs/intermediate/server-int2-ecc-cert.pem
+	     certs/intermediate/server-int-ecc-cert.pem
