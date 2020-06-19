@@ -5472,7 +5472,7 @@ static void test_wolfSSL_TBS(void)
     AssertNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
     AssertNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
     AssertNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
-    AssertIntEQ(tbsSz, 972);
+    AssertIntEQ(tbsSz, 1003);
 
     wolfSSL_FreeX509(x509);
 
@@ -23297,7 +23297,11 @@ static void test_wolfSSL_certs(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_RSA)
+    X509*  x509ext;
+#ifdef OPENSSL_ALL
     X509*  x509;
+    WOLFSSL_X509_EXTENSION* ext;
+#endif
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     STACK_OF(ASN1_OBJECT)* sk;
@@ -23328,9 +23332,13 @@ static void test_wolfSSL_certs(void)
     #endif /* HAVE_PK_CALLBACKS */
 
     /* create and use x509 */
-    x509 = wolfSSL_X509_load_certificate_file(cliCertFileExt, WOLFSSL_FILETYPE_PEM);
+#ifdef OPENSSL_ALL
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
-    AssertIntEQ(SSL_use_certificate(ssl, x509), WOLFSSL_SUCCESS);
+#endif
+    x509ext = wolfSSL_X509_load_certificate_file(cliCertFileExt, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509ext);
+    AssertIntEQ(SSL_use_certificate(ssl, x509ext), WOLFSSL_SUCCESS);
 
     #ifndef HAVE_USER_RSA
     /* with loading in a new cert the check on private key should now fail */
@@ -23351,9 +23359,9 @@ static void test_wolfSSL_certs(void)
         word32 digestSz;
 
         XMEMSET(digest, 0, sizeof(digest));
-        AssertIntEQ(X509_digest(x509, wolfSSL_EVP_sha1(), digest, &digestSz),
+        AssertIntEQ(X509_digest(x509ext, wolfSSL_EVP_sha1(), digest, &digestSz),
                     WOLFSSL_SUCCESS);
-        AssertIntEQ(X509_digest(x509, wolfSSL_EVP_sha256(), digest, &digestSz),
+        AssertIntEQ(X509_digest(x509ext, wolfSSL_EVP_sha256(), digest, &digestSz),
                     WOLFSSL_SUCCESS);
 
         AssertIntEQ(X509_digest(NULL, wolfSSL_EVP_sha1(), digest, &digestSz),
@@ -23362,63 +23370,71 @@ static void test_wolfSSL_certs(void)
     #endif /* !NO_SHA && !NO_SHA256*/
 
     /* test and checkout X509 extensions */
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_basic_constraints,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_basic_constraints,
             &crit, NULL);
     AssertNotNull(sk);
     AssertIntEQ(crit, 0);
     sk_ASN1_OBJECT_free(sk);
 
-    bit_str = (ASN1_BIT_STRING*)X509_get_ext_d2i(x509, NID_key_usage, &crit, NULL);
+    bit_str = (ASN1_BIT_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit, NULL);
     AssertNotNull(bit_str);
     AssertIntEQ(crit, 1);
     AssertIntEQ(bit_str->type, NID_key_usage);
     ASN1_BIT_STRING_free(bit_str);
 
+#ifdef OPENSSL_ALL
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_ext_key_usage,
             &crit, NULL);
-    /* AssertNotNull(sk); no extension set */
+    AssertNotNull(sk);
+    ext = X509V3_EXT_i2d(NID_ext_key_usage, crit, sk);
+    AssertNotNull(ext);
     sk_ASN1_OBJECT_free(sk);
+#else
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_ext_key_usage,
+            &crit, NULL);
+    AssertNull(sk);
+#endif
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
             NID_authority_key_identifier, &crit, NULL);
     AssertNotNull(sk);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
             NID_private_key_usage_period, &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(GENERAL_NAME)*)X509_get_ext_d2i(x509, NID_subject_alt_name,
+    sk = (STACK_OF(GENERAL_NAME)*)X509_get_ext_d2i(x509ext, NID_subject_alt_name,
             &crit, NULL);
     /* AssertNotNull(sk); no alt names set */
     sk_GENERAL_NAME_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_issuer_alt_name,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_issuer_alt_name,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_info_access, &crit,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_info_access, &crit,
             NULL);
     /* AssertNotNull(sk); no auth info set */
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_sinfo_access,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_sinfo_access,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_name_constraints,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_name_constraints,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
             NID_certificate_policies, &crit, NULL);
     #if !defined(WOLFSSL_SEP) && !defined(WOLFSSL_CERT_EXT)
         AssertNull(sk);
@@ -23427,25 +23443,25 @@ static void test_wolfSSL_certs(void)
     #endif
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_policy_mappings,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_policy_mappings,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_policy_constraints,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_policy_constraints,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_inhibit_any_policy,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_inhibit_any_policy,
             &crit, NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
     sk_ASN1_OBJECT_free(sk);
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_tlsfeature, &crit,
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_tlsfeature, &crit,
             NULL);
     /* AssertNotNull(sk); NID not yet supported */
     AssertIntEQ(crit, -1);
@@ -23453,7 +23469,7 @@ static void test_wolfSSL_certs(void)
 
     /* test invalid cases */
     crit = 0;
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, -1, &crit, NULL);
+    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, -1, &crit, NULL);
     AssertNull(sk);
     AssertIntEQ(crit, -1);
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(NULL, NID_tlsfeature,
@@ -23461,7 +23477,11 @@ static void test_wolfSSL_certs(void)
     AssertNull(sk);
 
     AssertIntEQ(SSL_get_hit(ssl), 0);
+#ifdef OPENSSL_ALL
+    X509_EXTENSION_free(ext);
     X509_free(x509);
+#endif
+    X509_free(x509ext);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 
@@ -23488,7 +23508,7 @@ static void test_wolfSSL_ASN1_TIME_print(void)
                 sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
-    AssertIntEQ(XMEMCMP(buf, "May  7 07:39:03 2020 GMT", sizeof(buf) - 1), 0);
+    AssertIntEQ(XMEMCMP(buf, "Jun 19 13:23:41 2020 GMT", sizeof(buf) - 1), 0);
 
     /* create a bad time and test results */
     AssertNotNull(t = X509_get_notAfter(x509));
@@ -26737,7 +26757,7 @@ static void test_wolfSSL_X509_get_ext_count(void)
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
                                                              SSL_FILETYPE_PEM));
-    AssertIntEQ(X509_get_ext_count(x509), 4);
+    AssertIntEQ(X509_get_ext_count(x509), 5);
     wolfSSL_X509_free(x509);
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(ocspRootCaFile,
@@ -26750,7 +26770,7 @@ static void test_wolfSSL_X509_get_ext_count(void)
     fclose(f);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 4);
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 5);
     printf(resultFmt, ret == 4 ? passed : failed);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
@@ -31246,7 +31266,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
     fclose(f);
 
     printf(testingFmt, "wolfSSL_X509V3_EXT_get() return struct and nid test");
-    AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 4);
+    AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 5);
     for (i = 0; i < numOfExt; i++) {
         AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
         AssertNotNull(extNid = ext->obj->nid);
@@ -31400,7 +31420,7 @@ static void test_wolfSSL_X509_get_ext(void){
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
     fclose(f);
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 4);
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 5);
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid input");
     AssertNotNull(foundExtension = wolfSSL_X509_get_ext(x509, 0));

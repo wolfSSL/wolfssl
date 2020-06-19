@@ -9764,12 +9764,25 @@ static WOLFSSL_ASN1_STRING* wolfSSL_GENERAL_NAMES_i2d(WOLFSSL_GENERAL_NAMES* gns
                 goto error;
             }
             break;
-        case GEN_OTHERNAME:
         case GEN_EMAIL:
+            if (wolfSSL_ASN1_STRING_concat(asn1str, gn->d.rfc822Name) !=
+                    WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_concat error");
+                goto error;
+            }
+            break;
+        case GEN_URI:
+            if (wolfSSL_ASN1_STRING_concat(asn1str,
+                                           gn->d.uniformResourceIdentifier) !=
+                                                   WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_concat error");
+                goto error;
+            }
+            break;
+        case GEN_OTHERNAME:
         case GEN_X400:
         case GEN_DIRNAME:
         case GEN_EDIPARTY:
-        case GEN_URI:
         case GEN_RID:
         default:
             goto error;
@@ -9798,6 +9811,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
                                                void *data)
 {
     WOLFSSL_X509_EXTENSION *ext = NULL;
+    WOLFSSL_ASN1_STRING* asn1str = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_i2d");
 
@@ -9815,7 +9829,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     case NID_subject_key_identifier:
     case NID_key_usage:
     {
-        WOLFSSL_ASN1_STRING* asn1str = (WOLFSSL_ASN1_STRING*)data;
+        asn1str = (WOLFSSL_ASN1_STRING*)data;
         ext->value = *asn1str;
         if (asn1str->isDynamic) {
             ext->value.data = (char*)XMALLOC(asn1str->length, NULL,
@@ -9837,7 +9851,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     case NID_issuer_alt_name:
     {
         WOLFSSL_GENERAL_NAMES* gns = data;
-        WOLFSSL_ASN1_STRING* asn1str = wolfSSL_GENERAL_NAMES_i2d(gns);
+        asn1str = wolfSSL_GENERAL_NAMES_i2d(gns);
 
         if (!asn1str) {
             WOLFSSL_MSG("wolfSSL_GENERAL_NAMES_i2d failed");
@@ -9845,15 +9859,75 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         }
 
         ext->value = *asn1str;
+        ext->value.data = ext->value.strData;
         /* Only free asn1str struct since members will be freed when
          * ext is freed */
         XFREE(asn1str, NULL, DYNAMIC_TYPE_OPENSSL);
-        // typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES
         break;
     }
     case NID_ext_key_usage:
+    {
         // typedef STACK_OF(ASN1_OBJECT) EXTENDED_KEY_USAGE
+        STACK_OF(WOLFSSL_ASN1_OBJECT) *eku = data;
+        asn1str = wolfSSL_ASN1_STRING_new();
+        asn1str->data = asn1str->strData;
+
+        while (eku) {
+            WOLFSSL_ASN1_OBJECT* asn1obj = eku->data.obj;
+            int len = wolfSSL_i2d_ASN1_OBJECT(asn1obj, NULL);
+            WOLFSSL_ASN1_STRING tmpStr;
+
+            if (len == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("wolfSSL_i2d_ASN1_OBJECT failed");
+                goto err_cleanup;
+            }
+
+            XMEMSET(&tmpStr, 0, sizeof(WOLFSSL_ASN1_STRING));
+
+            if (len <= CTC_NAME_SIZE) {
+                tmpStr.data = tmpStr.strData;
+            }
+            else {
+                tmpStr.data = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+                if (!tmpStr.data) {
+                    WOLFSSL_MSG("malloc failed");
+                    goto err_cleanup;
+                }
+                tmpStr.isDynamic = 1;
+            }
+            if (wolfSSL_i2d_ASN1_OBJECT(asn1obj,
+                    (unsigned char **)&tmpStr.data) != len) {
+                WOLFSSL_MSG("wolfSSL_i2d_ASN1_OBJECT failed");
+                if (tmpStr.isDynamic) {
+                    XFREE(tmpStr.data, NULL, DYNAMIC_TYPE_OPENSSL);
+                }
+                goto err_cleanup;
+            }
+            tmpStr.length = len;
+            /* wolfSSL_i2d_ASN1_OBJECT advances the pointer by len */
+            tmpStr.data -= len;
+            if (wolfSSL_ASN1_STRING_concat(asn1str, &tmpStr) !=
+                    WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_ASN1_STRING_concat error");
+                if (tmpStr.isDynamic) {
+                    XFREE(tmpStr.data, NULL, DYNAMIC_TYPE_OPENSSL);
+                }
+                goto err_cleanup;
+            }
+            if (tmpStr.isDynamic) {
+                XFREE(tmpStr.data, NULL, DYNAMIC_TYPE_OPENSSL);
+            }
+            eku = eku->next;
+        }
+
+        ext->value = *asn1str;
+        ext->value.data = ext->value.strData;
+        /* Only free asn1str struct since members will be freed when
+         * ext is freed */
+        XFREE(asn1str, NULL, DYNAMIC_TYPE_OPENSSL);
+
         break;
+    }
     case NID_info_access:
         // typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS
         break;
@@ -9887,6 +9961,9 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
 err_cleanup:
     if (ext) {
         wolfSSL_X509_EXTENSION_free(ext);
+    }
+    if (asn1str) {
+        wolfSSL_ASN1_STRING_free(asn1str);
     }
     return NULL;
 }
@@ -25751,6 +25828,35 @@ WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp,
     }
 
     return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp)
+{
+    byte *p;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_ASN1_OBJECT");
+
+    if (!a || !a->obj) {
+        WOLFSSL_MSG("Bad parameters");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!pp)
+        return a->objSz;
+
+    if (*pp)
+        p = *pp;
+    else {
+        p = (byte*)XMALLOC(a->objSz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (!p) {
+            WOLFSSL_MSG("Bad malloc");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    XMEMCPY(p, a->obj, a->objSz);
+    *pp = p + a->objSz;
+    return a->objSz;
 }
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
