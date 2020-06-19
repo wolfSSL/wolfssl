@@ -25529,6 +25529,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             if (readCtx == NULL) {
                 WOLFSSL_MSG("Memory error");
+                wolfSSL_CTX_free(ctx);
                 return WOLFSSL_FAILURE;
             }
         #endif
