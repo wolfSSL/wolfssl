@@ -22085,10 +22085,8 @@ static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
 
     X509_free(issuer);
     X509_STORE_CTX_free(ctx);
-    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        X509_free(x509Svr);
-        X509_STORE_free(str);
-    #endif
+    X509_free(x509Svr);
+    X509_STORE_free(str);
     X509_free(x509Ca);
 
     printf(resultFmt, passed);
@@ -22130,10 +22128,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
 #ifdef OPENSSL_ALL
     sk_X509_free(sk);
 #endif
-    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     X509_STORE_free(str);
     X509_free(x509);
-    #endif
 
     AssertNotNull(ctx = X509_STORE_CTX_new());
     X509_STORE_CTX_set_verify_cb(ctx, verify_cb);
@@ -22158,11 +22154,9 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertIntEQ(sk_num(sk3), 1); /* sanity, make sure chain has 1 cert */
     X509_STORE_CTX_free(ctx);
     sk_X509_free(sk);
-    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(WOLFSSL_QT)
     X509_STORE_free(str);
     /* CTX certs not freed yet */
     X509_free(x5092);
-    #endif
     /* sk2 freed as part of X509_STORE_CTX_free(), sk3 is dup so free here */
     sk_X509_free(sk3);
 #endif
@@ -22354,9 +22348,7 @@ static void test_wolfSSL_X509_STORE_CTX_get0_store(void)
 
     wolfSSL_X509_STORE_CTX_free(ctx);
     wolfSSL_X509_STORE_CTX_free(ctx_no_init);
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     X509_STORE_free(store);
-#endif
 
     printf(resultFmt, passed);
     #endif /* OPENSSL_EXTRA */
@@ -22563,7 +22555,7 @@ static void test_wolfSSL_X509_STORE(void)
     #ifdef HAVE_CRL
     X509_STORE_CTX *storeCtx;
     X509_CRL *crl;
-    X509 *x509;
+    X509 *ca, *cert;
     const char crlPem[] = "./certs/crl/crl.revoked";
     const char srvCert[] = "./certs/server-revoked-cert.pem";
     const char caCert[] = "./certs/ca-cert.pem";
@@ -22571,22 +22563,24 @@ static void test_wolfSSL_X509_STORE(void)
 
     printf(testingFmt, "test_wolfSSL_X509_STORE");
     AssertNotNull(store = (X509_STORE *)X509_STORE_new());
-    AssertNotNull((x509 = wolfSSL_X509_load_certificate_file(caCert,
+    AssertNotNull((ca = wolfSSL_X509_load_certificate_file(caCert,
                            SSL_FILETYPE_PEM)));
-    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
-    AssertNotNull((x509 = wolfSSL_X509_load_certificate_file(srvCert,
+    AssertIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
+    AssertNotNull((cert = wolfSSL_X509_load_certificate_file(srvCert,
                     SSL_FILETYPE_PEM)));
     AssertNotNull((storeCtx = X509_STORE_CTX_new()));
-    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, x509, NULL), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
     AssertIntEQ(X509_verify_cert(storeCtx), SSL_SUCCESS);
+    X509_STORE_free(store);
     X509_STORE_CTX_free(storeCtx);
-    X509_free(x509);
+    X509_free(cert);
+    X509_free(ca);
 
     /* should fail to verify now after adding in CRL */
     AssertNotNull(store = (X509_STORE *)X509_STORE_new());
-    AssertNotNull((x509 = wolfSSL_X509_load_certificate_file(caCert,
+    AssertNotNull((ca = wolfSSL_X509_load_certificate_file(caCert,
                            SSL_FILETYPE_PEM)));
-    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_add_cert(store, ca), SSL_SUCCESS);
     fp = XFOPEN(crlPem, "rb");
     AssertTrue((fp != XBADFILE));
     AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL,
@@ -22595,14 +22589,16 @@ static void test_wolfSSL_X509_STORE(void)
     AssertIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
     AssertIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK),SSL_SUCCESS);
     AssertNotNull((storeCtx = X509_STORE_CTX_new()));
-    AssertNotNull((x509 = wolfSSL_X509_load_certificate_file(srvCert,
+    AssertNotNull((cert = wolfSSL_X509_load_certificate_file(srvCert,
                     SSL_FILETYPE_PEM)));
-    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, x509, NULL), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, cert, NULL), SSL_SUCCESS);
     AssertIntNE(X509_verify_cert(storeCtx), SSL_SUCCESS);
     AssertIntEQ(X509_STORE_CTX_get_error(storeCtx), CRL_CERT_REVOKED);
-    X509_free(x509);
-    X509_STORE_CTX_free(storeCtx);
     X509_CRL_free(crl);
+    X509_STORE_free(store);
+    X509_STORE_CTX_free(storeCtx);
+    X509_free(cert);
+    X509_free(ca);
     #endif /* HAVE_CRL */
 
 
@@ -23797,10 +23793,8 @@ static void test_wolfSSL_X509(void)
 
 
     X509_STORE_CTX_free(ctx);
-    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(WOLFSSL_QT)
     X509_STORE_free(store);
     X509_free(x509);
-    #endif
     BIO_free(bio);
 
     /** d2i_X509_fp test **/

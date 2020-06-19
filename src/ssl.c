@@ -22764,11 +22764,15 @@ err_exit:
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
     if (store != NULL && store->isDynamic) {
-        if (store->cm != NULL)
+        if (store->cm != NULL) {
             wolfSSL_CertManagerFree(store->cm);
+            store->cm = NULL;
+        }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-        if (store->param != NULL)
+        if (store->param != NULL) {
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
+            store->param = NULL;
+        }
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
@@ -22893,23 +22897,18 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 }
 
 
+/* free's own cert chain holding and extra data */
 void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
     WOLFSSL_ENTER("X509_STORE_CTX_free");
     if (ctx != NULL) {
-    #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
-        if (ctx->store != NULL)
-            wolfSSL_X509_STORE_free(ctx->store);
-        #ifndef WOLFSSL_KEEP_STORE_CERTS
-        if (ctx->current_cert != NULL)
-            wolfSSL_FreeX509(ctx->current_cert);
-        #endif
-    #endif /* !OPENSSL_ALL && !WOLFSSL_QT */
-#ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
+        wolfSSL_sk_free(ctx->chain);
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
+            ctx->param = NULL;
         }
-#endif
+    #endif
         XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
     }
 }

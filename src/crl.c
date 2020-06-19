@@ -526,6 +526,7 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
                 prev->next = tmp;
             if (head == NULL)
                 head = tmp;
+            prev = tmp;
         }
         else {
             WOLFSSL_MSG("Failed to allocate new RevokedCert structure");
@@ -619,6 +620,17 @@ static CRL_Entry* DupCRL_list(CRL_Entry* crl, void* heap)
                 head = tmp;
             if (prev != NULL)
                 prev->next = tmp;
+            prev = tmp;
+        }
+        else {
+            WOLFSSL_MSG("Failed to allocate new CRL_Entry structure");
+            /* free up any existing list */
+            while (head != NULL) {
+                current = head;
+                head = head->next;
+                FreeCRL_Entry(current, heap);
+            }
+            return NULL;
         }
         current = current->next;
     }
@@ -635,16 +647,15 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dup, const WOLFSSL_X509_CRL* crl)
         return BAD_FUNC_ARG;
     }
 
-    dup->crlList = DupCRL_list(crl->crlList, dup->heap);
-#ifdef HAVE_CRL_IO
-    dup->crlIOCb = crl->crlIOCb;
-#endif
     if (crl->monitors[0].path) {
         int pathSz = (int)XSTRLEN(crl->monitors[0].path) + 1;
         dup->monitors[0].path = (char*)XMALLOC(pathSz, dup->heap,
                 DYNAMIC_TYPE_CRL_MONITOR);
         if (dup->monitors[0].path != NULL) {
             XSTRNCPY(dup->monitors[0].path, crl->monitors[0].path, pathSz);
+        }
+        else {
+            return MEMORY_E;
         }
     }
 
@@ -655,7 +666,19 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dup, const WOLFSSL_X509_CRL* crl)
         if (dup->monitors[1].path != NULL) {
             XSTRNCPY(dup->monitors[1].path, crl->monitors[1].path, pathSz);
         }
+        else {
+            if (dup->monitors[0].path != NULL) {
+                XFREE(dup->monitors[0].path, dup->heap,
+                        DYNAMIC_TYPE_CRL_MONITOR);
+            }
+            return MEMORY_E;
+        }
     }
+
+    dup->crlList = DupCRL_list(crl->crlList, dup->heap);
+#ifdef HAVE_CRL_IO
+    dup->crlIOCb = crl->crlIOCb;
+#endif
 
     return 0;
 }
