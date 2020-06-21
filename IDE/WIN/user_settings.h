@@ -33,7 +33,6 @@
         /* The lib */
         #define OPENSSL_EXTRA
         #define WOLFSSL_RIPEMD
-        #define WOLFSSL_SHA512
         #define NO_PSK
         #define HAVE_EXTENDED_MASTER
         #define WOLFSSL_SNIFFER
@@ -45,7 +44,6 @@
         #define WOLFSSL_SHA512
 
         #define HAVE_SUPPORTED_CURVES
-        #define HAVE_TLS_EXTENSIONS
 
         #define HAVE_ECC
         #define ECC_SHAMIR
