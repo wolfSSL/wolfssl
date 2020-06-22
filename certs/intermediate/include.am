@@ -14,6 +14,14 @@ EXTRA_DIST += \
 	     certs/intermediate/ca-int-key.pem \
 	     certs/intermediate/client-chain-alt-ecc.pem \
 	     certs/intermediate/client-chain-alt.pem \
+		 certs/intermediate/ca-int2-cert.der \
+	     certs/intermediate/ca-int2-cert.pem \
+	     certs/intermediate/ca-int2-ecc-cert.der \
+	     certs/intermediate/ca-int2-ecc-cert.pem \
+	     certs/intermediate/ca-int2-ecc-key.der \
+	     certs/intermediate/ca-int2-ecc-key.pem \
+	     certs/intermediate/ca-int2-key.der \
+	     certs/intermediate/ca-int2-key.pem \
 	     certs/intermediate/client-chain-ecc.der \
 	     certs/intermediate/client-chain-ecc.pem \
 		 certs/intermediate/client-chain.der \

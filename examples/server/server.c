@@ -957,7 +957,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
-    int    overrideDateErrors = 0;
     const char* verifyCert;
     const char* ourCert;
     const char* ourKey;
@@ -1089,7 +1088,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
-    (void)overrideDateErrors;
     (void)nonBlocking;
 
 #ifdef WOLFSSL_TIRTOS
@@ -1221,7 +1219,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
                     printf("Verify should fail\n");
-                    myVerifyFail = 1;
+                    myVerifyAction = VERIFY_FORCE_FAIL;
+                }
+                else if (XSTRNCMP(myoptarg, "verifyInfo", 10) == 0) {
+                    printf("Verify should use preverify (just show info)\n");
+                    myVerifyAction = VERIFY_USE_PREVERFIY;
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Also load cert/key into wolfSSL object\n");
@@ -1243,7 +1245,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "overrideDateErr", 15) == 0) {
                 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-                    overrideDateErrors = 1;
+                    myVerifyAction = VERIFY_OVERRIDE_DATE_ERR;
                 #endif
                 }
                 else {
@@ -1805,7 +1807,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
                             (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),
-                            overrideDateErrors == 1 ? myDateCb : NULL);
+                  myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ? myVerify : NULL);
 
     #ifdef TEST_BEFORE_DATE
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;

@@ -10954,7 +10954,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->options.usingAltCertChain = 1;
                             }
 
-                            ret = 0; /* clear error and continue */
+                            ret = 0; /* clear errors and continue */
+                            args->verifyErr = 0;
                         }
 
                         /* do not add to certificate manager */
@@ -12417,7 +12418,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         expectedIdx += MacSize(ssl);
 #endif
 
-#if !defined(WOLFSSL_NO_SERVER) && \
+#if !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SECURE_RENEGOTIATION) && \
     defined(HAVE_SERVER_RENEGOTIATION_INFO)
     if (ssl->options.handShakeDone && type == client_hello &&
