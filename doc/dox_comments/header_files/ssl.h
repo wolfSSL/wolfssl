@@ -9973,7 +9973,7 @@ WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
     ClientHello + SNI with either ServerHello + blank SNI or alert fatal in
     case of SNI mismatch.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of these
     cases: ssl is NULL, data is NULL, type is a unknown value. (see below)
     \return MEMORY_E is the error returned when there is not enough memory.
@@ -9998,8 +9998,8 @@ WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "www.yassl.com",
-    strlen("www.yassl.com"));
-    if (ret != 0) {
+        strlen("www.yassl.com"));
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     \endcode
@@ -10017,7 +10017,7 @@ WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
     clients and wolfSSL servers will respond ClientHello + SNI with either
     ServerHello + blank SNI or alert fatal in case of SNI mismatch.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of these
     cases: ctx is NULL, data is NULL, type is a unknown value. (see below)
     \return MEMORY_E is the error returned when there is not enough memory.
@@ -10037,8 +10037,8 @@ WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
         // context creation failed
     }
     ret = wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, "www.yassl.com",
-    strlen("www.yassl.com"));
-    if (ret != 0) {
+        strlen("www.yassl.com"));
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     \endcode
@@ -10084,11 +10084,11 @@ WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, unsigned char type,
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
-    WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
+        WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
     \endcode
 
     \sa wolfSSL_new
@@ -10129,7 +10129,7 @@ WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
        // context creation failed
     }
     ret = wolfSSL_CTX_UseSNI(ctx, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME,
@@ -10149,7 +10149,7 @@ WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
     by the client to start a session. It does not requires context or session
     setup to retrieve the SNI.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of this
     cases: buffer is NULL, bufferSz <= 0, sni is NULL, inOutSz is NULL or <= 0
     \return BUFFER_ERROR is the error returned when there is a malformed
@@ -10172,7 +10172,7 @@ WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
     int           length       = 32;
     // read Client Hello to buffer...
     ret = wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0, result, &length));
-    if (ret != SSL_SUCCESS) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni retrieve failed
     }
     \endcode
@@ -10241,7 +10241,7 @@ WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     if (wolfSSL_accept(ssl) == SSL_SUCCESS) {
@@ -10261,7 +10261,7 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
     \brief Setup ALPN use for a wolfSSL session.
 
-    \return SSL_SUCCESS: upon success.
+    \return WOLFSSL_SUCCESS: upon success.
     \return BAD_FUNC_ARG Returned if ssl or protocol_name_list
     is null or protocol_name_listSz is too large or options
     contain something not supported.
@@ -10286,8 +10286,8 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
     char alpn_list[] = {};
 
-    if(wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
-    WOLFSSL_APN_FAILED_ON_MISMATCH) != SSL_SUCCESS)
+    if (wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+        WOLFSSL_APN_FAILED_ON_MISMATCH) != WOLFSSL_SUCCESS)
     {
        // Error setting session ticket
     }
