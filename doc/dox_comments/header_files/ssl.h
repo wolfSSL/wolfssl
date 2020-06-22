@@ -3773,7 +3773,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
     \brief The wolfSSLv23_client_method() function is used to indicate that
     the application is a client and will support the highest protocol
-    version supported by the server between SSL 3.0 - TLS 1.2.  This function
+    version supported by the server between SSL 3.0 - TLS 1.3.  This function
     allocates memory for and initializes a new WOLFSSL_METHOD structure
     to be used when creating the SSL/TLS context with wolfSSL_CTX_new().
     Both wolfSSL clients and servers have robust version downgrade capability.
@@ -3784,7 +3784,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
     To resolve this issue, a client that uses the wolfSSLv23_client_method()
     function will use the highest protocol version supported by the server and
     downgrade to SSLv3 if needed. In this case, the client will be able to
-    connect to a server running SSLv3 - TLSv1.2.
+    connect to a server running SSLv3 - TLSv1.3.
 
     \return pointer upon success a pointer to a WOLFSSL_METHOD.
     \return Failure If memory allocation fails when calling XMALLOC,
@@ -5254,7 +5254,7 @@ WOLFSSL_API int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX*);
 
     \brief The wolfSSLv23_server_method() function is used to indicate
     that the application is a server and will support clients connecting
-    with protocol version from SSL 3.0 - TLS 1.2.  This function allocates
+    with protocol version from SSL 3.0 - TLS 1.3.  This function allocates
     memory for and initializes a new WOLFSSL_METHOD structure to be used when
     creating the SSL/TLS context with wolfSSL_CTX_new().
 
