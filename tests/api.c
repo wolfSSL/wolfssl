@@ -1268,7 +1268,6 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_X509_free(x509);
     wc_FreeRng(&rng);
-    wolfSSL_CertManagerFree(cm);
 #endif
 }
 
