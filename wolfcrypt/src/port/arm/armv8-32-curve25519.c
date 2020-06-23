@@ -23,19 +23,14 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-curve25519.c
  */
-
+#ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
-
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
-#endif
-
+#endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
-
-#ifdef WOLFSSL_ARMASM
 #include <wolfssl/wolfcrypt/fe_operations.h>
-#include <stdint.h>
 
 void fe_init()
 {
@@ -5577,5 +5572,5 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
     (void)qyminusx;
 }
 
-#endif /* WOLFSSL_ARMASM */
 #endif /* !__aarch64__ */
+#endif /* WOLFSSL_ARMASM */
