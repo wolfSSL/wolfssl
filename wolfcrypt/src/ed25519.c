@@ -365,7 +365,7 @@ static int ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     *res = 0;
 
     /* check on basics needed to verify signature */
-    if (sigLen < ED25519_SIG_SIZE || (sig[ED25519_SIG_SIZE-1] & 224))
+    if (sigLen != ED25519_SIG_SIZE || (sig[ED25519_SIG_SIZE-1] & 224))
         return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
