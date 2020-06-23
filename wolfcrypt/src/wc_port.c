@@ -1849,6 +1849,13 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 #elif defined(WOLFSSL_USER_MUTEX)
 
     /* Use user own mutex */
+    
+    /*
+    int wc_InitMutex(wolfSSL_Mutex* m) { ... }
+    int wc_FreeMutex(wolfSSL_Mutex *m) { ... }
+    int wc_LockMutex(wolfSSL_Mutex *m) { ... }
+    int wc_UnLockMutex(wolfSSL_Mutex *m) { ... }
+    */
 
 #else
     #warning No mutex handling defined
