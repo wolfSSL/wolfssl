@@ -22125,9 +22125,6 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
-#ifdef OPENSSL_ALL
-    sk_X509_free(sk);
-#endif
     X509_STORE_free(str);
     X509_free(x509);
 
@@ -22153,7 +22150,6 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertNotNull((sk3 = X509_STORE_CTX_get1_chain(ctx)));
     AssertIntEQ(sk_num(sk3), 1); /* sanity, make sure chain has 1 cert */
     X509_STORE_CTX_free(ctx);
-    sk_X509_free(sk);
     X509_STORE_free(str);
     /* CTX certs not freed yet */
     X509_free(x5092);
