@@ -1636,6 +1636,7 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
     y     = (int)(buf >> (DIGIT_BIT - 1)) & 1;
     buf <<= (fp_digit)1;
 
+#ifdef WC_NO_CACHE_RESISTANT
     /* do ops */
     err = fp_mul(&R[0], &R[1], &R[y^1]);
     if (err != FP_OKAY) {
@@ -1652,7 +1653,6 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       return err;
     }
 
-#ifdef WC_NO_CACHE_RESISTANT
     err = fp_sqr(&R[y], &R[y]);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -1668,6 +1668,28 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       return err;
     }
 #else
+    /* do ops */
+    err = fp_mul(&R[0], &R[1], &R[2]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[2], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    /* instead of using R[y^1] for mul, which leaks key bit to cache monitor,
+     * use R[2] as temp, make sure address calc is constant, keep
+     * &R[0] and &R[1] in cache */
+    fp_copy(&R[2],
+            (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y]) +
+                        ((wolfssl_word)&R[1] & wc_off_on_addr[y^1]) ) );
+
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
      * use R[2] as temp, make sure address calc is constant, keep
      * &R[0] and &R[1] in cache */
