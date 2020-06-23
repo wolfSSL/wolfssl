@@ -7802,6 +7802,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     byte key_raw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
     word32 keySz = 0;
 #endif
+
     /* if d is NULL, only import as public key using Qx,Qy */
     if (key == NULL || qx == NULL || qy == NULL) {
         return BAD_FUNC_ARG;
@@ -7839,6 +7840,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         else
             err = mp_read_unsigned_bin(key->pubkey.x, (const byte*)qx,
                 key->dp->size);
+
+        if (mp_iszero(key->pubkey.x)) {
+            WOLFSSL_MSG("Invalid Qx");
+            err = BAD_FUNC_ARG;
+        }
     }
 
     /* read Qy */
@@ -7849,6 +7855,10 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             err = mp_read_unsigned_bin(key->pubkey.y, (const byte*)qy,
                 key->dp->size);
 
+        if (mp_iszero(key->pubkey.y)) {
+            WOLFSSL_MSG("Invalid Qy");
+            err = BAD_FUNC_ARG;
+        }
     }
 
     if (err == MP_OKAY)
@@ -7937,6 +7947,10 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
                 err = mp_read_unsigned_bin(&key->k, (const byte*)d,
                     key->dp->size);
         #endif /* WOLFSSL_ATECC508A */
+            if (mp_iszero(&key->k)) {
+                WOLFSSL_MSG("Invalid private key");
+                return BAD_FUNC_ARG;
+            }
         } else {
             key->type = ECC_PUBLICKEY;
         }
