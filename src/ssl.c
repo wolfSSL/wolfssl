@@ -22989,12 +22989,12 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         afterDate = ctx->current_cert->notAfter.data;
         beforeDate = ctx->current_cert->notBefore.data;
 
-        if (ValidateDate(afterDate, ctx->current_cert->notAfter.type,
+        if (ValidateDate(afterDate, (byte)ctx->current_cert->notAfter.type,
                                                                    AFTER) < 1) {
             error = X509_V_ERR_CERT_HAS_EXPIRED;
         }
-        else if (ValidateDate(beforeDate, ctx->current_cert->notBefore.type,
-                                                                  BEFORE) < 1) {
+        else if (ValidateDate(beforeDate,
+                    (byte)ctx->current_cert->notBefore.type, BEFORE) < 1) {
             error = X509_V_ERR_CERT_NOT_YET_VALID;
         }
 
