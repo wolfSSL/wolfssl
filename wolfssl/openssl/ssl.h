@@ -79,6 +79,7 @@ typedef WOLFSSL_X509_NAME  X509_NAME;
 typedef WOLFSSL_X509_INFO  X509_INFO;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
+/* STACK_OF(ASN1_OBJECT) */
 typedef WOLFSSL_STACK      EXTENDED_KEY_USAGE;
 
 
@@ -429,7 +430,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_push                    wolfSSL_sk_X509_push
 #define sk_X509_pop                     wolfSSL_sk_X509_pop
 #define sk_X509_pop_free                wolfSSL_sk_X509_pop_free
-#define sk_X509_dup                     wolfSSL_sk_X509_dup
+#define sk_X509_dup                     wolfSSL_sk_dup
 #define sk_X509_free                    wolfSSL_sk_X509_free
 
 #define sk_X509_EXTENSION_num           wolfSSL_sk_X509_EXTENSION_num
@@ -909,7 +910,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_SSL_COMP_zero                wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value             wolfSSL_sk_SSL_CIPHER_value
 #endif /* OPENSSL_ALL || WOLFSSL_HAPROXY */
-#define sk_SSL_CIPHER_dup               wolfSSL_sk_SSL_CIPHER_dup
+#define sk_SSL_CIPHER_dup               wolfSSL_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
 
