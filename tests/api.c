@@ -1208,6 +1208,75 @@ static int test_wolfSSL_CertManagerSetVerify(void)
     return ret;
 }
 
+static void test_wolfSSL_CertManagerNameConstraint(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
+    WOLFSSL_CERT_MANAGER* cm;
+    const char* ca_cert = "./certs/test/cert-ext-nc.der";
+    int i = 0;
+    static const byte extNameConsOid[] = {85, 29, 30};
+
+    RsaKey  key;
+    WC_RNG  rng;
+    byte    *der;
+    int     derSz;
+    word32  idx = 0;
+    byte    *pt;
+    WOLFSSL_X509 *x509;
+
+    wc_InitRng(&rng);
+
+    /* load in CA private key for signing */
+    AssertIntEQ(wc_InitRsaKey_ex(&key, HEAP_HINT, devId), 0);
+    AssertIntEQ(wc_RsaPrivateKeyDecode(server_key_der_2048, &idx, &key,
+                sizeof_server_key_der_2048), 0);
+
+    /* get ca certificate then alter it */
+    AssertNotNull(der =
+            (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertNotNull(pt = (byte*)wolfSSL_X509_get_tbs(x509, &derSz));
+    XMEMCPY(der, pt, derSz);
+
+    /* find the name constraint extension and alter it */
+    pt = der;
+    for (i = 0; i < derSz - 3; i++) {
+        if (XMEMCMP(pt, extNameConsOid, 3) == 0) {
+            pt += 3;
+            break;
+        }
+        pt++;
+    }
+    AssertIntNE(i, derSz - 3); /* did not find OID if this case is hit */
+
+    /* go to the length value and set it to 0 */
+    while (i < derSz && *pt != 0x81) {
+        pt++;
+        i++;
+    }
+    AssertIntNE(i, derSz); /* did not place to alter */
+    pt++;
+    *pt = 0x00;
+
+    /* resign the altered certificate */
+    AssertIntGT((derSz = wc_SignCert(derSz, CTC_SHA256wRSA, der,
+                             FOURK_BUF, &key, NULL, &rng)), 0);
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_PARSE_E);
+    wolfSSL_CertManagerFree(cm);
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_X509_free(x509);
+    wc_FreeRng(&rng);
+#endif
+}
+
 static void test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -32245,6 +32314,7 @@ void ApiTest(void)
     test_wolfSSL_CertManagerLoadCABuffer();
     test_wolfSSL_CertManagerGetCerts();
     test_wolfSSL_CertManagerSetVerify();
+    test_wolfSSL_CertManagerNameConstraint();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();
