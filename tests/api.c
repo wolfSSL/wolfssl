@@ -16046,7 +16046,7 @@ static int test_wc_curve448_make_key (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    RNG           rng;
+    WC_RNG           rng;
     curve448_key  key;
     int           keysize;
     
@@ -16108,7 +16108,7 @@ static int test_wc_curve448_import_private_raw_ex(void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    RNG             rng; 
+    WC_RNG             rng; 
     curve448_key    key;
     byte            priv[CURVE448_KEY_SIZE];
     byte            pub[CURVE448_KEY_SIZE];
