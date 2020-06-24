@@ -16038,7 +16038,6 @@ static int test_wc_curve448_init (void)
     return ret;
 
 } /* END test_wc_curve448_init and wc_curve_448_free*/
-
 /*
  * Testing wc_curve448_make_key
  */
@@ -16054,11 +16053,9 @@ static int test_wc_curve448_make_key (void)
     printf(testingFmt, "wc_curve448_make_key()");
     
     ret = wc_curve448_init(&key);
-    
     ret = wc_InitRng(&rng);   
     if (ret == 0) {
     
-        
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0) {
             keysize = wc_curve448_size(&key); 
@@ -16108,7 +16105,7 @@ static int test_wc_curve448_import_private_raw_ex(void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    RNG             rng; /*Not sure if necessary*/
+    RNG             rng; 
     curve448_key    key;
     byte            priv[CURVE448_KEY_SIZE];
     byte            pub[CURVE448_KEY_SIZE];
@@ -16118,13 +16115,11 @@ static int test_wc_curve448_import_private_raw_ex(void)
 
     printf(testingFmt, "wc_curve448_import_private_raw_ex()");
        
-    
     ret = wc_curve448_init(&key);
     
     ret = wc_InitRng(&rng);   
     if (ret == 0) {
     
-        
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0){
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
