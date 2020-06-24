@@ -890,14 +890,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define sk_X509_NAME_find               wolfSSL_sk_X509_NAME_find
 
-enum {
-    GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
-    GEN_EMAIL = 0x01, /* ASN_RFC822_TYPE */
-    GEN_URI   = 0x06, /* ASN_URI_TYPE */
-    GEN_IPADD = 0x07,
-    GEN_RID   = 0x08, /* Registered ID, not supported */
-};
-
 #define PEM_read_bio_DHparams           wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams          wolfSSL_PEM_read_bio_DSAparams
 
@@ -922,7 +914,6 @@ enum {
 #include <wolfssl/openssl/pem.h>
 
 #define SSL_CTRL_CHAIN       88
-#define GEN_IPADD            7
 #define ERR_LIB_SSL          20
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
