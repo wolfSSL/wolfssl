@@ -15609,8 +15609,14 @@ int ProcessReply(WOLFSSL* ssl)
 
             ssl->options.processReply = doProcessInit;
 
-            /* input exhausted? */
-            if (ssl->buffers.inputBuffer.idx >= ssl->buffers.inputBuffer.length)
+            /* input exhausted */
+            if (ssl->buffers.inputBuffer.idx >= ssl->buffers.inputBuffer.length
+#ifdef WOLFSSL_DTLS
+                /* If app data was processed then return now to avoid
+                 * dropping any app data. */
+                || (ssl->options.dtls && ssl->curRL.type == application_data)
+#endif
+                )
                 return ret;
 
             /* more messages per record */
