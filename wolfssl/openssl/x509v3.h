@@ -63,7 +63,7 @@ struct WOLFSSL_v3_ext_method {
 struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_OBJECT *obj;
     WOLFSSL_ASN1_BOOLEAN crit;
-    WOLFSSL_ASN1_STRING value;
+    ASN1_OCTET_STRING value; /* DER format of extension */
     WOLFSSL_v3_ext_method ext_method;
     WOLFSSL_STACK* ext_sk; /* For extension specific data */
 };
