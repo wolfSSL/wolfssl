@@ -8724,9 +8724,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         case (NID_basic_constraints):
             WOLFSSL_MSG("basicConstraints");
             /* Allocate new BASIC_CONSTRAINTS structure */
-            bc = (WOLFSSL_BASIC_CONSTRAINTS*)
-                  XMALLOC(sizeof(WOLFSSL_BASIC_CONSTRAINTS), NULL,
-                  DYNAMIC_TYPE_X509_EXT);
+            bc = wolfSSL_BASIC_CONSTRAINTS_new();
             if (bc == NULL) {
                 WOLFSSL_MSG("Failed to malloc basic constraints");
                 return NULL;
@@ -8737,7 +8735,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 bc->pathlen = wolfSSL_ASN1_INTEGER_dup(object->pathlen);
                 if (bc->pathlen == NULL) {
                     WOLFSSL_MSG("Failed to duplicate ASN1_INTEGER");
-                    XFREE(bc, NULL, DYNAMIC_TYPE_X509_EXT);
+                    wolfSSL_BASIC_CONSTRAINTS_free(bc);
                     return NULL;
                 }
             }
@@ -9122,6 +9120,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_ASN1_OBJECT* obj = NULL;
     WOLFSSL_GENERAL_NAME* gn = NULL;
+    WOLFSSL_BASIC_CONSTRAINTS* bc = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_d2i");
 
@@ -9136,27 +9135,35 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
     switch (nid) {
         case BASIC_CA_OID:
             if (x509->basicConstSet) {
-                obj = wolfSSL_ASN1_OBJECT_new();
-                if (obj == NULL) {
-                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                WOLFSSL_ASN1_INTEGER* a;
+
+                bc = wolfSSL_BASIC_CONSTRAINTS_new();
+                if (!bc) {
+                    WOLFSSL_MSG("wolfSSL_BASIC_CONSTRAINTS_new error");
                     return NULL;
                 }
+
+                a = wolfSSL_ASN1_INTEGER_new();
+                if (!a) {
+                    WOLFSSL_MSG("wolfSSL_ASN1_INTEGER_new error");
+                    wolfSSL_BASIC_CONSTRAINTS_free(bc);
+                    return NULL;
+                }
+                a->length = x509->pathLength;
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+        defined(WOLFSSL_APACHE_HTTPD)
+                bc->ca = x509->isCa;
+#endif
+                bc->pathlen = a;
                 if (c != NULL) {
                     *c = x509->basicConstCrit;
                 }
-                obj->type = BASIC_CA_OID;
-                obj->grp  = oidCertExtType;
-                obj->nid  = nid;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
-                    defined(WOLFSSL_APACHE_HTTPD)
-                obj->ca = x509->isCa;
-            #endif
             }
             else {
                 WOLFSSL_MSG("No Basic Constraint set");
             }
-            return obj;
+            return bc;
 
         case ALT_NAMES_OID:
         {
@@ -27403,6 +27410,20 @@ WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
+
+WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void)
+{
+    WOLFSSL_BASIC_CONSTRAINTS* bc;
+    bc = (WOLFSSL_BASIC_CONSTRAINTS*)
+          XMALLOC(sizeof(WOLFSSL_BASIC_CONSTRAINTS), NULL,
+          DYNAMIC_TYPE_X509_EXT);
+    if (bc == NULL) {
+        WOLFSSL_MSG("Failed to malloc basic constraints");
+        return NULL;
+    }
+    XMEMSET(bc, 0, sizeof(WOLFSSL_BASIC_CONSTRAINTS));
+    return bc;
+}
 
 /* frees the wolfSSL_BASIC_CONSTRAINTS object */
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)

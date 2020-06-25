@@ -23307,6 +23307,7 @@ static void test_wolfSSL_certs(void)
     STACK_OF(ASN1_OBJECT)* sk;
     ASN1_STRING* asn1_str;
     AUTHORITY_KEYID* akey;
+    BASIC_CONSTRAINTS* bc;
     int crit;
 
     printf(testingFmt, "wolfSSL_certs()");
@@ -23371,16 +23372,16 @@ static void test_wolfSSL_certs(void)
     #endif /* !NO_SHA && !NO_SHA256*/
 
     /* test and checkout X509 extensions */
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_basic_constraints,
+    bc = (BASIC_CONSTRAINTS*)X509_get_ext_d2i(x509ext, NID_basic_constraints,
             &crit, NULL);
-    AssertNotNull(sk);
+    AssertNotNull(bc);
 #ifdef OPENSSL_ALL
-    ext = X509V3_EXT_i2d(NID_basic_constraints, crit, sk);
+    ext = X509V3_EXT_i2d(NID_basic_constraints, crit, bc);
     AssertNotNull(ext);
     X509_EXTENSION_free(ext);
 #endif
     AssertIntEQ(crit, 0);
-    sk_ASN1_OBJECT_free(sk);
+    BASIC_CONSTRAINTS_free(bc);
 
     asn1_str = (ASN1_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit, NULL);
     AssertNotNull(asn1_str);
@@ -23416,7 +23417,6 @@ static void test_wolfSSL_certs(void)
     wolfSSL_AUTHORITY_KEYID_free(akey);
     X509_EXTENSION_free(ext);
 #endif
-    sk_ASN1_OBJECT_free(sk);
 
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
             NID_private_key_usage_period, &crit, NULL);
