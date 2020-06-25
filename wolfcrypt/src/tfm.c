@@ -103,6 +103,26 @@ word32 CheckRunTimeFastMath(void)
 
 /* Functions */
 
+static int fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
+{
+  int i;
+  fp_digit r = FP_EQ;
+  fp_digit mask = (fp_digit)-1;
+
+  for (i = len - 1; i >= 0; i--) {
+    /* 0 is placed into unused digits. */
+    fp_digit ad = a->dp[i];
+    fp_digit bd = b->dp[i];
+
+    r |= mask & (ad > bd);
+    mask &= (ad > bd) - 1;
+    r |= mask & (-(ad < bd));
+    mask &= (ad < bd) - 1;
+  }
+
+  return r;
+}
+
 int fp_add(fp_int *a, fp_int *b, fp_int *c)
 {
   int sa, sb;
@@ -639,7 +659,8 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
   /* if a < b then q=0, r = a */
-  if (fp_cmp_mag (a, b) == FP_LT) {
+  if (fp_cmp_mag (a, b) == FP_LT)
+  {
     if (d != NULL) {
       fp_copy (a, d);
     }
@@ -1578,7 +1599,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   fp_digit mask;
   int i;
 
-  mask = 0 - (fp_cmp_mag(a, b) == FP_LT);
+  mask = 0 - (fp_cmp_mag_ct(a, b, c->used) == FP_LT);
   for (i = 0; i < c->used; i++) {
       fp_digit mask_a = 0 - (i < a->used);
 
@@ -1591,7 +1612,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   d->used = i + 1;
   d->sign = FP_ZPOS;
   fp_clamp(d);
-  fp_sub(d, b, d);
+  s_fp_sub(d, b, d);
 
   return FP_OKAY;
 }
@@ -1603,8 +1624,8 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   fp_digit mask;
   int i;
 
-  fp_add(a, b, d);
-  mask = 0 - (fp_cmp_mag(d, c) != FP_LT);
+  s_fp_add(a, b, d);
+  mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != FP_LT);
   for (i = 0; i < c->used; i++) {
       w        += c->dp[i] & mask;
       w         = d->dp[i] - w;
@@ -3192,6 +3213,7 @@ int fp_cmp_mag(fp_int *a, fp_int *b)
    return FP_EQ;
 }
 
+
 /* sets up the montgomery reduction */
 int fp_montgomery_setup(fp_int *a, fp_digit *rho)
 {
@@ -3403,7 +3425,16 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
    pa = m->used;
 
    /* copy the input */
+#ifdef TFM_TIMING_RESISTANT
+   if (a->used <= m->used) {
+      oldused = m->used;
+   }
+   else {
+      oldused = m->used * 2;
+   }
+#else
    oldused = a->used;
+#endif
    for (x = 0; x < oldused; x++) {
        c[x] = a->dp[x];
    }
