@@ -517,7 +517,7 @@ struct WOLFSSL_X509_STORE {
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_CRL)
-    WOLFSSL_X509_CRL *crl;
+    WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
 };
 

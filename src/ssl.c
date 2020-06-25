@@ -22743,12 +22743,7 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
 
 #ifdef HAVE_CRL
-    store->crl = NULL;
-    if ((store->crl = (WOLFSSL_X509_CRL *)XMALLOC(sizeof(WOLFSSL_X509_CRL),
-                                        NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
-        goto err_exit;
-    if (InitCRL(store->crl, NULL) < 0)
-        goto err_exit;
+    store->crl = store->cm->crl;
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -22774,15 +22769,15 @@ err_exit:
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
     if (store != NULL && store->isDynamic) {
-        if (store->cm != NULL)
+        if (store->cm != NULL) {
             wolfSSL_CertManagerFree(store->cm);
-#ifdef HAVE_CRL
-        if (store->crl != NULL)
-            wolfSSL_X509_CRL_free(store->crl);
-#endif
+            store->cm = NULL;
+        }
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-        if (store->param != NULL)
+        if (store->param != NULL) {
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
+            store->param = NULL;
+        }
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
@@ -22907,23 +22902,18 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 }
 
 
+/* free's own cert chain holding and extra data */
 void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
     WOLFSSL_ENTER("X509_STORE_CTX_free");
     if (ctx != NULL) {
-    #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
-        if (ctx->store != NULL)
-            wolfSSL_X509_STORE_free(ctx->store);
-        #ifndef WOLFSSL_KEEP_STORE_CERTS
-        if (ctx->current_cert != NULL)
-            wolfSSL_FreeX509(ctx->current_cert);
-        #endif
-    #endif /* !OPENSSL_ALL && !WOLFSSL_QT */
-#ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
+        wolfSSL_sk_free(ctx->chain);
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
+            ctx->param = NULL;
         }
-#endif
+    #endif
         XFREE(ctx, NULL, DYNAMIC_TYPE_X509_CTX);
     }
 }
@@ -22935,7 +22925,6 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
     /* Do nothing */
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* Returns corresponding X509 error from internal ASN error <e> */
 static int GetX509Error(int e)
 {
@@ -22961,7 +22950,6 @@ static int GetX509Error(int e)
             return e;
     }
 }
-#endif /* OPENSSL_ALL || WOLFSSL_QT */
 
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 0 on success or < 0 on failure.
@@ -22969,11 +22957,10 @@ static int GetX509Error(int e)
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
     int ret = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int depth = 0;
     int error;
     byte *afterDate, *beforeDate;
-#endif
+
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx != NULL && ctx->store != NULL && ctx->store->cm != NULL
@@ -22983,7 +22970,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     ctx->current_cert->derCert->length,
                     WOLFSSL_FILETYPE_ASN1);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         /* If there was an error, process it and add it to CTX */
         if (ret < 0) {
             /* Get corresponding X509 error */
@@ -22994,7 +22980,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             wolfSSL_X509_STORE_CTX_set_error(ctx, error);
             wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
-            ctx->store->verify_cb(0, ctx);
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            if (ctx->store && ctx->store->verify_cb)
+                ctx->store->verify_cb(0, ctx);
+        #endif
         }
 
         error = 0;
@@ -23005,22 +22994,23 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         afterDate = ctx->current_cert->notAfter.data;
         beforeDate = ctx->current_cert->notBefore.data;
 
-        if (ValidateDate(afterDate, ctx->current_cert->notAfter.type,
+        if (ValidateDate(afterDate, (byte)ctx->current_cert->notAfter.type,
                                                                    AFTER) < 1) {
             error = X509_V_ERR_CERT_HAS_EXPIRED;
         }
-        else if (ValidateDate(beforeDate, ctx->current_cert->notBefore.type,
-                                                                  BEFORE) < 1) {
+        else if (ValidateDate(beforeDate,
+                    (byte)ctx->current_cert->notBefore.type, BEFORE) < 1) {
             error = X509_V_ERR_CERT_NOT_YET_VALID;
         }
 
         if (error != 0 ) {
             wolfSSL_X509_STORE_CTX_set_error(ctx, error);
             wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             if (ctx->store && ctx->store->verify_cb)
                 ctx->store->verify_cb(0, ctx);
+        #endif
         }
-#endif /* OPENSSL_ALL || WOLFSSL_QT */
         return ret;
     }
     return WOLFSSL_FATAL_ERROR;
@@ -23189,8 +23179,8 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
     if (in == NULL) {
         WOLFSSL_MSG("Bad argument value");
     } else {
-        newcrl = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), NULL,
-                DYNAMIC_TYPE_TMP_BUFFER);
+        newcrl =(WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), NULL,
+                DYNAMIC_TYPE_CRL);
         if (newcrl == NULL){
             WOLFSSL_MSG("New CRL allocation failed");
         } else {
