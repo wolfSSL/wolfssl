@@ -3695,7 +3695,7 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
 fi
 
-AS_IF([test "x$ENABLED_SNIFFER" == "xyes"],[ENABLED_ENCRYPT_THEN_MAC="no"])
+AS_IF([test "x$ENABLED_SNIFFER" = "xyes"],[ENABLED_ENCRYPT_THEN_MAC="no"])
 
 if test "x$ENABLED_ENCRYPT_THEN_MAC" = "xyes"
 then
@@ -4228,7 +4228,7 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
 
      AC_MSG_RESULT([yes])
 
-     AS_IF([test "x$BUILD_INTEL_QAT_VERSION" == "x1"],
+     AS_IF([test "x$BUILD_INTEL_QAT_VERSION" = "x1"],
         [LIB_ADD="-ladf_proxy -losal -lrt $LIB_ADD"],
         [LIB_ADD="-losal -lrt $LIB_ADD"])
      CPPFLAGS="$OLD_CPPFLAGS"
