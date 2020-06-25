@@ -16122,7 +16122,9 @@ static int test_wc_curve448_make_key (void)
     printf(testingFmt, "wc_curve448_make_key()");
     
     ret = wc_curve448_init(&key);
-    ret = wc_InitRng(&rng);   
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    }      
     if (ret == 0) {
     
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
@@ -16161,6 +16163,10 @@ static int test_wc_curve448_make_key (void)
             ret = 0;
         }
     }
+    
+    if (wc_FreeRng(&rng) != 0 && ret == 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
 
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
@@ -16185,8 +16191,9 @@ static int test_wc_curve448_import_private_raw_ex(void)
     printf(testingFmt, "wc_curve448_import_private_raw_ex()");
        
     ret = wc_curve448_init(&key);
-    
-    ret = wc_InitRng(&rng);   
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    } 
     if (ret == 0) {
     
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
@@ -16242,6 +16249,10 @@ static int test_wc_curve448_import_private_raw_ex(void)
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
+    }
+    
+    if (wc_FreeRng(&rng) != 0 && ret == 0) {
+        ret = WOLFSSL_FATAL_ERROR;
     }
     
     printf(resultFmt, ret == 0 ? passed : failed);
