@@ -9977,7 +9977,7 @@ static int sp_4096_div_39(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_4096_mul_d_39(t2, sd, r1);
         sp_4096_sub_39(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 39U);
-        for (i=0; i<37; i++) {
+        for (i=0; i<38; i++) {
             r[i+1] += r[i] >> 53;
             r[i] &= 0x1fffffffffffffL;
         }
@@ -10989,7 +10989,7 @@ static int sp_4096_div_78(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_4096_mul_d_78(t2, sd, r1);
         sp_4096_sub_78(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 78U);
-        for (i=0; i<76; i++) {
+        for (i=0; i<77; i++) {
             r[i+1] += r[i] >> 53;
             r[i] &= 0x1fffffffffffffL;
         }
