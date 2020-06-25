@@ -23305,7 +23305,8 @@ static void test_wolfSSL_certs(void)
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     STACK_OF(ASN1_OBJECT)* sk;
-    ASN1_BIT_STRING* bit_str;
+    ASN1_STRING* asn1_str;
+    AUTHORITY_KEYID* akey;
     int crit;
 
     printf(testingFmt, "wolfSSL_certs()");
@@ -23373,14 +23374,24 @@ static void test_wolfSSL_certs(void)
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_basic_constraints,
             &crit, NULL);
     AssertNotNull(sk);
+#ifdef OPENSSL_ALL
+    ext = X509V3_EXT_i2d(NID_basic_constraints, crit, sk);
+    AssertNotNull(ext);
+    X509_EXTENSION_free(ext);
+#endif
     AssertIntEQ(crit, 0);
     sk_ASN1_OBJECT_free(sk);
 
-    bit_str = (ASN1_BIT_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit, NULL);
-    AssertNotNull(bit_str);
+    asn1_str = (ASN1_STRING*)X509_get_ext_d2i(x509ext, NID_key_usage, &crit, NULL);
+    AssertNotNull(asn1_str);
     AssertIntEQ(crit, 1);
-    AssertIntEQ(bit_str->type, NID_key_usage);
-    ASN1_BIT_STRING_free(bit_str);
+    AssertIntEQ(asn1_str->type, NID_key_usage);
+#ifdef OPENSSL_ALL
+    ext = X509V3_EXT_i2d(NID_key_usage, crit, asn1_str);
+    AssertNotNull(ext);
+    X509_EXTENSION_free(ext);
+#endif
+    ASN1_STRING_free(asn1_str);
 
 #ifdef OPENSSL_ALL
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509, NID_ext_key_usage,
@@ -23388,6 +23399,7 @@ static void test_wolfSSL_certs(void)
     AssertNotNull(sk);
     ext = X509V3_EXT_i2d(NID_ext_key_usage, crit, sk);
     AssertNotNull(ext);
+    X509_EXTENSION_free(ext);
     sk_ASN1_OBJECT_free(sk);
 #else
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext, NID_ext_key_usage,
@@ -23395,9 +23407,15 @@ static void test_wolfSSL_certs(void)
     AssertNull(sk);
 #endif
 
-    sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
+    akey = (AUTHORITY_KEYID*)X509_get_ext_d2i(x509ext,
             NID_authority_key_identifier, &crit, NULL);
-    AssertNotNull(sk);
+    AssertNotNull(akey);
+#ifdef OPENSSL_ALL
+    ext = X509V3_EXT_i2d(NID_authority_key_identifier, crit, akey);
+    AssertNotNull(ext);
+    wolfSSL_AUTHORITY_KEYID_free(akey);
+    X509_EXTENSION_free(ext);
+#endif
     sk_ASN1_OBJECT_free(sk);
 
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
@@ -23478,7 +23496,6 @@ static void test_wolfSSL_certs(void)
 
     AssertIntEQ(SSL_get_hit(ssl), 0);
 #ifdef OPENSSL_ALL
-    X509_EXTENSION_free(ext);
     X509_free(x509);
 #endif
     X509_free(x509ext);
@@ -31375,7 +31392,7 @@ static void test_wolfSSL_X509V3_EXT(void) {
 #endif
     AssertIntEQ(actual, expected);
     wolfSSL_ASN1_STRING_free(asn1str);
-#if 0
+#if 1
     i++;
 
     /* Authority Info Access */
