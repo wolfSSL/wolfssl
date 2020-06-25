@@ -1619,8 +1619,13 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
    }
 
    /* should we dbl instead? */
-   if (err == MP_OKAY)
+   if (err == MP_OKAY) {
+#ifdef ECC_TIMING_RESISTANT
+       err = mp_submod_ct(modulus, Q->y, modulus, t1);
+#else
        err = mp_sub(modulus, Q->y, t1);
+#endif
+   }
    if (err == MP_OKAY) {
        if ( (mp_cmp(P->x, Q->x) == MP_EQ) &&
             (get_digit_count(Q->z) && mp_cmp(P->z, Q->z) == MP_EQ) &&
