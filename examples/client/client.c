@@ -1376,6 +1376,9 @@ static void Usage(void)
 #endif
 }
 
+#define MSG32 32
+#define GETMSGSZ 29
+
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
@@ -1390,11 +1393,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int              flatSessionSz = 0;
 
 #ifndef WOLFSSL_ALT_TEST_STRINGS
-    char msg[32] = "hello wolfssl!";   /* GET may make bigger */
-    char resumeMsg[32] = "resuming wolfssl!";
+    char msg[MSG32] = "hello wolfssl!";   /* GET may make bigger */
+    char resumeMsg[MSG32] = "resuming wolfssl!";
 #else
-    char msg[32] = "hello wolfssl!\n";
-    char resumeMsg[32] = "resuming wolfssl!\n";
+    char msg[MSG32] = "hello wolfssl!\n";
+    char resumeMsg[MSG32] = "resuming wolfssl!\n";
 #endif
 
     char reply[128];
@@ -2750,8 +2753,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
         byte pms[512]; /* pre master secret */
-        byte cr[32];   /* client random */
-        byte sr[32];   /* server random */
+        byte cr[MSG32];   /* client random */
+        byte sr[MSG32];   /* server random */
         const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
 
         XMEMSET(pms, 0x23, sizeof(pms));
@@ -3117,14 +3120,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
     if (sendGET) {
+        char msgGet[GETMSGSZ] = "GET /index.html HTTP/1.0\r\n\r\n";
         printf("SSL connect ok, sending GET...\n");
-        msgSz = sizeof("GET /index.html HTTP/1.0\r\n\r\n");
-        XSTRNCPY(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
-        msg[msgSz] = '\0';
 
-        resumeSz = msgSz;
-        XSTRNCPY(resumeMsg, "GET /index.html HTTP/1.0\r\n\r\n", resumeSz);
-        resumeMsg[resumeSz] = '\0';
+        XMEMSET(msg, 0, MSG32);
+        XMEMSET(resumeMsg, 0, MSG32);
+        msgSz = resumeSz = (int) XSTRLEN(msgGet);
+        XMEMCPY(msg, msgGet, msgSz);
+        XMEMCPY(resumeMsg, msgGet, resumeSz);
     }
 
 /* allow some time for exporting the session */
