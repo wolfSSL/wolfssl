@@ -14669,8 +14669,6 @@ static int test_wc_ed25519_sign_msg (void)
     ed25519_key     key;
     byte            msg[] = "Everybody gets Friday off.\n";
     byte            sig[ED25519_SIG_SIZE];
-    byte            sigTooShort[ED25519_SIG_SIZE - 1];
-    byte            sigTooLong[ED25519_SIG_SIZE + 1];
     word32          msglen = sizeof(msg);
     word32          siglen = sizeof(sig);
     word32          badSigLen = sizeof(sig) - 1;
@@ -14678,8 +14676,6 @@ static int test_wc_ed25519_sign_msg (void)
 
     /* Initialize stack variables. */
     XMEMSET(sig, 0, siglen);
-    XMEMSET(sigTooShort, 0, siglen-1);
-    XMEMSET(sigTooLong, 0, siglen+1);
 
     /* Initialize key. */
     ret = wc_InitRng(&rng);
@@ -14694,9 +14690,6 @@ static int test_wc_ed25519_sign_msg (void)
 
     if (ret == 0) {
         ret = wc_ed25519_sign_msg(msg, msglen, sig, &siglen, &key);
-        XMEMCPY(sigTooShort, sig, siglen-1);
-        XMEMCPY(sigTooLong, sig, siglen);
-        sigTooLong[ED25519_SIG_SIZE] = 0x01; /* add byte to end of sig */
     }
     /* Test bad args. */
     if (ret == 0 && siglen == ED25519_SIG_SIZE) {
@@ -14736,15 +14729,10 @@ static int test_wc_ed25519_sign_msg (void)
 
             /* Test bad args. */
             if (ret == 0) {
-                AssertIntEQ(wc_ed25519_verify_msg(sigTooShort, siglen - 1, msg,
+                AssertIntEQ(wc_ed25519_verify_msg(sig, siglen - 1, msg,
                                                   msglen, &verify_ok, &key),
                                                   BAD_FUNC_ARG);
-                /* This should verify even though sig is modified, only siglen
-                 * bytes are checked */
-                AssertIntEQ(wc_ed25519_verify_msg(sigTooLong, siglen, msg,
-                                                  msglen, &verify_ok, &key),
-                                                  0);
-                AssertIntEQ(wc_ed25519_verify_msg(sigTooLong, siglen + 1, msg,
+                AssertIntEQ(wc_ed25519_verify_msg(sig, siglen + 1, msg,
                                                   msglen, &verify_ok, &key),
                                                   BAD_FUNC_ARG);
 
@@ -15435,8 +15423,6 @@ static int test_wc_ed448_sign_msg (void)
     ed448_key     key;
     byte          msg[] = "Everybody gets Friday off.\n";
     byte          sig[ED448_SIG_SIZE];
-    byte          sigTooShort[ED448_SIG_SIZE - 1];
-    byte          sigTooLong[ED448_SIG_SIZE + 1];
     word32        msglen = sizeof(msg);
     word32        siglen = sizeof(sig);
     word32        badSigLen = sizeof(sig) - 1;
@@ -15444,8 +15430,6 @@ static int test_wc_ed448_sign_msg (void)
 
     /* Initialize stack variables. */
     XMEMSET(sig, 0, siglen);
-    XMEMSET(sigTooShort, 0, siglen - 1);
-    XMEMSET(sigTooLong, 0, siglen + 1);
 
     /* Initialize key. */
     ret = wc_InitRng(&rng);
@@ -15460,9 +15444,6 @@ static int test_wc_ed448_sign_msg (void)
 
     if (ret == 0) {
         ret = wc_ed448_sign_msg(msg, msglen, sig, &siglen, &key, NULL, 0);
-        XMEMCPY(sigTooShort, sig, siglen - 1);
-        XMEMCPY(sigTooLong, sig, siglen);
-        sigTooLong[ED448_SIG_SIZE] = 0x01; /* add byte to end of sig */
     }
     /* Test bad args. */
     if (ret == 0 && siglen == ED448_SIG_SIZE) {
@@ -15504,17 +15485,11 @@ static int test_wc_ed448_sign_msg (void)
 
             /* Test bad args. */
             if (ret == 0) {
-                AssertIntEQ(wc_ed448_verify_msg(sigTooShort, siglen - 1, msg,
+                AssertIntEQ(wc_ed448_verify_msg(sig, siglen - 1, msg,
                                                   msglen, &verify_ok, &key,
                                                   NULL, 0),
                                                   BAD_FUNC_ARG);
-                /* This should verify even though sig is modified, only siglen
-                 * bytes are checked */
-                AssertIntEQ(wc_ed448_verify_msg(sigTooLong, siglen, msg,
-                                                  msglen, &verify_ok, &key,
-                                                  NULL, 0),
-                                                  0);
-                AssertIntEQ(wc_ed448_verify_msg(sigTooLong, siglen + 1, msg,
+                AssertIntEQ(wc_ed448_verify_msg(sig, siglen + 1, msg,
                                                   msglen, &verify_ok, &key,
                                                   NULL, 0),
                                                   BAD_FUNC_ARG);
