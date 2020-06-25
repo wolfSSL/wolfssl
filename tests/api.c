@@ -14798,6 +14798,13 @@ static int test_wc_ed25519_sign_msg (void)
 
             /* Test bad args. */
             if (ret == 0) {
+                AssertIntEQ(wc_ed25519_verify_msg(sig, siglen - 1, msg,
+                                                  msglen, &verify_ok, &key),
+                                                  BAD_FUNC_ARG);
+                AssertIntEQ(wc_ed25519_verify_msg(sig, siglen + 1, msg,
+                                                  msglen, &verify_ok, &key),
+                                                  BAD_FUNC_ARG);
+
                 ret = wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &verify_ok,
                                                                         &key);
                 if (ret == BAD_FUNC_ARG) {
@@ -15547,6 +15554,15 @@ static int test_wc_ed448_sign_msg (void)
 
             /* Test bad args. */
             if (ret == 0) {
+                AssertIntEQ(wc_ed448_verify_msg(sig, siglen - 1, msg,
+                                                  msglen, &verify_ok, &key,
+                                                  NULL, 0),
+                                                  BAD_FUNC_ARG);
+                AssertIntEQ(wc_ed448_verify_msg(sig, siglen + 1, msg,
+                                                  msglen, &verify_ok, &key,
+                                                  NULL, 0),
+                                                  BAD_FUNC_ARG);
+
                 ret = wc_ed448_verify_msg(NULL, siglen, msg, msglen, &verify_ok,
                                           &key, NULL, 0);
                 if (ret == BAD_FUNC_ARG) {

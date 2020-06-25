@@ -379,7 +379,7 @@ static int ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         *res = 0;
 
         /* check on basics needed to verify signature */
-        if (sigLen < ED448_SIG_SIZE) {
+        if (sigLen != ED448_SIG_SIZE) {
             ret = BAD_FUNC_ARG;
         }
     }
