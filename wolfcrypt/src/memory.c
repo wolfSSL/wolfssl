@@ -137,7 +137,14 @@ void* wolfSSL_Malloc(size_t size)
     }
     else {
     #ifndef WOLFSSL_NO_MALLOC
-        res = malloc(size);
+        /* malloc of size 0 is up to the compiler implementation, let's keep things
+        * uniform by checking and returning NULL */
+        if (size == 0) {
+            res = NULL;
+        }
+        else {
+            res = malloc(size);
+        }
     #else
         WOLFSSL_MSG("No malloc available");
     #endif
@@ -600,6 +607,12 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         return malloc(size);
     }
 #endif
+
+    /* malloc of size 0 is up to the compiler implementation, let's keep things
+     * uniform by checking and returning NULL */
+    if (size == 0) {
+        return NULL;
+    }
 
     /* if no heap hint then use dynamic memory*/
     if (heap == NULL) {
