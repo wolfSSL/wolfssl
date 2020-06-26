@@ -23414,9 +23414,9 @@ static void test_wolfSSL_certs(void)
 #ifdef OPENSSL_ALL
     ext = X509V3_EXT_i2d(NID_authority_key_identifier, crit, akey);
     AssertNotNull(ext);
-    wolfSSL_AUTHORITY_KEYID_free(akey);
     X509_EXTENSION_free(ext);
 #endif
+    wolfSSL_AUTHORITY_KEYID_free(akey);
 
     sk = (STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509ext,
             NID_private_key_usage_period, &crit, NULL);
