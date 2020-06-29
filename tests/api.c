@@ -16746,7 +16746,9 @@ static int test_wc_curve448_shared_secret_ex (void) //ethan-3
            ret = WOLFSSL_FATAL_ERROR;
         }   
     }
-    ret = wc_curve448_init(&public_key);
+    if (ret == 0){
+        ret = wc_curve448_init(&public_key);
+    }
     if (ret == 0) {
         ret = wc_InitRng(&rng); 
         if (ret == 0){
