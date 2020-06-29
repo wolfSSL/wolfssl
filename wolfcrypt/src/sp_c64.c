@@ -1502,7 +1502,7 @@ static int sp_2048_div_18(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_2048_mul_d_18(t2, d, r1);
         (void)sp_2048_sub_18(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 18U);
-        for (i=0; i<16; i++) {
+        for (i=0; i<17; i++) {
             r[i+1] += r[i] >> 57;
             r[i] &= 0x1ffffffffffffffL;
         }
@@ -2445,7 +2445,7 @@ static int sp_2048_div_36(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_2048_mul_d_36(t2, d, r1);
         (void)sp_2048_sub_36(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 36U);
-        for (i=0; i<34; i++) {
+        for (i=0; i<35; i++) {
             r[i+1] += r[i] >> 57;
             r[i] &= 0x1ffffffffffffffL;
         }
@@ -5683,7 +5683,7 @@ static int sp_3072_div_27(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_3072_mul_d_27(t2, d, r1);
         (void)sp_3072_sub_27(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 27U);
-        for (i=0; i<25; i++) {
+        for (i=0; i<26; i++) {
             r[i+1] += r[i] >> 57;
             r[i] &= 0x1ffffffffffffffL;
         }
@@ -6596,7 +6596,7 @@ static int sp_3072_div_54(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_3072_mul_d_54(t2, d, r1);
         (void)sp_3072_sub_54(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 54U);
-        for (i=0; i<52; i++) {
+        for (i=0; i<53; i++) {
             r[i+1] += r[i] >> 57;
             r[i] &= 0x1ffffffffffffffL;
         }
@@ -16535,7 +16535,7 @@ static int sp_256_div_5(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_256_mul_d_5(t2, d, r1);
         (void)sp_256_sub_5(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 5U);
-        for (i=0; i<3; i++) {
+        for (i=0; i<4; i++) {
             r[i+1] += r[i] >> 52;
             r[i] &= 0xfffffffffffffL;
         }
@@ -22251,7 +22251,7 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_384_mul_d_7(t2, d, r1);
         (void)sp_384_sub_7(t1, t1, t2);
         XMEMCPY(r, t1, sizeof(*r) * 2U * 7U);
-        for (i=0; i<5; i++) {
+        for (i=0; i<6; i++) {
             r[i+1] += r[i] >> 55;
             r[i] &= 0x7fffffffffffffL;
         }
