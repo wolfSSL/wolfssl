@@ -16931,6 +16931,10 @@ static int test_wc_curve448_export_private_raw_ex (void)
             ret = 0;
         }
     }
+    if (ret == 0) {
+        ret = wc_curve448_export_private_raw_ex(&key, out, &outLen,
+                                                 EC448_LITTLE_ENDIAN);
+    }
     outLen = outLen - 2;
     if (ret == 0) {
         ret = wc_curve448_export_private_raw_ex(&key, out, &outLen, endian);
@@ -16978,7 +16982,7 @@ static int test_wc_curve448_import_private_raw_ex (void)
             }        
         if (ret == 0) {
             ret = wc_curve448_import_private_raw_ex(priv, privSz, pub, pubSz,
-                                                    &key, endian);
+                                                     &key, endian);
         }
     }
     /*test bad cases*/   
@@ -17004,24 +17008,29 @@ static int test_wc_curve448_import_private_raw_ex (void)
     }
     if (ret == 0) {
         ret = wc_curve448_import_private_raw_ex(priv, privSz, pub, pubSz,
-                                                NULL, endian);
+                                                 NULL, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve448_import_private_raw_ex(priv, 0, pub, pubSz,
-                                                &key, endian);
+                                                 &key, endian);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve448_import_private_raw_ex(priv, privSz, pub, 0,
-                                                &key, endian);
+                                                 &key, endian);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
+    }
+    if (ret == 0) {
+        ret = wc_curve448_import_private_raw_ex(priv, privSz, pub, pubSz,
+                                                 &key, EC448_LITTLE_ENDIAN);
+
     }
     
     if (wc_FreeRng(&rng) != 0 && ret == 0) {
