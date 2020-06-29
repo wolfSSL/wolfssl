@@ -128,9 +128,10 @@ extern int wc_InitRsaHw(RsaKey* key);
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
-#if defined(HAVE_SELFTEST) || ( !defined(NO_SKID) && \
-                                ( !defined(HAVE_FIPS) || \
-                                  !defined(HAVE_FIPS_VERSION) ))
+#if !defined(NO_SKID) && (!defined(HAVE_FIPS) || !defined(HAVE_FIPS_VERSION))
+    #if !defined(HAVE_SELFTEST) || (defined(HAVE_SELFTEST) && \
+                                   (!defined(HAVE_SELFTEST_VERSION) || \
+                                    HAVE_SELFTEST_VERSION < 2))
     #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
     #define WOLFSSL_AES_KEY_SIZE_ENUM
     enum Asn_Misc {
@@ -140,6 +141,7 @@ extern int wc_InitRsaHw(RsaKey* key);
         AES_256_KEY_SIZE    = 32
     };
     #endif
+    #endif /* HAVE_SELFTEST */
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
 void tsip_inform_key_position(const word32 key_n_start,
