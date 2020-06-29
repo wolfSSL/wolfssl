@@ -156,8 +156,10 @@
 
 #else
     #ifndef SINGLE_THREADED
-        #define WOLFSSL_PTHREADS
-        #include <pthread.h>
+        #ifndef  WOLFSSL_USER_MUTEX
+            #define WOLFSSL_PTHREADS
+            #include <pthread.h>
+        #endif
     #endif
     #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
         !defined(NO_FILESYSTEM)
@@ -238,6 +240,8 @@
         typedef struct k_mutex wolfSSL_Mutex;
     #elif defined(WOLFSSL_TELIT_M2MB)
         typedef M2MB_OS_MTX_HANDLE wolfSSL_Mutex;
+    #elif defined(WOLFSSL_USER_MUTEX)
+        /* typedef User_Mutex wolfSSL_Mutex; */
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */

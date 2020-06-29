@@ -664,7 +664,7 @@ int z_fs_close(XFILE file)
 
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */
 
-
+#if !defined(WOLFSSL_USER_MUTEX) 
 wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
@@ -682,6 +682,7 @@ wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 
     return m;
 }
+#endif
 
 #ifdef USE_WOLF_STRTOK
 /* String token (delim) search. If str is null use nextp. */
@@ -1861,6 +1862,17 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
         return 0;
     }
+
+#elif defined(WOLFSSL_USER_MUTEX)
+
+    /* Use user own mutex */
+    
+    /*
+    int wc_InitMutex(wolfSSL_Mutex* m) { ... }
+    int wc_FreeMutex(wolfSSL_Mutex *m) { ... }
+    int wc_LockMutex(wolfSSL_Mutex *m) { ... }
+    int wc_UnLockMutex(wolfSSL_Mutex *m) { ... }
+    */
 
 #else
     #warning No mutex handling defined
