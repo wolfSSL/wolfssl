@@ -274,7 +274,8 @@ struct WOLFSSL_ASN1_OBJECT {
     int ca;
     WOLFSSL_ASN1_INTEGER *pathlen;
 #endif
-    unsigned char dynamic; /* if 1 then obj was dynamically created, 0 otherwise */
+    unsigned char dynamic; /* Use WOLFSSL_ASN1_DYNAMIC and WOLFSSL_ASN1_DYNAMIC_DATA
+                            * to determine what needs to be freed. */
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     WOLFSSL_GENERAL_NAME* gn;
