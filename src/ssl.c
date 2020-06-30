@@ -16696,19 +16696,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return WOLFSSL_SUCCESS;
     }
 
-    long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
-    {
-        word32 tmptime;
-        if (!ses || t < 0)
-            return BAD_FUNC_ARG;
-
-        tmptime = t & 0xFFFFFFFF;
-
-        ses->timeout = tmptime;
-
-        return WOLFSSL_SUCCESS;
-    }
-
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
@@ -27082,9 +27069,6 @@ void wolfSSL_CTX_sess_set_new_cb(WOLFSSL_CTX* ctx,
 #endif
 }
 
-#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
                                                         WOLFSSL_SESSION*))
 {
@@ -27097,9 +27081,7 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
     (void)f;
 #endif
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
 
 /*
  *
@@ -27469,7 +27451,9 @@ end:
     return s;
 }
 
+#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* sess)
 {
     long timeout = 0;
@@ -27489,8 +27473,20 @@ long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION* sess)
     return bornOn;
 }
 
+long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
+{
+    word32 tmptime;
+    if (!ses || t < 0)
+        return BAD_FUNC_ARG;
 
-#endif /* OPENSSL_EXTRA */
+    tmptime = t & 0xFFFFFFFF;
+
+    ses->timeout = tmptime;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
 
 #ifdef KEEP_PEER_CERT
