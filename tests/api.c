@@ -16193,7 +16193,7 @@ static int test_wc_curve448_make_key (void)
 /*
  * Testing test_wc_curve448_shared_secret_ex
  */
-static int test_wc_curve448_shared_secret_ex (void) //ethan-3
+static int test_wc_curve448_shared_secret_ex (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448) 
@@ -16210,16 +16210,12 @@ static int test_wc_curve448_shared_secret_ex (void) //ethan-3
         ret = wc_InitRng(&rng); 
         if (ret == 0){
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &private_key);
-        }
-        if (wc_FreeRng(&rng) && ret == 0) {
-           ret = WOLFSSL_FATAL_ERROR;
-        }   
+        }  
     }
     if (ret == 0){
         ret = wc_curve448_init(&public_key);
     }
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
         if (ret == 0){
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &public_key);
         }
@@ -16281,8 +16277,6 @@ static int test_wc_curve448_shared_secret_ex (void) //ethan-3
 #endif
     return ret;  
 } /*END test_wc_curve448_shared_secret_ex*/
-
-
 /*
  * Testing test_wc_curve448_export_public_ex
  */
@@ -16530,7 +16524,7 @@ static int test_wc_curve448_export_key_raw (void)
     
     printf(testingFmt, "wc_curve448_export_key_raw()");
     
-        ret = wc_curve448_init(&key);
+    ret = wc_curve448_init(&key);
     if (ret == 0) {
         ret = wc_InitRng(&rng); 
     } 
