@@ -25900,7 +25900,7 @@ static void test_wolfSSL_BIO_f_md(void)
 
 static void test_wolfSSL_SESSION(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 
@@ -25908,10 +25908,12 @@ static void test_wolfSSL_SESSION(void)
     WOLFSSL_CTX* ctx;
     WOLFSSL_SESSION* sess;
     WOLFSSL_SESSION* sess_copy;
-    const unsigned char context[] = "user app context";
     unsigned char* sessDer = NULL;
     unsigned char* ptr     = NULL;
+#ifdef OPENSSL_EXTRA
+    const unsigned char context[] = "user app context";
     unsigned int contextSz = (unsigned int)sizeof(context);
+#endif
     int ret, err, sockfd, sz;
     tcp_ready ready;
     func_args server_args;
@@ -26040,6 +26042,7 @@ static void test_wolfSSL_SESSION(void)
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
     /* fail case with miss match session context IDs (use compatibility API) */
     AssertIntEQ(SSL_set_session_id_context(ssl, context, contextSz),
             SSL_SUCCESS);
@@ -26051,6 +26054,7 @@ static void test_wolfSSL_SESSION(void)
             SSL_SUCCESS);
     AssertNotNull(ssl = wolfSSL_new(ctx));
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_FAILURE);
+#endif
     wolfSSL_free(ssl);
 
     SSL_SESSION_free(sess);
