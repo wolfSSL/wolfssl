@@ -3154,6 +3154,8 @@ struct WOLFSSL_SESSION {
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
+    wolfSSL_Mutex      refMutex;                  /* ref count mutex */
+    int                refCount;                  /* reference count */
 #endif
 #ifdef WOLFSSL_TLS13
     word16             namedGroup;

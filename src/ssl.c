@@ -19277,6 +19277,22 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+/* add one to session reference count
+ * return WOFLSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
+int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
+{
+    if (session == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (wc_LockMutex(&session->refMutex) != 0) {
+        WOLFSSL_MSG("Failed to lock session mutex");
+    }
+    session->refCount++;
+    wc_UnLockMutex(&session->refMutex);
+    return WOLFSSL_SUCCESS;
+}
+
+
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 {
 #ifdef HAVE_EXT_CACHE
@@ -23939,7 +23955,10 @@ unsigned long wolfSSL_ERR_peek_error(void)
 
 int wolfSSL_ERR_GET_LIB(unsigned long err)
 {
-    switch (err) {
+    unsigned long value;
+
+    value = (err & 0xFFFFFFL);
+    switch (value) {
     case PEM_R_NO_START_LINE:
     case PEM_R_PROBLEMS_GETTING_PASSWORD:
     case PEM_R_BAD_PASSWORD_READ:
