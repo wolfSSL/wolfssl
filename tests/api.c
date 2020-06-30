@@ -31349,6 +31349,7 @@ static void test_wolfSSL_X509V3_EXT(void) {
     AssertNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(ext2 = wolfSSL_X509V3_EXT_i2d(NID_subject_key_identifier, 0,
                                                 asn1str));
+    X509_EXTENSION_free(ext2);
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(method->i2s);
     AssertNotNull(str = method->i2s((WOLFSSL_v3_ext_method*)method, asn1str));

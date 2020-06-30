@@ -19310,7 +19310,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
             return NULL;
         }
         XMEMCPY((byte*)dup->obj, obj->obj, obj->objSz);
-        dup->dynamic = 1;
+        dup->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
     }
     return dup;
 }
@@ -23004,9 +23004,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
    counts increased */
 WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    unsigned long i;
     WOLFSSL_STACK* ref;
-    WOLFSSL_STACK* copy;
 
     if (ctx == NULL) {
         return NULL;
@@ -23019,23 +23017,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     /* create duplicate of ctx chain */
-    copy = wolfSSL_sk_dup(ref);
-    if (copy == NULL) {
-        return NULL;
-    }
-
-    /* increase ref counts of inner data X509 */
-    ref = copy;
-    for (i = 0; i < copy->num && ref != NULL; i++) {
-        if (wc_LockMutex(&ref->data.x509->refMutex) != 0) {
-            WOLFSSL_MSG("Failed to lock x509 mutex");
-        }
-        ref->data.x509->refCount++;
-        wc_UnLockMutex(&ref->data.x509->refMutex);
-        ref = ref->next;
-    }
-
-    return copy;
+    return wolfSSL_sk_dup(ref);
 }
 
 
@@ -40678,10 +40660,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         /* Free previous chain */
         wolfSSL_sk_X509_free(ctx->x509Chain);
         ctx->x509Chain = sk;
-        if (sk) {
+        if (sk && opt == 1) {
+            /* up all refs when opt == 1 */
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
-                /* On successful setting of new chain up all refs */
                 if (wolfSSL_X509_up_ref(x509) != 1) {
                     WOLFSSL_MSG("Error increasing reference count");
                     continue;
