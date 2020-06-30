@@ -27037,7 +27037,8 @@ int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
 /* stunnel 4.28 needs
  *
  * Callback that is called if a session tries to resume but could not find
@@ -27451,9 +27452,6 @@ end:
     return s;
 }
 
-#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
-
-#if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* sess)
 {
     long timeout = 0;
@@ -27486,7 +27484,7 @@ long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* ses, long t)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
+#endif /* !NO_SESSION_CACHE && OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
 
 #ifdef KEEP_PEER_CERT
