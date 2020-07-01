@@ -15931,9 +15931,9 @@ static int test_wc_curve25519_make_key (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
-    WC_RNG           rng;
+    WC_RNG          rng;
     curve25519_key  key;
-    int           keysize;
+    int             keysize;
     
 
     printf(testingFmt, "wc_curve25519_make_key()");
@@ -16006,13 +16006,12 @@ static int test_wc_curve25519_shared_secret_ex (void)
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
+            ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
         }
     }      
     if (ret == 0) {
-        if (ret == 0) {
-            ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
-        }
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
+        
     }
     if (ret == 0) {    
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
@@ -16056,6 +16055,8 @@ static int test_wc_curve25519_shared_secret_ex (void)
     }
     
     if (ret == 0) {
+    /*curve25519.c is checking for public_key size less than or equal to 0x7f,
+     *increasing to 0x8f checks for error being returned*/
         public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F; 
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               &outLen, endian);
@@ -16089,11 +16090,11 @@ static int test_wc_curve25519_export_public_ex (void)
     int ret = 0;
 #if defined(HAVE_CURVE25519) 
    
-    WC_RNG        rng;
+    WC_RNG          rng;
     curve25519_key  key;
-    byte          out[CURVE25519_KEYSIZE];
-    word32        outLen = sizeof(out);
-    int           endian = EC25519_BIG_ENDIAN;
+    byte            out[CURVE25519_KEYSIZE];
+    word32          outLen = sizeof(out);
+    int             endian = EC25519_BIG_ENDIAN;
     
     printf(testingFmt, "wc_curve25519_export_public_ex()");
     
@@ -16158,8 +16159,8 @@ static int test_wc_curve25519_import_private_raw_ex (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
-    WC_RNG             rng; 
-    curve25519_key    key;
+    WC_RNG          rng; 
+    curve25519_key  key;
     byte            priv[CURVE25519_KEYSIZE];
     byte            pub[CURVE25519_KEYSIZE];
     word32          privSz = sizeof(priv);
@@ -16181,7 +16182,7 @@ static int test_wc_curve25519_import_private_raw_ex (void)
         }
         if (ret == 0){
             ret = wc_curve25519_export_public(&key, pub, &pubSz);
-            }        
+        }        
         if (ret == 0) {
             ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, pubSz,
                                                      &key, endian);
@@ -16251,7 +16252,7 @@ static int test_wc_curve25519_import_private (void)
     int ret = 0;
 #if defined(HAVE_CURVE25519)
     
-    curve25519_key       key;
+    curve25519_key     key;
     WC_RNG             rng; 
     byte               priv[CURVE25519_KEYSIZE];
     word32             privSz = sizeof(priv);
@@ -16288,11 +16289,11 @@ static int test_wc_curve25519_export_private_raw_ex (void)
     int ret = 0;
 #if defined(HAVE_CURVE25519) 
    
-    WC_RNG        rng;
+    WC_RNG          rng;
     curve25519_key  key;
-    byte          out[CURVE25519_KEYSIZE];
-    word32        outLen = sizeof(out);
-    int           endian = EC25519_BIG_ENDIAN;
+    byte            out[CURVE25519_KEYSIZE];
+    word32          outLen = sizeof(out);
+    int             endian = EC25519_BIG_ENDIAN;
     
     printf(testingFmt, "wc_curve25519_export_private_raw_ex()");
     
