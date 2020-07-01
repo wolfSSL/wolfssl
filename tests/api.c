@@ -15363,6 +15363,429 @@ static int test_wc_curve25519_init (void)
 
 } /* END test_wc_curve25519_init and wc_curve_25519_free*/
 /*
+ * Testing wc_curve25519_make_key
+ */
+static int test_wc_curve25519_make_key (void) 
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519)
+    WC_RNG           rng;
+    curve25519_key  key;
+    int           keysize;
+    
+
+    printf(testingFmt, "wc_curve25519_make_key()");
+    
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    }      
+    if (ret == 0) {
+    
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+        if (ret == 0) {
+            keysize = wc_curve25519_size(&key); 
+            if (keysize != CURVE25519_KEYSIZE) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }    
+        if (ret == 0) {
+            ret = wc_curve25519_make_key(&rng, keysize, &key);
+        }
+    }
+    /*test bad cases*/
+    if (ret == 0) {
+        ret = wc_curve25519_make_key(NULL, 0, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }    
+    if (ret == 0) {
+        ret = wc_curve25519_make_key(&rng, keysize, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_key(NULL, keysize, &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }    
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_key(&rng, 0, &key);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return ret;    
+} /*END test_wc_curve25519_make_key*/
+/*
+ * Testing wc_curve25519_shared_secret_ex
+ */
+static int test_wc_curve25519_shared_secret_ex (void)
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519)
+    WC_RNG          rng;
+    curve25519_key  private_key, public_key;
+    byte            out[CURVE25519_KEYSIZE];
+    word32          outLen = sizeof(out);
+    int             endian = EC25519_BIG_ENDIAN;
+    
+
+    printf(testingFmt, "wc_curve25519_shared_secret_ex()");
+    
+    ret = wc_curve25519_init(&private_key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
+        }
+    }      
+    if (ret == 0) {
+        if (ret == 0) {
+            ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
+        }
+    }
+    if (ret == 0) {    
+        ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+                                              &outLen, endian);
+    }
+    /*test bad cases*/
+    if (ret == 0) {
+        ret = wc_curve25519_shared_secret_ex(NULL, NULL, NULL,
+                                              0, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) { 
+        ret = wc_curve25519_shared_secret_ex(NULL, &public_key, out,
+                                             &outLen, endian);                                      
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_shared_secret_ex(&private_key, NULL, out,
+                                              &outLen, endian);                                        
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, NULL,
+                                              &outLen, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) { 
+        ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+                                              NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    
+    if (ret == 0) {
+        public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F; 
+        ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+                                              &outLen, endian);
+        if (ret == ECC_BAD_ARG_E) {
+           ret = 0;
+        }       
+    }
+       
+    outLen = outLen - 2;
+    if (ret == 0) {
+        ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
+                                              &outLen, endian);                                    
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }                                         
+    
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&private_key);
+    wc_curve25519_free(&public_key);
+    wc_FreeRng(&rng);
+#endif
+    return ret;    
+} /*END test_wc_curve25519_shared_secret_ex*/
+/*
+ * Testing test_wc_curve25519_export_public_ex
+ */
+static int test_wc_curve25519_export_public_ex (void)
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519) 
+   
+    WC_RNG        rng;
+    curve25519_key  key;
+    byte          out[CURVE25519_KEYSIZE];
+    word32        outLen = sizeof(out);
+    int           endian = EC25519_BIG_ENDIAN;
+    
+    printf(testingFmt, "wc_curve25519_export_public_ex()");
+    
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    } 
+    if (ret == 0) {
+    
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+        if (ret == 0){
+            ret = wc_curve25519_export_public(&key, out, &outLen);
+            }        
+        if (ret == 0) {
+            ret = wc_curve25519_export_public_ex(&key, out, &outLen, endian);
+        }
+    }
+    /*test bad cases*/   
+    if (ret == 0) {
+        ret = wc_curve25519_export_public_ex(NULL, NULL, NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_public_ex(NULL, out, &outLen, endian);                                         
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_public_ex(&key, NULL, &outLen, endian);                                         
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_public_ex(&key, out, NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    outLen = outLen - 2;
+    if (ret == 0) {
+        ret = wc_curve25519_export_public_ex(&key, out, &outLen, endian);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return ret;     
+
+} /*END test_wc_curve25519_export_public_ex*/
+/*
+ * Testing test_wc_curve25519_import_private_raw_ex
+ */
+static int test_wc_curve25519_import_private_raw_ex (void)
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519)
+    WC_RNG             rng; 
+    curve25519_key    key;
+    byte            priv[CURVE25519_KEYSIZE];
+    byte            pub[CURVE25519_KEYSIZE];
+    word32          privSz = sizeof(priv);
+    word32          pubSz = sizeof(pub);
+    int             endian = EC25519_BIG_ENDIAN;
+
+
+    printf(testingFmt, "wc_curve25519_import_private_raw_ex()");
+       
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    } 
+    if (ret == 0) {
+    
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+        if (ret == 0){
+            ret = wc_curve25519_export_private_raw_ex(&key, priv, &privSz, endian);
+        }
+        if (ret == 0){
+            ret = wc_curve25519_export_public(&key, pub, &pubSz);
+            }        
+        if (ret == 0) {
+            ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, pubSz,
+                                                     &key, endian);
+        }
+    }
+    /*test bad cases*/   
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(NULL, 0, NULL, 0, NULL,
+                                                   endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(NULL, privSz, pub, pubSz,
+                                                 &key, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(priv, privSz, NULL, pubSz,
+                                                 &key, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, pubSz,
+                                                 NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(priv, 0, pub, pubSz,
+                                                 &key, endian);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, 0,
+                                                 &key, endian);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, pubSz,
+                                                 &key, EC25519_LITTLE_ENDIAN);
+
+    }
+    
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);
+    
+#endif
+    return ret;   
+} /*END test_wc_curve25519_import_private_raw_ex*/
+/*
+ * Testing test_wc_curve25519_import_private
+ */
+static int test_wc_curve25519_import_private (void)
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519)
+    
+    curve25519_key       key;
+    WC_RNG             rng; 
+    byte               priv[CURVE25519_KEYSIZE];
+    word32             privSz = sizeof(priv);
+    
+    printf(testingFmt, "wc_curve25519_import_private()");
+    
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    } 
+    if (ret == 0) {
+    
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+        if (ret == 0){
+            ret = wc_curve25519_export_private_raw(&key, priv, &privSz);
+        }
+    }
+    if (ret == 0){
+        ret = wc_curve25519_import_private(priv, privSz, &key);
+    }    
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);    
+#endif
+    return ret;        
+
+} /*END test_wc_curve25519_import*/
+/*
+ * Testing test_wc_curve25519_export_private_raw_ex
+ */
+static int test_wc_curve25519_export_private_raw_ex (void) 
+{
+
+    int ret = 0;
+#if defined(HAVE_CURVE25519) 
+   
+    WC_RNG        rng;
+    curve25519_key  key;
+    byte          out[CURVE25519_KEYSIZE];
+    word32        outLen = sizeof(out);
+    int           endian = EC25519_BIG_ENDIAN;
+    
+    printf(testingFmt, "wc_curve25519_export_private_raw_ex()");
+    
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng); 
+    } 
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian);
+    }
+    /*test bad cases*/ 
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(NULL, NULL, NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(NULL, out, &outLen, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(&key, NULL, &outLen, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(&key, out, NULL, endian);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(&key, out, &outLen,
+                                                 EC25519_LITTLE_ENDIAN);
+    }
+    outLen = outLen - 2;
+    if (ret == 0) {
+        ret = wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return ret;  
+
+}/*END test_wc_curve25519_export_private_raw_ex*/
+/*
  * Testing test_wc_curve25519_size.
  */
 static int test_wc_curve25519_size (void)
@@ -15386,7 +15809,6 @@ static int test_wc_curve25519_size (void)
     if (ret != 0) {
         ret = wc_curve25519_size(NULL);
     }
-
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&key);
 #endif
@@ -15562,7 +15984,7 @@ static int test_wc_curve25519_export_key_raw (void)
         if( 0 == XMEMCMP(privateKey, prik, CURVE25519_KEYSIZE) && 
             0 == XMEMCMP(publicKey,  pubk, CURVE25519_KEYSIZE)){
 
-            printf(testingFmt,"passed");
+            printf(resultFmt, passed );
             fflush( stdout );
             wc_curve25519_free(&key);
             wc_FreeRng(&rng);
@@ -15587,8 +16009,7 @@ static int test_wc_curve25519_export_key_raw (void)
         return  1;  
     }
 
-#endif
-    printf(resultFmt, passed );
+#endif 
     fflush( stdout );
     
     return 0;
@@ -16724,7 +17145,7 @@ static int test_wc_curve448_make_key (void)
 /*
  * Testing test_wc_curve448_shared_secret_ex
  */
-static int test_wc_curve448_shared_secret_ex (void) //ethan-3
+static int test_wc_curve448_shared_secret_ex (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448) 
@@ -16741,16 +17162,12 @@ static int test_wc_curve448_shared_secret_ex (void) //ethan-3
         ret = wc_InitRng(&rng); 
         if (ret == 0){
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &private_key);
-        }
-        if (wc_FreeRng(&rng) && ret == 0) {
-           ret = WOLFSSL_FATAL_ERROR;
         }   
     }
     if (ret == 0){
         ret = wc_curve448_init(&public_key);
     }
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
         if (ret == 0){
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &public_key);
         }
@@ -16789,7 +17206,7 @@ static int test_wc_curve448_shared_secret_ex (void) //ethan-3
             ret = 0;
         }
     }
-        if (ret == 0) {
+    if (ret == 0) {
         ret = wc_curve448_shared_secret_ex(&private_key, &public_key, out,
                                             NULL, endian);
         if (ret == BAD_FUNC_ARG) {
@@ -17061,7 +17478,7 @@ static int test_wc_curve448_export_key_raw (void)
     
     printf(testingFmt, "wc_curve448_export_key_raw()");
     
-        ret = wc_curve448_init(&key);
+    ret = wc_curve448_init(&key);
     if (ret == 0) {
         ret = wc_InitRng(&rng); 
     } 
@@ -17085,9 +17502,7 @@ static int test_wc_curve448_export_key_raw (void)
 #endif
     return ret;  
 
-}/*END test_wc_curve448_import_private_raw_ex*/
-
-
+}/*END test_wc_curve448_export_key_raw*/
 /*
  * Testing test_wc_curve448_import_private
  */
@@ -33810,6 +34225,13 @@ void ApiTest(void)
     AssertIntEQ(test_wc_curve25519_size(), 0);
     AssertIntEQ(test_wc_curve25519_export_key_raw(), 0);
     AssertIntEQ(test_wc_curve25519_export_key_raw_ex(), 0);
+    AssertIntEQ(test_wc_curve25519_size (), 0);
+    AssertIntEQ(test_wc_curve25519_make_key (), 0);
+    AssertIntEQ(test_wc_curve25519_shared_secret_ex (), 0);
+    AssertIntEQ(test_wc_curve25519_export_public_ex (), 0);
+    AssertIntEQ(test_wc_curve25519_export_private_raw_ex (), 0);
+    AssertIntEQ(test_wc_curve25519_import_private_raw_ex (), 0);
+    AssertIntEQ(test_wc_curve25519_import_private (), 0);
     AssertIntEQ(test_wc_ed448_make_key(), 0);
     AssertIntEQ(test_wc_ed448_init(), 0);
     AssertIntEQ(test_wc_ed448_sign_msg(), 0);
