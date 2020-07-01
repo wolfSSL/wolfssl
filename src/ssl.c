@@ -43011,12 +43011,9 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                 WOLFSSL_MSG("Issue peeking at error node in queue");
                 return 0;
             }
-            /* OpenSSL uses positive error codes */
-            if (ret < 0) {
-                ret = -ret;
-            }
+            ret = -ret;
 
-            if (ret == -ASN_NO_PEM_HEADER)
+            if (ret == ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
             if (ret != WANT_READ && ret != WANT_WRITE &&
                     ret != ZERO_RETURN && ret != WOLFSSL_ERROR_ZERO_RETURN &&
