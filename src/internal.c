@@ -13434,9 +13434,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif
                     }
 
-            #if defined(HAVE_OCSP) || defined(HAVE_CRL)
                     if (ret == 0) {
-                        int doCrlLookup = 1;
                 #ifdef HAVE_OCSP
                     #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                         if (ssl->status_request_v2) {
@@ -13456,9 +13454,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 goto exit_ppc;
                             }
                         #endif
-                            doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                             if (ret != 0) {
-                                doCrlLookup = 0;
                                 WOLFSSL_ERROR_VERBOSE(ret);
                                 WOLFSSL_MSG("\tOCSP Lookup not ok");
                             }
@@ -13466,26 +13462,39 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* HAVE_OCSP */
 
                 #ifdef HAVE_CRL
-                        if (ret == 0 && doCrlLookup &&
-                                    SSL_CM(ssl)->crlEnabled &&
-                                                SSL_CM(ssl)->crlCheckAll) {
-                            WOLFSSL_MSG("Doing Non Leaf CRL check");
-                            ret = CheckCertCRL(SSL_CM(ssl)->crl, args->dCert);
-                        #ifdef WOLFSSL_NONBLOCK_OCSP
-                            if (ret == OCSP_WANT_READ) {
-                                args->lastErr = ret;
-                                goto exit_ppc;
+                        if (SSL_CM(ssl)->crlEnabled &&
+                                SSL_CM(ssl)->crlCheckAll) {
+                            int doCrlLookup = 1;
+
+                        #ifdef HAVE_OCSP
+                            if (SSL_CM(ssl)->ocspEnabled &&
+                                    SSL_CM(ssl)->ocspCheckAll) {
+                                /* If the cert status is unknown to the OCSP
+                                   responder, do a CRL lookup. If any other
+                                   error, skip the CRL lookup and fail the
+                                   certificate. */
+                                doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                             }
-                        #endif
-                            if (ret != 0) {
-                                WOLFSSL_ERROR_VERBOSE(ret);
-                                WOLFSSL_MSG("\tCRL check not ok");
+                        #endif /* HAVE_OCSP */
+
+                            if (doCrlLookup) {
+                                WOLFSSL_MSG("Doing Non Leaf CRL check");
+                                ret = CheckCertCRL(SSL_CM(ssl)->crl,
+                                        args->dCert);
+                            #ifdef WOLFSSL_NONBLOCK_OCSP
+                                if (ret == OCSP_WANT_READ) {
+                                    args->lastErr = ret;
+                                    goto exit_ppc;
+                                }
+                            #endif
+                                if (ret != 0) {
+                                    WOLFSSL_ERROR_VERBOSE(ret);
+                                    WOLFSSL_MSG("\tCRL check not ok");
+                                }
                             }
                         }
                 #endif /* HAVE_CRL */
-                        (void)doCrlLookup;
                     }
-            #endif /* HAVE_OCSP || HAVE_CRL */
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     if (ret == 0 &&
                         /* extend the limit "+1" until reaching
