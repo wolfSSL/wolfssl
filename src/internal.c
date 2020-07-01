@@ -11030,10 +11030,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 goto exit_ppc;
                             }
                         #endif
-                            doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                             if (ret != 0) {
-                                doCrlLookup = 0;
                                 WOLFSSL_MSG("\tOCSP Lookup not ok");
+                                /* If the cert status is unknown to the OCSP
+                                   responder, reset ret so we can do a CRL
+                                   lookup. If any other error, skip the CRL
+                                   lookup and fail the certificate. */
+                                if (ret == OCSP_CERT_UNKNOWN)
+                                    ret = 0;
+                                else
+                                    doCrlLookup = 0;
                             }
                         }
                 #endif /* HAVE_OCSP */
