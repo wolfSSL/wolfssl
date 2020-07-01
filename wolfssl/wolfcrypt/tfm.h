@@ -562,6 +562,7 @@ int fp_montgomery_calc_normalization(fp_int *a, fp_int *b);
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
 int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
+int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct);
 
 /* d = a**b (mod c) */
 int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
@@ -802,6 +803,8 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 #ifdef HAVE_ECC
     MP_API int mp_sqr(fp_int *a, fp_int *b);
     MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
+    MP_API int mp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp,
+                                       int ct);
     MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     MP_API int mp_div_2(fp_int * a, fp_int * b);
     MP_API int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c);
