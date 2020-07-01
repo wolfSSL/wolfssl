@@ -25922,7 +25922,10 @@ static void test_wolfSSL_SESSION(void)
 
     printf(testingFmt, "wolfSSL_SESSION()");
     /* TLS v1.3 requires session tickets */
-#if defined(WOLFSSL_TLS13) && !defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_TLS12)
+    /* CHACHA and POLY1305 required for myTicketEncCb */
+#if defined(WOLFSSL_TLS13) && (!defined(HAVE_SESSION_TICKET) && \
+    !defined(WOLFSSL_NO_TLS12) || !(defined(HAVE_CHACHA) && \
+            defined(HAVE_POLY1305)))
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -25988,7 +25991,7 @@ static void test_wolfSSL_SESSION(void)
     fdOpenSession(Task_self());
 #endif
 
-#if defined(SESSION_CERTS)
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     {
         X509 *x509;
         char buf[30];
