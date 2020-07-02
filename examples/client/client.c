@@ -3172,7 +3172,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
     if (session != NULL && resumeSession) {
         flatSessionSz = wolfSSL_i2d_SSL_SESSION(session, NULL);
         if (flatSessionSz != 0) {

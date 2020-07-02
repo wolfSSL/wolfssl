@@ -42190,6 +42190,8 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
         return WOLFSSL_FAILURE;
 #endif
 
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
     if (wolfSSL_BIO_printf(bp, "    Start Time: %ld\n",
                 wolfSSL_SESSION_get_time(x)) <= 0)
         return WOLFSSL_FAILURE;
@@ -42197,6 +42199,7 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     if (wolfSSL_BIO_printf(bp, "    Timeout   : %ld (sec)\n",
             wolfSSL_SESSION_get_timeout(x)) <= 0)
         return WOLFSSL_FAILURE;
+#endif /* !NO_SESSION_CACHE && OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
     /* @TODO verify return code print */
 
