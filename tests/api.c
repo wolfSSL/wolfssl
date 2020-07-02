@@ -6422,9 +6422,223 @@ static int test_wc_Sha256Final (void)
     return flag;
 
 } /* END test_wc_Sha256Final */
+/*
+ * Unit test function for wc_Sha256FinalRaw()
+ */
+static int test_wc_Sha256FinalRaw (void)
+{
+    int flag = 0;
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+    byte* hash_test[3];
+    byte hash1[WC_SHA256_DIGEST_SIZE];
+    byte hash2[2*WC_SHA256_DIGEST_SIZE];
+    byte hash3[5*WC_SHA256_DIGEST_SIZE];
+    int times, i, ret;
+
+    /* Initialize */
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha256FinalRaw()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha256FinalRaw(&sha256, hash_test[i]);
+            if (ret != 0) {
+                flag = WOLFSSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag ) {
+        ret = wc_Sha256FinalRaw(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256FinalRaw(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256FinalRaw(&sha256, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    wc_Sha256Free(&sha256);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha256FinalRaw */
+/*
+ * Unit test function for wc_Sha256GetFlags()
+ */
+static int test_wc_Sha256GetFlags (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA224) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha256 sha256;
+    word32 flags = 0;
 
 
+    printf(testingFmt, "wc_Sha256GetFlags()");
 
+    /* Initialize */
+    flag = wc_InitSha256(&sha256);
+    if ( flag == 0){
+        flag = wc_Sha256GetFlags(&sha256, &flags);
+    }
+    if (flag == 0){
+        if (flags & WC_HASH_FLAG_ISCOPY){
+            flag = 0;
+        }
+
+    }
+
+    wc_Sha256Free(&sha256);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha256GetFlags */
+/*
+ * Unit test function for wc_Sha256Free()
+ */
+static int test_wc_Sha256Free (void)
+{
+    int flag = 0;
+#ifndef NO_SHA256
+
+    printf(testingFmt, "wc_Sha256Free()");
+    wc_Sha256Free(NULL);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha256Free */
+/*
+ * Unit test function for wc_Sha256GetHash()
+ */
+static int test_wc_Sha256GetHash (void)
+{
+    int flag = 0;
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+    byte hash1[WC_SHA256_DIGEST_SIZE];
+
+    printf(testingFmt, "wc_Sha256GetHash()");
+
+    /* Initialize */
+    flag = wc_InitSha256(&sha256);
+
+    if (flag == 0){
+        flag = wc_Sha256GetHash(&sha256, hash1);
+    }
+    /*test bad arguements*/
+     if (flag == 0){
+        flag = wc_Sha256GetHash(NULL, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha256GetHash(NULL, hash1);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha256GetHash(&sha256, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+
+    wc_Sha256Free(&sha256);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha256GetHash */
+/*
+ * Unit test function for wc_Sha256Copy()
+ */
+static int test_wc_Sha256Copy (void)
+{
+    int flag = 0;
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+    wc_Sha256 temp;
+
+    printf(testingFmt, "wc_Sha256Copy()");
+
+    /* Initialize */
+    flag = wc_InitSha256(&sha256);
+    if (flag == 0){
+        flag = wc_InitSha256(&temp);
+    }
+    if (flag == 0){
+        flag = wc_Sha256Copy(&sha256, &temp);
+    }
+    /*test bad arguements*/
+     if (flag == 0){
+        flag = wc_Sha256Copy(NULL, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha256Copy(NULL, &temp);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha256Copy(&sha256, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+    }
+
+
+    wc_Sha256Free(&sha256);
+    wc_Sha256Free(&temp);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha256Copy */
 /*
  * Testing wc_InitSha512()
  */
@@ -7056,10 +7270,187 @@ static int test_wc_Sha224Final (void)
 #endif
     return flag;
 } /* END test_wc_Sha224Final */
+/*
+ * Unit test function for wc_Sha224SetFlags()
+ */
+static int test_wc_Sha224SetFlags (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA224) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha224 sha224;
+    word32 flags = 0;
+
+    printf(testingFmt, "wc_Sha224SetFlags()");
+
+    /* Initialize */
+    flag = wc_InitSha224(&sha224);
+    if ( flag == 0){
+        flag = wc_Sha224SetFlags(&sha224, flags);
+    }
+    if (flag == 0){
+        if (flags & WC_HASH_FLAG_ISCOPY){
+            flag = 0;
+        }
+
+    }
 
 
+    wc_Sha224Free(&sha224);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha224SetFlags */
+/*
+ * Unit test function for wc_Sha224GetFlags()
+ */
+static int test_wc_Sha224GetFlags (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA224) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha224 sha224;
+    word32 flags = 0;
+
+    printf(testingFmt, "wc_Sha224GetFlags()");
+
+    /* Initialize */
+    flag = wc_InitSha224(&sha224);
+    if ( flag == 0){
+        flag = wc_Sha224GetFlags(&sha224, &flags);
+    }
+    if (flag == 0){
+        if (flags & WC_HASH_FLAG_ISCOPY){
+            flag = 0;
+        }
+    }
 
 
+    wc_Sha224Free(&sha224);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha224Free */
+/*
+ * Unit test function for wc_Sha224GetFlags()
+ */
+static int test_wc_Sha224Free (void)
+{
+    int flag = 0;
+#ifndef NO_SHA224
+
+    printf(testingFmt, "wc_Sha224Free()");
+    wc_Sha224Free(NULL);
+
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha224Free */
+/*
+ * Unit test function for wc_Sha224GetHash()
+ */
+static int test_wc_Sha224GetHash (void)
+{
+    int flag = 0;
+#ifndef NO_SHA224
+    wc_Sha224 sha224;
+    byte hash1[WC_SHA224_DIGEST_SIZE];
+
+    printf(testingFmt, "wc_Sha224GetHash()");
+
+    /* Initialize */
+    flag = wc_InitSha224(&sha224);
+
+    if (flag == 0){
+        flag = wc_Sha224GetHash(&sha224, hash1);
+    }
+    /*test bad arguements*/
+     if (flag == 0){
+        flag = wc_Sha224GetHash(NULL, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha224GetHash(NULL, hash1);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha224GetHash(&sha224, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+    }
+
+    wc_Sha224Free(&sha224);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha224GetHash */
+/*
+ * Unit test function for wc_Sha224Copy()
+ */
+static int test_wc_Sha224Copy (void)
+{
+    int flag = 0;
+#ifndef NO_SHA224
+    wc_Sha224 sha224;
+    wc_Sha224 temp;
+
+    printf(testingFmt, "wc_Sha224Copy()");
+
+    /* Initialize */
+    flag = wc_InitSha224(&sha224);
+    if (flag == 0){
+        flag = wc_InitSha224(&temp);
+    }
+    if (flag == 0){
+        flag = wc_Sha224Copy(&sha224, &temp);
+    }
+    /*test bad arguements*/
+     if (flag == 0){
+        flag = wc_Sha224Copy(NULL, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha224Copy(NULL, &temp);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+     }
+     if (flag == 0){
+        flag = wc_Sha224Copy(&sha224, NULL);
+        if (flag == BAD_FUNC_ARG){
+            flag = 0;
+        }
+    }
+
+
+    wc_Sha224Free(&sha224);
+    wc_Sha224Free(&temp);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha224Copy */
 /*
  * Testing wc_InitRipeMd()
  */
@@ -15401,7 +15792,7 @@ static int test_wc_curve25519_export_key_raw (void)
 {
 
 #if defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)
- 
+
     curve25519_key  key;
     WC_RNG          rng;
 
@@ -15414,7 +15805,7 @@ static int test_wc_curve25519_export_key_raw (void)
     byte            pubk[CURVE25519_KEYSIZE];
     word32          prksz;
     word32          pbksz;
-    
+
     printf(testingFmt, "wc_curve25519_export_key_raw()");
 
 
@@ -15423,30 +15814,30 @@ static int test_wc_curve25519_export_key_raw (void)
         fflush( stdout );
         return  1;
     }
-    
+
     if(0 != wc_curve25519_init(&key)){
         printf(testingFmt, "failed due to wc_curve25519_init");
         fflush( stdout );
         wc_FreeRng(&rng);
         return  1;
     }
-    
+
     if(0 != wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key)){
         printf(testingFmt, "failed due to wc_curve25519_make_key");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
-        return  1;       
+        return  1;
     }
 
-    /* 
+    /*
         bad-argument-test cases
-        target function sould return BAD_FUNC_ARG    
+        target function sould return BAD_FUNC_ARG
     */
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw( 
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw(
             NULL , privateKey, &prvkSz, publicKey, &pubkSz)){
 
         printf(testingFmt,"failed at bad-arg-case-1.");
@@ -15514,7 +15905,7 @@ static int test_wc_curve25519_export_key_raw (void)
     }
 
     /*
-        cross-testing 
+        cross-testing
     */
     prksz = CURVE25519_KEYSIZE;
 
@@ -15545,21 +15936,21 @@ static int test_wc_curve25519_export_key_raw (void)
 
     if(0 != wc_curve25519_export_key_raw(&key, privateKey, &prvkSz,
                                                      publicKey,  &pubkSz)){
-        
+
         printf(testingFmt,"failed due to wc_curve25519_export_key_raw");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
-        return  1;       
-    
+        return  1;
+
     }
-        
+
     if((prksz  == CURVE25519_KEYSIZE) &&
        (pbksz  == CURVE25519_KEYSIZE) &&
        (prvkSz == CURVE25519_KEYSIZE) &&
        (pubkSz == CURVE25519_KEYSIZE)){
-    
-        if( 0 == XMEMCMP(privateKey, prik, CURVE25519_KEYSIZE) && 
+
+        if( 0 == XMEMCMP(privateKey, prik, CURVE25519_KEYSIZE) &&
             0 == XMEMCMP(publicKey,  pubk, CURVE25519_KEYSIZE)){
 
             printf(resultFmt,passed);
@@ -15575,21 +15966,21 @@ static int test_wc_curve25519_export_key_raw (void)
             fflush( stdout );
             wc_curve25519_free(&key);
             wc_FreeRng(&rng);
-            return  1;   
+            return  1;
         }
     }
     else{
-        
+
         printf(testingFmt,"failed due to bad-key-size.");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
-        return  1;  
+        return  1;
     }
 
 #endif
     fflush( stdout );
-    
+
     return 0;
 } /* end of test_wc_curve25519_export_key_raw */
 
@@ -15613,7 +16004,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     byte            pubk[CURVE25519_KEYSIZE];
     word32          prksz;
     word32          pbksz;
-    
+
     printf(testingFmt, "wc_curve25519_export_key_raw_ex()");
 
     if(0 != wc_InitRng(&rng)){
@@ -15621,32 +16012,32 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         fflush( stdout );
         return  1;
     }
-    
+
     if(0 != wc_curve25519_init(&key)){
         printf(testingFmt, "failed due to wc_curve25519_init");
         fflush( stdout );
         wc_FreeRng(&rng);
         return  1;
     }
-    
+
     if(0 != wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key)){
         printf(testingFmt, "failed due to wc_curve25519_make_key");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
-        return  1;       
+        return  1;
     }
 
-    /* 
+    /*
         bad-argument-test cases
-        target function sould return BAD_FUNC_ARG    
+        target function sould return BAD_FUNC_ARG
     */
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( NULL , privateKey, 
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( NULL , privateKey,
                      &prvkSz, publicKey, &pubkSz, EC25519_LITTLE_ENDIAN)){
-        
+
         printf(testingFmt,"failed at bad-arg-case-1.");
         fflush( stdout );
         wc_curve25519_free(&key);
@@ -15658,7 +16049,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key , NULL,       
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key , NULL,
                     &prvkSz, publicKey, &pubkSz, EC25519_LITTLE_ENDIAN)){
 
         printf(testingFmt,"failed at bad-arg-case-2.");
@@ -15667,20 +16058,20 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_FreeRng(&rng);
         return  1;
     }
-        
+
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
-    
+
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key,privateKey,
 	                    NULL,publicKey, &pubkSz,EC25519_LITTLE_ENDIAN)){
-    
+
         printf(testingFmt,"failed at bad-arg-case-3.");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
         return  1;
     }
-    
+
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
@@ -15732,7 +16123,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_FreeRng(&rng);
         return  1;
     }
-    
+
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
@@ -15749,7 +16140,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
-    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey, 
+    if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
     &prvkSz, NULL, &pubkSz, EC25519_BIG_ENDIAN)){
 
         printf(testingFmt,"failed at bad-arg-case-9.");
@@ -15758,7 +16149,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_FreeRng(&rng);
         return  1;
     }
-    
+
     prvkSz = CURVE25519_KEYSIZE;
     pubkSz = CURVE25519_KEYSIZE;
 
@@ -15770,7 +16161,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
         return  1;
-    }        
+    }
 
     /* illegal value for endien */
 
@@ -15785,11 +16176,11 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
         return  1;
-    } 
-    
+    }
+
     /*
-        cross-testing 
-    */         
+        cross-testing
+    */
     prksz = CURVE25519_KEYSIZE;
 
     if(0 != wc_curve25519_export_private_raw( &key, prik, &prksz )){
@@ -15799,8 +16190,8 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
         return  1;
-    } 
-    
+    }
+
     pbksz = CURVE25519_KEYSIZE;
 
     if(0 != wc_curve25519_export_public( &key, pubk, &pbksz )){
@@ -15826,18 +16217,18 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         return  1;
     }
 
-    if( prksz  == CURVE25519_KEYSIZE && 
+    if( prksz  == CURVE25519_KEYSIZE &&
         pbksz  == CURVE25519_KEYSIZE &&
         prvkSz == CURVE25519_KEYSIZE &&
         pubkSz == CURVE25519_KEYSIZE ){
 
-        if( 0 == XMEMCMP( privateKey, prik, CURVE25519_KEYSIZE ) && 
+        if( 0 == XMEMCMP( privateKey, prik, CURVE25519_KEYSIZE ) &&
             0 == XMEMCMP( publicKey,  pubk, CURVE25519_KEYSIZE )){
 
             if( 0 == wc_curve25519_export_key_raw_ex( &key, privateKey,
                 &prvkSz, publicKey, &pubkSz, EC25519_LITTLE_ENDIAN)){
 
-                if( prvkSz == CURVE25519_KEYSIZE && 
+                if( prvkSz == CURVE25519_KEYSIZE &&
                     pubkSz == CURVE25519_KEYSIZE ){
 
                     ;   /* proceed to the next test */
@@ -15848,7 +16239,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
                     fflush( stdout );
                     wc_curve25519_free(&key);
                     wc_FreeRng(&rng);
-                    return  1;   
+                    return  1;
                 }
             }
             else{
@@ -15868,20 +16259,20 @@ static int test_wc_curve25519_export_key_raw_ex (void)
             fflush( stdout );
             wc_curve25519_free(&key);
             wc_FreeRng(&rng);
-            return  1; 
+            return  1;
 
-        }        
-    } 
+        }
+    }
     else{
 
         printf(testingFmt,"failed due to bad-key-size");
         fflush( stdout );
         wc_curve25519_free(&key);
         wc_FreeRng(&rng);
-        return  1;  
-    }   
+        return  1;
+    }
 
-    /* 
+    /*
         try once with another endian
     */
 
@@ -15891,7 +16282,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     if( 0 == wc_curve25519_export_key_raw_ex( &key, privateKey,
     &prvkSz, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
 
-        if( prvkSz == CURVE25519_KEYSIZE && 
+        if( prvkSz == CURVE25519_KEYSIZE &&
             pubkSz == CURVE25519_KEYSIZE ){
 
                 /* no more test*/
@@ -15907,7 +16298,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
             fflush( stdout );
             wc_curve25519_free(&key);
             wc_FreeRng(&rng);
-            return  1;   
+            return  1;
         }
     }
     else{
@@ -15927,30 +16318,30 @@ static int test_wc_curve25519_export_key_raw_ex (void)
 /*
  * Testing wc_curve25519_make_key
  */
-static int test_wc_curve25519_make_key (void) 
+static int test_wc_curve25519_make_key (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
     WC_RNG          rng;
     curve25519_key  key;
     int             keysize;
-    
+
 
     printf(testingFmt, "wc_curve25519_make_key()");
-    
+
     ret = wc_curve25519_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    }      
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
         if (ret == 0) {
-            keysize = wc_curve25519_size(&key); 
+            keysize = wc_curve25519_size(&key);
             if (keysize != CURVE25519_KEYSIZE) {
                 ret = SSL_FATAL_ERROR;
             }
-        }    
+        }
         if (ret == 0) {
             ret = wc_curve25519_make_key(&rng, keysize, &key);
         }
@@ -15961,7 +16352,7 @@ static int test_wc_curve25519_make_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
-    }    
+    }
     if (ret == 0) {
         ret = wc_curve25519_make_key(&rng, keysize, NULL);
         if (ret == BAD_FUNC_ARG) {
@@ -15972,7 +16363,7 @@ static int test_wc_curve25519_make_key (void)
         ret = wc_curve25519_make_key(NULL, keysize, &key);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
-        }    
+        }
     }
     if (ret == 0) {
         ret = wc_curve25519_make_key(&rng, 0, &key);
@@ -15984,7 +16375,7 @@ static int test_wc_curve25519_make_key (void)
     wc_curve25519_free(&key);
     wc_FreeRng(&rng);
 #endif
-    return ret;    
+    return ret;
 } /*END test_wc_curve25519_make_key*/
 /*
  * Testing wc_curve25519_shared_secret_ex
@@ -15998,22 +16389,22 @@ static int test_wc_curve25519_shared_secret_ex (void)
     byte            out[CURVE25519_KEYSIZE];
     word32          outLen = sizeof(out);
     int             endian = EC25519_BIG_ENDIAN;
-    
+
 
     printf(testingFmt, "wc_curve25519_shared_secret_ex()");
-    
+
     ret = wc_curve25519_init(&private_key);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
             ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
         }
-    }      
+    }
     if (ret == 0) {
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
-        
+
     }
-    if (ret == 0) {    
+    if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               &outLen, endian);
     }
@@ -16025,16 +16416,16 @@ static int test_wc_curve25519_shared_secret_ex (void)
             ret = 0;
         }
     }
-    if (ret == 0) { 
+    if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(NULL, &public_key, out,
-                                             &outLen, endian);                                      
+                                             &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, NULL, out,
-                                              &outLen, endian);                                        
+                                              &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -16046,41 +16437,41 @@ static int test_wc_curve25519_shared_secret_ex (void)
             ret = 0;
         }
     }
-    if (ret == 0) { 
+    if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               NULL, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
-    
+
     if (ret == 0) {
     /*curve25519.c is checking for public_key size less than or equal to 0x7f,
      *increasing to 0x8f checks for error being returned*/
-        public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F; 
+        public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F;
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               &outLen, endian);
         if (ret == ECC_BAD_ARG_E) {
            ret = 0;
-        }       
+        }
     }
-       
+
     outLen = outLen - 2;
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
-                                              &outLen, endian);                                    
+                                              &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
-    }                                         
-    
+    }
+
 
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&private_key);
     wc_curve25519_free(&public_key);
     wc_FreeRng(&rng);
 #endif
-    return ret;    
+    return ret;
 } /*END test_wc_curve25519_shared_secret_ex*/
 /*
  * Testing test_wc_curve25519_export_public_ex
@@ -16088,31 +16479,31 @@ static int test_wc_curve25519_shared_secret_ex (void)
 static int test_wc_curve25519_export_public_ex (void)
 {
     int ret = 0;
-#if defined(HAVE_CURVE25519) 
-   
+#if defined(HAVE_CURVE25519)
+
     WC_RNG          rng;
     curve25519_key  key;
     byte            out[CURVE25519_KEYSIZE];
     word32          outLen = sizeof(out);
     int             endian = EC25519_BIG_ENDIAN;
-    
+
     printf(testingFmt, "wc_curve25519_export_public_ex()");
-    
+
     ret = wc_curve25519_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
         if (ret == 0){
             ret = wc_curve25519_export_public(&key, out, &outLen);
-            }        
+            }
         if (ret == 0) {
             ret = wc_curve25519_export_public_ex(&key, out, &outLen, endian);
         }
     }
-    /*test bad cases*/   
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve25519_export_public_ex(NULL, NULL, NULL, endian);
         if (ret == BAD_FUNC_ARG) {
@@ -16120,13 +16511,13 @@ static int test_wc_curve25519_export_public_ex (void)
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_export_public_ex(NULL, out, &outLen, endian);                                         
+        ret = wc_curve25519_export_public_ex(NULL, out, &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_export_public_ex(&key, NULL, &outLen, endian);                                         
+        ret = wc_curve25519_export_public_ex(&key, NULL, &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -16149,7 +16540,7 @@ static int test_wc_curve25519_export_public_ex (void)
     wc_curve25519_free(&key);
     wc_FreeRng(&rng);
 #endif
-    return ret;     
+    return ret;
 
 } /*END test_wc_curve25519_export_public_ex*/
 /*
@@ -16159,7 +16550,7 @@ static int test_wc_curve25519_import_private_raw_ex (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
-    WC_RNG          rng; 
+    WC_RNG          rng;
     curve25519_key  key;
     byte            priv[CURVE25519_KEYSIZE];
     byte            pub[CURVE25519_KEYSIZE];
@@ -16169,26 +16560,26 @@ static int test_wc_curve25519_import_private_raw_ex (void)
 
 
     printf(testingFmt, "wc_curve25519_import_private_raw_ex()");
-       
+
     ret = wc_curve25519_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
         if (ret == 0){
             ret = wc_curve25519_export_private_raw_ex(&key, priv, &privSz, endian);
         }
         if (ret == 0){
             ret = wc_curve25519_export_public(&key, pub, &pubSz);
-        }        
+        }
         if (ret == 0) {
             ret = wc_curve25519_import_private_raw_ex(priv, privSz, pub, pubSz,
                                                      &key, endian);
         }
     }
-    /*test bad cases*/   
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve25519_import_private_raw_ex(NULL, 0, NULL, 0, NULL,
                                                    endian);
@@ -16236,13 +16627,13 @@ static int test_wc_curve25519_import_private_raw_ex (void)
                                                  &key, EC25519_LITTLE_ENDIAN);
 
     }
-    
+
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&key);
     wc_FreeRng(&rng);
-    
+
 #endif
-    return ret;   
+    return ret;
 } /*END test_wc_curve25519_import_private_raw_ex*/
 /*
  * Testing test_wc_curve25519_import_private
@@ -16251,20 +16642,20 @@ static int test_wc_curve25519_import_private (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
-    
+
     curve25519_key     key;
-    WC_RNG             rng; 
+    WC_RNG             rng;
     byte               priv[CURVE25519_KEYSIZE];
     word32             privSz = sizeof(priv);
-    
+
     printf(testingFmt, "wc_curve25519_import_private()");
-    
+
     ret = wc_curve25519_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
         if (ret == 0){
             ret = wc_curve25519_export_private_raw(&key, priv, &privSz);
@@ -16272,39 +16663,39 @@ static int test_wc_curve25519_import_private (void)
     }
     if (ret == 0){
         ret = wc_curve25519_import_private(priv, privSz, &key);
-    }    
+    }
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&key);
-    wc_FreeRng(&rng);    
+    wc_FreeRng(&rng);
 #endif
-    return ret;        
+    return ret;
 
 } /*END test_wc_curve25519_import*/
 /*
  * Testing test_wc_curve25519_export_private_raw_ex
  */
-static int test_wc_curve25519_export_private_raw_ex (void) 
+static int test_wc_curve25519_export_private_raw_ex (void)
 {
 
     int ret = 0;
-#if defined(HAVE_CURVE25519) 
-   
+#if defined(HAVE_CURVE25519)
+
     WC_RNG          rng;
     curve25519_key  key;
     byte            out[CURVE25519_KEYSIZE];
     word32          outLen = sizeof(out);
     int             endian = EC25519_BIG_ENDIAN;
-    
+
     printf(testingFmt, "wc_curve25519_export_private_raw_ex()");
-    
+
     ret = wc_curve25519_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
         ret = wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian);
     }
-    /*test bad cases*/ 
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve25519_export_private_raw_ex(NULL, NULL, NULL, endian);
         if (ret == BAD_FUNC_ARG) {
@@ -16340,12 +16731,12 @@ static int test_wc_curve25519_export_private_raw_ex (void)
             ret = 0;
         }
     }
-    
+
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&key);
     wc_FreeRng(&rng);
 #endif
-    return ret;  
+    return ret;
 
 }/*END test_wc_curve25519_export_private_raw_ex*/
 /*
@@ -17088,23 +17479,23 @@ static int test_wc_curve448_make_key (void)
     WC_RNG           rng;
     curve448_key  key;
     int           keysize;
-    
+
 
     printf(testingFmt, "wc_curve448_make_key()");
-    
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    }      
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0) {
-            keysize = wc_curve448_size(&key); 
+            keysize = wc_curve448_size(&key);
             if (keysize != CURVE448_KEY_SIZE) {
                 ret = SSL_FATAL_ERROR;
             }
-        }    
+        }
         if (ret == 0) {
             ret = wc_curve448_make_key(&rng, keysize, &key);
         }
@@ -17115,7 +17506,7 @@ static int test_wc_curve448_make_key (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
-    }    
+    }
     if (ret == 0) {
         ret = wc_curve448_make_key(&rng, keysize, NULL);
         if (ret == BAD_FUNC_ARG) {
@@ -17126,7 +17517,7 @@ static int test_wc_curve448_make_key (void)
         ret = wc_curve448_make_key(NULL, keysize, &key);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
-        }    
+        }
     }
     if (ret == 0) {
         ret = wc_curve448_make_key(&rng, 0, &key);
@@ -17134,7 +17525,7 @@ static int test_wc_curve448_make_key (void)
             ret = 0;
         }
     }
-    
+
     if (wc_FreeRng(&rng) != 0 && ret == 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -17142,7 +17533,7 @@ static int test_wc_curve448_make_key (void)
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
 #endif
-    return ret;    
+    return ret;
 } /*END test_wc_curve448_make_key*/
 /*
  * Testing test_wc_curve448_shared_secret_ex
@@ -17150,21 +17541,21 @@ static int test_wc_curve448_make_key (void)
 static int test_wc_curve448_shared_secret_ex (void)
 {
     int ret = 0;
-#if defined(HAVE_CURVE448) 
+#if defined(HAVE_CURVE448)
     WC_RNG        rng;
     curve448_key  private_key, public_key;
     byte          out[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
     int           endian = EC448_BIG_ENDIAN;
-    
+
     printf(testingFmt, "wc_curve448_shared_secret_ex()");
-    
+
     ret = wc_curve448_init(&private_key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
+        ret = wc_InitRng(&rng);
         if (ret == 0){
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &private_key);
-        }  
+        }
     }
     if (ret == 0){
         ret = wc_curve448_init(&public_key);
@@ -17174,12 +17565,12 @@ static int test_wc_curve448_shared_secret_ex (void)
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &public_key);
         }
     }
-    
+
     if (ret == 0) {
         ret = wc_curve448_shared_secret_ex(&private_key, &public_key, out,
                                             &outLen, endian);
     }
-    /*test bad cases*/   
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve448_shared_secret_ex(NULL, NULL, NULL,
                                             0, endian);
@@ -17187,16 +17578,16 @@ static int test_wc_curve448_shared_secret_ex (void)
             ret = 0;
         }
     }
-    if (ret == 0) { 
+    if (ret == 0) {
         ret = wc_curve448_shared_secret_ex(NULL, &public_key, out,
-                                            &outLen, endian);                                      
+                                            &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve448_shared_secret_ex(&private_key, NULL, out,
-                                            &outLen, endian);                                        
+                                            &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -17229,39 +17620,39 @@ static int test_wc_curve448_shared_secret_ex (void)
     wc_curve448_free(&public_key);
     wc_FreeRng(&rng);
 #endif
-    return ret;  
+    return ret;
 } /*END test_wc_curve448_shared_secret_ex*/
 /*
  * Testing test_wc_curve448_export_public_ex
  */
-static int test_wc_curve448_export_public_ex (void) 
+static int test_wc_curve448_export_public_ex (void)
 {
     int ret = 0;
-#if defined(HAVE_CURVE448) 
-   
+#if defined(HAVE_CURVE448)
+
     WC_RNG        rng;
     curve448_key  key;
     byte          out[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
     int           endian = EC448_BIG_ENDIAN;
-    
+
     printf(testingFmt, "wc_curve448_export_public_ex()");
-    
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0){
             ret = wc_curve448_export_public(&key, out, &outLen);
-            }        
+            }
         if (ret == 0) {
             ret = wc_curve448_export_public_ex(&key, out, &outLen, endian);
         }
     }
-    /*test bad cases*/   
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve448_export_public_ex(NULL, NULL, NULL, endian);
         if (ret == BAD_FUNC_ARG) {
@@ -17269,13 +17660,13 @@ static int test_wc_curve448_export_public_ex (void)
         }
     }
     if (ret == 0) {
-        ret = wc_curve448_export_public_ex(NULL, out, &outLen, endian);                                         
+        ret = wc_curve448_export_public_ex(NULL, out, &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve448_export_public_ex(&key, NULL, &outLen, endian);                                         
+        ret = wc_curve448_export_public_ex(&key, NULL, &outLen, endian);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -17298,34 +17689,34 @@ static int test_wc_curve448_export_public_ex (void)
     wc_curve448_free(&key);
     wc_FreeRng(&rng);
 #endif
-    return ret;     
+    return ret;
 
 } /*END test_wc_curve448_export_public_ex*/
 /*
  * Testing test_wc_curve448_export_private_raw_ex
  */
-static int test_wc_curve448_export_private_raw_ex (void) 
+static int test_wc_curve448_export_private_raw_ex (void)
 {
 
     int ret = 0;
-#if defined(HAVE_CURVE448) 
-   
+#if defined(HAVE_CURVE448)
+
     WC_RNG        rng;
     curve448_key  key;
     byte          out[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
     int           endian = EC448_BIG_ENDIAN;
-    
+
     printf(testingFmt, "wc_curve448_export_private_raw_ex()");
-    
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
         ret = wc_curve448_export_private_raw_ex(&key, out, &outLen, endian);
     }
-    /*test bad cases*/ 
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve448_export_private_raw_ex(NULL, NULL, NULL, endian);
         if (ret == BAD_FUNC_ARG) {
@@ -17361,12 +17752,12 @@ static int test_wc_curve448_export_private_raw_ex (void)
             ret = 0;
         }
     }
-    
+
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
     wc_FreeRng(&rng);
 #endif
-    return ret;  
+    return ret;
 
 }/*END test_wc_curve448_export_private_raw_ex*/
 /*
@@ -17376,7 +17767,7 @@ static int test_wc_curve448_import_private_raw_ex (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    WC_RNG             rng; 
+    WC_RNG             rng;
     curve448_key    key;
     byte            priv[CURVE448_KEY_SIZE];
     byte            pub[CURVE448_KEY_SIZE];
@@ -17385,26 +17776,26 @@ static int test_wc_curve448_import_private_raw_ex (void)
     int             endian = EC448_BIG_ENDIAN;
 
     printf(testingFmt, "wc_curve448_import_private_raw_ex()");
-       
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0){
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
         }
         if (ret == 0){
             ret = wc_curve448_export_public(&key, pub, &pubSz);
-            }        
+            }
         if (ret == 0) {
             ret = wc_curve448_import_private_raw_ex(priv, privSz, pub, pubSz,
                                                      &key, endian);
         }
     }
-    /*test bad cases*/   
+    /*test bad cases*/
     if (ret == 0) {
         ret = wc_curve448_import_private_raw_ex(NULL, 0, NULL, 0, NULL, 0);
         if (ret == BAD_FUNC_ARG) {
@@ -17451,16 +17842,16 @@ static int test_wc_curve448_import_private_raw_ex (void)
                                                  &key, EC448_LITTLE_ENDIAN);
 
     }
-    
+
     if (wc_FreeRng(&rng) != 0 && ret == 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
-    
+
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
-    
+
 #endif
-    return ret;   
+    return ret;
 } /*END test_wc_curve448_import_private_raw_ex*/
 /*
  * Testing test_curve448_export_key_raw
@@ -17469,38 +17860,38 @@ static int test_wc_curve448_export_key_raw (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    WC_RNG          rng; 
+    WC_RNG          rng;
     curve448_key    key;
     byte            priv[CURVE448_KEY_SIZE];
     byte            pub[CURVE448_KEY_SIZE];
     word32          privSz = sizeof(priv);
     word32          pubSz = sizeof(pub);
-    
+
     printf(testingFmt, "wc_curve448_export_key_raw()");
-    
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0){
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
         }
         if (ret == 0){
             ret = wc_curve448_export_public(&key, pub, &pubSz);
-            }        
+            }
         if (ret == 0) {
             ret = wc_curve448_export_key_raw(&key, priv, &privSz, pub, &pubSz);
         }
     }
-    
+
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
-    wc_FreeRng(&rng);    
+    wc_FreeRng(&rng);
 #endif
-    return ret;  
+    return ret;
 
 }/*END test_wc_curve448_import_private_raw_ex*/
 
@@ -17508,24 +17899,24 @@ static int test_wc_curve448_export_key_raw (void)
 /*
  * Testing test_wc_curve448_import_private
  */
-static int test_wc_curve448_import_private (void) 
+static int test_wc_curve448_import_private (void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE448)
-    
+
     curve448_key       key;
-    WC_RNG             rng; 
+    WC_RNG             rng;
     byte               priv[CURVE448_KEY_SIZE];
     word32             privSz = sizeof(priv);
-    
+
     printf(testingFmt, "wc_curve448_import_private()");
-    
+
     ret = wc_curve448_init(&key);
     if (ret == 0) {
-        ret = wc_InitRng(&rng); 
-    } 
+        ret = wc_InitRng(&rng);
+    }
     if (ret == 0) {
-    
+
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
         if (ret == 0){
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
@@ -17533,12 +17924,12 @@ static int test_wc_curve448_import_private (void)
     }
     if (ret == 0){
         ret = wc_curve448_import_private(priv, privSz, &key);
-    }    
+    }
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
-    wc_FreeRng(&rng);    
+    wc_FreeRng(&rng);
 #endif
-    return ret;        
+    return ret;
 
 } /*END test_wc_curve448_import*/
 /*
@@ -18535,21 +18926,21 @@ static int test_wc_ecc_import_unsigned(void)
     (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     ecc_key     key;
     const byte  qx[] = {
-        0xbb, 0x33, 0xac, 0x4c, 0x27, 0x50, 0x4a, 0xc6, 
-        0x4a, 0xa5, 0x04, 0xc3, 0x3c, 0xde, 0x9f, 0x36, 
-        0xdb, 0x72, 0x2d, 0xce, 0x94, 0xea, 0x2b, 0xfa, 
+        0xbb, 0x33, 0xac, 0x4c, 0x27, 0x50, 0x4a, 0xc6,
+        0x4a, 0xa5, 0x04, 0xc3, 0x3c, 0xde, 0x9f, 0x36,
+        0xdb, 0x72, 0x2d, 0xce, 0x94, 0xea, 0x2b, 0xfa,
         0xcb, 0x20, 0x09, 0x39, 0x2c, 0x16, 0xe8, 0x61
     };
     const byte  qy[] = {
-        0x02, 0xe9, 0xaf, 0x4d, 0xd3, 0x02, 0x93, 0x9a, 
-        0x31, 0x5b, 0x97, 0x92, 0x21, 0x7f, 0xf0, 0xcf, 
-        0x18, 0xda, 0x91, 0x11, 0x02, 0x34, 0x86, 0xe8, 
+        0x02, 0xe9, 0xaf, 0x4d, 0xd3, 0x02, 0x93, 0x9a,
+        0x31, 0x5b, 0x97, 0x92, 0x21, 0x7f, 0xf0, 0xcf,
+        0x18, 0xda, 0x91, 0x11, 0x02, 0x34, 0x86, 0xe8,
         0x20, 0x58, 0x33, 0x0b, 0x80, 0x34, 0x89, 0xd8
     };
     const byte  d[] = {
-        0x45, 0xb6, 0x69, 0x02, 0x73, 0x9c, 0x6c, 0x85, 
+        0x45, 0xb6, 0x69, 0x02, 0x73, 0x9c, 0x6c, 0x85,
         0xa1, 0x38, 0x5b, 0x72, 0xe8, 0xe8, 0xc7, 0xac,
-        0xc4, 0x03, 0x8d, 0x53, 0x35, 0x04, 0xfa, 0x6c, 
+        0xc4, 0x03, 0x8d, 0x53, 0x35, 0x04, 0xfa, 0x6c,
         0x28, 0xdc, 0x34, 0x8d, 0xe1, 0xa8, 0x09, 0x8c
     };
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
@@ -18558,32 +18949,32 @@ static int test_wc_ecc_import_unsigned(void)
     int curveId = ECC_SECP256R1;
 
     ret = wc_ecc_init(&key);
- 
+
     printf(testingFmt, "wc_ecc_import_unsigned()");
 
     if (ret == 0) {
-        ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d, 
+        ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d,
             curveId);
     }
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_ecc_import_unsigned(NULL, (byte*)qx, (byte*)qy, (byte*)d, 
+        ret = wc_ecc_import_unsigned(NULL, (byte*)qx, (byte*)qy, (byte*)d,
             curveId);
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_import_unsigned(&key, NULL, (byte*)qy, (byte*)d, 
+            ret = wc_ecc_import_unsigned(&key, NULL, (byte*)qy, (byte*)d,
                 curveId);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_import_unsigned(&key, (byte*)qx, NULL, (byte*)d, 
+            ret = wc_ecc_import_unsigned(&key, (byte*)qx, NULL, (byte*)d,
                 curveId);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d, 
+            ret = wc_ecc_import_unsigned(&key, (byte*)qx, (byte*)qy, (byte*)d,
                 ECC_CURVE_INVALID);
         }
     #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_ecc_import_unsigned(&key, (byte*)nullBytes, 
+            ret = wc_ecc_import_unsigned(&key, (byte*)nullBytes,
                 (byte*)nullBytes, (byte*)nullBytes, curveId);
         }
     #endif
@@ -24657,7 +25048,7 @@ static void test_wolfSSL_either_side(void)
     test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 #endif
-    
+
     wolfSSL_CTX_free(client_cb.ctx);
     FreeTcpReady(&ready);
 
@@ -34071,6 +34462,11 @@ void ApiTest(void)
     AssertFalse(test_wc_InitSha256());
     AssertFalse(test_wc_Sha256Update());
     AssertFalse(test_wc_Sha256Final());
+    AssertFalse(test_wc_Sha256FinalRaw());
+    AssertFalse(test_wc_Sha256GetFlags());
+    AssertFalse(test_wc_Sha256Free());
+    AssertFalse(test_wc_Sha256GetHash());
+    AssertFalse(test_wc_Sha256Copy());
     AssertFalse(test_wc_InitSha512());
     AssertFalse(test_wc_Sha512Update());
     AssertFalse(test_wc_Sha512Final());
@@ -34080,6 +34476,11 @@ void ApiTest(void)
     AssertFalse(test_wc_InitSha224());
     AssertFalse(test_wc_Sha224Update());
     AssertFalse(test_wc_Sha224Final());
+    AssertFalse(test_wc_Sha224SetFlags());
+    AssertFalse(test_wc_Sha224GetFlags());
+    AssertFalse(test_wc_Sha224Free());
+    AssertFalse(test_wc_Sha224GetHash());
+    AssertFalse(test_wc_Sha224Copy());
     AssertFalse(test_wc_InitBlake2b());
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
