@@ -357,10 +357,12 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
+#define d2i_X509_REQ_bio                wolfSSL_d2i_X509_bio
 #define d2i_X509_fp                     wolfSSL_d2i_X509_fp
 #define i2d_X509                        wolfSSL_i2d_X509
 #define d2i_X509                        wolfSSL_d2i_X509
 #define PEM_read_bio_X509               wolfSSL_PEM_read_bio_X509
+#define PEM_read_bio_X509_REQ           wolfSSL_PEM_read_bio_X509
 #define PEM_read_bio_X509_CRL           wolfSSL_PEM_read_bio_X509_CRL
 #define PEM_read_bio_X509_AUX           wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509                   wolfSSL_PEM_read_X509
@@ -460,6 +462,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_INFO_pop                wolfSSL_sk_X509_INFO_pop
 #define sk_X509_INFO_pop_free           wolfSSL_sk_X509_INFO_pop_free
 #define sk_X509_INFO_free               wolfSSL_sk_X509_INFO_free
+#define sk_X509_INFO_shift              wolfSSL_sk_X509_INFO_pop
 
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
 #define d2i_X509_NAME                   wolfSSL_d2i_X509_NAME
