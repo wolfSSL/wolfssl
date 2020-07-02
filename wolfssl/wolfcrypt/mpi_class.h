@@ -19,7 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFSSL_MPI_CLASS_H
+#define WOLFSSL_MPI_CLASS_H
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 #if !(defined(LTM1) && defined(LTM2) && defined(LTM3))
 #if defined(LTM2)
@@ -1019,3 +1024,9 @@
 #define LTM_LAST
 #endif
 
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+#endif /* WOLFSSL_MPI_CLASS_H */

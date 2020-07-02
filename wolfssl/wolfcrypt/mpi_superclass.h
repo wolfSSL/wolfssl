@@ -19,7 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFSSL_MPI_SUPERCLASS_H
+#define WOLFSSL_MPI_SUPERCLASS_H
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 /* super class file for PK algos */
 
@@ -94,3 +99,8 @@
 
 #endif
 
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+#endif /* WOLFSSL_MPI_SUPERCLASS_H */
