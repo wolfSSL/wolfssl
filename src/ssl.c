@@ -4041,7 +4041,7 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 
 
 /* Function to get version as WOLFSSL_ enum value for wolfSSL_SetVersion */
-int wolfSSL_GetVersion(WOLFSSL* ssl)
+int wolfSSL_GetVersion(const WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -44517,7 +44517,8 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 #ifdef HAVE_ALPN
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)
