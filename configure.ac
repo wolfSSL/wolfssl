@@ -702,6 +702,7 @@ AC_ARG_ENABLE([mcast],
 # signal (--enable-signal)
 # lighty (--enable-lighty) HAVE_LIGHTY
 # stunnel (--enable-stunnel) HAVE_STUNNEL
+# libest (--enable-libest)
 # asio (--enable-asio) WOLFSSL_ASIO
 # libwebsockets (--enable-libwebsockets) WOLFSSL_LIBWEBSOCKETS
 # qt (--enable-qt) WOLFSSL_QT
@@ -4238,6 +4239,31 @@ if test "$ENABLED_PSK" = "no" &&  \
     (test "$ENABLED_LEANPSK" = "yes" || test "x$ENABLED_STUNNEL" = "xyes")
 then
     ENABLED_PSK=yes
+fi
+
+# libest Support
+AC_ARG_ENABLE([libest],
+    [AS_HELP_STRING([--enable-libest],[Enable libest (default: disabled)])],
+    [ ENABLED_LIBEST=$enableval ],
+    [ ENABLED_LIBEST=no ]
+    )
+    
+if test "$ENABLED_LIBEST" = "yes"
+then
+    # Requires opensslextra and opensslall
+    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLALL="yes"
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
+    fi
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+    fi
 fi
 
 # MD4

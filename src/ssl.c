@@ -18307,13 +18307,11 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x50
     }
 
     /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                                             DYNAMIC_TYPE_X509);
+    node = wolfSSL_sk_new_node(sk->heap);
     if (node == NULL) {
         WOLFSSL_MSG("Memory error");
         return WOLFSSL_FAILURE;
     }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
 
     /* push new x509 onto head of stack */
     node->data.x509 = sk->data.x509;
@@ -42313,7 +42311,7 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk
     if (node != NULL) { /* update sk and remove node from stack */
         sk->data.info = node->data.info;
         sk->next = node->next;
-        XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_sk_free_node(node);
     }
     else { /* last x509 in stack */
         sk->data.info = NULL;
