@@ -1262,7 +1262,7 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     WOLFSSL_ASN1_TIME thisDateParsed;
     WOLFSSL_ASN1_TIME nextDateParsed;
     byte* thisDateAsn;
