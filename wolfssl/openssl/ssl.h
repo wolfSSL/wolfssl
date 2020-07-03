@@ -53,6 +53,8 @@
 /* all NID_* values are in asn.h */
 #include <wolfssl/wolfcrypt/asn.h>
 
+#include <wolfssl/openssl/x509.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -377,6 +379,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_free                   wolfSSL_X509_REQ_free
 #define X509_REQ_sign                   wolfSSL_X509_REQ_sign
 #define X509_REQ_add_extensions         wolfSSL_X509_REQ_add_extensions
+#define X509_REQ_add1_attr_by_NID       wolfSSL_X509_REQ_add1_attr_by_NID
 #define X509_REQ_set_subject_name       wolfSSL_X509_REQ_set_subject_name
 #define X509_REQ_set_pubkey             wolfSSL_X509_REQ_set_pubkey
 #define PEM_write_bio_X509_REQ          wolfSSL_PEM_write_bio_X509_REQ
@@ -1182,6 +1185,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define OPENSSL_config	                wolfSSL_OPENSSL_config
 #define OPENSSL_memdup                  wolfSSL_OPENSSL_memdup
+#define OPENSSL_cleanse                 wolfSSL_OPENSSL_cleanse
 #define SSL_CTX_get_timeout             wolfSSL_SSL_CTX_get_timeout
 #define SSL_CTX_set_tmp_ecdh            wolfSSL_SSL_CTX_set_tmp_ecdh
 #define SSL_CTX_remove_session          wolfSSL_SSL_CTX_remove_session

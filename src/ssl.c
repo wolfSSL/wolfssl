@@ -45326,6 +45326,12 @@ void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int
     return XMEMCPY(ret, data, siz);
 }
 
+void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len)
+{
+    if (ptr)
+        ForceZero(ptr, len);
+}
+
 int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
                             unsigned int p_len)
 {
@@ -49246,6 +49252,21 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
     (void)req;
     (void)ext;
     return WOLFSSL_FATAL_ERROR;
+}
+
+int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
+                                      int nid, int type,
+                                      const unsigned char *bytes,
+                                      int len)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_add1_attr_by_NID");
+    WOLFSSL_STUB("wolfSSL_X509_REQ_add1_attr_by_NID");
+    (void)req;
+    (void)nid;
+    (void)type;
+    (void)bytes;
+    (void)len;
+    return WOLFSSL_FAILURE;
 }
 #endif
 

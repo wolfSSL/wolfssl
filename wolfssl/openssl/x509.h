@@ -5,6 +5,7 @@
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/openssl/ec.h>
 #include <wolfssl/openssl/ecdsa.h>
+#include <wolfssl/openssl/pkcs7.h>
 
 /* wolfSSL_X509_print_ex flags */
 #define X509_FLAG_COMPAT        (0UL)

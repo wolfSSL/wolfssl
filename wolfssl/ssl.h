@@ -3552,6 +3552,10 @@ WOLFSSL_API int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                                   WOLFSSL_X509_NAME *name);
 WOLFSSL_API int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req,
                                             WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
+                                                  int nid, int type,
+                                                  const unsigned char *bytes,
+                                                  int len);
 #endif
 
 
@@ -3775,6 +3779,7 @@ WOLFSSL_API int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
         const unsigned char* protos, unsigned int protos_len);
 WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
     size_t siz, const char* file, int line);
+WOLFSSL_API void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len);
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #endif
 
