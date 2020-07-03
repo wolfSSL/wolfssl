@@ -17187,7 +17187,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
 
@@ -17200,7 +17200,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     /* Certificate Authorities */
     names = ssl->ctx->ca_names;
     while (names != NULL) {
@@ -17269,7 +17269,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     names = ssl->ctx->ca_names;
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
