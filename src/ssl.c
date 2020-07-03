@@ -39855,16 +39855,6 @@ err:
 
         return WOLFSSL_SUCCESS;
     }
-
-    WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
-        WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
-    {
-        (void) sk;
-        WOLFSSL_ENTER("wolfSSL_dup_CA_list");
-        WOLFSSL_STUB("SSL_dup_CA_list");
-
-        return NULL;
-    }
 #endif
 
 /* wolfSSL uses negative values for error states. This function returns an
@@ -41995,6 +41985,38 @@ WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb
 
     return sk;
 }
+
+
+/* Creates a duplicate of WOLF_STACK_OF(WOLFSSL_X509_NAME).
+ * Returns a new WOLF_STACK_OF(WOLFSSL_X509_NAME) or NULL on failure */
+WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
+    int i;
+    const int num = wolfSSL_sk_X509_NAME_num(sk);
+    WOLF_STACK_OF(WOLFSSL_X509_NAME) *copy;
+    WOLFSSL_X509_NAME *name;
+
+    WOLFSSL_ENTER("wolfSSL_dup_CA_list");
+
+    copy = wolfSSL_sk_X509_NAME_new(NULL);
+    if (copy == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return NULL;
+    }
+
+    for (i = 0; i < num; i++) {
+        name = wolfSSL_X509_NAME_dup(wolfSSL_sk_X509_NAME_value(sk, i));
+        if (name == NULL || 0 != wolfSSL_sk_X509_NAME_push(copy, name)) {
+            WOLFSSL_MSG("Memory error");
+            wolfSSL_sk_X509_NAME_pop_free(copy, wolfSSL_X509_NAME_free);
+            return NULL;
+        }
+    }
+
+    return copy;
+}
+
 
 int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     WOLFSSL_X509_NAME* name)
