@@ -38750,6 +38750,42 @@ static void test_wolfSSL_ASN1_STRING_print(void){
 
 #endif /* !NO_BIO */
 
+static void test_wolfSSL_ASN1_get_object(void)
+{
+#ifdef OPENSSL_EXTRA
+    const unsigned char* derBuf = cliecc_cert_der_256;
+    int len = sizeof_cliecc_cert_der_256;
+    long asnLen = 0;
+    int tag = 0, class = 0;
+
+    printf(testingFmt, "wolfSSL_ASN1_get_object()");
+
+    /* Read a couple TLV triplets and make sure they match the expected values */
+
+    AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, len) & 0x80, 0);
+    AssertIntEQ(asnLen, 831);
+    AssertIntEQ(tag, 0x10);
+    AssertIntEQ(class, 0);
+
+    AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, asnLen) & 0x80, 0);
+    AssertIntEQ(asnLen, 741);
+    AssertIntEQ(tag, 0x10);
+    AssertIntEQ(class, 0);
+
+    AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, asnLen) & 0x80, 0);
+    AssertIntEQ(asnLen, 3);
+    AssertIntEQ(tag, 0);
+    AssertIntEQ(class, 0x80);
+
+    AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, asnLen) & 0x80, 0);
+    AssertIntEQ(asnLen, 1);
+    AssertIntEQ(tag, 0x2);
+    AssertIntEQ(class, 0);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 static void test_wolfSSL_RSA_verify()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && \
@@ -39659,6 +39695,7 @@ void ApiTest(void)
     test_wolfSSL_RSA_print();
     test_wolfSSL_ASN1_STRING_print();
 #endif
+    test_wolfSSL_ASN1_get_object();
     test_openssl_generate_key_and_cert();
 
     test_wolfSSL_EC_get_builtin_curves();

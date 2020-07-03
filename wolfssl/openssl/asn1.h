@@ -32,6 +32,8 @@
 #define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
 #define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
 
+#define ASN1_get_object      wolfSSL_ASN1_get_object
+
 #define V_ASN1_INTEGER                   0x02
 #define V_ASN1_OCTET_STRING              0x04 /* tag for ASN1_OCTET_STRING */
 #define V_ASN1_NEG                       0x100
@@ -82,6 +84,9 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
 
 WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value);
+
+WOLFSSL_API int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
+                                        int *class, long inLen);
 
 #ifdef OPENSSL_ALL
 /* IMPLEMENT_ASN1_FUNCTIONS is strictly for external use only. Internally

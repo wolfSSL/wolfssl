@@ -26006,6 +26006,72 @@ WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
 }
 #endif
 
+/**
+ * Parse an ASN1 encoded input and output information about the parsed object
+ * @param in    ASN1 encoded data. *in is moved to the value of the ASN1 object
+ * @param len   Length of parsed ASN1 object
+ * @param tag   Tag value of parsed ASN1 object
+ * @param class Class of parsed ASN1 object
+ * @param inLen Length of *in buffer
+ * @return int  Depends on which bits are set in the returned int:
+ *              0x80 an error occured during parsing
+ *              0x20 parsed object is constructed
+ *              0x01 the parsed object length is infinite
+ */
+int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
+                            int *class, long inLen)
+{
+    word32 inOutIdx = 0;
+    int l;
+    byte t;
+    int ret = 0x80;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_get_object");
+
+    if (!in || !*in || !len || !tag || !class || inLen == 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return ret;
+    }
+
+    if (GetASNTag(*in, &inOutIdx, &t, inLen) != 0) {
+        WOLFSSL_MSG("GetASNTag error");
+        return ret;
+    }
+
+    if (GetLength(*in, &inOutIdx, &l, inLen) < 0) {
+        WOLFSSL_MSG("GetLength error");
+        return ret;
+    }
+
+    *tag = t & 0x1F; /* Tag number is 5 lsb */
+    *class = t & 0xC0; /* Class is 2 msb */
+    *len = l;
+    ret = t & ASN_CONSTRUCTED;
+
+    if (l > inLen - inOutIdx) {
+        /* Still return other values but indicate error in msb */
+        ret |= 0x80;
+    }
+
+    *in += inOutIdx;
+    return ret;
+}
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
+        const unsigned char **pp, long len)
+{
+    (void)a;
+    (void)pp;
+    (void)len;
+
+    WOLFSSL_ENTER("wolfSSL_c2i_ASN1_OBJECT");
+    WOLFSSL_STUB("c2i_ASN1_OBJECT");
+
+    return NULL;
+}
+#endif
+
 #ifndef NO_BIO
 /* Return number of bytes written to BIO on success. 0 on failure. */
 WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp,
