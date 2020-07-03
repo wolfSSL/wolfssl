@@ -202,6 +202,7 @@ enum
     NID_sha256 = 672,
     NID_sha384 = 673,
     NID_sha512 = 674,
+    NID_pkcs9_challengePassword = 54,
     NID_hw_name_oid = 73,
     NID_id_pkix_OCSP_basic = 74,
     NID_any_policy = 75,

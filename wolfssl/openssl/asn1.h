@@ -33,6 +33,7 @@
 #define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
 
 #define ASN1_get_object      wolfSSL_ASN1_get_object
+#define c2i_ASN1_OBJECT      wolfSSL_c2i_ASN1_OBJECT
 
 #define V_ASN1_INTEGER                   0x02
 #define V_ASN1_OCTET_STRING              0x04 /* tag for ASN1_OCTET_STRING */
@@ -69,6 +70,8 @@
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
 #define V_ASN1_OBJECT                   6
+#define V_ASN1_SEQUENCE                 16
+#define V_ASN1_SET                      17
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
 #define V_ASN1_PRINTABLESTRING          19
@@ -87,6 +90,9 @@ WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *val
 
 WOLFSSL_API int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
                                         int *class, long inLen);
+
+WOLFSSL_API WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
+        const unsigned char **pp, long len);
 
 #ifdef OPENSSL_ALL
 /* IMPLEMENT_ASN1_FUNCTIONS is strictly for external use only. Internally
