@@ -1713,7 +1713,7 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #ifdef WOLFSSL_TLS13
@@ -2648,7 +2648,7 @@ struct WOLFSSL_CTX {
     DerBuffer*  certificate;
     DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
     #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
