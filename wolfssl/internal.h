@@ -2121,8 +2121,10 @@ typedef struct Keys {
     byte   keyUpdateRespond:1;    /* KeyUpdate is to be responded to. */
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-    byte tsip_client_write_MAC_secret[TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE];
-    byte tsip_server_write_MAC_secret[TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE];
+
+    tsip_hmac_sha_key_index_t tsip_client_write_MAC_secret;
+    tsip_hmac_sha_key_index_t tsip_server_write_MAC_secret;
+
 #endif
 } Keys;
 
