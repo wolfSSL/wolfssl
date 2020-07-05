@@ -789,6 +789,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*,
 #ifndef WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS
 #define WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS WOLFSSL_LOAD_FLAG_NONE
 #endif
+
+WOLFSSL_API long wolfSSL_get_verify_depth(WOLFSSL* ssl);
+WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
+WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 #endif /* !NO_CERTS */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
@@ -806,9 +810,6 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX *,
                                                   const char *file, int format);
 WOLFSSL_API int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX*, const char*, int);
 
-WOLFSSL_API long wolfSSL_get_verify_depth(WOLFSSL* ssl);
-WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
-WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*,
                                                                            int);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_use_PrivateKey_file(WOLFSSL*, const char*,
