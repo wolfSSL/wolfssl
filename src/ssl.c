@@ -6914,6 +6914,72 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 }
 
 
+#endif /* NO_FILESYSTEM */
+
+
+#ifndef NO_CHECK_PRIVATE_KEY
+/* Check private against public in certificate for match
+ *
+ * ctx  WOLFSSL_CTX structure to check private key in
+ *
+ * Returns SSL_SUCCESS on good private key and SSL_FAILURE if miss matched. */
+int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert* der = NULL;
+#else
+    DecodedCert  der[1];
+#endif
+    word32 size;
+    byte*  buff;
+    int    ret;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_check_private_key");
+
+    if (ctx == NULL || ctx->certificate == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+#ifndef NO_CERTS
+#ifdef WOLFSSL_SMALL_STACK
+    der = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if (der == NULL)
+        return MEMORY_E;
+#endif
+
+    size = ctx->certificate->length;
+    buff = ctx->certificate->buffer;
+    InitDecodedCert(der, buff, size, ctx->heap);
+    if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+        FreeDecodedCert(der);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(der, NULL, DYNAMIC_TYPE_DCERT);
+    #endif
+        return WOLFSSL_FAILURE;
+    }
+
+    size = ctx->privateKey->length;
+    buff = ctx->privateKey->buffer;
+    ret  = wc_CheckPrivateKey(buff, size, der);
+    FreeDecodedCert(der);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(der, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+
+    if (ret == 1) {
+        return WOLFSSL_SUCCESS;
+    }
+    else {
+        return WOLFSSL_FAILURE;
+    }
+#else
+    WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
+    return WOLFSSL_FAILURE;
+#endif
+}
+#endif /* !NO_CHECK_PRIVATE_KEY */
+
+
 #ifdef HAVE_CRL
 
 /* check CRL if enabled, WOLFSSL_SUCCESS  */
@@ -6981,6 +7047,7 @@ int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm, CbCrlIO cb)
 }
 #endif
 
+#ifndef NO_FILESYSTEM
 int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
                               int type, int monitor)
 {
@@ -6997,6 +7064,7 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
 
     return LoadCRL(cm->crl, path, type, monitor);
 }
+#endif
 
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
@@ -7017,6 +7085,7 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
 }
 
+#ifndef NO_FILESYSTEM
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 {
     WOLFSSL_ENTER("wolfSSL_LoadCRL");
@@ -7025,6 +7094,7 @@ int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
     else
         return BAD_FUNC_ARG;
 }
+#endif
 
 
 int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
@@ -7067,6 +7137,7 @@ int wolfSSL_CTX_DisableCRL(WOLFSSL_CTX* ctx)
 }
 
 
+#ifndef NO_FILESYSTEM
 int wolfSSL_CTX_LoadCRL(WOLFSSL_CTX* ctx, const char* path,
                         int type, int monitor)
 {
@@ -7076,6 +7147,7 @@ int wolfSSL_CTX_LoadCRL(WOLFSSL_CTX* ctx, const char* path,
     else
         return BAD_FUNC_ARG;
 }
+#endif
 
 
 int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb)
@@ -7100,6 +7172,9 @@ int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX* ctx, CbCrlIO cb)
 
 
 #endif /* HAVE_CRL */
+
+
+#ifndef NO_FILESYSTEM
 
 
 #ifdef WOLFSSL_DER_LOAD
@@ -7154,6 +7229,9 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
 }
 
 
+#endif /* NO_FILESYSTEM */
+
+
 /* Sets the max chain depth when verifying a certificate chain. Default depth
  * is set to MAX_CHAIN_DEPTH.
  *
@@ -7198,6 +7276,9 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
     return ctx->verifyDepth;
 #endif
 }
+
+
+#ifndef NO_FILESYSTEM
 
 
 WOLFSSL_ABI
