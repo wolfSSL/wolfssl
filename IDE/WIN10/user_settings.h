@@ -54,11 +54,9 @@
         /* The lib */
         #define OPENSSL_EXTRA
         #define WOLFSSL_RIPEMD
-        #define WOLFSSL_SHA512
         #define NO_PSK
         #define HAVE_EXTENDED_MASTER
         #define WOLFSSL_SNIFFER
-        #define HAVE_TLS_EXTENSIONS
         #define HAVE_SECURE_RENEGOTIATION
 
         #define HAVE_AESGCM

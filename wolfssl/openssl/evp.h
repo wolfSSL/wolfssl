@@ -185,8 +185,11 @@ struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     #endif
     } hash;
-    int macType;
+    enum wc_HashType macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;
+#ifndef NO_HMAC
+    unsigned int isHMAC;
+#endif
 };
 
 
@@ -319,6 +322,11 @@ enum {
     NID_aes_256_xts = 914
 };
 
+#define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
+#define NID_dhKeyAgreement       EVP_PKEY_DH
+#define NID_rsaEncryption        EVP_PKEY_RSA
+#define NID_dsa                  EVP_PKEY_DSA
+
 #define WOLFSSL_EVP_BUF_SIZE 16
 struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
@@ -345,13 +353,18 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     defined(HAVE_AESGCM) || defined (WOLFSSL_AES_XTS)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
+#ifdef HAVE_AESGCM
+    byte*   gcmDecryptBuffer;
+    int     gcmDecryptBufferLen;
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
     int     authTagSz;
 #endif
+#endif
 };
 
-struct  WOLFSSL_EVP_PKEY_CTX {
+struct WOLFSSL_EVP_PKEY_CTX {
     WOLFSSL_EVP_PKEY *pkey;
+    WOLFSSL_EVP_PKEY *peerKey;
     int op; /* operation */
     int padding;
     int nbits;
@@ -364,6 +377,7 @@ typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 #define EVP_PKEY_OP_SIGN    (1 << 3)
 #define EVP_PKEY_OP_ENCRYPT (1 << 6)
 #define EVP_PKEY_OP_DECRYPT (1 << 7)
+#define EVP_PKEY_OP_DERIVE  (1 << 8)
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
@@ -507,10 +521,12 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey,
 WOLFSSL_API int wolfSSL_EVP_PKEY_assign_DSA(EVP_PKEY* pkey, WOLFSSL_DSA* key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(struct WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API WOLFSSL_DSA* wolfSSL_EVP_PKEY_get0_DSA(struct WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY *key);
+WOLFSSL_API WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key);
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key);
@@ -534,6 +550,10 @@ WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pke
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding);
 WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new_id(int id, WOLFSSL_ENGINE *e);
 WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits);
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx);
+WOLFSSL_API int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY *peer);
+WOLFSSL_API int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen);
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
@@ -775,6 +795,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_set1_EC_KEY           wolfSSL_EVP_PKEY_set1_EC_KEY
 #define EVP_PKEY_get1_EC_KEY           wolfSSL_EVP_PKEY_get1_EC_KEY
 #define EVP_PKEY_set1_DH               wolfSSL_EVP_PKEY_set1_DH
+#define EVP_PKEY_get0_DH               wolfSSL_EVP_PKEY_get0_DH
 #define EVP_PKEY_get1_DH               wolfSSL_EVP_PKEY_get1_DH
 #define EVP_PKEY_get0_EC_KEY           wolfSSL_EVP_PKEY_get0_EC_KEY
 #define EVP_PKEY_get0_hmac             wolfSSL_EVP_PKEY_get0_hmac
@@ -791,6 +812,9 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_CTX_set_rsa_padding   wolfSSL_EVP_PKEY_CTX_set_rsa_padding
 #define EVP_PKEY_CTX_new_id            wolfSSL_EVP_PKEY_CTX_new_id
 #define EVP_PKEY_CTX_set_rsa_keygen_bits wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits
+#define EVP_PKEY_derive_init           wolfSSL_EVP_PKEY_derive_init
+#define EVP_PKEY_derive_set_peer       wolfSSL_EVP_PKEY_derive_set_peer
+#define EVP_PKEY_derive                wolfSSL_EVP_PKEY_derive
 #define EVP_PKEY_decrypt               wolfSSL_EVP_PKEY_decrypt
 #define EVP_PKEY_decrypt_init          wolfSSL_EVP_PKEY_decrypt_init
 #define EVP_PKEY_encrypt               wolfSSL_EVP_PKEY_encrypt
@@ -860,6 +884,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CTRL_GCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
 #define EVP_CTRL_GCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
 #define EVP_CTRL_GCM_SET_IV_FIXED      EVP_CTRL_AEAD_SET_IV_FIXED
+
+#define EVP_PKEY_print_private(arg1, arg2, arg3, arg4)
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */

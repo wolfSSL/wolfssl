@@ -363,7 +363,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(NO_ASN)
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 /* Decrypt/Encrypt input in place from parameters based on id

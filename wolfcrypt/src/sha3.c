@@ -708,6 +708,11 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         return BAD_FUNC_ARG;
     }
 
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
     #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
@@ -1161,7 +1166,16 @@ int wc_InitShake256(wc_Shake* shake, void* heap, int devId)
  */
 int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
 {
-    return wc_Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
+    if (shake == NULL || (data == NULL && len > 0)) {
+         return BAD_FUNC_ARG;
+    }
+
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
+    return Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
 }
 
 /* Calculate the SHAKE256 hash based on all the message data seen.

@@ -18,8 +18,10 @@ EXTRA_DIST += \
 # Intermediate cert CRL's
 EXTRA_DIST += \
 		 certs/crl/ca-int.pem \
+		 certs/crl/ca-int2.pem \
 		 certs/crl/client-int.pem \
 	     certs/crl/server-int.pem \
 	     certs/crl/ca-int-ecc.pem \
+		 certs/crl/ca-int2-ecc.pem \
 		 certs/crl/client-int-ecc.pem \
 	     certs/crl/server-int-ecc.pem

@@ -12,7 +12,7 @@ include IDE/ROWLEY-CROSSWORKS-ARM/include.am
 include IDE/TRUESTUDIO/include.am
 include IDE/ARDUINO/include.am
 include IDE/INTIME-RTOS/include.am
-include IDE/OPENSTM32/include.am
+include IDE/STM32Cube/include.am
 include IDE/VS-ARM/include.am
 include IDE/VS-AZURE-SPHERE/include.am
 include IDE/GCC-ARM/include.am
@@ -24,7 +24,7 @@ include IDE/mynewt/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/Projects/include.am
-include IDE/Renesas/e2studio/RA6M3G/include.am
+include IDE/Renesas/e2studio/RA6M3/include.am
 include IDE/Renesas/e2studio/GR-ROSE/include.am
 include IDE/WICED-STUDIO/include.am
 include IDE/CRYPTOCELL/include.am

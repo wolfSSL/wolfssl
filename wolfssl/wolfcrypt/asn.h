@@ -134,6 +134,18 @@ enum DN_Tags {
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+typedef struct WOLFSSL_ObjectInfo {
+    int nid;
+    int id;
+    word32 type;
+    const char* sName;
+    const char* lName;
+} WOLFSSL_ObjectInfo;
+extern const size_t wolfssl_object_info_sz;
+extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
+
 /* DN Tag Strings */
 #define WOLFSSL_COMMON_NAME      "/CN="
 #define WOLFSSL_LN_COMMON_NAME   "/commonName="
@@ -162,10 +174,10 @@ enum DN_Tags {
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
     #define WOLFSSL_SN_MS_UPN       "msUPN"
-    #define WOLFSSL_LN_MS_UPN       "Microsoft Universal Principal Name"
+    #define WOLFSSL_LN_MS_UPN       "Microsoft User Principal Name"
     #define WOLFSSL_MS_UPN_SUM 265
     #define WOLFSSL_SN_DNS_SRV      "id-on-dnsSRV"
-    #define WOLFSSL_LN_DNS_SRV      "SRVName otherName form"
+    #define WOLFSSL_LN_DNS_SRV      "SRVName"
     /* TLS features extension strings */
     #define WOLFSSL_SN_TLS_FEATURE  "tlsfeature"
     #define WOLFSSL_LN_TLS_FEATURE  "TLS Feature"
@@ -217,7 +229,10 @@ enum
     NID_stateOrProvinceName = 0x08,    /* ST */
     NID_organizationName = 0x0a,       /* O  */
     NID_organizationalUnitName = 0x0b, /* OU */
-    NID_domainComponent = 0x19,        /* matches ASN_DOMAIN_COMPONENT in asn.h */
+    NID_jurisdictionCountryName = 0xc,
+    NID_jurisdictionStateOrProvinceName = 0xd,
+    NID_businessCategory = ASN_BUS_CAT,
+    NID_domainComponent = ASN_DOMAIN_COMPONENT,
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
     NID_ms_upn = 265,                  /* 1.3.6.1.4.1.311.20.2.3 */
@@ -311,6 +326,8 @@ enum Misc_ASN {
                             /* Maximum DER digest size */
     MAX_DER_DIGEST_ASN_SZ = MAX_ENCODED_DIG_ASN_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
                             /* Maximum DER digest ASN header size */
+                            /* Max X509 header length indicates the max length + 2 ('\n', '\0') */
+    MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */
 #ifdef WOLFSSL_CERT_GEN
     #ifdef WOLFSSL_CERT_REQ
                           /* Max encoded cert req attributes length */
@@ -362,7 +379,8 @@ enum Misc_ASN {
 
     PKCS5_SALT_SZ       = 8,
 
-    PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
+    PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
+    PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
 };
 
 

@@ -67,7 +67,7 @@ int wc_ed448_make_public(ed448_key* key, unsigned char* pubKey, word32 pubKeySz)
     byte  az[ED448_PRV_KEY_SIZE];
     ge448_p2 A;
 
-    if ((key == NULL) || (pubKeySz != ED448_PUB_KEY_SIZE)) {
+    if ((key == NULL) || (pubKey == NULL) || (pubKeySz != ED448_PUB_KEY_SIZE)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -379,7 +379,7 @@ static int ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
         *res = 0;
 
         /* check on basics needed to verify signature */
-        if (sigLen < ED448_SIG_SIZE) {
+        if (sigLen != ED448_SIG_SIZE) {
             ret = BAD_FUNC_ARG;
         }
     }

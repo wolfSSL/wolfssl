@@ -3023,12 +3023,12 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a, const sp_dig
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[16][64];
-#else
-    sp_digit* t[16];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[16 * 64];
 #endif
+    sp_digit* t[16];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -3037,8 +3037,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 64, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 64), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -3046,12 +3046,14 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<16; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 64;
-        }
+#else
+            t[i] = &td[i * 64];
 #endif
-        norm = t[0];
+        }
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
@@ -3134,7 +3136,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_32(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -3155,12 +3157,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][64];
-#else
-    sp_digit* t[32];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[32 * 64];
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -3169,8 +3171,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 64, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 64), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -3178,12 +3180,14 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<32; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 64;
-        }
+#else
+            t[i] = &td[i * 64];
 #endif
-        norm = t[0];
+        }
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
@@ -3283,7 +3287,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_32(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -3714,12 +3718,12 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a, const s
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[16][128];
-#else
-    sp_digit* t[16];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[16 * 128];
 #endif
+    sp_digit* t[16];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -3728,8 +3732,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 128, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 128), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -3737,12 +3741,14 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<16; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 128;
-        }
+#else
+            t[i] = &td[i * 128];
 #endif
-        norm = t[0];
+        }
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
@@ -3825,7 +3831,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_64(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -3846,12 +3852,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][128];
-#else
-    sp_digit* t[32];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[32 * 128];
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -3860,8 +3866,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 128, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 128), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -3869,12 +3875,14 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<32; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 128;
-        }
+#else
+            t[i] = &td[i * 128];
 #endif
-        norm = t[0];
+        }
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
@@ -3974,7 +3982,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_2048_cond_sub_64(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -4116,63 +4124,6 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
-    sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
-    int err = MP_OKAY;
-
-    (void)pm;
-    (void)qm;
-    (void)dpm;
-    (void)dqm;
-    (void)qim;
-
-    if (*outLen < 256U) {
-        err = MP_TO_E;
-    }
-    if (err == MP_OKAY) {
-        if (mp_count_bits(dm) > 2048) {
-           err = MP_READ_E;
-        }
-        if (inLen > 256) {
-            err = MP_READ_E;
-        }
-        if (mp_count_bits(mm) != 2048) {
-            err = MP_READ_E;
-        }
-    }
-
-    if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 4, NULL,
-                                                              DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
-            err = MEMORY_E;
-        }
-    }
-    if (err == MP_OKAY) {
-        a = d + 64;
-        m = a + 128;
-        r = a;
-
-        sp_2048_from_bin(a, 64, in, inLen);
-        sp_2048_from_mp(d, 64, dm);
-        sp_2048_from_mp(m, 64, mm);
-        err = sp_2048_mod_exp_64(r, a, d, 2048, m, 0);
-    }
-    if (err == MP_OKAY) {
-        sp_2048_to_bin(r, out);
-        *outLen = 256;
-    }
-
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 64);
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
-
-    return err;
-#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -4232,6 +4183,63 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
     byte* out, word32* outLen)
 {
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 256U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 2048) {
+           err = MP_READ_E;
+        }
+        if (inLen > 256) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 64;
+        m = a + 128;
+        r = a;
+
+        sp_2048_from_bin(a, 64, in, inLen);
+        sp_2048_from_mp(d, 64, dm);
+        sp_2048_from_mp(m, 64, mm);
+        err = sp_2048_mod_exp_64(r, a, d, 2048, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_2048_to_bin(r, out);
+        *outLen = 256;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 64);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[64 * 2];
     sp_digit p[32], q[32], dp[32];
@@ -4327,11 +4335,10 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -4865,11 +4872,10 @@ static void sp_2048_lshift_64(sp_digit* r, sp_digit* a, byte n)
 static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit nd[128];
-    sp_digit td[65];
-#else
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[193];
 #endif
     sp_digit* norm;
     sp_digit* tmp;
@@ -4880,7 +4886,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 193, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
@@ -4889,12 +4895,11 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         norm = td;
-        tmp  = td + 128;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        tmp = td + 128;
 #else
-        norm = nd;
-        tmp  = td;
+        tmp = &td[128];
 #endif
 
         sp_2048_mont_setup(m, &mp);
@@ -4954,7 +4959,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         sp_2048_cond_sub_64(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -7670,12 +7675,12 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a, const sp_dig
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[16][96];
-#else
-    sp_digit* t[16];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[16 * 96];
 #endif
+    sp_digit* t[16];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -7684,8 +7689,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 96, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 96), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -7693,12 +7698,14 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<16; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 96;
-        }
+#else
+            t[i] = &td[i * 96];
 #endif
-        norm = t[0];
+        }
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
@@ -7781,7 +7788,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_48(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -7802,12 +7809,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][96];
-#else
-    sp_digit* t[32];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[32 * 96];
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -7816,8 +7823,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 96, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 96), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -7825,12 +7832,14 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<32; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 96;
-        }
+#else
+            t[i] = &td[i * 96];
 #endif
-        norm = t[0];
+        }
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
@@ -7930,7 +7939,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_48(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -8364,12 +8373,12 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a, const s
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[16][192];
-#else
-    sp_digit* t[16];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[16 * 192];
 #endif
+    sp_digit* t[16];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -8378,8 +8387,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 192, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 192), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -8387,12 +8396,14 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<16; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 192;
-        }
+#else
+            t[i] = &td[i * 192];
 #endif
-        norm = t[0];
+        }
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
@@ -8475,7 +8486,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_96(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -8496,12 +8507,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][192];
-#else
-    sp_digit* t[32];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[32 * 192];
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -8510,8 +8521,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 192, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 192), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -8519,12 +8530,14 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<32; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 192;
-        }
+#else
+            t[i] = &td[i * 192];
 #endif
-        norm = t[0];
+        }
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
@@ -8624,7 +8637,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         sp_3072_cond_sub_96(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -8766,63 +8779,6 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
-    sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
-    int err = MP_OKAY;
-
-    (void)pm;
-    (void)qm;
-    (void)dpm;
-    (void)dqm;
-    (void)qim;
-
-    if (*outLen < 384U) {
-        err = MP_TO_E;
-    }
-    if (err == MP_OKAY) {
-        if (mp_count_bits(dm) > 3072) {
-           err = MP_READ_E;
-        }
-        if (inLen > 384) {
-            err = MP_READ_E;
-        }
-        if (mp_count_bits(mm) != 3072) {
-            err = MP_READ_E;
-        }
-    }
-
-    if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 4, NULL,
-                                                              DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
-            err = MEMORY_E;
-        }
-    }
-    if (err == MP_OKAY) {
-        a = d + 96;
-        m = a + 192;
-        r = a;
-
-        sp_3072_from_bin(a, 96, in, inLen);
-        sp_3072_from_mp(d, 96, dm);
-        sp_3072_from_mp(m, 96, mm);
-        err = sp_3072_mod_exp_96(r, a, d, 3072, m, 0);
-    }
-    if (err == MP_OKAY) {
-        sp_3072_to_bin(r, out);
-        *outLen = 384;
-    }
-
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 96);
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
-
-    return err;
-#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -8882,6 +8838,63 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
     byte* out, word32* outLen)
 {
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 384U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 3072) {
+           err = MP_READ_E;
+        }
+        if (inLen > 384) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 96;
+        m = a + 192;
+        r = a;
+
+        sp_3072_from_bin(a, 96, in, inLen);
+        sp_3072_from_mp(d, 96, dm);
+        sp_3072_from_mp(m, 96, mm);
+        err = sp_3072_mod_exp_96(r, a, d, 3072, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_3072_to_bin(r, out);
+        *outLen = 384;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 96);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[96 * 2];
     sp_digit p[48], q[48], dp[48];
@@ -8977,11 +8990,10 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -9711,11 +9723,10 @@ static void sp_3072_lshift_96(sp_digit* r, sp_digit* a, byte n)
 static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit nd[192];
-    sp_digit td[97];
-#else
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[289];
 #endif
     sp_digit* norm;
     sp_digit* tmp;
@@ -9726,7 +9737,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 289, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
@@ -9735,12 +9746,11 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         norm = td;
-        tmp  = td + 192;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        tmp = td + 192;
 #else
-        norm = nd;
-        tmp  = td;
+        tmp = &td[192];
 #endif
 
         sp_3072_mont_setup(m, &mp);
@@ -9800,7 +9810,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
         sp_3072_cond_sub_96(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -10087,188 +10097,6 @@ static void sp_4096_to_bin(sp_digit* r, byte* a)
 }
 
 #ifndef WOLFSSL_SP_SMALL
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "ldm	%[a]!, {r4, r5}\n\t"
-        "ldm	%[b]!, {r6, r8}\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "stm	%[r]!, {r4, r5}\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c], %[c]\n\t"
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r8"
-    );
-
-    return c;
-}
-
 /* Sub b from a into r. (r = a - b)
  *
  * r  A single precision integer.
@@ -10958,111 +10786,6 @@ SP_NOINLINE static sp_digit sp_4096_add_128(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-SP_NOINLINE static void sp_4096_mul_64(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit tmp[64 * 2];
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "mov	r9, r3\n\t"
-        "mov	r12, %[r]\n\t"
-        "mov	r10, %[a]\n\t"
-        "mov	r11, %[b]\n\t"
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, r6, r10\n\t"
-        "mov	r14, r6\n\t"
-        "\n1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r5, #0\n\t"
-        "mov	r6, #252\n\t"
-        "mov	%[a], r9\n\t"
-        "subs	%[a], %[a], r6\n\t"
-        "sbc	r6, r6, r6\n\t"
-        "mvn	r6, r6\n\t"
-        "and	%[a], %[a], r6\n\t"
-        "mov	%[b], r9\n\t"
-        "sub	%[b], %[b], %[a]\n\t"
-        "add	%[a], %[a], r10\n\t"
-        "add	%[b], %[b], r11\n\t"
-        "\n2:\n\t"
-        /* Multiply Start */
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r8, [%[b]]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, %[r]\n\t"
-        /* Multiply Done */
-        "add	%[a], %[a], #4\n\t"
-        "sub	%[b], %[b], #4\n\t"
-        "cmp	%[a], r14\n\t"
-        "beq	3f\n\t"
-        "mov	r6, r9\n\t"
-        "add	r6, r6, r10\n\t"
-        "cmp	%[a], r6\n\t"
-        "ble	2b\n\t"
-        "\n3:\n\t"
-        "mov	%[r], r12\n\t"
-        "mov	r8, r9\n\t"
-        "str	r3, [%[r], r8]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "add	r8, r8, #4\n\t"
-        "mov	r9, r8\n\t"
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, r6, #248\n\t"
-        "cmp	r8, r6\n\t"
-        "ble	1b\n\t"
-        "str	r3, [%[r], r8]\n\t"
-        "mov	%[a], r10\n\t"
-        "mov	%[b], r11\n\t"
-        :
-        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
-    );
-
-    XMEMCPY(r, tmp, sizeof(tmp));
-}
-
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_4096_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<64; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 64; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-#endif
-}
-
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
 SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
@@ -11088,109 +10811,6 @@ SP_NOINLINE static void sp_4096_mul_128(sp_digit* r, const sp_digit* a,
     r[192] = u;
     XMEMSET(r + 192 + 1, 0, sizeof(sp_digit) * (64 - 1));
     (void)sp_4096_add_128(r + 128, r + 128, z2);
-}
-
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_4096_sqr_64(sp_digit* r, const sp_digit* a)
-{
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "mov	r5, #0\n\t"
-        "mov	r9, r3\n\t"
-        "mov	r12, %[r]\n\t"
-        "mov	r6, #2\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "neg	r6, r6\n\t"
-        "add	sp, sp, r6\n\t"
-        "mov	r11, sp\n\t"
-        "mov	r10, %[a]\n\t"
-        "\n1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r6, #252\n\t"
-        "mov	%[a], r9\n\t"
-        "subs	%[a], %[a], r6\n\t"
-        "sbc	r6, r6, r6\n\t"
-        "mvn	r6, r6\n\t"
-        "and	%[a], %[a], r6\n\t"
-        "mov	r2, r9\n\t"
-        "sub	r2, r2, %[a]\n\t"
-        "add	%[a], %[a], r10\n\t"
-        "add	r2, r2, r10\n\t"
-        "\n2:\n\t"
-        "cmp	r2, %[a]\n\t"
-        "beq	4f\n\t"
-        /* Multiply * 2: Start */
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r8, [r2]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, %[r]\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, %[r]\n\t"
-        /* Multiply * 2: Done */
-        "bal	5f\n\t"
-        "\n4:\n\t"
-        /* Square: Start */
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs	r4, r4, r8\n\t"
-        "adc	r5, r5, %[r]\n\t"
-        /* Square: Done */
-        "\n5:\n\t"
-        "add	%[a], %[a], #4\n\t"
-        "sub	r2, r2, #4\n\t"
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, r6, r10\n\t"
-        "cmp	%[a], r6\n\t"
-        "beq	3f\n\t"
-        "cmp	%[a], r2\n\t"
-        "bgt	3f\n\t"
-        "mov	r8, r9\n\t"
-        "add	r8, r8, r10\n\t"
-        "cmp	%[a], r8\n\t"
-        "ble	2b\n\t"
-        "\n3:\n\t"
-        "mov	%[r], r11\n\t"
-        "mov	r8, r9\n\t"
-        "str	r3, [%[r], r8]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "mov	r5, #0\n\t"
-        "add	r8, r8, #4\n\t"
-        "mov	r9, r8\n\t"
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, r6, #248\n\t"
-        "cmp	r8, r6\n\t"
-        "ble	1b\n\t"
-        "mov	%[a], r10\n\t"
-        "str	r3, [%[r], r8]\n\t"
-        "mov	%[r], r12\n\t"
-        "mov	%[a], r11\n\t"
-        "mov	r3, #1\n\t"
-        "lsl	r3, r3, #8\n\t"
-        "add	r3, r3, #252\n\t"
-        "\n4:\n\t"
-        "ldr	r6, [%[a], r3]\n\t"
-        "str	r6, [%[r], r3]\n\t"
-        "subs	r3, r3, #4\n\t"
-        "bge	4b\n\t"
-        "mov	r6, #2\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	sp, sp, r6\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a)
-        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
-    );
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -11960,12 +11580,12 @@ static WC_INLINE int sp_4096_mod_128_cond(sp_digit* r, const sp_digit* a, const 
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[16][256];
-#else
-    sp_digit* t[16];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[16 * 256];
 #endif
+    sp_digit* t[16];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -11974,8 +11594,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 256, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 256), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -11983,12 +11603,14 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<16; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 256;
-        }
+#else
+            t[i] = &td[i * 256];
 #endif
-        norm = t[0];
+        }
 
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_128(norm, m);
@@ -12071,7 +11693,7 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         sp_4096_cond_sub_128(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -12092,12 +11714,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][256];
-#else
-    sp_digit* t[32];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[32 * 256];
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -12106,8 +11728,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
-    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 256, NULL,
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 256), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
         err = MEMORY_E;
@@ -12115,12 +11737,14 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
         for (i=0; i<32; i++) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 256;
-        }
+#else
+            t[i] = &td[i * 256];
 #endif
-        norm = t[0];
+        }
 
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_128(norm, m);
@@ -12220,7 +11844,7 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         sp_4096_cond_sub_128(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -12362,63 +11986,6 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
-    sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
-    int err = MP_OKAY;
-
-    (void)pm;
-    (void)qm;
-    (void)dpm;
-    (void)dqm;
-    (void)qim;
-
-    if (*outLen < 512U) {
-        err = MP_TO_E;
-    }
-    if (err == MP_OKAY) {
-        if (mp_count_bits(dm) > 4096) {
-           err = MP_READ_E;
-        }
-        if (inLen > 512) {
-            err = MP_READ_E;
-        }
-        if (mp_count_bits(mm) != 4096) {
-            err = MP_READ_E;
-        }
-    }
-
-    if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 4, NULL,
-                                                              DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
-            err = MEMORY_E;
-        }
-    }
-    if (err == MP_OKAY) {
-        a = d + 128;
-        m = a + 256;
-        r = a;
-
-        sp_4096_from_bin(a, 128, in, inLen);
-        sp_4096_from_mp(d, 128, dm);
-        sp_4096_from_mp(m, 128, mm);
-        err = sp_4096_mod_exp_128(r, a, d, 4096, m, 0);
-    }
-    if (err == MP_OKAY) {
-        sp_4096_to_bin(r, out);
-        *outLen = 512;
-    }
-
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 128);
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
-
-    return err;
-#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -12479,6 +12046,63 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
     byte* out, word32* outLen)
 {
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 512U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 4096) {
+           err = MP_READ_E;
+        }
+        if (inLen > 512) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 128;
+        m = a + 256;
+        r = a;
+
+        sp_4096_from_bin(a, 128, in, inLen);
+        sp_4096_from_mp(d, 128, dm);
+        sp_4096_from_mp(m, 128, mm);
+        err = sp_4096_mod_exp_128(r, a, d, 4096, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_4096_to_bin(r, out);
+        *outLen = 512;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 128);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit a[128 * 2];
     sp_digit p[64], q[64], dp[64];
@@ -12574,11 +12198,10 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     XMEMSET(q,    0, sizeof(q));
     XMEMSET(dp,   0, sizeof(dp));
 #endif
-
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
-#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -13504,11 +13127,10 @@ static void sp_4096_lshift_128(sp_digit* r, sp_digit* a, byte n)
 static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
-#ifndef WOLFSSL_SMALL_STACK
-    sp_digit nd[256];
-    sp_digit td[129];
-#else
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
+#else
+    sp_digit td[385];
 #endif
     sp_digit* norm;
     sp_digit* tmp;
@@ -13519,7 +13141,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
     int c, y;
     int err = MP_OKAY;
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 385, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL) {
@@ -13528,12 +13150,11 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         norm = td;
-        tmp  = td + 256;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        tmp = td + 256;
 #else
-        norm = nd;
-        tmp  = td;
+        tmp = &td[256];
 #endif
 
         sp_4096_mont_setup(m, &mp);
@@ -13593,7 +13214,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
         sp_4096_cond_sub_128(r, r, m, mask);
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (td != NULL) {
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -13803,65 +13424,229 @@ static void sp_256_point_free_8(sp_point_256* p, int clear, void* heap)
  */
 static int sp_256_mod_mul_norm_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
-    int64_t t[8];
-    int64_t a64[8];
-    int64_t o;
+   (void)m;
 
-    (void)m;
-
-    a64[0] = a[0];
-    a64[1] = a[1];
-    a64[2] = a[2];
-    a64[3] = a[3];
-    a64[4] = a[4];
-    a64[5] = a[5];
-    a64[6] = a[6];
-    a64[7] = a[7];
-
-    /*  1  1  0 -1 -1 -1 -1  0 */
-    t[0] = 0 + a64[0] + a64[1] - a64[3] - a64[4] - a64[5] - a64[6];
-    /*  0  1  1  0 -1 -1 -1 -1 */
-    t[1] = 0 + a64[1] + a64[2] - a64[4] - a64[5] - a64[6] - a64[7];
-    /*  0  0  1  1  0 -1 -1 -1 */
-    t[2] = 0 + a64[2] + a64[3] - a64[5] - a64[6] - a64[7];
-    /* -1 -1  0  2  2  1  0 -1 */
-    t[3] = 0 - a64[0] - a64[1] + 2 * a64[3] + 2 * a64[4] + a64[5] - a64[7];
-    /*  0 -1 -1  0  2  2  1  0 */
-    t[4] = 0 - a64[1] - a64[2] + 2 * a64[4] + 2 * a64[5] + a64[6];
-    /*  0  0 -1 -1  0  2  2  1 */
-    t[5] = 0 - a64[2] - a64[3] + 2 * a64[5] + 2 * a64[6] + a64[7];
-    /* -1 -1  0  0  0  1  3  2 */
-    t[6] = 0 - a64[0] - a64[1] + a64[5] + 3 * a64[6] + 2 * a64[7];
-    /*  1  0 -1 -1 -1 -1  0  3 */
-    t[7] = 0 + a64[0] - a64[2] - a64[3] - a64[4] - a64[5] + 3 * a64[7];
-
-    t[1] += t[0] >> 32; t[0] &= 0xffffffff;
-    t[2] += t[1] >> 32; t[1] &= 0xffffffff;
-    t[3] += t[2] >> 32; t[2] &= 0xffffffff;
-    t[4] += t[3] >> 32; t[3] &= 0xffffffff;
-    t[5] += t[4] >> 32; t[4] &= 0xffffffff;
-    t[6] += t[5] >> 32; t[5] &= 0xffffffff;
-    t[7] += t[6] >> 32; t[6] &= 0xffffffff;
-    o     = t[7] >> 32; t[7] &= 0xffffffff;
-    t[0] += o;
-    t[3] -= o;
-    t[6] -= o;
-    t[7] += o;
-    t[1] += t[0] >> 32; t[0] &= 0xffffffff;
-    t[2] += t[1] >> 32; t[1] &= 0xffffffff;
-    t[3] += t[2] >> 32; t[2] &= 0xffffffff;
-    t[4] += t[3] >> 32; t[3] &= 0xffffffff;
-    t[5] += t[4] >> 32; t[4] &= 0xffffffff;
-    t[6] += t[5] >> 32; t[5] &= 0xffffffff;
-    t[7] += t[6] >> 32; t[6] &= 0xffffffff;
-    r[0] = t[0];
-    r[1] = t[1];
-    r[2] = t[2];
-    r[3] = t[3];
-    r[4] = t[4];
-    r[5] = t[5];
-    r[6] = t[6];
-    r[7] = t[7];
+    __asm__ __volatile__ (
+        "sub   sp, sp, #24\n\t"
+        "ldr r2, [%[a], #0]\n\t"
+        "ldr r3, [%[a], #4]\n\t"
+        "ldr r4, [%[a], #8]\n\t"
+        "ldr r5, [%[a], #12]\n\t"
+        "ldr r6, [%[a], #16]\n\t"
+        "ldr r8, [%[a], #20]\n\t"
+        "ldr r9, [%[a], #24]\n\t"
+        "ldr r10, [%[a], #28]\n\t"
+        /* Clear overflow and underflow */
+        "mov   r14, #0\n\t"
+        "mov   r12, #0\n\t"
+        /* t[0] =  1  1  0 -1 -1 -1 -1  0 */
+        "adds  r11, r2, r3\n\t"
+        "adc   r14, r14, #0\n\t"
+        "subs    r11, r11, r5\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r6\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r8\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r9\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[0] */
+        "str       r11, [sp, #0]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r11, #0\n\t"
+        /* t[1] =  0  1  1  0 -1 -1 -1 -1 */
+        "adds  r14, r14, r3\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r4\n\t"
+        "adc   r11, r11, #0\n\t"
+        "subs      r14, r14, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r14, r14, r6\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r8\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r9\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r10\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[1] */
+        "str       r14, [sp, #4]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r14, #0\n\t"
+        /* t[2] =  0  0  1  1  0 -1 -1 -1 */
+        "adds  r11, r11, r4\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r5\n\t"
+        "adc   r14, r14, #0\n\t"
+        "subs      r11, r11, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r11, r11, r8\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r9\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r10\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[2] */
+        "str       r11, [sp, #8]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r11, #0\n\t"
+        /* t[3] = -1 -1  0  2  2  1  0 -1 */
+        "adds  r14, r14, r5\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r5\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r6\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r6\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r8\n\t"
+        "adc   r11, r11, #0\n\t"
+        "subs      r14, r14, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r14, r14, r2\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r3\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r10\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[3] */
+        "str       r14, [sp, #12]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r14, #0\n\t"
+        /* t[4] =  0 -1 -1  0  2  2  1  0 */
+        "adds  r11, r11, r6\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r6\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r8\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r8\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r9\n\t"
+        "adc   r14, r14, #0\n\t"
+        "subs      r11, r11, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r11, r11, r3\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r4\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[4] */
+        "str       r11, [sp, #16]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r11, #0\n\t"
+        /* t[5] =  0  0 -1 -1  0  2  2  1 */
+        "adds  r14, r14, r8\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r8\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r9\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r9\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r10\n\t"
+        "adc   r11, r11, #0\n\t"
+        "subs      r14, r14, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r14, r14, r4\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r5\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[5] */
+        "str       r14, [sp, #20]\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r14, #0\n\t"
+        /* t[6] = -1 -1  0  0  0  1  3  2 */
+        "adds  r11, r11, r8\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r9\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r9\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r9\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r10\n\t"
+        "adc   r14, r14, #0\n\t"
+        "adds  r11, r11, r10\n\t"
+        "adc   r14, r14, #0\n\t"
+        "subs      r11, r11, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r11, r11, r2\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r11, r11, r3\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[6] */
+        "mov       r9, r11\n\t"
+        "neg       r12, r12\n\t"
+        "mov       r11, #0\n\t"
+        /* t[7] =  1  0 -1 -1 -1 -1  0  3 */
+        "adds  r14, r14, r2\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r10\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r10\n\t"
+        "adc   r11, r11, #0\n\t"
+        "adds  r14, r14, r10\n\t"
+        "adc   r11, r11, #0\n\t"
+        "subs      r14, r14, r12\n\t"
+        "mov       r12, #0\n\t"
+        "sbc       r12, r12, #0\n\t"
+        "subs    r14, r14, r4\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r5\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r6\n\t"
+        "sbc     r12, r12, #0\n\t"
+        "subs    r14, r14, r8\n\t"
+        "sbc     r12, r12, #0\n\t"
+        /* Store t[7] */
+        /* Load intermediate */
+        "ldr r2, [sp, #0]\n\t"
+        "ldr r3, [sp, #4]\n\t"
+        "ldr r4, [sp, #8]\n\t"
+        "ldr r5, [sp, #12]\n\t"
+        "ldr r6, [sp, #16]\n\t"
+        "ldr r8, [sp, #20]\n\t"
+        "neg   r12, r12\n\t"
+        /* Add overflow */
+        /* Subtract underflow - add neg underflow */
+        "adds  r2, r2, r11\n\t"
+        "adcs  r3, r3, #0\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adds  r5, r5, r12\n\t"
+        "adcs  r6, r6, #0\n\t"
+        "adcs  r8, r8, #0\n\t"
+        "adcs  r9, r9, r12\n\t"
+        "adc   r14, r14, r11\n\t"
+        /* Subtract overflow */
+        /* Add underflow - subtract neg underflow */
+        "subs  r2, r2, r12\n\t"
+        "sbcs  r3, r3, #0\n\t"
+        "sbcs  r4, r4, #0\n\t"
+        "subs  r5, r5, r11\n\t"
+        "sbcs  r6, r6, #0\n\t"
+        "sbcs  r8, r8, #0\n\t"
+        "sbcs  r9, r9, r11\n\t"
+        "sbc   r14, r14, r12\n\t"
+        /* Store result */
+        "str r2, [%[r], #0]\n\t"
+        "str r3, [%[r], #4]\n\t"
+        "str r4, [%[r], #8]\n\t"
+        "str r5, [%[r], #12]\n\t"
+        "str r6, [%[r], #16]\n\t"
+        "str r8, [%[r], #20]\n\t"
+        "str r9, [%[r], #24]\n\t"
+        "str r14, [%[r], #28]\n\t"
+        "add   sp, sp, #24\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r12"
+    );
 
     return MP_OKAY;
 }
@@ -14050,765 +13835,6 @@ static int sp_256_point_to_ecc_point_8(const sp_point_256* p, ecc_point* pm)
     return err;
 }
 
-/* Multiply a and b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit tmp[8];
-
-    __asm__ __volatile__ (
-        /* A[0] * B[0] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r3, r4, r6, r8\n\t"
-        "mov	r5, #0\n\t"
-        "str	r3, [%[tmp], #0]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * B[1] */
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adc	r5, r5, r8\n\t"
-        /* A[1] * B[0] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[tmp], #4]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[0] * B[2] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[1] * B[1] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[2] * B[0] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[tmp], #8]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[0] * B[3] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[1] * B[2] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[2] * B[1] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[3] * B[0] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r3, [%[tmp], #12]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * B[4] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[1] * B[3] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[2] * B[2] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[3] * B[1] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[4] * B[0] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[tmp], #16]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[0] * B[5] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[1] * B[4] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[2] * B[3] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[3] * B[2] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[4] * B[1] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[5] * B[0] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[tmp], #20]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[0] * B[6] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[1] * B[5] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[2] * B[4] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[3] * B[3] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[4] * B[2] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[5] * B[1] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[6] * B[0] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r3, [%[tmp], #24]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * B[7] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[1] * B[6] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[2] * B[5] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[3] * B[4] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[4] * B[3] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[5] * B[2] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[6] * B[1] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[7] * B[0] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #0]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[tmp], #28]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[1] * B[7] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[2] * B[6] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[3] * B[5] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[4] * B[4] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[5] * B[3] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[6] * B[2] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[7] * B[1] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[r], #32]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[2] * B[7] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[3] * B[6] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[4] * B[5] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[5] * B[4] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[6] * B[3] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[7] * B[2] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r3, [%[r], #36]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[3] * B[7] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[4] * B[6] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[5] * B[5] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[6] * B[4] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[7] * B[3] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[r], #40]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[4] * B[7] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[5] * B[6] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[6] * B[5] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[7] * B[4] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[r], #44]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[5] * B[7] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[6] * B[6] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[7] * B[5] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r3, [%[r], #48]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[6] * B[7] */
-        "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        /* A[7] * B[6] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[r], #52]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[7] * B[7] */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[b], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r3, r3, r8\n\t"
-        "str	r5, [%[r], #56]\n\t"
-        "str	r3, [%[r], #60]\n\t"
-        /* Transfer tmp to r */
-        "ldr	r3, [%[tmp], #0]\n\t"
-        "ldr	r4, [%[tmp], #4]\n\t"
-        "ldr	r5, [%[tmp], #8]\n\t"
-        "ldr	r6, [%[tmp], #12]\n\t"
-        "str	r3, [%[r], #0]\n\t"
-        "str	r4, [%[r], #4]\n\t"
-        "str	r5, [%[r], #8]\n\t"
-        "str	r6, [%[r], #12]\n\t"
-        "ldr	r3, [%[tmp], #16]\n\t"
-        "ldr	r4, [%[tmp], #20]\n\t"
-        "ldr	r5, [%[tmp], #24]\n\t"
-        "ldr	r6, [%[tmp], #28]\n\t"
-        "str	r3, [%[r], #16]\n\t"
-        "str	r4, [%[r], #20]\n\t"
-        "str	r5, [%[r], #24]\n\t"
-        "str	r6, [%[r], #28]\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [tmp] "r" (tmp)
-        : "memory", "r3", "r4", "r5", "r6", "r8"
-    );
-}
-
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
-        const sp_digit* b, sp_digit m)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r5, #32\n\t"
-        "mov	r9, r5\n\t"
-        "mov	r8, #0\n\t"
-        "\n1:\n\t"
-        "ldr	r6, [%[b], r8]\n\t"
-        "and	r6, r6, %[m]\n\t"
-        "mov	r5, #0\n\t"
-        "subs	r5, r5, %[c]\n\t"
-        "ldr	r5, [%[a], r8]\n\t"
-        "sbcs	r5, r5, r6\n\t"
-        "sbcs	%[c], %[c], %[c]\n\t"
-        "str	r5, [%[r], r8]\n\t"
-        "add	r8, r8, #4\n\t"
-        "cmp	r8, r9\n\t"
-        "blt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "r5", "r6", "r8", "r9"
-    );
-
-    return c;
-}
-
-/* Reduce the number back to 256 bits using Montgomery reduction.
- *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
- */
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
-        sp_digit mp)
-{
-    (void)mp;
-    (void)m;
-
-    __asm__ __volatile__ (
-        "mov	r2, #0\n\t"
-        "mov	r1, #0\n\t"
-        /* i = 0 */
-        "mov	r9, r2\n\t"
-        "\n1:\n\t"
-        "mov	r4, #0\n\t"
-        /* mu = a[i] * 1 (mp) = a[i] */
-        "ldr	r3, [%[a]]\n\t"
-        /* a[i] += -1 * mu = -1 * a[i] => a[i] = 0 no carry */
-        /* a[i+1] += -1 * mu */
-        "ldr	r6, [%[a], #4]\n\t"
-        "mov	r5, #0\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adc	r5, r5, r2\n\t"
-        "str	r4, [%[a], #4]\n\t"
-        /* a[i+2] += -1 * mu */
-        "ldr	r6, [%[a], #8]\n\t"
-        "mov	r4, #0\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r4, r4, r2\n\t"
-        "str	r5, [%[a], #8]\n\t"
-        /* a[i+3] += 0 * mu */
-        "ldr	r6, [%[a], #12]\n\t"
-        "mov	r5, #0\n\t"
-        "adds	r4, r4, r3\n\t"
-        "adc	r5, r5, r2\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adc	r5, r5, r2\n\t"
-        "str	r4, [%[a], #12]\n\t"
-        /* a[i+4] += 0 * mu */
-        "ldr	r6, [%[a], #16]\n\t"
-        "mov	r4, #0\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r4, r4, r2\n\t"
-        "str	r5, [%[a], #16]\n\t"
-        /* a[i+5] += 0 * mu */
-        "ldr	r6, [%[a], #20]\n\t"
-        "mov	r5, #0\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adc	r5, r5, r2\n\t"
-        "str	r4, [%[a], #20]\n\t"
-        /* a[i+6] += 1 * mu */
-        "ldr	r6, [%[a], #24]\n\t"
-        "mov	r4, #0\n\t"
-        "adds	r5, r5, r3\n\t"
-        "adc	r4, r4, r2\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r4, r4, r2\n\t"
-        "str	r5, [%[a], #24]\n\t"
-        /* a[i+7] += -1 * mu */
-        "ldr	r6, [%[a], #28]\n\t"
-        "ldr	r8, [%[a], #32]\n\t"
-        "adds	r5, r1, r3\n\t"
-        "mov	r1, #0\n\t"
-        "adc	r1, r1, r2\n\t"
-        "subs	r4, r4, r3\n\t"
-        "sbcs	r5, r5, r2\n\t"
-        "sbc	r1, r1, r2\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "adc	r1, r1, r2\n\t"
-        "str	r4, [%[a],  #28]\n\t"
-        "str	r5, [%[a], #32]\n\t"
-        /* i += 1 */
-        "add	r9, r9, #1\n\t"
-        "add	%[a], %[a], #4\n\t"
-        "mov	r6, #8\n\t"
-        "cmp	r9, r6\n\t"
-        "blt	1b\n\t"
-        "sub	%[a], %[a], #32\n\t"
-        "mov	r3, r1\n\t"
-        "sub	r1, r1, #1\n\t"
-        "mvn	r1, r1\n\t"
-        "ldr	r4, [%[a],#32]\n\t"
-        "ldr	r5, [%[a],#36]\n\t"
-        "ldr	r6, [%[a],#40]\n\t"
-        "ldr	r8, [%[a],#44]\n\t"
-        "subs	r4, r4, r1\n\t"
-        "sbcs	r5, r5, r1\n\t"
-        "sbcs	r6, r6, r1\n\t"
-        "sbcs	r8, r8, r2\n\t"
-        "str	r4, [%[a],#0]\n\t"
-        "str	r5, [%[a],#4]\n\t"
-        "str	r6, [%[a],#8]\n\t"
-        "str	r8, [%[a],#12]\n\t"
-        "ldr	r4, [%[a],#48]\n\t"
-        "ldr	r5, [%[a],#52]\n\t"
-        "ldr	r6, [%[a],#56]\n\t"
-        "ldr	r8, [%[a],#60]\n\t"
-        "sbcs	r4, r4, r2\n\t"
-        "sbcs	r5, r5, r2\n\t"
-        "sbcs	r6, r6, r3\n\t"
-        "sbc	r8, r8, r1\n\t"
-        "str	r4, [%[a],#16]\n\t"
-        "str	r5, [%[a],#20]\n\t"
-        "str	r6, [%[a],#24]\n\t"
-        "str	r8, [%[a],#28]\n\t"
-        : [a] "+r" (a)
-        :
-        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r8", "r9"
-    );
-
-
-    (void)m;
-    (void)mp;
-}
-
-/* Reduce the number back to 256 bits using Montgomery reduction.
- *
- * a   A single precision number to reduce in place.
- * m   The single precision number representing the modulus.
- * mp  The digit representing the negative inverse of m mod 2^n.
- */
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m,
-        sp_digit mp)
-{
-    sp_digit ca = 0;
-
-    __asm__ __volatile__ (
-        "mov	r9, %[mp]\n\t"
-        "mov	r12, %[m]\n\t"
-        "mov	r10, %[a]\n\t"
-        "mov	r4, #0\n\t"
-        "add	r11, r10, #32\n\t"
-        "\n1:\n\t"
-        /* mu = a[i] * mp */
-        "mov	%[mp], r9\n\t"
-        "ldr	%[a], [r10]\n\t"
-        "mul	%[mp], %[mp], %[a]\n\t"
-        "mov	%[m], r12\n\t"
-        "add	r14, r10, #24\n\t"
-        "\n2:\n\t"
-        /* a[i+j] += m[j] * mu */
-        "ldr	%[a], [r10]\n\t"
-        "mov	r5, #0\n\t"
-        /* Multiply m[j] and mu - Start */
-        "ldr	r8, [%[m]], #4\n\t"
-        "umull	r6, r8, %[mp], r8\n\t"
-        "adds	%[a], %[a], r6\n\t"
-        "adc	r5, r5, r8\n\t"
-        /* Multiply m[j] and mu - Done */
-        "adds	r4, r4, %[a]\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r4, [r10], #4\n\t"
-        /* a[i+j+1] += m[j+1] * mu */
-        "ldr	%[a], [r10]\n\t"
-        "mov	r4, #0\n\t"
-        /* Multiply m[j] and mu - Start */
-        "ldr	r8, [%[m]], #4\n\t"
-        "umull	r6, r8, %[mp], r8\n\t"
-        "adds	%[a], %[a], r6\n\t"
-        "adc	r4, r4, r8\n\t"
-        /* Multiply m[j] and mu - Done */
-        "adds	r5, r5, %[a]\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [r10], #4\n\t"
-        "cmp	r10, r14\n\t"
-        "blt	2b\n\t"
-        /* a[i+6] += m[6] * mu */
-        "ldr	%[a], [r10]\n\t"
-        "mov	r5, #0\n\t"
-        /* Multiply m[j] and mu - Start */
-        "ldr	r8, [%[m]], #4\n\t"
-        "umull	r6, r8, %[mp], r8\n\t"
-        "adds	%[a], %[a], r6\n\t"
-        "adc	r5, r5, r8\n\t"
-        /* Multiply m[j] and mu - Done */
-        "adds	r4, r4, %[a]\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r4, [r10], #4\n\t"
-        /* a[i+7] += m[7] * mu */
-        "mov	r4, %[ca]\n\t"
-        "mov	%[ca], #0\n\t"
-        /* Multiply m[7] and mu - Start */
-        "ldr	r8, [%[m]]\n\t"
-        "umull	r6, r8, %[mp], r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	%[ca], %[ca], #0\n\t"
-        /* Multiply m[7] and mu - Done */
-        "ldr	r6, [r10]\n\t"
-        "ldr	r8, [r10, #4]\n\t"
-        "adds	r6, r6, r5\n\t"
-        "adcs	r8, r8, r4\n\t"
-        "adc	%[ca], %[ca], #0\n\t"
-        "str	r6, [r10]\n\t"
-        "str	r8, [r10, #4]\n\t"
-        /* Next word in a */
-        "sub	r10, r10, #24\n\t"
-        "cmp	r10, r11\n\t"
-        "blt	1b\n\t"
-        "mov	%[a], r10\n\t"
-        "mov	%[m], r12\n\t"
-        : [ca] "+r" (ca), [a] "+r" (a)
-        : [m] "r" (m), [mp] "r" (mp)
-        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
-    );
-
-    sp_256_cond_sub_8(a - 8, a, m, (sp_digit)0 - ca);
-}
-
 /* Multiply two Montogmery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
@@ -14818,375 +13844,1170 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* 
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+SP_NOINLINE static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m, sp_digit mp)
 {
-    sp_256_mul_8(r, a, b);
-    sp_256_mont_reduce_8(r, m, mp);
-}
+    (void)mp;
+    (void)m;
 
-/* Square a and put result in r. (r = a * a)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- */
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
-{
-    sp_digit tmp[8];
     __asm__ __volatile__ (
-        /* A[0] * A[0] */
+        "sub   sp, sp, #68\n\t"
+        "mov   r5, #0\n\t"
+        /*  A[0] * B[0] */
         "ldr	r6, [%[a], #0]\n\t"
-        "umull	r3, r4, r6, r6\n\t"
-        "mov	r5, #0\n\t"
-        "str	r3, [%[tmp], #0]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * A[1] */
-        "ldr	r8, [%[a], #4]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adc	r5, r5, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[tmp], #4]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[0] * A[2] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r3, r3, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[1] * A[1] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[tmp], #8]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[0] * A[3] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
         "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[1] * A[2] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #8]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r3, r3, r9\n\t"
-        "adcs	r4, r4, r10\n\t"
-        "adc	r5, r5, r11\n\t"
-        "str	r3, [%[tmp], #12]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * A[4] */
+        "str r9, [sp, #0]\n\t"
+        /*  A[0] * B[1] */
         "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #16]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[1] * A[3] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adc	r11, r4, #0\n\t"
+        /*  A[1] * B[0] */
         "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[2] * A[2] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, #0\n\t"
+        "str r10, [sp, #4]\n\t"
+        /*  A[0] * B[2] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adc	r14, r4, r14\n\t"
+        /*  A[1] * B[1] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, #0\n\t"
+        /*  A[2] * B[0] */
         "ldr	r6, [%[a], #8]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r4, r4, r9\n\t"
-        "adcs	r5, r5, r10\n\t"
-        "adc	r3, r3, r11\n\t"
-        "str	r4, [%[tmp], #16]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[0] * A[5] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        "str r11, [sp, #8]\n\t"
+        /*  A[0] * B[3] */
         "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #20]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[1] * A[4] */
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, #0\n\t"
+        /*  A[1] * B[2] */
         "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[2] * A[3] */
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[2] * B[1] */
         "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[a], #12]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r5, r5, r9\n\t"
-        "adcs	r3, r3, r10\n\t"
-        "adc	r4, r4, r11\n\t"
-        "str	r5, [%[tmp], #20]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[0] * A[6] */
-        "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[1] * A[5] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[2] * A[4] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[a], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[3] * A[3] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[3] * B[0] */
         "ldr	r6, [%[a], #12]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r3, r3, r9\n\t"
-        "adcs	r4, r4, r10\n\t"
-        "adc	r5, r5, r11\n\t"
-        "str	r3, [%[tmp], #24]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[0] * A[7] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        "str r14, [sp, #12]\n\t"
+        /*  A[0] * B[4] */
         "ldr	r6, [%[a], #0]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[1] * A[6] */
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, #0\n\t"
+        /*  A[1] * B[3] */
         "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[2] * A[5] */
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[2] * B[2] */
         "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[a], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[3] * A[4] */
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[3] * B[1] */
         "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[a], #16]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r4, r4, r9\n\t"
-        "adcs	r5, r5, r10\n\t"
-        "adc	r3, r3, r11\n\t"
-        "str	r4, [%[tmp], #28]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[1] * A[7] */
-        "ldr	r6, [%[a], #4]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[2] * A[6] */
-        "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[3] * A[5] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[a], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[4] * A[4] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[4] * B[0] */
         "ldr	r6, [%[a], #16]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r5, r5, r9\n\t"
-        "adcs	r3, r3, r10\n\t"
-        "adc	r4, r4, r11\n\t"
-        "str	r5, [%[r], #32]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[2] * A[7] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        "str r9, [sp, #16]\n\t"
+        /*  A[0] * B[5] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, #0\n\t"
+        /*  A[1] * B[4] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[2] * B[3] */
         "ldr	r6, [%[a], #8]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[3] * A[6] */
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[3] * B[2] */
         "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[4] * A[5] */
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[4] * B[1] */
         "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[a], #20]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r3, r3, r9\n\t"
-        "adcs	r4, r4, r10\n\t"
-        "adc	r5, r5, r11\n\t"
-        "str	r3, [%[r], #36]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[3] * A[7] */
-        "ldr	r6, [%[a], #12]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r9, r10, r6, r8\n\t"
-        "mov	r11, #0\n\t"
-        /* A[4] * A[6] */
-        "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r9, r9, r6\n\t"
-        "adcs 	r10, r10, r8\n\t"
-        "adc	r11, r11, #0\n\t"
-        /* A[5] * A[5] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[5] * B[0] */
         "ldr	r6, [%[a], #20]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "adds	r9, r9, r9\n\t"
-        "adcs	r10, r10, r10\n\t"
-        "adc	r11, r11, r11\n\t"
-        "adds	r4, r4, r9\n\t"
-        "adcs	r5, r5, r10\n\t"
-        "adc	r3, r3, r11\n\t"
-        "str	r4, [%[r], #40]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[4] * A[7] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        "str r10, [sp, #20]\n\t"
+        /*  A[0] * B[6] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, #0\n\t"
+        /*  A[1] * B[5] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[2] * B[4] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[3] * B[3] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[4] * B[2] */
         "ldr	r6, [%[a], #16]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        /* A[5] * A[6] */
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[5] * B[1] */
         "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adcs 	r3, r3, r8\n\t"
-        "adc	r4, r4, #0\n\t"
-        "str	r5, [%[r], #44]\n\t"
-        "mov	r5, #0\n\t"
-        /* A[5] * A[7] */
-        "ldr	r6, [%[a], #20]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[6] * A[6] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[6] * B[0] */
         "ldr	r6, [%[a], #24]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        "str	r3, [%[r], #48]\n\t"
-        "mov	r3, #0\n\t"
-        /* A[6] * A[7] */
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        "str r11, [sp, #24]\n\t"
+        /*  A[0] * B[7] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, #0\n\t"
+        /*  A[1] * B[6] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[2] * B[5] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[3] * B[4] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[4] * B[3] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[5] * B[2] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[6] * B[1] */
         "ldr	r6, [%[a], #24]\n\t"
-        "ldr	r8, [%[a], #28]\n\t"
-        "umull	r6, r8, r6, r8\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs 	r5, r5, r8\n\t"
-        "adc	r3, r3, #0\n\t"
-        "str	r4, [%[r], #52]\n\t"
-        "mov	r4, #0\n\t"
-        /* A[7] * A[7] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[7] * B[0] */
         "ldr	r6, [%[a], #28]\n\t"
-        "umull	r6, r8, r6, r6\n\t"
-        "adds	r5, r5, r6\n\t"
-        "adc	r3, r3, r8\n\t"
-        "str	r5, [%[r], #56]\n\t"
-        "str	r3, [%[r], #60]\n\t"
-        /* Transfer tmp to r */
-        "ldr	r3, [%[tmp], #0]\n\t"
-        "ldr	r4, [%[tmp], #4]\n\t"
-        "ldr	r5, [%[tmp], #8]\n\t"
-        "ldr	r6, [%[tmp], #12]\n\t"
-        "str	r3, [%[r], #0]\n\t"
-        "str	r4, [%[r], #4]\n\t"
-        "str	r5, [%[r], #8]\n\t"
-        "str	r6, [%[r], #12]\n\t"
-        "ldr	r3, [%[tmp], #16]\n\t"
-        "ldr	r4, [%[tmp], #20]\n\t"
-        "ldr	r5, [%[tmp], #24]\n\t"
-        "ldr	r6, [%[tmp], #28]\n\t"
-        "str	r3, [%[r], #16]\n\t"
-        "str	r4, [%[r], #20]\n\t"
-        "str	r5, [%[r], #24]\n\t"
-        "str	r6, [%[r], #28]\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a), [tmp] "r" (tmp)
-        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        "str r14, [sp, #28]\n\t"
+        /*  A[1] * B[7] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, #0\n\t"
+        /*  A[2] * B[6] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[3] * B[5] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[4] * B[4] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[5] * B[3] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[6] * B[2] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[7] * B[1] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        "str r9, [sp, #32]\n\t"
+        /*  A[2] * B[7] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, #0\n\t"
+        /*  A[3] * B[6] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[4] * B[5] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[5] * B[4] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[6] * B[3] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[7] * B[2] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        "str r10, [sp, #36]\n\t"
+        /*  A[3] * B[7] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, #0\n\t"
+        /*  A[4] * B[6] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[5] * B[5] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[6] * B[4] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        /*  A[7] * B[3] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adcs	r14, r4, r14\n\t"
+        "adc	r9, r5, r9\n\t"
+        "str r11, [sp, #40]\n\t"
+        /*  A[4] * B[7] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, #0\n\t"
+        /*  A[5] * B[6] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[6] * B[5] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        /*  A[7] * B[4] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r14, r3, r14\n\t"
+        "adcs	r9, r4, r9\n\t"
+        "adc	r10, r5, r10\n\t"
+        "str r14, [sp, #44]\n\t"
+        /*  A[5] * B[7] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, #0\n\t"
+        /*  A[6] * B[6] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[7] * B[5] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r9, r3, r9\n\t"
+        "adcs	r10, r4, r10\n\t"
+        "adc	r11, r5, r11\n\t"
+        /*  A[6] * B[7] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, #0\n\t"
+        /*  A[7] * B[6] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r10, r3, r10\n\t"
+        "adcs	r11, r4, r11\n\t"
+        "adc	r14, r5, r14\n\t"
+        /*  A[7] * B[7] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "adds	r11, r3, r11\n\t"
+        "adc	r14, r4, r14\n\t"
+        "str r9, [sp, #48]\n\t"
+        "str r10, [sp, #52]\n\t"
+        "str r11, [sp, #56]\n\t"
+        "str r14, [sp, #60]\n\t"
+        /* Start Reduction */
+        "ldr r4, [sp, #0]\n\t"
+        "ldr r5, [sp, #4]\n\t"
+        "ldr r6, [sp, #8]\n\t"
+        "ldr r8, [sp, #12]\n\t"
+        "ldr r9, [sp, #16]\n\t"
+        "ldr r10, [sp, #20]\n\t"
+        "ldr r11, [sp, #24]\n\t"
+        "ldr r14, [sp, #28]\n\t"
+        /* mu = a[0]-a[7] + a[0]-a[4] << 96 + (a[0]-a[1] * 2) << 192 */
+        /*    - a[0] << 224 */
+        /*   + (a[0]-a[1] * 2) << (6 * 32) */
+        "adds  r11, r11, r4\n\t"
+        "adc   r14, r14, r5\n\t"
+        "adds  r11, r11, r4\n\t"
+        "adc   r14, r14, r5\n\t"
+        /*   - a[0] << (7 * 32) */
+        "sub   r14, r14, r4\n\t"
+        /*   + a[0]-a[4] << (3 * 32) */
+        "mov   %[a], r8\n\t"
+        "mov   %[b], r9\n\t"
+        "adds  r8, r8, r4\n\t"
+        "adcs  r9, r9, r5\n\t"
+        "adcs  r10, r10, r6\n\t"
+        "adcs  r11, r11, %[a]\n\t"
+        "adc   r14, r14, %[b]\n\t"
+        "str r4, [sp, #0]\n\t"
+        "str r5, [sp, #4]\n\t"
+        "str r6, [sp, #8]\n\t"
+        "str r8, [sp, #12]\n\t"
+        "str r9, [sp, #16]\n\t"
+        "str r10, [sp, #20]\n\t"
+        /* a += mu * m */
+        /*   += mu * ((1 << 256) - (1 << 224) + (1 << 192) + (1 << 96) - 1) */
+        "mov   %[a], #0\n\t"
+        /* a[6] +=        t[0] + t[3] */
+        "ldr   r3, [sp, #24]\n\t"
+        "adds  r3, r3, r4\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r11, [sp, #24]\n\t"
+        /* a[7] +=        t[1] + t[4] */
+        "ldr   r3, [sp, #28]\n\t"
+        "adds  r3, r3, %[b]\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r5\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r9\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r14, [sp, #28]\n\t"
+        "str   r3, [sp, #64]\n\t"
+        /* a[8] += t[0] + t[2] + t[5] */
+        "ldr   r3, [sp, #32]\n\t"
+        "adds  r3, r3, %[b]\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r4\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r6\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r10\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r3, [sp, #32]\n\t"
+        /* a[9]  += t[1] + t[3] + t[6] */
+        /* a[10] += t[2] + t[4] + t[7] */
+        "ldr   r3, [sp, #36]\n\t"
+        "ldr   r4, [sp, #40]\n\t"
+        "adds  r3, r3, %[b]\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r5\n\t"
+        "adcs  r4, r4, r6\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adcs  r4, r4, r9\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r11\n\t"
+        "adcs  r4, r4, r14\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r3, [sp, #36]\n\t"
+        "str   r4, [sp, #40]\n\t"
+        /* a[11] += t[3] + t[5] */
+        /* a[12] += t[4] + t[6] */
+        /* a[13] += t[5] + t[7] */
+        /* a[14] += t[6] */
+        "ldr   r3, [sp, #44]\n\t"
+        "ldr   r4, [sp, #48]\n\t"
+        "ldr   r5, [sp, #52]\n\t"
+        "ldr   r6, [sp, #56]\n\t"
+        "adds  r3, r3, %[b]\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adcs  r5, r5, #0\n\t"
+        "adcs  r6, r6, #0\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adcs  r4, r4, r9\n\t"
+        "adcs  r5, r5, r10\n\t"
+        "adcs  r6, r6, r11\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "adds  r3, r3, r10\n\t"
+        "adcs  r4, r4, r11\n\t"
+        "adcs  r5, r5, r14\n\t"
+        "adcs  r6, r6, #0\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r3, [sp, #44]\n\t"
+        "str   r4, [sp, #48]\n\t"
+        "str   r5, [sp, #52]\n\t"
+        "str   r6, [sp, #56]\n\t"
+        /* a[15] += t[7] */
+        "ldr   r3, [sp, #60]\n\t"
+        "adds  r3, r3, %[b]\n\t"
+        "adc   %[b], %[a], #0\n\t"
+        "adds  r3, r3, r14\n\t"
+        "adc   %[b], %[b], #0\n\t"
+        "str   r3, [sp, #60]\n\t"
+        "ldr   r3, [sp, #64]\n\t"
+        "ldr   r4, [sp, #32]\n\t"
+        "ldr   r5, [sp, #36]\n\t"
+        "ldr   r6, [sp, #40]\n\t"
+        "ldr   r9, [sp, #0]\n\t"
+        "ldr   r10, [sp, #4]\n\t"
+        "ldr   r11, [sp, #8]\n\t"
+        "ldr   r14, [sp, #12]\n\t"
+        "subs  r3, r3, r9\n\t"
+        "sbcs  r4, r4, r10\n\t"
+        "sbcs  r5, r5, r11\n\t"
+        "sbcs  r6, r6, r14\n\t"
+        "str   r4, [sp, #32]\n\t"
+        "str   r5, [sp, #36]\n\t"
+        "str   r6, [sp, #40]\n\t"
+        "ldr   r3, [sp, #44]\n\t"
+        "ldr   r4, [sp, #48]\n\t"
+        "ldr   r5, [sp, #52]\n\t"
+        "ldr   r6, [sp, #56]\n\t"
+        "ldr   r8, [sp, #60]\n\t"
+        "ldr   r9, [sp, #16]\n\t"
+        "ldr   r10, [sp, #20]\n\t"
+        "ldr   r11, [sp, #24]\n\t"
+        "ldr   r14, [sp, #28]\n\t"
+        "sbcs  r3, r3, r9\n\t"
+        "sbcs  r4, r4, r10\n\t"
+        "sbcs  r5, r5, r11\n\t"
+        "sbcs  r6, r6, r14\n\t"
+        "sbc   r8, r8, #0\n\t"
+        "str   r3, [sp, #44]\n\t"
+        "str   r4, [sp, #48]\n\t"
+        "str   r5, [sp, #52]\n\t"
+        "str   r6, [sp, #56]\n\t"
+        "str   r8, [sp, #60]\n\t"
+        /* mask m and sub from result if overflow */
+        "sub   %[b], %[a], %[b]\n\t"
+        "and   %[a], %[b], #1\n\t"
+        "ldr       r3, [sp, #32]\n\t"
+        "ldr       r4, [sp, #36]\n\t"
+        "ldr       r5, [sp, #40]\n\t"
+        "ldr       r6, [sp, #44]\n\t"
+        "ldr       r8, [sp, #48]\n\t"
+        "ldr       r9, [sp, #52]\n\t"
+        "ldr       r10, [sp, #56]\n\t"
+        "ldr       r11, [sp, #60]\n\t"
+        "subs      r3, r3, %[b]\n\t"
+        "sbcs      r4, r4, %[b]\n\t"
+        "sbcs      r5, r5, %[b]\n\t"
+        "sbcs      r6, r6, #0\n\t"
+        "sbcs      r8, r8, #0\n\t"
+        "sbcs      r9, r9, #0\n\t"
+        "sbcs      r10, r10, %[a]\n\t"
+        "sbc       r11, r11, %[b]\n\t"
+        "str       r3, [%[r], #0]\n\t"
+        "str       r4, [%[r], #4]\n\t"
+        "str       r5, [%[r], #8]\n\t"
+        "str       r6, [%[r], #12]\n\t"
+        "str       r8, [%[r], #16]\n\t"
+        "str       r9, [%[r], #20]\n\t"
+        "str       r10, [%[r], #24]\n\t"
+        "str       r11, [%[r], #28]\n\t"
+        "add   sp, sp, #68\n\t"
+        : [a] "+r" (a), [b] "+r" (b)
+        : [r] "r" (r)
+        : "memory", "r9", "r10", "r11", "r14", "r3", "r4", "r5", "r6", "r8"
     );
 }
 
-/* Square the Montgomery form number. (r = a * a mod m)
+/* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
  * a   Number to square in Montogmery form.
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
+SP_NOINLINE static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
-    sp_256_sqr_8(r, a);
-    sp_256_mont_reduce_8(r, m, mp);
+    (void)mp;
+    (void)m;
+
+    __asm__ __volatile__ (
+        "sub   sp, sp, #68\n\t"
+        "mov   r5, #0\n\t"
+        /*  A[0] * A[1] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #4]\n\t"
+        "umull     r10, r11, r6, r8\n\t"
+        "str r10, [sp, #4]\n\t"
+        /*  A[0] * A[2] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #8]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adc r14, r4, #0\n\t"
+        "str r11, [sp, #8]\n\t"
+        /*  A[0] * A[3] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #12]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adc r9, r4, #0\n\t"
+        /*  A[1] * A[2] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #8]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, #0\n\t"
+        "str r14, [sp, #12]\n\t"
+        /*  A[0] * A[4] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #16]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adc r10, r4, r10\n\t"
+        /*  A[1] * A[3] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #12]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adcs r10, r4, r10\n\t"
+        "adc   r11, r5, #0\n\t"
+        "str r9, [sp, #16]\n\t"
+        /*  A[0] * A[5] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #20]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adc r11, r4, r11\n\t"
+        /*  A[1] * A[4] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #16]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adcs r11, r4, r11\n\t"
+        "adc   r14, r5, #0\n\t"
+        /*  A[2] * A[3] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "ldr       r8, [%[a], #12]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adcs r11, r4, r11\n\t"
+        "adc   r14, r5, r14\n\t"
+        "str r10, [sp, #20]\n\t"
+        /*  A[0] * A[6] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adcs r14, r4, r14\n\t"
+        "adc   r9, r5, #0\n\t"
+        /*  A[1] * A[5] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #20]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adcs r14, r4, r14\n\t"
+        "adc   r9, r5, r9\n\t"
+        /*  A[2] * A[4] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "ldr       r8, [%[a], #16]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adcs r14, r4, r14\n\t"
+        "adc   r9, r5, r9\n\t"
+        "str r11, [sp, #24]\n\t"
+        /*  A[0] * A[7] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, #0\n\t"
+        /*  A[1] * A[6] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, r10\n\t"
+        /*  A[2] * A[5] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "ldr       r8, [%[a], #20]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, r10\n\t"
+        /*  A[3] * A[4] */
+        "ldr       r6, [%[a], #12]\n\t"
+        "ldr       r8, [%[a], #16]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, r10\n\t"
+        "str r14, [sp, #28]\n\t"
+        /*  A[1] * A[7] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adcs r10, r4, r10\n\t"
+        "adc   r11, r5, #0\n\t"
+        /*  A[2] * A[6] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adcs r10, r4, r10\n\t"
+        "adc   r11, r5, r11\n\t"
+        /*  A[3] * A[5] */
+        "ldr       r6, [%[a], #12]\n\t"
+        "ldr       r8, [%[a], #20]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adcs r10, r4, r10\n\t"
+        "adc   r11, r5, r11\n\t"
+        "str r9, [sp, #32]\n\t"
+        /*  A[2] * A[7] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adcs r11, r4, r11\n\t"
+        "adc   r14, r5, #0\n\t"
+        /*  A[3] * A[6] */
+        "ldr       r6, [%[a], #12]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adcs r11, r4, r11\n\t"
+        "adc   r14, r5, r14\n\t"
+        /*  A[4] * A[5] */
+        "ldr       r6, [%[a], #16]\n\t"
+        "ldr       r8, [%[a], #20]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adcs r11, r4, r11\n\t"
+        "adc   r14, r5, r14\n\t"
+        "str r10, [sp, #36]\n\t"
+        /*  A[3] * A[7] */
+        "ldr       r6, [%[a], #12]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adcs r14, r4, r14\n\t"
+        "adc   r9, r5, #0\n\t"
+        /*  A[4] * A[6] */
+        "ldr       r6, [%[a], #16]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r11, r3, r11\n\t"
+        "adcs r14, r4, r14\n\t"
+        "adc   r9, r5, r9\n\t"
+        "str r11, [sp, #40]\n\t"
+        /*  A[4] * A[7] */
+        "ldr       r6, [%[a], #16]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, #0\n\t"
+        /*  A[5] * A[6] */
+        "ldr       r6, [%[a], #20]\n\t"
+        "ldr       r8, [%[a], #24]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r14, r3, r14\n\t"
+        "adcs r9, r4, r9\n\t"
+        "adc   r10, r5, r10\n\t"
+        "str r14, [sp, #44]\n\t"
+        /*  A[5] * A[7] */
+        "ldr       r6, [%[a], #20]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r9, r3, r9\n\t"
+        "adcs r10, r4, r10\n\t"
+        "adc   r11, r5, #0\n\t"
+        "str r9, [sp, #48]\n\t"
+        /*  A[6] * A[7] */
+        "ldr       r6, [%[a], #24]\n\t"
+        "ldr       r8, [%[a], #28]\n\t"
+        "umull     r3, r4, r6, r8\n\t"
+        "adds  r10, r3, r10\n\t"
+        "adc r11, r4, r11\n\t"
+        "str r10, [sp, #52]\n\t"
+        "str   r11, [sp, #56]\n\t"
+        /*  Double */
+        "ldr       r4, [sp, #4]\n\t"
+        "ldr       r6, [sp, #8]\n\t"
+        "ldr       r8, [sp, #12]\n\t"
+        "ldr       r9, [sp, #16]\n\t"
+        "ldr       r10, [sp, #20]\n\t"
+        "ldr       r11, [sp, #24]\n\t"
+        "ldr       r14, [sp, #28]\n\t"
+        "ldr       r12, [sp, #32]\n\t"
+        "ldr       r3, [sp, #36]\n\t"
+        "adds        r4, r4, r4\n\t"
+        "adcs      r6, r6, r6\n\t"
+        "adcs      r8, r8, r8\n\t"
+        "adcs      r9, r9, r9\n\t"
+        "adcs      r10, r10, r10\n\t"
+        "adcs      r11, r11, r11\n\t"
+        "adcs      r14, r14, r14\n\t"
+        "adcs      r12, r12, r12\n\t"
+        "adcs      r3, r3, r3\n\t"
+        "str       r4, [sp, #4]\n\t"
+        "str       r6, [sp, #8]\n\t"
+        "str       r8, [sp, #12]\n\t"
+        "str       r9, [sp, #16]\n\t"
+        "str       r10, [sp, #20]\n\t"
+        "str       r11, [sp, #24]\n\t"
+        "str       r14, [sp, #28]\n\t"
+        "str       r12, [sp, #32]\n\t"
+        "str       r3, [sp, #36]\n\t"
+        "ldr       r4, [sp, #40]\n\t"
+        "ldr       r6, [sp, #44]\n\t"
+        "ldr       r8, [sp, #48]\n\t"
+        "ldr       r9, [sp, #52]\n\t"
+        "ldr       r10, [sp, #56]\n\t"
+        "adcs        r4, r4, r4\n\t"
+        "adcs      r6, r6, r6\n\t"
+        "adcs      r8, r8, r8\n\t"
+        "adcs      r9, r9, r9\n\t"
+        "adcs      r10, r10, r10\n\t"
+        "str       r4, [sp, #40]\n\t"
+        "str       r6, [sp, #44]\n\t"
+        "str       r8, [sp, #48]\n\t"
+        "str       r9, [sp, #52]\n\t"
+        "str       r10, [sp, #56]\n\t"
+        "adc   r11, r5, #0\n\t"
+        "str   r11, [sp, #60]\n\t"
+        "ldr       r4, [sp, #4]\n\t"
+        "ldr       r5, [sp, #8]\n\t"
+        "ldr       r12, [sp, #12]\n\t"
+        /*  A[0] * A[0] */
+        "ldr       r6, [%[a], #0]\n\t"
+        "umull     r9, r10, r6, r6\n\t"
+        /*  A[1] * A[1] */
+        "ldr       r6, [%[a], #4]\n\t"
+        "umull     r11, r14, r6, r6\n\t"
+        "adds      r10, r10, r4\n\t"
+        "adcs      r11, r11, r5\n\t"
+        "adcs      r14, r14, r12\n\t"
+        "str       r9, [sp, #0]\n\t"
+        "str       r10, [sp, #4]\n\t"
+        "str       r11, [sp, #8]\n\t"
+        "str       r14, [sp, #12]\n\t"
+        "ldr       r3, [sp, #16]\n\t"
+        "ldr       r4, [sp, #20]\n\t"
+        "ldr       r5, [sp, #24]\n\t"
+        "ldr       r12, [sp, #28]\n\t"
+        /*  A[2] * A[2] */
+        "ldr       r6, [%[a], #8]\n\t"
+        "umull     r9, r10, r6, r6\n\t"
+        /*  A[3] * A[3] */
+        "ldr       r6, [%[a], #12]\n\t"
+        "umull     r11, r14, r6, r6\n\t"
+        "adcs      r9, r9, r3\n\t"
+        "adcs      r10, r10, r4\n\t"
+        "adcs      r11, r11, r5\n\t"
+        "adcs      r14, r14, r12\n\t"
+        "str       r9, [sp, #16]\n\t"
+        "str       r10, [sp, #20]\n\t"
+        "str       r11, [sp, #24]\n\t"
+        "str       r14, [sp, #28]\n\t"
+        "ldr       r3, [sp, #32]\n\t"
+        "ldr       r4, [sp, #36]\n\t"
+        "ldr       r5, [sp, #40]\n\t"
+        "ldr       r12, [sp, #44]\n\t"
+        /*  A[4] * A[4] */
+        "ldr       r6, [%[a], #16]\n\t"
+        "umull     r9, r10, r6, r6\n\t"
+        /*  A[5] * A[5] */
+        "ldr       r6, [%[a], #20]\n\t"
+        "umull     r11, r14, r6, r6\n\t"
+        "adcs      r9, r9, r3\n\t"
+        "adcs      r10, r10, r4\n\t"
+        "adcs      r11, r11, r5\n\t"
+        "adcs      r14, r14, r12\n\t"
+        "str       r9, [sp, #32]\n\t"
+        "str       r10, [sp, #36]\n\t"
+        "str       r11, [sp, #40]\n\t"
+        "str       r14, [sp, #44]\n\t"
+        "ldr       r3, [sp, #48]\n\t"
+        "ldr       r4, [sp, #52]\n\t"
+        "ldr       r5, [sp, #56]\n\t"
+        "ldr       r12, [sp, #60]\n\t"
+        /*  A[6] * A[6] */
+        "ldr       r6, [%[a], #24]\n\t"
+        "umull     r9, r10, r6, r6\n\t"
+        /*  A[7] * A[7] */
+        "ldr       r6, [%[a], #28]\n\t"
+        "umull     r11, r14, r6, r6\n\t"
+        "adcs      r9, r9, r3\n\t"
+        "adcs      r10, r10, r4\n\t"
+        "adcs      r11, r11, r5\n\t"
+        "adc       r14, r14, r12\n\t"
+        "str       r9, [sp, #48]\n\t"
+        "str       r10, [sp, #52]\n\t"
+        "str       r11, [sp, #56]\n\t"
+        "str       r14, [sp, #60]\n\t"
+        /* Start Reduction */
+        "ldr r4, [sp, #0]\n\t"
+        "ldr r5, [sp, #4]\n\t"
+        "ldr r6, [sp, #8]\n\t"
+        "ldr r8, [sp, #12]\n\t"
+        "ldr r9, [sp, #16]\n\t"
+        "ldr r10, [sp, #20]\n\t"
+        "ldr r11, [sp, #24]\n\t"
+        "ldr r14, [sp, #28]\n\t"
+        /* mu = a[0]-a[7] + a[0]-a[4] << 96 + (a[0]-a[1] * 2) << 192 */
+        /*    - a[0] << 224 */
+        /*   + (a[0]-a[1] * 2) << (6 * 32) */
+        "adds  r11, r11, r4\n\t"
+        "adc   r14, r14, r5\n\t"
+        "adds  r11, r11, r4\n\t"
+        "adc   r14, r14, r5\n\t"
+        /*   - a[0] << (7 * 32) */
+        "sub   r14, r14, r4\n\t"
+        /*   + a[0]-a[4] << (3 * 32) */
+        "mov   %[a], r8\n\t"
+        "mov   r12, r9\n\t"
+        "adds  r8, r8, r4\n\t"
+        "adcs  r9, r9, r5\n\t"
+        "adcs  r10, r10, r6\n\t"
+        "adcs  r11, r11, %[a]\n\t"
+        "adc   r14, r14, r12\n\t"
+        "str r4, [sp, #0]\n\t"
+        "str r5, [sp, #4]\n\t"
+        "str r6, [sp, #8]\n\t"
+        "str r8, [sp, #12]\n\t"
+        "str r9, [sp, #16]\n\t"
+        "str r10, [sp, #20]\n\t"
+        /* a += mu * m */
+        /*   += mu * ((1 << 256) - (1 << 224) + (1 << 192) + (1 << 96) - 1) */
+        "mov   %[a], #0\n\t"
+        /* a[6] +=        t[0] + t[3] */
+        "ldr   r3, [sp, #24]\n\t"
+        "adds  r3, r3, r4\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r11, [sp, #24]\n\t"
+        /* a[7] +=        t[1] + t[4] */
+        "ldr   r3, [sp, #28]\n\t"
+        "adds  r3, r3, r12\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r5\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r9\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r14, [sp, #28]\n\t"
+        "str   r3, [sp, #64]\n\t"
+        /* a[8] += t[0] + t[2] + t[5] */
+        "ldr   r3, [sp, #32]\n\t"
+        "adds  r3, r3, r12\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r4\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r6\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r10\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r3, [sp, #32]\n\t"
+        /* a[9]  += t[1] + t[3] + t[6] */
+        /* a[10] += t[2] + t[4] + t[7] */
+        "ldr   r3, [sp, #36]\n\t"
+        "ldr   r4, [sp, #40]\n\t"
+        "adds  r3, r3, r12\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r5\n\t"
+        "adcs  r4, r4, r6\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adcs  r4, r4, r9\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r11\n\t"
+        "adcs  r4, r4, r14\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r3, [sp, #36]\n\t"
+        "str   r4, [sp, #40]\n\t"
+        /* a[11] += t[3] + t[5] */
+        /* a[12] += t[4] + t[6] */
+        /* a[13] += t[5] + t[7] */
+        /* a[14] += t[6] */
+        "ldr   r3, [sp, #44]\n\t"
+        "ldr   r4, [sp, #48]\n\t"
+        "ldr   r5, [sp, #52]\n\t"
+        "ldr   r6, [sp, #56]\n\t"
+        "adds  r3, r3, r12\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adcs  r5, r5, #0\n\t"
+        "adcs  r6, r6, #0\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r8\n\t"
+        "adcs  r4, r4, r9\n\t"
+        "adcs  r5, r5, r10\n\t"
+        "adcs  r6, r6, r11\n\t"
+        "adc   r12, r12, #0\n\t"
+        "adds  r3, r3, r10\n\t"
+        "adcs  r4, r4, r11\n\t"
+        "adcs  r5, r5, r14\n\t"
+        "adcs  r6, r6, #0\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r3, [sp, #44]\n\t"
+        "str   r4, [sp, #48]\n\t"
+        "str   r5, [sp, #52]\n\t"
+        "str   r6, [sp, #56]\n\t"
+        /* a[15] += t[7] */
+        "ldr   r3, [sp, #60]\n\t"
+        "adds  r3, r3, r12\n\t"
+        "adc   r12, %[a], #0\n\t"
+        "adds  r3, r3, r14\n\t"
+        "adc   r12, r12, #0\n\t"
+        "str   r3, [sp, #60]\n\t"
+        "ldr   r3, [sp, #64]\n\t"
+        "ldr   r4, [sp, #32]\n\t"
+        "ldr   r5, [sp, #36]\n\t"
+        "ldr   r6, [sp, #40]\n\t"
+        "ldr   r9, [sp, #0]\n\t"
+        "ldr   r10, [sp, #4]\n\t"
+        "ldr   r11, [sp, #8]\n\t"
+        "ldr   r14, [sp, #12]\n\t"
+        "subs  r3, r3, r9\n\t"
+        "sbcs  r4, r4, r10\n\t"
+        "sbcs  r5, r5, r11\n\t"
+        "sbcs  r6, r6, r14\n\t"
+        "str   r4, [sp, #32]\n\t"
+        "str   r5, [sp, #36]\n\t"
+        "str   r6, [sp, #40]\n\t"
+        "ldr   r3, [sp, #44]\n\t"
+        "ldr   r4, [sp, #48]\n\t"
+        "ldr   r5, [sp, #52]\n\t"
+        "ldr   r6, [sp, #56]\n\t"
+        "ldr   r8, [sp, #60]\n\t"
+        "ldr   r9, [sp, #16]\n\t"
+        "ldr   r10, [sp, #20]\n\t"
+        "ldr   r11, [sp, #24]\n\t"
+        "ldr   r14, [sp, #28]\n\t"
+        "sbcs  r3, r3, r9\n\t"
+        "sbcs  r4, r4, r10\n\t"
+        "sbcs  r5, r5, r11\n\t"
+        "sbcs  r6, r6, r14\n\t"
+        "sbc   r8, r8, #0\n\t"
+        "str   r3, [sp, #44]\n\t"
+        "str   r4, [sp, #48]\n\t"
+        "str   r5, [sp, #52]\n\t"
+        "str   r6, [sp, #56]\n\t"
+        "str   r8, [sp, #60]\n\t"
+        /* mask m and sub from result if overflow */
+        "sub   r12, %[a], r12\n\t"
+        "and   %[a], r12, #1\n\t"
+        "ldr       r3, [sp, #32]\n\t"
+        "ldr       r4, [sp, #36]\n\t"
+        "ldr       r5, [sp, #40]\n\t"
+        "ldr       r6, [sp, #44]\n\t"
+        "ldr       r8, [sp, #48]\n\t"
+        "ldr       r9, [sp, #52]\n\t"
+        "ldr       r10, [sp, #56]\n\t"
+        "ldr       r11, [sp, #60]\n\t"
+        "subs      r3, r3, r12\n\t"
+        "sbcs      r4, r4, r12\n\t"
+        "sbcs      r5, r5, r12\n\t"
+        "sbcs      r6, r6, #0\n\t"
+        "sbcs      r8, r8, #0\n\t"
+        "sbcs      r9, r9, #0\n\t"
+        "sbcs      r10, r10, %[a]\n\t"
+        "sbc       r11, r11, r12\n\t"
+        "str       r3, [%[r], #0]\n\t"
+        "str       r4, [%[r], #4]\n\t"
+        "str       r5, [%[r], #8]\n\t"
+        "str       r6, [%[r], #12]\n\t"
+        "str       r8, [%[r], #16]\n\t"
+        "str       r9, [%[r], #20]\n\t"
+        "str       r10, [%[r], #24]\n\t"
+        "str       r11, [%[r], #28]\n\t"
+        "add   sp, sp, #68\n\t"
+        : [a] "+r" (a)
+        : [r] "r" (r)
+        : "memory", "r9", "r10", "r11", "r14", "r3", "r4", "r5", "r6", "r8", "r12"
+    );
 }
 
 #if !defined(WOLFSSL_SP_SMALL) || defined(HAVE_COMP_KEY)
@@ -15334,6 +15155,257 @@ SP_NOINLINE static int32_t sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
  */
 #define sp_256_norm_8(a)
 
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #32\n\t"
+        "mov	r9, r5\n\t"
+        "mov	r8, #0\n\t"
+        "\n1:\n\t"
+        "ldr	r6, [%[b], r8]\n\t"
+        "and	r6, r6, %[m]\n\t"
+        "mov	r5, #0\n\t"
+        "subs	r5, r5, %[c]\n\t"
+        "ldr	r5, [%[a], r8]\n\t"
+        "sbcs	r5, r5, r6\n\t"
+        "sbcs	%[c], %[c], %[c]\n\t"
+        "str	r5, [%[r], r8]\n\t"
+        "add	r8, r8, #4\n\t"
+        "cmp	r8, r9\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r8", "r9"
+    );
+
+    return c;
+}
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
+        sp_digit mp)
+{
+    (void)mp;
+    (void)m;
+
+    __asm__ __volatile__ (
+        "mov	r2, #0\n\t"
+        "mov	r1, #0\n\t"
+        /* i = 0 */
+        "mov	r9, r2\n\t"
+        "\n1:\n\t"
+        "mov	r4, #0\n\t"
+        /* mu = a[i] * 1 (mp) = a[i] */
+        "ldr	r3, [%[a]]\n\t"
+        /* a[i] += -1 * mu = -1 * a[i] => a[i] = 0 no carry */
+        /* a[i+1] += -1 * mu */
+        "ldr	r6, [%[a], #4]\n\t"
+        "mov	r5, #0\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adc	r5, r5, r2\n\t"
+        "str	r4, [%[a], #4]\n\t"
+        /* a[i+2] += -1 * mu */
+        "ldr	r6, [%[a], #8]\n\t"
+        "mov	r4, #0\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r4, r4, r2\n\t"
+        "str	r5, [%[a], #8]\n\t"
+        /* a[i+3] += 0 * mu */
+        "ldr	r6, [%[a], #12]\n\t"
+        "mov	r5, #0\n\t"
+        "adds	r4, r4, r3\n\t"
+        "adc	r5, r5, r2\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adc	r5, r5, r2\n\t"
+        "str	r4, [%[a], #12]\n\t"
+        /* a[i+4] += 0 * mu */
+        "ldr	r6, [%[a], #16]\n\t"
+        "mov	r4, #0\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r4, r4, r2\n\t"
+        "str	r5, [%[a], #16]\n\t"
+        /* a[i+5] += 0 * mu */
+        "ldr	r6, [%[a], #20]\n\t"
+        "mov	r5, #0\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adc	r5, r5, r2\n\t"
+        "str	r4, [%[a], #20]\n\t"
+        /* a[i+6] += 1 * mu */
+        "ldr	r6, [%[a], #24]\n\t"
+        "mov	r4, #0\n\t"
+        "adds	r5, r5, r3\n\t"
+        "adc	r4, r4, r2\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r4, r4, r2\n\t"
+        "str	r5, [%[a], #24]\n\t"
+        /* a[i+7] += -1 * mu */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[a], #32]\n\t"
+        "adds	r5, r1, r3\n\t"
+        "mov	r1, #0\n\t"
+        "adc	r1, r1, r2\n\t"
+        "subs	r4, r4, r3\n\t"
+        "sbcs	r5, r5, r2\n\t"
+        "sbc	r1, r1, r2\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs	r5, r5, r8\n\t"
+        "adc	r1, r1, r2\n\t"
+        "str	r4, [%[a],  #28]\n\t"
+        "str	r5, [%[a], #32]\n\t"
+        /* i += 1 */
+        "add	r9, r9, #1\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "mov	r6, #8\n\t"
+        "cmp	r9, r6\n\t"
+        "blt	1b\n\t"
+        "sub	%[a], %[a], #32\n\t"
+        "mov	r3, r1\n\t"
+        "sub	r1, r1, #1\n\t"
+        "mvn	r1, r1\n\t"
+        "ldr	r4, [%[a],#32]\n\t"
+        "ldr	r5, [%[a],#36]\n\t"
+        "ldr	r6, [%[a],#40]\n\t"
+        "ldr	r8, [%[a],#44]\n\t"
+        "ldr	r9, [%[a],#48]\n\t"
+        "ldr	r10, [%[a],#52]\n\t"
+        "ldr	r11, [%[a],#56]\n\t"
+        "ldr	r14, [%[a],#60]\n\t"
+        "subs	r4, r4, r1\n\t"
+        "sbcs	r5, r5, r1\n\t"
+        "sbcs	r6, r6, r1\n\t"
+        "sbcs	r8, r8, r2\n\t"
+        "sbcs	r9, r9, r2\n\t"
+        "sbcs	r10, r10, r2\n\t"
+        "sbcs	r11, r11, r3\n\t"
+        "sbc	r14, r14, r1\n\t"
+        "str	r4, [%[a],#0]\n\t"
+        "str	r5, [%[a],#4]\n\t"
+        "str	r6, [%[a],#8]\n\t"
+        "str	r8, [%[a],#12]\n\t"
+        "str	r9, [%[a],#16]\n\t"
+        "str	r10, [%[a],#20]\n\t"
+        "str	r11, [%[a],#24]\n\t"
+        "str	r14, [%[a],#28]\n\t"
+        : [a] "+r" (a)
+        :
+        : "memory", "r1", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14"
+    );
+
+
+    (void)m;
+    (void)mp;
+}
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m,
+        sp_digit mp)
+{
+    sp_digit ca = 0;
+
+    __asm__ __volatile__ (
+        "mov	r9, %[mp]\n\t"
+        "mov	r12, %[m]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r4, #0\n\t"
+        "add	r11, r10, #32\n\t"
+        "\n1:\n\t"
+        /* mu = a[i] * mp */
+        "mov	%[mp], r9\n\t"
+        "ldr	%[a], [r10]\n\t"
+        "mul	%[mp], %[mp], %[a]\n\t"
+        "mov	%[m], r12\n\t"
+        "add	r14, r10, #24\n\t"
+        "\n2:\n\t"
+        /* a[i+j] += m[j] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r5, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r4, r4, %[a]\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r4, [r10], #4\n\t"
+        /* a[i+j+1] += m[j+1] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r4, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r4, r4, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r5, r5, %[a]\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [r10], #4\n\t"
+        "cmp	r10, r14\n\t"
+        "blt	2b\n\t"
+        /* a[i+6] += m[6] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r5, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r4, r4, %[a]\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r4, [r10], #4\n\t"
+        /* a[i+7] += m[7] * mu */
+        "mov	r4, %[ca]\n\t"
+        "mov	%[ca], #0\n\t"
+        /* Multiply m[7] and mu - Start */
+        "ldr	r8, [%[m]]\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	%[ca], %[ca], #0\n\t"
+        /* Multiply m[7] and mu - Done */
+        "ldr	r6, [r10]\n\t"
+        "ldr	r8, [r10, #4]\n\t"
+        "adds	r6, r6, r5\n\t"
+        "adcs	r8, r8, r4\n\t"
+        "adc	%[ca], %[ca], #0\n\t"
+        "str	r6, [r10]\n\t"
+        "str	r8, [r10, #4]\n\t"
+        /* Next word in a */
+        "sub	r10, r10, #24\n\t"
+        "cmp	r10, r11\n\t"
+        "blt	1b\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[m], r12\n\t"
+        : [ca] "+r" (ca), [a] "+r" (a)
+        : [m] "r" (m), [mp] "r" (mp)
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    sp_256_cond_sub_8(a - 8, a, m, (sp_digit)0 - ca);
+}
+
 /* Map the Montgomery form projective coordinate point to an affine point.
  *
  * r  Resulting affine coordinate point.
@@ -15471,71 +15543,61 @@ SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const 
     (void)m;
 
     __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "ldr	r4, [%[a],#0]\n\t"
-        "ldr	r5, [%[a],#4]\n\t"
-        "ldr	r6, [%[b],#0]\n\t"
-        "ldr	r8, [%[b],#4]\n\t"
-        "adds	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "ldr	r4, [%[a],#8]\n\t"
-        "ldr	r5, [%[a],#12]\n\t"
-        "ldr	r6, [%[b],#8]\n\t"
-        "ldr	r8, [%[b],#12]\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#8]\n\t"
-        "str	r5, [%[r],#12]\n\t"
-        "ldr	r4, [%[a],#16]\n\t"
-        "ldr	r5, [%[a],#20]\n\t"
-        "ldr	r6, [%[b],#16]\n\t"
-        "ldr	r8, [%[b],#20]\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "mov	r9, r4\n\t"
-        "mov	r10, r5\n\t"
-        "ldr	r4, [%[a],#24]\n\t"
-        "ldr	r5, [%[a],#28]\n\t"
-        "ldr	r6, [%[b],#24]\n\t"
-        "ldr	r8, [%[b],#28]\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r8\n\t"
-        "mov	r11, r4\n\t"
-        "mov	r12, r5\n\t"
-        "adc	r3, r3, r3\n\t"
-        "mov	r6, r3\n\t"
-        "sub	r3, r3, #1\n\t"
-        "mvn	r3, r3\n\t"
-        "mov	r8, #0\n\t"
-        "ldr	r4, [%[r],#0]\n\t"
-        "ldr	r5, [%[r],#4]\n\t"
-        "subs	r4, r4, r3\n\t"
-        "sbcs	r5, r5, r3\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "ldr	r4, [%[r],#8]\n\t"
-        "ldr	r5, [%[r],#12]\n\t"
-        "sbcs	r4, r4, r3\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#8]\n\t"
-        "str	r5, [%[r],#12]\n\t"
-        "mov	r4, r9\n\t"
-        "mov	r5, r10\n\t"
-        "sbcs	r4, r4, r8\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#16]\n\t"
-        "str	r5, [%[r],#20]\n\t"
-        "mov	r4, r11\n\t"
-        "mov	r5, r12\n\t"
-        "sbcs	r4, r4, r6\n\t"
-        "sbc	r5, r5, r3\n\t"
-        "str	r4, [%[r],#24]\n\t"
-        "str	r5, [%[r],#28]\n\t"
+        "mov   r12, #0\n\t"
+        "ldr       r4, [%[a],#0]\n\t"
+        "ldr       r5, [%[a],#4]\n\t"
+        "ldr       r6, [%[a],#8]\n\t"
+        "ldr       r8, [%[a],#12]\n\t"
+        "ldr       r9, [%[b],#0]\n\t"
+        "ldr       r10, [%[b],#4]\n\t"
+        "ldr       r11, [%[b],#8]\n\t"
+        "ldr       r14, [%[b],#12]\n\t"
+        "adds    r4, r4, r9\n\t"
+        "adcs    r5, r5, r10\n\t"
+        "adcs    r6, r6, r11\n\t"
+        "adcs    r8, r8, r14\n\t"
+        "str       r4, [%[r],#0]\n\t"
+        "str       r5, [%[r],#4]\n\t"
+        "str       r6, [%[r],#8]\n\t"
+        "str       r8, [%[r],#12]\n\t"
+        "ldr       r4, [%[a],#16]\n\t"
+        "ldr       r5, [%[a],#20]\n\t"
+        "ldr       r6, [%[a],#24]\n\t"
+        "ldr       r8, [%[a],#28]\n\t"
+        "ldr       r9, [%[b],#16]\n\t"
+        "ldr       r10, [%[b],#20]\n\t"
+        "ldr       r11, [%[b],#24]\n\t"
+        "ldr       r14, [%[b],#28]\n\t"
+        "adcs    r4, r4, r9\n\t"
+        "adcs    r5, r5, r10\n\t"
+        "adcs    r6, r6, r11\n\t"
+        "adcs    r8, r8, r14\n\t"
+        "adc   r3, r12, #0\n\t"
+        "sub   r3, r12, r3\n\t"
+        "and   r12, r3, #1\n\t"
+        "ldr   r9, [%[r],#0]\n\t"
+        "ldr   r10, [%[r],#4]\n\t"
+        "ldr   r11, [%[r],#8]\n\t"
+        "ldr   r14, [%[r],#12]\n\t"
+        "subs  r9, r9, r3\n\t"
+        "sbcs  r10, r10, r3\n\t"
+        "sbcs  r11, r11, r3\n\t"
+        "sbcs  r14, r14, #0\n\t"
+        "sbcs  r4, r4, #0\n\t"
+        "sbcs  r5, r5, #0\n\t"
+        "sbcs  r6, r6, r12\n\t"
+        "sbc   r8, r8, r3\n\t"
+        "str   r9, [%[r],#0]\n\t"
+        "str   r10, [%[r],#4]\n\t"
+        "str   r11, [%[r],#8]\n\t"
+        "str   r14, [%[r],#12]\n\t"
+        "str   r4, [%[r],#16]\n\t"
+        "str   r5, [%[r],#20]\n\t"
+        "str   r6, [%[r],#24]\n\t"
+        "str   r8, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
     );
 }
 
@@ -15550,63 +15612,45 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const 
     (void)m;
 
     __asm__ __volatile__ (
-        "ldr	r4, [%[a],#0]\n\t"
-        "ldr	r5, [%[a],#4]\n\t"
-        "ldr	r6, [%[a],#8]\n\t"
-        "ldr	r8, [%[a],#12]\n\t"
-        "adds	r4, r4, r4\n\t"
-        "adcs	r5, r5, r5\n\t"
-        "adcs	r6, r6, r6\n\t"
-        "adcs	r8, r8, r8\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "str	r6, [%[r],#8]\n\t"
-        "str	r8, [%[r],#12]\n\t"
-        "ldr	r4, [%[a],#16]\n\t"
-        "ldr	r5, [%[a],#20]\n\t"
-        "ldr	r6, [%[a],#24]\n\t"
-        "ldr	r8, [%[a],#28]\n\t"
-        "adcs	r4, r4, r4\n\t"
-        "adcs	r5, r5, r5\n\t"
-        "adcs	r6, r6, r6\n\t"
-        "adcs	r8, r8, r8\n\t"
-        "mov	r9, r4\n\t"
-        "mov	r10, r5\n\t"
-        "mov	r11, r6\n\t"
-        "mov	r12, r8\n\t"
-        "mov	r3, #0\n\t"
-        "mov	r8, #0\n\t"
-        "adc	r3, r3, r3\n\t"
-        "mov	r2, r3\n\t"
-        "sub	r3, r3, #1\n\t"
-        "mvn	r3, r3\n\t"
-        "ldr	r4, [%[r],#0]\n\t"
-        "ldr	r5, [%[r],#4]\n\t"
-        "ldr	r6, [%[r],#8]\n\t"
-        "subs	r4, r4, r3\n\t"
-        "sbcs	r5, r5, r3\n\t"
-        "sbcs	r6, r6, r3\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "str	r6, [%[r],#8]\n\t"
-        "ldr	r4, [%[r],#12]\n\t"
-        "mov	r5, r9\n\t"
-        "mov	r6, r10\n\t"
-        "sbcs	r4, r4, r8\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "sbcs	r6, r6, r8\n\t"
-        "str	r4, [%[r],#12]\n\t"
-        "str	r5, [%[r],#16]\n\t"
-        "str	r6, [%[r],#20]\n\t"
-        "mov	r4, r11\n\t"
-        "mov	r5, r12\n\t"
-        "sbcs	r4, r4, r2\n\t"
-        "sbc	r5, r5, r3\n\t"
-        "str	r4, [%[r],#24]\n\t"
-        "str	r5, [%[r],#28]\n\t"
+        "mov   r12, #0\n\t"
+        "ldr        r4, [%[a],#0]\n\t"
+        "ldr        r5, [%[a],#4]\n\t"
+        "ldr        r6, [%[a],#8]\n\t"
+        "ldr        r8, [%[a],#12]\n\t"
+        "ldr        r9, [%[a],#16]\n\t"
+        "ldr        r10, [%[a],#20]\n\t"
+        "ldr        r11, [%[a],#24]\n\t"
+        "ldr        r14, [%[a],#28]\n\t"
+        "adds      r4, r4, r4\n\t"
+        "adcs      r5, r5, r5\n\t"
+        "adcs      r6, r6, r6\n\t"
+        "adcs      r8, r8, r8\n\t"
+        "adcs      r9, r9, r9\n\t"
+        "adcs      r10, r10, r10\n\t"
+        "adcs      r11, r11, r11\n\t"
+        "adcs      r14, r14, r14\n\t"
+        "adc   r3, r12, #0\n\t"
+        "sub   r3, r12, r3\n\t"
+        "and   r12, r3, #1\n\t"
+        "subs  r4, r4, r3\n\t"
+        "sbcs  r5, r5, r3\n\t"
+        "sbcs  r6, r6, r3\n\t"
+        "sbcs  r8, r8, #0\n\t"
+        "sbcs  r9, r9, #0\n\t"
+        "sbcs  r10, r10, #0\n\t"
+        "sbcs  r11, r11, r12\n\t"
+        "sbc   r14, r14, r3\n\t"
+        "str   r4, [%[r],#0]\n\t"
+        "str   r5, [%[r],#4]\n\t"
+        "str   r6, [%[r],#8]\n\t"
+        "str   r8, [%[r],#12]\n\t"
+        "str   r9, [%[r],#16]\n\t"
+        "str   r10, [%[r],#20]\n\t"
+        "str   r11, [%[r],#24]\n\t"
+        "str   r14, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a)
-        : "memory", "r3", "r2", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
     );
 }
 
@@ -15708,68 +15752,60 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const 
     (void)m;
 
     __asm__ __volatile__ (
-        "ldr	r4, [%[a],#0]\n\t"
-        "ldr	r5, [%[a],#4]\n\t"
-        "ldr	r6, [%[b],#0]\n\t"
-        "ldr	r8, [%[b],#4]\n\t"
-        "subs	r4, r4, r6\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "ldr	r4, [%[a],#8]\n\t"
-        "ldr	r5, [%[a],#12]\n\t"
-        "ldr	r6, [%[b],#8]\n\t"
-        "ldr	r8, [%[b],#12]\n\t"
-        "sbcs	r4, r4, r6\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "str	r4, [%[r],#8]\n\t"
-        "str	r5, [%[r],#12]\n\t"
-        "ldr	r4, [%[a],#16]\n\t"
-        "ldr	r5, [%[a],#20]\n\t"
-        "ldr	r6, [%[b],#16]\n\t"
-        "ldr	r8, [%[b],#20]\n\t"
-        "sbcs	r4, r4, r6\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "mov	r9, r4\n\t"
-        "mov	r10, r5\n\t"
-        "ldr	r4, [%[a],#24]\n\t"
-        "ldr	r5, [%[a],#28]\n\t"
-        "ldr	r6, [%[b],#24]\n\t"
-        "ldr	r8, [%[b],#28]\n\t"
-        "sbcs	r4, r4, r6\n\t"
-        "sbcs	r5, r5, r8\n\t"
-        "mov	r11, r4\n\t"
-        "mov	r12, r5\n\t"
-        "sbc   r3, r3, r3\n\t"
-        "lsr   r8, r3, #31\n\t"
-        "mov   r6, #0\n\t"
-        "ldr	r4, [%[r],#0]\n\t"
-        "ldr	r5, [%[r],#4]\n\t"
-        "adds	r4, r4, r3\n\t"
-        "adcs	r5, r5, r3\n\t"
-        "str	r4, [%[r],#0]\n\t"
-        "str	r5, [%[r],#4]\n\t"
-        "ldr	r4, [%[r],#8]\n\t"
-        "ldr	r5, [%[r],#12]\n\t"
-        "adcs	r4, r4, r3\n\t"
-        "adcs	r5, r5, r6\n\t"
-        "str	r4, [%[r],#8]\n\t"
-        "str	r5, [%[r],#12]\n\t"
-        "mov	r4, r9\n\t"
-        "mov	r5, r10\n\t"
-        "adcs	r4, r4, r6\n\t"
-        "adcs	r5, r5, r6\n\t"
-        "str	r4, [%[r],#16]\n\t"
-        "str	r5, [%[r],#20]\n\t"
-        "mov	r4, r11\n\t"
-        "mov	r5, r12\n\t"
-        "adcs	r4, r4, r8\n\t"
-        "adc	r5, r5, r3\n\t"
-        "str	r4, [%[r],#24]\n\t"
-        "str	r5, [%[r],#28]\n\t"
+        "mov   r12, #0\n\t"
+        "ldr       r4, [%[a],#0]\n\t"
+        "ldr       r5, [%[a],#4]\n\t"
+        "ldr       r6, [%[a],#8]\n\t"
+        "ldr       r8, [%[a],#12]\n\t"
+        "ldr       r9, [%[b],#0]\n\t"
+        "ldr       r10, [%[b],#4]\n\t"
+        "ldr       r11, [%[b],#8]\n\t"
+        "ldr       r14, [%[b],#12]\n\t"
+        "subs    r4, r4, r9\n\t"
+        "sbcs    r5, r5, r10\n\t"
+        "sbcs    r6, r6, r11\n\t"
+        "sbcs    r8, r8, r14\n\t"
+        "str       r4, [%[r],#0]\n\t"
+        "str       r5, [%[r],#4]\n\t"
+        "str       r6, [%[r],#8]\n\t"
+        "str       r8, [%[r],#12]\n\t"
+        "ldr       r4, [%[a],#16]\n\t"
+        "ldr       r5, [%[a],#20]\n\t"
+        "ldr       r6, [%[a],#24]\n\t"
+        "ldr       r8, [%[a],#28]\n\t"
+        "ldr       r9, [%[b],#16]\n\t"
+        "ldr       r10, [%[b],#20]\n\t"
+        "ldr       r11, [%[b],#24]\n\t"
+        "ldr       r14, [%[b],#28]\n\t"
+        "sbcs    r4, r4, r9\n\t"
+        "sbcs    r5, r5, r10\n\t"
+        "sbcs    r6, r6, r11\n\t"
+        "sbcs    r8, r8, r14\n\t"
+        "sbc   r3, r12, #0\n\t"
+        "and   r12, r3, #1\n\t"
+        "ldr   r9, [%[r],#0]\n\t"
+        "ldr   r10, [%[r],#4]\n\t"
+        "ldr   r11, [%[r],#8]\n\t"
+        "ldr   r14, [%[r],#12]\n\t"
+        "adds  r9, r9, r3\n\t"
+        "adcs  r10, r10, r3\n\t"
+        "adcs  r11, r11, r3\n\t"
+        "adcs  r14, r14, #0\n\t"
+        "adcs  r4, r4, #0\n\t"
+        "adcs  r5, r5, #0\n\t"
+        "adcs  r6, r6, r12\n\t"
+        "adc   r8, r8, r3\n\t"
+        "str   r9, [%[r],#0]\n\t"
+        "str   r10, [%[r],#4]\n\t"
+        "str   r11, [%[r],#8]\n\t"
+        "str   r14, [%[r],#12]\n\t"
+        "str   r4, [%[r],#16]\n\t"
+        "str   r5, [%[r],#20]\n\t"
+        "str   r6, [%[r],#24]\n\t"
+        "str   r8, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
     );
 }
 
@@ -18842,6 +18878,514 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
 #endif /* HAVE_ECC_DHE */
 
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp[8];
+
+    __asm__ __volatile__ (
+        /* A[0] * B[0] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r3, r4, r6, r8\n\t"
+        "mov	r5, #0\n\t"
+        "str	r3, [%[tmp], #0]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * B[1] */
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        /* A[1] * B[0] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[tmp], #4]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[0] * B[2] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[1] * B[1] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[2] * B[0] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[tmp], #8]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[0] * B[3] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[1] * B[2] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[2] * B[1] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[3] * B[0] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r3, [%[tmp], #12]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * B[4] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[1] * B[3] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[2] * B[2] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[3] * B[1] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[4] * B[0] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[tmp], #16]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[0] * B[5] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[1] * B[4] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[2] * B[3] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[3] * B[2] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[4] * B[1] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[5] * B[0] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[tmp], #20]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[0] * B[6] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[1] * B[5] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[2] * B[4] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[3] * B[3] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[4] * B[2] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[5] * B[1] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[6] * B[0] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r3, [%[tmp], #24]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * B[7] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[1] * B[6] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[2] * B[5] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[3] * B[4] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[4] * B[3] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[5] * B[2] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[6] * B[1] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[7] * B[0] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #0]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[tmp], #28]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[1] * B[7] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[2] * B[6] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[3] * B[5] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[4] * B[4] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[5] * B[3] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[6] * B[2] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[7] * B[1] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[r], #32]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[2] * B[7] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[3] * B[6] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[4] * B[5] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[5] * B[4] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[6] * B[3] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[7] * B[2] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r3, [%[r], #36]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[3] * B[7] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[4] * B[6] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[5] * B[5] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[6] * B[4] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[7] * B[3] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[4] * B[7] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[5] * B[6] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[6] * B[5] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[7] * B[4] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[5] * B[7] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[6] * B[6] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[7] * B[5] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r3, [%[r], #48]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[6] * B[7] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        /* A[7] * B[6] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[r], #52]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[7] * B[7] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "ldr	r8, [%[b], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r3, r3, r8\n\t"
+        "str	r5, [%[r], #56]\n\t"
+        "str	r3, [%[r], #60]\n\t"
+        /* Transfer tmp to r */
+        "ldr	r3, [%[tmp], #0]\n\t"
+        "ldr	r4, [%[tmp], #4]\n\t"
+        "ldr	r5, [%[tmp], #8]\n\t"
+        "ldr	r6, [%[tmp], #12]\n\t"
+        "str	r3, [%[r], #0]\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "str	r5, [%[r], #8]\n\t"
+        "str	r6, [%[r], #12]\n\t"
+        "ldr	r3, [%[tmp], #16]\n\t"
+        "ldr	r4, [%[tmp], #20]\n\t"
+        "ldr	r5, [%[tmp], #24]\n\t"
+        "ldr	r6, [%[tmp], #28]\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "str	r5, [%[r], #24]\n\t"
+        "str	r6, [%[r], #28]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [tmp] "r" (tmp)
+        : "memory", "r3", "r4", "r5", "r6", "r8"
+    );
+}
+
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifdef WOLFSSL_SP_SMALL
@@ -19092,6 +19636,356 @@ static WC_INLINE int sp_256_mod_8(sp_digit* r, const sp_digit* a, const sp_digit
 
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+{
+    sp_digit tmp[8];
+    __asm__ __volatile__ (
+        /* A[0] * A[0] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "umull	r3, r4, r6, r6\n\t"
+        "mov	r5, #0\n\t"
+        "str	r3, [%[tmp], #0]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * A[1] */
+        "ldr	r8, [%[a], #4]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[tmp], #4]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[0] * A[2] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r3, r3, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[1] * A[1] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[tmp], #8]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[0] * A[3] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #12]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[1] * A[2] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #8]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r3, r3, r9\n\t"
+        "adcs	r4, r4, r10\n\t"
+        "adc	r5, r5, r11\n\t"
+        "str	r3, [%[tmp], #12]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * A[4] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #16]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[1] * A[3] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[2] * A[2] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adc	r3, r3, r11\n\t"
+        "str	r4, [%[tmp], #16]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[0] * A[5] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #20]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[1] * A[4] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[2] * A[3] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[a], #12]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r5, r5, r9\n\t"
+        "adcs	r3, r3, r10\n\t"
+        "adc	r4, r4, r11\n\t"
+        "str	r5, [%[tmp], #20]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[0] * A[6] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[1] * A[5] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[2] * A[4] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[a], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[3] * A[3] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r3, r3, r9\n\t"
+        "adcs	r4, r4, r10\n\t"
+        "adc	r5, r5, r11\n\t"
+        "str	r3, [%[tmp], #24]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[0] * A[7] */
+        "ldr	r6, [%[a], #0]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[1] * A[6] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[2] * A[5] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[a], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[3] * A[4] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[a], #16]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adc	r3, r3, r11\n\t"
+        "str	r4, [%[tmp], #28]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[1] * A[7] */
+        "ldr	r6, [%[a], #4]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[2] * A[6] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[3] * A[5] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[a], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[4] * A[4] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r5, r5, r9\n\t"
+        "adcs	r3, r3, r10\n\t"
+        "adc	r4, r4, r11\n\t"
+        "str	r5, [%[r], #32]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[2] * A[7] */
+        "ldr	r6, [%[a], #8]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[3] * A[6] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[4] * A[5] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[a], #20]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r3, r3, r9\n\t"
+        "adcs	r4, r4, r10\n\t"
+        "adc	r5, r5, r11\n\t"
+        "str	r3, [%[r], #36]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[3] * A[7] */
+        "ldr	r6, [%[a], #12]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r9, r10, r6, r8\n\t"
+        "mov	r11, #0\n\t"
+        /* A[4] * A[6] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r9, r9, r6\n\t"
+        "adcs 	r10, r10, r8\n\t"
+        "adc	r11, r11, #0\n\t"
+        /* A[5] * A[5] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "adds	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "adds	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adc	r3, r3, r11\n\t"
+        "str	r4, [%[r], #40]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[4] * A[7] */
+        "ldr	r6, [%[a], #16]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        /* A[5] * A[6] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r3, r3, r8\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [%[r], #44]\n\t"
+        "mov	r5, #0\n\t"
+        /* A[5] * A[7] */
+        "ldr	r6, [%[a], #20]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        /* A[6] * A[6] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r3, [%[r], #48]\n\t"
+        "mov	r3, #0\n\t"
+        /* A[6] * A[7] */
+        "ldr	r6, [%[a], #24]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "adds	r4, r4, r6\n\t"
+        "adcs 	r5, r5, r8\n\t"
+        "adc	r3, r3, #0\n\t"
+        "str	r4, [%[r], #52]\n\t"
+        "mov	r4, #0\n\t"
+        /* A[7] * A[7] */
+        "ldr	r6, [%[a], #28]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adc	r3, r3, r8\n\t"
+        "str	r5, [%[r], #56]\n\t"
+        "str	r3, [%[r], #60]\n\t"
+        /* Transfer tmp to r */
+        "ldr	r3, [%[tmp], #0]\n\t"
+        "ldr	r4, [%[tmp], #4]\n\t"
+        "ldr	r5, [%[tmp], #8]\n\t"
+        "ldr	r6, [%[tmp], #12]\n\t"
+        "str	r3, [%[r], #0]\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "str	r5, [%[r], #8]\n\t"
+        "str	r6, [%[r], #12]\n\t"
+        "ldr	r3, [%[tmp], #16]\n\t"
+        "ldr	r4, [%[tmp], #20]\n\t"
+        "ldr	r5, [%[tmp], #24]\n\t"
+        "ldr	r6, [%[tmp], #28]\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "str	r5, [%[r], #24]\n\t"
+        "str	r6, [%[r], #28]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [tmp] "r" (tmp)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11"
+    );
+}
+
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P256 curve. */
 static const uint32_t p256_order_minus_2[8] = {

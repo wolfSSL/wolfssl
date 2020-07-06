@@ -1,13 +1,12 @@
 # Microchip/Atmel ATECC508A/ATECC608A Support
 
-Support for ATECC508A using these methods:
-* TLS: Using the PK callbacks and reference ATECC508A callbacks. See Coding section below. Requires options `HAVE_PK_CALLBACKS` and `WOLFSSL_ATECC_PKCB or WOLFSSL_ATECC508A`
-* wolfCrypt: Native wc_ecc_* API's using the `./configure CFLAGS="-DWOLFSSL_ATECC508A"` or `#define WOLFSSL_ATECC508A`.
+wolfSSL includes support for ATECC508A and ATECC608A using these methods:
+* TLS: Using the PK callbacks and reference ATECC508/608A callbacks. See Coding section below. Requires options `HAVE_PK_CALLBACKS` and `WOLFSSL_ATECC_PKCB or WOLFSSL_ATECC508A/WOLFSSL_ATECC608A`
+* wolfCrypt: Native wc_ecc_* API's using the `./configure CFLAGS="-DWOLFSSL_ATECC608A"`, `#define WOLFSSL_ATECC508A`, or `#define WOLFSSL_ATECC608A`.
 
 ## Dependency
 
-Requires the Microchip CryptoAuthLib. The examples in `wolfcrypt/src/port/atmel/atmel.c` make calls to the `atcatls_*` API's.
-
+Requires the Microchip CryptoAuthLib library. The examples in `wolfcrypt/src/port/atmel/atmel.c` make calls to the `atcatls_*` API's.
 
 ## Building
 
@@ -15,7 +14,14 @@ Requires the Microchip CryptoAuthLib. The examples in `wolfcrypt/src/port/atmel/
 
 * `HAVE_PK_CALLBACKS`: Option for enabling wolfSSL's PK callback support for TLS.
 * `WOLFSSL_ATECC508A`: Enables support for initializing the CryptoAuthLib and setting up the encryption key used for the I2C communication.
+* `WOLFSSL_ATECC608A`: Same as above, but for the ATECC608A module.
 * `WOLFSSL_ATECC_PKCB`: Enables support for the reference PK callbacks without init.
+* `WOLFSSL_ATECC_RNG`: Enables support for ATECC RNG.
+* `WOLFSSL_ATECC_SHA256`: Enables support for ATECC SHA-256.
+* `WOLFSSL_ATECC_ECDH_ENC`: Enable use of atcab_ecdh_enc() for encrypted ECDH.
+* `WOLFSSL_ATECC_ECDH_IOENC`: Enable use of atcab_ecdh_ioenc() for encrypted ECDH.
+* `WOLFSSL_ATECC_TNGTLS`: Enable support for Microchip Trust&GO module configuration.
+* `WOLFSSL_ATECC_DEBUG`: Enable wolfSSL ATECC debug messages.
 * `WOLFSSL_ATMEL`: Enables ASF hooks seeding random data using the `atmel_get_random_number` function.
 * `WOLFSSL_ATMEL_TIME`: Enables the built-in `atmel_get_curr_time_and_date` function get getting time from ASF RTC. 
 * `ATECC_GET_ENC_KEY`: Macro to define your own function for getting the encryption key.
@@ -30,16 +36,15 @@ Requires the Microchip CryptoAuthLib. The examples in `wolfcrypt/src/port/atmel/
 
 or 
 
-`./configure CFLAGS="-DWOLFSSL_ATECC508A"`
-`#define WOLFSSL_ATECC508A`
-
+`./configure CFLAGS="-DWOLFSSL_ATECC608A"`
+`#define WOLFSSL_ATECC608A`
 
 ## Coding
 
 Setup the PK callbacks for TLS using:
 
 ```
-/* Setup PK Callbacks for ATECC508A */
+/* Setup PK Callbacks for ATECC508/608A */
 WOLFSSL_CTX* ctx;
 wolfSSL_CTX_SetEccKeyGenCb(ctx, atcatls_create_key_cb);
 wolfSSL_CTX_SetEccVerifyCb(ctx, atcatls_verify_signature_cb);
@@ -47,7 +52,7 @@ wolfSSL_CTX_SetEccSignCb(ctx, atcatls_sign_certificate_cb);
 wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
 ```
 
-The reference ATECC508A PK callback functions are located in the `wolfcrypt/src/port/atmel/atmel.c` file.
+The reference ATECC508/608A PK callback functions are located in the `wolfcrypt/src/port/atmel/atmel.c` file.
 
 
 Adding a custom context to the callbacks:
@@ -91,4 +96,4 @@ ATECC508A HW accelerated implementation:
 `EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations, 24.038 ops/sec`
 
 
-For details see our [wolfSSL Atmel ATECC508A](https://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.
+For details see our [wolfSSL Atmel ATECC508/608A](https://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.

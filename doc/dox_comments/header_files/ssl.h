@@ -3773,7 +3773,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
     \brief The wolfSSLv23_client_method() function is used to indicate that
     the application is a client and will support the highest protocol
-    version supported by the server between SSL 3.0 - TLS 1.2.  This function
+    version supported by the server between SSL 3.0 - TLS 1.3.  This function
     allocates memory for and initializes a new WOLFSSL_METHOD structure
     to be used when creating the SSL/TLS context with wolfSSL_CTX_new().
     Both wolfSSL clients and servers have robust version downgrade capability.
@@ -3784,7 +3784,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
     To resolve this issue, a client that uses the wolfSSLv23_client_method()
     function will use the highest protocol version supported by the server and
     downgrade to SSLv3 if needed. In this case, the client will be able to
-    connect to a server running SSLv3 - TLSv1.2.
+    connect to a server running SSLv3 - TLSv1.3.
 
     \return pointer upon success a pointer to a WOLFSSL_METHOD.
     \return Failure If memory allocation fails when calling XMALLOC,
@@ -5162,6 +5162,61 @@ WOLFSSL_API void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX*,
 WOLFSSL_API void wolfSSL_set_psk_server_callback(WOLFSSL*,
                                                     wc_psk_server_callback);
 
+
+/*!
+    \brief Sets a PSK user context in the WOLFSSL structure options member.
+
+    \return WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param psk_ctx void pointer to user PSK context
+
+    \sa wolfSSL_get_psk_callback_ctx
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx);
+
+/*!
+    \brief Sets a PSK user context in the WOLFSSL_CTX structure.
+
+    \return WOLFSSL_SUCCESS or WOLFSSL_FAILURE
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
+    \param psk_ctx void pointer to user PSK context
+
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_get_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx);
+
+/*!
+    \brief Get a PSK user context in the WOLFSSL structure options member.
+
+    \return void pointer to user PSK context
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_CTX_get_psk_callback_ctx
+*/
+WOLFSSL_API void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl);
+
+/*!
+    \brief Get a PSK user context in the WOLFSSL_CTX structure.
+
+    \return void pointer to user PSK context
+
+    \param ctx a pointer to a WOLFSSL_CTX structure, created using wolfSSL_CTX_new().
+
+    \sa wolfSSL_CTX_set_psk_callback_ctx
+    \sa wolfSSL_set_psk_callback_ctx
+    \sa wolfSSL_get_psk_callback_ctx
+*/
+WOLFSSL_API void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx);
+
 /*!
     \ingroup Setup
 
@@ -5199,7 +5254,7 @@ WOLFSSL_API int wolfSSL_CTX_allow_anon_cipher(WOLFSSL_CTX*);
 
     \brief The wolfSSLv23_server_method() function is used to indicate
     that the application is a server and will support clients connecting
-    with protocol version from SSL 3.0 - TLS 1.2.  This function allocates
+    with protocol version from SSL 3.0 - TLS 1.3.  This function allocates
     memory for and initializes a new WOLFSSL_METHOD structure to be used when
     creating the SSL/TLS context with wolfSSL_CTX_new().
 
@@ -9918,7 +9973,7 @@ WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
     ClientHello + SNI with either ServerHello + blank SNI or alert fatal in
     case of SNI mismatch.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of these
     cases: ssl is NULL, data is NULL, type is a unknown value. (see below)
     \return MEMORY_E is the error returned when there is not enough memory.
@@ -9943,8 +9998,8 @@ WOLFSSL_API void wolfSSL_FreeArrays(WOLFSSL*);
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME, "www.yassl.com",
-    strlen("www.yassl.com"));
-    if (ret != 0) {
+        strlen("www.yassl.com"));
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     \endcode
@@ -9962,7 +10017,7 @@ WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
     clients and wolfSSL servers will respond ClientHello + SNI with either
     ServerHello + blank SNI or alert fatal in case of SNI mismatch.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of these
     cases: ctx is NULL, data is NULL, type is a unknown value. (see below)
     \return MEMORY_E is the error returned when there is not enough memory.
@@ -9982,8 +10037,8 @@ WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
         // context creation failed
     }
     ret = wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, "www.yassl.com",
-    strlen("www.yassl.com"));
-    if (ret != 0) {
+        strlen("www.yassl.com"));
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     \endcode
@@ -10029,11 +10084,11 @@ WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, unsigned char type,
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     wolfSSL_SNI_SetOptions(ssl, WOLFSSL_SNI_HOST_NAME,
-    WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
+        WOLFSSL_SNI_CONTINUE_ON_MISMATCH);
     \endcode
 
     \sa wolfSSL_new
@@ -10074,7 +10129,7 @@ WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
        // context creation failed
     }
     ret = wolfSSL_CTX_UseSNI(ctx, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     wolfSSL_CTX_SNI_SetOptions(ctx, WOLFSSL_SNI_HOST_NAME,
@@ -10094,7 +10149,7 @@ WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
     by the client to start a session. It does not requires context or session
     setup to retrieve the SNI.
 
-    \return SSL_SUCCESS upon success.
+    \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG is the error that will be returned in one of this
     cases: buffer is NULL, bufferSz <= 0, sni is NULL, inOutSz is NULL or <= 0
     \return BUFFER_ERROR is the error returned when there is a malformed
@@ -10117,7 +10172,7 @@ WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
     int           length       = 32;
     // read Client Hello to buffer...
     ret = wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer), 0, result, &length));
-    if (ret != SSL_SUCCESS) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni retrieve failed
     }
     \endcode
@@ -10186,7 +10241,7 @@ WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
         // ssl creation failed
     }
     ret = wolfSSL_UseSNI(ssl, 0, "www.yassl.com", strlen("www.yassl.com"));
-    if (ret != 0) {
+    if (ret != WOLFSSL_SUCCESS) {
         // sni usage failed
     }
     if (wolfSSL_accept(ssl) == SSL_SUCCESS) {
@@ -10206,7 +10261,7 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
     \brief Setup ALPN use for a wolfSSL session.
 
-    \return SSL_SUCCESS: upon success.
+    \return WOLFSSL_SUCCESS: upon success.
     \return BAD_FUNC_ARG Returned if ssl or protocol_name_list
     is null or protocol_name_listSz is too large or options
     contain something not supported.
@@ -10231,8 +10286,8 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
     char alpn_list[] = {};
 
-    if(wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
-    WOLFSSL_APN_FAILED_ON_MISMATCH) != SSL_SUCCESS)
+    if (wolfSSL_UseALPN(ssl, alpn_list, sizeof(alpn_list),
+        WOLFSSL_APN_FAILED_ON_MISMATCH) != WOLFSSL_SUCCESS)
     {
        // Error setting session ticket
     }

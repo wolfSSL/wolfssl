@@ -957,7 +957,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
-    int    overrideDateErrors = 0;
     const char* verifyCert;
     const char* ourCert;
     const char* ourKey;
@@ -995,7 +994,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
+#ifndef NO_CERTS
     int mutualAuth = 0;
+#endif
     int postHandAuth = 0;
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
@@ -1017,7 +1018,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
         /* big enough to handle most cases including session certs */
-        byte memory[204000];
+        byte memory[220000];
     #else
         byte memory[80000];
     #endif
@@ -1081,11 +1082,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
+#ifndef NO_CERTS
     (void)mutualAuth;
+#endif
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
-    (void)overrideDateErrors;
     (void)nonBlocking;
 
 #ifdef WOLFSSL_TIRTOS
@@ -1217,7 +1219,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
                     printf("Verify should fail\n");
-                    myVerifyFail = 1;
+                    myVerifyAction = VERIFY_FORCE_FAIL;
+                }
+                else if (XSTRNCMP(myoptarg, "verifyInfo", 10) == 0) {
+                    printf("Verify should use preverify (just show info)\n");
+                    myVerifyAction = VERIFY_USE_PREVERFIY;
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Also load cert/key into wolfSSL object\n");
@@ -1239,7 +1245,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "overrideDateErr", 15) == 0) {
                 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
-                    overrideDateErrors = 1;
+                    myVerifyAction = VERIFY_OVERRIDE_DATE_ERR;
                 #endif
                 }
                 else {
@@ -1413,9 +1419,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #endif
                 break;
 
+        #ifndef NO_CERTS
             case 'F' :
-                    mutualAuth = 1;
+                mutualAuth = 1;
                 break;
+        #endif
 
             case 'Q' :
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
@@ -1731,20 +1739,20 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (usePsk || usePskPlus) {
 #ifndef NO_PSK
+        const char *defaultCipherList = cipherList;
+
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     #ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_psk_server_tls13_callback(ctx, my_psk_server_tls13_cb);
     #endif
-
         if (sendPskIdentityHint == 1)
             SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
 
-        if (cipherList == NULL && !usePskPlus) {
-            const char *defaultCipherList;
+        if (defaultCipherList == NULL && !usePskPlus) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
-                                    "TLS13-AES128-GCM-SHA256";
+                defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                    "DHE-PSK-AES128-GCM-SHA256";
             #else
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
@@ -1758,7 +1766,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 != WOLFSSL_SUCCESS)
                 err_sys_ex(runWithErrors, "server can't set cipher list 2");
         }
-#endif
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
+#endif /* !NO_PSK */
     }
 #ifndef NO_CERTS
     if (mutualAuth)
@@ -1798,7 +1807,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
                             (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),
-                            overrideDateErrors == 1 ? myDateCb : NULL);
+                  myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ? myVerify : NULL);
 
     #ifdef TEST_BEFORE_DATE
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
@@ -1823,7 +1832,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #if defined(WOLFSSL_SNIFFER)
     /* don't use EDH, can't sniff tmp keys */
-    if (cipherList == NULL) {
+    if (cipherList == NULL && version < 4) {
         if (SSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "server can't set cipher list 3");
     }
@@ -2378,8 +2387,23 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 printf("not doing secure renegotiation on example with"
                        " nonblocking yet\n");
             } else {
-                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
-                    printf("not doing secure renegotiation\n");
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+                    err = wolfSSL_get_error(ssl, 0);
+                    while (err == WC_PENDING_E) {
+                        err = 0;
+                        ret = wolfSSL_negotiate(ssl);
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            if (err == WC_PENDING_E) {
+                                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                                if (ret < 0) break;
+                            }
+                        }
+                    }
+                    if (ret != WOLFSSL_SUCCESS)
+#endif
+                        printf("not doing secure renegotiation\n");
                 }
                 else {
                     printf("RENEGOTIATION SUCCESSFUL\n");
@@ -2404,11 +2428,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             /* Write data */
             if (!useWebServerMsg) {
                 write_msg = msg;
-                write_msg_sz = sizeof(msg);
+                write_msg_sz = (int) XSTRLEN(msg);
             }
             else {
                 write_msg = webServerMsg;
-                write_msg_sz = sizeof(webServerMsg);
+                write_msg_sz = (int) XSTRLEN(webServerMsg);
             }
             ServerWrite(ssl, write_msg, write_msg_sz);
 

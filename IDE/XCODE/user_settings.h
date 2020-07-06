@@ -46,6 +46,7 @@
     /* ARMv8 - iPhone 8/8Plus and iPhone X */
     #ifdef __ARM_FEATURE_CRYPTO
         #define WOLFSSL_ARMASM
+        #define WOLFSSL_SP_ARM64_ASM
     #endif
 
     /* newer algorithms */
@@ -75,6 +76,7 @@
     /* test certificate buffers */
     #define USE_CERT_BUFFERS_2048
     #define USE_CERT_BUFFERS_256
+    #define NO_WRITE_TEMP_FILES
 
     #define WOLFSSL_DTLS
 

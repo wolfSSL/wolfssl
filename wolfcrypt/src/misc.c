@@ -363,7 +363,7 @@ WC_STATIC WC_INLINE word16 ctMask16GT(int a, int b)
 
 WC_STATIC WC_INLINE word16 ctMask16LT(int a, int b)
 {
-    return (((word32)a - b - 1) >> 31) - 1;
+    return (((word32)b - a - 1) >> 31) - 1;
 }
 
 WC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)

@@ -519,7 +519,7 @@ static int SocketSend(int sockFd, char* buf, int sz)
     }
     return sent;
 }
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 static int ReceiveFrom(WOLFSSL *ssl, int sd, char *buf, int sz)
 {
     int recvd;
@@ -573,7 +573,9 @@ static int ReceiveFrom(WOLFSSL *ssl, int sd, char *buf, int sz)
 
     return recvd;
 }
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT)
 static int SendTo(int sd, char *buf, int sz, const struct sockaddr *peer, 
                   socklen_t peerSz)
 {
@@ -610,7 +612,7 @@ static int myDoneHsCb(WOLFSSL* ssl, void* user_ctx)
     DoneHandShake = 1;
     return 1;
 }
-#endif
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
 static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
@@ -621,7 +623,7 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     if (info->useLocalMem)
         return ServerMemSend(info, buf, sz);
 #endif
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_CLIENT)
     if (info->doDTLS) {
         return SendTo(info->server.sockFd, buf, sz, 
             (const struct sockaddr*)&info->clientAddr, sizeof(info->clientAddr));
@@ -671,7 +673,7 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     if (info->useLocalMem)
         return ClientMemRecv(info, buf, sz);
 #endif
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (info->doDTLS) {
         return ReceiveFrom(ssl, info->client.sockFd, buf, sz);
     } else 
@@ -1570,9 +1572,11 @@ int bench_tls(void* args)
     int argLocalMem = 0;
     int listenFd = -1;
 #endif
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+    int option_p = 0;
+#endif
 #ifdef WOLFSSL_DTLS
     int doDTLS = 0;
-    int option_p = 0;
 #endif
     if (args != NULL) {
         argc = ((func_args*)args)->argc;
@@ -1631,7 +1635,7 @@ int bench_tls(void* args)
                     Usage();
                     ret = MY_EX_USAGE; goto exit;
                 }
-            #ifdef WOLFSSL_DTLS
+            #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
                 option_p = 1;
             #endif
                 break;
@@ -1726,7 +1730,7 @@ int bench_tls(void* args)
     }
 #endif
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
     if (doDTLS) {
         if (argLocalMem) {
             printf("tls_bench hasn't yet supported DTLS with local memory.\n");

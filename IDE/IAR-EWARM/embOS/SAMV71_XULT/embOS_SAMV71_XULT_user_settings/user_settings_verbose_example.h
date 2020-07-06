@@ -84,11 +84,13 @@
     #define ECC_TIMING_RESISTANT
 
     #ifdef USE_FAST_MATH
-        /* Max ECC bits (curve size * 8). ECC521 is (66*8) = 528. */
         #undef  ALT_ECC_SIZE
         #define ALT_ECC_SIZE
-        #undef  FP_MAX_BITS_ECC
-        #define FP_MAX_BITS_ECC     528
+
+        /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+        /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
+        //#undef  FP_MAX_BITS_ECC
+        //#define FP_MAX_BITS_ECC (528 * 2)
 
         /* Enable TFM optimizations for ECC */
         #define TFM_ECC192

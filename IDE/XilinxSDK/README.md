@@ -1,10 +1,63 @@
-# Xilinx SDK wolfCrypt Project
+# Common Gotcha's
+
+- If compiling all code togther (ie no sperate wolfssl library) than the -fPIC compiler flag should be used. Without using -fPIC in this build setup there could be unexpected failures.
+- If building with ARMv8 crypto extensions then the compiler flags "-mstrict-align -mcpu=generic+crypto" must be used.
+- Check that enough stack and heap memory is set for the operations if a crash or stall happens.
+
+# Xilinx SDK wolfCrypt Vitis 2018.2 Project
 
 To use this example project:
 1. Start a new workspace
 2. Create a new BSP called `standalone_bsp_0`.
-3. Copy `.cproject` and `.project` into the wolfSSL root.
+3. Copy `.cproject` and `.project` from IDE/XilinxSDK/2018_2 into the wolfSSL root.
 4. From the Xilinx SDK Import wolfBoot using "Import" -> "Existing Projects into Workspace".
+
+
+# Detailed Instructions For Example Use With Vitis 2019.2
+
+1. Create a new workspace located in the directory wolfssl/IDE/XilinxSDK/2019_2
+2. Create a new BSP, by selecting;
+   - File->New->Platform Project
+   - Setting "Project name" to standalone_bsp_0, then click "Next"
+   - Select the "Create from hardware specification" radius and click "Next"
+   - "Browse..." to the desired XSA file for the hardare
+   - (optional) change Processor to R5 now
+   - click "Finish"
+3. (optional) If building for TLS support than expand the standalone_bsp_0 project, double click on platform_spr, Expand the cpu (i.e psu_cortexa53_0), click on Board Support Package, select the "Modify BSP Settings..." box and click on lwip211. Note that the api_mode should be changed from RAW API to SOCKET API.
+4. Right click on the standalone_bsp_0 project and click on "Build Project"
+5. Import the wolfcrypt example project "File->Import->Eclipse workspace or zip file"
+6. Uncheck "Copy projects into workspace"
+7. Select the root directory of wolfssl/IDE/XilinxSDK/2019_2, and select wolfCrypt_example and wolfCrypt_example_system. Then click "Finish"
+
+
+# Steps For Creating Project From Scratch
+
+1. Create a new workspace
+2. Create a new BSP, by selecting;
+   - File->New->Platform Project
+   - Setting "Project name" to standalone_bsp_0, then click "Next"
+   - Select the "Create from hardware specification" radius and click "Next"
+   - "Browse..." to the desired XSA file for the hardare
+   - (optional) change Processor to R5 now
+   - click "Finish"
+3. (optional) If building for TLS support than expand the standalone_bsp_0 project, double click on platform_spr, Expand the cpu (i.e psu_cortexa53_0), click on Board Support Package, select the "Modify BSP Settings..." box and click on lwip211. Note that the api_mode should be changed from RAW API to SOCKET API.
+4. Right click on the standalone_bsp_0 project and click on "Build Project"
+5. Create wolfssl project File->New->Application Project
+6. Name the project wolfCrypt_example, select "Next"
+7. For the platform select standalone_bsp_0 and click next, then next once more on Domain.
+8. Select "Empty Application" and click "Finish"
+9. Expand the wolfCrypt_example project and right click on the folder "src".
+10. Select "Import Sources" and set the "From directory" to be the wolfssl root directory.
+11. Select the folders to import as ./src, ./IDE/XilinxSDK, ./wolfcrypt/benchmark, ./wolfcrypt/test, ./wolfcrypt/src
+12. (optional) Expand the Advanced tabe and select "Create links in workspace"
+13. Click on "Finish"
+14. Expand the wolfcrypt/src directory and exlude all .S files from the build
+15. Right click on the wolfCrypt_example project and got to Properties. Set the macro WOLFSSL_USER_SETTINGS in C/C++ Build->Settings->ARM v8 gcc compiler->Symbols
+16. Set the include path for finding user_settings.h by going to the Properties and setting it in C/C++ Build->Settings->ARM v8 gcc compiler->Directories. This is to the directory wolfssl/IDE/XilinxSDK
+17. Set the include path for finding wolfSSL headers. To the root directory wolfssl
+18. Add compiler flags "-fPIC -mstrict-align -mcpu=generic+crypto" to the project properties. C/C++ Build->Settings->ARM v8 gcc compiler->Miscellaneous
+19. Right click on wolfCrypt_example and "Build Project"
+
 
 ## Platform
 

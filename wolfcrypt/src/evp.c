@@ -19,6 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning evp.c does not need to be compiled separately from ssl.c
@@ -28,11 +35,18 @@
 
 #if defined(OPENSSL_EXTRA)
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
+#if !defined(HAVE_PKCS7) && \
+    ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION >= 2)) || defined(HAVE_SELFTEST))
+enum {
+    /* In the event of fips cert 3389 or CAVP selftest build, these enums are
+     * not in aes.h for use with evp so enumerate it here outside the fips
+     * boundary */
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+    CCM_NONCE_MIN_SZ = 7,
+};
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
@@ -417,47 +431,6 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
-    #if defined(HAVE_AESGCM)
-        case AES_128_GCM_TYPE:
-        case AES_192_GCM_TYPE:
-        case AES_256_GCM_TYPE:
-            if (ctx->enc) {
-                if (out){
-                    /* encrypt confidential data*/
-                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out, in, inl,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              NULL, 0);
-                }
-                else {
-                    /* authenticated, non-confidential data */
-                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              in, inl);
-                    /* Reset partial authTag error for AAD*/
-                    if (ret == AES_GCM_AUTH_E)
-                        ret = 0;
-                }
-            }
-            else {
-                if (out){
-                    /* decrypt confidential data*/
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out, in, inl,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              NULL, 0);
-                }
-                else {
-                    /* authenticated, non-confidential data*/
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                              ctx->iv, ctx->ivSz,
-                              ctx->authTag, ctx->authTagSz,
-                              in, inl);
-                    /* Reset partial authTag error for AAD*/
-                    if (ret == AES_GCM_AUTH_E)
-                        ret = 0;
-                }
-            }
-            break;
-    #endif
     #if defined(WOLFSSL_AES_COUNTER)
         case AES_128_CTR_TYPE:
         case AES_192_CTR_TYPE:
@@ -575,10 +548,60 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
 {
-    /* process blocks */
-    if (evpCipherBlock(ctx, out, in, inl) == 0)
-        return WOLFSSL_FAILURE;
+    int ret = 0;
+
     *outl = inl;
+    if (ctx->enc) {
+        if (out) {
+            /* encrypt confidential data*/
+            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out, in, inl,
+                      ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                      NULL, 0);
+        }
+        else {
+            /* authenticated, non-confidential data */
+            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
+            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                      ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                      in, inl);
+            /* Reset partial authTag error for AAD*/
+            if (ret == AES_GCM_AUTH_E)
+                ret = 0;
+        }
+    }
+    else {
+        if (out) {
+            byte* tmp;
+            tmp = (byte*)XREALLOC(ctx->gcmDecryptBuffer,
+                    ctx->gcmDecryptBufferLen + inl, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (tmp) {
+                XMEMCPY(tmp + ctx->gcmDecryptBufferLen, in, inl);
+                ctx->gcmDecryptBufferLen += inl;
+                ctx->gcmDecryptBuffer = tmp;
+                *outl = 0;
+            }
+            else {
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+        else {
+            /* authenticated, non-confidential data*/
+            ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                      ctx->iv, ctx->ivSz,
+                      ctx->authTag, ctx->authTagSz,
+                      in, inl);
+            /* Reset partial authTag error for AAD*/
+            if (ret == AES_GCM_AUTH_E)
+                ret = 0;
+        }
+    }
+
+    if (ret != 0) {
+        *outl = 0;
+        return WOLFSSL_FAILURE;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -735,77 +758,102 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
     int fl;
     int ret = WOLFSSL_SUCCESS;
-    if (ctx == NULL || out == NULL || outl == NULL)
-        return BAD_FUNC_ARG;
+    if (!ctx || !outl)
+        return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
-
+    switch (ctx->cipherType) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
-        switch (ctx->cipherType) {
-            case AES_128_GCM_TYPE:
-            case AES_192_GCM_TYPE:
-            case AES_256_GCM_TYPE:
-                *outl = 0;
-                /* Clear IV, since IV reuse is not recommended for AES GCM. */
-                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
-                return WOLFSSL_SUCCESS;
-            default:
-                /* fall-through */
-                break;
-        }
-#endif /* !NO_AES && HAVE_AESGCM */
+        case AES_128_GCM_TYPE:
+        case AES_192_GCM_TYPE:
+        case AES_256_GCM_TYPE:
+            if (!ctx->enc && ctx->gcmDecryptBuffer &&
+                    ctx->gcmDecryptBufferLen > 0) {
+                /* decrypt confidential data*/
+                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                        ctx->gcmDecryptBuffer, ctx->gcmDecryptBufferLen,
+                        ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                        NULL, 0);
+                if (ret == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                    *outl = ctx->gcmDecryptBufferLen;
+                }
+                else {
+                    ret = WOLFSSL_FAILURE;
+                    *outl = 0;
+                }
 
-    if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
-        if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
-        *outl = 0;
-    }
-    else if (ctx->enc) {
-        if (ctx->block_size == 1) {
-            *outl = 0;
-        }
-        else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
-            padBlock(ctx);
-            PRINT_BUF(ctx->buf, ctx->block_size);
-            if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
-                WOLFSSL_MSG("Final Cipher Block failed");
-                ret = WOLFSSL_FAILURE;
+                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmDecryptBuffer = NULL;
+                ctx->gcmDecryptBufferLen = 0;
             }
             else {
-                PRINT_BUF(out, ctx->block_size);
-                *outl = ctx->block_size;
+                *outl = 0;
             }
-        }
-    }
-    else {
-        if (ctx->block_size == 1) {
-            *outl = 0;
-        }
-        else if ((ctx->bufUsed % ctx->block_size) != 0) {
-            *outl = 0;
-            /* not enough padding for decrypt */
-            WOLFSSL_MSG("Final Cipher Block not enough padding");
-            ret = WOLFSSL_FAILURE;
-        }
-        else if (ctx->lastUsed) {
-            PRINT_BUF(ctx->lastBlock, ctx->block_size);
-            if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
-                XMEMCPY(out, ctx->lastBlock, fl);
-                *outl = fl;
-                if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-                    /* return error in cases where the block length is incorrect */
-                    WOLFSSL_MSG("Final Cipher Block bad length");
-                    ret = WOLFSSL_FAILURE;
+            /* Clear IV, since IV reuse is not recommended for AES GCM. */
+            XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+            break;
+#endif /* !NO_AES && HAVE_AESGCM */
+        default:
+            if (!out)
+                return WOLFSSL_FAILURE;
+
+            if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
+                if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
+                *outl = 0;
+            }
+            else if (ctx->enc) {
+                if (ctx->block_size == 1) {
+                    *outl = 0;
+                }
+                else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
+                    padBlock(ctx);
+                    PRINT_BUF(ctx->buf, ctx->block_size);
+                    if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
+                        WOLFSSL_MSG("Final Cipher Block failed");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                    else {
+                        PRINT_BUF(out, ctx->block_size);
+                        *outl = ctx->block_size;
+                    }
                 }
             }
             else {
-                ret = WOLFSSL_FAILURE;
+                if (ctx->block_size == 1) {
+                    *outl = 0;
+                }
+                else if ((ctx->bufUsed % ctx->block_size) != 0) {
+                    *outl = 0;
+                    /* not enough padding for decrypt */
+                    WOLFSSL_MSG("Final Cipher Block not enough padding");
+                    ret = WOLFSSL_FAILURE;
+                }
+                else if (ctx->lastUsed) {
+                    PRINT_BUF(ctx->lastBlock, ctx->block_size);
+                    if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
+                        XMEMCPY(out, ctx->lastBlock, fl);
+                        *outl = fl;
+                        if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+                            /* return error in cases where the block length is
+                             * incorrect */
+                            WOLFSSL_MSG("Final Cipher Block bad length");
+                            ret = WOLFSSL_FAILURE;
+                        }
+                    }
+                    else {
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+                else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+                    /* return error in cases where the block length is
+                     * incorrect */
+                    ret = WOLFSSL_FAILURE;
+                }
             }
-        }
-        else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-            /* return error in cases where the block length is incorrect */
-            ret = WOLFSSL_FAILURE;
-        }
+            break;
     }
+
     if (ret == WOLFSSL_SUCCESS) {
         /* reset cipher state after final */
         wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
@@ -1188,6 +1236,8 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
     if (ctx->pkey != NULL)
         wolfSSL_EVP_PKEY_free(ctx->pkey);
+    if (ctx->peerKey != NULL)
+        wolfSSL_EVP_PKEY_free(ctx->peerKey);
     XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return WOLFSSL_SUCCESS;
 }
@@ -1219,9 +1269,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #endif
     type = wolfSSL_EVP_PKEY_type(pkey->type);
 
-    if ((type == EVP_PKEY_RSA) ||
-        (type == EVP_PKEY_DSA) ||
-        (type == EVP_PKEY_EC)) {
+    if (type != NID_undef) {
         if (wc_LockMutex(&pkey->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
@@ -1275,6 +1323,119 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits
     }
     return WOLFSSL_SUCCESS;
 }
+
+
+int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive_init");
+
+    if (!ctx) {
+        return WOLFSSL_FAILURE;
+    }
+    wolfSSL_EVP_PKEY_free(ctx->peerKey);
+    ctx->op = EVP_PKEY_OP_DERIVE;
+    ctx->padding = 0;
+    ctx->nbits = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY *peer)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive_set_peer");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_DERIVE) {
+        return WOLFSSL_FAILURE;
+    }
+    wolfSSL_EVP_PKEY_free(ctx->peerKey);
+    ctx->peerKey = peer;
+    if (!wolfSSL_EVP_PKEY_up_ref(peer)) {
+        ctx->peerKey = NULL;
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+#if !defined(NO_DH) && defined(HAVE_ECC)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
+{
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_DERIVE || !ctx->pkey || !ctx->peerKey || !keylen
+            || ctx->pkey->type != ctx->peerKey->type) {
+        return WOLFSSL_FAILURE;
+    }
+    switch (ctx->pkey->type) {
+#ifndef NO_DH
+    case EVP_PKEY_DH:
+        /* Use DH */
+        if (!ctx->pkey->dh || !ctx->peerKey->dh || !ctx->peerKey->dh->pub_key) {
+            return WOLFSSL_FAILURE;
+        }
+        if ((len = wolfSSL_DH_size(ctx->pkey->dh)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+        if (key) {
+            if (*keylen < (size_t)len) {
+                return WOLFSSL_FAILURE;
+            }
+            if (wolfSSL_DH_compute_key(key, ctx->peerKey->dh->pub_key,
+                                       ctx->pkey->dh) != len) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        /* Use ECDH */
+        if (!ctx->pkey->ecc || !ctx->peerKey->ecc) {
+            return WOLFSSL_FAILURE;
+        }
+        /* set internal key if not done */
+        if (!ctx->pkey->ecc->inSet) {
+            if (SetECKeyInternal(ctx->pkey->ecc) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetECKeyInternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!ctx->peerKey->ecc->exSet || !ctx->peerKey->ecc->pub_key->internal) {
+            if (SetECKeyExternal(ctx->peerKey->ecc) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetECKeyExternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!(len = wc_ecc_size((ecc_key*)ctx->pkey->ecc->internal))) {
+            return WOLFSSL_FAILURE;
+        }
+        if (key) {
+            word32 len32 = (word32)len;
+            if (*keylen < len32) {
+                WOLFSSL_MSG("buffer too short");
+                return WOLFSSL_FAILURE;
+            }
+            if (wc_ecc_shared_secret_ssh((ecc_key*)ctx->pkey->ecc->internal,
+                                         (ecc_point*)ctx->peerKey->ecc->pub_key->internal,
+                                         key, &len32) != MP_OKAY) {
+                WOLFSSL_MSG("wc_ecc_shared_secret failed");
+                return WOLFSSL_FAILURE;
+            }
+            len = (int)len32;
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+    default:
+        WOLFSSL_MSG("Unknown key type");
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
  *
@@ -1709,7 +1870,7 @@ int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len
 }
 
 static const struct s_ent {
-    const int macType;
+    const enum wc_HashType macType;
     const int nid;
     const char *name;
 } md_tbl[] = {
@@ -1748,10 +1909,10 @@ static const struct s_ent {
 #ifndef WOLFSSL_NOSHA3_512
     {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3_512"},
 #endif
-    {0, 0, NULL}
+    {WC_HASH_TYPE_NONE, 0, NULL}
 };
 
-static int wolfSSL_EVP_md2macType(const WOLFSSL_EVP_MD *md)
+static enum wc_HashType wolfSSL_EVP_md2macType(const WOLFSSL_EVP_MD *md)
 {
     const struct s_ent *ent ;
 
@@ -1987,7 +2148,7 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
         if (wc_HmacSetKey(&ctx->hash.hmac, hashType, key, (word32)keySz) != 0)
             return WOLFSSL_FAILURE;
 
-        ctx->macType = NID_hmac;
+        ctx->isHMAC = 1;
     }
     else {
         int ret;
@@ -2014,7 +2175,7 @@ static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
                                         const void *d, unsigned int cnt)
 {
     if (ctx->pctx == NULL) {
-        if (ctx->macType != NID_hmac)
+        if (!ctx->isHMAC)
             return WOLFSSL_FAILURE;
 
         if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
@@ -2038,7 +2199,7 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
     if (ctx->pctx == NULL) {
         Hmac hmacCopy;
 
-        if (ctx->macType != NID_hmac)
+        if (!ctx->isHMAC)
             return WOLFSSL_FAILURE;
 
         if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
@@ -2153,7 +2314,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 
     /* Return the maximum size of the signaure when sig is NULL. */
     if (ctx->pctx == NULL) {
-        if (ctx->macType != NID_hmac)
+        if (!ctx->isHMAC)
             return WOLFSSL_FAILURE;
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
@@ -2271,7 +2432,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         return WOLFSSL_FAILURE;
 
     if (ctx->pctx == NULL) {
-        if (ctx->macType != NID_hmac)
+        if (!ctx->isHMAC)
             return WOLFSSL_FAILURE;
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
@@ -3185,11 +3346,27 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
     }
 
+    /* returns the NID of message digest used by the ctx */
+    int wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx)
+    {
+        const struct s_ent *ent;
 
-    /* returns the type of message digest used by the ctx */
-    int wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx) {
         WOLFSSL_ENTER("EVP_MD_CTX_type");
-        return ctx->macType;
+
+        if (ctx) {
+            if (ctx->isHMAC) {
+                return NID_hmac;
+            }
+
+            for(ent = md_tbl; ent->name != NULL; ent++) {
+                if (ctx->macType == ent->macType) {
+                    return ent->nid;
+                }
+            }
+            /* Return whatever we got */
+            return ctx->macType;
+        }
+        return 0;
     }
 
 
@@ -3213,84 +3390,104 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     static int wolfSSL_EVP_MD_Copy_Hasher(WOLFSSL_EVP_MD_CTX* des,
             const WOLFSSL_EVP_MD_CTX* src)
     {
-        if (src->macType == NID_hmac) {
-            wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
+        int ret;
+        if (src->isHMAC) {
+            ret = wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
         }
         else {
-            int macType = wolfSSL_EVP_md2macType(EVP_MD_CTX_md(src));
-            switch (macType) {
-            #ifndef NO_MD5
+            switch (src->macType) {
                 case WC_HASH_TYPE_MD5:
-                    wc_Md5Copy((wc_Md5*)&src->hash.digest,
+            #ifndef NO_MD5
+                    ret = wc_Md5Copy((wc_Md5*)&src->hash.digest,
                             (wc_Md5*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* !NO_MD5 */
-
-            #ifndef NO_SHA
+                    break;
                 case WC_HASH_TYPE_SHA:
-                    wc_ShaCopy((wc_Sha*)&src->hash.digest,
+            #ifndef NO_SHA
+                    ret = wc_ShaCopy((wc_Sha*)&src->hash.digest,
                             (wc_Sha*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* !NO_SHA */
-
-            #ifdef WOLFSSL_SHA224
+                    break;
                 case WC_HASH_TYPE_SHA224:
-                    wc_Sha224Copy((wc_Sha224*)&src->hash.digest,
+            #ifdef WOLFSSL_SHA224
+                    ret = wc_Sha224Copy((wc_Sha224*)&src->hash.digest,
                             (wc_Sha224*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* WOLFSSL_SHA224 */
-
-            #ifndef NO_SHA256
+                    break;
                 case WC_HASH_TYPE_SHA256:
-                    wc_Sha256Copy((wc_Sha256*)&src->hash.digest,
+            #ifndef NO_SHA256
+                    ret = wc_Sha256Copy((wc_Sha256*)&src->hash.digest,
                             (wc_Sha256*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* !NO_SHA256 */
-
-            #ifdef WOLFSSL_SHA384
+                    break;
                 case WC_HASH_TYPE_SHA384:
-                    wc_Sha384Copy((wc_Sha384*)&src->hash.digest,
+            #ifdef WOLFSSL_SHA384
+                    ret = wc_Sha384Copy((wc_Sha384*)&src->hash.digest,
                             (wc_Sha384*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* WOLFSSL_SHA384 */
-            #ifdef WOLFSSL_SHA512
+                    break;
                 case WC_HASH_TYPE_SHA512:
-                    wc_Sha512Copy((wc_Sha512*)&src->hash.digest,
+            #ifdef WOLFSSL_SHA512
+                    ret = wc_Sha512Copy((wc_Sha512*)&src->hash.digest,
                         (wc_Sha512*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif /* WOLFSSL_SHA512 */
-        #ifdef WOLFSSL_SHA3
-            #ifndef WOLFSSL_NOSHA3_224
+                    break;
                 case WC_HASH_TYPE_SHA3_224:
-                    wc_Sha3_224_Copy((wc_Sha3*)&src->hash.digest,
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                    ret = wc_Sha3_224_Copy((wc_Sha3*)&src->hash.digest,
                             (wc_Sha3*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif
-
-            #ifndef WOLFSSL_NOSHA3_256
+                    break;
                 case WC_HASH_TYPE_SHA3_256:
-                    wc_Sha3_256_Copy((wc_Sha3*)&src->hash.digest,
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                    ret = wc_Sha3_256_Copy((wc_Sha3*)&src->hash.digest,
                             (wc_Sha3*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif
-
+                    break;
                 case WC_HASH_TYPE_SHA3_384:
-                    wc_Sha3_384_Copy((wc_Sha3*)&src->hash.digest,
+            #if defined(WOLFSSL_SHA3)
+                    ret = wc_Sha3_384_Copy((wc_Sha3*)&src->hash.digest,
                             (wc_Sha3*)&des->hash.digest);
-                    break;
-
-            #ifndef WOLFSSL_NOSHA3_512
-                case WC_HASH_TYPE_SHA3_512:
-                    wc_Sha3_512_Copy((wc_Sha3*)&src->hash.digest,
-                        (wc_Sha3*)&des->hash.digest);
-                    break;
+            #else
+                    ret = NOT_COMPILED_IN;
             #endif
-        #endif
+                    break;
+                case WC_HASH_TYPE_SHA3_512:
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                    ret = wc_Sha3_512_Copy((wc_Sha3*)&src->hash.digest,
+                        (wc_Sha3*)&des->hash.digest);
+            #else
+                    ret = NOT_COMPILED_IN;
+            #endif
+                    break;
+                case WC_HASH_TYPE_NONE:
+                case WC_HASH_TYPE_MD2:
+                case WC_HASH_TYPE_MD4:
+                case WC_HASH_TYPE_MD5_SHA:
+                case WC_HASH_TYPE_BLAKE2B:
+                case WC_HASH_TYPE_BLAKE2S:
                 default:
-                    return WOLFSSL_FAILURE;
+                    ret = BAD_FUNC_ARG;
+                    break;
             }
         }
-        return WOLFSSL_SUCCESS;
+        return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
     /* copies structure in to the structure out
@@ -3321,8 +3518,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx == NULL)
             return NULL;
         WOLFSSL_ENTER("EVP_MD_CTX_md");
+        if (ctx->isHMAC) {
+            return "HMAC";
+        }
         for(ent = md_tbl; ent->name != NULL; ent++) {
-            if(ctx->macType == ent->nid) {
+            if(ctx->macType == ent->macType) {
                 return (const WOLFSSL_EVP_MD *)ent->name;
             }
         }
@@ -3672,80 +3872,80 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
+        int ret = WOLFSSL_SUCCESS;
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
         if (ctx->pctx != NULL)
             wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
 
-        if (ctx->macType == NID_hmac) {
+        if (ctx->isHMAC) {
             wc_HmacFree(&ctx->hash.hmac);
         }
         else {
-            int macType = wolfSSL_EVP_md2macType(EVP_MD_CTX_md(ctx));
-            switch (macType) {
-            #ifndef NO_MD5
+            switch (ctx->macType) {
                 case WC_HASH_TYPE_MD5:
+            #ifndef NO_MD5
                     wc_Md5Free((wc_Md5*)&ctx->hash.digest);
-                    break;
             #endif /* !NO_MD5 */
-
-            #ifndef NO_SHA
+                    break;
                 case WC_HASH_TYPE_SHA:
+            #ifndef NO_SHA
                     wc_ShaFree((wc_Sha*)&ctx->hash.digest);
-                    break;
             #endif /* !NO_SHA */
-
-            #ifdef WOLFSSL_SHA224
+                    break;
                 case WC_HASH_TYPE_SHA224:
+            #ifdef WOLFSSL_SHA224
                     wc_Sha224Free((wc_Sha224*)&ctx->hash.digest);
-                    break;
             #endif /* WOLFSSL_SHA224 */
-
-            #ifndef NO_SHA256
+                    break;
                 case WC_HASH_TYPE_SHA256:
+            #ifndef NO_SHA256
                     wc_Sha256Free((wc_Sha256*)&ctx->hash.digest);
-                    break;
             #endif /* !NO_SHA256 */
-
-            #ifdef WOLFSSL_SHA384
+                    break;
                 case WC_HASH_TYPE_SHA384:
+            #ifdef WOLFSSL_SHA384
                     wc_Sha384Free((wc_Sha384*)&ctx->hash.digest);
-                    break;
             #endif /* WOLFSSL_SHA384 */
-            #ifdef WOLFSSL_SHA512
+                    break;
                 case WC_HASH_TYPE_SHA512:
+            #ifdef WOLFSSL_SHA512
                     wc_Sha512Free((wc_Sha512*)&ctx->hash.digest);
-                    break;
             #endif /* WOLFSSL_SHA512 */
-        #ifdef WOLFSSL_SHA3
-            #ifndef WOLFSSL_NOSHA3_224
+                    break;
                 case WC_HASH_TYPE_SHA3_224:
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
                     wc_Sha3_224_Free((wc_Sha3*)&ctx->hash.digest);
-                    break;
             #endif
-
-            #ifndef WOLFSSL_NOSHA3_256
+                    break;
                 case WC_HASH_TYPE_SHA3_256:
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
                     wc_Sha3_256_Free((wc_Sha3*)&ctx->hash.digest);
-                    break;
             #endif
-
+                    break;
                 case WC_HASH_TYPE_SHA3_384:
+            #if defined(WOLFSSL_SHA3)
                     wc_Sha3_384_Free((wc_Sha3*)&ctx->hash.digest);
-                    break;
-
-            #ifndef WOLFSSL_NOSHA3_512
-                case WC_HASH_TYPE_SHA3_512:
-                    wc_Sha3_512_Free((wc_Sha3*)&ctx->hash.digest);
-                    break;
             #endif
-        #endif
+                    break;
+                case WC_HASH_TYPE_SHA3_512:
+            #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                    wc_Sha3_512_Free((wc_Sha3*)&ctx->hash.digest);
+            #endif
+                    break;
+                case WC_HASH_TYPE_NONE:
+                case WC_HASH_TYPE_MD2:
+                case WC_HASH_TYPE_MD4:
+                case WC_HASH_TYPE_MD5_SHA:
+                case WC_HASH_TYPE_BLAKE2B:
+                case WC_HASH_TYPE_BLAKE2S:
                 default:
-                    return WOLFSSL_FAILURE;
+                    ret = WOLFSSL_FAILURE;
+                    break;
             }
         }
         ForceZero(ctx, sizeof(*ctx));
         ctx->macType = WC_HASH_TYPE_NONE;
-        return 1;
+        return ret;
     }
 
     void wolfSSL_EVP_CIPHER_CTX_init(WOLFSSL_EVP_CIPHER_CTX* ctx)
@@ -3833,7 +4033,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                         WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
                         ret = WOLFSSL_FAILURE;
                     }
-                    wc_FreeRng(&rng);
+
+                    if (wc_FreeRng(&rng) != 0) {
+                        WOLFSSL_MSG("wc_FreeRng failed");
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
                 }
                 break;
 #if !defined(_WIN32) && !defined(HAVE_FIPS)
@@ -3882,6 +4087,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx) {
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
+#ifdef HAVE_AESGCM
+            if (ctx->gcmDecryptBuffer) {
+                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmDecryptBuffer = NULL;
+            }
+            ctx->gcmDecryptBufferLen = 0;
+#endif
         }
 
         return WOLFSSL_SUCCESS;
@@ -3990,12 +4202,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
         if (ctx == NULL) {
             WOLFSSL_MSG("no ctx");
-            return 0;   /* failure */
+            return WOLFSSL_FAILURE;
         }
 
         if (type == NULL && ctx->cipherType == WOLFSSL_EVP_CIPH_TYPE_INIT) {
             WOLFSSL_MSG("no type set");
-            return 0;   /* failure */
+            return WOLFSSL_FAILURE;
         }
         if (ctx->cipherType == WOLFSSL_EVP_CIPH_TYPE_INIT){
             /* only first EVP_CipherInit invoke. ctx->cipherType is set below */
@@ -4030,12 +4242,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4055,12 +4267,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4081,19 +4293,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 0);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0){
                     WOLFSSL_MSG("wc_AesSetIV() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC */
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_GCM_TYPE ||
@@ -4107,18 +4321,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-            if (iv)
-                XMEMCPY(ctx->iv, iv, ctx->ivSz);
-            else
-                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+            if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
+                WOLFSSL_MSG("wc_AesGcmSetKey() failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+                WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
+                return WOLFSSL_FAILURE;
+            }
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key) {
-                ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
-                if (ret != 0)
-                    return ret;
-            }
         }
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
@@ -4133,18 +4345,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-            if (iv)
-                XMEMCPY(ctx->iv, iv, ctx->ivSz);
-            else
-                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+            if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
+                WOLFSSL_MSG("wc_AesGcmSetKey() failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+                WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
+                return WOLFSSL_FAILURE;
+            }
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key) {
-                ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
-                if (ret != 0)
-                    return ret;
-            }
         }
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
@@ -4159,23 +4369,20 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-            if (iv)
-                XMEMCPY(ctx->iv, iv, ctx->ivSz);
-            else
-                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+            if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
+                WOLFSSL_MSG("wc_AesGcmSetKey() failed");
+                return WOLFSSL_FAILURE;
+            }
+            if (iv && wc_AesGcmSetExtIV(&ctx->cipher.aes, iv, GCM_NONCE_MID_SZ)) {
+                WOLFSSL_MSG("wc_AesGcmSetExtIV() failed");
+                return WOLFSSL_FAILURE;
+            }
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (key) {
-                ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
-                if (ret != 0){
-                    WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
-                }
-            }
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
+#endif /*!HAVE_FIPS && !HAVE_SELFTEST ||(HAVE_FIPS_VERSION && HAVE_FIPS_VERSION >= 2)*/
 #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CTR_TYPE ||
@@ -4196,12 +4403,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                     AES_ENCRYPTION, 1);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4224,12 +4431,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                       AES_ENCRYPTION, 1);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4252,12 +4459,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                       AES_ENCRYPTION, 1);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_256 */
@@ -4278,7 +4485,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                       ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 1);
             }
             if (ret != 0)
-                return ret;
+                return WOLFSSL_FAILURE;
         }
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
@@ -4297,7 +4504,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                       ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 1);
             }
             if (ret != 0)
-                return ret;
+                return WOLFSSL_FAILURE;
         }
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
@@ -4316,7 +4523,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, 1);
             }
             if (ret != 0)
-                return ret;
+                return WOLFSSL_FAILURE;
         }
         #endif /* WOLFSSL_AES_256 */
     #ifdef WOLFSSL_AES_CFB
@@ -4335,12 +4542,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                         AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4359,12 +4566,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                             AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4384,14 +4591,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                             AES_ENCRYPTION, 0);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0){
                     WOLFSSL_MSG("wc_AesSetIV() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4411,12 +4618,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                         AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4435,12 +4642,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                             AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4460,14 +4667,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                             AES_ENCRYPTION, 0);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0){
                     WOLFSSL_MSG("wc_AesSetIV() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4487,12 +4694,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                         AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4511,12 +4718,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                             AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4536,14 +4743,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                             AES_ENCRYPTION, 0);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0){
                     WOLFSSL_MSG("wc_AesSetIV() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4565,12 +4772,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                         AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_128 */
@@ -4589,12 +4796,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                             AES_ENCRYPTION, 0);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         #endif /* WOLFSSL_AES_192 */
@@ -4614,14 +4821,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                             AES_ENCRYPTION, 0);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0){
                     WOLFSSL_MSG("wc_AesSetIV() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4653,7 +4860,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4683,7 +4890,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                         ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
-                    return ret;
+                    return WOLFSSL_FAILURE;
                 }
             }
         }
@@ -4707,7 +4914,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wc_Des_SetKey(&ctx->cipher.des, key, iv,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
 
             if (iv && key == NULL)
@@ -4729,7 +4936,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wc_Des_SetKey(&ctx->cipher.des, key, NULL,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
 #endif
@@ -4749,13 +4956,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wc_Des3_SetKey(&ctx->cipher.des3, key, iv,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
 
             if (iv && key == NULL) {
                 ret = wc_Des3_SetIV(&ctx->cipher.des3, iv);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
         else if (ctx->cipherType == DES_EDE3_ECB_TYPE ||
@@ -4773,7 +4980,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wc_Des3_SetKey(&ctx->cipher.des3, key, NULL,
                           ctx->enc ? DES_ENCRYPTION : DES_DECRYPTION);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
         }
 #endif /* NO_DES3 */
@@ -4808,7 +5015,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                     iv, ctx->enc ? IDEA_ENCRYPTION :
                                                    IDEA_DECRYPTION);
                 if (ret != 0)
-                    return ret;
+                    return WOLFSSL_FAILURE;
             }
 
             if (iv && key == NULL)
@@ -4833,7 +5040,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
-
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_CIPHER_CTX_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
@@ -4843,7 +5049,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         return 0;   /* failure */
     }
-
 
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -5135,7 +5340,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif
 
         /* Set to 0 if no match */
-        ctx->macType = wolfSSL_EVP_MD_type(md);
+        ctx->macType = wolfSSL_EVP_md2macType(md);
         if (XSTRNCMP(md, "SHA256", 6) == 0) {
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
@@ -5202,165 +5407,179 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
                                 size_t sz)
     {
-        int macType;
+        int ret = WOLFSSL_FAILURE;
+        enum wc_HashType macType;
 
         WOLFSSL_ENTER("EVP_DigestUpdate");
 
         macType = wolfSSL_EVP_md2macType(EVP_MD_CTX_md(ctx));
         switch (macType) {
-#ifndef NO_MD4
             case WC_HASH_TYPE_MD4:
+        #ifndef NO_MD4
                 wolfSSL_MD4_Update((MD4_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
+                ret = WOLFSSL_SUCCESS;
+        #endif
                 break;
-#endif
-#ifndef NO_MD5
             case WC_HASH_TYPE_MD5:
-                wolfSSL_MD5_Update((MD5_CTX*)&ctx->hash, data,
+        #ifndef NO_MD5
+                ret = wolfSSL_MD5_Update((MD5_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
+        #endif
                 break;
-#endif
-#ifndef NO_SHA
             case WC_HASH_TYPE_SHA:
-                wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
+        #ifndef NO_SHA
+                ret = wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
+        #endif
                 break;
-#endif
-#ifdef WOLFSSL_SHA224
             case WC_HASH_TYPE_SHA224:
-                wolfSSL_SHA224_Update((SHA224_CTX*)&ctx->hash, data,
+        #ifdef WOLFSSL_SHA224
+                ret = wolfSSL_SHA224_Update((SHA224_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
+        #endif
                 break;
-#endif
-#ifndef NO_SHA256
             case WC_HASH_TYPE_SHA256:
-                wolfSSL_SHA256_Update((SHA256_CTX*)&ctx->hash, data,
+        #ifndef NO_SHA256
+                ret = wolfSSL_SHA256_Update((SHA256_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
+        #endif /* !NO_SHA256 */
                 break;
-#endif /* !NO_SHA256 */
-#ifdef WOLFSSL_SHA384
             case WC_HASH_TYPE_SHA384:
-                wolfSSL_SHA384_Update((SHA384_CTX*)&ctx->hash, data,
+        #ifdef WOLFSSL_SHA384
+                ret = wolfSSL_SHA384_Update((SHA384_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
+        #endif
                 break;
-#endif
-#ifdef WOLFSSL_SHA512
             case WC_HASH_TYPE_SHA512:
-                wolfSSL_SHA512_Update((SHA512_CTX*)&ctx->hash, data,
+        #ifdef WOLFSSL_SHA512
+                ret = wolfSSL_SHA512_Update((SHA512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
+        #endif /* WOLFSSL_SHA512 */
                 break;
-#endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-        #ifndef WOLFSSL_NOSHA3_224
             case WC_HASH_TYPE_SHA3_224:
-                wolfSSL_SHA3_224_Update((SHA3_224_CTX*)&ctx->hash, data,
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                ret = wolfSSL_SHA3_224_Update((SHA3_224_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
-                break;
         #endif
-        #ifndef WOLFSSL_NOSHA3_256
+                break;
             case WC_HASH_TYPE_SHA3_256:
-                wolfSSL_SHA3_256_Update((SHA3_256_CTX*)&ctx->hash, data,
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                ret = wolfSSL_SHA3_256_Update((SHA3_256_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
-                break;
         #endif
-            case WC_HASH_TYPE_SHA3_384:
-                wolfSSL_SHA3_384_Update((SHA3_384_CTX*)&ctx->hash, data,
-                                     (unsigned long)sz);
                 break;
-        #ifndef WOLFSSL_NOSHA3_512
+            case WC_HASH_TYPE_SHA3_384:
+        #if defined(WOLFSSL_SHA3)
+                ret = wolfSSL_SHA3_384_Update((SHA3_384_CTX*)&ctx->hash, data,
+                                     (unsigned long)sz);
+        #endif
+                break;
             case WC_HASH_TYPE_SHA3_512:
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
                 wolfSSL_SHA3_512_Update((SHA3_512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
-                break;
         #endif
-    #endif
+                break;
+            case WC_HASH_TYPE_NONE:
+            case WC_HASH_TYPE_MD2:
+            case WC_HASH_TYPE_MD5_SHA:
+            case WC_HASH_TYPE_BLAKE2B:
+            case WC_HASH_TYPE_BLAKE2S:
             default:
                 return WOLFSSL_FAILURE;
         }
 
-        return WOLFSSL_SUCCESS;
+        return ret;
     }
 
     /* WOLFSSL_SUCCESS on ok */
     int wolfSSL_EVP_DigestFinal(WOLFSSL_EVP_MD_CTX* ctx, unsigned char* md,
                                unsigned int* s)
     {
-        int macType;
+        int ret = WOLFSSL_FAILURE;
+        enum wc_HashType macType;
 
         WOLFSSL_ENTER("EVP_DigestFinal");
         macType = wolfSSL_EVP_md2macType(EVP_MD_CTX_md(ctx));
         switch (macType) {
-#ifndef NO_MD4
             case WC_HASH_TYPE_MD4:
+        #ifndef NO_MD4
                 wolfSSL_MD4_Final(md, (MD4_CTX*)&ctx->hash);
                 if (s) *s = MD4_DIGEST_SIZE;
+                ret = WOLFSSL_SUCCESS;
+        #endif
                 break;
-#endif
-#ifndef NO_MD5
             case WC_HASH_TYPE_MD5:
-                wolfSSL_MD5_Final(md, (MD5_CTX*)&ctx->hash);
+        #ifndef NO_MD5
+                ret = wolfSSL_MD5_Final(md, (MD5_CTX*)&ctx->hash);
                 if (s) *s = WC_MD5_DIGEST_SIZE;
+        #endif
                 break;
-#endif
-#ifndef NO_SHA
             case WC_HASH_TYPE_SHA:
-                wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
+        #ifndef NO_SHA
+                ret = wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA_DIGEST_SIZE;
+        #endif
                 break;
-#endif
-#ifdef WOLFSSL_SHA224
             case WC_HASH_TYPE_SHA224:
-                wolfSSL_SHA224_Final(md, (SHA224_CTX*)&ctx->hash);
+        #ifdef WOLFSSL_SHA224
+                ret = wolfSSL_SHA224_Final(md, (SHA224_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA224_DIGEST_SIZE;
+        #endif
                 break;
-#endif
-#ifndef NO_SHA256
             case WC_HASH_TYPE_SHA256:
-                wolfSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
+        #ifndef NO_SHA256
+                ret = wolfSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA256_DIGEST_SIZE;
+        #endif /* !NO_SHA256 */
                 break;
-#endif /* !NO_SHA256 */
-#ifdef WOLFSSL_SHA384
             case WC_HASH_TYPE_SHA384:
-                wolfSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
+        #ifdef WOLFSSL_SHA384
+                ret = wolfSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA384_DIGEST_SIZE;
+        #endif
                 break;
-#endif
-#ifdef WOLFSSL_SHA512
             case WC_HASH_TYPE_SHA512:
-                wolfSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
+        #ifdef WOLFSSL_SHA512
+                ret = wolfSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA512_DIGEST_SIZE;
+        #endif /* WOLFSSL_SHA512 */
                 break;
-#endif /* WOLFSSL_SHA512 */
-    #ifdef WOLFSSL_SHA3
-        #ifndef WOLFSSL_NOSHA3_224
             case WC_HASH_TYPE_SHA3_224:
-                wolfSSL_SHA3_224_Final(md, (SHA3_224_CTX*)&ctx->hash);
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+                ret = wolfSSL_SHA3_224_Final(md, (SHA3_224_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA3_224_DIGEST_SIZE;
-                break;
         #endif
-        #ifndef WOLFSSL_NOSHA3_256
+                break;
             case WC_HASH_TYPE_SHA3_256:
-                wolfSSL_SHA3_256_Final(md, (SHA3_256_CTX*)&ctx->hash);
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+                ret = wolfSSL_SHA3_256_Final(md, (SHA3_256_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA3_256_DIGEST_SIZE;
-                break;
         #endif
+                break;
             case WC_HASH_TYPE_SHA3_384:
-                wolfSSL_SHA3_384_Final(md, (SHA3_384_CTX*)&ctx->hash);
+        #if defined(WOLFSSL_SHA3)
+                ret = wolfSSL_SHA3_384_Final(md, (SHA3_384_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA3_384_DIGEST_SIZE;
-                break;
-        #ifndef WOLFSSL_NOSHA3_512
-            case WC_HASH_TYPE_SHA3_512:
-                wolfSSL_SHA3_512_Final(md, (SHA3_512_CTX*)&ctx->hash);
-                if (s) *s = WC_SHA3_512_DIGEST_SIZE;
-                break;
         #endif
-    #endif
+                break;
+            case WC_HASH_TYPE_SHA3_512:
+        #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+                ret = wolfSSL_SHA3_512_Final(md, (SHA3_512_CTX*)&ctx->hash);
+                if (s) *s = WC_SHA3_512_DIGEST_SIZE;
+        #endif
+                break;
+            case WC_HASH_TYPE_NONE:
+            case WC_HASH_TYPE_MD2:
+            case WC_HASH_TYPE_MD5_SHA:
+            case WC_HASH_TYPE_BLAKE2B:
+            case WC_HASH_TYPE_BLAKE2S:
             default:
                 return WOLFSSL_FAILURE;
         }
 
-        return WOLFSSL_SUCCESS;
+        return ret;
     }
 
     /* WOLFSSL_SUCCESS on ok */
@@ -5596,6 +5815,14 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     return WOLFSSL_SUCCESS;
 }
 
+WOLFSSL_DSA* wolfSSL_EVP_PKEY_get0_DSA(struct WOLFSSL_EVP_PKEY *pkey)
+{
+    if (!pkey) {
+        return NULL;
+    }
+    return pkey->dsa;
+}
+
 WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DSA* local;
@@ -5690,6 +5917,7 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* with set1 functions the pkey struct does not own the DH structure
  * Build the following DH Key format from the passed in WOLFSSL_DH
  * then store in WOLFSSL_EVP_PKEY in DER format.
@@ -5703,8 +5931,6 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     word32 derSz = 0;
     byte* derBuf = NULL;
     DhKey* dhkey = NULL;
-    mp_int pubKey;
-    mp_int privKey;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DH");
 
@@ -5726,11 +5952,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     dhkey = (DhKey*)key->internal;
 
-    pubKey  = dhkey->pub;
-    privKey = dhkey->priv;
-
-    havePublic  = mp_unsigned_bin_size(&pubKey)  > 0;
-    havePrivate = mp_unsigned_bin_size(&privKey) > 0;
+    havePublic  = mp_unsigned_bin_size(&dhkey->pub)  > 0;
+    havePrivate = mp_unsigned_bin_size(&dhkey->priv) > 0;
 
     /* Get size of DER buffer only */
     if (havePublic && !havePrivate) {
@@ -5768,19 +5991,22 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     }
 
     /* Store DH key into pkey (DER format) */
-    pkey->pkey.ptr = (char*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
-    if (pkey->pkey.ptr == NULL) {
-        WOLFSSL_MSG("key malloc failed");
-        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
+    pkey->pkey.ptr = (char*)derBuf;
     pkey->pkey_sz = derSz;
-    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
-    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
+WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
+{
+    if (!key) {
+        return NULL;
+    }
+    return key->dh;
+}
+
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DH* local = NULL;
@@ -5793,7 +6019,6 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
     }
 
     if (key->type == EVP_PKEY_DH) {
-
         local = wolfSSL_DH_new();
         if (local == NULL) {
             WOLFSSL_MSG("Error creating a new WOLFSSL_DH structure");
@@ -5815,6 +6040,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 
     return local;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* NO_DH && NO_FILESYSTEM */
 
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
@@ -6255,6 +6481,8 @@ int wolfSSL_EVP_PKEY_type(int type)
             return EVP_PKEY_DSA;
         case EVP_PKEY_EC:
             return EVP_PKEY_EC;
+        case EVP_PKEY_DH:
+            return EVP_PKEY_DH;
         default:
             return NID_undef;
     }
@@ -6358,18 +6586,19 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
 
 #endif /* OPENSSL_EXTRA */
 
-#ifdef OPENSSL_EXTRA_X509_SMALL
+#if defined(OPENSSL_EXTRA_X509_SMALL)
+/* Subset of OPENSSL_EXTRA for PKEY operations PKEY free is needed by the
+ * subset of X509 API */
 
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new(void){
     return wolfSSL_EVP_PKEY_new_ex(NULL);
 }
 
-
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
 {
     WOLFSSL_EVP_PKEY* pkey;
     int ret;
-    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new");
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_new_ex");
     pkey = (WOLFSSL_EVP_PKEY*)XMALLOC(sizeof(WOLFSSL_EVP_PKEY), heap,
             DYNAMIC_TYPE_PUBLIC_KEY);
     if (pkey != NULL) {
@@ -6430,14 +6659,14 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* NO_RSA */
 
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
                 case EVP_PKEY_EC:
                     if (key->ecc != NULL && key->ownEcc == 1) {
                         wolfSSL_EC_KEY_free(key->ecc);
                         key->ecc = NULL;
                     }
                     break;
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC && OPENSSL_EXTRA */
 
                 #ifndef NO_DSA
                 case EVP_PKEY_DSA:
