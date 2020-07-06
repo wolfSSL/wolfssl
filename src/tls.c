@@ -4118,8 +4118,10 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     ssl->options.haveDH = 0;
 
 
-    if ((ret = TLSX_PopulateSupportedGroups(ssl, &priority)) != WOLFSSL_SUCCESS)
+    if ((ret = TLSX_PopulateSupportedGroups(ssl, &priority)) != WOLFSSL_SUCCESS) {
+        TLSX_FreeAll(priority, ssl->heap);
         return ret;
+    }
     ret = 0;
 
     ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
