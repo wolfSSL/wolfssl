@@ -7428,7 +7428,7 @@ static int test_wc_Sha224Copy (void)
             flag = 0;
         }
      }
-     if (flag == 0) 
+     if (flag == 0) {
         flag = wc_Sha224Copy(NULL, &temp);
         if (flag == BAD_FUNC_ARG) {
             flag = 0;
