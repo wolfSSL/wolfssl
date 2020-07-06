@@ -180,7 +180,8 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz)
     int err = MP_OKAY;
     int i, j = 0, k;
 
-    if (inSz > SP_INT_DIGITS * (int)sizeof(a->dp[0])) {
+    /* Extra digit added to SP_INT_DIGITS to be used in calculations. */
+    if (inSz > (SP_INT_DIGITS - 1) * (int)sizeof(a->dp[0])) {
         err = MP_VAL;
     }
 
@@ -592,20 +593,26 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
 static int sp_lshb(sp_int* a, int n)
 {
     int i;
+    sp_digit v;
 
     if (n >= SP_WORD_SIZE) {
         sp_lshd(a, n / SP_WORD_SIZE);
         n %= SP_WORD_SIZE;
     }
 
-    if (n != 0) {
-        a->dp[a->used] = 0;
-        for (i = a->used - 1; i >= 0; i--) {
+    if ((n != 0) && (a->used != 0)) {
+        v = a->dp[a->used - 1] >> (SP_WORD_SIZE - n);
+        if (v != 0) {
+            a->dp[a->used] = v;
+        }
+        a->dp[a->used - 1] = a->dp[a->used - 1] << n;
+        for (i = a->used - 2; i >= 0; i--) {
             a->dp[i+1] |= a->dp[i] >> (SP_WORD_SIZE - n);
             a->dp[i] = a->dp[i] << n;
         }
-        if (a->dp[a->used] != 0)
+        if (v != 0) {
             a->used++;
+        }
     }
 
     return MP_OKAY;
@@ -986,7 +993,9 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
         r->dp[i] = b->dp[i] + c;
         c = (b->dp[i] != 0) && (r->dp[i] == 0);
     }
-    r->dp[i] = c;
+    if (c != 0) {
+        r->dp[i] = c;
+    }
     r->used = (int)(i + c);
 
     return MP_OKAY;
@@ -1183,7 +1192,8 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
     sp_int tr[1];
 #endif
 
-    if (a->used + b->used > SP_INT_DIGITS)
+    /* Need extra digit during calculation. */
+    if (a->used + b->used > (SP_INT_DIGITS - 1))
         err = MP_VAL;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1227,7 +1237,8 @@ static int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 
-    if (a->used * 2 > SP_INT_DIGITS)
+    /* Need extra digit during calculation. */
+    if (a->used * 2 > (SP_INT_DIGITS - 1))
         err = MP_VAL;
 
     if (err == MP_OKAY)
@@ -1257,7 +1268,8 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     sp_int t[1];
 #endif
 
-    if (a->used + b->used > SP_INT_DIGITS)
+    /* Need extra digit during calculation. */
+    if (a->used + b->used > (SP_INT_DIGITS - 1))
         err = MP_VAL;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1627,7 +1639,8 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         sp_set(r, 0);
         done = 1;
     }
-    else if (m->used * 2 > SP_INT_DIGITS) {
+    /* Ensure SP integers have space for intermediate values. */
+    else if (m->used * 2 > (SP_INT_DIGITS - 1)) {
         err = BAD_FUNC_ARG;
     }
 
