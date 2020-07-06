@@ -3176,7 +3176,7 @@ struct WOLFSSL_SESSION {
     byte               staticTicket[SESSION_TICKET_LEN];
     byte               isDynamic;
 #endif
-#ifdef HAVE_EXT_CACHE
+#if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
     byte               isAlloced;
 #endif
 #ifdef HAVE_EX_DATA

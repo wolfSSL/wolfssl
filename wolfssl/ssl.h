@@ -1155,6 +1155,7 @@ WOLFSSL_API void wolfSSL_set_accept_state(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_session_reused(WOLFSSL*);
 WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
+WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
 WOLFSSL_API int  wolfSSL_is_init_finished(WOLFSSL*);
 
