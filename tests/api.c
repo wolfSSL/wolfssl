@@ -6509,14 +6509,13 @@ static int test_wc_Sha256GetFlags (void)
     
     /* Initialize */
     flag = wc_InitSha256(&sha256);
-    if ( flag == 0){
+    if (flag == 0) {
         flag = wc_Sha256GetFlags(&sha256, &flags);
     }
-    if (flag == 0){
-        if (flags & WC_HASH_FLAG_ISCOPY){
+    if (flag == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
             flag = 0;
         }
-
     }
     
     wc_Sha256Free(&sha256);
@@ -6559,25 +6558,25 @@ static int test_wc_Sha256GetHash (void)
     /* Initialize */
     flag = wc_InitSha256(&sha256);
     
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_Sha256GetHash(&sha256, hash1);
     }
     /*test bad arguements*/
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256GetHash(NULL, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256GetHash(NULL, hash1);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256GetHash(&sha256, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
@@ -6604,32 +6603,31 @@ static int test_wc_Sha256Copy (void)
     
     /* Initialize */
     flag = wc_InitSha256(&sha256);
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_InitSha256(&temp);
     }
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_Sha256Copy(&sha256, &temp);
     }
     /*test bad arguements*/
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256Copy(NULL, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) { 
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256Copy(NULL, &temp);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha256Copy(&sha256, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
     }
-    
 
     wc_Sha256Free(&sha256);
     wc_Sha256Free(&temp);    
@@ -7286,17 +7284,15 @@ static int test_wc_Sha224SetFlags (void)
     
     /* Initialize */
     flag = wc_InitSha224(&sha224);
-    if ( flag == 0){
+    if (flag == 0) {
         flag = wc_Sha224SetFlags(&sha224, flags);
     }
-    if (flag == 0){
-        if (flags & WC_HASH_FLAG_ISCOPY){
+    if (flag == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
             flag = 0;
         }
-
     }
     
-
     wc_Sha224Free(&sha224);
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -7320,11 +7316,11 @@ static int test_wc_Sha224GetFlags (void)
     
     /* Initialize */
     flag = wc_InitSha224(&sha224);
-    if ( flag == 0){
+    if (flag == 0) {
         flag = wc_Sha224GetFlags(&sha224, &flags);
     }
-    if (flag == 0){
-        if (flags & WC_HASH_FLAG_ISCOPY){
+    if (flag == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
             flag = 0;
         }
     }
@@ -7373,25 +7369,25 @@ static int test_wc_Sha224GetHash (void)
     /* Initialize */
     flag = wc_InitSha224(&sha224);
     
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_Sha224GetHash(&sha224, hash1);
     }
     /*test bad arguements*/
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha224GetHash(NULL, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha224GetHash(NULL, hash1);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha224GetHash(&sha224, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
     }
@@ -7419,28 +7415,28 @@ static int test_wc_Sha224Copy (void)
     
     /* Initialize */
     flag = wc_InitSha224(&sha224);
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_InitSha224(&temp);
     }
-    if (flag == 0){
+    if (flag == 0) {
         flag = wc_Sha224Copy(&sha224, &temp);
     }
     /*test bad arguements*/
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha224Copy(NULL, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) 
         flag = wc_Sha224Copy(NULL, &temp);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
      }
-     if (flag == 0){
+     if (flag == 0) {
         flag = wc_Sha224Copy(&sha224, NULL);
-        if (flag == BAD_FUNC_ARG){
+        if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
     }
@@ -16500,7 +16496,7 @@ static int test_wc_curve25519_export_public_ex (void)
     if (ret == 0) {
     
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve25519_export_public(&key, out, &outLen);
             }        
         if (ret == 0) {
@@ -16572,10 +16568,10 @@ static int test_wc_curve25519_import_private_raw_ex (void)
     if (ret == 0) {
     
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve25519_export_private_raw_ex(&key, priv, &privSz, endian);
         }
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve25519_export_public(&key, pub, &pubSz);
         }        
         if (ret == 0) {
@@ -16661,11 +16657,11 @@ static int test_wc_curve25519_import_private (void)
     if (ret == 0) {
     
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve25519_export_private_raw(&key, priv, &privSz);
         }
     }
-    if (ret == 0){
+    if (ret == 0) {
         ret = wc_curve25519_import_private(priv, privSz, &key);
     }    
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -17557,15 +17553,15 @@ static int test_wc_curve448_shared_secret_ex (void)
     ret = wc_curve448_init(&private_key);
     if (ret == 0) {
         ret = wc_InitRng(&rng); 
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &private_key);
         }  
     }
-    if (ret == 0){
+    if (ret == 0) {
         ret = wc_curve448_init(&public_key);
     }
     if (ret == 0) {
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &public_key);
         }
     }
@@ -17880,10 +17876,10 @@ static int test_wc_curve448_export_key_raw (void)
     if (ret == 0) {
     
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
         }
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve448_export_public(&key, pub, &pubSz);
             }        
         if (ret == 0) {
@@ -17922,11 +17918,11 @@ static int test_wc_curve448_import_private (void)
     if (ret == 0) {
     
         ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &key);
-        if (ret == 0){
+        if (ret == 0) {
             ret = wc_curve448_export_private_raw(&key, priv, &privSz);
         }
     }
-    if (ret == 0){
+    if (ret == 0) {
         ret = wc_curve448_import_private(priv, privSz, &key);
     }    
     printf(resultFmt, ret == 0 ? passed : failed);
