@@ -23340,6 +23340,15 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
     return wolfSSL_sk_dup(ref);
 }
 
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_X509_STORE_CTX *wolfSSL_X509_STORE_CTX_get0_parent_ctx(
+                                                   WOLFSSL_X509_STORE_CTX *ctx)
+{
+    (void)ctx;
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get0_parent_ctx");
+    return NULL;
+}
+#endif
 
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
@@ -42847,6 +42856,26 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 }
 #endif /* !NO_BIO */
 
+int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
+        int indent, unsigned long flags)
+{
+    WOLFSSL_BIO* bio;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex_fp");
+
+    if (!(bio = wolfSSL_BIO_new_fp(file, BIO_NOCLOSE))) {
+        WOLFSSL_MSG("wolfSSL_BIO_new_fp error");
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_X509_NAME_print_ex(bio, name, indent, flags);
+
+    wolfSSL_BIO_free(bio);
+
+    return ret;
+}
+
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(const WOLFSSL_X509* x)
 {
@@ -48479,6 +48508,45 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
+                               WOLFSSL_BIO* out)
+{
+    byte output[4096];
+    int len;
+    PKCS7* p7;
+
+    WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
+
+    if (!pkcs7 || !certs || !out) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    p7 = &((WOLFSSL_PKCS7*)pkcs7)->pkcs7;
+
+    /* Add the certs to the PKCS7 struct */
+    while (certs) {
+        if (wc_PKCS7_AddCertificate(p7, certs->data.x509->derCert->buffer,
+                certs->data.x509->derCert->length) != 0) {
+            WOLFSSL_MSG("wc_PKCS7_AddCertificate error");
+            return WOLFSSL_FAILURE;
+        }
+        certs = certs->next;
+    }
+
+    if ((len = wc_PKCS7_EncodeSignedData(p7, output, sizeof(output))) < 0) {
+        WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(out, output, len) <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_write error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 #endif /* !NO_BIO */
 
 WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
@@ -49244,6 +49312,11 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
     return WOLFSSL_SUCCESS;
 }
 
+int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
+                              WOLFSSL_EVP_MD_CTX* md_ctx)
+{
+    return wolfSSL_X509_REQ_sign(req, md_ctx->pctx->pkey, wolfSSL_EVP_MD_CTX_md(md_ctx));
+}
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,

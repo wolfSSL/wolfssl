@@ -4903,6 +4903,8 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         AssertNotNull(bio = BIO_new(BIO_s_mem()));
         AssertIntEQ(X509_NAME_print_ex(bio, name, 4,
                         (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)), WOLFSSL_SUCCESS);
+        AssertIntEQ(X509_NAME_print_ex_fp(stdout, name, 4,
+                        (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)), WOLFSSL_SUCCESS);
         BIO_free(bio);
 #endif
 #endif
@@ -36406,6 +36408,8 @@ static void test_X509_REQ(void)
     unsigned char* der = NULL;
 #endif
 #ifndef NO_RSA
+    EVP_MD_CTX *mctx = NULL;
+    EVP_PKEY_CTX *pkctx = NULL;
     #ifdef USE_CERT_BUFFERS_1024
     const unsigned char* rsaPriv = (const unsigned char*)client_key_der_1024;
     const unsigned char* rsaPub = (unsigned char*)client_keypub_der_1024;
@@ -36447,6 +36451,12 @@ static void test_X509_REQ(void)
     AssertIntEQ(i2d_X509_REQ(req, &der), 643);
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     der = NULL;
+
+    mctx = EVP_MD_CTX_new();
+    AssertIntEQ(EVP_DigestSignInit(mctx, &pkctx, EVP_sha256(), NULL, priv), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_REQ_sign_ctx(req, mctx), WOLFSSL_SUCCESS);
+
+    EVP_MD_CTX_free(mctx);
     X509_REQ_free(NULL);
     X509_REQ_free(req);
     EVP_PKEY_free(pub);

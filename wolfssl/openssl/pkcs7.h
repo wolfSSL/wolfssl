@@ -55,6 +55,8 @@ WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in,
 WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7);
 WOLFSSL_API int wolfSSL_PKCS7_verify(PKCS7* p7, WOLFSSL_STACK* certs,
     WOLFSSL_X509_STORE* store, WOLFSSL_BIO* in, WOLFSSL_BIO* out, int flags);
+WOLFSSL_API int wolfSSL_PKCS7_encode_certs(PKCS7* p7, WOLFSSL_STACK* certs,
+                                           WOLFSSL_BIO* out);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* p7,
     WOLFSSL_STACK* certs, int flags);
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7);
