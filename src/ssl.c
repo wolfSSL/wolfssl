@@ -43238,6 +43238,7 @@ int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
@@ -43448,6 +43449,45 @@ int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
         return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
 }
+
+
+int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
+        unsigned int flags)
+{
+    int ret = WOLFSSL_SUCCESS;
+    DecodedCert dCert;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_ip_asc");
+
+    /* flags not yet implemented */
+    (void)flags;
+
+    if ((x == NULL) || (x->derCert == NULL) || (ipasc == NULL)) {
+        WOLFSSL_MSG("Invalid parameter");
+        ret = WOLFSSL_FAILURE;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
+        ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+        if (ret != 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = CheckIPAddr(&dCert, ipasc);
+            if (ret != 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                ret = WOLFSSL_SUCCESS;
+            }
+        }
+        FreeDecodedCert(&dCert);
+    }
+
+    return ret;
+}
+
 
 int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 {

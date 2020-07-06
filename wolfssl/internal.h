@@ -1690,7 +1690,7 @@ WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
 #ifdef OPENSSL_EXTRA
-WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, char* ipasc);
+WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 #endif
 #endif
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
@@ -4244,7 +4244,7 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
                                 WOLFSSL_CRL* crl, int verify);
 
     #ifdef OPENSSL_EXTRA
-    WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, char *domainName,
+    WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
                                     size_t domainNameLen);
     #endif
 #endif
