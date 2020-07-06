@@ -42865,3 +42865,7 @@ _sp_384_mul_d_avx2_6:
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* WOLFSSL_SP_384 */
+
+#if defined(__linux__) && defined(__ELF__)
+.section	.note.GNU-stack,"",%progbits
+#endif
