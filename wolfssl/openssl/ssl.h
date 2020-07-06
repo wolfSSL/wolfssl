@@ -378,6 +378,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_new                    wolfSSL_X509_REQ_new
 #define X509_REQ_free                   wolfSSL_X509_REQ_free
 #define X509_REQ_sign                   wolfSSL_X509_REQ_sign
+#define X509_REQ_sign_ctx               wolfSSL_X509_REQ_sign_ctx
 #define X509_REQ_add_extensions         wolfSSL_X509_REQ_add_extensions
 #define X509_REQ_add1_attr_by_NID       wolfSSL_X509_REQ_add1_attr_by_NID
 #define X509_REQ_set_subject_name       wolfSSL_X509_REQ_set_subject_name
@@ -397,7 +398,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_issuer_name_hash           wolfSSL_X509_issuer_name_hash
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
-#define X509_subject_name_hash          wolfSSL_X509_subject_name_hash
+#define X509_REQ_get_subject_name       wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
 #define X509_get0_pubkey                wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
@@ -421,6 +422,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_set_notBefore              wolfSSL_X509_set_notBefore
 #define X509_set_serialNumber           wolfSSL_X509_set_serialNumber
 #define X509_set_version                wolfSSL_X509_set_version
+#define X509_REQ_set_version            wolfSSL_X509_set_version
 #define X509_sign                       wolfSSL_X509_sign
 #define X509_print                      wolfSSL_X509_print
 #define X509_print_ex                   wolfSSL_X509_print_ex
@@ -485,6 +487,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_NAME_oneline               wolfSSL_X509_NAME_oneline
 #define X509_NAME_get_index_by_NID      wolfSSL_X509_NAME_get_index_by_NID
 #define X509_NAME_print_ex              wolfSSL_X509_NAME_print_ex
+#define X509_NAME_print_ex_fp           wolfSSL_X509_NAME_print_ex_fp
 #define X509_NAME_digest                wolfSSL_X509_NAME_digest
 #define X509_cmp_current_time           wolfSSL_X509_cmp_current_time
 #define X509_cmp_time                   wolfSSL_X509_cmp_time
@@ -525,6 +528,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
 #define X509_STORE_CTX_get1_chain       wolfSSL_X509_STORE_CTX_get1_chain
+#define X509_STORE_CTX_get0_parent_ctx  wolfSSL_X509_STORE_CTX_get0_parent_ctx
 #define X509_STORE_CTX_get_error        wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
 #define X509_STORE_CTX_init             wolfSSL_X509_STORE_CTX_init
