@@ -721,16 +721,22 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     bSz = 128 * blockSize;
     blocksSz = bSz * parallel;
     blocks = (byte*)XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (blocks == NULL)
+    if (blocks == NULL) {
+        ret = MEMORY_E;
         goto end;
+    }
     /* Temporary for scryptROMix. */
     v = (byte*)XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (v == NULL)
+    if (v == NULL) {
+        ret = MEMORY_E;
         goto end;
+    }
     /* Temporary for scryptBlockMix. */
     y = (byte*)XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (y == NULL)
+    if (y == NULL) {
+        ret = MEMORY_E;
         goto end;
+    }
 
     /* Step 1. */
     ret = wc_PBKDF2(blocks, passwd, passLen, salt, saltLen, 1, blocksSz,
