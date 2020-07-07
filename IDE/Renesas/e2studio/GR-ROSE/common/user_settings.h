@@ -80,7 +80,6 @@
   #define CURVE25519_SMALL
   #define HAVE_ED25519
 
-  #define WC_RSA_BLINDING
   #define WOLFSSL_STATIC_RSA
 
   
@@ -94,6 +93,15 @@
   #define min(data1, data2)                _builtin_min(data1, data2)
 #endif
 
+ /* 
+  * -- "NO_ASN_TIME" macro is to avoid certificate expiration validation --
+  *  
+  * Note. In your actual products, do not forget to comment-out 
+  * "NO_ASN_TIME" macro. And prepare time function to get calender time,
+  * otherwise, certificate expiration validation will not work.  
+  */
+  #define NO_ASN_TIME
+  
   #define NO_MAIN_DRIVER
   #define BENCH_EMBEDDED
   #define NO_WOLFSSL_DIR 
@@ -113,6 +121,7 @@
   #define USE_WOLF_TIMEVAL_T
 
   #define WOLFSSL_USER_CURRTIME /* for benchmark */
+  #define WC_RSA_BLINDING
   #define TFM_TIMING_RESISTANT
   #define ECC_TIMING_RESISTANT
 
