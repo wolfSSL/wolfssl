@@ -23454,9 +23454,6 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
         ret = wolfSSL_CertManagerEnableCRL(store->cm, (int)flag);
     }
 
-    (void)store;
-    (void)flag;
-
     return ret;
 }
 
@@ -26015,6 +26012,41 @@ WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
 }
 #endif
 
+WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
+                                             const unsigned char **der,
+                                             long length)
+{
+    const unsigned char *d;
+    long len;
+    int tag, class;
+    WOLFSSL_ASN1_OBJECT* ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_ASN1_OBJECT");
+
+    if (!der || !*der || length <= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    d = *der;
+
+    if (wolfSSL_ASN1_get_object(&d, &len, &tag, &class, length) & 0x80) {
+        WOLFSSL_MSG("wolfSSL_ASN1_get_object error");
+        return NULL;
+    }
+    /* d now points to value */
+
+    if (tag != ASN_OBJECT_ID) {
+        WOLFSSL_MSG("Not an ASN object");
+        return NULL;
+    }
+
+    ret = wolfSSL_c2i_ASN1_OBJECT(a, &d, len);
+    if (ret)
+        *der = d;
+    return ret;
+}
+
 /**
  * Parse an ASN1 encoded input and output information about the parsed object
  * @param in    ASN1 encoded data. *in is moved to the value of the ASN1 object
@@ -26066,20 +26098,40 @@ int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
     return ret;
 }
 
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
         const unsigned char **pp, long len)
 {
-    (void)a;
-    (void)pp;
-    (void)len;
+    WOLFSSL_ASN1_OBJECT* ret = NULL;
 
     WOLFSSL_ENTER("wolfSSL_c2i_ASN1_OBJECT");
-    WOLFSSL_STUB("c2i_ASN1_OBJECT");
 
-    return NULL;
+    if (!pp || !*pp || len <= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    if (!(ret = wolfSSL_ASN1_OBJECT_new())) {
+        WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new error");
+        return NULL;
+    }
+
+    ret->obj = (const unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
+    if (!ret->obj) {
+        WOLFSSL_MSG("error allocating asn data memory");
+        wolfSSL_ASN1_OBJECT_free(ret);
+        return NULL;
+    }
+
+    XMEMCPY((byte*)ret->obj, *pp, len);
+    ret->objSz = len;
+    ret->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+
+    *pp += len;
+
+    if (a)
+        *a = ret;
+    return ret;
 }
-#endif
 
 #ifndef NO_BIO
 /* Return number of bytes written to BIO on success. 0 on failure. */
@@ -48362,8 +48414,10 @@ PKCS7* wolfSSL_PKCS7_new(void)
         ret = wc_PKCS7_Init(&pkcs7->pkcs7, NULL, INVALID_DEVID);
     }
 
-    if (ret != 0 && pkcs7 != NULL)
+    if (ret != 0 && pkcs7 != NULL) {
         XFREE(pkcs7, NULL, DYNAMIC_TYPE_PKCS7);
+        pkcs7 = NULL;
+    }
 
     return (PKCS7*)pkcs7;
 }
@@ -48398,6 +48452,8 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
         if (p7->data != NULL)
             XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_Free(&p7->pkcs7);
+        if (p7->certs)
+            wolfSSL_sk_free(p7->certs);
         XFREE(p7, NULL, DYNAMIC_TYPE_PKCS7);
     }
 }
@@ -48548,6 +48604,11 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 }
 
 #endif /* !NO_BIO */
+
+WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* p7)
+{
+
+}
 
 WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                                           int flags)

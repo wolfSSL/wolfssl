@@ -43,6 +43,7 @@ typedef struct WOLFSSL_PKCS7
     PKCS7 pkcs7;
     unsigned char* data;
     int len;
+    WOLFSSL_STACK* certs;
 } WOLFSSL_PKCS7;
 
 
@@ -57,6 +58,7 @@ WOLFSSL_API int wolfSSL_PKCS7_verify(PKCS7* p7, WOLFSSL_STACK* certs,
     WOLFSSL_X509_STORE* store, WOLFSSL_BIO* in, WOLFSSL_BIO* out, int flags);
 WOLFSSL_API int wolfSSL_PKCS7_encode_certs(PKCS7* p7, WOLFSSL_STACK* certs,
                                            WOLFSSL_BIO* out);
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* p7);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* p7,
     WOLFSSL_STACK* certs, int flags);
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7);

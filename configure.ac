@@ -4282,6 +4282,13 @@ then
         ENABLED_CERTREQ="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
     fi
+    
+    # Requires CRL
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+    fi
 fi
 
 # MD4
