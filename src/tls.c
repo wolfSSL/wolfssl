@@ -4288,7 +4288,11 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*           extension = NULL;
     SupportedCurve* curve     = NULL;
     word32          oid       = 0;
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
+                              defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
+                                (!defined(NO_RSA) && defined(WOLFSSL_STATIC_DH))
     word32          pkOid     = 0;
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || (!NO_RSA && STATIC_DH) */
     word32          defOid    = 0;
     word32          defSz     = 80; /* Maximum known curve size is 66. */
     word32          nextOid   = 0;
@@ -4300,7 +4304,21 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     int             key       = 0; /* validate key       */
 
     (void)oid;
+    (void)pkOid;
 
+    if (first == CHACHA_BYTE) {
+        switch (second) {
+            case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+            case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256:
+            case TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256:
+            case TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+                return 1; /* no suite restriction */
+            case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+            case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256:
+            case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256:
+                break;
+        }
+    }
     if (first == ECC_BYTE || first == CHACHA_BYTE)
         extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
     if (!extension)
@@ -4379,7 +4397,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         #endif /* !NO_ECC_SECP */
     #endif /* !NO_ECC256 || HAVE_ALL_CURVES */
 #endif
-        #ifdef HAVE_CURVE25519
+        #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
             case WOLFSSL_ECC_X25519:
                 oid = ECC_X25519_OID;
             #ifdef HAVE_ED25519
@@ -4406,7 +4424,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
 #endif
-        #ifdef HAVE_CURVE448
+        #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
             case WOLFSSL_ECC_X448:
                 oid = ECC_X448_OID;
             #ifdef HAVE_ED448
@@ -4482,6 +4500,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
 
         if (first == ECC_BYTE) {
             switch (second) {
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
                 /* ECDHE_ECDSA */
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
@@ -4498,7 +4517,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     ephmSuite = 1;
                 break;
 
-#ifdef WOLFSSL_STATIC_DH
+    #ifdef WOLFSSL_STATIC_DH
                 /* ECDH_ECDSA */
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
@@ -4519,7 +4538,8 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->pkCurveOID == oid;
                 break;
-#endif /* WOLFSSL_STATIC_DH */
+    #endif /* WOLFSSL_STATIC_DH */
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
 #ifndef NO_RSA
                 /* ECDHE_RSA */
                 case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
@@ -4535,7 +4555,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     ephmSuite = 1;
                 break;
 
-#ifdef WOLFSSL_STATIC_DH
+    #ifdef WOLFSSL_STATIC_DH
                 /* ECDH_RSA */
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
                 case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
@@ -4556,7 +4576,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     sig = 1;
                     key |= ssl->pkCurveOID == pkOid;
                 break;
-#endif /* WOLFSSL_STATIC_DH */
+    #endif /* WOLFSSL_STATIC_DH */
 #endif
                 default:
                     if (oid == ECC_X25519_OID && defOid == oid) {
@@ -4578,6 +4598,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         /* ChaCha20-Poly1305 ECC cipher suites */
         if (first == CHACHA_BYTE) {
             switch (second) {
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
                 /* ECDHE_ECDSA */
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
@@ -4585,6 +4606,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 */
 #ifndef NO_RSA
                 /* ECDHE_RSA */
                 case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
