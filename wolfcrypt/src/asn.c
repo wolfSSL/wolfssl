@@ -841,8 +841,18 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
         return ASN_PARSE_E;
 
     if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+        int ret;
+
         *inOutIdx = ++idx;  /* skip header */
-        return GetMyVersion(input, inOutIdx, version, maxIdx);
+        ret = GetMyVersion(input, inOutIdx, version, maxIdx);
+        if (ret >= 0) {
+            /* check if version is expected value rfc 5280 4.1 {0, 1, 2} */
+            if (*version > MAX_X509_VERSION || *version < MIN_X509_VERSION) {
+                WOLFSSL_MSG("Unexpected certificate version");
+                ret = ASN_VERSION_E;
+            }
+        }
+        return ret;
     }
 
     /* go back as is */

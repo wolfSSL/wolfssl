@@ -25982,6 +25982,18 @@ static void test_wolfSSL_X509_sign(void)
     XFCLOSE(tmpFile);
 #endif
 
+    /* test invalid version number */
+#if defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_ALT_NAMES
+    AssertIntEQ(X509_get_ext_count(x509), 1);
+    #endif
+    AssertIntNE(X509_set_version(x509, 6L), 0);
+    AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+
+    /* uses ParseCert which fails on bad version number */
+    AssertIntEQ(X509_get_ext_count(x509), SSL_FAILURE);
+#endif
+
 #ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 798 */
     AssertIntEQ(ret, 798);
