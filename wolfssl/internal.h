@@ -861,11 +861,13 @@
 
 #if defined(BUILD_TLS_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256) || \
     defined(BUILD_TLS_RSA_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384) || \
@@ -1168,7 +1170,8 @@ enum {
 #ifndef MAX_PSK_ID_LEN
     /* max psk identity/hint supported */
     #if defined(WOLFSSL_TLS13)
-        #define MAX_PSK_ID_LEN 256
+        /* OpenSSL has a 1472 byte sessiont ticket */
+        #define MAX_PSK_ID_LEN 1536
     #else
         #define MAX_PSK_ID_LEN 128
     #endif

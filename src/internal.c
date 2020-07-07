@@ -20980,14 +20980,14 @@ exit_dpk:
 /* Persistable DoServerKeyExchange arguments */
 typedef struct DskeArgs {
     byte*  output; /* not allocated */
-#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-                                                             defined(HAVE_ED448)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
     byte*  verifySig;
 #endif
     word32 idx;
     word32 begin;
-#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-                                                             defined(HAVE_ED448)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
     word16 verifySigSz;
 #endif
     word16 sigSz;
@@ -21005,8 +21005,8 @@ static void FreeDskeArgs(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
     (void)args;
 
-#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-                                                             defined(HAVE_ED448)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
     if (args->verifySig) {
         XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->verifySig = NULL;
@@ -21643,8 +21643,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) \
-                                                     && !defined(HAVE_ED448)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && \
+                            !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     enum wc_HashType hashType;
@@ -21816,8 +21816,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) \
-                                                     && !defined(HAVE_ED448)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && \
+                            !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     if (ssl->options.usingAnon_cipher) {
@@ -21990,8 +21990,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) \
-                                                     && !defined(HAVE_ED448)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && \
+                            !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     if (ssl->options.usingAnon_cipher) {
@@ -24835,7 +24835,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     typedef struct SskeArgs {
         byte*  output; /* not allocated */
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-                                           (!defined(NO_DH) && !defined(NO_RSA))
+                                                                !defined(NO_RSA)
         byte*  sigDataBuf;
     #endif
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
@@ -24850,7 +24850,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32 length;
         word32 sigSz;
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-                                           (!defined(NO_DH) && !defined(NO_RSA))
+                                                                !defined(NO_RSA)
         word32 sigDataSz;
     #endif
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
@@ -25994,8 +25994,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && !NO_PSK */
-                #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-                                                             defined(HAVE_ED448)
+                #if defined(HAVE_ECC)  || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
                     case ecc_diffie_hellman_kea:
                     {
                         /* Sign hash to create signature */
