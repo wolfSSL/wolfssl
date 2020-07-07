@@ -19737,9 +19737,18 @@ unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
     subjectName = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)x509);
 
     if (subjectName != NULL){
-        retHash = wc_ShaHash((const byte*)subjectName->name,
+#ifndef NO_MD5
+    	retHash =  wc_Md5Hash((const byte*)subjectName->name,
                              (word32)subjectName->sz, digest);
-
+#elif !defined(NO_SHA)
+    	retHash =  wc_ShaHash((const byte*)subjectName->name,
+                             (word32)subjectName->sz, digest);
+#elif !defined(NO_SHA256)
+    	retHash =  wc_Sha256Hash((const byte*)subjectName->name,
+                             (word32)subjectName->sz, digest);
+#else
+    #error "We need a digest to hash the session IDs"
+#endif
         if(retHash != 0){
             WOLFSSL_MSG("Hash of X509 subjectName has failed");
             return WOLFSSL_FAILURE;
@@ -20019,12 +20028,28 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return WOLFSSL_FATAL_ERROR;
         }
 
-        retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
+#ifndef NO_MD5
+        retHashA =  wc_Md5Hash(derA, (word32)outSzA, digestA);
+#elif !defined(NO_SHA)
+        retHashA =  wc_ShaHash(derA, (word32)outSzA, digestA);
+#elif !defined(NO_SHA256)
+        retHashA =  wc_Sha256Hash(derA, (word32)outSzA, digestA);
+#else
+    #error "We need a digest to hash the session IDs"
+#endif
         if(retHashA != 0){
             WOLFSSL_MSG("Hash of certificate A has failed");
             return WOLFSSL_FATAL_ERROR;
         }
-        retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
+#ifndef NO_MD5
+        retHashB =  wc_Md5Hash(derB, (word32)outSzB, digestB);
+#elif !defined(NO_SHA)
+        retHashB =  wc_ShaHash(derB, (word32)outSzB, digestB);
+#elif !defined(NO_SHA256)
+        retHashB =  wc_Sha256Hash(derB, (word32)outSzB, digestB);
+#else
+    #error "We need a digest to hash the session IDs"
+#endif
         if(retHashB != 0){
             WOLFSSL_MSG("Hash of certificate B has failed");
             return WOLFSSL_FATAL_ERROR;
