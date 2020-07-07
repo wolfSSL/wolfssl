@@ -9,6 +9,6 @@ EXTRA_DIST += \
 	     certs/external/baltimore-cybertrust-root.pem \
 	     certs/external/README.txt \
 	     certs/external/DigiCertGlobalRootCA.pem \
-	     certs/external/ca_collection..pem
+	     certs/external/ca_collection.pem
 
 
