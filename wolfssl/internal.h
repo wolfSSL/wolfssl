@@ -3156,6 +3156,8 @@ struct WOLFSSL_SESSION {
 #ifdef OPENSSL_EXTRA
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
+    wolfSSL_Mutex      refMutex;                  /* ref count mutex */
+    int                refCount;                  /* reference count */
 #endif
 #ifdef WOLFSSL_TLS13
     word16             namedGroup;
@@ -3176,7 +3178,7 @@ struct WOLFSSL_SESSION {
     byte               staticTicket[SESSION_TICKET_LEN];
     byte               isDynamic;
 #endif
-#ifdef HAVE_EXT_CACHE
+#if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
     byte               isAlloced;
 #endif
 #ifdef HAVE_EX_DATA

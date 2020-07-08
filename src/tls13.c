@@ -7032,7 +7032,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
                                                IsAtLeastTLSv1_3(ssl->version)) {
             ssl->options.cacheMessages = 0;
-            if (ssl->hsHashes->messages != NULL) {
+            if ((ssl->hsHashes != NULL) && (ssl->hsHashes->messages != NULL)) {
                 XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
                 ssl->hsHashes->messages = NULL;
             }
