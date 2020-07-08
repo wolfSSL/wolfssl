@@ -4250,6 +4250,8 @@ AC_ARG_ENABLE([libest],
     
 if test "$ENABLED_LIBEST" = "yes"
 then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+
     # Requires opensslextra and opensslall
     if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then

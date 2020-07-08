@@ -2087,7 +2087,7 @@ WOLFSSL_API int wolfSSL_ASN1_TIME_diff(int *pday, int *psec,
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t);
 #endif
 
-WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
+WOLFSSL_API int wolfSSL_sk_num(const WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
 #if (defined(HAVE_EX_DATA) || defined(FORTRESS)) && \
@@ -3403,6 +3403,7 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_ASN1(int pri, WOLFSSL_CTX* ctx,
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 WOLFSSL_API int wolfSSL_X509_cmp(const WOLFSSL_X509* a, const WOLFSSL_X509* b);
+WOLFSSL_API const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x, int loc);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x, int loc);
 WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex);
@@ -3565,6 +3566,8 @@ WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                                                   int nid, int type,
                                                   const unsigned char *bytes,
                                                   int len);
+WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
+        WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md);
 #endif
 
 
