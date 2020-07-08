@@ -358,6 +358,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define DSA_bits                        wolfSSL_DSA_bits
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
+#define i2d_X509_REQ_bio                wolfSSL_i2d_X509_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
 #define d2i_X509_REQ_bio                wolfSSL_d2i_X509_bio
 #define d2i_X509_fp                     wolfSSL_d2i_X509_fp
@@ -381,6 +382,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_sign_ctx               wolfSSL_X509_REQ_sign_ctx
 #define X509_REQ_add_extensions         wolfSSL_X509_REQ_add_extensions
 #define X509_REQ_add1_attr_by_NID       wolfSSL_X509_REQ_add1_attr_by_NID
+#define X509_to_X509_REQ                wolfSSL_X509_to_X509_REQ
 #define X509_REQ_set_subject_name       wolfSSL_X509_REQ_set_subject_name
 #define X509_REQ_set_pubkey             wolfSSL_X509_REQ_set_pubkey
 #define PEM_write_bio_X509_REQ          wolfSSL_PEM_write_bio_X509_REQ
@@ -393,6 +395,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509V3_EXT_i2d                  wolfSSL_X509V3_EXT_i2d
+#define X509_get0_extensions            wolfSSL_X509_get0_extensions
 #define X509_get_ext                    wolfSSL_X509_get_ext
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name

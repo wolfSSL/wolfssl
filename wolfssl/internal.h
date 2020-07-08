@@ -3685,6 +3685,7 @@ struct WOLFSSL_X509 {
 #endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
+    WOLFSSL_STACK* ext_sk_full; /* Store X509_EXTENSIONS from wolfSSL_X509_get0_extensions */
     WOLFSSL_STACK* ext_d2i;/* Store d2i extensions from wolfSSL_X509_get_ext_d2i */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)

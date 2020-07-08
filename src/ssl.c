@@ -8224,6 +8224,44 @@ int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos,
     return WOLFSSL_SUCCESS;
 }
 
+/**
+ * @param x Certificate to extract extensions from
+ * @return STACK_OF(X509_EXTENSION)*
+ */
+const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
+{
+    int numOfExt, i;
+    WOLFSSL_X509 *x509 = (WOLFSSL_X509*)x;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_X509_get0_extensions");
+
+    if (!x509) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    numOfExt = wolfSSL_X509_get_ext_count(x509);
+
+    if (numOfExt != wolfSSL_sk_num(x509->ext_sk_full)) {
+        wolfSSL_sk_free(x509->ext_sk_full);
+        x509->ext_sk_full = NULL;
+        /* Save x509->ext_sk */
+        tmp = x509->ext_sk;
+        x509->ext_sk = NULL;
+
+        for (i = 0; i < numOfExt; i++) {
+            /* Build the extension stack */
+            (void)wolfSSL_X509_set_ext(x509, i);
+        }
+
+        /* Restore */
+        x509->ext_sk_full = x509->ext_sk;
+        x509->ext_sk = tmp;
+    }
+
+    return x509->ext_sk_full;
+}
+
 /* Gets the X509_EXTENSION* ext based on it's location in WOLFSSL_X509* x509.
  *
  * x509   : The X509 structure to look for the extension.
@@ -27513,7 +27551,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-int wolfSSL_sk_num(WOLFSSL_STACK* sk)
+int wolfSSL_sk_num(const WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_num");
     if (sk == NULL)
@@ -48467,6 +48505,8 @@ PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
     WOLFSSL_PKCS7* pkcs7 = NULL;
     word32 idx = 0;
 
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS7");
+
     if (in == NULL)
         return NULL;
 
@@ -48498,6 +48538,8 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
 {
     WOLFSSL_PKCS7* pkcs7;
 
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS7_bio");
+
     if (bio == NULL)
         return NULL;
 
@@ -48516,9 +48558,37 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
         return NULL;
     }
 
+    if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len) != 0) {
+        return NULL;
+    }
+
     if (p7 != NULL)
         *p7 = (PKCS7*)pkcs7;
     return (PKCS7*)pkcs7;
+}
+
+int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
+{
+    byte output[4096];
+    int len;
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
+
+    if (!bio || !p7) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((len = wc_PKCS7_EncodeSignedData(p7, output, sizeof(output))) < 0) {
+        WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(bio, output, len) <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_write error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
@@ -48529,6 +48599,8 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     unsigned char* mem = NULL;
     int memSz = 0;
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+
+    WOLFSSL_ENTER("wolfSSL_PKCS7_verify");
 
     if (pkcs7 == NULL)
         return WOLFSSL_FAILURE;
@@ -48548,8 +48620,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
      */
     (void)store;
 
-    ret = wc_PKCS7_VerifySignedData_ex(&p7->pkcs7, NULL, 0, p7->data, p7->len,
-                                                                       NULL, 0);
+    ret = wc_PKCS7_VerifySignedData(&p7->pkcs7, p7->data, p7->len);
     if (ret != 0)
         return WOLFSSL_FAILURE;
 
@@ -48567,8 +48638,6 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                                WOLFSSL_BIO* out)
 {
-    byte output[4096];
-    int len;
     PKCS7* p7;
 
     WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
@@ -48590,24 +48659,51 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         certs = certs->next;
     }
 
-    if ((len = wc_PKCS7_EncodeSignedData(p7, output, sizeof(output))) < 0) {
-        WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
-        return WOLFSSL_FAILURE;
-    }
-
-    if (wolfSSL_BIO_write(out, output, len) <= 0) {
-        WOLFSSL_MSG("wolfSSL_BIO_write error");
-        return WOLFSSL_FAILURE;
-    }
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_i2d_PKCS7_bio(out, p7);
 }
-
 #endif /* !NO_BIO */
 
-WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* p7)
+WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
 {
+    int i;
+    WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
+    WOLF_STACK_OF(WOLFSSL_X509)* ret = NULL;
 
+    WOLFSSL_ENTER("wolfSSL_PKCS7_to_stack");
+
+    if (!p7) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_sk_X509_new();
+
+    for (i = 0; i < MAX_PKCS7_CERTS && p7->pkcs7.cert[i]; i++) {
+        WOLFSSL_X509* x509 = wolfSSL_X509_d2i(NULL, p7->pkcs7.cert[i], p7->pkcs7.certSz[i]);
+        if (x509) {
+            if (wolfSSL_sk_X509_push(ret, x509) != WOLFSSL_SUCCESS) {
+                wolfSSL_X509_free(x509);
+                WOLFSSL_MSG("wolfSSL_sk_X509_push error");
+                goto error;
+            }
+        }
+        else {
+            WOLFSSL_MSG("wolfSSL_X509_d2i error");
+            goto error;
+        }
+    }
+
+    /* Save stack to free later */
+    if (p7->certs)
+        wolfSSL_sk_free(p7->certs);
+    p7->certs = ret;
+
+    return ret;
+error:
+    if (ret) {
+        wolfSSL_sk_free(ret);
+    }
+    return NULL;
 }
 
 WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
@@ -49385,7 +49481,7 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
 {
     (void)req;
     (void)ext;
-    return WOLFSSL_FATAL_ERROR;
+    return WOLFSSL_FAILURE;
 }
 
 int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
@@ -49403,6 +49499,15 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     return WOLFSSL_FAILURE;
 }
 #endif
+
+WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
+        WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_to_X509_REQ");
+    (void)pkey;
+    (void)md;
+    return wolfSSL_X509_dup(x);
+}
 
 int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                       WOLFSSL_X509_NAME *name)

@@ -3432,6 +3432,9 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
         }
+        if (x509->ext_sk_full != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk_full);
+        }
         #endif /* OPENSSL_ALL || WOLFSSL_QT */
         #ifdef OPENSSL_EXTRA
         /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
