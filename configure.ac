@@ -3931,6 +3931,7 @@ then
         fi
 
         # w/ lighttpd 1.4.56 once wolfSSL updated to expose non-filesystem funcs
+        #AM_CFLAGS="$AM_CFLAGS -DNO_BIO"
         #AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
         #ENABLED_FILESYSTEM=no
     fi
