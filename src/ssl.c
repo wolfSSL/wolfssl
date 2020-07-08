@@ -12744,16 +12744,13 @@ int AddSession(WOLFSSL* ssl)
 #ifdef HAVE_EXT_CACHE
     if (ssl->options.internalCacheOff) {
         /* Create a new session object to be stored. */
-        session = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
-                                            DYNAMIC_TYPE_OPENSSL);
+        session = wolfSSL_SESSION_new();
         if (session == NULL) {
 #ifdef HAVE_SESSION_TICKET
             XFREE(tmpBuff, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif
             return MEMORY_E;
         }
-        XMEMSET(session, 0, sizeof(WOLFSSL_SESSION));
-        session->isAlloced = 1;
     }
     else
 #endif
@@ -17332,6 +17329,12 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
         int len)
 {
     WOLFSSL_X509* newX509 = NULL;
+    WOLFSSL_ENTER("wolfSSL_d2i_X509");
+
+    if (in == NULL) {
+        WOLFSSL_MSG("NULL input for wolfSSL_d2i_X509");
+        return NULL;
+    }
 
     newX509 = wolfSSL_X509_d2i(x509, *in, len);
     if (newX509 != NULL) {
@@ -19277,6 +19280,44 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+/* return a new malloc'd session with default settings on success */
+WOLFSSL_SESSION* wolfSSL_SESSION_new()
+{
+    WOLFSSL_SESSION* ret = NULL;
+
+    ret = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (ret != NULL) {
+        XMEMSET(ret, 0, sizeof(WOLFSSL_SESSION));
+        #ifdef OPENSSL_EXTRA
+        if (wc_InitMutex(&ret->refMutex) != 0) {
+            WOLFSSL_MSG("Error setting up session reference mutex");
+            XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+            return NULL;
+        }
+        #endif
+        ret->isAlloced = 1;
+    }
+    return ret;
+}
+
+
+/* add one to session reference count
+ * return WOFLSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
+int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
+{
+    if (session == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (wc_LockMutex(&session->refMutex) != 0) {
+        WOLFSSL_MSG("Failed to lock session mutex");
+    }
+    session->refCount++;
+    wc_UnLockMutex(&session->refMutex);
+    return WOLFSSL_SUCCESS;
+}
+
+
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 {
 #ifdef HAVE_EXT_CACHE
@@ -19293,8 +19334,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
     }
 #endif
 
-    copy = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
-            DYNAMIC_TYPE_OPENSSL);
+    copy = wolfSSL_SESSION_new();
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->isAlloced = 1;
@@ -19331,7 +19371,18 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
     }
 #endif
 
-#ifdef HAVE_EXT_CACHE
+#ifdef OPENSSL_EXTRA
+    if (wc_LockMutex(&session->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock session mutex");
+    }
+    if (session->refCount > 0) {
+        session->refCount--;
+        wc_UnLockMutex(&session->refMutex);
+        return;
+    }
+    wc_UnLockMutex(&session->refMutex);
+#endif
+#if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
     if (session->isAlloced) {
     #ifdef HAVE_SESSION_TICKET
         if (session->isDynamic)
@@ -23939,7 +23990,10 @@ unsigned long wolfSSL_ERR_peek_error(void)
 
 int wolfSSL_ERR_GET_LIB(unsigned long err)
 {
-    switch (err) {
+    unsigned long value;
+
+    value = (err & 0xFFFFFFL);
+    switch (value) {
     case PEM_R_NO_START_LINE:
     case PEM_R_PROBLEMS_GETTING_PASSWORD:
     case PEM_R_BAD_PASSWORD_READ:
@@ -27220,12 +27274,9 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         return NULL;
 
     if (s == NULL) {
-        s = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
-                                      DYNAMIC_TYPE_OPENSSL);
+        s = wolfSSL_SESSION_new();
         if (s == NULL)
             return NULL;
-        XMEMSET(s, 0, sizeof(WOLFSSL_SESSION));
-        s->isAlloced = 1;
 #ifdef HAVE_SESSION_TICKET
         s->isDynamic = 0;
 #endif
@@ -42999,9 +43050,9 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
             if (ret == -ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
-            if (ret != WANT_READ && ret != WANT_WRITE &&
-                    ret != ZERO_RETURN && ret != WOLFSSL_ERROR_ZERO_RETURN &&
-                    ret != SOCKET_PEER_CLOSED_E && ret != SOCKET_ERROR_E)
+            if (ret != -WANT_READ && ret != -WANT_WRITE &&
+                    ret != -ZERO_RETURN && ret != -WOLFSSL_ERROR_ZERO_RETURN &&
+                    ret != -SOCKET_PEER_CLOSED_E && ret != -SOCKET_ERROR_E)
                 break;
 
             wc_RemoveErrorNode(-1);
@@ -43823,6 +43874,13 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
 
 WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 {
+    WOLFSSL_ENTER("wolfSSL_X509_dup");
+
+    if (x == NULL) {
+        WOLFSSL_MSG("Error: NULL certificate passed in");
+        return NULL;
+    }
+
     return wolfSSL_X509_d2i(NULL, x->derCert->buffer, x->derCert->length);
 }
 
