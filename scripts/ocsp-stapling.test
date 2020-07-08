@@ -157,9 +157,6 @@ cleanup()
 }
 trap cleanup EXIT INT TERM HUP
 
-server=login.live.com
-ca=certs/external/baltimore-cybertrust-root.pem
-
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 ./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -eq 0 ]; then
@@ -224,6 +221,10 @@ sleep 1
 #./scripts/ping.test $server 2
 
 # client test against the server
+server=login.live.com
+#ca=certs/external/baltimore-cybertrust-root.pem
+ca=certs/external/ca_collection.pem
+
 ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
