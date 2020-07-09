@@ -19,7 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
 
+DESCRIPTION
+This library provides the interfaces to the Advanced Encryption Standard (AES)
+for encrypting and decrypting data. AES is the standard known for a symmetric
+block cipher mechanism that uses n-bit binary string parameter key with 128-bits,
+192-bits, and 256-bits of key sizes.
+
+*/
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif

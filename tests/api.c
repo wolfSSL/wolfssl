@@ -7486,10 +7486,8 @@ static int test_wc_Sha384Copy (void)
         }
     }
 
-
     wc_Sha384Free(&sha384);
     wc_Sha384Free(&temp);
-
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -9043,9 +9041,7 @@ static int test_wc_Sha3_GetFlags (void)
             ret = 0;
         }
     }
-
     wc_Sha3_224_Free(&sha3);
-
     printf(resultFmt, ret == 0 ? passed : failed);
 
 #endif
@@ -9259,7 +9255,6 @@ static int test_wc_Shake256_Copy (void)
 
 #endif
     return ret;
-
 } /* END test_wc_Shake256_Copy */
 /*
  * Unit test function for wc_Shake256Hash()
@@ -13219,13 +13214,13 @@ static int test_wc_RsaPrivateKeyDecode (void)
         /* Test bad args. */
         if (ret == 0) {
             ret = wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes);
-            if (ret == ASN_PARSE_E) {
+            if (ret == BAD_FUNC_ARG) {
                 ret = wc_RsaPrivateKeyDecode(tmp, NULL, &key, (word32)bytes);
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = wc_RsaPrivateKeyDecode(tmp, &idx, NULL, (word32)bytes);
             }
-            if (ret == ASN_PARSE_E) {
+            if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -27367,14 +27362,14 @@ static void test_wolfSSL_ERR_print_errors(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     ERR_clear_error(); /* clear out any error nodes */
     ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
-    ERR_put_error(0,SYS_F_BIND, -275, "asn.c", 100);
+    ERR_put_error(0,SYS_F_BIND, -295, "asn.c", 100);
 
     ERR_print_errors(bio);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 56);
     AssertIntEQ(XSTRNCMP("error:173:wolfSSL library:Bad function argument:ssl.c:0",
                 buf, 55), 0);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 57);
-    AssertIntEQ(XSTRNCMP("error:275:wolfSSL library:unknown error number:asn.c:100",
+    AssertIntEQ(XSTRNCMP("error:295:wolfSSL library:unknown error number:asn.c:100",
                 buf, 56), 0);
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
     AssertIntEQ(ERR_get_error_line(NULL, NULL), 0);
