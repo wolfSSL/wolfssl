@@ -15078,6 +15078,34 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return WOLFSSL_SUCCESS;
     }
+
+    /**
+     * The modulus passed to wc_SrpSetParams in ssl.c is constant so check
+     * that the requested strength is less than or equal to the size of the
+     * static modulus size.
+     * @param ctx Not used
+     * @param strength Minimum number of bits for the modulus
+     * @return 1 if strength is less than or equal to static modulus
+     *         0 if strength is greater than static modulus
+     */
+    int  wolfSSL_CTX_set_srp_strength(WOLFSSL_CTX *ctx, int strength)
+    {
+        (void)ctx;
+        WOLFSSL_ENTER("wolfSSL_CTX_set_srp_strength");
+        if (strength > (int)(sizeof(srp_N)*8)) {
+            WOLFSSL_MSG("Bad Parameter");
+            return WOLFSSL_FAILURE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+    char* wolfSSL_get_srp_username(WOLFSSL *ssl)
+    {
+        if (ssl && ssl->ctx && ssl->ctx->srp) {
+            return (char*) ssl->ctx->srp->user;
+        }
+        return NULL;
+    }
     #endif /* WOLFCRYPT_HAVE_SRP && !NO_SHA256 && !WC_NO_RNG */
 
     /* keyblock size in bytes or -1 */
@@ -29559,7 +29587,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
     WOLFSSL_DH* external;
     DhKey*     key;
 
-    WOLFSSL_MSG("wolfSSL_DH_new");
+    WOLFSSL_ENTER("wolfSSL_DH_new");
 
     key = (DhKey*) XMALLOC(sizeof(DhKey), NULL, DYNAMIC_TYPE_DH);
     if (key == NULL) {
@@ -29590,7 +29618,7 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
 
 void wolfSSL_DH_free(WOLFSSL_DH* dh)
 {
-    WOLFSSL_MSG("wolfSSL_DH_free");
+    WOLFSSL_ENTER("wolfSSL_DH_free");
 
     if (dh) {
         if (dh->internal) {
@@ -29607,6 +29635,25 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
 
         XFREE(dh, NULL, DYNAMIC_TYPE_DH);
     }
+}
+
+WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
+{
+    WOLFSSL_DH* ret = NULL;
+    DhKey*      key;
+
+    WOLFSSL_ENTER("wolfSSL_DH_dup");
+
+    if (!dh) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    if (!(ret = wolfSSL_DH_new())) {
+        return NULL;
+    }
+
+    return ret;
 }
 
 int SetDhInternal(WOLFSSL_DH* dh)
@@ -49497,6 +49544,27 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     (void)bytes;
     (void)len;
     return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
+        int nid, int lastpos)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_get_attr_by_NID");
+    WOLFSSL_STUB("wolfSSL_X509_REQ_get_attr_by_NID");
+    (void)req;
+    (void)nid;
+    (void)lastpos;
+    return WOLFSSL_FATAL_ERROR;
+}
+
+WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
+        const WOLFSSL_X509 *req, int loc)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_get_attr");
+    WOLFSSL_STUB("wolfSSL_X509_REQ_get_attr");
+    (void)req;
+    (void)loc;
+    return NULL;
 }
 #endif
 

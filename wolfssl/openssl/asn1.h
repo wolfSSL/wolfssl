@@ -70,12 +70,18 @@
 #define ASN1_TIME_diff                  wolfSSL_ASN1_TIME_diff
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
+#define V_ASN1_EOC                      0
 #define V_ASN1_OBJECT                   6
+#define V_ASN1_UTF8STRING               12
 #define V_ASN1_SEQUENCE                 16
 #define V_ASN1_SET                      17
+#define V_ASN1_IA5STRING                22
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
 #define V_ASN1_PRINTABLESTRING          19
+
+
+#define V_ASN1_CONSTRUCTED              0x20
 
 #define ASN1_STRING_FLAG_BITS_LEFT       0x008
 #define ASN1_STRING_FLAG_NDEF            0x010
