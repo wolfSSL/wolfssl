@@ -56,6 +56,19 @@ SSL_SNIFFER_API int ssl_SetNamedPrivateKey(const char* name,
                                            const char* password, char* error);
 
 WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetPrivateKeyBuffer(const char* address, int port,
+                                            const char* keyBuf, int keySz, 
+                                            int typeK, const char* password, 
+                                            char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetNamedPrivateKeyBuffer(const char* name,
+                                                 const char* address, int port,
+                                                 const char* keyBuf, int keySz, 
+                                                 int typeK, const char* password, 
+                                                 char* error);
+
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_DecodePacket(const unsigned char* packet, int length,
                                      unsigned char** data, char* error);
 
