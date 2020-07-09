@@ -1,0 +1,17 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+		certs/statickeys/gen-static.sh
+
+# ECC
+EXTRA_DIST += \
+		certs/statickeys/ecc-secp256r1.der \
+		certs/statickeys/ecc-secp256r1.pem
+
+# DH FFDHE Groups
+EXTRA_DIST += \
+		certs/statickeys/dh-ffdhe2048-params.pem \
+		certs/statickeys/dh-ffdhe2048.der \
+		certs/statickeys/dh-ffdhe2048.pem

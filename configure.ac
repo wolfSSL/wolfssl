@@ -889,7 +889,7 @@ fi
 ENABLED_SNIFFTEST=no
 AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       [
-          AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SNIFFER"
+          AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SNIFFER -DWOLFSSL_STATIC_EPHEMERAL"
           AC_CHECK_HEADERS([pcap/pcap.h],
               [ ENABLED_SNIFFTEST=yes ],
               [ AC_MSG_WARN([cannot enable sniffer test without having libpcap available.]) ]
@@ -4984,8 +4984,9 @@ AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
       [AC_MSG_ERROR([please enable ecc if enabling leantls.])])
 
 AS_IF([test "x$ENABLED_SNIFFER" = "xyes" && \
-       test "x$ENABLED_RSA" = "xno"],
-      [AC_MSG_ERROR([please enable rsa if enabling sniffer.])])
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable ecc or rsa if enabling sniffer.])])
 
 # Lean TLS forces off prereqs of SCEP.
 AS_IF([test "x$ENABLED_SCEP" = "xyes" && \

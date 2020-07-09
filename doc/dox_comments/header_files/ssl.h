@@ -13529,3 +13529,26 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 */
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
+/*!
+ \ingroup SSL
+ \brief This function sets a fixed / static ephemeral key for testing only
+ \return 0 Key loaded successfully
+ \param ctx A WOLFSSL_CTX context pointer
+ \param keyAlgo enum wc_PkType like WC_PK_TYPE_DH and WC_PK_TYPE_ECDH
+ \param key key file path (if keySz == 0) or actual key buffer (PEM or ASN.1)
+ \param keySz key size (should be 0 for "key" arg is file path)
+ \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
+ */
+WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key, unsigned int keySz, int format);
+
+/*!
+ \ingroup SSL
+ \brief This function sets a fixed / static ephemeral key for testing only
+ \return 0 Key loaded successfully
+ \param ssl A WOLFSSL object pointer
+ \param keyAlgo enum wc_PkType like WC_PK_TYPE_DH and WC_PK_TYPE_ECDH
+ \param key key file path (if keySz == 0) or actual key buffer (PEM or ASN.1)
+ \param keySz key size (should be 0 for "key" arg is file path)
+ \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
+ */
+WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);

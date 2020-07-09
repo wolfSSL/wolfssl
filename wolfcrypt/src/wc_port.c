@@ -331,8 +331,60 @@ int wolfCrypt_Cleanup(void)
     return ret;
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-	!defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
+#ifndef NO_FILESYSTEM
+
+/* Helpful function to load file into allocated buffer */
+int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen, 
+    void* heap)
+{
+    int ret;
+    size_t fileSz;
+    XFILE f;
+
+    if (fname == NULL || buf == NULL || bufLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* set defaults */
+    *buf = NULL;
+    *bufLen = 0;
+
+    /* open file (read-only binary) */
+    f = XFOPEN(fname, "rb");
+    if (!f) {
+        WOLFSSL_MSG("wc_LoadFile file load error");
+        return BAD_PATH_ERROR;
+    }
+
+    XFSEEK(f, 0, SEEK_END);
+    fileSz = XFTELL(f);
+    XREWIND(f);
+    if (fileSz > 0) {
+        *bufLen = fileSz;
+        *buf = (byte*)XMALLOC(*bufLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (*buf == NULL) {
+            WOLFSSL_MSG("wc_LoadFile memory error");
+            ret = MEMORY_E;
+        }
+        else {
+            size_t readLen = XFREAD(*buf, 1, *bufLen, f);
+
+            /* check response code */
+            ret = (readLen == *bufLen) ? 0 : -1;
+        }
+    }
+    else {
+        ret = BUFFER_E;
+    }
+    XFCLOSE(f);
+
+    (void)heap;
+
+    return ret;
+}
+
+#if !defined(NO_WOLFSSL_DIR) && \
+    !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
 
 /* File Handling Helpers */
 /* returns 0 if file found, WC_READDIR_NOFILE if no files or negative error */
@@ -631,7 +683,8 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
 #endif
 }
 
-#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
+#endif /* !NO_WOLFSSL_DIR */
+#endif /* !NO_FILESYSTEM */
 
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_ZEPHYR)
 XFILE z_fs_open(const char* filename, const char* perm)

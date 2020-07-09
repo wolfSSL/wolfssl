@@ -2375,10 +2375,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-#if defined(WOLFSSL_SNIFFER)
+#ifdef WOLFSSL_SNIFFER
     if (cipherList == NULL && version < 4) {
-        /* don't use EDH, can't sniff tmp keys */
-        if (wolfSSL_CTX_set_cipher_list(ctx, "AES128-SHA") != WOLFSSL_SUCCESS) {
+        /* static RSA or ECC cipher suites */
+        const char* staticCipherList = "AES128-SHA:ECDH-ECDSA-AES128-SHA";
+        if (wolfSSL_CTX_set_cipher_list(ctx, staticCipherList) != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("client can't set cipher list 3");
         }

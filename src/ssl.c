@@ -28686,21 +28686,21 @@ int SetDhInternal(WOLFSSL_DH* dh)
     int            ret = WOLFSSL_FATAL_ERROR;
     int            pSz = 1024;
     int            gSz = 1024;
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#ifdef WOLFSSL_DH_EXTRA
     int            privSz = 256; /* Up to 2048-bit */
     int            pubSz  = 256;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* p   = NULL;
     unsigned char* g   = NULL;
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_DH_EXTRA
         unsigned char* priv_key = NULL;
         unsigned char* pub_key = NULL;
     #endif
 #else
     unsigned char  p[1024];
     unsigned char  g[1024];
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_DH_EXTRA
         unsigned char priv_key[256];
         unsigned char pub_key[256];
     #endif
@@ -28714,21 +28714,22 @@ int SetDhInternal(WOLFSSL_DH* dh)
         WOLFSSL_MSG("Bad p internal size");
     else if (wolfSSL_BN_bn2bin(dh->g, NULL) > gSz)
         WOLFSSL_MSG("Bad g internal size");
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#ifdef WOLFSSL_DH_EXTRA
     else if (wolfSSL_BN_bn2bin(dh->priv_key, NULL) > privSz)
         WOLFSSL_MSG("Bad private key internal size");
     else if (wolfSSL_BN_bn2bin(dh->pub_key, NULL) > privSz)
         WOLFSSL_MSG("Bad public key internal size");
-    #endif
+#endif
     else {
     #ifdef WOLFSSL_SMALL_STACK
         p = (unsigned char*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         g = (unsigned char*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-        priv_key = (unsigned char*)XMALLOC(privSz,NULL,DYNAMIC_TYPE_PRIVATE_KEY);
-        pub_key  = (unsigned char*)XMALLOC(pubSz,NULL,DYNAMIC_TYPE_PUBLIC_KEY);
-    #endif
+        #ifdef WOLFSSL_DH_EXTRA
+            priv_key = (unsigned char*)XMALLOC(privSz, NULL, 
+                DYNAMIC_TYPE_PRIVATE_KEY);
+            pub_key  = (unsigned char*)XMALLOC(pubSz, NULL, 
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        #endif
 
         if (p == NULL || g == NULL) {
             XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -28737,7 +28738,7 @@ int SetDhInternal(WOLFSSL_DH* dh)
         }
     #endif /* WOLFSSL_SMALL_STACK */
 
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_DH_EXTRA
         privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv_key);
         pubSz  = wolfSSL_BN_bn2bin(dh->pub_key,  pub_key);
         if (privSz <= 0) {
@@ -28747,13 +28748,17 @@ int SetDhInternal(WOLFSSL_DH* dh)
             WOLFSSL_MSG("No public key size.");
         }
         if (privSz > 0 || pubSz > 0) {
-            ret = wc_DhSetFullKeys((DhKey*)dh->internal,priv_key,privSz,
-                                    pub_key,pubSz);
-            if (ret == WOLFSSL_FAILURE) {
+            ret = wc_DhImportKeyPair((DhKey*)dh->internal, priv_key, privSz,
+                                     pub_key, pubSz);
+            if (ret == 0) {
+                ret = WOLFSSL_SUCCESS;
+            }
+            else {
                 WOLFSSL_MSG("Failed setting private or public key.");
+                ret = WOLFSSL_FAILURE;
             }
         }
-    #endif /* WOLFSSL_QT || OPENSSL_ALL */
+    #endif /* WOLFSSL_DH_EXTRA */
 
         pSz = wolfSSL_BN_bn2bin(dh->p, p);
         gSz = wolfSSL_BN_bn2bin(dh->g, g);
@@ -28770,13 +28775,12 @@ int SetDhInternal(WOLFSSL_DH* dh)
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        #ifdef WOLFSSL_DH_EXTRA
             XFREE(priv_key, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
             XFREE(pub_key,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         #endif
     #endif
     }
-
 
     return ret;
 }
@@ -47743,4 +47747,106 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
 }
 #endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
 
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo, 
+    const char* key, unsigned int keySz, int format, void* heap)
+{
+    int ret = 0;
+    byte* keyBuf = NULL;
+#ifndef NO_FILESYSTEM
+    const char* keyFile = NULL;
+#endif
 
+    /* allow empty key to free buffer */
+    if (staticKE == NULL || (key == NULL && keySz > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* check if just free'ing key */
+    if (key == NULL && keySz == 0) {
+        return 0;
+    }
+
+#ifndef NO_FILESYSTEM
+    /* load file from filesystem */
+    if (key && keySz == 0) {
+        size_t keyBufSz = 0;
+        keyFile = (const char*)key;
+        ret = wc_FileLoad(keyFile, &keyBuf, &keyBufSz, heap);
+        if (ret != 0) {
+            return ret;
+        }
+        keySz = (unsigned int)keyBufSz;
+    }
+    else
+#endif
+    {
+        /* use as key buffer directly */
+        keyBuf = (byte*)key;
+    }
+
+    if (format == WOLFSSL_FILETYPE_PEM) {
+    #ifdef WOLFSSL_PEM_TO_DER
+        int keyFormat = 0;
+        ret = PemToDer(keyBuf, keySz, PRIVATEKEY_TYPE, &staticKE->key, 
+            heap, NULL, &keyFormat);
+        /* auto detect key type */
+        if (ret == 0 && keyAlgo == 0) {
+            if (keyFormat == ECDSAk)
+                keyAlgo = WC_PK_TYPE_ECDH;
+            else
+                keyAlgo = WC_PK_TYPE_DH;
+        }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
+    }
+    else {
+        ret = AllocDer(&staticKE->key, keySz, PRIVATEKEY_TYPE, heap);
+        if (ret == 0) {
+            XMEMCPY(staticKE->key->buffer, keyBuf, keySz);
+        }
+    }
+    staticKE->keyAlgo = keyAlgo;
+
+#ifndef NO_FILESYSTEM
+    if (keyFile && keyBuf) {
+        XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return ret;
+}
+
+int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+    const char* key, unsigned int keySz, int format)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if key is already set free it */
+    if (ctx->staticKE.key != NULL) {
+        FreeDer(&ctx->staticKE.key);
+    }
+
+    return SetStaticEphemeralKey(&ctx->staticKE, keyAlgo, key, keySz, format, 
+        ctx->heap);
+}
+
+int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+    const char* key, unsigned int keySz, int format)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if key is already set and not created by ctx... set free it */
+    if (ssl->staticKE.key != NULL && ssl->staticKE.key != ssl->ctx->staticKE.key) {
+        FreeDer(&ssl->staticKE.key);
+    }
+
+    return SetStaticEphemeralKey(&ssl->staticKE, keyAlgo, key, keySz, format, 
+        ssl->heap);
+}
+
+#endif /* WOLFSSL_STATIC_EPHEMERAL */

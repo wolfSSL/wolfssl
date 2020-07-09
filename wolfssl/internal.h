@@ -1657,6 +1657,10 @@ WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 /* for sniffer */
 WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             word32 size, word32 totalSz, int sniff);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_LOCAL int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                           word32 size, word32 totalSz, int sniff);
+#endif
 WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx);
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
@@ -1692,10 +1696,11 @@ WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 #endif
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
-WOLFSSL_LOCAL int  HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz);
+WOLFSSL_LOCAL int  HashRaw(WOLFSSL* ssl, const byte* output, int sz);
 WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
+
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
@@ -2150,13 +2155,14 @@ typedef enum {
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_EC_POINT_FORMATS           = 0x000b,
 #if !defined(WOLFSSL_NO_SIGALG)
-    TLSX_SIGNATURE_ALGORITHMS       = 0x000d,
+    TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
 #endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     TLSX_ENCRYPT_THEN_MAC           = 0x0016, /* RFC 7366 */
 #endif
+    TLSX_EXTENDED_MASTER_SECRET     = 0x0017, /* HELLO_EXT_EXTMS */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
 #ifdef WOLFSSL_TLS13
@@ -2579,6 +2585,12 @@ enum DeriveKeyType {
     update_traffic_key
 };
 
+WOLFSSL_LOCAL int DeriveEarlySecret(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DeriveHandshakeSecret(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store);
+WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
+
 /* The key update request values for KeyUpdate message. */
 enum KeyUpdateRequest {
     update_not_requested,
@@ -2594,6 +2606,14 @@ enum SetCBIO {
     WOLFSSL_CBIO_SEND = 0x2,
 };
 #endif
+
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+typedef struct {
+    int keyAlgo;
+    DerBuffer* key;
+} StaticKeyExchangeInfo_t;
+#endif
+
 
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
@@ -2868,16 +2888,19 @@ struct WOLFSSL_CTX {
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_WOLF_EVENT
-        WOLF_EVENT_QUEUE event_queue;
+    WOLF_EVENT_QUEUE event_queue;
 #endif /* HAVE_WOLF_EVENT */
 #ifdef HAVE_EXT_CACHE
-        WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
-        int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
-        void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
+    WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
+    int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
+    void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 #endif
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256)
-        Srp*  srp;  /* TLS Secure Remote Password Protocol*/
-        byte* srp_password;
+    Srp*  srp;  /* TLS Secure Remote Password Protocol*/
+    byte* srp_password;
+#endif
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    StaticKeyExchangeInfo_t staticKE;
 #endif
 };
 
@@ -2941,7 +2964,6 @@ enum KeyExchangeAlgorithm {
     ecc_diffie_hellman_kea,
     ecc_static_diffie_hellman_kea       /* for verify suite only */
 };
-
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
@@ -4219,6 +4241,9 @@ struct WOLFSSL {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+#endif
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    StaticKeyExchangeInfo_t staticKE;
 #endif
 };
 
