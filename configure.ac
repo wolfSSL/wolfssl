@@ -4291,6 +4291,12 @@ then
         ENABLED_CRL="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
     fi
+    
+	if test "x$ENABLED_SRP" = "xno"
+	then
+        ENABLED_SRP="yes"
+	    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
+	fi
 fi
 
 # MD4

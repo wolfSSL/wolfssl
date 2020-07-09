@@ -1,4 +1,4 @@
-/* cms.h
+/* srp.h
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *
@@ -19,8 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFSSL_CMS_H_
-#define WOLFSSL_CMS_H_
+#ifndef WOLFSSL_SRP_H_
+#define WOLFSSL_SRP_H_
 
+#include <wolfssl/wolfcrypt/srp.h>
 
-#endif /* WOLFSSL_CMS_H_ */
+#define SRP_MINIMAL_N SRP_MODULUS_MIN_BITS
+
+#endif /* WOLFSSL_SRP_H_ */

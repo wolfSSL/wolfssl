@@ -106,6 +106,7 @@ typedef WOLFSSL_ASN1_INTEGER   ASN1_INTEGER;
 typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_ASN1_TYPE      ASN1_TYPE;
+typedef WOLFSSL_X509_ATTRIBUTE X509_ATTRIBUTE;
 typedef WOLFSSL_ASN1_BIT_STRING ASN1_BIT_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
@@ -382,6 +383,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_sign_ctx               wolfSSL_X509_REQ_sign_ctx
 #define X509_REQ_add_extensions         wolfSSL_X509_REQ_add_extensions
 #define X509_REQ_add1_attr_by_NID       wolfSSL_X509_REQ_add1_attr_by_NID
+#define X509_REQ_get_attr_by_NID        wolfSSL_X509_REQ_get_attr_by_NID
+#define X509_REQ_get_attr               wolfSSL_X509_REQ_get_attr
 #define X509_to_X509_REQ                wolfSSL_X509_to_X509_REQ
 #define X509_REQ_set_subject_name       wolfSSL_X509_REQ_set_subject_name
 #define X509_REQ_set_pubkey             wolfSSL_X509_REQ_set_pubkey
@@ -404,6 +407,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_get_subject_name       wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
 #define X509_get0_pubkey                wolfSSL_X509_get_pubkey
+#define X509_REQ_get_pubkey             wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
 #define X509_get0_notBefore             wolfSSL_X509_get_notBefore
 #define X509_get_notAfter               wolfSSL_X509_get_notAfter
@@ -431,6 +435,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_print_ex                   wolfSSL_X509_print_ex
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string
 #define X509_verify_cert                wolfSSL_X509_verify_cert
+#define X509_verify                     wolfSSL_X509_verify
+#define X509_REQ_verify                 wolfSSL_X509_verify
 #define X509_check_private_key          wolfSSL_X509_check_private_key
 #define X509_check_ca                   wolfSSL_X509_check_ca
 #define X509_check_host                 wolfSSL_X509_check_host
@@ -952,8 +958,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_LIB_SSL          20
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
-#define V_ASN1_IA5STRING     22
-#define V_ASN1_UTF8STRING    12
 #define SSL_CTRL_MODE        33
 
 #define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS        83
@@ -1227,8 +1231,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_add_client_CA           wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password        wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username        wolfSSL_CTX_set_srp_username
+#define SSL_CTX_set_srp_strength        wolfSSL_CTX_set_srp_strength
 #define SSL_get_SSL_CTX                 wolfSSL_get_SSL_CTX
 #define SSL_get0_param                  wolfSSL_get0_param
+#define SSL_get_srp_username            wolfSSL_get_srp_username
 
 #define ERR_NUM_ERRORS                  16
 #define SN_pkcs9_emailAddress           "Email"
