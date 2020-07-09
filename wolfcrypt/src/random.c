@@ -19,7 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
 
+DESCRIPTION
+This library contains implementation for the random number generator.
+
+*/
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -487,7 +492,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
                     return DRBG_CONT_FAILURE;
                 }
                 else {
-                    if (i == len) {
+                    if (i == (len-1)) {
                         len++;
                     }
                     drbg->matchCount = 1;
@@ -510,6 +515,10 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
                     outSz = 0;
                 }
             }
+        }
+        else {
+            /* wc_Sha256Update or wc_Sha256Final returned error */
+            break;
         }
     }
     ForceZero(data, sizeof(data));
@@ -614,7 +623,7 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
                                              const byte* nonce, word32 nonceSz,
                                              void* heap, int devId)
 {
-    int ret;
+    int ret = DRBG_FAILURE;
 
     XMEMSET(drbg, 0, sizeof(DRBG));
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -645,9 +654,6 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
         drbg->matchCount = 0;
         ret = DRBG_SUCCESS;
     }
-    else {
-        ret = DRBG_FAILURE;
-    }
 
     return ret;
 }
@@ -674,7 +680,7 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 {
-    int ret = DRBG_SUCCESS;
+    int ret = 0;
 
     /* Check the seed for duplicate words. */
     word32 seedIdx = 0;
@@ -700,7 +706,7 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
-    int ret = RNG_FAILURE_E;
+    int ret = 0;
 #ifdef HAVE_HASHDRBG
     word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
 #endif
@@ -773,6 +779,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
                                                           DYNAMIC_TYPE_RNG);
+        if (rng->drbg == NULL) {
+            ret = MEMORY_E;
+            rng->status = DRBG_FAILED;
+        }
 #else
         /* compile-time validation of drbg_data size */
         typedef char drbg_data_test[sizeof(rng->drbg_data) >=
@@ -780,16 +790,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         (void)sizeof(drbg_data_test);
         rng->drbg = (struct DRBG*)rng->drbg_data;
 #endif
-
-        if (rng->drbg == NULL) {
-            ret = MEMORY_E;
-        }
-        else {
+        if (ret == 0) {
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
-            if (ret != 0)
-                ret = DRBG_FAILURE;
-            else
+            if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
+            else {
+                ret = DRBG_FAILURE;
+                rng->status = DRBG_FAILED;
+            }
 
             if (ret == DRBG_SUCCESS)
                  ret = Hash_DRBG_Instantiate(rng->drbg,
@@ -2350,7 +2358,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
     #include "r_bsp/platform.h"
     #include "r_tsip_rx_if.h"
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
@@ -2358,7 +2366,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         while (sz > 0) {
             uint32_t len = sizeof(buffer);
-            
+
             if (sz < len) {
                 len = sz;
             }
