@@ -688,7 +688,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 #if !defined(XVALIDATE_DATE) && !defined(HAVE_VALIDATE_DATE)
     #define USE_WOLF_VALIDDATE
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XVALIDATE_DATE(d, f, t) wc_ValidateDate((d), (f), (t))
 #endif
 
 /* wolf struct tm and time_t */

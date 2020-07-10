@@ -6344,7 +6344,7 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
-int ValidateDate(const byte* date, byte format, int dateType)
+int wc_ValidateDate(const byte* date, byte format, int dateType)
 {
     time_t ltime;
     struct tm  certTime;
