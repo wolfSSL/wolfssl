@@ -6846,10 +6846,227 @@ static int test_wc_Sha512Final (void)
 #endif
     return flag;
 } /* END test_wc_Sha512Final */
+/*
+ * Unit test function for wc_Sha512GetFlags()
+ */
+static int test_wc_Sha512GetFlags (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA512) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha512 sha512;
+    word32 flags = 0;
+
+    printf(testingFmt, "wc_Sha512GetFlags()");
+
+    /* Initialize */
+    flag = wc_InitSha512(&sha512);
+    if (flag == 0) {
+        flag = wc_Sha512GetFlags(&sha512, &flags);
+    }
+    if (flag == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
+            flag = 0;
+        }
+    }
 
 
+    wc_Sha512Free(&sha512);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha512GetFlags */
+/*
+ * Unit test function for wc_Sha512FinalRaw()
+ */
+static int test_wc_Sha512FinalRaw (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA512) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha512 sha512;
+    byte* hash_test[3];
+    byte hash1[WC_SHA512_DIGEST_SIZE];
+    byte hash2[2*WC_SHA512_DIGEST_SIZE];
+    byte hash3[5*WC_SHA512_DIGEST_SIZE];
+    int times, i, ret;
+
+    /* Initialize */
+    ret = wc_InitSha512(&sha512);
+    if (ret != 0) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha512FinalRaw()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha512FinalRaw(&sha512, hash_test[i]);
+            if (ret != 0) {
+                flag = WOLFSSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag ) {
+        ret = wc_Sha512FinalRaw(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512FinalRaw(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512FinalRaw(&sha512, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    wc_Sha512Free(&sha512);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha512FinalRaw */
+/*
+ * Unit test function for wc_Sha512Free()
+ */
+static int test_wc_Sha512Free (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA512) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+
+    printf(testingFmt, "wc_Sha512Free()");
+    wc_Sha512Free(NULL);
 
 
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha512Free */
+/*
+ * Unit test function for wc_Sha512GetHash()
+ */
+static int test_wc_Sha512GetHash (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA512) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha512 sha512;
+    byte hash1[WC_SHA512_DIGEST_SIZE];
+
+    printf(testingFmt, "wc_Sha512GetHash()");
+
+    /* Initialize */
+    flag = wc_InitSha512(&sha512);
+
+    if (flag == 0) {
+        flag = wc_Sha512GetHash(&sha512, hash1);
+    }
+    /*test bad arguements*/
+     if (flag == 0) {
+        flag = wc_Sha512GetHash(NULL, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha512GetHash(NULL, hash1);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha512GetHash(&sha512, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+    }
+
+    wc_Sha512Free(&sha512);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha512GetHash */
+/*
+ * Unit test function for wc_Sha512Copy()
+ */
+static int test_wc_Sha512Copy (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA512) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha512 sha512;
+    wc_Sha512 temp;
+
+    printf(testingFmt, "wc_Sha512Copy()");
+
+    /* Initialize */
+    flag = wc_InitSha512(&sha512);
+    if (flag == 0) {
+        flag = wc_InitSha512(&temp);
+    }
+    if (flag == 0) {
+        flag = wc_Sha512Copy(&sha512, &temp);
+    }
+    /*test bad arguements*/
+     if (flag == 0) {
+        flag = wc_Sha512Copy(NULL, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha512Copy(NULL, &temp);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha512Copy(&sha512, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+    }
+
+
+    wc_Sha512Free(&sha512);
+    wc_Sha512Free(&temp);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha512Copy */
 /*
  * Testing wc_InitSha384()
  */
@@ -7058,9 +7275,227 @@ static int test_wc_Sha384Final (void)
     return flag;
 
 } /* END test_wc_Sha384Final */
+/*
+ * Unit test function for wc_Sha384GetFlags()
+ */
+static int test_wc_Sha384GetFlags (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA384) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha384 sha384;
+    word32 flags = 0;
+
+    printf(testingFmt, "wc_Sha384GetFlags()");
+
+    /* Initialize */
+    flag = wc_InitSha384(&sha384);
+    if (flag == 0) {
+        flag = wc_Sha384GetFlags(&sha384, &flags);
+    }
+    if (flag == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
+            flag = 0;
+        }
+    }
 
 
+    wc_Sha384Free(&sha384);
 
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha384GetFlags */
+/*
+ * Unit test function for wc_Sha384FinalRaw()
+ */
+static int test_wc_Sha384FinalRaw (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA384) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha384 sha384;
+    byte* hash_test[3];
+    byte hash1[WC_SHA384_DIGEST_SIZE];
+    byte hash2[2*WC_SHA384_DIGEST_SIZE];
+    byte hash3[5*WC_SHA384_DIGEST_SIZE];
+    int times, i, ret;
+
+    /* Initialize */
+    ret = wc_InitSha384(&sha384);
+    if (ret != 0) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha384FinalRaw()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha384FinalRaw(&sha384, hash_test[i]);
+            if (ret != 0) {
+                flag = WOLFSSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag ) {
+        ret = wc_Sha384FinalRaw(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384FinalRaw(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384FinalRaw(&sha384, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    wc_Sha384Free(&sha384);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha384FinalRaw */
+/*
+ * Unit test function for wc_Sha384Free()
+ */
+static int test_wc_Sha384Free (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA384) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+
+    printf(testingFmt, "wc_Sha384Free()");
+    wc_Sha384Free(NULL);
+
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha384Free */
+/*
+ * Unit test function for wc_Sha384GetHash()
+ */
+static int test_wc_Sha384GetHash (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA384) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha384 sha384;
+    byte hash1[WC_SHA384_DIGEST_SIZE];
+
+    printf(testingFmt, "wc_Sha384GetHash()");
+
+    /* Initialize */
+    flag = wc_InitSha384(&sha384);
+
+    if (flag == 0) {
+        flag = wc_Sha384GetHash(&sha384, hash1);
+    }
+    /*test bad arguements*/
+     if (flag == 0) {
+        flag = wc_Sha384GetHash(NULL, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha384GetHash(NULL, hash1);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha384GetHash(&sha384, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+    }
+
+    wc_Sha384Free(&sha384);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha384GetHash */
+/*
+ * Unit test function for wc_Sha384Copy()
+ */
+static int test_wc_Sha384Copy (void)
+{
+    int flag = 0;
+#if !defined(NO_SHA384) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha384 sha384;
+    wc_Sha384 temp;
+
+    printf(testingFmt, "wc_Sha384Copy()");
+
+    /* Initialize */
+    flag = wc_InitSha384(&sha384);
+    if (flag == 0) {
+        flag = wc_InitSha384(&temp);
+    }
+    if (flag == 0) {
+        flag = wc_Sha384Copy(&sha384, &temp);
+    }
+    /*test bad arguements*/
+     if (flag == 0) {
+        flag = wc_Sha384Copy(NULL, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha384Copy(NULL, &temp);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+     }
+     if (flag == 0) {
+        flag = wc_Sha384Copy(&sha384, NULL);
+        if (flag == BAD_FUNC_ARG) {
+            flag = 0;
+        }
+    }
+
+
+    wc_Sha384Free(&sha384);
+    wc_Sha384Free(&temp);
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return flag;
+
+} /* END test_wc_Sha384Copy */
 /*
  * Testing wc_InitSha224();
  */
@@ -34539,9 +34974,19 @@ void ApiTest(void)
     AssertFalse(test_wc_InitSha512());
     AssertFalse(test_wc_Sha512Update());
     AssertFalse(test_wc_Sha512Final());
+    AssertFalse(test_wc_Sha512GetFlags());
+    AssertFalse(test_wc_Sha512FinalRaw());
+    AssertFalse(test_wc_Sha512Free());
+    AssertFalse(test_wc_Sha512GetHash());
+    AssertFalse(test_wc_Sha512Copy());
     AssertFalse(test_wc_InitSha384());
     AssertFalse(test_wc_Sha384Update());
     AssertFalse(test_wc_Sha384Final());
+    AssertFalse(test_wc_Sha384GetFlags());
+    AssertFalse(test_wc_Sha384FinalRaw());
+    AssertFalse(test_wc_Sha384Free());
+    AssertFalse(test_wc_Sha384GetHash());
+    AssertFalse(test_wc_Sha384Copy());
     AssertFalse(test_wc_InitSha224());
     AssertFalse(test_wc_Sha224Update());
     AssertFalse(test_wc_Sha224Final());
