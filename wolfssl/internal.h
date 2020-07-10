@@ -3593,9 +3593,8 @@ struct WOLFSSL_X509_NAME {
     char  staticName[ASN_NAME_MAX];
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_ASN)
-    DecodedName fullName;
-    WOLFSSL_X509_NAME_ENTRY cnEntry;
-    WOLFSSL_X509_NAME_ENTRY extra[MAX_NAME_ENTRIES]; /* extra entries added */
+    int   entrySz; /* number of entries */
+    WOLFSSL_X509_NAME_ENTRY entry[MAX_NAME_ENTRIES]; /* all entries i.e. CN */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)

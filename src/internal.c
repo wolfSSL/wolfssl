@@ -3331,12 +3331,9 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
         name->dynamicName = 0;
         name->sz = 0;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XMEMSET(&name->fullName, 0, sizeof(DecodedName));
-        XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
-        XMEMSET(&name->extra,    0, sizeof(name->extra));
-        name->cnEntry.value = &(name->cnEntry.data); /* point to internal data*/
-        name->cnEntry.nid = ASN_COMMON_NAME;
+        XMEMSET(&name->entry, 0, sizeof(name->entry));
         name->x509 = NULL;
+        name->entrySz = 0;
 #endif /* OPENSSL_EXTRA */
     }
 }
@@ -3352,17 +3349,13 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         {
             int i;
-            if (name->fullName.fullName != NULL) {
-                XFREE(name->fullName.fullName, heap, DYNAMIC_TYPE_X509);
-                name->fullName.fullName = NULL;
-            }
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
                 /* free ASN1 string data */
-                if (name->extra[i].set && name->extra[i].data.data != NULL) {
-                    XFREE(name->extra[i].data.data, heap, DYNAMIC_TYPE_OPENSSL);
+                if (name->entry[i].set && name->entry[i].data.data != NULL) {
+                    wolfSSL_ASN1_OBJECT_free(&name->entry[i].object);
+                    XFREE(name->entry[i].data.data, heap, DYNAMIC_TYPE_OPENSSL);
                 }
             }
-            wolfSSL_ASN1_OBJECT_free(&name->cnEntry.object);
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     }
@@ -9519,33 +9512,20 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->issuer.name[ASN_NAME_MAX - 1] = '\0';
     x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->issuerName.fullName != NULL) {
-        XMEMCPY(&x509->issuer.fullName,
-                                       &dCert->issuerName, sizeof(DecodedName));
-        x509->issuer.fullName.fullName = (char*)XMALLOC(
-                        dCert->issuerName.fullNameLen, x509->heap,
-                        DYNAMIC_TYPE_X509);
-        if (x509->issuer.fullName.fullName != NULL)
-            XMEMCPY(x509->issuer.fullName.fullName,
-                     dCert->issuerName.fullName, dCert->issuerName.fullNameLen);
+    if (dCert->issuerName != NULL) {
+        wolfSSL_X509_set_issuer_name(x509, dCert->issuerName);
+        x509->issuer.x509 = x509;
     }
-    x509->issuer.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
     XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
     x509->subject.name[ASN_NAME_MAX - 1] = '\0';
     x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->subjectName.fullName != NULL) {
-        XMEMCPY(&x509->subject.fullName,
-                                      &dCert->subjectName, sizeof(DecodedName));
-        x509->subject.fullName.fullName = (char*)XMALLOC(
-                 dCert->subjectName.fullNameLen, x509->heap, DYNAMIC_TYPE_X509);
-        if (x509->subject.fullName.fullName != NULL)
-            XMEMCPY(x509->subject.fullName.fullName,
-                   dCert->subjectName.fullName, dCert->subjectName.fullNameLen);
+    if (dCert->subjectName != NULL) {
+        wolfSSL_X509_set_subject_name(x509, dCert->subjectName);
+        x509->subject.x509 = x509;
     }
-    x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     x509->subject.rawLen = min(dCert->subjectRawLen, sizeof(x509->subject.raw));

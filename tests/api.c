@@ -24480,35 +24480,35 @@ static void test_wolfSSL_X509_NID(void)
     /* extract subjectName info */
     AssertNotNull(name = X509_get_subject_name(cert));
     AssertIntEQ(X509_NAME_get_text_by_NID(name, -1, NULL, 0), -1);
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_commonName,
                                            NULL, 0)), 0);
     AssertIntEQ(nameSz, 15);
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_commonName,
                                            commonName, sizeof(commonName))), 0);
     AssertIntEQ(nameSz, 15);
     AssertIntEQ(XMEMCMP(commonName, "www.wolfssl.com", nameSz), 0);
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_commonName,
                                             commonName, 9)), 0);
     AssertIntEQ(nameSz, 8);
     AssertIntEQ(XMEMCMP(commonName, "www.wolf", nameSz), 0);
 
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COUNTRY_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_countryName,
                                          countryName, sizeof(countryName))), 0);
     AssertIntEQ(XMEMCMP(countryName, "US", nameSz), 0);
 
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_LOCALITY_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_localityName,
                                        localityName, sizeof(localityName))), 0);
     AssertIntEQ(XMEMCMP(localityName, "Bozeman", nameSz), 0);
 
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_STATE_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_stateOrProvinceName,
                                             stateName, sizeof(stateName))), 0);
     AssertIntEQ(XMEMCMP(stateName, "Montana", nameSz), 0);
 
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_ORG_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_organizationName,
                                             orgName, sizeof(orgName))), 0);
     AssertIntEQ(XMEMCMP(orgName, "wolfSSL_2048", nameSz), 0);
 
-    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_ORGUNIT_NAME,
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, NID_organizationalUnitName,
                                             orgUnit, sizeof(orgUnit))), 0);
     AssertIntEQ(XMEMCMP(orgUnit, "Programming-2048", nameSz), 0);
 
@@ -25931,7 +25931,7 @@ static void test_wolfSSL_X509_sign(void)
 
     /* Set X509_NAME fields */
     AssertNotNull(name = X509_NAME_new());
-    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "country", MBSTRING_UTF8,
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "countryName", MBSTRING_UTF8,
                                        (byte*)"US", 2, -1, 0), SSL_SUCCESS);
     AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
                              (byte*)"wolfssl.com", 11, -1, 0), SSL_SUCCESS);
