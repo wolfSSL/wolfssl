@@ -1352,6 +1352,7 @@ WOLFSSL_API int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset
 #endif
 WOLFSSL_API int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     unsigned long nmflags, unsigned long cflag);
+WOLFSSL_API int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509 *x509);
 WOLFSSL_API int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
 WOLFSSL_ABI WOLFSSL_API char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*,
                                                                     char*, int);

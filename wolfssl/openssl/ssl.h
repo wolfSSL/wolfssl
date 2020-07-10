@@ -433,6 +433,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_sign                       wolfSSL_X509_sign
 #define X509_print                      wolfSSL_X509_print
 #define X509_print_ex                   wolfSSL_X509_print_ex
+#define X509_print_fp                   wolfSSL_X509_print_fp
+#define X509_REQ_print_fp               wolfSSL_X509_print_fp
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string
 #define X509_verify_cert                wolfSSL_X509_verify_cert
 #define X509_verify                     wolfSSL_X509_verify
@@ -931,6 +933,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define sk_X509_NAME_find               wolfSSL_sk_X509_NAME_find
 
+#define DHparams_dup                    wolfSSL_DH_dup
 #define PEM_read_bio_DHparams           wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams          wolfSSL_PEM_read_bio_DSAparams
 
