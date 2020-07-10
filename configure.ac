@@ -4284,6 +4284,11 @@ then
         ENABLED_CERTREQ="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
     fi
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
     
     # Requires CRL
     if test "x$ENABLED_CRL" = "xno"
@@ -4297,6 +4302,20 @@ then
         ENABLED_SRP="yes"
 	    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SRP"
 	fi
+	
+    # Enable prereqs if not already enabled
+    if test "x$ENABLED_KEYGEN" = "xno"
+    then
+        ENABLED_KEYGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    fi
+    
+    # Requires sessioncerts make sure on
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
 fi
 
 # MD4

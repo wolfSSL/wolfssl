@@ -21922,6 +21922,35 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         return wolfSSL_X509_print_ex(bio, x509, 0, 0);
     }
 
+    int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509 *x509)
+    {
+        WOLFSSL_BIO* bio;
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_X509_print_fp");
+
+        if (!fp || !x509) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (!(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file()))) {
+            WOLFSSL_MSG("wolfSSL_BIO_new wolfSSL_BIO_s_file error");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+            return WOLFSSL_FAILURE;
+        }
+
+        ret = wolfSSL_X509_print(bio, x509);
+
+        wolfSSL_BIO_free(bio);
+
+        return ret;
+    }
+
 #endif /* XSNPRINTF */
 #endif /* !NO_BIO */
 
@@ -29644,7 +29673,6 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 {
     WOLFSSL_DH* ret = NULL;
-    DhKey*      key;
 
     WOLFSSL_ENTER("wolfSSL_DH_dup");
 
@@ -29653,7 +29681,26 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
         return NULL;
     }
 
+    if (dh->inSet == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS){
+        WOLFSSL_MSG("Bad DH set internal");
+        return NULL;
+    }
+
     if (!(ret = wolfSSL_DH_new())) {
+        WOLFSSL_MSG("wolfSSL_DH_new error");
+        return NULL;
+    }
+
+    if (wc_DhKeyCopy((DhKey*)dh->internal, (DhKey*)ret->internal) != MP_OKAY) {
+        WOLFSSL_MSG("wc_DhKeyCopy error");
+        wolfSSL_DH_free(ret);
+        return NULL;
+    }
+    ret->inSet = 1;
+
+    if (SetDhExternal(ret) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetDhExternal error");
+        wolfSSL_DH_free(ret);
         return NULL;
     }
 
@@ -48738,6 +48785,9 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
+
+    if (p7->certs)
+        return p7->certs;
 
     ret = wolfSSL_sk_X509_new();
 
