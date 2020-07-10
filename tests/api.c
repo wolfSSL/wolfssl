@@ -7490,6 +7490,7 @@ static int test_wc_Sha384Copy (void)
     wc_Sha384Free(&sha384);
     wc_Sha384Free(&temp);
 
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
