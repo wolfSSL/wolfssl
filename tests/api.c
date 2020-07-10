@@ -8580,6 +8580,42 @@ static int test_wc_Sha3_512_Copy (void)
     return ret;
 
 } /* END test_wc_Sha3_512_Copy */
+/*
+ * Unit test function for wc_Sha3_GetFlags()
+ */
+static int test_wc_Sha3_GetFlags (void) 
+{
+    int ret = 0;
+#if defined(WOLFSSL_SHA3) && \
+    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+    wc_Sha3            sha3;
+    word32             flags = 0;
+
+    
+    printf(testingFmt, "wc_Sha3_GetFlags()");
+    
+    /* Initialize */
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+    if (ret == 0) {
+        ret = wc_Sha3_GetFlags(&sha3, &flags);
+    }
+    if (ret == 0) {
+        if (flags & WC_HASH_FLAG_ISCOPY) {
+            ret = 0;
+        }
+    }
+    
+    wc_Sha3_224_Free(&sha3);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Sha3_GetFlags */
 
 
 
@@ -8725,7 +8761,70 @@ static int test_wc_Shake256_Final (void)
 #endif
     return ret;
 }
+/*
+ *  Testing wc_Shake256_Copy()
+ */
+static int test_wc_Shake256_Copy (void) 
+{
+    int         ret = 0;
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+    wc_Shake    shake, shakeCpy;
+    const char* msg = "Everyone gets Friday off.";
+    word32      msglen = (word32)XSTRLEN(msg);
+    byte        hash[144];
+    byte        hashCpy[144];
+    word32      hashLen = sizeof(hash);
+    word32      hashLenCpy = sizeof(hashCpy);
 
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(hashCpy, 0, sizeof(hashCpy));
+
+    printf(testingFmt, "wc_Shake256_Copy()");
+
+    ret = wc_InitShake256(&shake, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_InitShake256(&shakeCpy, HEAP_HINT, devId);
+    if (ret != 0) {
+        wc_Shake256_Free(&shake);
+        return ret;
+    }
+
+    ret = wc_Shake256_Update(&shake, (byte*)msg, msglen);
+
+    if (ret == 0) {
+        ret = wc_Shake256_Copy(&shakeCpy, &shake);
+        if (ret == 0) {
+            ret = wc_Shake256_Final(&shake, hash, hashLen);
+            if (ret == 0) {
+                ret = wc_Shake256_Final(&shakeCpy, hashCpy, hashLenCpy);
+            }
+        }
+        if (ret == 0 && XMEMCMP(hash, hashCpy, sizeof(hash)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Shake256_Copy(NULL, &shake);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Shake256_Copy(&shakeCpy, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Shake256_Copy */
 
 
 /*
@@ -34508,9 +34607,11 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Sha3_256_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_384_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_512_Copy(), 0);
+    AssertIntEQ(test_wc_Sha3_GetFlags(), 0);    
     AssertIntEQ(test_wc_InitShake256(), 0);
     AssertIntEQ(testing_wc_Shake256_Update(), 0);
     AssertIntEQ(test_wc_Shake256_Final(), 0);
+    AssertIntEQ(test_wc_Shake256_Copy(), 0);
 
     AssertFalse(test_wc_Md5HmacSetKey());
     AssertFalse(test_wc_Md5HmacUpdate());
