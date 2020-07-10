@@ -2508,7 +2508,7 @@ WOLFSSL_ABI
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                     word32 protocol_name_listSz, byte options)
 {
-    char    *list, *ptr, *token[WOLFSSL_MAX_ALPN_NUMBER]={NULL};
+    char    *list, *ptr, *token[WOLFSSL_MAX_ALPN_NUMBER+1]={NULL};
     word16  len;
     int     idx = 0;
     int     ret = WOLFSSL_FAILURE;
@@ -8430,6 +8430,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                         wolfSSL_ASN1_OBJECT_free(ext->obj);
                         wolfSSL_X509_EXTENSION_free(ext);
                         FreeDecodedCert(&cert);
+                        XFREE(oidBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return NULL;
                     }
                     ext->obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
@@ -8499,7 +8500,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
     int nid;
     const int sz = CTC_NAME_SIZE*2;
     int rc = WOLFSSL_FAILURE;
-    char tmp[CTC_NAME_SIZE*2];
+    char tmp[CTC_NAME_SIZE*2] = {0};
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_print");
 
     if ((out == NULL) || (ext == NULL)) {
@@ -8514,7 +8515,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
     }
 
     str = wolfSSL_X509_EXTENSION_get_data(ext);
-    if (obj == NULL) {
+    if (str == NULL) {
         WOLFSSL_MSG("Error getting ASN1_STRING from X509_EXTENSION");
         return rc;
     }
@@ -8638,7 +8639,7 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         WOLFSSL_MSG("Failed to get nid from passed extension object");
         return NULL;
     }
-
+    XMEMSET(&method, 0, sizeof(WOLFSSL_v3_ext_method));
     switch (nid) {
         case NID_basic_constraints:
             break;
@@ -11539,7 +11540,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         if (ssl->buffers.outputBuffer.length > 0
         #ifdef WOLFSSL_ASYNC_CRYPT
-            /* do not send buffered or advance state if last error was an 
+            /* do not send buffered or advance state if last error was an
                 async pending operation */
             && ssl->error != WC_PENDING_E
         #endif
@@ -11951,7 +11952,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         if (ssl->buffers.outputBuffer.length > 0
         #ifdef WOLFSSL_ASYNC_CRYPT
-            /* do not send buffered or advance state if last error was an 
+            /* do not send buffered or advance state if last error was an
                 async pending operation */
             && ssl->error != WC_PENDING_E
         #endif
@@ -16565,7 +16566,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("DES_ncbc_encrypt");
 
         /* OpenSSL compat, no ret */
-        wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
+        if (wc_Des_SetKey(&myDes, (const byte*)schedule,
+                         (const byte*)ivec, !enc) != 0) {
+            WOLFSSL_MSG("wc_Des_SetKey return error.");
+            return;
+        }
+
         lb_sz = length%DES_BLOCK_SIZE;
         blk   = length/DES_BLOCK_SIZE;
         idx  -= sizeof(DES_cblock);
@@ -23792,7 +23798,7 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)asnTime, buf,
                 sizeof(buf)) == NULL) {
         XMEMSET(buf, 0, MAX_TIME_STRING_SZ);
-        XMEMCPY(buf, "Bad time value", 14);
+        XSTRNCPY(buf, "Bad time value", sizeof(buf)-1);
         ret = WOLFSSL_FAILURE;
     }
 
@@ -30470,6 +30476,7 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
 int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
 {
     void* heap;
+    int ret;
 
 #ifndef HAVE_FIPS
     heap = src->heap;
@@ -30484,42 +30491,45 @@ int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
     switch (src->macType) {
     #ifndef NO_MD5
         case WC_MD5:
-            wc_Md5Copy(&src->hash.md5, &des->hash.md5);
+            ret = wc_Md5Copy(&src->hash.md5, &des->hash.md5);
             break;
     #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
         case WC_SHA:
-            wc_ShaCopy(&src->hash.sha, &des->hash.sha);
+            ret = wc_ShaCopy(&src->hash.sha, &des->hash.sha);
             break;
     #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
         case WC_SHA224:
-            wc_Sha224Copy(&src->hash.sha224, &des->hash.sha224);
+            ret = wc_Sha224Copy(&src->hash.sha224, &des->hash.sha224);
             break;
     #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
         case WC_SHA256:
-            wc_Sha256Copy(&src->hash.sha256, &des->hash.sha256);
+            ret = wc_Sha256Copy(&src->hash.sha256, &des->hash.sha256);
             break;
     #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA384
         case WC_SHA384:
-            wc_Sha384Copy(&src->hash.sha384, &des->hash.sha384);
+            ret = wc_Sha384Copy(&src->hash.sha384, &des->hash.sha384);
             break;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case WC_SHA512:
-            wc_Sha512Copy(&src->hash.sha512, &des->hash.sha512);
+            ret = wc_Sha512Copy(&src->hash.sha512, &des->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
 
         default:
             return WOLFSSL_FAILURE;
     }
+
+    if (ret != 0)
+        return WOLFSSL_FAILURE;
 
     XMEMCPY((byte*)des->ipad, (byte*)src->ipad, WC_HMAC_BLOCK_SIZE);
     XMEMCPY((byte*)des->opad, (byte*)src->opad, WC_HMAC_BLOCK_SIZE);
@@ -41052,7 +41062,7 @@ void wolfSSL_print_all_errors_fp(XFILE fp)
 }
 #endif /* !NO_FILESYSTEM */
 
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX || 
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX ||
     HAVE_LIGHTY || WOLFSSL_HAPROXY || WOLFSSL_OPENSSH */
 
 
@@ -41752,7 +41762,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 {
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     int count = 0, len = 0, totalSz = 0, tmpSz = 0;
-    char tmp[ASN_NAME_MAX];
+    char tmp[ASN_NAME_MAX+1];
     char fullName[ASN_NAME_MAX];
     const char *buf = NULL;
     WOLFSSL_X509_NAME_ENTRY* ne;
@@ -43039,7 +43049,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         int ret = 0;
 
         while (1) {
-            if ((ret = wc_PeekErrorNode(-1, file, NULL, line)) < 0) {
+            ret = wc_PeekErrorNode(-1, file, NULL, line);
+            if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
                 WOLFSSL_MSG("Issue peeking at error node in queue");
                 return 0;
             }
@@ -44622,7 +44633,10 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
     ret = GetInt(&mpi, ai->data, &idx, ai->dataMax);
     if (ret != 0) {
     #ifdef WOLFSSL_QT
-        mp_init(&mpi); /* must init mpi */
+        ret = mp_init(&mpi); /* must init mpi */
+        if (ret != MP_OKAY) {
+            return NULL;
+        }
         /* Serial number in QT starts at index 0 of data */
         if (mp_read_unsigned_bin(&mpi, (byte*)ai->data, ai->length) != 0) {
                 mp_clear(&mpi);

@@ -19215,7 +19215,7 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     int           i;
     unsigned long len;
     const char*   nameDelim;
-    
+
     /* Support trailing : */
     nameDelim = XSTRSTR(name, ":");
     if (nameDelim)
@@ -26933,6 +26933,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, handshake_failure);
             #endif
+                #ifdef HAVE_EXT_CACHE
+                    wolfSSL_SESSION_free(session);
+                #endif
                 return EXT_MASTER_SECRET_NEEDED_E;
             }
         #ifdef HAVE_EXT_CACHE

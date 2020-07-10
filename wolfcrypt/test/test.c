@@ -14443,6 +14443,7 @@ int dh_test(void)
     (void)tmp;
     (void)bytes;
 
+    XMEMSET(&rng, 0, sizeof(rng));
     /* Use API for coverage. */
     ret = wc_InitDhKey(&key);
     if (ret != 0) {
@@ -17214,13 +17215,17 @@ int openssl_evpSig_test(void)
     verf = EVP_MD_CTX_create();
     if((sign == NULL)||(verf == NULL)){
         printf("error with EVP_MD_CTX_create\n");
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
         return ERR_BASE_EVPSIG-10;
     }
 
     ret = EVP_SignInit(sign, EVP_sha1());
-    if(ret != SSL_SUCCESS){
-      printf("error with EVP_SignInit\n");
-      return ERR_BASE_EVPSIG-11;
+    if (ret != SSL_SUCCESS){
+        printf("error with EVP_SignInit\n");
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
+        return ERR_BASE_EVPSIG-11;
     }
 
     count = sizeof(msg);
@@ -17232,6 +17237,10 @@ int openssl_evpSig_test(void)
     ret1 = EVP_SignUpdate(sign, pt, count);
     ret2 = EVP_SignFinal(sign, sig, &sigSz, prvPkey);
     if((ret1 != SSL_SUCCESS) || (ret2 != SSL_SUCCESS)){
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
         printf("error with EVP_MD_CTX_create\n");
         return ERR_BASE_EVPSIG-12;
     }
@@ -17242,12 +17251,18 @@ int openssl_evpSig_test(void)
     ret1 = EVP_VerifyInit(verf, EVP_sha1());
     ret2 = EVP_VerifyUpdate(verf, pt, count);
     if((ret1 != SSL_SUCCESS) || (ret2 != SSL_SUCCESS)){
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
         printf("error with EVP_Verify\n");
         return ERR_BASE_EVPSIG-13;
     }
     if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) != 1) {
         XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
         printf("error with EVP_VerifyFinal\n");
         return ERR_BASE_EVPSIG-14;
     }
@@ -17257,6 +17272,8 @@ int openssl_evpSig_test(void)
     if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) == 1) {
         XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        EVP_MD_CTX_destroy(sign);
+        EVP_MD_CTX_destroy(verf);
         printf("EVP_VerifyInit without update not detected\n");
         return ERR_BASE_EVPSIG-15;
     }

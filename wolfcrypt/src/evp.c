@@ -856,7 +856,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     if (ret == WOLFSSL_SUCCESS) {
         /* reset cipher state after final */
-        wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
+        ret = wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
     }
     return ret;
 }

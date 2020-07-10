@@ -728,7 +728,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     XMEMSET(tmpBuf, 0, sizeof(tmpBuf));
     if (recv(*sockfd, tmpBuf, sizeof(tmpBuf)-1, 0) < 0)
         err_sys("failed to read STARTTLS command\n");
-
+    tmpBuf[sizeof(tmpBuf)-1] = '\0';
     if (!XSTRNCMP(tmpBuf, starttlsCmd[4], XSTRLEN(starttlsCmd[4]))) {
         printf("%s\n", tmpBuf);
     } else {

@@ -3385,7 +3385,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         /* Initialize the AES-GCM/CCM explicit IV to a zero. */
     #ifdef WOLFSSL_DTLS
         if (scr_copy)
-            XMEMCPY(ssl->keys.aead_exp_IV,
+            XMEMMOVE(ssl->keys.aead_exp_IV,
                     keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
     #endif
         XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
