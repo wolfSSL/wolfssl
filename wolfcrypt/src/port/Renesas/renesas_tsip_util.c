@@ -82,8 +82,8 @@ static uint32_t GetTsipCipherSuite(
     uint32_t tsipCipher;
 
     if(cipherSuiteFirst == CIPHER_BYTE )
-	{
-		switch(cipherSuite){
+    {
+        switch(cipherSuite){
 
             case TLS_RSA_WITH_AES_128_CBC_SHA: /*2F*/
                 tsipCipher = R_TSIP_TLS_RSA_WITH_AES_128_CBC_SHA; /*0*/
@@ -106,13 +106,13 @@ static uint32_t GetTsipCipherSuite(
                 break;
 		}
         WOLFSSL_MSG( "<< GetTsipCipherSuite");
-		return tsipCipher;
+        return tsipCipher;
 	}
-	else if( cipherSuiteFirst == ECC_BYTE )
-	{
+    else if( cipherSuiteFirst == ECC_BYTE )
+    {
         tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
         /* comment out until implementation completes
-		switch(cipherSuite){
+        switch(cipherSuite){
 
             case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
                 tsipCipher = R_TSIP_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
@@ -133,15 +133,15 @@ static uint32_t GetTsipCipherSuite(
             default:
                 tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
                 break;
-		} */
-	}
+        } */
+    }
 	else{
         tsipCipher = (uint32_t)WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE;
-	}
+    }
 
     WOLFSSL_MSG( "<< GetTsipCipherSuite" );
 
-	return tsipCipher;
+    return tsipCipher;
 }
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=106) 
 
@@ -174,8 +174,6 @@ int tsip_hw_lock()
 {
     int ret = 0;
 
-    /*WOLFSSL_MSG("enter esp_sha_hw_lock");*/
-
     if(tsip_CryptHwMutexInit_ == 0){
       
         ret = tsip_CryptHwMutexInit(&tsip_mutex);
@@ -191,7 +189,7 @@ int tsip_hw_lock()
         /* this should not happens */
         return -1;
     }
-    /*WOLFSSL_MSG("leave tsip_sha_try_hw_lock");*/
+ 
     return ret;
 }
 
@@ -200,9 +198,7 @@ int tsip_hw_lock()
 */
 void tsip_hw_unlock( void )
 {
-    /* WOLFSSL_MSG("enter tsip_hw_unlock"); */
     tsip_CryptHwMutexUnLock(&tsip_mutex);
-    /* WOLFSSL_MSG("leave tsip_hw_unlock");*/
 }
 
 /* check if tsip tls functions can be used for the cipher      */
@@ -217,41 +213,33 @@ int tsip_useable(const struct WOLFSSL *ssl)
     byte side;
     
     /* sanity check */
-    if (ssl == NULL){
-        WOLFSSL_MSG("<< tsip_useable: No");
+    if (ssl == NULL)
         return BAD_FUNC_ARG;
-    }
+    
     /* when rsa key index == NULL, tsip isn't used for cert verification. */
     /* in the case, we cannot use TSIP.                                   */
-    if (!ssl->peerTsipEncRsaKeyIndex){
-        WOLFSSL_MSG("<< tsip_useable: No");
+    if (!ssl->peerTsipEncRsaKeyIndex)
         return 0;
-    }
+    
     /* when enabled Extended Master Secret, we cannot use TSIP.           */
-    if (ssl->options.haveEMS){
-        WOLFSSL_MSG("<< tsip_useable: No");
+    if (ssl->options.haveEMS)
         return 0;
-    }
+    
     cipher0 = ssl->options.cipherSuite0;
     cipher = ssl->options.cipherSuite;
     side = ssl->options.side;
     
-    if (cipher0 > 0x00){ 
-        WOLFSSL_MSG("<< tsip_useable: No");
+    if (cipher0 > 0x00) 
         return 0;
-    }
+    
     if ((cipher == l_TLS_RSA_WITH_AES_128_CBC_SHA ||
          cipher == l_TLS_RSA_WITH_AES_128_CBC_SHA256 ||
          cipher == l_TLS_RSA_WITH_AES_256_CBC_SHA ||
          cipher == l_TLS_RSA_WITH_AES_256_CBC_SHA256) &&
-         side == WOLFSSL_CLIENT_END){
-        WOLFSSL_MSG("<< tsip_useable: Yes");     
+         side == WOLFSSL_CLIENT_END)
         return 1;
-    }
-    else{
-        WOLFSSL_MSG("<< tsip_useable: No");
+    else
         return 0;
-    }
 }
 
 /* check if the g_alreadyVerified CA's key can be used for *

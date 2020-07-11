@@ -35,9 +35,6 @@ typedef struct st_key_block_data
     uint8_t iv[R_TSIP_AES_CBC_IV_BYTE_SIZE];
     uint8_t encrypted_user_rsa2048_ne_key[R_TSIP_RSA2048_NE_KEY_BYTE_SIZE + 16];
     uint8_t encrypted_user_update_key[R_TSIP_AES256_KEY_BYTE_SIZE + 16];
- //   #if (WOLFSSL_RENESAS_TSIP_VER >= 109)
- //   uint32_t encrypted_user_key_type;
- //   #endif
 } st_key_block_data_t;
 
     #if (WOLFSSL_RENESAS_TSIP_VER >= 109)

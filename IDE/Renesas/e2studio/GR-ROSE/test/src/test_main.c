@@ -19,11 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-//#include "typedefine.h"
-#ifdef __cplusplus
-//#include <ios>                        // Remove the comment when you use ios
-//_SINT ios_base::Init::init_cnt;       // Remove the comment when you use ios
-#endif
 
 #include "stdio.h"
 #include "stdint.h"
