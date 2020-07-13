@@ -508,7 +508,7 @@ namespace wolfSSL.CSharp {
         {
             if (sz <= 0)
             {
-                log(ERROR_LOG, "wolfssl dtls send error, size less than 0");
+                log(ERROR_LOG, "wolfssl DTLS send error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -544,7 +544,7 @@ namespace wolfSSL.CSharp {
         {
             if (sz <= 0)
             {
-                log(ERROR_LOG, "wolfssl dtls receive error, size less than 0");
+                log(ERROR_LOG, "wolfssl DTLS receive error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -687,7 +687,7 @@ namespace wolfSSL.CSharp {
                 int ret;
                 byte[] msg;
 
-                buf.Clear(); /* Clear incomming buffer */
+                buf.Clear(); /* Clear incoming buffer */
 
                 if (sslCtx == IntPtr.Zero)
                 {
@@ -888,7 +888,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "wolfssl shutdwon error " + e.ToString());
+                log(ERROR_LOG, "wolfssl shutdown error " + e.ToString());
                 return FAILURE;
             }
         }
@@ -1535,7 +1535,7 @@ namespace wolfSSL.CSharp {
 
 
         /// <summary>
-        /// Set available cipher suites for all ssl structs created from ctx
+        /// Set available cipher suites for all ssl struct's created from ctx
         /// </summary>
         /// <param name="ctx">CTX structure to set</param>
         /// <param name="list">List full of ciphers suites</param>
