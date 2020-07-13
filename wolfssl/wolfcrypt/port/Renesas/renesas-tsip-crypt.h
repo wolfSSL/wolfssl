@@ -35,6 +35,13 @@
 extern "C" {
 #endif
 
+#define TSIP_SESSIONKEY_NONCE_SIZE      8
+
+typedef enum {
+    WOLFSSL_TSIP_NOERROR = 0,
+    WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE = 0xffffffff,
+}wolfssl_tsip_error_number;
+
 typedef enum {
     tsip_Key_SESSION = 1,
     tsip_Key_AES128  = 2,
@@ -52,6 +59,34 @@ enum {
     l_TLS_RSA_WITH_AES_256_CBC_SHA256  = 0x3d,
 };
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=109) 
+
+typedef struct
+{
+    uint8_t                          *encrypted_provisioning_key;
+    uint8_t                          *iv;
+    uint8_t                          *encrypted_user_tls_key;
+    uint32_t                          encrypted_user_tls_key_type;
+    tsip_tls_ca_certification_public_key_index_t  user_rsa2048_tls_pubindex;
+} tsip_key_data;
+
+void tsip_inform_user_keys_ex(
+        byte*       provisioning_key,   /* key got from DLM server */
+        byte*       iv,                 /* iv used for public key  */
+        byte*       encrypted_public_key,/*RSA2048 or ECDSAp256 public key*/
+        word32      public_key_type);   /* 0: RSA-2048 2:ECDSA P-256 */    
+
+int tsip_generateMasterSecretEx(
+        byte        cipherSuiteFirst,
+        byte        cipherSuite,
+        const byte* pr,                 /* pre-master    */
+        const byte* cr,                 /* client random */
+        const byte* sr,                 /* server random */
+        byte*       ms);
+
+
+#elif defined(WOLFSSL_RENESAS_TSIP_TLS) && (WOLFSSL_RENESAS_TSIP_VER >=106)
+
 typedef struct
 {
     uint8_t                          *encrypted_session_key;
@@ -60,45 +95,81 @@ typedef struct
     tsip_tls_ca_certification_public_key_index_t  user_rsa2048_tls_pubindex;
 } tsip_key_data;
 
-struct WOLFSSL;
-
-int  tsip_Open( );
-void tsip_Close( );
-int tsip_hw_lock();
-void tsip_hw_unlock( void );
-int tsip_usable(const struct WOLFSSL *ssl);
-void tsip_inform_sflash_signedcacert(const byte *ps_flash, 
-    const byte *psigned_ca_cert, word32 len);
-void tsip_inform_cert_sign(const byte *sign);
-/* set / get key */
 void tsip_inform_user_keys(byte *encrypted_session_key, byte *iv,
                            byte *encrypted_user_tls_key);
-                           
-byte tsip_rootCAverified( );
-byte tsip_checkCA(word32 cmIdx);
-int tsip_tls_RootCertVerify(const byte *cert  , word32 cert_len,
-                            word32 key_n_start, word32 key_n_len,
-                            word32 key_e_start, word32 key_e_len,
-                            word32 cm_row);
-int tsip_tls_CertVerify(const byte *cert, word32 certSz,
-                        const byte *signature, word32 sigSz,
-                        word32 key_n_start, word32 key_n_len,
-                        word32 key_e_start, word32 key_e_len,
-                        byte *tsip_encRsaKeyIdx);
-void tsip_inform_key_position(const word32 key_n_start, const word32 key_n_len,
-                              const word32 key_e_start, const word32 key_e_len);
-int tsip_generatePremasterSecret(byte *premaster, word32 preSz);
-int tsip_generateEncryptPreMasterSecret(struct WOLFSSL *ssl, byte *out, 
-                                        word32 *outSz);
 int tsip_generateMasterSecret(const byte *pre, const byte *cr,const byte *sr,
                               byte *ms);
-int tsip_generateSeesionKey(struct WOLFSSL *ssl);
-int tsip_Sha256Hmac(const struct WOLFSSL *ssl, const byte *myInner, 
-            word32 innerSz, const byte *in, word32 sz, byte *digest, 
-            word32 verify);
-int tsip_Sha1Hmac(const struct WOLFSSL *ssl, const byte *myInner, 
-            word32 innerSz, const byte *in, word32 sz, byte *digest, 
-            word32 verify);
+#endif
+
+struct WOLFSSL;
+
+int     tsip_Open();
+
+void    tsip_Close();
+
+int     tsip_hw_lock();
+
+void    tsip_hw_unlock( void );
+
+int     tsip_usable(const struct WOLFSSL *ssl);
+
+void    tsip_inform_sflash_signedcacert(
+            const byte* ps_flash, 
+            const byte* psigned_ca_cert,
+            word32      len);
+void    tsip_inform_cert_sign(const byte *sign);                           
+
+byte    tsip_rootCAverified();
+
+byte    tsip_checkCA(word32 cmIdx);
+
+int     tsip_tls_RootCertVerify(
+            const   byte* cert,         word32 cert_len,
+            word32  key_n_start,        word32 key_n_len,
+            word32  key_e_start,        word32 key_e_len,
+            word32  cm_row);
+
+int     tsip_tls_CertVerify(
+            const   byte* cert,         word32 certSz,
+            const   byte* signature,    word32 sigSz,
+            word32  key_n_start,        word32 key_n_len,
+            word32  key_e_start,        word32 key_e_len,
+            byte*   tsip_encRsaKeyIdx);
+
+void    tsip_inform_key_position(
+            const word32 key_n_start,
+            const word32 key_n_len,
+            const word32 key_e_start,
+            const word32 key_e_len);
+
+int     tsip_generatePremasterSecret(
+            byte*   premaster,
+            word32  preSz);
+
+int     tsip_generateEncryptPreMasterSecret(
+            struct WOLFSSL* ssl, 
+            byte*           out, 
+            word32*         outSz);
+
+int     tsip_generateSeesionKey(struct WOLFSSL *ssl);
+
+int     tsip_Sha256Hmac(
+            const struct WOLFSSL *ssl,
+            const byte* myInner, 
+            word32      innerSz,
+            const byte* in,
+            word32      sz,
+            byte*       digest, 
+            word32      verify);
+
+int     tsip_Sha1Hmac(
+            const struct WOLFSSL *ssl,
+            const byte* myInner, 
+            word32      innerSz,
+            const byte* in,
+            word32      sz, 
+            byte*       digest, 
+            word32      verify);
             
 #if (!defined(NO_SHA) || !defined(NO_SHA256)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
@@ -128,10 +199,10 @@ typedef wolfssl_TSIP_Hash wc_Sha;
 #endif /* NO_SHA */
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
-typedef struct {
-    tsip_aes_key_index_t tsip_keyIdx;
-    word32               keySize;
-} TSIP_AES_CTX;
+    typedef struct {
+        tsip_aes_key_index_t tsip_keyIdx;
+        word32               keySize;
+    } TSIP_AES_CTX;
     
     struct Aes;
     int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in,

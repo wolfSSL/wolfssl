@@ -1,0 +1,23 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/README
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/wolfssl/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/wolfssl/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/test_HardwareDebug.launch
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/test_main.c
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/key_data.c
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/key_data.h
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/wolf_client.c
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/wolf_server.c
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/test/src/wolfssl_demo.h
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/common/wolfssl_dummy.c
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/common/strings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/common/unistd.h
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/common/user_settings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/smc/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/smc/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/GR-ROSE/smc/smc.scfg
