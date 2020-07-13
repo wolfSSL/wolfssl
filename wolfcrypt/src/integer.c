@@ -4324,6 +4324,8 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
   mp_digit *tmpa, *tmpc, mu;
   int       res, ix, oldused;
 
+  if (b > MP_MASK) return MP_VAL;
+
   /* grow c as required */
   if (c->alloc < a->used + 1) {
      if ((res = mp_grow(c, a->used + 1)) != MP_OKAY) {
