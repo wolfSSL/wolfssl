@@ -431,6 +431,9 @@ struct ecc_key {
 #ifdef WOLFSSL_DSP
     remote_handle64 handle;
 #endif
+#ifdef ECC_TIMING_RESISTANT
+    WC_RNG* rng;
+#endif
 #ifdef WC_ECC_NONBLOCK
     ecc_nb_ctx_t* nb_ctx;
 #endif
@@ -475,6 +478,8 @@ WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
 WOLFSSL_API
 int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
+WOLFSSL_API
+int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API
@@ -545,6 +550,10 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 WOLFSSL_LOCAL
 void wc_ecc_fp_init(void);
+#ifdef ECC_TIMING_RESISTANT
+WOLFSSL_API
+int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
+#endif
 
 WOLFSSL_API
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
@@ -602,7 +611,8 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
 WOLFSSL_LOCAL
 int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
-                      mp_int* modulus, mp_int* order, int map, void* heap);
+                      mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
+                      void* heap);
 #endif /* !WOLFSSL_ATECC508A */
 
 

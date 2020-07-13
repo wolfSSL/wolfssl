@@ -3492,11 +3492,12 @@ int fp_montgomery_reduce_ex(fp_int *a, fp_int *m, fp_digit mp, int ct)
   a->used = pa+1;
   fp_clamp(a);
 
-#ifdef WOLFSSL_MONT_RED_NCT
+#ifndef WOLFSSL_MONT_RED_CT
   /* if A >= m then A = A - m */
   if (fp_cmp_mag (a, m) != FP_LT) {
     s_fp_sub (a, m, a);
   }
+  (void)ct;
 #else
   if (ct) {
     fp_submod_ct(a, m, m, a);

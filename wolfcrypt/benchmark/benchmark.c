@@ -5311,6 +5311,13 @@ void bench_ecc(int doAsync)
     }
 
 #ifdef HAVE_ECC_DHE
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        (void)wc_ecc_set_rng(&genKey[i], &gRng);
+    }
+#endif
 
     /* ECC Shared Secret */
     bench_stats_start(&count, &start);

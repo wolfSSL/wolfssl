@@ -19056,6 +19056,14 @@ static int test_wc_ecc_shared_secret (void)
         ret = wc_ecc_make_key(&rng, keySz, &pubKey);
     }
 
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    if (ret == 0) {
+        ret = wc_ecc_set_rng(&key, &rng);
+    }
+#endif
+
     printf(testingFmt, "wc_ecc_shared_secret()");
     if (ret == 0) {
         ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
@@ -20021,6 +20029,17 @@ static int test_wc_ecc_encryptDecrypt (void)
         }
     }
 
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    if (ret == 0) {
+        ret = wc_ecc_set_rng(&srvKey, &rng);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_set_rng(&cliKey, &rng);
+    }
+#endif
+
     printf(testingFmt, "wc_ecc_encrypt()");
 
     if (ret == 0) {
@@ -20352,6 +20371,14 @@ static int test_wc_ecc_shared_secret_ssh (void)
     }
 
     printf(testingFmt, "ecc_shared_secret_ssh()");
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    if (ret == 0) {
+        ret = wc_ecc_set_rng(&key, &rng);
+    }
+#endif
 
     if (ret == 0) {
         ret = wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret, &secretLen);
@@ -22203,6 +22230,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 {
 #if defined(HAVE_PKCS7)
     PKCS7*      pkcs7;
+    WC_RNG      rng;
     word32      tempWrd32   = 0;
     byte*       tmpBytePtr = NULL;
     const char  input[] = "Test data to encode.";
@@ -22370,6 +22398,10 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 #endif /* END HAVE_ECC */
     }; /* END pkcs7EnvelopedVector */
 
+#ifdef ECC_TIMING_RESISTANT
+    AssertIntEQ(wc_InitRng(&rng), 0);
+#endif
+
     printf(testingFmt, "wc_PKCS7_EncodeEnvelopedData()");
 
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
@@ -22379,6 +22411,9 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     for (i = 0; i < testSz; i++) {
         AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (testVectors + i)->cert,
                                     (word32)(testVectors + i)->certSz), 0);
+#ifdef ECC_TIMING_RESISTANT
+        pkcs7->rng = &rng;
+#endif
 
         pkcs7->content       = (byte*)(testVectors + i)->content;
         pkcs7->contentSz     = (testVectors + i)->contentSz;
@@ -22500,6 +22535,10 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC */
+
+#ifdef ECC_TIMING_RESISTANT
+    wc_FreeRng(&rng);
+#endif
 
 #endif /* HAVE_PKCS7 */
 } /* END test_wc_PKCS7_EncodeEnvelopedData() */
