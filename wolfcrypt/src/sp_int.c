@@ -1003,26 +1003,31 @@ void sp_zero(sp_int* a)
 int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
     int i = 0;
+    sp_int_digit t;
 
     r->used = a->used;
     if (a->used == 0) {
-        r->used = 1;
+        r->used = d > 0;
     }
-    r->dp[0] = a->dp[0] + d;
-    if (r->dp[i] < a->dp[i]) {
-        for (; i < a->used; i++) {
+    t = a->dp[0] + d;
+    if (t < a->dp[0]) {
+        for (++i; i < a->used; i++) {
             r->dp[i] = a->dp[i] + 1;
-            if (r->dp[i] != 0)
+            if (r->dp[i] != 0) {
                break;
+            }
         }
-
         if (i == a->used) {
             r->used++;
             r->dp[i] = 1;
         }
     }
-    for (; i < a->used; i++)
-        r->dp[i] = a->dp[i];
+    r->dp[0] = t;
+    if (r != a) {
+        for (++i; i < a->used; i++) {
+            r->dp[i] = a->dp[i];
+        }
+    }
 
     return MP_OKAY;
 }
