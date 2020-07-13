@@ -5045,9 +5045,9 @@ void FreeDecodedCert(DecodedCert* cert)
 #endif /* WOLFSSL_SEP */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (cert->issuerName != NULL)
-        wolfSSL_X509_NAME_free(cert->issuerName);
+        wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->issuerName);
     if (cert->subjectName != NULL)
-        wolfSSL_X509_NAME_free(cert->subjectName);
+        wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->subjectName);
 #endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     if (cert->tsip_encRsaKeyIdx != NULL)

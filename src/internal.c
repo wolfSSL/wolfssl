@@ -9506,6 +9506,11 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         dCert->subjectCNLen < 0)
         return BAD_FUNC_ARG;
 
+    if (x509->issuer.name == NULL || x509->subject.name == NULL) {
+        WOLFSSL_MSG("Either init was not called on X509 or programming error");
+        return BAD_FUNC_ARG;
+    }
+
     x509->version = dCert->version + 1;
 
     XSTRNCPY(x509->issuer.name, dCert->issuer, ASN_NAME_MAX);
@@ -9513,7 +9518,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->issuerName != NULL) {
-        wolfSSL_X509_set_issuer_name(x509, dCert->issuerName);
+        wolfSSL_X509_set_issuer_name(x509,
+                (WOLFSSL_X509_NAME*)dCert->issuerName);
         x509->issuer.x509 = x509;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -9523,7 +9529,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->subjectName != NULL) {
-        wolfSSL_X509_set_subject_name(x509, dCert->subjectName);
+        wolfSSL_X509_set_subject_name(x509,
+                (WOLFSSL_X509_NAME*)dCert->subjectName);
         x509->subject.x509 = x509;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
@@ -11207,6 +11214,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                            ssl->secure_renegotiation->enabled) {
                             /* free old peer cert */
                             FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
                         }
                     #endif
 

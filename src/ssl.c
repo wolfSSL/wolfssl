@@ -37999,11 +37999,8 @@ err:
      * returns 0 on success */
     static int RebuildFullName(WOLFSSL_X509_NAME* name)
     {
-        int totalLen = 0;
-        int i;
+        int totalLen = 0, i, idx, entryCount = 0;
         char* fullName;
-        int idx;
-        int entryCount = 0;
 
         if (name == NULL)
             return BAD_FUNC_ARG;
@@ -38016,7 +38013,7 @@ err:
                 e = &name->entry[i];
                 obj = wolfSSL_X509_NAME_ENTRY_get_object(e);
 
-                totalLen += XSTRLEN(obj->sName) + 2; /* +2 for '/' and '=' */
+                totalLen += (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
                 totalLen += wolfSSL_ASN1_STRING_length(e->value);
             }
         }
@@ -47420,6 +47417,7 @@ static int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from,
             wolfSSL_X509_NAME_add_entry(to, ne, i, 1);
     }
     to->entrySz = from->entrySz;
+    (void)heap;
     return WOLFSSL_SUCCESS;
 }
 
