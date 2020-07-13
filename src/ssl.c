@@ -36348,7 +36348,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     void wolfSSL_cert_service(void) {}
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
     #ifndef NO_CERTS
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
@@ -37850,7 +37851,8 @@ err:
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_free");
         if (ne != NULL) {
-            if (ne->value != NULL && ne->value != &(ne->data)) {
+            wolfSSL_ASN1_OBJECT_free(&ne->object);
+            if (ne->value != NULL) {
                 wolfSSL_ASN1_STRING_free(ne->value);
             }
             XFREE(ne, NULL, DYNAMIC_TYPE_NAME_ENTRY);
@@ -37866,7 +37868,6 @@ err:
                 NULL, DYNAMIC_TYPE_NAME_ENTRY);
         if (ne != NULL) {
             XMEMSET(ne, 0, sizeof(WOLFSSL_X509_NAME_ENTRY));
-            ne->value = &(ne->data);
         }
 
         return ne;
@@ -38235,18 +38236,23 @@ err:
         objSz += SetLength(oidSz, objBuf + 1);
         XMEMCPY(objBuf + objSz, oid, oidSz);
         objSz     += oidSz;
-        obj->objSz = objSz;
-        if(((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
+
+        if (obj->objSz == 0 || objSz != obj->objSz) {
+            obj->objSz = objSz;
+            if(((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
                                                            (obj->obj == NULL)) {
-            obj->obj = (byte*)XREALLOC((byte*)obj->obj, obj->objSz, NULL,
-                                                             DYNAMIC_TYPE_ASN1);
-            if (obj->obj == NULL) {
-                wolfSSL_ASN1_OBJECT_free(obj);
-                return NULL;
+                if (obj->obj != NULL)
+                    XFREE((byte*)obj->obj, NULL, DYNAMIC_TYPE_ASN1);
+                obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
+                if (obj->obj == NULL) {
+                    wolfSSL_ASN1_OBJECT_free(obj);
+                    return NULL;
+                }
+                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA ;
             }
-            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA ;
-        } else {
-            obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
+            else {
+                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
+            }
         }
         XMEMCPY((byte*)obj->obj, objBuf, obj->objSz);
 
@@ -38361,7 +38367,7 @@ err:
         #endif
         return bufSz;
     }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     int wolfSSL_X509_NAME_get_index_by_OBJ(WOLFSSL_X509_NAME *name,
@@ -47386,7 +47392,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
 /* unlike wolfSSL_X509_NAME_dup this does not malloc a duplicate, only deep
  * copy. "to" is expected to be a fresh blank name, if not pointers could be
  * lost */
@@ -47407,6 +47414,7 @@ static int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from,
         to->name = (char*)XMALLOC(from->sz, heap, DYNAMIC_TYPE_SUBJECT_CN);
         if (to->name == NULL)
             return WOLFSSL_FAILURE;
+        to->dynamicName = 1;
     }
     XMEMCPY(to->name, from->name, from->sz);
     to->sz = from->sz;

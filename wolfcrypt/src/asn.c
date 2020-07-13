@@ -5043,7 +5043,8 @@ void FreeDecodedCert(DecodedCert* cert)
     XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
     XFREE(cert->hwSerialNum, cert->heap, DYNAMIC_TYPE_X509_EXT);
 #endif /* WOLFSSL_SEP */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
     if (cert->issuerName != NULL)
         wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->issuerName);
     if (cert->subjectName != NULL)
@@ -5549,7 +5550,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
     byte*  hash;
     word32 idx, localIdx = 0;
     byte   tag;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
     WOLFSSL_X509_NAME* dName;
     int    nid = NID_undef;
 #endif /* OPENSSL_EXTRA */
@@ -5609,7 +5611,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
         cert->subjectRawLen = length - cert->srcIdx;
     }
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(WOLFCRYPT_ONLY)
     dName = wolfSSL_X509_NAME_new();
     if (dName == NULL) {
         return MEMORY_E;
@@ -5631,7 +5634,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
         }
 
         if (GetSequence(cert->source, &cert->srcIdx, &dummy, maxIdx) <= 0) {
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
             wolfSSL_X509_NAME_free(dName);
         #endif /* OPENSSL_EXTRA */
             return ASN_PARSE_E;
@@ -5639,7 +5643,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
         ret = GetASNObjectId(cert->source, &cert->srcIdx, &oidSz, maxIdx);
         if (ret != 0) {
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
             wolfSSL_X509_NAME_free(dName);
         #endif /* OPENSSL_EXTRA */
             return ret;
@@ -5647,7 +5652,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
         /* make sure there is room for joint */
         if ((cert->srcIdx + sizeof(joint)) > (word32)maxIdx) {
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
             wolfSSL_X509_NAME_free(dName);
         #endif /* OPENSSL_EXTRA */
             return ASN_PARSE_E;
@@ -5661,7 +5667,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
             id = joint[2];
             if (GetHeader(cert->source, &b, &cert->srcIdx, &strLen,
                           maxIdx, 1) < 0) {
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
                 wolfSSL_X509_NAME_free(dName);
             #endif /* OPENSSL_EXTRA */
                 return ASN_PARSE_E;
@@ -5676,7 +5683,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
                 copy = WOLFSSL_COMMON_NAME;
                 copyLen = sizeof(WOLFSSL_COMMON_NAME) - 1;
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+                && !defined(WOLFCRYPT_ONLY)
                 nid = NID_commonName;
             #endif /* OPENSSL_EXTRA */
             }
@@ -5690,7 +5698,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectSNEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_surname;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5704,7 +5714,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectCEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_countryName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5718,7 +5730,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectLEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_localityName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5732,7 +5746,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectSTEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_stateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5746,7 +5762,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectOEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_organizationName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5760,7 +5778,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectOUEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_organizationalUnitName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5774,7 +5794,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectSNDEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_serialNumber;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5789,7 +5811,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                     cert->subjectBCEnc = b;
                 }
             #endif /* WOLFSSL_CERT_GEN */
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                 nid = NID_businessCategory;
             #endif /* OPENSSL_EXTRA */
             }
@@ -5808,7 +5831,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
                           maxIdx) < 0) {
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
                 wolfSSL_X509_NAME_free(dName);
             #endif /* OPENSSL_EXTRA */
                 return ASN_PARSE_E;
@@ -5825,7 +5849,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectJCEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_jurisdictionCountryName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5841,7 +5867,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectJSEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_jurisdictionStateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
@@ -5871,7 +5899,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
             cert->srcIdx += oidSz + 1;
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen, maxIdx) < 0) {
-            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
                 wolfSSL_X509_NAME_free(dName);
             #endif /* OPENSSL_EXTRA */
                 return ASN_PARSE_E;
@@ -5898,7 +5927,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         cert->subjectEmailLen = strLen;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                     nid = NID_emailAddress;
                 #endif /* OPENSSL_EXTRA */
                 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -5909,8 +5940,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                                               cert->heap, DYNAMIC_TYPE_ALTNAME);
                         if (emailName == NULL) {
                             WOLFSSL_MSG("\tOut of Memory");
-                        #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
+                        #if (defined(OPENSSL_EXTRA) || \
+                                defined(OPENSSL_EXTRA_X509_SMALL)) && \
+                                !defined(WOLFCRYPT_ONLY)
                             wolfSSL_X509_NAME_free(dName);
                         #endif /* OPENSSL_EXTRA */
                             return MEMORY_E;
@@ -5921,8 +5953,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         if (emailName->name == NULL) {
                             WOLFSSL_MSG("\tOut of Memory");
                             XFREE(emailName, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                        #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
+                        #if (defined(OPENSSL_EXTRA) || \
+                                defined(OPENSSL_EXTRA_X509_SMALL)) && \
+                                !defined(WOLFCRYPT_ONLY)
                             wolfSSL_X509_NAME_free(dName);
                         #endif /* OPENSSL_EXTRA */
                             return MEMORY_E;
@@ -5943,8 +5976,9 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                     case ASN_USER_ID:
                         copy = WOLFSSL_USER_ID;
                         copyLen = sizeof(WOLFSSL_USER_ID) - 1;
-                    #if defined(OPENSSL_EXTRA) || \
-                        defined(OPENSSL_EXTRA_X509_SMALL)
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                         nid = NID_userId;
                     #endif /* OPENSSL_EXTRA */
                         break;
@@ -5952,16 +5986,18 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                     case ASN_DOMAIN_COMPONENT:
                         copy = WOLFSSL_DOMAIN_COMPONENT;
                         copyLen = sizeof(WOLFSSL_DOMAIN_COMPONENT) - 1;
-                    #if defined(OPENSSL_EXTRA) || \
-                        defined(OPENSSL_EXTRA_X509_SMALL)
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
                         nid = NID_domainComponent;
                     #endif /* OPENSSL_EXTRA */
                         break;
 
                     default:
                         WOLFSSL_MSG("Unknown pilot attribute type");
-                    #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
+                    #if (defined(OPENSSL_EXTRA) || \
+                                defined(OPENSSL_EXTRA_X509_SMALL)) && \
+                                !defined(WOLFCRYPT_ONLY)
                         wolfSSL_X509_NAME_free(dName);
                     #endif /* OPENSSL_EXTRA */
                         return ASN_PARSE_E;
@@ -5979,7 +6015,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
             XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
             idx += strLen;
         }
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
         if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, MBSTRING_UTF8,
                             &cert->source[cert->srcIdx], strLen, -1, -1) !=
                             WOLFSSL_SUCCESS) {
@@ -5992,7 +6029,8 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
     full[idx++] = 0;
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
     if (nameType == ISSUER) {
         cert->issuerName = dName;
     }

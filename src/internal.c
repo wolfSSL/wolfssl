@@ -3350,10 +3350,9 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
         {
             int i;
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-                /* free ASN1 string data */
-                if (name->entry[i].set && name->entry[i].data.data != NULL) {
+                if (name->entry[i].set) {
                     wolfSSL_ASN1_OBJECT_free(&name->entry[i].object);
-                    XFREE(name->entry[i].data.data, heap, DYNAMIC_TYPE_OPENSSL);
+                    wolfSSL_ASN1_STRING_free(name->entry[i].value);
                 }
             }
         }
