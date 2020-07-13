@@ -5551,7 +5551,7 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
     byte   tag;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509_NAME* dName;
-    int    nid;
+    int    nid = NID_undef;
 #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
@@ -12508,6 +12508,7 @@ static int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 
         /* Restrict country code size */
         if (ASN_COUNTRY_NAME == type && strLen != CTC_COUNTRY_SIZE) {
+            WOLFSSL_MSG("Country code size error");
             return ASN_COUNTRY_SIZE_E;
         }
 
@@ -12640,9 +12641,10 @@ int SetName(byte* output, word32 outputSz, CertName* name)
                           GetCertNameId(i));
         if (ret < 0) {
         #ifdef WOLFSSL_SMALL_STACK
-                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
-                return BUFFER_E;
+            WOLFSSL_MSG("EncodeName failed");
+            return BUFFER_E;
         }
         totalBytes += ret;
     }
@@ -12656,6 +12658,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
+                WOLFSSL_MSG("EncodeName on multiple attributes failed\n");
                 return BUFFER_E;
             }
             totalBytes += ret;
@@ -12673,6 +12676,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
         return BUFFER_E;
     }
 
@@ -12689,6 +12693,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     #endif
+                        WOLFSSL_MSG("Not enough space left for DC value");
                         return BUFFER_E;
                     }
 

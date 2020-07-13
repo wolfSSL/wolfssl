@@ -20410,7 +20410,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         }
 
         if (dataSz < 0) {
-            sz = (int)XSTRLEN((const char*)data) + 1; /* +1 for null */
+            sz = (int)XSTRLEN((const char*)data);
         }
         else {
             sz = dataSz;
@@ -20426,9 +20426,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             asn1->data = NULL;
         }
 
-        if (sz > CTC_NAME_SIZE) {
-            /* create new data buffer and copy over */
-            asn1->data = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (sz + 1 > CTC_NAME_SIZE) {
+            /* create new data buffer and copy over  +1 for null */
+            asn1->data = (char*)XMALLOC(sz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
             if (asn1->data == NULL) {
                 return WOLFSSL_FAILURE;
             }
@@ -37917,6 +37917,12 @@ err:
     }
 
 
+    /* Creates a new entry given the NID, type, and data
+     * "dataSz" is number of bytes in data, if set to -1 then XSTRLEN is used
+     * "out" can be used to store the new entry data in an existing structure
+     *       if NULL then a new WOLFSSL_X509_NAME_ENTRY structure is created
+     * returns a pointer to WOLFSSL_X509_NAME_ENTRY on success and NULL on fail
+     */
     WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
             WOLFSSL_X509_NAME_ENTRY** out, int nid, int type,
             const unsigned char* data, int dataSz)
@@ -38139,7 +38145,8 @@ err:
     {
         int ret;
         WOLFSSL_X509_NAME_ENTRY* entry;
-        entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes, len);
+        entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes,
+                len);
         if (entry == NULL)
             return WOLFSSL_FAILURE;
         ret = wolfSSL_X509_NAME_add_entry(name, entry, loc, set);
@@ -47382,8 +47389,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* unlike wolfSSL_X509_NAME_dup this does not malloc a duplicate, only deep
  * copy. "to" is expected to be a fresh blank name, if not pointers could be
  * lost */
@@ -47543,7 +47549,7 @@ int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
+#endif /* (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) && WOLFSSL_CERT_GEN */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
