@@ -63,8 +63,61 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_ecc_verify_hash(IntPtr sigPtr, uint siglen, IntPtr hashPtr, uint hashlen, IntPtr res, IntPtr key);
 
+        /* Shared Secret ECDH private key and public key generate secret */
+        /* int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out, word32* outlen); */
+
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_EccPrivateKeyDecode(IntPtr keyBuf, IntPtr idx, IntPtr key, uint keyBufSz);
+
+        /* ASN.1 Import public only */
+        /* int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key, word32 inSz) */
+
+        /* ASN.1 export private */
+        /* int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen); */
+        /* int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen); */
+
+        /* ASN.1 export public */
+        /* int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen, int with_AlgCurve) */
+
+        /* RAW elements of ECC key (private d, public qX/qY) import and export and unsigned bin 
+        /* int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy, const char* d, int curve_id) */
+        /* int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen, byte* qy, word32* qyLen, byte* d, word32* dLen, int encType) */
+        
+
+        /********************************
+         * RSA
+         */
+
+        /* Need way to allocate RsaKey structure as IntPtr.
+        /* wc_InitRsaKey, wc_MakeRsaKey, wc_FreeRsaKey */
+        /* wc_RsaSSL_Sign, wc_RsaSSL_Verify, wc_RsaPublicEncrypt, wc_RsaPrivateDecrypt, wc_RsaPSS_Sign, wc_RsaPSS_Verify, wc_RsaPSS_CheckPadding */
+        /* wc_RsaPrivateKeyDecode, wc_RsaPublicKeyDecode */
+
+        /********************************
+         * HASH
+         */
+
+        /* Specifically need SHA2-256, SHA2-384 and SHA3: */
+        /* wc_HashInit, wc_HashUpdate, wc_HashFinal, wc_HashFree */
+
+
+        /********************************
+         * AES-GCM
+         */
+
+        /* wc_AesGcmSetKey, wc_AesGcmEncrypt and wc_AesGcmDecrypt */
+
+
+        /********************************
+         * ChaCha20
+         */
+        
+        /* wc_Chacha_SetIV, wc_Chacha_Process, wc_Chacha_SetKey */
+        /* wc_Poly1305SetKey, wc_Poly1305Update, wc_Poly1305Final */
+        /* wc_ChaCha20Poly1305_Encrypt, wc_ChaCha20Poly1305_Decrypt, wc_ChaCha20Poly1305_Init, 
+            wc_ChaCha20Poly1305_UpdateAad, wc_ChaCha20Poly1305_UpdateData, wc_ChaCha20Poly1305_Final */
+
+
 
         /********************************
          * Logging
