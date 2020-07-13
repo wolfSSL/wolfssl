@@ -562,6 +562,17 @@ void mp_rshb (mp_int *c, int x)
     mp_digit r, rr;
     mp_digit D = x;
 
+    /* shifting by a negative number not supported */
+    if (x < 0) return;
+
+    /* shift digits first if needed */
+    if (x >= DIGIT_BIT) {
+        mp_rshd(c, x / DIGIT_BIT);
+        /* recalculate number of bits to shift */
+        D = x % DIGIT_BIT;
+    }
+
+    /* zero shifted is always zero */
     if (mp_iszero(c)) return;
 
     /* mask */
