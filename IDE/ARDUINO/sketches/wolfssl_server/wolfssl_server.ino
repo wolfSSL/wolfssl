@@ -142,6 +142,7 @@ void loop() {
     Serial.println(cipherName);
 
     Serial.print("Server Read: ");
+    while (!client.available()) {}
     while (client.available() || wolfSSL_pending(ssl)) {
       input = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
       if (input < 0) {
