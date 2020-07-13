@@ -8818,9 +8818,9 @@ static int test_wc_Shake256_Copy (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
-
+    wc_Shake256_Free(&shake);
     printf(resultFmt, ret == 0 ? passed : failed);
-
+    
 #endif
     return ret;
 
