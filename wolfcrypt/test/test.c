@@ -18260,7 +18260,7 @@ done:
 #endif
 
 #ifdef HAVE_ECC_CDH
-static int ecc_test_cdh_vectors(void)
+static int ecc_test_cdh_vectors(WC_RNG* rng)
 {
     int ret;
     ecc_key pub_key, priv_key;
@@ -18291,6 +18291,16 @@ static int ecc_test_cdh_vectors(void)
     ret = wc_ecc_import_raw(&priv_key, QIUTx, QIUTy, dIUT, "SECP256R1");
     if (ret != 0)
         goto done;
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&priv_key, rng);
+    if (ret != 0)
+        goto done;
+#else
+    (void)rng;
+#endif
 
     /* compute ECC Cofactor shared secret */
     x = sizeof(sharedA);
@@ -18516,6 +18526,14 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9636, done);
     }
     TEST_SLEEP();
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&key, rng);
+    if (ret != 0)
+        goto done;
+#endif
 
     x = sizeof(exportBuf);
     do {
@@ -18766,6 +18784,17 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     }
 
 #ifdef HAVE_ECC_DHE
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&userA, rng);
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_set_rng(&userB, rng);
+    if (ret != 0)
+        goto done;
+#endif
+
     x = ECC_SHARED_SIZE;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -19528,7 +19557,7 @@ done:
 #endif
 
 #ifdef HAVE_ECC_DHE
-static int ecc_ssh_test(ecc_key* key)
+static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
 {
     int    ret;
     byte   out[128];
@@ -19548,6 +19577,16 @@ static int ecc_ssh_test(ecc_key* key)
     if (ret != BAD_FUNC_ARG)
         return -9747;
 
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(key, rng);
+    if (ret != 0)
+        return -9748;
+#else
+    (void)rng;
+#endif
+
     /* Use API. */
     ret = 0;
     do {
@@ -19558,7 +19597,7 @@ static int ecc_ssh_test(ecc_key* key)
             ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, &outLen);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        return -9748;
+        return -9749;
     TEST_SLEEP();
     return 0;
 }
@@ -19613,7 +19652,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #ifdef HAVE_ECC_DHE
-    ret = ecc_ssh_test(&key);
+    ret = ecc_ssh_test(&key, rng);
     if (ret < 0)
         goto done;
 #endif
@@ -20667,7 +20706,7 @@ int ecc_test(void)
     }
 #endif
 #ifdef HAVE_ECC_CDH
-    ret = ecc_test_cdh_vectors();
+    ret = ecc_test_cdh_vectors(&rng);
     if (ret != 0) {
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
         goto done;
@@ -20772,6 +20811,19 @@ int ecc_encrypt_test(void)
     /* set message to incrementing 0,1,2,etc... */
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = i;
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&userA, &rng);
+    if (ret != 0) {
+        ret = -10011; goto done;
+    }
+    ret = wc_ecc_set_rng(&userB, &rng);
+    if (ret != 0) {
+        ret = -10012; goto done;
+    }
+#endif
 
     /* encrypt msg to B */
     ret = wc_ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
@@ -20922,6 +20974,15 @@ int ecc_test_buffers(void) {
 #endif
     if (ret != 0)
         return -10015;
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&cliKey, &rng);
+    if (ret != 0) {
+        return -10023;
+    }
+#endif
 
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_HKDF)
     {
@@ -24856,6 +24917,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     byte   enveloped[2048];
     byte   decoded[2048];
     PKCS7* pkcs7;
+    WC_RNG rng;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     XFILE  pkcs7File;
 #endif
@@ -25011,6 +25073,17 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     };
 
     testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
+
+#ifdef ECC_TIMING_RESISTANT
+#ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+        ret = wc_InitRng(&rng);
+#endif
+        if (ret != 0) {
+            return -11760;
+        }
+#endif
 
     for (i = 0; i < testSz; i++) {
         pkcs7 = wc_PKCS7_New(HEAP_HINT,
@@ -25172,6 +25245,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
         }
 
+#ifdef ECC_TIMING_RESISTANT
+        pkcs7->rng = &rng;
+#endif
         /* encode envelopedData */
         envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
                                                    sizeof(enveloped));
@@ -25232,6 +25308,10 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
     }
+
+#ifdef ECC_TIMING_RESISTANT
+    wc_FreeRng(&rng);
+#endif
 
     (void)eccCert;
     (void)eccCertSz;
@@ -25633,8 +25713,6 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_FreeRng(&rng);
             return -11806;
         }
-
-        wc_FreeRng(&rng);
     }
 
     for (i = 0; i < testSz; i++) {
@@ -25808,6 +25886,10 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
         }
 
+#ifdef ECC_TIMING_RESISTANT
+        pkcs7->rng = &rng;
+#endif
+
         /* encode envelopedData */
         envelopedSz = wc_PKCS7_EncodeAuthEnvelopedData(pkcs7, enveloped,
                                                        sizeof(enveloped));
@@ -25868,6 +25950,8 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
     }
+
+    wc_FreeRng(&rng);
 
 #if !defined(HAVE_ECC) || defined(NO_AES)
     (void)eccCert;
