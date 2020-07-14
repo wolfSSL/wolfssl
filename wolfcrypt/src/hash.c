@@ -625,7 +625,7 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
 {
     int ret = HASH_TYPE_E; /* Default to hash type error */
 
-    if (hash == NULL || data == NULL)
+    if (hash == NULL || (data == NULL && dataSz > 0))
         return BAD_FUNC_ARG;
 
     switch (type) {

@@ -1684,6 +1684,10 @@ int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
 
+    /* Return pointer from last BIO in chain */
+    while (bio->next)
+        bio = bio->next;
+
     if (p) {
         *(byte**)p = (byte*)bio->ptr;
     }
