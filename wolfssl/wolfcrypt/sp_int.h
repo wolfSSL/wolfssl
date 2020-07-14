@@ -60,6 +60,7 @@
     typedef int32 sp_digit;
     typedef uint32 sp_int_digit;
     typedef uint64 sp_int_word;
+    typedef int64 sp_int_sword;
     #undef SP_WORD_SIZE
     #define SP_WORD_SIZE 32
 #elif !defined(WOLFSSL_SP_ASM)
@@ -67,6 +68,7 @@
     typedef int32_t sp_digit;
     typedef uint32_t sp_int_digit;
     typedef uint64_t sp_int_word;
+    typedef int64_t sp_int_sword;
   #elif SP_WORD_SIZE == 64
     typedef int64_t sp_digit;
     typedef uint64_t sp_int_digit;
@@ -78,6 +80,7 @@
       typedef long int128_t __attribute__ ((mode(TI)));
     #endif
     typedef uint128_t sp_int_word;
+    typedef int128_t sp_int_sword;
   #else
     #error Word size not defined
   #endif
@@ -86,6 +89,7 @@
     typedef uint32_t sp_digit;
     typedef uint32_t sp_int_digit;
     typedef uint64_t sp_int_word;
+    typedef int64_t sp_int_sword;
   #elif SP_WORD_SIZE == 64
     typedef uint64_t sp_digit;
     typedef uint64_t sp_int_digit;
@@ -97,6 +101,7 @@
       typedef long int128_t __attribute__ ((mode(TI)));
     #endif
     typedef uint128_t sp_int_word;
+    typedef int128_t sp_int_sword;
   #else
     #error Word size not defined
   #endif
