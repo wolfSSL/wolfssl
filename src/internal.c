@@ -9404,7 +9404,6 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     return match;
 }
 
-#ifdef OPENSSL_EXTRA
 /* Check that alternative names, if they exists, match the domain.
  * Fail if there are wild patterns and they didn't match.
  * Check the common name if no alternative names matched.
@@ -9450,6 +9449,7 @@ static int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN
     return match;
 }
 
+
 /* Check the domain name matches the subject alternative name or the subject
  * name.
  *
@@ -9486,7 +9486,7 @@ int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
 
     return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc));
 }
-#endif
+
 
 #ifdef SESSION_CERTS
 static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
