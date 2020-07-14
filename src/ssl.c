@@ -38013,7 +38013,7 @@ err:
             }
         }
 
-        fullName = (char*)XMALLOC(totalLen + 1, NULL, DYNAMIC_TYPE_X509);
+        fullName = (char*)XMALLOC(totalLen + 1, name->heap, DYNAMIC_TYPE_X509);
         if (fullName == NULL)
             return MEMORY_E;
 
