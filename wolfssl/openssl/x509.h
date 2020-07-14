@@ -24,4 +24,9 @@
 #define X509_FLAG_NO_IDS        (1UL << 12)
 
 #define XN_FLAG_FN_SN           0
-#define XN_FLAG_SEP_CPLUS_SPC   2
+#define XN_FLAG_ONELINE         0
+#define XN_FLAG_RFC2253         1
+#define XN_FLAG_SEP_CPLUS_SPC   (2 << 16)
+#define XN_FLAG_SEP_SPLUS_SPC   (3 << 16)
+#define XN_FLAG_DN_REV          (1 << 20)
+#define XN_FLAG_SPC_EQ          (1 << 23)

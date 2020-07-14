@@ -1816,12 +1816,6 @@ enum {
 
     X509_R_CERT_ALREADY_IN_HASH_TABLE,
 
-    XN_FLAG_SPC_EQ  = (1 << 23),
-    XN_FLAG_SEP_CPLUS_SPC = (2 << 16),
-    XN_FLAG_ONELINE = 0,
-    XN_FLAG_RFC2253 = 1,
-    XN_FLAG_DN_REV = (1 << 20),
-
     CRYPTO_LOCK = 1,
     CRYPTO_NUM_LOCKS = 10,
 

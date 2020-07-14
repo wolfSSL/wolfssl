@@ -48732,7 +48732,10 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                                WOLFSSL_BIO* out)
 {
+    int ret;
     PKCS7* p7;
+    WC_RNG rng;
+    byte cleanRng = 0;
 
     WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
 
@@ -48742,6 +48745,28 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     }
 
     p7 = &((WOLFSSL_PKCS7*)pkcs7)->pkcs7;
+
+    if (p7->certList) {
+        WOLFSSL_MSG("wolfSSL_PKCS7_encode_certs called multiple times on same "
+                    "struct");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (certs) {
+        /* Save some of the values */
+        int hashOID = p7->hashOID;
+        byte version = p7->version;
+
+        if (wc_PKCS7_InitWithCert(p7, certs->data.x509->derCert->buffer,
+                certs->data.x509->derCert->length) != 0) {
+            WOLFSSL_MSG("wc_PKCS7_InitWithCert error");
+            return WOLFSSL_FAILURE;
+        }
+        certs = certs->next;
+
+        p7->hashOID = hashOID;
+        p7->version = version;
+    }
 
     /* Add the certs to the PKCS7 struct */
     while (certs) {
@@ -48753,7 +48778,28 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         certs = certs->next;
     }
 
-    return wolfSSL_i2d_PKCS7_bio(out, p7);
+    if (wc_PKCS7_SetSignerIdentifierType(p7, DEGENERATE_SID) != 0) {
+        WOLFSSL_MSG("wc_PKCS7_SetSignerIdentifierType error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!p7->rng) {
+        if (wc_InitRng(&rng) != 0) {
+            WOLFSSL_MSG("wc_InitRng error");
+            return WOLFSSL_FAILURE;
+        }
+        p7->rng = &rng;
+        cleanRng = 1;
+    }
+
+    ret = wolfSSL_i2d_PKCS7_bio(out, p7);
+
+    if (cleanRng) {
+        wc_FreeRng(&rng);
+        p7->rng = NULL;
+    }
+
+    return ret;
 }
 #endif /* !NO_BIO */
 

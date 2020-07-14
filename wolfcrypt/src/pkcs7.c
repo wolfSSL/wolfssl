@@ -1151,6 +1151,7 @@ int wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
                                DYNAMIC_TYPE_PKCS7);
     if (cert == NULL)
         return MEMORY_E;
+    XMEMSET(cert, 0, sizeof(Pkcs7Cert));
 
     cert->der = derCert;
     cert->derSz = derCertSz;
@@ -2268,8 +2269,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     byte signingTime[MAX_TIME_STRING_SZ];
 
-    if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
-        pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
+    if (pkcs7 == NULL || (pkcs7->contentSz > 0 && pkcs7->content == NULL) ||
+        pkcs7->hashOID == 0 ||
         output == NULL || outputSz == NULL || *outputSz == 0 || hashSz == 0 ||
         hashBuf == NULL) {
         return BAD_FUNC_ARG;
@@ -2746,7 +2747,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #endif
 
     /* other args checked in wc_PKCS7_EncodeSigned_ex */
-    if (pkcs7 == NULL || pkcs7->contentSz == 0 || pkcs7->content == NULL) {
+    if (pkcs7 == NULL || (pkcs7->contentSz > 0 && pkcs7->content == NULL)) {
         return BAD_FUNC_ARG;
     }
 
