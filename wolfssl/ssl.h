@@ -918,9 +918,11 @@ WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL*, const unsigned char*, int, int);
 WOLFSSL_API int  wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO**, size_t,
                      WOLFSSL_BIO**, size_t);
 
-WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa,
+                                                  unsigned char *EM,
                                                   const unsigned char *mHash,
-                                                  const WOLFSSL_EVP_MD *Hash, int saltLen);
+                                                  const WOLFSSL_EVP_MD *hashAlg,
+                                                  int saltLen);
 WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
                                           const WOLFSSL_EVP_MD *hashAlg,
                                           const unsigned char *EM, int saltLen);
