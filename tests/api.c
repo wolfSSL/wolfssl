@@ -9018,7 +9018,7 @@ static int test_wc_Sha3_512_Copy (void)
 /*
  * Unit test function for wc_Sha3_GetFlags()
  */
-static int test_wc_Sha3_GetFlags (void) 
+static int test_wc_Sha3_GetFlags (void)
 {
     int ret = 0;
 #if defined(WOLFSSL_SHA3) && \
@@ -9026,9 +9026,9 @@ static int test_wc_Sha3_GetFlags (void)
     wc_Sha3            sha3;
     word32             flags = 0;
 
-    
+
     printf(testingFmt, "wc_Sha3_GetFlags()");
-    
+
     /* Initialize */
     ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
     if (ret != 0) {
@@ -9042,7 +9042,7 @@ static int test_wc_Sha3_GetFlags (void)
             ret = 0;
         }
     }
-    
+
     wc_Sha3_224_Free(&sha3);
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -9199,7 +9199,7 @@ static int test_wc_Shake256_Final (void)
 /*
  *  Testing wc_Shake256_Copy()
  */
-static int test_wc_Shake256_Copy (void) 
+static int test_wc_Shake256_Copy (void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
@@ -9255,12 +9255,33 @@ static int test_wc_Shake256_Copy (void)
     }
     wc_Shake256_Free(&shake);
     printf(resultFmt, ret == 0 ? passed : failed);
-    
+
 #endif
     return ret;
 
 } /* END test_wc_Shake256_Copy */
+/*
+ * Unit test function for wc_Shake256Hash()
+ */
+static int test_wc_Shake256Hash(void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
 
+    const byte  data[FOURK_BUF];
+    word32      len = sizeof(data);
+    byte        hash[WC_MD5_DIGEST_SIZE];
+    word32      hashLen = sizeof(hash);
+
+    printf(testingFmt, "wc_Shake256Hash()");
+
+    ret = wc_Shake256Hash(data, len, hash, hashLen);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}  /* END test_wc_Shake256Hash */
 
 /*
  * unit test for wc_IdeaSetKey()
@@ -22653,6 +22674,7 @@ static int test_wc_HashInit(void)
 
     /* For loop to test various arguments... */
     for (i = 0; i < enumlen; i++) {
+        //printf("%d", i);
         /* check for bad args */
         if (wc_HashInit(&hash, enumArray[i]) == BAD_FUNC_ARG) {
             ret = 1;
@@ -22677,6 +22699,193 @@ static int test_wc_HashInit(void)
     }
     return ret;
 }  /* end of test_wc_HashInit */
+/*
+ * Unit test function for wc_HashSetFlags()
+ */
+static int test_wc_HashSetFlags(void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    wc_HashAlg hash;
+    word32 flags = 0;
+    int i, j;
+    //byte        data[FOURK_BUF];
+    //byte        hashBuf[WC_MAX_DIGEST_SIZE];
+    printf(testingFmt, "wc_HashSetFlags()");
+
+
+    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
+    enum wc_HashType enumArray[] = {
+    #ifndef NO_MD5
+            WC_HASH_TYPE_MD5,
+    #endif
+    #ifndef NO_SHA
+            WC_HASH_TYPE_SHA,
+    #endif
+    #ifdef WOLFSSL_SHA224
+            WC_HASH_TYPE_SHA224,
+    #endif
+    #ifndef NO_SHA256
+            WC_HASH_TYPE_SHA256,
+    #endif
+    #ifdef WOLFSSL_SHA384
+            WC_HASH_TYPE_SHA384,
+    #endif
+    #ifdef WOLFSSL_SHA512
+            WC_HASH_TYPE_SHA512,
+    #endif
+    #ifdef WOLFSSL_SHA3
+            WC_HASH_TYPE_SHA3_224,
+    #endif
+    };
+    enum wc_HashType notSupported[] = {
+              WC_HASH_TYPE_MD5_SHA,
+              WC_HASH_TYPE_MD2,
+              WC_HASH_TYPE_MD4,
+              WC_HASH_TYPE_BLAKE2B,
+              WC_HASH_TYPE_BLAKE2S,
+              WC_HASH_TYPE_NONE,
+     };
+
+    /* dynamically finds the length */
+    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
+
+    /* For loop to test various arguments... */
+    for (i = 0; i < enumlen; i++) {
+        ret = wc_HashInit(&hash, enumArray[i]);
+        if (ret == 0) {
+            ret = wc_HashSetFlags(&hash, enumArray[i], flags);
+        }
+        if (ret == 0) {
+            if (flags & WC_HASH_FLAG_ISCOPY) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_HashSetFlags(NULL, enumArray[i], flags);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+
+        wc_HashFree(&hash, enumArray[i]);
+        if (ret != 0) {
+            break;
+        }
+    }
+    /* For loop to test not supported sites */
+    int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
+    for (j = 0; j < notSupportedLen; j++){
+
+        if (ret == 0) {
+            ret = wc_HashSetFlags(&hash, notSupported[j], flags);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        wc_HashFree(&hash, notSupported[j]);
+        if (ret != 0) {
+            break;
+        }
+
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}  /* END test_wc_HashSetFlags */
+/*
+ * Unit test function for wc_HashGetFlags()
+ */
+static int test_wc_HashGetFlags(void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    wc_HashAlg hash;
+    word32 flags = 0;
+    int i, j;
+    //byte        data[FOURK_BUF];
+    //byte        hashBuf[WC_MAX_DIGEST_SIZE];
+    printf(testingFmt, "wc_HashGetFlags()");
+
+
+    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
+    enum wc_HashType enumArray[] = {
+    #ifndef NO_MD5
+            WC_HASH_TYPE_MD5,
+    #endif
+    #ifndef NO_SHA
+            WC_HASH_TYPE_SHA,
+    #endif
+    #ifdef WOLFSSL_SHA224
+            WC_HASH_TYPE_SHA224,
+    #endif
+    #ifndef NO_SHA256
+            WC_HASH_TYPE_SHA256,
+    #endif
+    #ifdef WOLFSSL_SHA384
+            WC_HASH_TYPE_SHA384,
+    #endif
+    #ifdef WOLFSSL_SHA512
+            WC_HASH_TYPE_SHA512,
+    #endif
+    #ifdef WOLFSSL_SHA3
+            WC_HASH_TYPE_SHA3_224,
+    #endif
+    };
+    enum wc_HashType notSupported[] = {
+              WC_HASH_TYPE_MD5_SHA,
+              WC_HASH_TYPE_MD2,
+              WC_HASH_TYPE_MD4,
+              WC_HASH_TYPE_BLAKE2B,
+              WC_HASH_TYPE_BLAKE2S,
+              WC_HASH_TYPE_NONE,
+    };
+    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
+
+    /* For loop to test various arguments... */
+    for (i = 0; i < enumlen; i++) {
+        ret = wc_HashInit(&hash, enumArray[i]);
+        if (ret == 0) {
+            ret = wc_HashGetFlags(&hash, enumArray[i], &flags);
+        }
+        if (ret == 0) {
+            if (flags & WC_HASH_FLAG_ISCOPY) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_HashGetFlags(NULL, enumArray[i], &flags);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        wc_HashFree(&hash, enumArray[i]);
+        if (ret != 0) {
+            break;
+        }
+    }
+    /* For loop to test not supported sites */
+    int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
+    for (j = 0; j < notSupportedLen; j++) {
+        if (ret == 0) {
+            ret = wc_HashGetFlags(&hash, notSupported[j], &flags);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        wc_HashFree(&hash, notSupported[j]);
+        if (ret != 0) {
+            break;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}  /* END test_wc_HashGetFlags */
 
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
@@ -35109,11 +35318,12 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Sha3_256_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_384_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_512_Copy(), 0);
-    AssertIntEQ(test_wc_Sha3_GetFlags(), 0);    
+    AssertIntEQ(test_wc_Sha3_GetFlags(), 0);
     AssertIntEQ(test_wc_InitShake256(), 0);
     AssertIntEQ(testing_wc_Shake256_Update(), 0);
     AssertIntEQ(test_wc_Shake256_Final(), 0);
     AssertIntEQ(test_wc_Shake256_Copy(), 0);
+    AssertIntEQ(test_wc_Shake256Hash(), 0);
 
     AssertFalse(test_wc_Md5HmacSetKey());
     AssertFalse(test_wc_Md5HmacUpdate());
@@ -35132,6 +35342,8 @@ void ApiTest(void)
     AssertFalse(test_wc_Sha384HmacFinal());
 
     AssertIntEQ(test_wc_HashInit(), 0);
+    AssertIntEQ(test_wc_HashSetFlags(), 0);
+    AssertIntEQ(test_wc_HashGetFlags(), 0);
 
     AssertIntEQ(test_wc_InitCmac(), 0);
     AssertIntEQ(test_wc_CmacUpdate(), 0);
