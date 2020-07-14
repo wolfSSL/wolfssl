@@ -8356,7 +8356,8 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-#if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || defined(OPENSSL_EXTRA)
+#if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */

@@ -111,7 +111,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
             /* extra storage in structs for multiple attributes and order */
             #ifndef LARGEST_MEM_BUCKET
                 #ifdef WOLFSSL_TLS13
-                    #define LARGEST_MEM_BUCKET 25792
+                    #define LARGEST_MEM_BUCKET 30400
                 #else
                     #define LARGEST_MEM_BUCKET 25600
                 #endif

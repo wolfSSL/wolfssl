@@ -95,7 +95,6 @@
     #include <wolfssl/openssl/opensslv.h>
     #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
-    #include <wolfssl/openssl/x509v3.h>
     #include <wolfssl/openssl/x509_vfy.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -125,7 +124,9 @@
         #include <wolfssl/openssl/pkcs7.h>
     #endif /* OPENSSL_ALL && HAVE_PKCS7 */
 #endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #include <wolfssl/openssl/x509v3.h>
     int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi);
     int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi);
     int oid2nid(word32 oid, int grp);
@@ -18984,8 +18985,9 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
 #endif /* NO_ASN */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #ifndef NO_ASN
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 {
     WOLFSSL_ASN1_OBJECT* obj;
@@ -19004,7 +19006,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
     obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
     return obj;
 }
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Creates and returns a new WOLFSSL_CIPHER stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void)
 {
@@ -19143,8 +19147,8 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
 
-#endif /* !NO_ASN */
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* !NO_ASN */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_ASN
@@ -20275,7 +20279,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     }
 #endif /* !NO_CERTS && OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 
     /* Looks up the index of the first entry encountered with matching NID
      * The search starts from index 'pos'
@@ -20350,7 +20355,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+#if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL))
 
     /* Creates a new WOLFSSL_ASN1_STRING structure given the input type.
      *
@@ -20394,7 +20400,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #endif /* !NO_CERTS && OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
     /* if dataSz is negative then use XSTRLEN to find length of data
      * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
     /* `data` can be NULL and only buffer will be allocated */
@@ -20449,8 +20456,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
 #ifndef NO_CERTS
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
     unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
@@ -20476,7 +20483,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return 0;
         }
     }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
     WOLFSSL_ASN1_STRING* wolfSSL_d2i_DISPLAYTEXT(WOLFSSL_ASN1_STRING **asn,
                                              const unsigned char **in, long len)
@@ -21179,8 +21188,10 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #endif /* XSNPRINTF */
 
+#endif /* OPENSSL_EXTRA */
 #endif /* !NO_CERTS */
 
+#ifdef OPENSSL_EXTRA
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* Creates cipher->description based on cipher->offset
  * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
@@ -36354,7 +36365,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_free");
-        FreeX509Name(name, NULL);
+        FreeX509Name(name);
         XFREE(name, NULL, DYNAMIC_TYPE_X509);
     }
 
@@ -36372,7 +36383,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL,
                 DYNAMIC_TYPE_X509);
         if (name != NULL) {
-            InitX509Name(name, 1);
+            InitX509Name(name, 1, NULL);
         }
         return name;
     }
@@ -36395,30 +36406,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         /* copy contents */
-        XMEMCPY(copy, name, sizeof(WOLFSSL_X509_NAME));
-        InitX509Name(copy, 1);
-        copy->sz = name->sz;
-
-        /* handle dynamic portions */
-        if (name->dynamicName) {
-            if (!(copy->name = (char*)XMALLOC(name->sz, 0,
-                                             DYNAMIC_TYPE_OPENSSL))) {
-                goto err;
-            }
+        InitX509Name(copy, 1, name->heap);
+        if (wolfSSL_X509_NAME_copy(name, copy) != WOLFSSL_SUCCESS) {
+            wolfSSL_X509_NAME_free(copy);
+            return NULL;
         }
-        XMEMCPY(copy->name, name->name, name->sz);
 
         return copy;
-
-    err:
-        if (copy) {
-            if (copy->dynamicName && copy->name) {
-                XFREE(copy->name, 0, DYNAMIC_TYPE_OPENSSL);
-                copy->name = NULL;
-            }
-            wolfSSL_X509_NAME_free(copy);
-        }
-        return NULL;
     }
 
 #if defined(WOLFSSL_CERT_GEN)
@@ -36979,7 +36973,6 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         return ret;
     }
 
-
     /* returns the size of signature on success */
     int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
             const WOLFSSL_EVP_MD* md)
@@ -37058,7 +37051,7 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         return sz;
     }
 #endif /* WOLFSSL_CERT_GEN */
-
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
     /* Compares the two X509 names. If the size of x is larger then y then a
      * positive value is returned if x is smaller a negative value is returned.
@@ -37710,6 +37703,7 @@ err:
     }
 
 
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 #ifdef OPENSSL_ALL
     /* create and return a new WOLFSSL_X509_PKEY structure or NULL on failure */
     static WOLFSSL_X509_PKEY* wolfSSL_X509_PKEY_new(void* heap)
@@ -38028,7 +38022,7 @@ err:
         entryCount += AddAllEntry(name, fullName, totalLen, &idx);
 
         if (name->dynamicName) {
-            XFREE(name->name, NULL, DYNAMIC_TYPE_X509);
+            XFREE(name->name, name->heap, DYNAMIC_TYPE_X509);
         }
         fullName[idx] = '\0';
         name->name = fullName;
@@ -38812,7 +38806,12 @@ err:
 
         return WOLFSSL_FATAL_ERROR;
     }
-
+#endif /* OPENSSL_EXTRA, HAVE_LIGHTY, WOLFSSL_MYSQL_COMPATIBLE, HAVE_STUNNEL,
+          WOLFSSL_NGINX, HAVE_POCO_LIB, WOLFSSL_HAPROXY */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
     /* Gets the NID value that is related to the OID string passed in. Example
      * string would be "2.5.29.14" for subject key ID.
      *
@@ -38872,6 +38871,11 @@ err:
 
         return NID_undef;
     }
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY)
 
     /* Creates new ASN1_OBJECT from short name, long name, or text
      * representation of oid. If no_name is 0, then short name, long name, and
@@ -38951,7 +38955,12 @@ err:
     #endif
     }
 
-
+#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+    HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
     WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
         if (ne == NULL) return NULL;
@@ -38966,7 +38975,8 @@ err:
 #endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
     HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 
     /* returns a pointer to the internal entry at location 'loc' on success,
      * a null pointer is returned in fail cases */
@@ -46341,7 +46351,9 @@ int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
     return cnt_ret;
 }
 #endif /* !NO_CERTS */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 long wolfSSL_X509_get_version(const WOLFSSL_X509 *x509)
 {
     int version = 0;
@@ -46358,8 +46370,9 @@ long wolfSSL_X509_get_version(const WOLFSSL_X509 *x509)
 
     return 0L;
 }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-
+#if defined(OPENSSL_EXTRA)
 int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509 *x)
 {
     if (x == NULL)
@@ -47397,8 +47410,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 /* unlike wolfSSL_X509_NAME_dup this does not malloc a duplicate, only deep
  * copy. "to" is expected to be a fresh blank name, if not pointers could be
  * lost */
-static int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from,
-        WOLFSSL_X509_NAME* to, void* heap)
+int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
 {
     int i;
     WOLFSSL_X509_NAME_ENTRY* ne;
@@ -47411,7 +47423,7 @@ static int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from,
     }
 
     if (from->dynamicName) {
-        to->name = (char*)XMALLOC(from->sz, heap, DYNAMIC_TYPE_SUBJECT_CN);
+        to->name = (char*)XMALLOC(from->sz, to->heap, DYNAMIC_TYPE_SUBJECT_CN);
         if (to->name == NULL)
             return WOLFSSL_FAILURE;
         to->dynamicName = 1;
@@ -47425,7 +47437,6 @@ static int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from,
             wolfSSL_X509_NAME_add_entry(to, ne, i, 1);
     }
     to->entrySz = from->entrySz;
-    (void)heap;
     return WOLFSSL_SUCCESS;
 }
 
@@ -47438,12 +47449,11 @@ int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 
-    FreeX509Name(&cert->subject, cert->heap);
-    InitX509Name(&cert->subject, 0);
+    FreeX509Name(&cert->subject);
+    InitX509Name(&cert->subject, 0, cert->heap);
 
-    if (wolfSSL_X509_NAME_copy(name, &cert->subject, cert->heap) !=
-            WOLFSSL_SUCCESS) {
-        FreeX509Name(&cert->subject, cert->heap);
+    if (wolfSSL_X509_NAME_copy(name, &cert->subject) != WOLFSSL_SUCCESS) {
+        FreeX509Name(&cert->subject);
         return WOLFSSL_FAILURE;
     }
 
@@ -47460,12 +47470,11 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 
-    FreeX509Name(&cert->issuer, cert->heap);
-    InitX509Name(&cert->issuer, 0);
+    FreeX509Name(&cert->issuer);
+    InitX509Name(&cert->issuer, 0, cert->heap);
 
-    if (wolfSSL_X509_NAME_copy(name, &cert->issuer, cert->heap) !=
-            WOLFSSL_SUCCESS) {
-        FreeX509Name(&cert->subject, cert->heap);
+    if (wolfSSL_X509_NAME_copy(name, &cert->issuer) != WOLFSSL_SUCCESS) {
+        FreeX509Name(&cert->issuer);
         return WOLFSSL_FAILURE;
     }
 

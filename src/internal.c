@@ -3322,14 +3322,16 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 
 #ifndef NO_CERTS
 
-void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
+void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
 {
     (void)dynamicFlag;
+    (void)heap;
 
     if (name != NULL) {
         name->name        = name->staticName;
         name->dynamicName = 0;
         name->sz = 0;
+        name->heap = heap;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         XMEMSET(&name->entry, 0, sizeof(name->entry));
         name->x509 = NULL;
@@ -3339,11 +3341,11 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
 }
 
 
-void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
+void FreeX509Name(WOLFSSL_X509_NAME* name)
 {
     if (name != NULL) {
         if (name->dynamicName) {
-            XFREE(name->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+            XFREE(name->name, name->heap, DYNAMIC_TYPE_SUBJECT_CN);
             name->name = NULL;
         }
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -3358,7 +3360,6 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     }
-    (void)heap;
 }
 
 
@@ -3373,8 +3374,8 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
 
     x509->heap = heap;
-    InitX509Name(&x509->issuer, 0);
-    InitX509Name(&x509->subject, 0);
+    InitX509Name(&x509->issuer, 0, heap);
+    InitX509Name(&x509->subject, 0, heap);
     x509->dynamicMemory  = (byte)dynamicFlag;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         x509->refCount = 1;
@@ -3389,8 +3390,8 @@ void FreeX509(WOLFSSL_X509* x509)
     if (x509 == NULL)
         return;
 
-    FreeX509Name(&x509->issuer, x509->heap);
-    FreeX509Name(&x509->subject, x509->heap);
+    FreeX509Name(&x509->issuer);
+    FreeX509Name(&x509->subject);
     if (x509->pubKey.buffer) {
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         x509->pubKey.buffer = NULL;

@@ -3601,6 +3601,7 @@ struct WOLFSSL_X509_NAME {
     byte  raw[ASN_NAME_MAX];
     int   rawLen;
 #endif
+    void* heap;
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE
@@ -4532,8 +4533,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
 #ifndef NO_CERTS
-    WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int);
-    WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap);
+    WOLFSSL_LOCAL void InitX509Name(WOLFSSL_X509_NAME*, int, void*);
+    WOLFSSL_LOCAL void FreeX509Name(WOLFSSL_X509_NAME* name);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509*, int, void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
