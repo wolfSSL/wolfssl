@@ -4717,6 +4717,7 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         ASN1_OBJECT *object = NULL;
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         BIO* bio;
+        char buf[ASN_NAME_MAX+1];
 #endif
 
     #ifndef NO_FILESYSTEM
@@ -4744,6 +4745,13 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         AssertNotNull(bio = BIO_new(BIO_s_mem()));
         AssertIntEQ(X509_NAME_print_ex(bio, name, 4,
                         (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)), WOLFSSL_SUCCESS);
+
+        buf[ASN_NAME_MAX] = '\0';
+        AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 113);
+        AssertIntEQ(XSTRNCMP("    emailAddress=info@wolfssl.com,"
+                             "CN=www.wolfssl.com,OU=Programming-2048,"
+                             "O=wolfSSL_2048,L=Bozeman,ST=Montana,C=US",
+                             buf, 113), 0);
         BIO_free(bio);
 #endif
 
