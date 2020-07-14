@@ -9268,8 +9268,11 @@ static int test_wc_Shake256Hash(void)
     int ret = 0;
 #if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
 
-    const byte  data[FOURK_BUF];
-    word32      len = sizeof(data);
+    const byte data[] = { /* Hello World */
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64
+    };   
+    word32      len = sizeof(data); 
     byte        hash[WC_MD5_DIGEST_SIZE];
     word32      hashLen = sizeof(hash);
 
