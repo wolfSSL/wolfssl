@@ -9285,7 +9285,6 @@ static int test_wc_Shake256Hash(void)
 #endif
     return ret;
 }  /* END test_wc_Shake256Hash */
-
 /*
  * unit test for wc_IdeaSetKey()
  */
