@@ -9273,7 +9273,7 @@ static int test_wc_Shake256Hash(void)
         0x72,0x6c,0x64
     };   
     word32      len = sizeof(data); 
-    byte        hash[WC_MD5_DIGEST_SIZE];
+    byte        hash[144];
     word32      hashLen = sizeof(hash);
 
     printf(testingFmt, "wc_Shake256Hash()");
