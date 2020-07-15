@@ -2141,6 +2141,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                        dtlsUDP, dtlsSCTP, serverReadyFile ? 1 : 0, doListen);
         doListen = 0; /* Don't listen next time */
 
+        if (port == 0) {
+            port = readySignal->port;
+        }
+
         if (SSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
             err_sys_ex(catastrophic, "error in setting fd");
         }

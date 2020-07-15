@@ -833,9 +833,18 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-    /* add dtls grouping suites */
+    /* add dtls grouping tests */
     strcpy(argv0[1], "tests/test-dtls-group.conf");
     printf("starting dtls message grouping tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    /* add dtls session resumption tests */
+    strcpy(argv0[1], "tests/test-dtls-resume.conf");
+    printf("starting dtls session resumption tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
