@@ -4293,6 +4293,10 @@ struct WOLFSSL {
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
 #endif
+#ifdef OPENSSL_ALL
+    byte clientFinished[TLS_FINISHED_SZ];
+    byte serverFinished[TLS_FINISHED_SZ];
+#endif
 };
 
 
