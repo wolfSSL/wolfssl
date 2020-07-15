@@ -33364,6 +33364,7 @@ static int test_wc_RNG_GenerateBlock(void)
 static int test_wc_InitRngNonce(void)
 {
     int     ret;
+#ifndef WC_NO_RNG    
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
@@ -33381,7 +33382,7 @@ static int test_wc_InitRngNonce(void)
     wc_FreeRng(&rng);
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
+#endif
     return ret;
 }/* End test_wc_InitRngNonce*/
 /*
@@ -33390,6 +33391,7 @@ static int test_wc_InitRngNonce(void)
 static int test_wc_InitRngNonce_ex(void)
 {
     int     ret;
+#ifndef WC_NO_RNG    
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
@@ -33406,7 +33408,7 @@ static int test_wc_InitRngNonce_ex(void)
     wc_FreeRng(&rng);
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
+#endif
     return ret;
 }/*End test_wc_InitRngNonce_ex*/
 
