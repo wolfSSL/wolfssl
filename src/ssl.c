@@ -24958,9 +24958,9 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 #endif /* HAVE_PK_CALLBACKS */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
-const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *sess, unsigned int *sid_ctx_length)
+const unsigned char *SSL_SESSION_get0_id_context(const WOLFSSL_SESSION *sess, unsigned int *sid_ctx_length)
 {
-    const byte *c = wolfSSL_SESSION_get_id((SSL_SESSION *)sess, sid_ctx_length);
+    const byte *c = wolfSSL_SESSION_get_id((WOLFSSL_SESSION *)sess, sid_ctx_length);
     return c;
 }
 #endif

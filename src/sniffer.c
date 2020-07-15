@@ -599,7 +599,7 @@ static void FreeSnifferServer(SnifferServer* srv)
         wc_UnLockMutex(&srv->namedKeysMutex);
         wc_FreeMutex(&srv->namedKeysMutex);
 #endif
-        SSL_CTX_free(srv->ctx);
+        wolfSSL_CTX_free(srv->ctx);
     }
     XFREE(srv, NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
 }
@@ -635,8 +635,8 @@ static void FreePacketList(PacketBuffer* in)
 static void FreeSnifferSession(SnifferSession* session)
 {
     if (session) {
-        SSL_free(session->sslClient);
-        SSL_free(session->sslServer);
+        wolfSSL_free(session->sslClient);
+        wolfSSL_free(session->sslServer);
 
         FreePacketList(session->cliReassemblyList);
         FreePacketList(session->srvReassemblyList);
@@ -1501,7 +1501,7 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
     InitSnifferServer(sniffer);
-    sniffer->ctx = SSL_CTX_new(SSLv23_client_method());
+    sniffer->ctx = wolfSSL_CTX_new(SSLv23_client_method());
     if (!sniffer->ctx) {
         SetError(MEMORY_STR, error, NULL, 0);
         FreeSnifferServer(sniffer);
@@ -1592,7 +1592,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->server = serverIp;
         sniffer->port = port;
 
-        sniffer->ctx = SSL_CTX_new(SSLv23_client_method());
+        sniffer->ctx = wolfSSL_CTX_new(SSLv23_client_method());
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
@@ -1606,8 +1606,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     if (name == NULL) {
         if (password) {
     #ifdef WOLFSSL_ENCRYPTED_KEYS
-            SSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
-            SSL_CTX_set_default_passwd_cb_userdata(
+            wolfSSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
+            wolfSSL_CTX_set_default_passwd_cb_userdata(
                                                  sniffer->ctx, (void*)password);
     #endif
         }
@@ -1625,7 +1625,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     #endif
         {
             if (keySz == 0) {
-                ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
+                ret = wolfSSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
             }
             else {
                 ret = wolfSSL_CTX_use_PrivateKey_buffer(sniffer->ctx,
@@ -2027,23 +2027,24 @@ static void CallConnectionCb(SnifferSession* session)
 }
 
 #ifdef SHOW_SECRETS
-static void ShowTlsSecrets(SnifferSession* session)
+static void PrintSecret(const char* desc, const byte* buf, int sz)
 {
     int i;
-    printf("server master secret: ");
-    for (i = 0; i < SECRET_LEN; i++)
-        printf("%02x", session->sslServer->arrays->masterSecret[i]);
+    printf("%s: ", desc);
+    for (i = 0; i < sz; i++) {
+        printf("%02x", buf[i]);
+    }
     printf("\n");
+}
 
-    printf("client master secret: ");
-    for (i = 0; i < SECRET_LEN; i++)
-        printf("%02x", session->sslClient->arrays->masterSecret[i]);
-    printf("\n");
-
+static void ShowTlsSecrets(SnifferSession* session)
+{
+    PrintSecret("server master secret", session->sslServer->arrays->masterSecret, SECRET_LEN);
+    PrintSecret("client master secret", session->sslClient->arrays->masterSecret, SECRET_LEN);
     printf("server suite = %d\n", session->sslServer->options.cipherSuite);
     printf("client suite = %d\n", session->sslClient->options.cipherSuite);
 }
-#endif
+#endif /* SHOW_SECRETS */
 
 
 /* Process Keys */
@@ -2290,13 +2291,9 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         session->sslServer->arrays->preMasterSz;
 
 #ifdef SHOW_SECRETS
-    {
-        word32 i;
-        printf("pre master secret: ");
-        for (i = 0; i < session->sslServer->arrays->preMasterSz; i++)
-            printf("%02x", session->sslServer->arrays->preMasterSecret[i]);
-        printf("\n");
-    }
+    PrintSecret("pre master secret", 
+                session->sslServer->arrays->preMasterSecret, 
+                session->sslServer->arrays->preMasterSz);
 #endif
 
     if (SetCipherSpecs(session->sslServer) != 0) {
@@ -2874,15 +2871,8 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
 
 #ifdef SHOW_SECRETS
-    {
-        int i;
-        printf("cipher suite = 0x%02x\n",
-               session->sslServer->options.cipherSuite);
-        printf("server random: ");
-        for (i = 0; i < RAN_LEN; i++)
-            printf("%02x", session->sslServer->arrays->serverRandom[i]);
-        printf("\n");
-    }
+    printf("cipher suite = 0x%02x\n", session->sslServer->options.cipherSuite);
+    PrintSecret("server random", session->sslServer->arrays->serverRandom, RAN_LEN);
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -3011,14 +3001,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
         XMEMCPY(session->sslClient->arrays->sessionID, input, ID_LEN);
         session->sslClient->options.haveSessionId = 1;
     }
+
 #ifdef SHOW_SECRETS
-    {
-        int i;
-        printf("client random: ");
-        for (i = 0; i < RAN_LEN; i++)
-            printf("%02x", ssl->arrays->clientRandom[i]);
-        printf("\n");
-    }
+    PrintSecret("client random", ssl->arrays->clientRandom, RAN_LEN);
 #endif
 
     input     += bLen;
@@ -3385,6 +3370,9 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
             /* copy resumption secret to server */
             XMEMCPY(session->sslServer->session.masterSecret,
                 session->sslClient->session.masterSecret, SECRET_LEN);
+            #ifdef SHOW_SECRETS
+            PrintSecret("resumption secret", session->sslClient->session.masterSecret, SECRET_LEN);
+            #endif
         #endif
         }
         else {
@@ -3841,15 +3829,15 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         return 0;
     }
 
-    session->sslServer = SSL_new(session->context->ctx);
+    session->sslServer = wolfSSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
         XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return 0;
     }
-    session->sslClient = SSL_new(session->context->ctx);
+    session->sslClient = wolfSSL_new(session->context->ctx);
     if (session->sslClient == NULL) {
-        SSL_free(session->sslServer);
+        wolfSSL_free(session->sslServer);
         session->sslServer = 0;
 
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
