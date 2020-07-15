@@ -2519,10 +2519,12 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
         }
         input += OPAQUE8_LEN;
         *sslBytes -= OPAQUE8_LEN;
+    #ifdef HAVE_SESSION_TICKET
         /* store nonce in server for DeriveResumptionPSK */
         session->sslServer->session.ticketNonce.len = len;
         if (len > 0)
             XMEMCPY(&session->sslServer->session.ticketNonce.data, input, len);
+    #endif
         input += len;
         *sslBytes -= len;
     }
