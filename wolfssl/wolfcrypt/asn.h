@@ -233,6 +233,7 @@ enum
     NID_jurisdictionStateOrProvinceName = 0xd,
     NID_businessCategory = ASN_BUS_CAT,
     NID_domainComponent = ASN_DOMAIN_COMPONENT,
+    NID_userId = 458,
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
     NID_ms_upn = 265,                  /* 1.3.6.1.4.1.311.20.2.3 */
@@ -341,7 +342,8 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
-#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+        defined(HAVE_PKCS7) || defined(OPENSSL_EXTRA_X509_SMALL)
     MAX_OID_SZ          = 32,      /* Max DER length of OID*/
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
@@ -356,7 +358,7 @@ enum Misc_ASN {
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
     MAX_AIA_SZ          = 2,       /* Max Authority Info Access extension size*/
-    MAX_NAME_ENTRIES    = 5,       /* extra entries added to x509 name struct */
+    MAX_NAME_ENTRIES    = 13,      /* entries added to x509 name struct */
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
@@ -611,64 +613,6 @@ struct Base_entry {
     byte        type;   /* Name base type (DNS or RFC822) */
 };
 
-#define DOMAIN_COMPONENT_MAX 10
-#define DN_NAMES_MAX 9
-
-struct DecodedName {
-    char*   fullName;
-    int     fullNameLen;
-    int     entryCount;
-    int     cnIdx;
-    int     cnLen;
-    int     cnNid;
-    int     snIdx;
-    int     snLen;
-    int     snNid;
-    int     cIdx;
-    int     cLen;
-    int     cNid;
-    int     lIdx;
-    int     lLen;
-    int     lNid;
-    int     stIdx;
-    int     stLen;
-    int     stNid;
-    int     oIdx;
-    int     oLen;
-    int     oNid;
-    int     ouIdx;
-    int     ouLen;
-#ifdef WOLFSSL_CERT_EXT
-    int     bcIdx;
-    int     bcLen;
-    int     jcIdx;
-    int     jcLen;
-    int     jsIdx;
-    int     jsLen;
-#endif
-    int     ouNid;
-    int     emailIdx;
-    int     emailLen;
-    int     emailNid;
-    int     uidIdx;
-    int     uidLen;
-    int     uidNid;
-    int     serialIdx;
-    int     serialLen;
-    int     serialNid;
-    int     dcIdx[DOMAIN_COMPONENT_MAX];
-    int     dcLen[DOMAIN_COMPONENT_MAX];
-    int     dcNum;
-    int     dcMode;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    /* hold the location / order with which each of the DN tags was found
-     *
-     * example of ASN_DOMAIN_COMPONENT at index 0 if first found and so on.
-     */
-    int     loc[DOMAIN_COMPONENT_MAX + DN_NAMES_MAX];
-    int     locSz;
-#endif
-};
 
 enum SignatureState {
     SIG_STATE_BEGIN,
@@ -786,7 +730,6 @@ struct CertSignCtx {
 #endif
 
 typedef struct DecodedCert DecodedCert;
-typedef struct DecodedName DecodedName;
 typedef struct Signer      Signer;
 #ifdef WOLFSSL_TRUST_PEER_CERT
 typedef struct TrustedPeerCert TrustedPeerCert;
@@ -913,8 +856,9 @@ struct DecodedCert {
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    DecodedName issuerName;
-    DecodedName subjectName;
+    /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
+    void* issuerName;
+    void* subjectName;
 #endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_SEP
     int     deviceTypeSz;
@@ -1126,6 +1070,8 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
 WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);
+WOLFSSL_LOCAL const char* GetOneCertName(CertName* name, int idx);
+WOLFSSL_LOCAL byte GetCertNameId(int idx);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);

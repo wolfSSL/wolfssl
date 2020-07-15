@@ -3322,51 +3322,44 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 
 #ifndef NO_CERTS
 
-void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
+void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
 {
     (void)dynamicFlag;
+    (void)heap;
 
     if (name != NULL) {
         name->name        = name->staticName;
         name->dynamicName = 0;
         name->sz = 0;
+        name->heap = heap;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XMEMSET(&name->fullName, 0, sizeof(DecodedName));
-        XMEMSET(&name->cnEntry,  0, sizeof(WOLFSSL_X509_NAME_ENTRY));
-        XMEMSET(&name->extra,    0, sizeof(name->extra));
-        name->cnEntry.value = &(name->cnEntry.data); /* point to internal data*/
-        name->cnEntry.nid = ASN_COMMON_NAME;
+        XMEMSET(&name->entry, 0, sizeof(name->entry));
         name->x509 = NULL;
+        name->entrySz = 0;
 #endif /* OPENSSL_EXTRA */
     }
 }
 
 
-void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
+void FreeX509Name(WOLFSSL_X509_NAME* name)
 {
     if (name != NULL) {
         if (name->dynamicName) {
-            XFREE(name->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+            XFREE(name->name, name->heap, DYNAMIC_TYPE_SUBJECT_CN);
             name->name = NULL;
         }
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         {
             int i;
-            if (name->fullName.fullName != NULL) {
-                XFREE(name->fullName.fullName, heap, DYNAMIC_TYPE_X509);
-                name->fullName.fullName = NULL;
-            }
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-                /* free ASN1 string data */
-                if (name->extra[i].set && name->extra[i].data.data != NULL) {
-                    XFREE(name->extra[i].data.data, heap, DYNAMIC_TYPE_OPENSSL);
+                if (name->entry[i].set) {
+                    wolfSSL_ASN1_OBJECT_free(&name->entry[i].object);
+                    wolfSSL_ASN1_STRING_free(name->entry[i].value);
                 }
             }
-            wolfSSL_ASN1_OBJECT_free(&name->cnEntry.object);
         }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     }
-    (void)heap;
 }
 
 
@@ -3381,8 +3374,8 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
 
     x509->heap = heap;
-    InitX509Name(&x509->issuer, 0);
-    InitX509Name(&x509->subject, 0);
+    InitX509Name(&x509->issuer, 0, heap);
+    InitX509Name(&x509->subject, 0, heap);
     x509->dynamicMemory  = (byte)dynamicFlag;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         x509->refCount = 1;
@@ -3397,8 +3390,8 @@ void FreeX509(WOLFSSL_X509* x509)
     if (x509 == NULL)
         return;
 
-    FreeX509Name(&x509->issuer, x509->heap);
-    FreeX509Name(&x509->subject, x509->heap);
+    FreeX509Name(&x509->issuer);
+    FreeX509Name(&x509->subject);
     if (x509->pubKey.buffer) {
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         x509->pubKey.buffer = NULL;
@@ -9513,39 +9506,33 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         dCert->subjectCNLen < 0)
         return BAD_FUNC_ARG;
 
+    if (x509->issuer.name == NULL || x509->subject.name == NULL) {
+        WOLFSSL_MSG("Either init was not called on X509 or programming error");
+        return BAD_FUNC_ARG;
+    }
+
     x509->version = dCert->version + 1;
 
     XSTRNCPY(x509->issuer.name, dCert->issuer, ASN_NAME_MAX);
     x509->issuer.name[ASN_NAME_MAX - 1] = '\0';
     x509->issuer.sz = (int)XSTRLEN(x509->issuer.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->issuerName.fullName != NULL) {
-        XMEMCPY(&x509->issuer.fullName,
-                                       &dCert->issuerName, sizeof(DecodedName));
-        x509->issuer.fullName.fullName = (char*)XMALLOC(
-                        dCert->issuerName.fullNameLen, x509->heap,
-                        DYNAMIC_TYPE_X509);
-        if (x509->issuer.fullName.fullName != NULL)
-            XMEMCPY(x509->issuer.fullName.fullName,
-                     dCert->issuerName.fullName, dCert->issuerName.fullNameLen);
+    if (dCert->issuerName != NULL) {
+        wolfSSL_X509_set_issuer_name(x509,
+                (WOLFSSL_X509_NAME*)dCert->issuerName);
+        x509->issuer.x509 = x509;
     }
-    x509->issuer.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
     XSTRNCPY(x509->subject.name, dCert->subject, ASN_NAME_MAX);
     x509->subject.name[ASN_NAME_MAX - 1] = '\0';
     x509->subject.sz = (int)XSTRLEN(x509->subject.name) + 1;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    if (dCert->subjectName.fullName != NULL) {
-        XMEMCPY(&x509->subject.fullName,
-                                      &dCert->subjectName, sizeof(DecodedName));
-        x509->subject.fullName.fullName = (char*)XMALLOC(
-                 dCert->subjectName.fullNameLen, x509->heap, DYNAMIC_TYPE_X509);
-        if (x509->subject.fullName.fullName != NULL)
-            XMEMCPY(x509->subject.fullName.fullName,
-                   dCert->subjectName.fullName, dCert->subjectName.fullNameLen);
+    if (dCert->subjectName != NULL) {
+        wolfSSL_X509_set_subject_name(x509,
+                (WOLFSSL_X509_NAME*)dCert->subjectName);
+        x509->subject.x509 = x509;
     }
-    x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     x509->subject.rawLen = min(dCert->subjectRawLen, sizeof(x509->subject.raw));
@@ -11227,6 +11214,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                            ssl->secure_renegotiation->enabled) {
                             /* free old peer cert */
                             FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
                         }
                     #endif
 
