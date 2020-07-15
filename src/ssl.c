@@ -41804,7 +41804,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             if (i < count - 1) {
                 /* tmpSz+1 for last null char */
                 XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
-                XSTRNCAT(fullName, tmp, tmpSz);
+                XSTRNCAT(fullName, tmp, tmpSz+1);
             }
             else {
                 XSNPRINTF(tmp, tmpSz, "%s=%s", buf, str->data);
