@@ -940,11 +940,13 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
         return 0;
     }
 
-    if (bio->type == WOLFSSL_BIO_MD) {
-        /* MD is a wrapper only get next bio */
+    if (bio->type == WOLFSSL_BIO_MD ||
+            bio->type == WOLFSSL_BIO_BASE64) {
+        /* these are wrappers only, get next bio */
         while (bio->next != NULL) {
             bio = bio->next;
-            if (bio->type != WOLFSSL_BIO_MD) {
+            if (bio->type == WOLFSSL_BIO_MD ||
+                    bio->type == WOLFSSL_BIO_BASE64) {
                 break;
             }
         }

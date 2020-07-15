@@ -308,6 +308,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
+#define SSL_get_finished                wolfSSL_get_finished
+#define SSL_get_peer_finished           wolfSSL_get_peer_finished
 #define SSL_set_rfd                     wolfSSL_set_rfd
 #define SSL_set_wfd                     wolfSSL_set_wfd
 #define SSL_set_shutdown                wolfSSL_set_shutdown
