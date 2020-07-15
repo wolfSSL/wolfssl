@@ -2520,8 +2520,14 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-        input += OPAQUE8_LEN + len;
-        *sslBytes -= OPAQUE8_LEN + len;
+        input += OPAQUE8_LEN;
+        *sslBytes -= OPAQUE8_LEN;
+        /* store nonce in server for DeriveResumptionPSK */
+        session->sslServer->session.ticketNonce.len = len;
+        if (len > 0)
+            XMEMCPY(&session->sslServer->session.ticketNonce.data, input, len);
+        input += len;
+        *sslBytes -= len;
     }
 #endif
 
@@ -2549,10 +2555,24 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-    #endif
+        /* set haveSessionId to use the wolfSession cache */
+        ssl->options.haveSessionId = 1;
+
+        /* Use the wolf Session cache to retain resumption secret */
+        if (session->flags.cached == 0) {
+            WOLFSSL_SESSION* sess = GetSession(ssl, NULL, 0);
+            if (sess == NULL) {
+                AddSession(ssl); /* don't re add */
+            #ifdef WOLFSSL_SNIFFER_STATS
+                INC_STAT(SnifferStats.sslResumptionInserts);
+            #endif
+            }
+            session->flags.cached = 1;
+        }
+    #endif /* HAVE_SESSION_TICKET */
     }
     else
-#endif
+#endif /* WOLFSSL_TLS13 */
     {
         /* make sure ticket id isn't too long */
         if (len > ID_LEN) {
@@ -2716,6 +2736,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 /* indicates we want to use resumption */
                 session->sslServer->options.resuming = 1;
                 session->sslClient->options.resuming = 1;
+                /* default nonce to len = 1, data = 0 */
+                session->sslServer->session.ticketNonce.len = 1;
+                session->sslServer->session.ticketNonce.data[0] = 0;
+                session->sslClient->session.ticketNonce.len = 1;
+                session->sslClient->session.ticketNonce.data[0] = 0;
                 break;
         #endif
             case EXT_SUPPORTED_VERSIONS:
@@ -2764,18 +2789,32 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
 
     if (doResume) {
-        SSL_SESSION* resume = GetSession(session->sslServer,
-                                  session->sslServer->arrays->masterSecret, 0);
-        if (resume == NULL && !IsAtLeastTLSv1_3(session->sslServer->version)) {
+        WOLFSSL_SESSION* resume;
+        if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+            resume = GetSession(session->sslServer, 
+                                session->sslServer->session.masterSecret, 0);
+        }
+        else {
+            resume = GetSession(session->sslServer,
+                               session->sslServer->arrays->masterSecret, 0);
+        }
+        if (resume == NULL) {
 #ifdef WOLFSSL_SNIFFER_STATS
             INC_STAT(SnifferStats.sslResumeMisses);
 #endif
             SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+
         /* make sure client has master secret too */
-        XMEMCPY(session->sslClient->arrays->masterSecret,
-               session->sslServer->arrays->masterSecret, SECRET_LEN);
+        if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+            XMEMCPY(session->sslClient->session.masterSecret,
+                    session->sslServer->session.masterSecret, SECRET_LEN);
+        }
+        else {
+            XMEMCPY(session->sslClient->arrays->masterSecret,
+                    session->sslServer->arrays->masterSecret, SECRET_LEN);
+        }
         session->flags.resuming = 1;
 
         Trace(SERVER_DID_RESUMPTION_STR);
@@ -2806,6 +2845,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslServer->arrays->psk_key,
                 session->sslServer->arrays->psk_keySz);
         #endif
+            /* handshake key setup below and traffic keys done in SetupKeys */
         }
         else
     #endif
@@ -3120,10 +3160,9 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 inputHelloSz - bindersLen + HANDSHAKE_HEADER_SZ);
 
             /* call to decrypt session ticket */
-            ret = DoClientTicket(ssl, identity, idLen);
-            if (ret != 0) {
-                SetError(CLIENT_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
-                return -1;
+            if (DoClientTicket(ssl, identity, idLen) != 0) {
+                /* we aren't decrypting the resumption, since we know the master secret */
+                /* ignore errors */
             }
             ssl->options.resuming  = 1;
 
@@ -3310,33 +3349,54 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
 #ifdef WOLFSSL_TLS13
     /* Derive TLS v1.3 traffic keys */
-    if (IsAtLeastTLSv1_3(ssl->version) && !session->flags.gotFinished) {
-        /* When either side gets "finished" derive master secret and keys, but only set the key for the side encrypting data */
-        ret  = DeriveMasterSecret(session->sslServer);
-        ret += DeriveMasterSecret(session->sslClient);
-    #ifdef WOLFSSL_EARLY_DATA
-        ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, ssl->earlyData == no_early_data);
-        ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, ssl->earlyData == no_early_data);
-    #else
-        ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
-        ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
-    #endif
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        if (!session->flags.gotFinished) {
+            /* When either side gets "finished" derive master secret and keys */
+            ret  = DeriveMasterSecret(session->sslServer);
+            ret += DeriveMasterSecret(session->sslClient);
+        #ifdef WOLFSSL_EARLY_DATA
+            ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, ssl->earlyData == no_early_data);
+            ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, ssl->earlyData == no_early_data);
+        #else
+            ret += DeriveTls13Keys(session->sslServer, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
+            ret += DeriveTls13Keys(session->sslClient, traffic_key, ENCRYPT_AND_DECRYPT_SIDE, 1);
+        #endif
+
+            if (ret != 0) {
+                SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
+                return -1;
+            }
+
+            session->flags.gotFinished = 1;
+        #ifdef SHOW_SECRETS
+            ShowTlsSecrets(session);    
+        #endif
+        }
+
         if (session->flags.side == WOLFSSL_SERVER_END) {
-            ret += SetKeysSide(session->sslServer, DECRYPT_SIDE_ONLY);
+            /* finished from client to server */
+            ret  = SetKeysSide(session->sslServer, DECRYPT_SIDE_ONLY);
             ret += SetKeysSide(session->sslClient, ENCRYPT_SIDE_ONLY);
+
+        #ifdef HAVE_SESSION_TICKET
+            /* derive resumption secret for next session - on finished (from client) */
+            ret += DeriveResumptionSecret(session->sslClient, session->sslClient->session.masterSecret);
+
+            /* copy resumption secret to server */
+            XMEMCPY(session->sslServer->session.masterSecret,
+                session->sslClient->session.masterSecret, SECRET_LEN);
+        #endif
         }
         else {
-            ret += SetKeysSide(session->sslServer, ENCRYPT_SIDE_ONLY);
+            /* finished from server to client */
+            ret  = SetKeysSide(session->sslServer, ENCRYPT_SIDE_ONLY);
             ret += SetKeysSide(session->sslClient, DECRYPT_SIDE_ONLY);
         }
+
         if (ret != 0) {
             SetError(BAD_FINISHED_MSG, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-        session->flags.gotFinished = 1;
-    #ifdef SHOW_SECRETS
-        ShowTlsSecrets(session);    
-    #endif
     }
 #endif
 

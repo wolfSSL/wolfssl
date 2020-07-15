@@ -2590,6 +2590,7 @@ WOLFSSL_LOCAL int DeriveHandshakeSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store);
 WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
+WOLFSSL_LOCAL int DeriveResumptionSecret(WOLFSSL* ssl, byte* key);
 
 /* The key update request values for KeyUpdate message. */
 enum KeyUpdateRequest {

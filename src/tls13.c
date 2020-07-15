@@ -737,7 +737,7 @@ static const byte resumeMasterLabel[RESUME_MASTER_LABEL_SZ + 1] =
  * key  The derived key.
  * returns 0 on success, otherwise failure.
  */
-static int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
+int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
 {
     WOLFSSL_MSG("Derive Resumption Secret");
     if (ssl == NULL || ssl->arrays == NULL) {
