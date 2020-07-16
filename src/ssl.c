@@ -2025,7 +2025,7 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 #ifdef WOLFSSL_SCTP
         if (ssl->options.dtlsSctp)
 #endif
-#if defined(WOLLSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
+#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
             ssl->dtls_expected_rx = max(ssl->dtls_expected_rx, ssl->dtlsMtuSz);
 #endif
     }
