@@ -109,6 +109,17 @@
 
 #define SP_MASK    (sp_digit)(-1)
 
+
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
+typedef struct sp_ecc_ctx {
+    #ifdef WOLFSSL_SP_384
+    byte data[48*80]; /* stack data */
+    #else
+    byte data[32*80]; /* stack data */
+    #endif
+} sp_ecc_ctx_t;
+#endif
+
 #ifdef WOLFSSL_SP_MATH
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -216,7 +227,6 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 
 
-#define MP_OKAY    0
 #define MP_NO      0
 #define MP_YES     1
 
@@ -226,8 +236,10 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 #define MP_EQ    0
 #define MP_LT    -1
 
+#define MP_OKAY   0
 #define MP_MEM   -2
 #define MP_VAL   -3
+#define FP_WOULDBLOCK -4
 
 #define DIGIT_BIT  SP_WORD_SIZE
 #define MP_MASK    SP_MASK

@@ -1545,12 +1545,17 @@ then
     ENABLED_ECC="yes"
 fi
 
-if test "$ENABLED_ECC" = "yes"
+if test "$ENABLED_ECC" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
     if test "$ENABLED_ECC_SHAMIR" = "yes" && test "$ENABLED_LOWRESOURCE" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+    fi
+
+    if test "$ENABLED_ECC" = "nonblock"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWC_ECC_NONBLOCK"
     fi
 fi
 
@@ -3206,7 +3211,7 @@ then
     ENABLED_ENCRYPT_THEN_MAC=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
-    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
+    AS_IF([test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_CURVE25519" = "xyes" || test "x$ENABLED_TLS13" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
@@ -3762,7 +3767,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
 
         # Check the ECC supported curves prereq
-        AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
+        AS_IF([test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_CURVE25519" = "xyes"],
               [ENABLED_SUPPORTED_CURVES=yes
                AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
@@ -3905,7 +3910,7 @@ then
         AC_MSG_ERROR([please enable psk if disabling asn.])
     fi
 
-    if test "x$ENABLED_ECC" = "xyes" && test "x$ENABLED_ASN" = "xno"
+    if test "x$ENABLED_ECC" != "xno" && test "x$ENABLED_ASN" = "xno"
     then
         AC_MSG_ERROR([please disable ecc if disabling asn.])
     fi
@@ -4251,6 +4256,7 @@ ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
 ENABLED_SP_NO_MALLOC=no
+ENABLED_SP_NONBLOCK=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
@@ -4267,6 +4273,7 @@ do
       ENABLED_SP_EC_384=yes
     fi
     ;;
+
   yes)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
@@ -4279,6 +4286,7 @@ do
       ENABLED_SP_EC_384=yes
     fi
     ;;
+
   no)
     ;;
 
@@ -4312,7 +4320,6 @@ do
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_2048=yes
     ;;
-
   smallrsa2048)
     ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
@@ -4334,7 +4341,6 @@ do
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_3072=yes
     ;;
-
   smallrsa3072)
     ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
@@ -4351,19 +4357,16 @@ do
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_4096=yes
     ;;
-
   4096 | +4096)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_4096=yes
     ;;
-
   smallrsa4096)
     ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_FF_4096=yes
     ;;
-
   rsa4096)
     ENABLED_SP_RSA=yes
     ENABLED_SP_FF_4096=yes
@@ -4371,6 +4374,13 @@ do
 
   nomalloc)
     ENABLED_SP_NO_MALLOC=yes
+    ;;
+
+  nonblock)
+    # Requires small and no malloc
+    ENABLED_SP_NONBLOCK=yes
+    ENABLED_SP_NO_MALLOC=yes
+    ENABLED_SP_SMALL=yes
     ;;
 
   *)
@@ -4404,7 +4414,7 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_4096"
     fi
 fi
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
+if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     ENABLED_SP=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_ECC"
@@ -4424,6 +4434,10 @@ fi
 if test "$ENABLED_SP_NO_MALLOC" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_MALLOC"
+fi
+if test "$ENABLED_SP_NONBLOCK" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
 
 
@@ -4908,7 +4922,7 @@ AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEE
 
 
 # dertermine if we have key validation mechanism
-if test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_RSA" = "xyes"
+if test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_RSA" = "xyes"
 then
     if test "x$ENABLED_ASN" = "xyes"
     then
@@ -5046,7 +5060,7 @@ then
         ENABLED_AESKEYWRAP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
     fi
-    if test "x$ENABLED_X963KDF" = "xno" && test "$ENABLED_ECC" = "yes"
+    if test "x$ENABLED_X963KDF" = "xno" && test "$ENABLED_ECC" != "no"
     then
         ENABLED_X963KDF="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
@@ -5218,7 +5232,7 @@ AM_CONDITIONAL([BUILD_BLAKE2],[test "x$ENABLED_BLAKE2" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_BLAKE2S],[test "x$ENABLED_BLAKE2S" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA512],[test "x$ENABLED_SHA512" = "xyes" || test "x$ENABLED_SHA384" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DSA],[test "x$ENABLED_DSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_ECC],[test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ECC],[test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED25519],[test "x$ENABLED_ED25519" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ED25519_SMALL],[test "x$ENABLED_ED25519_SMALL" = "xyes"])
 AM_CONDITIONAL([BUILD_FEMATH], [test "x$ENABLED_FEMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
