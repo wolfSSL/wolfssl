@@ -521,10 +521,10 @@ struct WOLFSSL_X509_STORE {
 #endif
 };
 
+#define WOLFSSL_NO_WILDCARDS   0x4
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
-#define WOLFSSL_NO_WILDCARDS   0x4
 #define WOLFSSL_HOST_NAME_MAX  256
 #define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
 struct WOLFSSL_X509_VERIFY_PARAM {
@@ -1603,8 +1603,6 @@ enum {
     WOLFSSL_CRL_CHECK    = 2,
 };
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
 /* Separated out from other enums because of size */
 enum {
     SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
@@ -1651,6 +1649,8 @@ enum {
                   | SSL_OP_TLS_ROLLBACK_BUG),
 };
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
 /* for compatibility these must be macros */
 #define SSL_OP_NO_SSLv2   WOLFSSL_OP_NO_SSLv2
 #define SSL_OP_NO_SSLv3   WOLFSSL_OP_NO_SSLv3
@@ -3763,8 +3763,6 @@ WOLFSSL_API int wolfSSL_SSL_in_connect_init(WOLFSSL*);
 #ifndef NO_SESSION_CACHE
     WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *s);
 #endif
-WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
-    size_t chklen, unsigned int flags, char **peername);
 
 WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp,
     const WOLFSSL_ASN1_INTEGER *a);
@@ -3830,6 +3828,12 @@ WOLFSSL_API void wolfSSL_CTX_set_next_proto_select_cb(WOLFSSL_CTX *s,
 WOLFSSL_API void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **data,
         unsigned *len);
 
+#ifndef NO_ASN
+WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
+    size_t chklen, unsigned int flags, char **peername);
+WOLFSSL_API int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
+        unsigned int flags);
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)

@@ -1176,7 +1176,7 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
 
 #else /* HAVE_CRL_MONITOR */
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 
 static int StartMonitorCRL(WOLFSSL_CRL* crl)
 {
@@ -1188,7 +1188,7 @@ static int StartMonitorCRL(WOLFSSL_CRL* crl)
     return NOT_COMPILED_IN;
 }
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 #endif  /* HAVE_CRL_MONITOR */
 

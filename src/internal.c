@@ -9397,7 +9397,6 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     return match;
 }
 
-#ifdef OPENSSL_EXTRA
 /* Check that alternative names, if they exists, match the domain.
  * Fail if there are wild patterns and they didn't match.
  * Check the common name if no alternative names matched.
@@ -9405,9 +9404,11 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
  * dCert    Decoded cert to get the alternative names from.
  * domain   Domain name to compare against.
  * checkCN  Whether to check the common name.
- * returns whether there was a problem in matching.
+ * returns  1 : match was found.
+ *          0 : no match found.
+ *         -1 : No matches and wild pattern match failed.
  */
-static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
+static int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
 {
     int        match;
     DNS_entry* altName = NULL;
@@ -9425,19 +9426,22 @@ static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
         if (MatchDomainName(altName->name, altName->len, domain)) {
             match = 1;
             *checkCN = 0;
+            WOLFSSL_MSG("\tmatch found");
             break;
         }
         /* No matches and wild pattern match failed. */
         else if (altName->name && altName->len >=1 &&
                 altName->name[0] == '*' && match == 0) {
             match = -1;
+            WOLFSSL_MSG("\twildcard match failed");
         }
 
         altName = altName->next;
     }
 
-    return match != -1;
+    return match;
 }
+
 
 /* Check the domain name matches the subject alternative name or the subject
  * name.
@@ -9447,14 +9451,14 @@ static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
  * domainNameLen  The length of the domain name.
  * returns DOMAIN_NAME_MISMATCH when no match found and 0 on success.
  */
-int CheckHostName(DecodedCert* dCert, char *domainName, size_t domainNameLen)
+int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameLen)
 {
     int checkCN;
 
     /* Assume name is NUL terminated. */
     (void)domainNameLen;
 
-    if (CheckForAltNames(dCert, domainName, &checkCN) == 0) {
+    if (CheckForAltNames(dCert, domainName, &checkCN) != 1) {
         WOLFSSL_MSG("DomainName match on alt names failed too");
         return DOMAIN_NAME_MISMATCH;
     }
@@ -9469,13 +9473,13 @@ int CheckHostName(DecodedCert* dCert, char *domainName, size_t domainNameLen)
     return 0;
 }
 
-int CheckIPAddr(DecodedCert* dCert, char* ipasc)
+int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
 {
     WOLFSSL_MSG("Checking IPAddr");
 
     return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc));
 }
-#endif
+
 
 #ifdef SESSION_CERTS
 static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,

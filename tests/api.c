@@ -4290,8 +4290,8 @@ static void test_wolfSSL_UseMaxFragment(void)
 #if defined(HAVE_MAX_FRAGMENT) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
   #else
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
   #endif
@@ -4332,8 +4332,8 @@ static void test_wolfSSL_UseTruncatedHMAC(void)
 #if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
   #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
-    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
   #else
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
   #endif
@@ -10767,7 +10767,7 @@ static int test_wc_InitCmac (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -10828,7 +10828,7 @@ static int test_wc_CmacUpdate (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -10891,7 +10891,7 @@ static int test_wc_CmacFinal (void)
     if (ret == 0) {
         ret = wc_CmacFinal(&cmac, mac, &macSz);
         if (ret == 0 && XMEMCMP(mac, expMac, expMacSz) != 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         /* Pass in bad args. */
         if (ret == 0) {
@@ -10905,7 +10905,7 @@ static int test_wc_CmacFinal (void)
                     ret = 0;
                 }
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
@@ -10957,7 +10957,7 @@ static int test_wc_AesCmacGenerate (void)
 
     ret = wc_AesCmacGenerate(mac, &macSz, msg, msgSz, key, keySz);
     if (ret == 0 && XMEMCMP(mac, expMac, expMacSz) != 0) {
-        ret = SSL_FATAL_ERROR;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     /* Pass in bad args. */
     if (ret == 0) {
@@ -10974,7 +10974,7 @@ static int test_wc_AesCmacGenerate (void)
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         } else if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -11001,7 +11001,7 @@ static int test_wc_AesCmacGenerate (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else if (ret == 0) {
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
 
@@ -29524,6 +29524,25 @@ static void test_wolfSSL_X509_check_ca(void){
 #endif
 }
 
+static void test_wolfSSL_X509_check_ip_asc(void){
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    WOLFSSL_X509 *x509;
+
+    printf(testingFmt, "wolfSSL_X509_check_ip_asc()");
+
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
+#if 0
+    /* TODO: add cert gen for testing positive case */
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
+#endif
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "0.0.0.0", 0), 0);
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, NULL, 0), 0);
+    wolfSSL_X509_free(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_DC_cert(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
@@ -34943,6 +34962,7 @@ void ApiTest(void)
     test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
+    test_wolfSSL_X509_check_ip_asc();
     test_wolfSSL_DC_cert();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();

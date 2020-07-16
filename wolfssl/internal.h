@@ -1689,9 +1689,7 @@ WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
-#ifdef OPENSSL_EXTRA
-WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, char* ipasc);
-#endif
+WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 #endif
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz);
@@ -2705,9 +2703,7 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask;             /* store SSL_OP_ flags */
-#endif
 #ifdef OPENSSL_EXTRA
     byte              sessionCtx[ID_LEN]; /* app session context ID */
     word32            disabledCurves;   /* curves disabled by user */
@@ -4243,10 +4239,8 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl, int verify);
 
-    #ifdef OPENSSL_EXTRA
-    WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, char *domainName,
+    WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
                                     size_t domainNameLen);
-    #endif
 #endif
 
 

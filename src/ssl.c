@@ -14657,8 +14657,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-
     static long wolf_set_options(long old_op, long op);
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
@@ -14671,8 +14669,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ctx->mask;
     }
-
-#endif
 
 #ifdef OPENSSL_EXTRA
 
@@ -24731,7 +24727,6 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
 static long wolf_set_options(long old_op, long op)
 {
     /* if SSL_OP_ALL then turn all bug workarounds on */
@@ -24754,19 +24749,19 @@ static long wolf_set_options(long old_op, long op)
     }
 #endif
 
-    if ((op & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+    if ((op & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
     }
 
-    if ((op & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+    if ((op & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_1");
     }
 
-    if ((op & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+    if ((op & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1");
     }
 
-    if ((op & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+    if ((op & WOLFSSL_OP_NO_SSLv3) == WOLFSSL_OP_NO_SSLv3) {
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
     }
 
@@ -24784,7 +24779,6 @@ static long wolf_set_options(long old_op, long op)
 
     return old_op | op;
 }
-#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
@@ -42915,6 +42909,80 @@ int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+
+#ifndef NO_ASN
+int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
+                    unsigned int flags, char **peername)
+{
+    int         ret;
+    DecodedCert dCert;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_host");
+
+    /* flags and peername not needed for Nginx. */
+    (void)flags;
+    (void)peername;
+
+    if (flags == WOLFSSL_NO_WILDCARDS) {
+        WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
+        return WOLFSSL_FAILURE;
+    }
+
+    InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
+    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+    if (ret != 0) {
+        FreeDecodedCert(&dCert);
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = CheckHostName(&dCert, (char *)chk, chklen);
+    FreeDecodedCert(&dCert);
+    if (ret != 0)
+        return WOLFSSL_FAILURE;
+    return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
+        unsigned int flags)
+{
+    int ret = WOLFSSL_FAILURE;
+    DecodedCert dCert;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_ip_asc");
+
+    /* flags not yet implemented */
+    (void)flags;
+
+    if ((x == NULL) || (x->derCert == NULL) || (ipasc == NULL)) {
+        WOLFSSL_MSG("Invalid parameter");
+    }
+    else {
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    if (ret == WOLFSSL_SUCCESS) {
+        InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
+        ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+        if (ret != 0) {
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = CheckIPAddr(&dCert, ipasc);
+            if (ret != 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                ret = WOLFSSL_SUCCESS;
+            }
+        }
+        FreeDecodedCert(&dCert);
+    }
+
+    return ret;
+}
+#endif
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
@@ -43094,37 +43162,6 @@ WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 }
 
 #endif /* NO_SESSION_CACHE */
-
-int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
-                    unsigned int flags, char **peername)
-{
-    int         ret;
-    DecodedCert dCert;
-
-    WOLFSSL_ENTER("wolfSSL_X509_check_host");
-
-    /* flags and peername not needed for Nginx. */
-    (void)flags;
-    (void)peername;
-
-    if (flags == WOLFSSL_NO_WILDCARDS) {
-        WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
-        return WOLFSSL_FAILURE;
-    }
-
-    InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
-    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
-    if (ret != 0) {
-        FreeDecodedCert(&dCert);
-        return WOLFSSL_FAILURE;
-    }
-
-    ret = CheckHostName(&dCert, (char *)chk, chklen);
-    FreeDecodedCert(&dCert);
-    if (ret != 0)
-        return WOLFSSL_FAILURE;
-    return WOLFSSL_SUCCESS;
-}
 
 int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 {
