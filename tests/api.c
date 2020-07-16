@@ -9271,8 +9271,8 @@ static int test_wc_Shake256Hash(void)
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
-    };   
-    word32      len = sizeof(data); 
+    };
+    word32      len = sizeof(data);
     byte        hash[144];
     word32      hashLen = sizeof(hash);
 
@@ -22676,7 +22676,6 @@ static int test_wc_HashInit(void)
 
     /* For loop to test various arguments... */
     for (i = 0; i < enumlen; i++) {
-        //printf("%d", i);
         /* check for bad args */
         if (wc_HashInit(&hash, enumArray[i]) == BAD_FUNC_ARG) {
             ret = 1;
@@ -22711,8 +22710,6 @@ static int test_wc_HashSetFlags(void)
     wc_HashAlg hash;
     word32 flags = 0;
     int i, j;
-    //byte        data[FOURK_BUF];
-    //byte        hashBuf[WC_MAX_DIGEST_SIZE];
     printf(testingFmt, "wc_HashSetFlags()");
 
 
@@ -22771,23 +22768,26 @@ static int test_wc_HashSetFlags(void)
         }
 
         wc_HashFree(&hash, enumArray[i]);
-        if (ret != 0) {
-            break;
-        }
+   
     }
-    /* For loop to test not supported sites */
+    /* For loop to test not supported cases */
     int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
     for (j = 0; j < notSupportedLen; j++){
-
         if (ret == 0) {
-            ret = wc_HashSetFlags(&hash, notSupported[j], flags);
-            if (ret == BAD_FUNC_ARG) {
+            ret = wc_HashInit(&hash, notSupported[j]);
+            if (ret == BAD_FUNC_ARG){
                 ret = 0;
-            }
-        }
-        wc_HashFree(&hash, notSupported[j]);
-        if (ret != 0) {
-            break;
+                if (ret == 0){
+                    ret = wc_HashSetFlags(&hash, notSupported[j], flags);
+                    if (ret == BAD_FUNC_ARG) {
+                        ret = 0;
+                    }      
+                }
+            } 
+        }   
+        ret = wc_HashFree(&hash, notSupported[j]);
+        if (ret ==  BAD_FUNC_ARG) {
+            ret = 0;
         }
 
     }
@@ -22807,8 +22807,6 @@ static int test_wc_HashGetFlags(void)
     wc_HashAlg hash;
     word32 flags = 0;
     int i, j;
-    //byte        data[FOURK_BUF];
-    //byte        hashBuf[WC_MAX_DIGEST_SIZE];
     printf(testingFmt, "wc_HashGetFlags()");
 
 
@@ -22868,19 +22866,26 @@ static int test_wc_HashGetFlags(void)
             break;
         }
     }
-    /* For loop to test not supported sites */
+    /* For loop to test not supported cases */
     int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
-    for (j = 0; j < notSupportedLen; j++) {
+    for (j = 0; j < notSupportedLen; j++){
         if (ret == 0) {
-            ret = wc_HashGetFlags(&hash, notSupported[j], &flags);
-            if (ret == BAD_FUNC_ARG) {
+            ret = wc_HashInit(&hash, notSupported[j]);
+            if (ret == BAD_FUNC_ARG){
                 ret = 0;
-            }
+                if (ret == 0){
+                    ret = wc_HashGetFlags(&hash, notSupported[j], &flags);
+                    if (ret == BAD_FUNC_ARG) {
+                        ret = 0;
+                    }      
+                }
+            } 
+        }   
+        ret = wc_HashFree(&hash, notSupported[j]);
+        if (ret ==  BAD_FUNC_ARG) {
+            ret = 0;
         }
-        wc_HashFree(&hash, notSupported[j]);
-        if (ret != 0) {
-            break;
-        }
+
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
