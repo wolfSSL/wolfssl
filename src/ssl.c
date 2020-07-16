@@ -43269,7 +43269,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
 int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
         unsigned int flags)
 {
-    int ret = WOLFSSL_SUCCESS;
+    int ret = WOLFSSL_FAILURE;
     DecodedCert dCert;
 
     WOLFSSL_ENTER("wolfSSL_X509_check_ip_asc");
@@ -43279,7 +43279,9 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 
     if ((x == NULL) || (x->derCert == NULL) || (ipasc == NULL)) {
         WOLFSSL_MSG("Invalid parameter");
-        ret = WOLFSSL_FAILURE;
+    }
+    else {
+        ret = WOLFSSL_SUCCESS;
     }
 
     if (ret == WOLFSSL_SUCCESS) {
