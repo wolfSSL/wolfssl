@@ -10555,7 +10555,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #ifndef NO_WOLFSSL_SKIP_TRAILING_PAD
                 #ifndef NO_DES3
                     if (info->cipherType == WC_CIPHER_DES3) {
-                        padVal = der->buffer[der->length-1];
+                        if (der->length > 0)
+                            padVal = der->buffer[der->length-1];
+                        else
+                            padVal = WC_CIPHER_NONE;
                         if (padVal <= DES_BLOCK_SIZE) {
                             der->length -= padVal;
                         }
