@@ -33358,13 +33358,15 @@ static int test_wc_RNG_GenerateBlock(void)
 
     return ret;
 }
+#endif
 /*
  * Testing wc_InitRngNonce
  */
 static int test_wc_InitRngNonce(void)
 {
-    int     ret;
-#ifndef WC_NO_RNG    
+    int     ret=0;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
@@ -33390,8 +33392,9 @@ static int test_wc_InitRngNonce(void)
  */
 static int test_wc_InitRngNonce_ex(void)
 {
-    int     ret;
-#ifndef WC_NO_RNG    
+    int     ret=0;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
@@ -33412,7 +33415,7 @@ static int test_wc_InitRngNonce_ex(void)
     return ret;
 }/*End test_wc_InitRngNonce_ex*/
 
-#endif
+
 
 static void test_wolfSSL_X509_CRL(void)
 {
