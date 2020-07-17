@@ -1752,8 +1752,51 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
-    \sa Wc_ecc_encrypt
+    \sa wc_ecc_encrypt
 */
 WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+
+/*!
+    \ingroup ECC
+
+    \brief Enable ECC support for non-blocking operations. Supported for 
+        Single Precision (SP) math with the following build options:
+            WOLFSSL_SP_NONBLOCK
+            WOLFSSL_SP_SMALL
+            WOLFSSL_SP_NO_MALLOC
+            WC_ECC_NONBLOCK
+
+    \return 0 Returned upon successfully setting the callback context the input message
+
+    \param key pointer to the ecc_key object
+    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP 
+
+    _Example_
+    \code
+    int ret;
+    ecc_key ecc;
+    ecc_nb_ctx_t nb_ctx;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret == 0) {
+        ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
+        if (ret == 0) {
+            do {
+                ret = wc_ecc_verify_hash_ex(
+                    &r, &s,       // r/s as mp_int
+                    hash, hashSz, // computed hash digest
+                    &verify_res,  // verification result 1=success
+                    &key
+                );
+
+                // TODO: Real-time work can be called here 
+            } while (ret == FP_WOULDBLOCK);
+        }
+        wc_ecc_free(&key);
+    }
+    \endcode
+*/
+WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
