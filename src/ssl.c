@@ -37974,6 +37974,9 @@ err:
 
                 e = &name->entry[i];
                 obj = wolfSSL_X509_NAME_ENTRY_get_object(e);
+                if (obj == NULL) {
+                    return BAD_FUNC_ARG;
+                }
 
                 XMEMCPY(fullName + *idx, "/", 1); *idx = *idx + 1;
                 sz = (int)XSTRLEN(obj->sName);
@@ -38011,6 +38014,8 @@ err:
 
                 e = &name->entry[i];
                 obj = wolfSSL_X509_NAME_ENTRY_get_object(e);
+                if (obj == NULL)
+                    return BAD_FUNC_ARG;
 
                 totalLen += (int)XSTRLEN(obj->sName) + 2;/*+2 for '/' and '=' */
                 totalLen += wolfSSL_ASN1_STRING_length(e->value);
@@ -38022,8 +38027,11 @@ err:
             return MEMORY_E;
 
         idx = 0;
-        entryCount = 0;
-        entryCount += AddAllEntry(name, fullName, totalLen, &idx);
+        entryCount = AddAllEntry(name, fullName, totalLen, &idx);
+        if (entryCount < 0) {
+            XFREE(fullName, name->heap, DYNAMIC_TYPE_X509);
+            return entryCount;
+        }
 
         if (name->dynamicName) {
             XFREE(name->name, name->heap, DYNAMIC_TYPE_X509);
