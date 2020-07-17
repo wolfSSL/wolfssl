@@ -9346,7 +9346,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
         altName = dCert->altNames;
 
     if (checkCN != NULL) {
-        *checkCN = altName == NULL;
+        *checkCN = (altName == NULL) ? 1 : 0;
     }
 
     while (altName) {
@@ -9415,23 +9415,29 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
 int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameLen)
 {
     int checkCN;
+    int ret = DOMAIN_NAME_MISMATCH;
 
     /* Assume name is NUL terminated. */
     (void)domainNameLen;
 
     if (CheckForAltNames(dCert, domainName, &checkCN) != 1) {
-        WOLFSSL_MSG("DomainName match on alt names failed too");
-        return DOMAIN_NAME_MISMATCH;
+        WOLFSSL_MSG("DomainName match on alt names failed");
     }
+    else {
+        ret = 0;
+    }
+
     if (checkCN == 1) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
-                            domainName) == 0) {
+                            domainName) == 1) {
+            ret = 0;
+        }
+        else {
             WOLFSSL_MSG("DomainName match on common name failed");
-            return DOMAIN_NAME_MISMATCH;
         }
     }
 
-    return 0;
+    return ret;
 }
 
 int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
