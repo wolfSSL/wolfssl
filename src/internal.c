@@ -11062,8 +11062,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
                 else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
                     WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
+                #if defined(WOLFSSL_EXTRA_ALERTS) || defined(OPENSSL_EXTRA) || \
+                                               defined(OPENSSL_EXTRA_X509_SMALL)
+                    DoCertFatalAlert(ssl, ret);
+                #endif
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-                    SendAlert(ssl, alert_fatal, bad_certificate);
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
                     args->fatal = 1;
@@ -11078,12 +11081,20 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             "\tCallback override available, will continue");
                         /* check if fatal error */
                         args->fatal = (args->verifyErr) ? 1 : 0;
+                    #if defined(WOLFSSL_EXTRA_ALERTS) || \
+                                                     defined(OPENSSL_EXTRA) || \
+                                               defined(OPENSSL_EXTRA_X509_SMALL)
+                        if (args->fatal)
+                            DoCertFatalAlert(ssl, ret);
+                    #endif
                     }
                     else {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
                         args->fatal = 1;
-                    #ifdef OPENSSL_EXTRA
-                        SendAlert(ssl, alert_fatal, bad_certificate);
+                    #if defined(WOLFSSL_EXTRA_ALERTS) || \
+                                                     defined(OPENSSL_EXTRA) || \
+                                               defined(OPENSSL_EXTRA_X509_SMALL)
+                        DoCertFatalAlert(ssl, ret);
                     #endif
                     }
                 }
