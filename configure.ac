@@ -4450,6 +4450,9 @@ if test "$ENABLED_SP_ASM" = "yes"; then
   if test "$ENABLED_SP" = "no"; then
     AC_MSG_ERROR([Must have SP enabled: --enable-sp])
   fi
+  if test "$ENABLED_SP_NONBLOCK" = "yes"; then
+    AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
+  fi
   if test "$ENABLED_ASM" = "no"; then
     AC_MSG_ERROR([Assembly code turned off])
   fi
