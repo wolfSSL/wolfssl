@@ -22784,12 +22784,13 @@ static int test_wc_HashSetFlags(void)
                     }      
                 }
             } 
-        }   
-        ret = wc_HashFree(&hash, notSupported[j]);
-        if (ret ==  BAD_FUNC_ARG) {
-            ret = 0;
         }
-
+        if (ret == 0) {   
+            ret = wc_HashFree(&hash, notSupported[j]);
+            if (ret ==  BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -22880,12 +22881,13 @@ static int test_wc_HashGetFlags(void)
                     }      
                 }
             } 
-        }   
-        ret = wc_HashFree(&hash, notSupported[j]);
-        if (ret ==  BAD_FUNC_ARG) {
-            ret = 0;
         }
-
+        if (ret == 0) {   
+            ret = wc_HashFree(&hash, notSupported[j]);
+            if (ret ==  BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
