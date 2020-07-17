@@ -785,10 +785,11 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     sp_int tr[1];
     sp_int trial[1];
 #endif
+    int o;
 #ifdef WOLFSSL_SP_SMALL
     int c;
 #else
-    int j, o;
+    int j;
     sp_int_word tw;
     sp_int_sword sw;
 #endif
@@ -897,7 +898,7 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
 #ifdef WOLFSSL_SP_SMALL
             do {
                 _sp_mul_d(d, t, trial, i - d->used);
-                c = _sp_cmp_abs(trial, sa);
+                c = sp_cmp(trial, sa);
                 if (c == MP_GT) {
                     t--;
                 }
