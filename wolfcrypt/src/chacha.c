@@ -23,6 +23,10 @@
 DESCRIPTION
 This library contains implementation for the ChaCha20 stream cipher.
 
+Based from chacha-ref.c version 20080118
+D. J. Bernstein
+Public domain.
+
 */
 #ifdef WOLFSSL_ARMASM
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
