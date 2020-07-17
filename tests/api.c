@@ -23875,6 +23875,35 @@ static void test_wolfSSL_X509_issuer_name_hash(void)
 #endif
 }
 
+static void test_wolfSSL_X509_check_host(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+    && !defined(NO_SHA) && !defined(NO_RSA)
+
+    X509* x509;
+    const char altName[] = "example.com";
+
+    printf(testingFmt, "wolfSSL_X509_check_host()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                SSL_FILETYPE_PEM));
+
+    AssertIntEQ(X509_check_host(x509, altName, XSTRLEN(altName), 0, NULL),
+            WOLFSSL_SUCCESS);
+
+    AssertIntEQ(X509_check_host(x509, NULL, 0, 0, NULL),
+            WOLFSSL_FAILURE);
+
+    X509_free(x509);
+
+    AssertIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName), 0, NULL),
+            WOLFSSL_FAILURE);
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
 static void test_wolfSSL_DES(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
@@ -36407,6 +36436,7 @@ void ApiTest(void)
     test_wolfSSL_X509_INFO();
     test_wolfSSL_X509_subject_name_hash();
     test_wolfSSL_X509_issuer_name_hash();
+    test_wolfSSL_X509_check_host();
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_ASN1_TIME_print();
