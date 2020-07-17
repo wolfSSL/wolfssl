@@ -33369,13 +33369,11 @@ static int test_wc_InitRngNonce(void)
    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
-                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     word32  nonceSz = sizeof(nonce);
 
 
     printf(testingFmt, "wc_InitRngNonce()");
-
-    ret = wc_InitRng(&rng);
 
     if (ret == 0){
         ret = wc_InitRngNonce(&rng, nonce, nonceSz);
@@ -33397,13 +33395,11 @@ static int test_wc_InitRngNonce_ex(void)
    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
-                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";;
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     word32  nonceSz = sizeof(nonce);
 
-
     printf(testingFmt, "wc_InitRngNonce_ex()");
-
-    ret = wc_InitRng(&rng);
+    
     if (ret == 0){
         ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
     }
@@ -35285,10 +35281,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RNG_GenerateBlock_Reseed(), 0);
     #endif
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
+
+#endif
     AssertIntEQ(test_wc_InitRngNonce(), 0);
     AssertIntEQ(test_wc_InitRngNonce_ex(), 0);
-#endif
-
     AssertIntEQ(test_wc_ed25519_make_key(), 0);
     AssertIntEQ(test_wc_ed25519_init(), 0);
     AssertIntEQ(test_wc_ed25519_sign_msg(), 0);
