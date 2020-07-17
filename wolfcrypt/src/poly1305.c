@@ -23,6 +23,9 @@
 DESCRIPTION
 This library contains implementation for the Poly1305 authenticator.
 
+Based off the public domain implementations by Andrew Moon
+and Daniel J. Bernstein
+
 */
 
 
@@ -229,11 +232,11 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
     }
 
     static void U32TO8(byte *p, word32 v) {
-    p[0] = (byte)((v      ) & 0xff);
-    p[1] = (byte)((v >>  8) & 0xff);
-    p[2] = (byte)((v >> 16) & 0xff);
-    p[3] = (byte)((v >> 24) & 0xff);
-}
+        p[0] = (byte)((v      ) & 0xff);
+        p[1] = (byte)((v >>  8) & 0xff);
+        p[2] = (byte)((v >> 16) & 0xff);
+        p[3] = (byte)((v >> 24) & 0xff);
+    }
 #endif
 
 /* convert 32-bit unsigned to little endian 64 bit type as byte array */
