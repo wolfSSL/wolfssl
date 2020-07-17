@@ -521,7 +521,7 @@ int main(int argc, char** argv)
     else {
         /* usage error */
         printf( "usage: ./snifftest or ./snifftest dump pemKey"
-                " [server] [port] [password]\n");
+                " [server] [port] [password] [isEphemeral]\n");
         exit(EXIT_FAILURE);
     }
 

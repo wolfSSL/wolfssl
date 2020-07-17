@@ -8,7 +8,25 @@ echo -e "\nStaring snifftest on testsuite.pcap...\n"
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\nsnifftest failed\n" && exit 1
 
+# TLS v1.3 sniffer test ECC (and resumption)
+if test $# -ne 0
+then
+    ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-ecc.pcap ./certs/statickeys/ecc-secp256r1.pem 127.0.0.1 11111
 
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 ECC\n" && exit 1
+fi
+
+# TLS v1.3 sniffer test DH (and resumption)
+if test $# -ne 0
+then
+    ./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-tls13-dh.pcap ./certs/statickeys/dh-ffdhe2048.pem 127.0.0.1 11111
+
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\nsnifftest TLS v1.3 DH\n" && exit 1
+fi
+
+# IPv6
 if test $# -ne 0 && test "x$1" = "x-6";
 then
     echo -e "\nStaring snifftest on sniffer-ipv6.pcap...\n"

@@ -85,6 +85,9 @@ endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-ipv6.pcap \
+               scripts/sniffer-tls13-dh.pcap \
+               scripts/sniffer-tls13-ecc.pcap \
+               scripts/sniffer-tls13-gen.sh \
                scripts/ping.test
 
 # leave openssl.test as extra until non bash works
