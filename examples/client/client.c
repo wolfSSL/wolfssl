@@ -230,10 +230,11 @@ static void ShowVersions(void)
 }
 
 #ifdef WOLFSSL_TLS13
+#define MAX_GROUP_NUMBER 4
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
                         int useX448)
 {
-    int groups[3] = {0};
+    int groups[MAX_GROUP_NUMBER] = {0};
     int count = 0;
 
     (void)useX25519;
@@ -277,6 +278,8 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
     #endif
     }
 
+    if (count >= MAX_GROUP_NUMBER)
+        err_sys("example group array size error");
     if (wolfSSL_set_groups(ssl, groups, count) != WOLFSSL_SUCCESS)
         err_sys("unable to set groups");
     WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
