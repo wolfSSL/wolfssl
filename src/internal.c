@@ -18404,6 +18404,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DTLS_SIZE_ERROR:
         return "DTLS trying to send too much in single datagram error";
 
+    case NO_CERT_ERROR:
+        return "TLS1.3 No Certificate Set Error";
+
     default :
         return "unknown error number";
     }
