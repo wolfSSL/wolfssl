@@ -9018,7 +9018,7 @@ static int test_wc_Sha3_512_Copy (void)
 /*
  * Unit test function for wc_Sha3_GetFlags()
  */
-static int test_wc_Sha3_GetFlags (void) 
+static int test_wc_Sha3_GetFlags (void)
 {
     int ret = 0;
 #if defined(WOLFSSL_SHA3) && \
@@ -9026,9 +9026,9 @@ static int test_wc_Sha3_GetFlags (void)
     wc_Sha3            sha3;
     word32             flags = 0;
 
-    
+
     printf(testingFmt, "wc_Sha3_GetFlags()");
-    
+
     /* Initialize */
     ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
     if (ret != 0) {
@@ -9042,7 +9042,7 @@ static int test_wc_Sha3_GetFlags (void)
             ret = 0;
         }
     }
-    
+
     wc_Sha3_224_Free(&sha3);
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -9199,7 +9199,7 @@ static int test_wc_Shake256_Final (void)
 /*
  *  Testing wc_Shake256_Copy()
  */
-static int test_wc_Shake256_Copy (void) 
+static int test_wc_Shake256_Copy (void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
@@ -9255,7 +9255,7 @@ static int test_wc_Shake256_Copy (void)
     }
     wc_Shake256_Free(&shake);
     printf(resultFmt, ret == 0 ? passed : failed);
-    
+
 #endif
     return ret;
 
@@ -33378,6 +33378,59 @@ static int test_wc_RNG_GenerateBlock(void)
     return ret;
 }
 #endif
+/*
+ * Testing wc_InitRngNonce
+ */
+static int test_wc_InitRngNonce(void)
+{
+    int     ret=0;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
+    WC_RNG  rng;
+    byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
+    word32  nonceSz = sizeof(nonce);
+
+
+    printf(testingFmt, "wc_InitRngNonce()");
+
+    if (ret == 0){
+        ret = wc_InitRngNonce(&rng, nonce, nonceSz);
+    }
+
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_InitRngNonce*/
+/*
+ * Testing wc_InitRngNonce_ex
+ */
+static int test_wc_InitRngNonce_ex(void)
+{
+    int     ret=0;
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
+    WC_RNG  rng;
+    byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
+    word32  nonceSz = sizeof(nonce);
+
+    printf(testingFmt, "wc_InitRngNonce_ex()");
+    
+    if (ret == 0){
+        ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
+    }
+
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/*End test_wc_InitRngNonce_ex*/
+
+
 
 static void test_wolfSSL_X509_CRL(void)
 {
@@ -35129,7 +35182,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Sha3_256_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_384_Copy(), 0);
     AssertIntEQ(test_wc_Sha3_512_Copy(), 0);
-    AssertIntEQ(test_wc_Sha3_GetFlags(), 0);    
+    AssertIntEQ(test_wc_Sha3_GetFlags(), 0);
     AssertIntEQ(test_wc_InitShake256(), 0);
     AssertIntEQ(testing_wc_Shake256_Update(), 0);
     AssertIntEQ(test_wc_Shake256_Final(), 0);
@@ -35248,8 +35301,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RNG_GenerateBlock_Reseed(), 0);
     #endif
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
-#endif
 
+#endif
+    AssertIntEQ(test_wc_InitRngNonce(), 0);
+    AssertIntEQ(test_wc_InitRngNonce_ex(), 0);
     AssertIntEQ(test_wc_ed25519_make_key(), 0);
     AssertIntEQ(test_wc_ed25519_init(), 0);
     AssertIntEQ(test_wc_ed25519_sign_msg(), 0);
