@@ -27585,8 +27585,7 @@ static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
         cmp = X509_NAME_cmp(caName, issuerName);
         AssertIntEQ(cmp, 0);
     #else
-        /* X509_STORE_CTX_get0_current_issuer() returns empty issuer */
-        AssertNull(issuerName);
+        AssertNotNull(issuerName);
     #endif
 
     X509_free(issuer);
@@ -37881,6 +37880,19 @@ static void test_wolfSSL_X509_CRL(void)
         return;
 }
 
+static void test_wolfSSL_d2i_X509_REQ(void)
+{
+    const char* csrFile = "./csr.signed.der";
+    BIO* bio = NULL;
+    X509* x509 = NULL;
+
+    AssertNotNull(bio = BIO_new_file(csrFile, "rb"));
+    AssertNotNull(d2i_X509_REQ_bio(bio, &x509));
+
+    X509_free(x509);
+    BIO_free(bio);
+}
+
 static void test_wolfSSL_PEM_read_X509(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
@@ -39597,6 +39609,7 @@ void ApiTest(void)
     test_wolfSSL_SHA256();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
+    test_wolfSSL_d2i_X509_REQ();
     test_wolfSSL_PEM_read_X509();
     test_wolfSSL_PEM_read();
 #ifndef NO_BIO
