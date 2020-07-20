@@ -65,6 +65,13 @@
 #define OCSP_STAPLINGV2_MULTI 3
 #define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
 
+#define WXSLEEP(x,y) do { \
+    struct timeval tv = {(x),(y)}; \
+    select(0, NULL, NULL, NULL, &tv); \
+} while (0)
+#define WUSLEEP(x) WXSLEEP(0,x)
+#define WSLEEP(x) WXSLEEP(x,0)
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -3140,7 +3147,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #elif defined(WOLFSSL_TIRTOS)
     Task_sleep(1);
 #else
-    sleep(1);
+    /* This is to force the server's thread to get a chance to
+     * execute before continuing the resume in non-blocking
+     * DTLS test cases. */
+#ifdef NO_MAIN_DRIVER
+        WUSLEEP(10000);
+#else
+        WSLEEP(1);
+#endif
 #endif
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
@@ -3245,7 +3259,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #elif defined(WOLFSSL_TIRTOS)
             Task_sleep(1);
 #else
-            sleep(1);
+    /* This is to force the server's thread to get a chance to
+     * execute before continuing the resume in non-blocking
+     * DTLS test cases. */
+    #ifdef NO_MAIN_DRIVER
+            WUSLEEP(10000);
+    #else
+            WSLEEP(1);
+    #endif
 #endif
         }
         tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, sslResume);
@@ -3373,7 +3394,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #elif defined(WOLFSSL_TIRTOS)
             Task_sleep(1);
         #else
-            sleep(1);
+            /* This is to force the server's thread to get a chance to
+             * execute before continuing the resume in non-blocking
+             * DTLS test cases. */
+            #ifdef NO_MAIN_DRIVER
+                WUSLEEP(10000);
+            #else
+                WSLEEP(1);
+            #endif
         #endif
     #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
