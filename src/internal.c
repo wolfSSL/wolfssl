@@ -17709,9 +17709,11 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         len = wolfSSL_GetMaxRecordSize(ssl, sz - sent);
 
-#ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl)) {
-            len = min(len, MAX_UDP_SIZE);
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
+        if (ssl->options.dtls && (len < sz - sent)) {
+            ssl->error = DTLS_SIZE_ERROR;
+            WOLFSSL_ERROR(ssl->error);
+            return ssl->error;
         }
 #endif
         buffSz = len;
@@ -18438,6 +18440,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case TLS13_SECRET_CB_E:
         return "TLS1.3 Secret Callback Error";
+
+    case DTLS_SIZE_ERROR:
+        return "DTLS trying to send too much in single datagram error";
 
     default :
         return "unknown error number";
@@ -29977,7 +29982,7 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
     }
 #endif /* HAVE_MAX_FRAGMENT */
 #ifdef WOLFSSL_DTLS
-    if ((ssl->options.dtls) && (maxFragment > MAX_UDP_SIZE)) {
+    if (IsDtlsNotSctpMode(ssl) && (maxFragment > MAX_UDP_SIZE)) {
         maxFragment = MAX_UDP_SIZE;
     }
 #endif
