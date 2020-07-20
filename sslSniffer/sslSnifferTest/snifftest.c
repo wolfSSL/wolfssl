@@ -491,7 +491,8 @@ int main(int argc, char** argv)
         }
         else {
             const char* passwd = NULL;
-            int isEphemeralKey = 0;
+            int loadCount = 0;
+
             /* defaults for server and port */
             port = 443;
             server = "127.0.0.1";
@@ -505,23 +506,31 @@ int main(int argc, char** argv)
             if (argc >= 6)
                 passwd = argv[5];
 
-            if (argc >= 7)
-                isEphemeralKey = 1;
-
-            if (isEphemeralKey) {
-                ret = ssl_SetEphemeralKey(server, port, argv[2],
-                                    FILETYPE_PEM, passwd, err);
+            /* try and load as both static ephemeral and private key */
+            /* only fail if no key is loaded */
+        #ifdef WOLFSSL_STATIC_EPHEMERAL
+            ret = ssl_SetEphemeralKey(server, port, argv[2],
+                                FILETYPE_PEM, passwd, err);
+            if (ret == 0)
+                loadCount++;
+        #endif
+            ret = ssl_SetPrivateKey(server, port, argv[2],
+                                FILETYPE_PEM, passwd, err);
+            if (ret == 0)
+                loadCount++;
+            if (loadCount > 0) {
+                ret = 0;
             }
             else {
-                ret = ssl_SetPrivateKey(server, port, argv[2],
-                                    FILETYPE_PEM, passwd, err);
+                printf("Failed loading private key %d\n", ret);
+                exit(EXIT_FAILURE);
             }
         }
     }
     else {
         /* usage error */
         printf( "usage: ./snifftest or ./snifftest dump pemKey"
-                " [server] [port] [password] [isEphemeral]\n");
+                " [server] [port] [password]\n");
         exit(EXIT_FAILURE);
     }
 

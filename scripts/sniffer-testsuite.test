@@ -2,6 +2,9 @@
 
 #sniffer-testsuite.test
 
+# ./configure --enable-sniffer [--enable-session-ticket]
+# Resumption tests require "--enable-session-ticket"
+
 echo -e "\nStaring snifftest on testsuite.pcap...\n"
 ./sslSniffer/sslSnifferTest/snifftest ./scripts/testsuite.pcap ./certs/server-key.pem 127.0.0.1 11111
 
