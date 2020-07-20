@@ -10559,7 +10559,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                             padVal = der->buffer[der->length-1];
                         else
                             padVal = WC_CIPHER_NONE;
-                        if (padVal <= DES_BLOCK_SIZE) {
+                        if (padVal > 0 && padVal <= DES_BLOCK_SIZE) {
                             der->length -= padVal;
                         }
                     }
