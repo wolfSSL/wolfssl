@@ -361,9 +361,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define DSA_bits                        wolfSSL_DSA_bits
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
-#define i2d_X509_REQ_bio                wolfSSL_i2d_X509_bio
+#define i2d_X509_REQ_bio                wolfSSL_i2d_X509_REQ_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
-#define d2i_X509_REQ_bio                wolfSSL_d2i_X509_bio
+#define d2i_X509_REQ_bio                wolfSSL_d2i_X509_REQ_bio
 #define d2i_X509_fp                     wolfSSL_d2i_X509_fp
 #define i2d_X509                        wolfSSL_i2d_X509
 #define d2i_X509                        wolfSSL_d2i_X509
@@ -379,6 +379,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ
+#define d2i_X509_REQ                    wolfSSL_d2i_X509_REQ
 #define X509_REQ_new                    wolfSSL_X509_REQ_new
 #define X509_REQ_free                   wolfSSL_X509_REQ_free
 #define X509_REQ_sign                   wolfSSL_X509_REQ_sign

@@ -934,7 +934,7 @@ static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 #endif
 #endif
 
-static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
+int CheckBitString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx, int zeroBits, byte* unusedBits)
 {
     word32 idx = *inOutIdx;
@@ -6673,19 +6673,25 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 
     WOLFSSL_MSG("Got Cert Header");
 
-    /* Using the sigIndex as the upper bound because that's where the
-     * actual certificate data ends. */
-    if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                          oidSigType, cert->sigIndex)) < 0)
-        return ret;
+#ifdef WOLFSSL_CERT_REQ
+    if (!cert->isCSR) {
+#endif
+        /* Using the sigIndex as the upper bound because that's where the
+         * actual certificate data ends. */
+        if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
+                              oidSigType, cert->sigIndex)) < 0)
+            return ret;
 
-    WOLFSSL_MSG("Got Algo ID");
+        WOLFSSL_MSG("Got Algo ID");
 
-    if ( (ret = GetName(cert, ISSUER, cert->sigIndex)) < 0)
-        return ret;
+        if ( (ret = GetName(cert, ISSUER, cert->sigIndex)) < 0)
+            return ret;
 
-    if ( (ret = GetValidity(cert, verify, cert->sigIndex)) < 0)
-        *badDate = ret;
+        if ( (ret = GetValidity(cert, verify, cert->sigIndex)) < 0)
+            *badDate = ret;
+#ifdef WOLFSSL_CERT_REQ
+    }
+#endif
 
     if ( (ret = GetName(cert, SUBJECT, cert->sigIndex)) < 0)
         return ret;
@@ -9415,6 +9421,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    idx = 0;
 #endif
     byte*  tsip_encRsaKeyIdx;
+#ifdef WOLFSSL_CERT_REQ
+    int    len = 0;
+#endif
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -9431,6 +9440,25 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
 
         WOLFSSL_MSG("Parsed Past Key");
+
+
+#ifdef WOLFSSL_CERT_REQ
+        /* Read attributes */
+        if (cert->isCSR) {
+            if (GetASNHeader_ex(cert->source,
+                    ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED, &cert->srcIdx,
+                    &len, cert->maxIdx, 1) < 0) {
+                WOLFSSL_MSG("GetASNHeader_ex error");
+                return ASN_PARSE_E;
+            }
+
+            if (len) {
+                WOLFSSL_MSG("Non-empty attributes. wolfSSL doesn't support "
+                            "parsing CSR attributes.");
+                return ASN_VERSION_E;
+            }
+        }
+#endif
 
         if (cert->srcIdx < cert->sigIndex) {
         #ifndef ALLOW_V1_EXTENSIONS
@@ -9461,14 +9489,23 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->srcIdx = cert->sigIndex;
         }
 
-        if ((ret = GetAlgoId(cert->source, &cert->srcIdx, &confirmOID,
-                             oidSigType, cert->maxIdx)) < 0)
+        if ((ret = GetAlgoId(cert->source, &cert->srcIdx,
+#ifdef WOLFSSL_CERT_REQ
+                !cert->isCSR ? &confirmOID : &cert->signatureOID,
+#else
+                &confirmOID,
+#endif
+                oidSigType, cert->maxIdx)) < 0)
             return ret;
 
         if ((ret = GetSignature(cert)) < 0)
             return ret;
 
-        if (confirmOID != cert->signatureOID)
+        if (confirmOID != cert->signatureOID
+#ifdef WOLFSSL_CERT_REQ
+                && !cert->isCSR
+#endif
+                )
             return ASN_SIG_OID_E;
 
     #ifndef NO_SKID
@@ -13703,7 +13740,7 @@ exit_ms:
 
 /* add signature to end of buffer, size of buffer assumed checked, return
    new length */
-static int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
+int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
                         int sigAlgoType)
 {
     byte seq[MAX_SEQ_SZ];
@@ -13841,7 +13878,7 @@ static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
     byte erSeq[MAX_SEQ_SZ];
     byte erSet[MAX_SET_SZ];
 
-    output[0] = 0xa0;
+    output[0] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
     sz++;
 
     if (pw && pw[0]) {

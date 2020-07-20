@@ -1681,20 +1681,25 @@ int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
 /* this compatibility function can be used for multiple BIO types */
 int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
 {
+    WOLFSSL_BIO* mem_bio;
     WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    /* Return pointer from last BIO in chain */
-    while (bio->next)
+    mem_bio = bio;
+    /* Return pointer from last memory BIO in chain */
+    while (bio->next) {
         bio = bio->next;
-
-    if (p) {
-        *(byte**)p = (byte*)bio->ptr;
+        if (bio->type == WOLFSSL_BIO_MEMORY)
+            mem_bio = bio;
     }
 
-    return bio->num;
+    if (p) {
+        *(byte**)p = (byte*)mem_bio->ptr;
+    }
+
+    return mem_bio->num;
 }
 
 int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
