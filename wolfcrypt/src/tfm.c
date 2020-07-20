@@ -3415,6 +3415,17 @@ void fp_rshb(fp_int *c, int x)
     fp_digit r, rr;
     fp_digit D = x;
 
+    /* shifting by a negative number not supported */
+    if (x < 0) return;
+
+    /* shift digits first if needed */
+    if (x >= DIGIT_BIT) {
+        fp_rshd(c, x / DIGIT_BIT);
+        /* recalculate number of bits to shift */
+        D = x % DIGIT_BIT;
+    }
+
+    /* zero shifted is always zero */
     if (fp_iszero(c)) return;
 
     /* mask */

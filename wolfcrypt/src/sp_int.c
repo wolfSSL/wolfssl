@@ -46,7 +46,7 @@
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
- * WOLFSSL_SP_CACHE_RESISTANT   Enable cache resistantant code 
+ * WOLFSSL_SP_CACHE_RESISTANT   Enable cache resistantant code
  * WOLFSSL_SP_ASM               Enable assembly speedups (detect platform)
  * WOLFSSL_SP_X86_64_ASM        Enable Intel x86 assembly speedups like AVX/AVX2
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly speedups
@@ -658,21 +658,28 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
  */
 void sp_rshb(sp_int* a, int n, sp_int* r)
 {
-    int i;
+    int i = n / SP_WORD_SIZE;
     int j;
-    int s = n % SP_WORD_SIZE;
 
-    if (s == 0) {
-        for (i = n / SP_WORD_SIZE, j = 0; i < a->used-1; i++, j++)
-            r->dp[j] = a->dp[i];
+    if (i >= a->used) {
+       r->dp[0] = 0;
+       r->used = 0;
     }
     else {
-        for (i = n / SP_WORD_SIZE, j = 0; i < a->used-1; i++, j++)
-            r->dp[j] = (a->dp[i] >> s) | (a->dp[i+1] << (SP_WORD_SIZE - s));
+        n %= SP_WORD_SIZE;
+        if (n == 0) {
+            for (j = 0; i < a->used; i++, j++)
+                r->dp[j] = a->dp[i];
+            r->used = j;
+        }
+        if (n > 0) {
+            for (j = 0; i < a->used-1; i++, j++)
+                r->dp[j] = (a->dp[i] >> n) | (a->dp[i+1] << (SP_WORD_SIZE - n));
+            r->dp[j] = a->dp[i] >> n;
+            r->used = j + 1;
+            sp_clamp(r);
+        }
     }
-    r->dp[j] = a->dp[i] >> s;
-    r->used = j + 1;
-    sp_clamp(r);
 }
 
 /* Multiply a by digit n and put result into r shifting up o digits.
