@@ -3419,8 +3419,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        (void)ClientWrite(sslResume, kResumeMsg, (int)XSTRLEN(kResumeMsg), 
-            " resume", 0);
+        XMEMSET(msg, 0, sizeof(msg));
+        if (sendGET) {
+            msgSz = (int)XSTRLEN(kHttpGetMsg);
+            XMEMCPY(msg, kHttpGetMsg, msgSz);
+        }
+        else {
+            msgSz = (int)XSTRLEN(kResumeMsg);
+            XMEMCPY(msg, kResumeMsg, msgSz);
+        }
+        (void)ClientWrite(sslResume, msg, msgSz, " resume", 0);
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
