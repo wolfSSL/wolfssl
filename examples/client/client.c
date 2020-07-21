@@ -65,6 +65,24 @@
 #define OCSP_STAPLINGV2_MULTI 3
 #define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
 
+#ifndef WOLFSSL_ALT_TEST_STRINGS
+static const char kHelloMsg[] = "hello wolfssl!";
+static const char kResumeMsg[] = "resuming wolfssl!";
+#else
+static const char kHelloMsg[] = "hello wolfssl!\n";
+static const char kResumeMsg[] = "resuming wolfssl!\n";
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA)
+    static const char kEarlyMsg[] = "A drop of info";
+#endif
+static const char kHttpGetMsg[] = "GET /index.html HTTP/1.0\r\n\r\n";
+
+/* Write needs to be largest of the above strings (29) */
+#define CLI_MSG_SZ      32
+/* Read needs to be at least sizeof server.c `webServerMsg` (226) */
+#define CLI_REPLY_SZ    256
+
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -366,11 +384,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     WOLFSSL_SESSION* benchSession = NULL;
 #endif
 #ifdef WOLFSSL_TLS13
-    byte* reply[80];
-    static const char msg[] = "GET /index.html HTTP/1.0\r\n\r\n";
-#ifdef WOLFSSL_EARLY_DATA
-    static const char earlyMsg[] = "A drop of info";
-#endif
+    byte reply[CLI_REPLY_SZ];
 #endif
     const char** words = client_bench_conmsg[lng_index];
 
@@ -422,7 +436,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
                                                      defined(WOLFSSL_EARLY_DATA)
             if (version >= 4 && benchResume && earlyData) {
                 char buffer[WOLFSSL_MAX_ERROR_SZ];
-                EarlyData(ctx, ssl, earlyMsg, sizeof(earlyMsg)-1, buffer);
+                EarlyData(ctx, ssl, kEarlyMsg, sizeof(kEarlyMsg)-1, buffer);
             }
     #endif
             do {
@@ -449,7 +463,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (version >= 4 && resumeSession)
         #endif
             {
-                if (wolfSSL_write(ssl, msg, sizeof(msg)-1) <= 0)
+                /* no null term */
+                if (wolfSSL_write(ssl, kHttpGetMsg, sizeof(kHttpGetMsg)-1) <= 0)
                     err_sys("SSL_write failed");
 
                 if (wolfSSL_read(ssl, reply, sizeof(reply)-1) <= 0)
@@ -773,7 +788,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
 
     /* S: 221 2.0.0 Service closing transmission channel */
     do {
-        ret = wolfSSL_read(ssl, tmpBuf, sizeof(tmpBuf));
+        ret = wolfSSL_read(ssl, tmpBuf, sizeof(tmpBuf)-1);
         if (ret < 0) {
             err = wolfSSL_get_error(ssl, 0);
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -787,7 +802,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     if (ret < 0) {
         err_sys("failed to read SMTP closing down response\n");
     }
-
+    tmpBuf[ret] = 0; /* null terminate message */
     printf("%s\n", tmpBuf);
 
     ret = wolfSSL_shutdown(ssl);
@@ -805,7 +820,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     return WOLFSSL_SUCCESS;
 }
 
-static int ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str, 
+static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str, 
     int exitWithRet)
 {
     int ret, err;
@@ -884,7 +899,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
     #endif
     );
     if (ret > 0) {
-        reply[ret] = 0;
+        reply[ret] = 0; /* null terminate */
         printf("%s%s\n", str, reply);
     }
 
@@ -1379,9 +1394,6 @@ static void Usage(void)
 #endif
 }
 
-#define MSG32 32
-#define GETMSGSZ 29
-
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
     SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
@@ -1395,17 +1407,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte*            flatSession = NULL;
     int              flatSessionSz = 0;
 
-#ifndef WOLFSSL_ALT_TEST_STRINGS
-    char msg[MSG32] = "hello wolfssl!";   /* GET may make bigger */
-    char resumeMsg[MSG32] = "resuming wolfssl!";
-#else
-    char msg[MSG32] = "hello wolfssl!\n";
-    char resumeMsg[MSG32] = "resuming wolfssl!\n";
-#endif
-
-    char reply[128];
-    int  msgSz = (int)XSTRLEN(msg);
-    int  resumeSz = (int)XSTRLEN(resumeMsg);
+    char msg[CLI_MSG_SZ];
+    int  msgSz = 0;
+    char reply[CLI_REPLY_SZ];
 
     word16 port   = wolfSSLPort;
     char* host   = (char*)wolfSSLIP;
@@ -1437,7 +1441,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    ret;
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
-    int    forceScr      = 0;    /* force client initiaed scr */
+    int    forceScr      = 0;    /* force client initiated scr */
     int    resumeScr     = 0;    /* use resumption for renegotiation */
 #ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
@@ -1567,7 +1571,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
 #endif
 
-    (void)resumeSz;
     (void)session;
     (void)flatSession;
     (void)flatSessionSz;
@@ -1760,7 +1763,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 }
                 else if (XSTRNCMP(myoptarg, "disallowETM", 7) == 0) {
-                    printf("Disallow Enrypt-Then-MAC\n");
+                    printf("Disallow Encrypt-Then-MAC\n");
                 #ifdef HAVE_ENCRYPT_THEN_MAC
                     disallowETM = 1;
                 #endif
@@ -2755,10 +2758,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
-        byte pms[512]; /* pre master secret */
-        byte cr[MSG32];   /* client random */
-        byte sr[MSG32];   /* server random */
-        const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
+        /* DTLS multicast secret for testing only */
+        #define CLI_SRV_RANDOM_SZ 32     /* RAN_LEN (see internal.h) */
+        #define PMS_SZ            512    /* ENCRYPT_LEN (see internal.h) */
+        byte pms[PMS_SZ];                /* pre master secret */
+        byte cr[CLI_SRV_RANDOM_SZ];      /* client random */
+        byte sr[CLI_SRV_RANDOM_SZ];      /* server random */
+        const byte suite[2] = {0, 0xfe}; /* WDM_WITH_NULL_SHA256 */
 
         XMEMSET(pms, 0x23, sizeof(pms));
         XMEMSET(cr, 0xA5, sizeof(cr));
@@ -2926,7 +2932,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     else {
 #ifdef WOLFSSL_EARLY_DATA
         if (usePsk && earlyData)
-            EarlyData(ctx, ssl, msg, msgSz, buffer);
+            EarlyData(ctx, ssl, kEarlyMsg, sizeof(kEarlyMsg)-1, buffer);
 #endif
         do {
             err = 0; /* reset error */
@@ -3061,7 +3067,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                    " nonblocking yet\n");
         } else {
             if (!resumeScr) {
-                printf("Beginning secure rengotiation.\n");
+                printf("Beginning secure renegotiation.\n");
                 if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3122,15 +3128,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+    XMEMSET(msg, 0, sizeof(msg));
     if (sendGET) {
-        char msgGet[GETMSGSZ] = "GET /index.html HTTP/1.0\r\n\r\n";
         printf("SSL connect ok, sending GET...\n");
 
-        XMEMSET(msg, 0, MSG32);
-        XMEMSET(resumeMsg, 0, MSG32);
-        msgSz = resumeSz = (int) XSTRLEN(msgGet);
-        XMEMCPY(msg, msgGet, msgSz);
-        XMEMCPY(resumeMsg, msgGet, resumeSz);
+        msgSz = (int)sizeof(kHttpGetMsg) - 1; /* no null term */
+        XMEMCPY(msg, kHttpGetMsg, msgSz);
+    }
+    else {
+        msgSz = (int)sizeof(kHelloMsg);
+        XMEMCPY(msg, kHelloMsg, msgSz);
     }
 
 /* allow some time for exporting the session */
@@ -3165,13 +3172,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (updateKeysIVs || postHandAuth)
         (void)ClientWrite(ssl, msg, msgSz, "", 0);
 #endif
-    if (sendGET) {  /* get html */
-        (void)ClientRead(ssl, reply, sizeof(reply)-1, 0, "", 0);
-    }
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
-        session   = wolfSSL_get_session(ssl);
+        session = wolfSSL_get_session(ssl);
     }
 #endif
 
@@ -3310,7 +3314,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             else
         #endif
             if (earlyData) {
-                EarlyData(ctx, sslResume, msg, msgSz, buffer);
+                EarlyData(ctx, sslResume, kEarlyMsg, sizeof(kEarlyMsg)-1, buffer);
             }
     #endif
             do {
@@ -3384,7 +3388,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                    " nonblocking yet\n");
         } else {
             if (!resumeScr) {
-                printf("Beginning secure rengotiation.\n");
+                printf("Beginning secure renegotiation.\n");
                 if (wolfSSL_Rehandshake(sslResume) != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(sslResume, 0);
                     printf("err = %d, %s\n", err,
@@ -3415,7 +3419,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        (void)ClientWrite(sslResume, resumeMsg, resumeSz, " resume", 0);
+        (void)ClientWrite(sslResume, kResumeMsg, (int)sizeof(kResumeMsg), 
+            " resume", 0);
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
