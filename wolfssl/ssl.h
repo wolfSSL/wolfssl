@@ -1377,6 +1377,9 @@ WOLFSSL_API unsigned char* wolfSSL_X509_get_subjectKeyID(
                                             WOLFSSL_X509*, unsigned char*, int*);
 
 WOLFSSL_API int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey);
+#ifdef WOLFSSL_CERT_REQ
+WOLFSSL_API int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey);
+#endif
 WOLFSSL_API int wolfSSL_X509_set_subject_name(WOLFSSL_X509*,
                                               WOLFSSL_X509_NAME*);
 WOLFSSL_API int wolfSSL_X509_set_issuer_name(WOLFSSL_X509*,

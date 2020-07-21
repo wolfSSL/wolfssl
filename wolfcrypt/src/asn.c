@@ -9093,6 +9093,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
 /* Only quick step through the certificate to find fields that are then used
  * in certificate signature verification.
  * Must use the signature OID from the signed part of the certificate.
+ * Works also on certificate signing requests.
  *
  * This is only for minimizing dynamic memory usage during TLS certificate
  * chain processing.
@@ -9100,7 +9101,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  *   OCSP Only: alt lookup using subject and pub key w/o sig check
  */
 static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
-        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID)
+        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID, int req)
 {
 #ifndef WOLFSSL_SMALL_STACK
     SignatureCtx  sigCtx[1];
@@ -9177,13 +9178,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         idx += len;
 
         /* signature */
-        if (GetAlgoId(cert, &idx, &signatureOID, oidSigType, certSz) < 0)
+        if (!req &&
+                GetAlgoId(cert, &idx, &signatureOID, oidSigType, certSz) < 0)
             ret = ASN_PARSE_E;
     }
 
     if (ret == 0) {
         issuerIdx = idx;
-        /* issuer */
+        /* issuer for cert or subject for csr */
         if (GetSequence(cert, &idx, &len, certSz) < 0)
             ret = ASN_PARSE_E;
     }
@@ -9191,14 +9193,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         issuerSz = len + idx - issuerIdx;
     }
 #ifndef NO_SKID
-    if (ret == 0) {
+    if (!req && ret == 0) {
         idx += len;
 
         /* validity */
         if (GetSequence(cert, &idx, &len, certSz) < 0)
             ret = ASN_PARSE_E;
     }
-    if (ret == 0) {
+    if (!req && ret == 0) {
         idx += len;
 
         /* subject */
@@ -9212,122 +9214,136 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         if (GetSequence(cert, &idx, &len, certSz) < 0)
             ret = ASN_PARSE_E;
     }
-    if (ret == 0) {
+    if (req && ret == 0) {
         idx += len;
 
-        if ((idx + 1) > certSz)
-            ret = BUFFER_E;
-    }
-    if (ret == 0) {
-        /* issuerUniqueID - optional */
-        localIdx = idx;
-        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
-            if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) {
-                idx++;
-                if (GetLength(cert, &idx, &len, certSz) < 0)
-                    ret = ASN_PARSE_E;
-                idx += len;
-            }
-        }
-    }
-    if (ret == 0) {
-        if ((idx + 1) > certSz)
-            ret = BUFFER_E;
-    }
-    if (ret == 0) {
-        /* subjectUniqueID - optional */
-        localIdx = idx;
-        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
-            if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
-                idx++;
-                if (GetLength(cert, &idx, &len, certSz) < 0)
-                    ret = ASN_PARSE_E;
-                idx += len;
-            }
-        }
-    }
-
-    if (ret == 0) {
-        if ((idx + 1) > certSz)
-            ret = BUFFER_E;
-    }
-    /* extensions - optional */
-    localIdx = idx;
-    if (ret == 0 && GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
-            tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)) {
-        idx++;
-        if (GetLength(cert, &idx, &extLen, certSz) < 0)
+        /* attributes */
+        if (GetASNHeader_ex(cert,
+                ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED, &idx,
+                &len, certSz, 1) < 0)
             ret = ASN_PARSE_E;
+    }
+    if (!req) {
         if (ret == 0) {
-            if (GetSequence(cert, &idx, &extLen, certSz) < 0)
-                ret = ASN_PARSE_E;
+            idx += len;
+
+            if ((idx + 1) > certSz)
+                ret = BUFFER_E;
         }
         if (ret == 0) {
-            extEndIdx = idx + extLen;
-
-            /* Check each extension for the ones we want. */
-            while (ret == 0 && idx < extEndIdx) {
-                if (GetSequence(cert, &idx, &len, certSz) < 0)
-                    ret = ASN_PARSE_E;
-                if (ret == 0) {
-                    extIdx = idx;
-                    if (GetObjectId(cert, &extIdx, &oid, oidCertExtType,
-                                                                  certSz) < 0) {
+            /* issuerUniqueID - optional */
+            localIdx = idx;
+            if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
+                if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) {
+                    idx++;
+                    if (GetLength(cert, &idx, &len, certSz) < 0)
                         ret = ASN_PARSE_E;
+                    idx += len;
+                }
+            }
+        }
+        if (ret == 0) {
+            if ((idx + 1) > certSz)
+                ret = BUFFER_E;
+        }
+        if (ret == 0) {
+            /* subjectUniqueID - optional */
+            localIdx = idx;
+            if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
+                if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
+                    idx++;
+                    if (GetLength(cert, &idx, &len, certSz) < 0)
+                        ret = ASN_PARSE_E;
+                    idx += len;
+                }
+            }
+        }
+
+        if (ret == 0) {
+            if ((idx + 1) > certSz)
+                ret = BUFFER_E;
+        }
+        /* extensions - optional */
+        localIdx = idx;
+        if (ret == 0 && GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
+                tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)) {
+            idx++;
+            if (GetLength(cert, &idx, &extLen, certSz) < 0)
+                ret = ASN_PARSE_E;
+            if (ret == 0) {
+                if (GetSequence(cert, &idx, &extLen, certSz) < 0)
+                    ret = ASN_PARSE_E;
+            }
+            if (ret == 0) {
+                extEndIdx = idx + extLen;
+
+                /* Check each extension for the ones we want. */
+                while (ret == 0 && idx < extEndIdx) {
+                    if (GetSequence(cert, &idx, &len, certSz) < 0)
+                        ret = ASN_PARSE_E;
+                    if (ret == 0) {
+                        extIdx = idx;
+                        if (GetObjectId(cert, &extIdx, &oid, oidCertExtType,
+                                                                      certSz) < 0) {
+                            ret = ASN_PARSE_E;
+                        }
+
+                        if (ret == 0) {
+                            if ((extIdx + 1) > certSz)
+                                ret = BUFFER_E;
+                        }
                     }
 
                     if (ret == 0) {
-                        if ((extIdx + 1) > certSz)
-                            ret = BUFFER_E;
-                    }
-                }
-
-                if (ret == 0) {
-                    localIdx = extIdx;
-                    if (GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
-                            tag == ASN_BOOLEAN) {
-                        if (GetBoolean(cert, &extIdx, certSz) < 0)
-                            ret = ASN_PARSE_E;
-                    }
-                }
-                if (ret == 0) {
-                    if (GetOctetString(cert, &extIdx, &extLen, certSz) < 0)
-                        ret = ASN_PARSE_E;
-                }
-
-                if (ret == 0) {
-                    switch (oid) {
-                    case AUTH_KEY_OID:
-                        if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
-                            ret = ASN_PARSE_E;
-
-                        if (ret == 0 && (extIdx + 1) >= certSz)
-                            ret = BUFFER_E;
-
-                        if (ret == 0 &&
-                                GetASNTag(cert, &extIdx, &tag, certSz) == 0 &&
-                                tag == (ASN_CONTEXT_SPECIFIC | 0)) {
-                            if (GetLength(cert, &extIdx, &extLen, certSz) <= 0)
+                        localIdx = extIdx;
+                        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
+                                tag == ASN_BOOLEAN) {
+                            if (GetBoolean(cert, &extIdx, certSz) < 0)
                                 ret = ASN_PARSE_E;
-                            if (ret == 0) {
-                                extAuthKeyIdSet = 1;
-                                if (extLen == KEYID_SIZE)
-                                    XMEMCPY(hash, cert + extIdx, extLen);
-                                else {
-                                    ret = CalcHashId(cert + extIdx, extLen,
-                                                                          hash);
+                        }
+                    }
+                    if (ret == 0) {
+                        if (GetOctetString(cert, &extIdx, &extLen, certSz) < 0)
+                            ret = ASN_PARSE_E;
+                    }
+
+                    if (ret == 0) {
+                        switch (oid) {
+                        case AUTH_KEY_OID:
+                            if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
+                                ret = ASN_PARSE_E;
+
+                            if (ret == 0 && (extIdx + 1) >= certSz)
+                                ret = BUFFER_E;
+
+                            if (ret == 0 &&
+                                    GetASNTag(cert, &extIdx, &tag, certSz) == 0 &&
+                                    tag == (ASN_CONTEXT_SPECIFIC | 0)) {
+                                if (GetLength(cert, &extIdx, &extLen, certSz) <= 0)
+                                    ret = ASN_PARSE_E;
+                                if (ret == 0) {
+                                    extAuthKeyIdSet = 1;
+                                    if (extLen == KEYID_SIZE)
+                                        XMEMCPY(hash, cert + extIdx, extLen);
+                                    else {
+                                        ret = CalcHashId(cert + extIdx, extLen,
+                                                                              hash);
+                                    }
                                 }
                             }
-                        }
-                        break;
+                            break;
 
-                    default:
-                        break;
+                        default:
+                            break;
+                        }
                     }
+                    idx += len;
                 }
-                idx += len;
             }
         }
+    }
+    else if (ret == 0) {
+        idx += len;
     }
 
     if (ret == 0 && pubKey == NULL) {
@@ -9354,6 +9370,9 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
         /* signatureAlgorithm */
         if (GetAlgoId(cert, &idx, &oid, oidSigType, certSz) < 0)
             ret = ASN_PARSE_E;
+        /* In CSR signature data is not present in body */
+        if (req)
+            signatureOID = oid;
     }
     if (ret == 0) {
         if (oid != signatureOID)
@@ -9398,15 +9417,23 @@ int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
     return CheckCertSignature_ex(cert, certSz, heap, NULL,
-            pubKey, pubKeySz, pubKeyOID);
+            pubKey, pubKeySz, pubKeyOID, 0);
 }
+#ifdef WOLFSSL_CERT_REQ
+int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
+        const byte* pubKey, word32 pubKeySz, int pubKeyOID)
+{
+    return CheckCertSignature_ex(cert, certSz, heap, NULL,
+            pubKey, pubKeySz, pubKeyOID, 1);
+}
+#endif /* WOLFSSL_CERT_REQ */
 #endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
 /* Call CheckCertSignature_ex using a certificate manager (cm)
  */
 int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 {
-    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0);
+    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0);
 }
 #endif /* WOLFSSL_SMALL_CERT_VERIFY */
 #endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */

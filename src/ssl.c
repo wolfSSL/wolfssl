@@ -23867,11 +23867,10 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     return WOLFSSL_FATAL_ERROR;
 }
 
-
 /* Use the public key to verify the signature. Note: this only verifies
  * the certificate signature.
  * returns WOLFSSL_SUCCESS on successful signature verification */
-int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
+static int wolfSSL_X509_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, int req)
 {
     int ret;
     const byte* der;
@@ -23906,13 +23905,31 @@ int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
             return WOLFSSL_FATAL_ERROR;
     }
 
-    ret = CheckCertSignaturePubKey(der, derSz, x509->heap,
-            (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+#ifdef WOLFSSL_CERT_REQ
+    if (req)
+        ret = CheckCSRSignaturePubKey(der, derSz, x509->heap,
+                (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+    else
+#endif
+        ret = CheckCertSignaturePubKey(der, derSz, x509->heap,
+                (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
     if (ret == 0) {
         return WOLFSSL_SUCCESS;
     }
     return WOLFSSL_FAILURE;
 }
+
+int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
+{
+    return wolfSSL_X509_X509_REQ_verify(x509, pkey, 0);
+}
+
+#ifdef WOLFSSL_CERT_REQ
+int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
+{
+    return wolfSSL_X509_X509_REQ_verify(x509, pkey, 1);
+}
+#endif /* WOLFSSL_CERT_REQ */
 #endif /* !NO_CERTS */
 
 #if !defined(NO_FILESYSTEM)
@@ -49644,7 +49661,8 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 
 int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 {
-    byte* p;
+    byte* p = NULL;
+    int pLen;
     WOLFSSL_ENTER("wolfSSL_X509_set_pubkey");
 
     if (cert == NULL || pkey == NULL)
@@ -49657,15 +49675,29 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     else
         return WOLFSSL_FAILURE;
 
-    p = (byte*)XMALLOC(pkey->pkey_sz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (p == NULL)
-        return WOLFSSL_FAILURE;
+    if (pkey->type == EVP_PKEY_RSA) {
+        /* Public and private key formats differ. Make sure to put in the
+         * public key format in the cert. */
+        if ((pLen = wolfSSL_i2d_RSAPublicKey(pkey->rsa, (const byte**)&p)) <= 0) {
+            WOLFSSL_MSG("wolfSSL_i2d_RSAPublicKey error");
+            return WOLFSSL_FAILURE;
+        }
+        if (cert->pubKey.buffer != NULL)
+            XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        cert->pubKey.buffer = p;
+        cert->pubKey.length = pLen;
+    }
+    else {
+        p = (byte*)XMALLOC(pkey->pkey_sz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (p == NULL)
+            return WOLFSSL_FAILURE;
 
-    if (cert->pubKey.buffer != NULL)
-        XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    cert->pubKey.buffer = p;
-    XMEMCPY(cert->pubKey.buffer, pkey->pkey.ptr, pkey->pkey_sz);
-    cert->pubKey.length = pkey->pkey_sz;
+        if (cert->pubKey.buffer != NULL)
+            XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        cert->pubKey.buffer = p;
+        XMEMCPY(cert->pubKey.buffer, pkey->pkey.ptr, pkey->pkey_sz);
+        cert->pubKey.length = pkey->pkey_sz;
+    }
 
     return WOLFSSL_SUCCESS;
 }

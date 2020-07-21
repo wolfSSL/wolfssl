@@ -37884,12 +37884,23 @@ static void test_wolfSSL_d2i_X509_REQ(void)
 {
     const char* csrFile = "./csr.signed.der";
     BIO* bio = NULL;
-    X509* x509 = NULL;
+    X509* req = NULL;
+    EVP_PKEY *pub_key = NULL;
 
     AssertNotNull(bio = BIO_new_file(csrFile, "rb"));
-    AssertNotNull(d2i_X509_REQ_bio(bio, &x509));
+    AssertNotNull(d2i_X509_REQ_bio(bio, &req));
 
-    X509_free(x509);
+    /*
+     * Extract the public key from the CSR
+     */
+    AssertNotNull(pub_key = X509_REQ_get_pubkey(req));
+
+    /*
+     * Verify the signature in the CSR
+     */
+    AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
+
+    X509_free(req);
     BIO_free(bio);
 }
 
