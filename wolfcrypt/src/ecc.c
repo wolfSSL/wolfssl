@@ -4917,11 +4917,13 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         if (ecc_sets[key->idx].id == ECC_SECP256R1) {
         #ifdef WC_ECC_NONBLOCK
             if (key->nb_ctx) {
-                return sp_ecc_sign_256_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, &key->k, r, s, sign_k, key->heap);
+                return sp_ecc_sign_256_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, 
+                    &key->k, r, s, sign_k, key->heap);
             }
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
-            return sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, sign_k, key->heap);
+            return sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, sign_k, 
+                key->heap);
         #else
             return NOT_COMPILED_IN;
         #endif
@@ -4931,11 +4933,13 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         if (ecc_sets[key->idx].id == ECC_SECP384R1) {
         #ifdef WC_ECC_NONBLOCK
             if (key->nb_ctx) {
-                return sp_ecc_sign_384_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, &key->k, r, s, sign_k, key->heap);
+                return sp_ecc_sign_384_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, 
+                    &key->k, r, s, sign_k, key->heap);
             }
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
-            return sp_ecc_sign_384(in, inlen, rng, &key->k, r, s, sign_k, key->heap);
+            return sp_ecc_sign_384(in, inlen, rng, &key->k, r, s, sign_k, 
+                key->heap);
         #else
             return NOT_COMPILED_IN;
         #endif
@@ -5985,12 +5989,12 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #if defined(WOLFSSL_DSP) && !defined(FREESCALE_LTC_ECC)
   if (key->handle != -1) {
-      return sp_dsp_ecc_verify_256(key->handle, hash, hashlen, key->pubkey.x, key->pubkey.y,
-                                           key->pubkey.z, r, s, res, key->heap);
+      return sp_dsp_ecc_verify_256(key->handle, hash, hashlen, key->pubkey.x, 
+        key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
   }
   if (wolfSSL_GetHandleCbSet() == 1) {
-      return sp_dsp_ecc_verify_256(0, hash, hashlen, key->pubkey.x, key->pubkey.y,
-                                           key->pubkey.z, r, s, res, key->heap);
+      return sp_dsp_ecc_verify_256(0, hash, hashlen, key->pubkey.x, 
+        key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
   }
 #endif
 
@@ -6002,7 +6006,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif
 
-#if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_HAVE_SP_ECC)) && !defined(FREESCALE_LTC_ECC)
+#if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_HAVE_SP_ECC)) && \
+    !defined(FREESCALE_LTC_ECC)
     if (key->idx != ECC_CUSTOM_IDX
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
@@ -6013,7 +6018,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         #ifdef WC_ECC_NONBLOCK
             if (key->nb_ctx) {
                 return sp_ecc_verify_256_nb(&key->nb_ctx->sp_ctx, hash, hashlen, 
-                    key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+                    key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, 
+                    key->heap);
             }
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
@@ -6029,7 +6035,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         #ifdef WC_ECC_NONBLOCK
             if (key->nb_ctx) {
                 return sp_ecc_verify_384_nb(&key->nb_ctx->sp_ctx, hash, hashlen, 
-                    key->pubkey.x,  key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
+                    key->pubkey.x,  key->pubkey.y, key->pubkey.z, r, s, res, 
+                    key->heap);
             }
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY

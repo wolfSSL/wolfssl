@@ -20273,7 +20273,7 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
     const uint8_t *hash, uint32_t hashSz, const uint8_t *sig, uint32_t sigSz,
     uint32_t curveSz, int curveId)
 {
-    int ret, verify_res = 0;
+    int ret, verify_res = 0, count = 0;
     mp_int r, s;
     ecc_key ecc;
     ecc_nb_ctx_t nb_ctx;
@@ -20340,9 +20340,13 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
                 &verify_res,  /* verification result 1=success */
                 &ecc
             );
+            count++;
 
             /* TODO: Real-time work can be called here */
         } while (ret == FP_WOULDBLOCK);
+    #ifdef DEBUG_WOLFSSL
+        printf("ECC non-block verify: %d times\n", count);
+    #endif
     }
     
     /* check verify result */
@@ -20354,6 +20358,8 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
     mp_clear(&s);
     wc_ecc_free(&ecc);
 
+    (void)count;
+
     return ret;
 }
 
@@ -20362,7 +20368,7 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
     const uint8_t *hash, uint32_t hashSz, uint8_t *sig, uint32_t* sigSz,
     uint32_t curveSz, int curveId, WC_RNG* rng)
 {
-    int ret;
+    int ret, count = 0;
     mp_int r, s;
     ecc_key ecc;
     ecc_nb_ctx_t nb_ctx;
@@ -20418,9 +20424,14 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
                 rng, &ecc,    /* random and key context */
                 &r, &s        /* r/s as mp_int */
             );
+            count++;
 
             /* TODO: Real-time work can be called here */
         } while (ret == FP_WOULDBLOCK);
+
+    #ifdef DEBUG_WOLFSSL
+        printf("ECC non-block sign: %d times\n", count);
+    #endif
     }
 
     if (ret == 0) {
@@ -20432,6 +20443,8 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
     mp_clear(&r);
     mp_clear(&s);
     wc_ecc_free(&ecc);
+
+    (void)count;
 
     return ret;
 }
