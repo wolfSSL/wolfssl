@@ -100,7 +100,7 @@
   * "NO_ASN_TIME" macro. And prepare time function to get calender time,
   * otherwise, certificate expiration validation will not work.  
   */
-  #define NO_ASN_TIME
+  /*#define NO_ASN_TIME*/
   
   #define NO_MAIN_DRIVER
   #define BENCH_EMBEDDED
