@@ -29441,9 +29441,10 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #endif /* NO_DH */
+#endif /* OPENSSL_EXTRA */
 
-
-#ifndef NO_DSA
+#if !defined(NO_DSA) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 static void InitwolfSSL_DSA(WOLFSSL_DSA* dsa)
 {
     if (dsa) {
@@ -29516,12 +29517,6 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
     }
 }
 
-#endif /* NO_DSA */
-#endif /* OPENSSL_EXTRA */
-
-#ifdef OPENSSL_EXTRA
-
-#ifndef NO_DSA
 /* wolfSSL -> OpenSSL */
 int SetDsaExternal(WOLFSSL_DSA* dsa)
 {
@@ -29564,7 +29559,10 @@ int SetDsaExternal(WOLFSSL_DSA* dsa)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !NO_DSA && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
+
+#if !defined(NO_DSA) && defined(OPENSSL_EXTRA)
 /* Openssl -> WolfSSL */
 int SetDsaInternal(WOLFSSL_DSA* dsa)
 {
@@ -29620,8 +29618,7 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* NO_DSA */
-#endif /* OPENSSL_EXTRA */
+#endif /* !NO_DSA && OPENSSL_EXTRA */
 
 
 #ifdef OPENSSL_EXTRA
@@ -35559,8 +35556,8 @@ int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
 #endif /* OPENSSL_EXTRA */
 #endif /* NO_RSA */
 
-#ifdef OPENSSL_EXTRA
-#ifndef NO_DSA
+#if !defined(NO_DSA) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_DSA_LoadDer(WOLFSSL_DSA* dsa, const unsigned char* derBuf, int derSz)
 {
@@ -35630,8 +35627,9 @@ int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA* dsa, const unsigned char* derBuf,
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_DSA */
+#endif /* !NO_DSA && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
+#ifdef OPENSSL_EXTRA
 #ifdef HAVE_ECC
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
