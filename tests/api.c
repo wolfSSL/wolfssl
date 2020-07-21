@@ -27169,16 +27169,16 @@ static int test_WOLFSSL_ERROR_MSG (void)
 static int test_wc_ERR_remove_state (void)
 {
     int ret = 0;
-
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 
     printf(testingFmt, "wc_ERR_remove_state()");
 
-    ret = wc_ERR_remove_state();
-
+    wc_ERR_remove_state();
+    
     printf(resultFmt, ret == 0 ? passed : failed);
-
+    
 #endif
+    
     return ret;
 
 }/*End test_wc_ERR_remove_state*/
@@ -27190,16 +27190,22 @@ static int test_wc_ERR_print_errors_fp (void)
     int ret = 0;
 #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)) && \
     (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM))
-
+    int sz;
     printf(testingFmt, "wc_ERR_print_errors_fp()");
-
-    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    WOLFSSL_ERROR(BAD_FUNC_ARG);
+    //XFILE fp = XFOPEN("./certs/ecc-keyPkcs8.pem", "rb");
+    XFILE fp = XFOPEN("./test-log-dump-to-file.txt", "ar");
     wc_ERR_print_errors_fp(fp);
-
+    
+    AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
+    sz = XFTELL(fp);
+    if (sz == 0) {
+        ret = BAD_FUNC_ARG;
+    }    
+    
     printf(resultFmt, ret == 0 ? passed : failed);
     XFCLOSE(fp);
 #endif
-
     return ret;
 
 }/*End test_wc_ERR_print_errors_fp*/
