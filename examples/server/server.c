@@ -58,7 +58,13 @@
  * test.h will write the actual port number into the ready file for use
  * by the client. */
 
-static const char webServerMsg[] =
+#ifndef WOLFSSL_ALT_TEST_STRINGS
+static const char kReplyMsg[] = "I hear you fa shizzle!";
+#else
+static const char kReplyMsg[] = "I hear you fa shizzle!\n";
+#endif
+
+static const char kHttpServerMsg[] =
     "HTTP/1.1 200 OK\r\n"
     "Content-Type: text/html\r\n"
     "Connection: close\r\n"
@@ -72,6 +78,10 @@ static const char webServerMsg[] =
     "<p>wolfSSL has successfully performed handshake!</p>\r\n"
     "</body>\r\n"
     "</html>\r\n";
+
+/* Read needs to be largest of the client.c message strings (29) */
+#define SRV_READ_SZ    32
+
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
 int catastrophic = 0; /* Use with -x flag to still exit when an error is
@@ -425,11 +435,12 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
-    #if !defined(__MINGW32__)
-        printf("wolfSSL Server Benchmark %zu bytes\n"
-    #else
-        printf("wolfSSL Server Benchmark %d bytes\n"
-    #endif
+        printf(
+        #if !defined(__MINGW32__)
+            "wolfSSL Server Benchmark %zu bytes\n"
+        #else
+            "wolfSSL Server Benchmark %d bytes\n"
+        #endif
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
     #if !defined(__MINGW32__)
@@ -901,13 +912,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     SSL_CTX*    ctx    = 0;
     SSL*        ssl    = 0;
 
-#ifndef WOLFSSL_ALT_TEST_STRINGS
-    const char msg[] = "I hear you fa shizzle!";
-#else
-    const char msg[] = "I hear you fa shizzle!\n";
-#endif
     int    useWebServerMsg = 0;
-    char   input[80];
+    char   input[SRV_READ_SZ];
 #ifndef WOLFSSL_VXWORKS
     int    ch;
 #endif
@@ -2000,18 +2006,22 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
-        byte pms[512];
-        byte cr[32];
-        byte sr[32];
-        const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
+        /* DTLS multicast secret for testing only */
+        #define CLI_SRV_RANDOM_SZ 32     /* RAN_LEN (see internal.h) */
+        #define PMS_SZ            512    /* ENCRYPT_LEN (see internal.h) */
+        byte pms[PMS_SZ];                /* pre master secret */
+        byte cr[CLI_SRV_RANDOM_SZ];      /* client random */
+        byte sr[CLI_SRV_RANDOM_SZ];      /* server random */
+        const byte suite[2] = {0, 0xfe}; /* WDM_WITH_NULL_SHA256 */
 
         XMEMSET(pms, 0x23, sizeof(pms));
         XMEMSET(cr, 0xA5, sizeof(cr));
         XMEMSET(sr, 0x5A, sizeof(sr));
 
         if (wolfSSL_set_secret(ssl, 1, pms, sizeof(pms), cr, sr, suite)
-                != WOLFSSL_SUCCESS)
+                != WOLFSSL_SUCCESS) {
             err_sys("unable to set mcast secret");
+        }
 #endif
     }
 
@@ -2461,12 +2471,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
             /* Write data */
             if (!useWebServerMsg) {
-                write_msg = msg;
-                write_msg_sz = (int) XSTRLEN(msg);
+                write_msg = kReplyMsg;
+                write_msg_sz = (int)XSTRLEN(kReplyMsg);
             }
             else {
-                write_msg = webServerMsg;
-                write_msg_sz = (int) XSTRLEN(webServerMsg);
+                write_msg = kHttpServerMsg;
+                write_msg_sz = (int)XSTRLEN(kHttpServerMsg);
             }
             ServerWrite(ssl, write_msg, write_msg_sz);
 
@@ -2598,7 +2608,6 @@ exit:
     {
         func_args args;
         tcp_ready ready;
-
 
         StartTCP();
 
