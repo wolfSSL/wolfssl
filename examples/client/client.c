@@ -3132,11 +3132,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (sendGET) {
         printf("SSL connect ok, sending GET...\n");
 
-        msgSz = (int)sizeof(kHttpGetMsg) - 1; /* no null term */
+        msgSz = (int)XSTRLEN(kHttpGetMsg);
         XMEMCPY(msg, kHttpGetMsg, msgSz);
     }
     else {
-        msgSz = (int)sizeof(kHelloMsg);
+        msgSz = (int)XSTRLEN(kHelloMsg);
         XMEMCPY(msg, kHelloMsg, msgSz);
     }
 
@@ -3419,7 +3419,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        (void)ClientWrite(sslResume, kResumeMsg, (int)sizeof(kResumeMsg), 
+        (void)ClientWrite(sslResume, kResumeMsg, (int)XSTRLEN(kResumeMsg), 
             " resume", 0);
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
