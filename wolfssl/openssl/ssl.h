@@ -441,7 +441,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string
 #define X509_verify_cert                wolfSSL_X509_verify_cert
 #define X509_verify                     wolfSSL_X509_verify
-#define X509_REQ_verify                 wolfSSL_X509_verify
+#define X509_REQ_verify                 wolfSSL_X509_REQ_verify
 #define X509_check_private_key          wolfSSL_X509_check_private_key
 #define X509_check_ca                   wolfSSL_X509_check_ca
 #define X509_check_host                 wolfSSL_X509_check_host
