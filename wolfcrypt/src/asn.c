@@ -6122,14 +6122,6 @@ static WC_INLINE int GetTime(int* value, const byte* date, int* idx)
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
 {
-    /* Extract the time from the struct tm - 16bit processors store as uint8_t */
-    int tm_year = certTime->tm_year;
-    int tm_mon  = certTime->tm_mon;
-    int tm_mday = certTime->tm_mday;
-    int tm_hour = certTime->tm_hour;
-    int tm_min  = certTime->tm_min;
-    int tm_sec  = certTime->tm_sec;
-
     XMEMSET(certTime, 0, sizeof(struct tm));
 
     if (format == ASN_UTC_TIME) {
@@ -6143,9 +6135,16 @@ int ExtractDate(const unsigned char* date, unsigned char format,
         certTime->tm_year *= 100;
     }
 
-    /* adjust tm_year, tm_mon */
-    tm_year -= 1900;
-    tm_mon  -= 1;
+#ifdef AVR
+    /* Extract the time from the struct tm and adjust tm_year, tm_mon */
+    /* AVR libc stores these as uint8_t instead of int */
+    /* AVR time_t also offsets from midnight 1 Jan 2000 */
+    int tm_year = certTime->tm_year - 2000;
+    int tm_mon  = certTime->tm_mon - 1;
+    int tm_mday = certTime->tm_mday;
+    int tm_hour = certTime->tm_hour;
+    int tm_min  = certTime->tm_min;
+    int tm_sec  = certTime->tm_sec;
 
     if (GetTime(&tm_year, date, idx) != 0) return 0;
     if (GetTime(&tm_mon , date, idx) != 0) return 0;
@@ -6161,6 +6160,17 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     certTime->tm_hour = tm_hour;
     certTime->tm_min  = tm_min;
     certTime->tm_sec  = tm_sec;
+#else
+    /* adjust tm_year, tm_mon */
+    if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+    certTime->tm_year -= 1900;
+    if (GetTime(&certTime->tm_mon , date, idx) != 0) return 0;
+    certTime->tm_mon  -= 1;
+    if (GetTime(&certTime->tm_mday, date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_hour, date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_min , date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_sec , date, idx) != 0) return 0;
+#endif
 
     return 1;
 }
