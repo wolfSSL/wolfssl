@@ -27190,7 +27190,7 @@ static int test_wc_ERR_print_errors_fp (void)
     int ret = 0;
 #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)) && \
     (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM))
-    int sz;
+    long sz;
     printf(testingFmt, "wc_ERR_print_errors_fp()");
     WOLFSSL_ERROR(BAD_FUNC_ARG);
     //XFILE fp = XFOPEN("./certs/ecc-keyPkcs8.pem", "rb");
