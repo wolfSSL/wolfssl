@@ -17402,7 +17402,10 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 
     return isCA;
 }
+#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
+          OPENSSL_EXTRA_X509_SMALL */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* returns the number of entries in the WOLFSSL_X509_NAME */
 int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
 {
@@ -17416,8 +17419,7 @@ int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
     WOLFSSL_LEAVE("wolfSSL_X509_NAME_entry_count", count);
     return count;
 }
-#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
-          OPENSSL_EXTRA_X509_SMALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 
