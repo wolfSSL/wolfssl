@@ -3468,7 +3468,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_free(sslResume); sslResume = NULL;
         CloseSocket(sockfd);
     }
-#endif /* NO_SESSION_CACHE */
+#endif /* !NO_SESSION_CACHE */
 
     wolfSSL_CTX_free(ctx); ctx = NULL;
 
