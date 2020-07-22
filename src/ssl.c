@@ -17388,6 +17388,34 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
     return newX509;
 }
+
+int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
+{
+    int isCA = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_isCA");
+
+    if (x509 != NULL)
+        isCA = x509->isCa;
+
+    WOLFSSL_LEAVE("wolfSSL_X509_get_isCA", isCA);
+
+    return isCA;
+}
+
+/* returns the number of entries in the WOLFSSL_X509_NAME */
+int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
+{
+    int count = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_NAME_entry_count");
+
+    if (name != NULL)
+        count = name->entrySz;
+
+    WOLFSSL_LEAVE("wolfSSL_X509_NAME_entry_count", count);
+    return count;
+}
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
@@ -17414,20 +17442,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         cert->altNamesNext = cert->altNamesNext->next;
 
         return ret;
-    }
-
-    int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
-    {
-        int isCA = 0;
-
-        WOLFSSL_ENTER("wolfSSL_X509_get_isCA");
-
-        if (x509 != NULL)
-            isCA = x509->isCa;
-
-        WOLFSSL_LEAVE("wolfSSL_X509_get_isCA", isCA);
-
-        return isCA;
     }
 
     int wolfSSL_X509_get_signature(WOLFSSL_X509* x509,
@@ -20263,21 +20277,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         WOLFSSL_LEAVE("wolfSSL_X509_get_subjectKeyID", copySz);
 
         return id;
-    }
-
-
-    /* returns the number of entries in the WOLFSSL_X509_NAME */
-    int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
-    {
-        int count = 0;
-
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_entry_count");
-
-        if (name != NULL)
-            count = name->entrySz;
-
-        WOLFSSL_LEAVE("wolfSSL_X509_NAME_entry_count", count);
-        return count;
     }
 #endif /* !NO_CERTS && OPENSSL_EXTRA */
 
@@ -36748,9 +36747,16 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
+    #if !defined(NO_PWDBASED)
         /* Convert key type and hash algorithm to a signature algorithm */
-        if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE)
+        if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE) {
             return WOLFSSL_FAILURE;
+        }
+    #else
+        (void)md;
+        WOLFSSL_MSG("Cannot get hashinfo when NO_PWDBASED is defined");
+        return WOLFSSL_FAILURE;
+    #endif /* !defined(NO_PWDBASED) */
 
 
         if (pkey->type == EVP_PKEY_RSA) {
