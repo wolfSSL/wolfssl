@@ -381,6 +381,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                         err_sys_ex(runWithErrors, "SSL_read failed");
                         break;
                     }
+                    if (err == WOLFSSL_ERROR_ZERO_RETURN)
+                        return WOLFSSL_ERROR_ZERO_RETURN;
                 }
                 else {
                     rx_pos += ret;
@@ -438,7 +440,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         );
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
@@ -1097,6 +1099,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
+
+    /* Reinitialize the global myVerifyAction. */
+    myVerifyAction = VERIFY_OVERRIDE_ERROR;
+
     /* Not Used: h, z, F, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
@@ -2446,7 +2452,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
         }
         else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {
-            ServerEchoData(ssl, clientfd, echoData, block, throughput);
+            err = ServerEchoData(ssl, clientfd, echoData, block, throughput);
+            if (err != 0) {
+                SSL_free(ssl); ssl = NULL;
+                SSL_CTX_free(ctx); ctx = NULL;
+                CloseSocket(clientfd);
+                CloseSocket(sockfd);
+                ((func_args*)args)->return_code = err;
+                goto exit;
+            }
         }
 
 #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
