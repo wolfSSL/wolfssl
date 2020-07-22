@@ -65,15 +65,19 @@
 #define OCSP_STAPLINGV2_MULTI 3
 #define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
 
-#ifndef WOLFSSL_ALT_TEST_STRINGS
-static const char kHelloMsg[] = "hello wolfssl!";
-static const char kResumeMsg[] = "resuming wolfssl!";
+#ifdef WOLFSSL_ALT_TEST_STRINGS
+    #define TEST_STR_TERM "\n"
 #else
-static const char kHelloMsg[] = "hello wolfssl!\n";
-static const char kResumeMsg[] = "resuming wolfssl!\n";
+    #define TEST_STR_TERM
 #endif
+
+static const char kHelloMsg[] = "hello wolfssl!" TEST_STR_TERM;
+#ifndef NO_SESSION_CACHE
+static const char kResumeMsg[] = "resuming wolfssl!" TEST_STR_TERM;
+#endif
+
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_EARLY_DATA)
-    static const char kEarlyMsg[] = "A drop of info";
+    static const char kEarlyMsg[] = "A drop of info" TEST_STR_TERM;
 #endif
 static const char kHttpGetMsg[] = "GET /index.html HTTP/1.0\r\n\r\n";
 
@@ -3455,7 +3459,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_free(sslResume); sslResume = NULL;
         CloseSocket(sockfd);
     }
-#endif /* NO_SESSION_CACHE */
+#endif /* !NO_SESSION_CACHE */
 
     wolfSSL_CTX_free(ctx); ctx = NULL;
 
