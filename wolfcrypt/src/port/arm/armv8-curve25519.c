@@ -23,14 +23,19 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.c
  */
-#ifdef WOLFSSL_ARMASM
-#ifdef __aarch64__
-#include <stdint.h>
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_ARMASM
+#ifdef __aarch64__
+
+#include <stdint.h>
 #include <wolfssl/wolfcrypt/fe_operations.h>
+
 
 void fe_init()
 {
