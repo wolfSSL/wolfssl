@@ -27161,7 +27161,6 @@ static int test_WOLFSSL_ERROR_MSG (void)
 
 #endif
     return ret;
-
 }/*End test_WOLFSSL_ERROR_MSG*/
 /*
  * Testing wc_ERR_remove_state
@@ -27174,13 +27173,11 @@ static int test_wc_ERR_remove_state (void)
     printf(testingFmt, "wc_ERR_remove_state()");
 
     wc_ERR_remove_state();
-    
-    printf(resultFmt, ret == 0 ? passed : failed);
-    
-#endif
-    
-    return ret;
 
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
 }/*End test_wc_ERR_remove_state*/
 /*
  * Testing wc_ERR_print_errors_fp
@@ -27191,23 +27188,23 @@ static int test_wc_ERR_print_errors_fp (void)
 #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)) && \
     (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM))
     long sz;
+
     printf(testingFmt, "wc_ERR_print_errors_fp()");
+
     WOLFSSL_ERROR(BAD_FUNC_ARG);
-    //XFILE fp = XFOPEN("./certs/ecc-keyPkcs8.pem", "rb");
     XFILE fp = XFOPEN("./test-log-dump-to-file.txt", "ar");
     wc_ERR_print_errors_fp(fp);
-    
+
     AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
     sz = XFTELL(fp);
     if (sz == 0) {
         ret = BAD_FUNC_ARG;
-    }    
-    
+    }
+
     printf(resultFmt, ret == 0 ? passed : failed);
     XFCLOSE(fp);
 #endif
     return ret;
-
 }/*End test_wc_ERR_print_errors_fp*/
 /*
  * Testing wolfSSL_GetLoggingCb
@@ -33463,7 +33460,7 @@ static int test_wc_InitRngNonce(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
@@ -33489,14 +33486,14 @@ static int test_wc_InitRngNonce_ex(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     word32  nonceSz = sizeof(nonce);
 
     printf(testingFmt, "wc_InitRngNonce_ex()");
-    
+
     if (ret == 0){
         ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
     }
