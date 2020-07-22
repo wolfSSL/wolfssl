@@ -55,6 +55,7 @@
     #endif
     #define SOCKET_T SOCKET
     #define SNPRINTF _snprintf
+    #define XSLEEP_MS(t) Sleep(t)
 #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
     #include <string.h>
     #include "rl_net.h"
@@ -69,9 +70,9 @@
         return(ret) ;
     }
     #if defined(HAVE_KEIL_RTX)
-        #define sleep(t) os_dly_wait(t/1000+1);
+        #define XSLEEP_MS(t)  os_dly_wait(t)
     #elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
-        #define sleep(t) osDelay(t/1000+1);
+        #define XSLEEP_MS(t)  osDelay(t)
     #endif
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
@@ -88,6 +89,7 @@
         char **h_addr_list; /* list of addresses from name server */
     };
     #define SOCKET_T int
+    #define XSLEEP_MS(t) Task_sleep(t/1000)
 #elif defined(WOLFSSL_VXWORKS)
     #include <hostLib.h>
     #include <sockLib.h>
@@ -148,7 +150,17 @@
         #include <signal.h>  /* ignore SIGPIPE */
     #endif
     #define SNPRINTF snprintf
+
+    #define XSELECT_WAIT(x,y) do { \
+        struct timeval tv = {(x),(y)}; \
+        select(0, NULL, NULL, NULL, &tv); \
+    } while (0)
+    #define XSLEEP_US(u) XSELECT_WAIT(0,u)
 #endif /* USE_WINDOWS_API */
+
+#ifndef XSLEEP_MS
+    #define XSLEEP_MS(t) sleep(t/1000)
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
