@@ -27206,17 +27206,47 @@ static int test_wc_ERR_print_errors_fp (void)
 #endif
     return ret;
 }/*End test_wc_ERR_print_errors_fp*/
+#ifdef DEBUG_WOLFSSL
+static void Logging_cb(const int logLevel, const char *const logMessage)
+{
+    (void)logLevel;
+    (void)logMessage;
+}
+#endif
 /*
  * Testing wolfSSL_GetLoggingCb
  */
 static int test_wolfSSL_GetLoggingCb (void)
 {
     int ret = 0;
+#ifdef DEBUG_WOLFSSL
     printf(testingFmt, "wolfSSL_GetLoggingCb()");
 
-    wolfSSL_GetLoggingCb();
-
+    /*Testing without wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        if(wolfSSL_GetLoggingCb() == NULL){ /*Should be true*/
+            ret = 0;
+        }
+        if(wolfSSL_GetLoggingCb() != NULL){ /*Should not be true*/
+            ret = -1;
+        }
+    }
+    /*Testing with wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        ret = wolfSSL_SetLoggingCb(Logging_cb);
+        if (ret == 0){
+            if(wolfSSL_GetLoggingCb() == NULL){ /*Should not be true*/
+                ret = -1;
+            }
+            if (ret == 0) {
+                if(wolfSSL_GetLoggingCb() == Logging_cb){ /*Should be true*/
+                    ret = 0;
+                }
+            }
+        }
+    }
     printf(resultFmt, ret == 0 ? passed : failed);
+#endif
     return ret;
 }/*End test_wolfSSL_GetLoggingCb*/
 static void test_wolfSSL_HMAC(void)
