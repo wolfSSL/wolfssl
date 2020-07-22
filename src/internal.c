@@ -15327,6 +15327,13 @@ int ProcessReply(WOLFSSL* ssl)
                 if (ssl->options.tls1_3) {
                     word16 i = (word16)(ssl->buffers.inputBuffer.length -
                                         ssl->keys.padSz);
+
+                    /* sanity check on underflow */
+                    if (ssl->keys.padSz >= ssl->buffers.inputBuffer.length) {
+                        WOLFSSL_ERROR(DECRYPT_ERROR);
+                        return DECRYPT_ERROR;
+                    }
+
                     /* Remove padding from end of plain text. */
                     for (--i; i > ssl->buffers.inputBuffer.idx; i--) {
                         if (ssl->buffers.inputBuffer.buffer[i] != 0)
