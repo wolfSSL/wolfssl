@@ -22,6 +22,12 @@
 #ifndef WOLFSSL_TXT_DB_H_
 #define WOLFSSL_TXT_DB_H_
 
+#include <wolfssl/openssl/ssl.h>
 
+struct WOLFSSL_TXT_DB {
+    WOLF_STACK_OF(WOLFSSL_STRING) *data;
+};
+
+typedef struct WOLFSSL_TXT_DB TXT_DB;
 
 #endif /* WOLFSSL_TXT_DB_H_ */
