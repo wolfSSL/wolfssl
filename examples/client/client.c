@@ -3165,12 +3165,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
         goto exit;
     }
 
     err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
         goto exit;
     }
 
