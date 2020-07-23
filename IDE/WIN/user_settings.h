@@ -22,6 +22,8 @@
     #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
+
+    #define GCM_NONCE_MID_SZ 12
 #else
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING
@@ -31,11 +33,9 @@
         /* The lib */
         #define OPENSSL_EXTRA
         #define WOLFSSL_RIPEMD
-        #define WOLFSSL_SHA512
         #define NO_PSK
         #define HAVE_EXTENDED_MASTER
         #define WOLFSSL_SNIFFER
-        #define HAVE_TLS_EXTENSIONS
         #define HAVE_SECURE_RENEGOTIATION
 
         #define HAVE_AESGCM

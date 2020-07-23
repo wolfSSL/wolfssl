@@ -134,16 +134,16 @@ int curve25519(byte* q, byte* n, byte* p)
 #if 0
   unsigned char e[32];
 #endif
-  fe x1;
-  fe x2;
-  fe z2;
-  fe x3;
-  fe z3;
-  fe tmp0;
-  fe tmp1;
-  int pos;
-  unsigned int swap;
-  unsigned int b;
+  fe x1 = {0};
+  fe x2 = {0};
+  fe z2 = {0};
+  fe x3 = {0};
+  fe z3 = {0};
+  fe tmp0 = {0};
+  fe tmp1 = {0};
+  int pos = 0;
+  unsigned int swap = 0;
+  unsigned int b = 0;
 
   /* Clamp already done during key generation and import */
 #if 0
@@ -645,11 +645,11 @@ void fe_frombytes(fe h,const unsigned char *s)
 
 void fe_invert(fe out,const fe z)
 {
-  fe t0;
-  fe t1;
-  fe t2;
-  fe t3;
-  int i;
+  fe t0 = {0};
+  fe t1 = {0};
+  fe t2 = {0};
+  fe t3 = {0};
+  int i = 0;
 
   /* pow225521 */
   fe_sq(t0,z); for (i = 1;i < 1;++i) fe_sq(t0,t0);
@@ -1263,10 +1263,10 @@ void fe_sq2(fe h,const fe f)
 
 void fe_pow22523(fe out,const fe z)
 {
-  fe t0;
-  fe t1;
-  fe t2;
-  int i;
+  fe t0 = {0};
+  fe t1 = {0};
+  fe t2 = {0};
+  int i = 0;
 
   fe_sq(t0,z); for (i = 1;i < 1;++i) fe_sq(t0,t0);
   fe_sq(t1,t0); for (i = 1;i < 2;++i) fe_sq(t1,t1);

@@ -55,7 +55,7 @@ int wolfExample_TLSClient(const char* ip, int port)
     int          ret = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;        /* create WOLFSSL object */
-    int                sockFd = -1; /* socket file descriptor */
+    int                sockFd;      /* socket file descriptor */
     struct sockaddr_in servAddr;    /* struct for server address */
     char sendBuff[TLS_MAXDATASIZE], rcvBuff[TLS_MAXDATASIZE];
 
@@ -144,13 +144,13 @@ int wolfExample_TLSServer(int port)
     int ret = 0;
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
-    int sockFd = -1, clientFd = -1;
+    int sockFd, clientFd = -1;
     struct sockaddr_in serverAddr = {0}, clientAddr = {0};
     const char reply[]  = "I hear ya fa shizzle!\n";
     int addrSize        = sizeof(clientAddr);
     char buff[256];
 
-	sockFd = socket(AF_INET, SOCK_STREAM, 0);
+    sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0) {
         printf("Failed to create socket. Error: %d\n", errno);
         return errno;

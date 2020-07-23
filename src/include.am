@@ -215,8 +215,10 @@ if BUILD_SP_X86_64
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_x86_64.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_x86_64_asm.S
 endif
+if !BUILD_FIPS_V2
 if BUILD_SP_ARM32
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm32.c
+endif
 endif
 if BUILD_SP_ARM_THUMB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_armthumb.c
@@ -459,6 +461,25 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
 endif
 endif
 endif
+endif
+endif
+
+if BUILD_CURVE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/curve448.c
+endif
+
+if BUILD_ED448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ed448.c
+endif
+
+if BUILD_FE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_448.c
+endif
+
+if BUILD_GE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_448.c
+if !BUILD_FE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_448.c
 endif
 endif
 

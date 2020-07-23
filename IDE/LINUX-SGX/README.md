@@ -1,7 +1,10 @@
 # Static Library: Building libwolfssl.sgx.static.lib.a for use with SGX Enclaves
 
 ### Requirements:
-This code was created to use Intel's SGX hardware. It is expected that the user has gone through the steps of both turning on the hardware in bios if needed and has installed the necessary software from Intel to make use of the hardware. (https://software.intel.com/en-us/sgx) If these steps have not been done then it is expected that the user is familure with simulation software being used in place of hardware.
+This code was created to use Intel's SGX hardware. It is expected that the user has gone through the steps of both turning on the hardware in bios if needed and has installed the necessary software from Intel to make use of the hardware. (https://software.intel.com/en-us/sgx) If these steps have not been done then it is expected that the user is familiar with simulation software being used in place of hardware.
+
+### Security:
+If not already in use, it is recommended that SP (single precision) RSA and ECC code is used. This will help mitigate potential side channel attacks. To use SP code check that wolfcrypt/src/sp_c32.c and wolfcrypt/src/sp_c64.c are compiled and add HAVE_WOLFSSL_SP=1 to the build command to define the necessary macros.
 
 ### Overview and Build:
 This project creates a static library to then link with Enclaves. A simple example of an Enclave linking to the created wolfSSL library can be found in wolfssl-examples on github. This project has been tested with gcc 5.4.0 on Ubuntu 16.04.
@@ -21,9 +24,10 @@ This will create a local static library, libwolfssl.sgx.static.lib.a, that can b
     To enable wolfssl debug, add CFLAGS=-DDEBUG_WOLFSSL.
     To enable wolfssl benchmark tests with enclave, specify: HAVE_WOLFSSL_BENCHMARK at build
     To enable wolfcrypt testsuite with enclave, specify: HAVE_WOLFSSL_TEST at build
+    To enable SP code, specify: HAVE_WOLFSSL_SP at build
 
-For example, to enable all three:
-`make -f sgx_t_static.mk CFLAGS=-DDEBUG_WOLFSSL HAVE_WOLFSSL_BENCHMARK=1 HAVE_WOLFSSL_TEST=1`
+For example:
+`make -f sgx_t_static.mk CFLAGS=-DDEBUG_WOLFSSL HAVE_WOLFSSL_BENCHMARK=1 HAVE_WOLFSSL_TEST=1 HAVE_WOLFSSL_SP=1`
 
 NOTE: This more customized step has been provided for easier execution in the
       script `build.sh`

@@ -114,6 +114,8 @@ struct Sha3 {
 
 #endif
 
+typedef wc_Sha3 wc_Shake;
+
 
 WOLFSSL_API int wc_InitSha3_224(wc_Sha3*, void*, int);
 WOLFSSL_API int wc_Sha3_224_Update(wc_Sha3*, const byte*, word32);
@@ -142,6 +144,12 @@ WOLFSSL_API int wc_Sha3_512_Final(wc_Sha3*, byte*);
 WOLFSSL_API void wc_Sha3_512_Free(wc_Sha3*);
 WOLFSSL_API int wc_Sha3_512_GetHash(wc_Sha3*, byte*);
 WOLFSSL_API int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst);
+
+WOLFSSL_API int wc_InitShake256(wc_Shake*, void*, int);
+WOLFSSL_API int wc_Shake256_Update(wc_Shake*, const byte*, word32);
+WOLFSSL_API int wc_Shake256_Final(wc_Shake*, byte*, word32);
+WOLFSSL_API void wc_Shake256_Free(wc_Shake*);
+WOLFSSL_API int wc_Shake256_Copy(wc_Shake* src, wc_Sha3* dst);
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     WOLFSSL_API int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags);

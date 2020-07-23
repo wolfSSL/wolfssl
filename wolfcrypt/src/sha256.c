@@ -119,6 +119,10 @@
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+
 #else
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -164,7 +168,8 @@
     (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH)) && \
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
-    (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH))
+    (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
+    !defined(WOLFSSL_PSOC6_CRYPTO)
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -494,6 +499,7 @@ static int InitSha256(wc_Sha256* sha256)
         (void)devId;
         (void)heap;
 
+        XMEMSET(sha256, 0, sizeof(wc_Sha256));
         wc_Stm32_Hash_Init(&sha256->stmCtx);
         return 0;
     }
@@ -543,6 +549,63 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_DEVCRYPTO_HASH)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
+
+#elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_HASH)
+    #include "hal_data.h"
+
+    #ifndef WOLFSSL_SCE_SHA256_HANDLE
+        #define WOLFSSL_SCE_SHA256_HANDLE g_sce_hash_0
+    #endif
+
+    #define WC_SHA256_DIGEST_WORD_SIZE 16
+    #define XTRANSFORM(S, D) wc_Sha256SCE_XTRANSFORM((S), (D))
+    static int wc_Sha256SCE_XTRANSFORM(wc_Sha256* sha256, const byte* data)
+    {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_LITTLE)
+        {
+            ByteReverseWords((word32*)data, (word32*)data,
+                    WC_SHA256_BLOCK_SIZE);
+            ByteReverseWords(sha256->digest, sha256->digest,
+                    WC_SHA256_DIGEST_SIZE);
+        }
+
+        if (WOLFSSL_SCE_SHA256_HANDLE.p_api->hashUpdate(
+                    WOLFSSL_SCE_SHA256_HANDLE.p_ctrl, (word32*)data,
+                    WC_SHA256_DIGEST_WORD_SIZE, sha256->digest) != SSP_SUCCESS){
+            WOLFSSL_MSG("Unexpected hardware return value");
+            return WC_HW_E;
+        }
+
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_LITTLE)
+        {
+            ByteReverseWords((word32*)data, (word32*)data,
+                    WC_SHA256_BLOCK_SIZE);
+            ByteReverseWords(sha256->digest, sha256->digest,
+                    WC_SHA256_DIGEST_SIZE);
+        }
+
+        return 0;
+    }
+
+
+    int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+    {
+        int ret = 0;
+        if (sha256 == NULL)
+            return BAD_FUNC_ARG;
+
+        sha256->heap = heap;
+
+        ret = InitSha256(sha256);
+        if (ret != 0)
+            return ret;
+
+        (void)devId;
+
+        return ret;
+    }
 
 #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
@@ -605,6 +668,10 @@ static int InitSha256(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1502,6 +1569,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+#elif defined(WOLFSSL_PSOC6_CRYPTO)
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)

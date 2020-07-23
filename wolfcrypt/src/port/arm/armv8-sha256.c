@@ -1079,8 +1079,9 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     sha256->loLen = sha256->loLen << 3;
 
     /* store lengths */
-	word32* bufPt = sha256->buffer;
     #if defined(LITTLE_ENDIAN_ORDER)
+    {
+	word32* bufPt = sha256->buffer;
         __asm__ volatile (
             "VLD1.32 {q0}, [%[in]] \n"
             "VREV32.8 q0, q0 \n"
@@ -1098,6 +1099,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
             : [in] "0" (bufPt)
             : "cc", "memory", "q0", "q1", "q2", "q3"
         );
+    }
     #endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));

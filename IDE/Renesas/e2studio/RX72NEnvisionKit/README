@@ -1,0 +1,155 @@
+-----------------------------------------------------
+0. 初めに
+-----------------------------------------------------
+
+このドキュメントではE2Studio上でwolfsslを含んだテストアプリケーションを作成する手順を示します。
+
+このREADMEが含まれているフォルダには
+  1.smc　　　　---スマートコンフィギュレータ用プロジェクトが格納されているフォルダです
+  2.test　　　 ---テストアプリケーション用プロジェクトが格納されているフォルダです
+  3.wolfssl　　---テストアプリケーションにリンクされて使用されるwolfsslライブラリ用プロジェクトが格納されているフォルダです
+  4.common　　 ---設定ファイル等が格納されたフォルダです
+  
+フォルダが存在しています。
+
+-------------------------------------
+１．プロジェクトのインポート
+-------------------------------------
+
+e2studioを起動したら、プロジェクト・エクスプローラー画面を表示させ、"ファイル"メニュー　＞　”ファイル・システムからプロジェクトを開く...”を選択し、
+プロジェクトインポートダイアログを表示させます。
+
+ディレクトリボタンを押して、上記の１～３のフォルダの３プロジェクトをインポートしてください。
+
+-------------------------------------
+２．ｓｍｃプロジェクトでソースファイルを生成させる
+-------------------------------------
+
+smcプロジェクトにはsmc.scfgファイルが既に用意してあります。
+このファイルをダブルクリックするとスマートコンフィギュレータパースペクティブが開き、複数のタブを含んだ設定ページが表示されます。
+概要タブに現在選択されているコンポーネントがバージョンとともにリストアップされています。
+これらはテストアプリケーションの実行に必要なものが設定済みとなっています。
+ボード情報、クロック設定などもRX72N EnvisionKitに合わせて設定済みです。
+
+設定が必要な個所は、
+コンポーネントタブで　r_t4_rx コンポーネントの設定を表示させます。ここで、次のプロパティの値
+#IP address for ch0,when DHCP disable. 
+
+として、RX72N EnvisionKitに設定するIPv4アドレスを皆さんの環境に合った値に設定してください。
+ここだけが設定が必要な個所です。
+
+設定を保存し、画面右上のソースファイル生成ボタンを押してソースファイルを生成させてください。
+
+-------------------------------------
+３．testプロジェクトに生成させたソースファイルをコピーする
+-------------------------------------
+
+e2studioのプロジェクト・エクスプローラー画面のtestプロジェクトのフォルダを展開すると、
+srcフォルダがあります。このフォルダに、smcプロジェクトフォルダ内のsrc/smc_genをコピーしてください。
+
+-------------------------------------
+４．testプロジェクトの動作を選択する
+-------------------------------------
+
+テストアプリケーションは、暗号化テスト、ベンチマーク、TLSクライアント、TLSサーバーの
+4種類の動作を選択できます。選択は、common/user_settings.hの
+定義文のいずれか一つを有効化することで行います。
+
+-------------------------------------
+５．wolfsslプロジェクト、testプロジェクトをビルドする
+-------------------------------------
+
+ビルド前に必ず上記４の設定が終わっていることを確認してください。
+ビルドはwolfssl,testの順に行います。
+
+-------------------------------------
+６．エミュレータを使ってtestアプリケーションを実行する
+-------------------------------------
+
+エミュレータとターゲットボードとPCをケーブルで接続したら、すでに、test HardwareDebug.launchが用意してありますから
+e2studioのメニュー”実行”　＞”デバッグ”を選択してデバッグを開始してください。
+
+お手持ちのエミュレータが異なる場合はデバッグ構成を変更して上記ファイルを更新してください。
+
+デバッグパースペクティブ表示になったら、e2studioのメニュー”Renesas Views”　> ”デバッグ” > "Renesas Debug Virtual Console"を選択して
+デバッグコンソール画面を表示してください。 testアプリケーション実行時の経過、結果等の表示がこのコンソールに出力されます。
+
+
+=================================================================================
+
+-----------------------------------------------------
+0. About this document
+-----------------------------------------------------
+
+This document will show you how to create a test application containing wolfssl on E2Studio.
+
+The folder that contains this README has:
+  1.smc      --- the folder where the smart configurator project is stored.
+  2.test     --- the folder where the test application project is stored
+  3.wolfssl  --- the folder where the project for the wolfssl library used by the test application is stored.
+  4.common   --- the folder where the configuration files etc. are stored
+  
+
+-------------------------------------
+1. Import projects
+-------------------------------------
+
+After starting e2studio, display the project explorer screen,
+select "File" menu> "Open project from file system...",
+Display the project import dialog.
+
+Press the directory button and import the 3 projects in the folders 1 to 3 above.
+
+-------------------------------------
+2. Generate source files in smc project
+-------------------------------------
+
+The smc.scfg file is already prepared in the smc project.
+Double-clicking on this file will open the Smart Configurator perspective,
+displaying a configuration page with multiple tabs.
+The components currently selected in the Overview tab are listed along with their version.
+These are already set up to run the test application.
+Board information and clock settings are already set according to RX72N EnvisionKit.
+
+The points that need to be set are
+Display the r_t4_rx component settings in the component tab. Where the value of the following property
+#IP address for ch0,when DHCP disable.
+
+Then, set the IPv4 address set in RX72N EnvisionKit to a value that suits your environment.
+This is the only place that needs to be set.
+
+Save the settings and press the source file generation button at the top right of the screen to generate the source file.
+
+-------------------------------------
+3. Copy the source files generated in the test project
+-------------------------------------
+
+When you expand the test project folder on the e2studio Project Explorer screen,
+There is a src folder. Copy src/smc_gen in the smc project folder to test/src folder.
+
+-------------------------------------
+4. Select the behavior of the test project
+-------------------------------------
+
+Test applications include encryption test, benchmark, TLS client, TLS server
+You can select four types of operation.
+This is done by activating one of those commented definition statements in common/user_settings.h.
+
+-------------------------------------
+5. Build wolfssl project, test project
+-------------------------------------
+
+Make sure that the above settings are completed before building.
+Build in order of wolfssl and test.
+
+-------------------------------------
+6. Run the test application using the emulator
+-------------------------------------
+
+After connecting the emulator, target board and PC with a cable, test HardwareDebug.launch is already prepared.
+Select "Run"> "Debug" in e2 studio to start debugging.
+
+If the emulator you have is different, change the debug configuration and update the above file.
+
+When the debug perspective is displayed, select the e2 studio menu "Renesas Views"> "Debug"> "Renesas Debug Virtual Console"
+Display the debug console screen. The progress and results of the test application execution are output to this console.

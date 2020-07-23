@@ -16,3 +16,4 @@ EXTRA_DIST+= IDE/VS-AZURE-SPHERE/server/server.h
 EXTRA_DIST+= IDE/VS-AZURE-SPHERE/server/server.vcxproj
 EXTRA_DIST+= IDE/VS-AZURE-SPHERE/wolfcrypt_test/app_manifest.json
 EXTRA_DIST+= IDE/VS-AZURE-SPHERE/wolfcrypt_test/wolfcrypt_test.vcxproj
+EXTRA_DIST+= IDE/VS-AZURE-SPHERE/shared/util.h

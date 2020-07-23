@@ -165,7 +165,7 @@ public class wolfSSL_TLS_PSK_Server
         if (wolfssl.set_fd(ssl, fd) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
             return;
@@ -176,7 +176,7 @@ public class wolfSSL_TLS_PSK_Server
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
             return;

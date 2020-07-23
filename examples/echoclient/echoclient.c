@@ -59,8 +59,10 @@ void echoclient_test(void* args)
     FILE* fin   = stdin  ;
     FILE* fout = stdout;
 
+#ifndef WOLFSSL_MDK_SHELL
     int inCreated  = 0;
     int outCreated = 0;
+#endif
 
     char msg[1024];
     char reply[1024+1];
@@ -73,8 +75,10 @@ void echoclient_test(void* args)
     int doDTLS = 0;
     int doPSK = 0;
     int sendSz;
+#ifndef WOLFSSL_MDK_SHELL
     int argc    = 0;
     char** argv = 0;
+#endif
     word16 port = yasslPort;
     char buffer[CYASSL_MAX_ERROR_SZ];
 
@@ -83,7 +87,6 @@ void echoclient_test(void* args)
 #ifndef WOLFSSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
-#endif
 
     if (argc >= 2) {
         fin  = fopen(argv[1], "r");
@@ -93,6 +96,7 @@ void echoclient_test(void* args)
         fout = fopen(argv[2], "w");
         outCreated = 1;
     }
+#endif
 
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");
@@ -104,10 +108,11 @@ void echoclient_test(void* args)
 #ifdef CYASSL_LEANPSK
     doPSK = 1;
 #endif
-
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+                                                            !defined(HAVE_ED448)
     doPSK = 1;
 #endif
+    (void)doPSK;
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
@@ -116,7 +121,11 @@ void echoclient_test(void* args)
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_2_client_method();
 #elif !defined(NO_TLS)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_SNIFFER)
+    method = CyaTLSv1_2_client_method();
+    #else
     method = CyaSSLv23_client_method();
+    #endif
 #elif defined(WOLFSSL_ALLOW_SSLV3)
     method = SSLv3_client_method();
 #else
@@ -135,6 +144,9 @@ void echoclient_test(void* args)
     #elif defined(HAVE_ED25519)
         if (SSL_CTX_load_verify_locations(ctx, caEdCertFile, 0) != WOLFSSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
+    #elif defined(HAVE_ED448)
+        if (SSL_CTX_load_verify_locations(ctx, caEd448CertFile, 0) != WOLFSSL_SUCCESS)
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
@@ -142,25 +154,34 @@ void echoclient_test(void* args)
 #endif
 
 #if defined(CYASSL_SNIFFER)
-    /* don't use EDH, can't sniff tmp keys */
-    SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    /* Only set if not running testsuite */
+    if (XSTRSTR(argv[0], "testsuite") != 0) {
+        /* don't use EDH, can't sniff tmp keys */
+        SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    }
 #endif
-    if (doPSK) {
 #ifndef NO_PSK
+    if (doPSK) {
         const char *defaultCipherList;
 
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
         #elif defined(HAVE_AESGCM) && !defined(NO_DH)
+            #ifdef WOLFSSL_TLS13
+            defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                "DHE-PSK-AES128-GCM-SHA256:";
+            #else
             defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
+            #endif
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
         if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=WOLFSSL_SUCCESS)
             err_sys("client can't set cipher list 2");
-#endif
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
     }
+#endif
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -312,8 +333,10 @@ void echoclient_test(void* args)
 #endif
 
     fflush(fout);
+#ifndef WOLFSSL_MDK_SHELL
     if (inCreated)  fclose(fin);
     if (outCreated) fclose(fout);
+#endif
 
     CloseSocket(sockfd);
     ((func_args*)args)->return_code = 0;

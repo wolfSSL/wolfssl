@@ -28,11 +28,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
-    #include <wolfssl/wolfcrypt/integer.h>
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
-
 #ifdef STM32_HASH
 
 #define WOLFSSL_NO_HASH_RAW
@@ -53,6 +48,9 @@
 #endif
 #if !defined(HASH_DATATYPE_8B) && defined(HASH_DataType_8b)
     #define HASH_DATATYPE_8B HASH_DataType_8b
+#endif
+#ifndef HASH_STR_NBW
+	#define HASH_STR_NBW HASH_STR_NBLW
 #endif
 
 #ifndef STM32_HASH_TIMEOUT
@@ -93,19 +91,30 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
-            defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4))
+            defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
+			defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
 
-    #ifdef WOLFSSL_STM32L4
+    #if defined(WOLFSSL_STM32WB)
         #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
+        #define CRYP AES1
+        #define STM32_HAL_V2
+    #endif
+    #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5)
+		#ifdef WOLFSSL_STM32L4
+        	#define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
+		#endif
         #define CRYP AES
+		#ifndef CRYP_AES_GCM
+			#define CRYP_AES_GCM CRYP_AES_GCM_GMAC
+		#endif
     #endif
 
     /* Detect newer CubeMX crypto HAL (HAL_CRYP_Encrypt / HAL_CRYP_Decrypt) */
-    #if !defined(STM32_HAL_V2) && \
-        defined(WOLFSSL_STM32F7) && defined(CRYP_AES_GCM)
+    #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
+        (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7))
         #define STM32_HAL_V2
     #endif
 
@@ -122,7 +131,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     struct Aes;
     #ifdef WOLFSSL_STM32_CUBEMX
         int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp);
-    #else /* STD_PERI_LIB */
+    #else /* Standard Peripheral Library */
         int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_InitTypeDef* cryptInit,
             CRYP_KeyInitTypeDef* keyInit);
     #endif /* WOLFSSL_STM32_CUBEMX */
@@ -131,12 +140,25 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #endif /* STM32_CRYPTO */
 
 #if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
-int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-                    word32 hashlen, int* res, ecc_key* key);
-
-int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
-                     ecc_key* key, mp_int *r, mp_int *s);
+#ifdef WOLFSSL_SP_MATH
+    struct sp_int;
+    #define MATH_INT_T struct sp_int
+#elif defined(USE_FAST_MATH)
+    struct fp_int;
+    #define MATH_INT_T struct fp_int
+#else
+    struct mp_int;
+	#define MATH_INT_T struct mp_int
 #endif
+struct ecc_key;
+struct WC_RNG;
+
+int stm32_ecc_verify_hash_ex(MATH_INT_T *r, MATH_INT_T *s, const byte* hash,
+                    word32 hashlen, int* res, struct ecc_key* key);
+
+int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, struct WC_RNG* rng,
+                     struct ecc_key* key, MATH_INT_T *r, MATH_INT_T *s);
+#endif /* WOLFSSL_STM32_PKA && HAVE_ECC */
 
 
 #endif /* _WOLFPORT_STM32_H_ */

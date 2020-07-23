@@ -1481,7 +1481,7 @@ WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
     word32 idx = 0;
     byte buff[] = { // initialize with key };
     ecc_key pubKey;
-    wc_ecc_init_key(&pubKey);
+    wc_ecc_init(&pubKey);
     if ( wc_EccPublicKeyDecode(buff, &idx, &pubKey, sizeof(buff)) != 0) {
             // error decoding key
     }

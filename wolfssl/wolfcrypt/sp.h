@@ -119,7 +119,40 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ);
 int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym);
 
-#endif /*ifdef WOLFSSL_HAVE_SP_ECC */
+
+int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* rm, int map,
+                      void* heap);
+int sp_ecc_mulmod_base_384(mp_int* km, ecc_point* rm, int map, void* heap);
+
+int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
+int sp_ecc_secret_gen_384(mp_int* priv, ecc_point* pub, byte* out,
+                          word32* outlen, void* heap);
+int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX, mp_int* pY,
+                      mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+int sp_ecc_is_point_384(mp_int* pX, mp_int* pY);
+int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap);
+int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ);
+int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ);
+int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ);
+int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym);
+
+#ifdef WOLFSSL_SP_NONBLOCK
+int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+int sp_ecc_verify_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen, mp_int* pX, mp_int* pY,
+                      mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+int sp_ecc_sign_384_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap);
+int sp_ecc_verify_384_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen, mp_int* pX, mp_int* pY,
+                      mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+#endif /* WOLFSSL_HAVE_SP_ECC */
 
 
 #ifdef __cplusplus

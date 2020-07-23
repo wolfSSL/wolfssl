@@ -46,7 +46,12 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
-#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
+#ifdef WOLFSSL_PSOC6_CRYPTO
+    #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
+#endif
+
+#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
+    defined(WOLFSSL_ATECC608A)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP)
@@ -80,6 +85,10 @@
 
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+#endif
+
+#ifdef WOLFSSL_SCE
+    #include "hal_data.h"
 #endif
 
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
@@ -176,7 +185,8 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
+    #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || \
+        defined(WOLFSSL_ATECC608A)
         ret = atmel_init();
         if (ret != 0) {
             WOLFSSL_MSG("CryptoAuthLib init failed");
@@ -195,6 +205,14 @@ int wolfCrypt_Init(void)
         stsafe_interface_init();
     #endif
 
+    #if defined(WOLFSSL_PSOC6_CRYPTO)
+        ret = psoc6_crypto_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("PSoC6 crypto engine init failed");
+            return ret;
+        }
+    #endif
+
     #ifdef WOLFSSL_ARMASM
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
@@ -203,8 +221,7 @@ int wolfCrypt_Init(void)
 	WOLFSSL_MSG("Using AF_ALG for crypto acceleration");
     #endif
 
-    #if !defined(WOLFCRYPT_ONLY) && \
-        ( defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) )
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
         wolfSSL_EVP_init();
     #endif
 
@@ -216,12 +233,28 @@ int wolfCrypt_Init(void)
     #endif
 
 #ifdef HAVE_ECC
+    #ifdef FP_ECC
+        wc_ecc_fp_init();
+    #endif
     #ifdef ECC_CACHE_CURVE
         if ((ret = wc_ecc_curve_cache_init()) != 0) {
             WOLFSSL_MSG("Error creating curve cache");
             return ret;
         }
     #endif
+#endif
+
+#ifdef WOLFSSL_SCE
+        ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(
+                WOLFSSL_SCE_GSCE_HANDLE.p_ctrl, WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
+        if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
+            WOLFSSL_MSG("SCE already open");
+            ret = 0;
+        }
+        if (ret != SSP_SUCCESS) {
+            WOLFSSL_MSG("Error opening SCE");
+            return -1; /* FATAL_ERROR */
+        }
 #endif
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
@@ -276,7 +309,9 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
-
+    #ifdef WOLFSSL_SCE
+        WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
+    #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();
@@ -629,7 +664,7 @@ int z_fs_close(XFILE file)
 
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */
 
-
+#if !defined(WOLFSSL_USER_MUTEX) 
 wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
@@ -647,6 +682,7 @@ wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 
     return m;
 }
+#endif
 
 #ifdef USE_WOLF_STRTOK
 /* String token (delim) search. If str is null use nextp. */
@@ -1335,7 +1371,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     void *uITRON4_malloc(size_t sz) {
         ER ercd;
-        void *p;
+        void *p = NULL;
         ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p);
         if (ercd == E_OK) {
             return p;
@@ -1429,7 +1465,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     void *uTKernel_malloc(unsigned int sz) {
         ER ercd;
-        void *p;
+        void *p = NULL;
         ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p, TMO_FEVR);
         if (ercd == E_OK) {
             return p;
@@ -1827,6 +1863,17 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return 0;
     }
 
+#elif defined(WOLFSSL_USER_MUTEX)
+
+    /* Use user own mutex */
+    
+    /*
+    int wc_InitMutex(wolfSSL_Mutex* m) { ... }
+    int wc_FreeMutex(wolfSSL_Mutex *m) { ... }
+    int wc_LockMutex(wolfSSL_Mutex *m) { ... }
+    int wc_UnLockMutex(wolfSSL_Mutex *m) { ... }
+    */
+
 #else
     #warning No mutex handling defined
 
@@ -2206,7 +2253,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
     void* nucleus_realloc(void* ptr, unsigned long size, void* heap, int type)
     {
-        STATUS     status;
         DM_HEADER* old_header;
         word32     old_size, copy_size;
         void*      new_mem;

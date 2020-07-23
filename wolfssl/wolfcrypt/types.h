@@ -37,6 +37,16 @@
     #define WOLFSSL_ABI
             /* Tag for all the APIs that are a part of the fixed ABI. */
 
+    /*
+     * This struct is used multiple time by other structs and
+     * needs to be defined somwhere that all structs can import
+     * (with minimal depencencies).
+     */
+    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    typedef struct WOLFSSL_CRYPTO_EX_DATA {
+        void* ex_data[MAX_EX_DATA];
+    } WOLFSSL_CRYPTO_EX_DATA;
+    #endif
 
     #if defined(WORDS_BIGENDIAN)
         #define BIG_ENDIAN_ORDER
@@ -58,6 +68,14 @@
             typedef unsigned int   word32;
         #endif
         typedef byte           word24[3];
+    #endif
+
+
+    /* constant pointer to a constant char */
+    #ifdef WOLFSSL_NO_CONSTCHARCONST
+        typedef const char*       wcchar;
+    #else
+        typedef const char* const wcchar;
     #endif
 
 
@@ -238,6 +256,7 @@
         #define USE_WINDOWS_API
     #endif
 
+    #define XSTR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
 
     /* idea to add global alloc override by Moises Guimaraes  */
     /* default to libc stuff */
@@ -479,6 +498,7 @@
                        Windows 10, snprintf is no longer identical to
                        _snprintf. The snprintf function behavior is now
                        C99 standard compliant. */
+                    #include <stdio.h>
                     #define XSNPRINTF snprintf
                 #else
                     /* 4996 warning to use MS extensions e.g., _sprintf_s
@@ -649,6 +669,8 @@
         DYNAMIC_TYPE_HASH_TMP     = 88,
         DYNAMIC_TYPE_BLOB         = 89,
         DYNAMIC_TYPE_NAME_ENTRY   = 90,
+        DYNAMIC_TYPE_CURVE448     = 91,
+        DYNAMIC_TYPE_ED448        = 92,
         DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
         DYNAMIC_TYPE_SNIFFER_PB         = 1002,

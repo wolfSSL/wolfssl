@@ -166,6 +166,7 @@ enum wolfSSL_ErrorCodes {
     TSIP_MAC_DIGSZ_E             = -435,   /* Invalid MAC size for TSIP */
     CLIENT_CERT_CB_ERROR         = -436,   /* Client cert callback error */
     SSL_SHUTDOWN_ALREADY_DONE_E  = -437,   /* Shutdown called redundantly */
+    TLS13_SECRET_CB_E            = -438,   /* TLS1.3 secret Cb fcn failure */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

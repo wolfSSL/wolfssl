@@ -467,14 +467,16 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     /* verify results */
     if ((cliArgs.return_code != 0 && cliTestShouldFail == 0) ||
         (cliArgs.return_code == 0 && cliTestShouldFail != 0)) {
-        printf("client_test failed\n");
+        printf("client_test failed %d %s\n", cliArgs.return_code, 
+            cliTestShouldFail ? "(should fail)" : "");
         XEXIT(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
     if ((svrArgs.return_code != 0 && svrTestShouldFail == 0) ||
         (svrArgs.return_code == 0 && svrTestShouldFail != 0)) {
-        printf("server_test failed\n");
+        printf("server_test failed %d %s\n", svrArgs.return_code,
+            svrTestShouldFail ? "(should fail)" : "");
         XEXIT(EXIT_FAILURE);
     }
 
@@ -507,6 +509,8 @@ static void test_harness(void* vargs)
     int   cliArgsSz;
     char* cursor;
     char* comment;
+    char  lastChar = '\0';
+    int   do_it = 0;
     const char* fname = "tests/test.conf";
     const char* addArgs = NULL;
 
@@ -568,21 +572,28 @@ static void test_harness(void* vargs)
     cliArgsSz = 1;
     cliArgs[0] = args->argv[0];
 
-    while (*cursor != 0) {
-        int do_it = 0;
-
+    while (cursor && *cursor != 0) {
         switch (*cursor) {
             case '\n':
                 /* A blank line triggers test case execution or switches
                    to client mode if we don't have the client command yet */
-                if (cliMode == 0)
-                    cliMode = 1;  /* switch to client mode processing */
-                /* skip extra newlines */
-                else
-                    do_it = 1;    /* Do It, we have server and client */
+                if (lastChar != '\n' && (cliArgsSz > 1 || svrArgsSz > 1)) {
+                    if (cliMode == 0)
+                        cliMode = 1;  /* switch to client mode processing */
+                    else
+                        do_it = 1;    /* Do It, we have server and client */
+                }
+            #ifdef DEBUG_SUITE_TESTS
+                else {
+                    /* skip extra new-lines */
+                    printf("skipping extra new line\n");
+                }
+            #endif
+                lastChar = *cursor;
                 cursor++;
                 break;
             case '#':
+                lastChar = *cursor;
                 /* Ignore lines that start with a # */
                 comment = XSTRSEP(&cursor, "\n");
             #ifdef DEBUG_SUITE_TESTS
@@ -595,11 +606,12 @@ static void test_harness(void* vargs)
             default:
                 /* Parameters start with a -. They end in either a newline
                  * or a space. Capture until either, save in Args list. */
+                lastChar = *cursor;
                 if (cliMode)
                     cliArgs[cliArgsSz++] = XSTRSEP(&cursor, " \n");
                 else
                     svrArgs[svrArgsSz++] = XSTRSEP(&cursor, " \n");
-                if (*cursor == '\0') /* eof */
+                if (cursor == NULL || *cursor == '\0') /* eof */
                     do_it = 1;
                 break;
         }
@@ -657,6 +669,7 @@ static void test_harness(void* vargs)
             svrArgsSz = 1;
             cliArgsSz = 1;
             cliMode   = 0;
+            do_it     = 0;
         }
     }
 
@@ -799,6 +812,17 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#if defined(HAVE_CURVE448) && defined(HAVE_ED448)
+    /* add ED448 certificate cipher suite tests */
+    strcpy(argv0[1], "tests/test-ed448.conf");
+    printf("starting ED448 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
@@ -809,6 +833,43 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    /* add dtls grouping tests */
+    strcpy(argv0[1], "tests/test-dtls-group.conf");
+    printf("starting dtls message grouping tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    /* add dtls session resumption tests */
+    strcpy(argv0[1], "tests/test-dtls-resume.conf");
+    printf("starting dtls session resumption tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* add dtls renegotiation tests */
+    strcpy(argv0[1], "tests/test-dtls-reneg-client.conf");
+    printf("starting dtls secure renegotiation client tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    strcpy(argv0[1], "tests/test-dtls-reneg-server.conf");
+    printf("starting dtls secure renegotiation server tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls-sha2.conf");
@@ -1014,7 +1075,7 @@ exit:
     return args.return_code;
 #else
     return NOT_COMPILED_IN;
-#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
     (void)argc;
     (void)argv;
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 }

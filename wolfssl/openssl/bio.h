@@ -33,11 +33,11 @@
 #endif
 
 
-#define BIO_FLAG_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
-#define BIO_FLAG_READ         WOLFSSL_BIO_FLAG_READ
-#define BIO_FLAG_WRITE        WOLFSSL_BIO_FLAG_WRITE
-#define BIO_FLAG_IO_SPECIAL   WOLFSSL_BIO_FLAG_IO_SPECIAL
-#define BIO_FLAG_RETRY        WOLFSSL_BIO_FLAG_RETRY
+#define BIO_FLAGS_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
+#define BIO_FLAGS_READ         WOLFSSL_BIO_FLAG_READ
+#define BIO_FLAGS_WRITE        WOLFSSL_BIO_FLAG_WRITE
+#define BIO_FLAGS_IO_SPECIAL   WOLFSSL_BIO_FLAG_IO_SPECIAL
+#define BIO_FLAGS_SHOULD_RETRY WOLFSSL_BIO_FLAG_RETRY
 
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_new_file                    wolfSSL_BIO_new_file
@@ -52,8 +52,8 @@
 #define BIO_s_bio                       wolfSSL_BIO_s_bio
 #define BIO_s_socket                    wolfSSL_BIO_s_socket
 #define BIO_set_fd                      wolfSSL_BIO_set_fd
+#define BIO_set_close                   wolfSSL_BIO_set_close
 #define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
-
 #define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
 
@@ -68,15 +68,16 @@
 #define BIO_gets      wolfSSL_BIO_gets
 #define BIO_puts      wolfSSL_BIO_puts
 
-#define BIO_should_retry(...)           1
+#define BIO_should_retry                wolfSSL_BIO_should_retry
 
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 #define BIO_TYPE_BASE64 WOLFSSL_BIO_BASE64
 
-#define BIO_printf wolfSSL_BIO_printf
-#define BIO_dump   wolfSSL_BIO_dump
+#define BIO_vprintf wolfSSL_BIO_vprintf
+#define BIO_printf  wolfSSL_BIO_printf
+#define BIO_dump    wolfSSL_BIO_dump
 
 /* BIO info callback */
 #define BIO_CB_FREE   WOLFSSL_BIO_CB_FREE

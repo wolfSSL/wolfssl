@@ -34,12 +34,15 @@ Platform is one of:
     fips-ready
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
+    solaris
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
     $0 windows keep
 usageText
 }
+
+MAKE=make
 
 LINUX_FIPS_VERSION=v3.2.6
 LINUX_FIPS_REPO=git@github.com:wolfSSL/fips.git
@@ -229,6 +232,19 @@ wolfrand)
   FIPS_INCS=( fips.h )
   FIPS_OPTION=rand
   ;;
+solaris)
+  FIPS_VERSION=WCv4-stable
+  FIPS_REPO=git@github.com:wolfssl/fips.git
+  CRYPT_VERSION=WCv4-stable
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  WC_MODS+=( cmac dh ecc sha3 )
+  RNG_VERSION=WCv4-rng-stable
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION=v2
+  MAKE=gmake
+  ;;
 *)
   Usage
   exit 1
@@ -321,7 +337,7 @@ then
 else
     ./configure --enable-fips=$FIPS_OPTION
 fi
-if ! make; then
+if ! $MAKE; then
     echo "fips-check: Make failed. Debris left for analysis."
     exit 3
 fi
@@ -330,12 +346,13 @@ if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
 then
     NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
     if [ -n "$NEWHASH" ]; then
-        sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $CRYPT_SRC_PATH/fips_test.c
+        cp $CRYPT_SRC_PATH/fips_test.c $CRYPT_SRC_PATH/fips_test.c.bak
+        sed "s/^\".*\";/\"${NEWHASH}\";/" $CRYPT_SRC_PATH/fips_test.c.bak >$CRYPT_SRC_PATH/fips_test.c
         make clean
     fi
 fi
 
-if ! make test; then
+if ! $MAKE test; then
     echo "fips-check: Test failed. Debris left for analysis."
     exit 3
 fi

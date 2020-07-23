@@ -20,6 +20,14 @@
  */
 
 
+/* wolfssl */
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
+
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
 /* sctp */
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -32,12 +40,6 @@
 #include <string.h>
 #include <unistd.h>
 
-/* wolfssl */
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
-
-
-
 #define cacert "./certs/ca-cert.pem"
 
 static int err_sys(const char* msg)
@@ -45,9 +47,11 @@ static int err_sys(const char* msg)
     perror(msg);
     exit(EXIT_FAILURE);
 }
+#endif /* WOLFSSL_SCTP && WOLFSSL_DTLS */
 
 int main()
 {
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     int sd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 
     if (sd < 0)
@@ -120,6 +124,7 @@ int main()
     wolfSSL_CTX_free(ctx);
 
     close(sd);
+#endif /* WOLFSSL_SCTP && WOLFSSL_DTLS */
 
     return 0;
 }

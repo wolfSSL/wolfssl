@@ -49,7 +49,7 @@ do_test() {
     #make sure we support session resumption (!NO_SESSION_CACHE)
     # Check the client for the extended master secret disable option. If
     # present we need to run the test twice.
-    options_check=`./examples/client/client -?`
+    options_check=`./examples/client/client '-?'`
     case "$options_check" in
     *$resume_sup_string*)
         echo -e "\nResume test supported";;
@@ -111,15 +111,15 @@ do_test() {
 
 trap do_trap INT TERM
 
-./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -ne 0 ]; then
-    ./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+    ./examples/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
     if [ $? -ne 0 ]; then
         RUN_TEST="Y"
     fi
 fi
 
-./examples/client/client -? 2>&1 | grep -- 'Resume session'
+./examples/client/client '-?' 2>&1 | grep -- 'Resume session'
 if [ $? -ne 0 ]; then
     RUN_TEST="Y"
 fi

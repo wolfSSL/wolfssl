@@ -136,13 +136,11 @@ int testsuite_test(int argc, char** argv)
         func_args echo_args;
         char* myArgv[NUMARGS];
 
-        char argc0[32];
-        char argc1[32];
-        char argc2[32];
+        char arg[3][32];
 
-        myArgv[0] = argc0;
-        myArgv[1] = argc1;
-        myArgv[2] = argc2;
+        myArgv[0] = arg[0];
+        myArgv[1] = arg[1];
+        myArgv[2] = arg[2];
 
         echo_args.argc = 3;
         echo_args.argv = myArgv;
@@ -154,9 +152,9 @@ int testsuite_test(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        strcpy(echo_args.argv[0], "echoclient");
-        strcpy(echo_args.argv[1], "input");
-        strcpy(echo_args.argv[2], outputName);
+        strcpy(arg[0], "testsuite");
+        strcpy(arg[1], "input");
+        strcpy(arg[2], outputName);
 
         /* Share the signal, it has the new port number in it. */
         echo_args.signal = server_args.signal;
@@ -229,49 +227,29 @@ void simple_test(func_args* args)
 {
     THREAD_TYPE serverThread;
 
+    int i;
+
     func_args svrArgs;
     char *svrArgv[9];
-    char argc0s[32];
-    char argc1s[32];
-    char argc2s[32];
-    char argc3s[32];
-    char argc4s[32];
-    char argc5s[32];
-    char argc6s[32];
-    char argc7s[32];
-    char argc8s[32];
+    char argvs[9][32];
 
     func_args cliArgs;
     char *cliArgv[NUMARGS];
-    char argc0c[32];
-    char argc1c[32];
-    char argc2c[32];
+    char argvc[3][32];
 
-    svrArgv[0] = argc0s;
-    svrArgv[1] = argc1s;
-    svrArgv[2] = argc2s;
-    svrArgv[3] = argc3s;
-    svrArgv[4] = argc4s;
-    svrArgv[5] = argc5s;
-    svrArgv[6] = argc6s;
-    svrArgv[7] = argc7s;
-    svrArgv[8] = argc8s;
-    cliArgv[0] = argc0c;
-    cliArgv[1] = argc1c;
-    cliArgv[2] = argc2c;
+    for (i = 0; i < 9; i++)
+        svrArgv[i] = argvs[i];
+    for (i = 0; i < 3; i++)
+        cliArgv[i] = argvc[i];
 
+    strcpy(argvs[0], "SimpleServer");
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
-    cliArgs.argc = 1;
-    cliArgs.argv = cliArgv;
-    cliArgs.return_code = 0;
-
-    strcpy(svrArgs.argv[0], "SimpleServer");
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
                                      !defined(WOLFSSL_TIRTOS)
-        strcpy(svrArgs.argv[svrArgs.argc++], "-p");
-        strcpy(svrArgs.argv[svrArgs.argc++], "0");
+        strcpy(argvs[svrArgs.argc++], "-p");
+        strcpy(argvs[svrArgs.argc++], "0");
     #endif
     /* Set the last arg later, when it is known. */
 
@@ -281,11 +259,15 @@ void simple_test(func_args* args)
     wait_tcp_ready(&svrArgs);
 
     /* Setting the actual port number. */
-    strcpy(cliArgs.argv[0], "SimpleClient");
+    strcpy(argvc[0], "SimpleClient");
+    cliArgs.argv = cliArgv;
+    cliArgs.return_code = 0;
     #ifndef USE_WINDOWS_API
         cliArgs.argc = NUMARGS;
-        strcpy(cliArgs.argv[1], "-p");
-        snprintf(cliArgs.argv[2], sizeof(argc2c), "%d", svrArgs.signal->port);
+        strcpy(argvc[1], "-p");
+        snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
+    #else
+        cliArgs.argc = 1;
     #endif
 
     client_test(&cliArgs);

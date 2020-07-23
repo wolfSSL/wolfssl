@@ -293,10 +293,16 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return BAD_FUNC_ARG;
     }
 
+#ifndef HAVE_FIPS
     /* if set key has already been run then make sure and free existing */
-    if (hmac->macType != 0) {
+    /* This is for async and PIC32MZ situations, and just normally OK,
+       provided the user calls wc_HmacInit() first. That function is not
+       available in FIPS builds. In current FIPS builds, the hashes are
+       not allocating resources. */
+    if (hmac->macType != WC_HASH_TYPE_NONE) {
         wc_HmacFree(hmac);
     }
+#endif
 
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
@@ -979,6 +985,7 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     XMEMSET(hmac, 0, sizeof(Hmac));
+    hmac->macType = WC_HASH_TYPE_NONE;
     hmac->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     hmac->devId = devId;
@@ -1209,9 +1216,16 @@ int wolfSSL_GetHmacMaxSize(void)
         word32 hashSz = wc_HmacSizeByType(type);
         byte   n = 0x1;
 
+        /* RFC 5869 states that the length of output keying material in
+           octets must be L <= 255*HashLen or N = ceil(L/HashLen) */
+
+        if (out == NULL || ((outSz/hashSz) + ((outSz % hashSz) != 0)) > 255)
+            return BAD_FUNC_ARG;
+
         ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
         if (ret != 0)
             return ret;
+
 
         while (outIdx < outSz) {
             int    tmpSz = (n == 1) ? 0 : hashSz;

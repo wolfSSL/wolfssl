@@ -31,11 +31,16 @@ EXTRA_DIST += tests/test.conf \
               tests/test-psk-no-id.conf \
               tests/test-psk-no-id-sha2.conf \
               tests/test-dtls.conf \
+              tests/test-dtls-group.conf \
+              tests/test-dtls-reneg-client.conf \
+              tests/test-dtls-reneg-server.conf \
+              tests/test-dtls-resume.conf \
               tests/test-dtls-sha2.conf \
               tests/test-sctp.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \
               tests/test-ed25519.conf \
+              tests/test-ed448.conf \
               tests/test-enckeys.conf \
               tests/test-maxfrag.conf \
               tests/test-maxfrag-dtls.conf \

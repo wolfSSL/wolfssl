@@ -181,9 +181,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         /* Register callbacks */
         wolfSSL_SetIORecv(client_ctx, recv_client);
         wolfSSL_SetIOSend(client_ctx, send_client);
-    }
 
-    if (ret == 0) {
         /* Create a WOLFSSL object */
         if ((client_ssl = wolfSSL_new(client_ctx)) == NULL) {
             printf("ERROR: failed to create WOLFSSL object\n");
@@ -194,9 +192,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(client_ssl, 1);
-    }
 
-    if (ret == 0) {
         /* Return newly created wolfSSL context and object */
         *ctx = client_ctx;
         *ssl = client_ssl;
@@ -264,9 +260,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         /* Register callbacks */
         wolfSSL_SetIORecv(server_ctx, recv_server);
         wolfSSL_SetIOSend(server_ctx, send_server);
-    }
 
-    if (ret == 0) {
         /* Create a WOLFSSL object */
         if ((server_ssl = wolfSSL_new(server_ctx)) == NULL) {
             printf("ERROR: failed to create WOLFSSL object\n");
@@ -277,9 +271,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(server_ssl, 1);
-    }
 
-    if (ret == 0) {
         /* Return newly created wolfSSL context and object */
         *ctx = server_ctx;
         *ssl = server_ssl;
@@ -406,9 +398,9 @@ void server_thread(void* arg1, void* arg2, void* arg3)
         printf("unable to load static memory");
         ret = -1;
     }
-#endif
 
     if (ret == 0)
+#endif
         ret = wolfssl_server_new(&server_ctx, &server_ssl);
 
     while (ret == 0) {
@@ -458,11 +450,13 @@ int main()
         printf("unable to load static memory");
         ret = -1;
     }
-#endif
 
-    /* Client connection */
     if (ret == 0)
+#endif
+    {
+        /* Client connection */
         ret = wolfssl_client_new(&client_ctx, &client_ssl);
+    }
 
     while (ret == 0) {
         ret = wolfssl_client_connect(client_ssl);
@@ -471,12 +465,12 @@ int main()
         k_sleep(10);
     }
 
-    if (ret == 0)
+    if (ret == 0) {
         printf("Handshake complete\n");
 
-    /* Send HTTP request */
-    if (ret == 0)
+        /* Send HTTP request */
         ret = wolfssl_send(client_ssl, msgHTTPGet);
+    }
     /* Receive HTTP response */
     while (ret == 0) {
         k_sleep(10);

@@ -23,7 +23,6 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
  */
-
 #ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
 #ifdef WOLFSSL_ARMASM_NO_NEON
@@ -5333,3 +5332,7 @@ L_sha512_len_neon_start:
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* !__aarch64__ */
 #endif /* WOLFSSL_ARMASM */
+
+#if defined(__linux__) && defined(__ELF__)
+.section	.note.GNU-stack,"",%progbits
+#endif

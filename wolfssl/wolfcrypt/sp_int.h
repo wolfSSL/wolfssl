@@ -60,6 +60,7 @@
     typedef int32 sp_digit;
     typedef uint32 sp_int_digit;
     typedef uint64 sp_int_word;
+    typedef int64 sp_int_sword;
     #undef SP_WORD_SIZE
     #define SP_WORD_SIZE 32
 #elif !defined(WOLFSSL_SP_ASM)
@@ -67,6 +68,7 @@
     typedef int32_t sp_digit;
     typedef uint32_t sp_int_digit;
     typedef uint64_t sp_int_word;
+    typedef int64_t sp_int_sword;
   #elif SP_WORD_SIZE == 64
     typedef int64_t sp_digit;
     typedef uint64_t sp_int_digit;
@@ -78,6 +80,7 @@
       typedef long int128_t __attribute__ ((mode(TI)));
     #endif
     typedef uint128_t sp_int_word;
+    typedef int128_t sp_int_sword;
   #else
     #error Word size not defined
   #endif
@@ -86,6 +89,7 @@
     typedef uint32_t sp_digit;
     typedef uint32_t sp_int_digit;
     typedef uint64_t sp_int_word;
+    typedef int64_t sp_int_sword;
   #elif SP_WORD_SIZE == 64
     typedef uint64_t sp_digit;
     typedef uint64_t sp_int_digit;
@@ -97,6 +101,7 @@
       typedef long int128_t __attribute__ ((mode(TI)));
     #endif
     typedef uint128_t sp_int_word;
+    typedef int128_t sp_int_sword;
   #else
     #error Word size not defined
   #endif
@@ -104,12 +109,25 @@
 
 #define SP_MASK    (sp_digit)(-1)
 
+
+#if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
+typedef struct sp_ecc_ctx {
+    #ifdef WOLFSSL_SP_384
+    byte data[48*80]; /* stack data */
+    #else
+    byte data[32*80]; /* stack data */
+    #endif
+} sp_ecc_ctx_t;
+#endif
+
 #ifdef WOLFSSL_SP_MATH
 #include <wolfssl/wolfcrypt/random.h>
 
 #if !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
     #if !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
         #define SP_INT_DIGITS        ((512 + SP_WORD_SIZE) / SP_WORD_SIZE)
+    #elif defined(WOLFSSL_SP_384)
+        #define SP_INT_DIGITS        ((384 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #else
         #define SP_INT_DIGITS        ((256 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif
@@ -209,7 +227,6 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 
 
-#define MP_OKAY    0
 #define MP_NO      0
 #define MP_YES     1
 
@@ -219,8 +236,10 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 #define MP_EQ    0
 #define MP_LT    -1
 
+#define MP_OKAY   0
 #define MP_MEM   -2
 #define MP_VAL   -3
+#define FP_WOULDBLOCK -4
 
 #define DIGIT_BIT  SP_WORD_SIZE
 #define MP_MASK    SP_MASK
@@ -270,6 +289,7 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 #define mp_invmod                   sp_invmod
 #define mp_lcm                      sp_lcm
 #define mp_exptmod                  sp_exptmod
+#define mp_exptmod_nct              sp_exptmod
 #define mp_prime_is_prime           sp_prime_is_prime
 #define mp_prime_is_prime_ex        sp_prime_is_prime_ex
 #define mp_exch                     sp_exch

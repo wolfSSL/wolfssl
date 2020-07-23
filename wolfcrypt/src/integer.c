@@ -56,12 +56,6 @@
     #include <stdio.h>
 #endif
 
-#ifndef NO_WOLFSSL_SMALL_STACK
-    #ifndef WOLFSSL_SMALL_STACK
-        #define WOLFSSL_SMALL_STACK
-    #endif
-#endif
-
 #ifdef SHOW_GEN
     #ifndef NO_STDIO_FILESYSTEM
         #include <stdio.h>
@@ -277,23 +271,10 @@ int mp_count_bits (mp_int * a)
 
 int mp_leading_bit (mp_int * a)
 {
-    int bit = 0;
-    mp_int t;
+    int c = mp_count_bits(a);
 
-    if (mp_init_copy(&t, a) != MP_OKAY)
-        return 0;
-
-    while (mp_iszero(&t) == MP_NO) {
-#ifndef MP_8BIT
-        bit = (t.dp[0] & 0x80) != 0;
-#else
-        bit = (t.dp[0] | ((t.dp[1] & 0x01) << 7)) & 0x80 != 0;
-#endif
-        if (mp_div_2d (&t, 8, &t, NULL) != MP_OKAY)
-            break;
-    }
-    mp_clear(&t);
-    return bit;
+    if (c == 0) return 0;
+    return (c % 8) == 0;
 }
 
 int mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b)
@@ -568,6 +549,17 @@ void mp_rshb (mp_int *c, int x)
     mp_digit r, rr;
     mp_digit D = x;
 
+    /* shifting by a negative number not supported */
+    if (x < 0) return;
+
+    /* shift digits first if needed */
+    if (x >= DIGIT_BIT) {
+        mp_rshd(c, x / DIGIT_BIT);
+        /* recalculate number of bits to shift */
+        D = x % DIGIT_BIT;
+    }
+
+    /* zero shifted is always zero */
     if (mp_iszero(c)) return;
 
     /* mask */
@@ -917,6 +909,8 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
   /* default to no */
   dr = 0;
 #endif
+
+  (void)dr;
 
 #ifdef BN_MP_REDUCE_IS_2K_C
   /* if not, is it a unrestricted DR modulus? */
@@ -1911,7 +1905,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   mp_digit buf, mp;
   int     err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
 #ifdef WOLFSSL_SMALL_STACK
-  mp_int* M = NULL;
+  mp_int* M;
 #else
   mp_int M[TAB_SIZE];
 #endif
@@ -1919,7 +1913,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
    * one of many reduction algorithms without modding the guts of
    * the code with if statements everywhere.
    */
-  int     (*redux)(mp_int*,mp_int*,mp_digit);
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
@@ -2002,9 +1996,6 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
 #ifdef BN_MP_MONTGOMERY_REDUCE_C
         /* use slower baseline Montgomery method */
         redux = mp_montgomery_reduce;
-#else
-        err = MP_VAL;
-        goto LBL_M;
 #endif
      }
   } else if (redmode == 1) {
@@ -2012,9 +2003,6 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
      /* setup DR reduction for moduli of the form B**k - b */
      mp_dr_setup(P, &mp);
      redux = mp_dr_reduce;
-#else
-     err = MP_VAL;
-     goto LBL_M;
 #endif
   } else {
 #if defined(BN_MP_REDUCE_2K_SETUP_C) && defined(BN_MP_REDUCE_2K_C)
@@ -2023,10 +2011,12 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
         goto LBL_M;
      }
      redux = mp_reduce_2k;
-#else
+#endif
+  }
+
+  if (redux == NULL) {
      err = MP_VAL;
      goto LBL_M;
-#endif
   }
 
   /* setup result */
@@ -2238,7 +2228,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 #else
   mp_int   res[1];
 #endif
-  int     (*redux)(mp_int*,mp_int*,mp_digit);
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
   /* automatically pick the comba one if available (saves quite a few
      calls/ifs) */
@@ -2846,6 +2836,14 @@ int mp_set_bit (mp_int * a, int b)
 {
     int i = b / DIGIT_BIT, res;
 
+    /*
+     * Require:
+     *  bit index b >= 0
+     *  a->alloc == a->used == 0 if a->dp == NULL
+     */
+    if (b < 0 || (a->dp == NULL && (a->alloc != 0 || a->used != 0)))
+        return MP_VAL;
+
     if (a->dp == NULL || a->used < (int)(i + 1)) {
         /* grow a to accommodate the single bit */
         if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
@@ -3032,6 +3030,7 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
   neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
 
   {
+#ifdef BN_FAST_S_MP_MUL_DIGS_C
     /* can we use the fast multiplier?
      *
      * The fast multiplier can be used if the output will
@@ -3040,7 +3039,6 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
      */
     int     digs = a->used + b->used + 1;
 
-#ifdef BN_FAST_S_MP_MUL_DIGS_C
     if ((digs < (int)MP_WARRAY) &&
         MIN(a->used, b->used) <=
         (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
@@ -4323,6 +4321,8 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 {
   mp_digit *tmpa, *tmpc, mu;
   int       res, ix, oldused;
+
+  if (b > MP_MASK) return MP_VAL;
 
   /* grow c as required */
   if (c->alloc < a->used + 1) {

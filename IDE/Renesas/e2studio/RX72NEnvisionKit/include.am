@@ -1,0 +1,23 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/README
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/wolfssl/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/wolfssl/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/test_HardwareDebug.launch
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/test_main.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/key_data.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/key_data.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/wolf_client.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/wolf_server.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/src/wolfssl_demo.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/common/wolfssl_dummy.c
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/common/strings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/common/unistd.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/common/user_settings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/smc/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/smc/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/smc/smc.scfg

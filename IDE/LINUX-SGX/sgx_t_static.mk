@@ -45,6 +45,7 @@ endif
 Crypto_Library_Name := sgx_tcrypto
 
 Wolfssl_C_Extra_Flags := -DWOLFSSL_SGX
+
 Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/arc4.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/asn.c\
@@ -86,6 +87,8 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sha256.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/sha512.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/signature.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c32.c\
+					$(WOLFSSL_ROOT)/wolfcrypt/src/sp_c64.c\
 					$(WOLFSSL_ROOT)/src/ssl.c\
 					$(WOLFSSL_ROOT)/src/tls.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_encrypt.c\
@@ -105,6 +108,11 @@ ifeq ($(HAVE_WOLFSSL_BENCHMARK), 1)
 	Wolfssl_Include_Paths += -I$(WOLFSSL_ROOT)/wolfcrypt/benchmark/
 endif
 
+ifeq ($(HAVE_WOLFSSL_SP), 1)
+    Wolfssl_C_Extra_Flags += -DWOLFSSL_HAVE_SP_RSA \
+                             -DWOLFSSL_HAVE_SP_DH  \
+                             -DWOLFSSL_HAVE_SP_ECC
+endif
 
 
 Flags_Just_For_C := -Wno-implicit-function-declaration -std=c11

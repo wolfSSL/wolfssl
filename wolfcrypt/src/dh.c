@@ -1231,8 +1231,8 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     int ret = 0;
 #ifndef WOLFSSL_SP_MATH
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int* x = NULL;
-    mp_int* y = NULL;
+    mp_int* x;
+    mp_int* y;
 #else
     mp_int x[1];
     mp_int y[1];
@@ -1485,7 +1485,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         }
         else
 #endif
-#ifdef WOLFSSL_SP_NO_4096
+#ifdef WOLFSSL_SP_4096
         if (mp_count_bits(&key->p) == 4096) {
             ret = sp_ModExp_4096(y, q, p, y);
             if (ret != 0)
@@ -1499,7 +1499,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
     /* SP 800-56Ar3, section 5.6.2.3.1, process step 2 */
 #ifndef WOLFSSL_SP_MATH
             /* calculate (y^q) mod(p), store back into y */
-            if (ret == 0 && mp_exptmod(y, q, p, y) != MP_OKAY)
+            if (mp_exptmod(y, q, p, y) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
 #else
             ret = WC_KEY_SIZE_E;
@@ -1840,10 +1840,10 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int* y = NULL;
+    mp_int* y;
 #ifndef WOLFSSL_SP_MATH
-    mp_int* x = NULL;
-    mp_int* z = NULL;
+    mp_int* x;
+    mp_int* z;
 #endif
 #else
     mp_int y[1];
@@ -2143,7 +2143,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     int ret = 0;
     mp_int* keyP = NULL;
     mp_int* keyG = NULL;
-    mp_int* keyQ = NULL;
 
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
@@ -2203,13 +2202,9 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && q != NULL) {
         if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
             ret = MP_INIT_E;
-        else
-            keyQ = &key->q;
     }
 
     if (ret != 0 && key != NULL) {
-        if (keyQ)
-            mp_clear(keyQ);
         if (keyG)
             mp_clear(keyG);
         if (keyP)

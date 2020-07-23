@@ -3,6 +3,7 @@
 
 nobase_include_HEADERS+= \
                          wolfssl/openssl/asn1.h \
+                         wolfssl/openssl/asn1t.h \
                          wolfssl/openssl/aes.h\
                          wolfssl/openssl/bio.h \
                          wolfssl/openssl/bn.h \
@@ -17,6 +18,8 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/ec.h \
                          wolfssl/openssl/ec25519.h \
                          wolfssl/openssl/ed25519.h \
+                         wolfssl/openssl/ec448.h \
+                         wolfssl/openssl/ed448.h \
                          wolfssl/openssl/engine.h \
                          wolfssl/openssl/err.h \
                          wolfssl/openssl/evp.h \
@@ -37,6 +40,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/rand.h \
                          wolfssl/openssl/rsa.h \
                          wolfssl/openssl/sha.h \
+                         wolfssl/openssl/sha3.h \
                          wolfssl/openssl/ssl23.h \
                          wolfssl/openssl/ssl.h \
                          wolfssl/openssl/stack.h \

@@ -137,6 +137,16 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 #endif
 }
 
+/* allow this to be set to NULL, so logs can be redirected to default output */
+wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void)
+{
+#ifdef DEBUG_WOLFSSL
+    return log_function;
+#else
+    return NULL;
+#endif
+}
+
 
 int wolfSSL_Debugging_ON(void)
 {
@@ -218,6 +228,8 @@ void WOLFSSL_TIME(int count)
 #elif defined(WOLFSSL_TELIT_M2MB)
     #include <stdio.h>
     #include "m2m_log.h"
+#elif defined(WOLFSSL_ANDROID_DEBUG)
+    #include <android/log.h>
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
@@ -260,6 +272,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         printk("%s\n", logMessage);
 #elif defined(WOLFSSL_TELIT_M2MB)
         M2M_LOG_INFO("%s\n", logMessage);
+#elif defined(WOLFSSL_ANDROID_DEBUG)
+        __android_log_print(ANDROID_LOG_VERBOSE, "[wolfSSL]", "%s", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif
@@ -341,6 +355,11 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
                 msg, ret);
         wolfssl_log(LEAVE_LOG , buffer);
     }
+}
+
+WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
+{
+    return loggingEnabled;
 }
 #endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
 #endif /* DEBUG_WOLFSSL */
@@ -763,41 +782,62 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
-
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* empties out the error queue into the file */
+static int wc_ERR_dump_to_file (const char *str, size_t len, void *u)
+{
+    XFILE fp = (XFILE ) u;
+    fprintf(fp, "%-*.*s\n", (int)len, (int)len, str);
+    return 0;
+}
+
+/* This callback allows the application to provide a custom error printing
+ * function. */
+void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
+                            void *u)
+{
+    WOLFSSL_ENTER("wc_ERR_print_errors_cb");
+
+    if (cb == NULL) {
+        /* Invalid param */
+        return;
+    }
+
+    if (wc_LockMutex(&debug_mutex) != 0)
+    {
+        WOLFSSL_MSG("Lock debug mutex failed");
+    }
+    else
+    {
+        /* free all nodes from error queue and print them to file */
+        struct wc_error_queue *current;
+        struct wc_error_queue *next;
+
+        current = (struct wc_error_queue *)wc_errors;
+        while (current != NULL)
+        {
+            next = current->next;
+            cb(current->error, strlen(current->error), u);
+            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+            current = next;
+        }
+
+        /* set global pointers to match having been freed */
+        wc_errors = NULL;
+        wc_last_node = NULL;
+
+        wc_UnLockMutex(&debug_mutex);
+    }
+}
+
 void wc_ERR_print_errors_fp(XFILE fp)
 {
     WOLFSSL_ENTER("wc_ERR_print_errors_fp");
 
-        if (wc_LockMutex(&debug_mutex) != 0)
-        {
-            WOLFSSL_MSG("Lock debug mutex failed");
-        }
-        else
-        {
-            /* free all nodes from error queue and print them to file */
-            {
-                struct wc_error_queue *current;
-                struct wc_error_queue *next;
-
-                current = (struct wc_error_queue *)wc_errors;
-                while (current != NULL)
-                {
-                    next = current->next;
-                    fprintf(fp, "%s\n", current->error);
-                    XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-                    current = next;
-                }
-
-                /* set global pointers to match having been freed */
-                wc_errors = NULL;
-                wc_last_node = NULL;
-            }
-
-            wc_UnLockMutex(&debug_mutex);
-        }
+    /* Send all errors to the wc_ERR_dump_to_file function */
+    wc_ERR_print_errors_cb(wc_ERR_dump_to_file, fp);
 }
+
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
 
 #endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */

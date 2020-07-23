@@ -835,7 +835,7 @@ void wolfSSL_OCSP_REQUEST_free(OcspRequest* request)
 
 int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request, unsigned char** data)
 {
-    word32 size;
+    int size;
 
     size = EncodeOcspRequest(request, NULL, 0);
     if (size <= 0 || data == NULL)

@@ -299,7 +299,7 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     return 0;
 }
 
-#else /* STD_PERI_LIB */
+#else /* Standard Peripheral Library */
 
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
     CRYP_KeyInitTypeDef* keyInit)
@@ -363,9 +363,14 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 
 #ifdef WOLFSSL_STM32_PKA
 #include <stdint.h>
+
+#if defined(WOLFSSL_STM32L5)
+#include <stm32l5xx_hal_conf.h>
+#include <stm32l5xx_hal_pka.h>
+#else
 #include <stm32wbxx_hal_conf.h>
 #include <stm32wbxx_hal_pka.h>
-
+#endif
 extern PKA_HandleTypeDef hpka;
 
 /* Reverse array in memory (in place) */
@@ -614,7 +619,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
 #endif
 #ifdef ECC192
     case 24:
-        (uint8_t)*prime = stm32_ecc192_prime;
+        *prime = stm32_ecc192_prime;
         *coef = stm32_ecc192_coef;
         *GenPointX = stm32_ecc192_pointX;
         *GenPointY = stm32_ecc192_pointY;
@@ -804,7 +809,6 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     PKA_ECDSASignInTypeDef pka_ecc;
     PKA_ECDSASignOutTypeDef pka_ecc_out;
     int size;
-    int szrbin;
     int status;
     mp_int gen_k;
     mp_int order_mp;

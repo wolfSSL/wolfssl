@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("wolfSSL")]
 [assembly: AssemblyProduct("wolfSSL-Example-IOCallbacks")]
-[assembly: AssemblyCopyright("Copyright wolfSSL 2015")]
+[assembly: AssemblyCopyright("Copyright wolfSSL 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

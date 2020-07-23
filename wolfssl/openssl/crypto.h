@@ -35,6 +35,7 @@
 
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
+WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
@@ -45,6 +46,7 @@ WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
+#define OpenSSL_version_num wolfSSL_OpenSSL_version_num
 
 #ifdef WOLFSSL_QT
     #define SSLEAY_VERSION 0x10001000L

@@ -154,14 +154,14 @@ static void hw_gpio_init(void)
 
 static void hw_uart_init(void)
 {
-    register uint16_t sbr, brfa;
-    uint8_t temp;
-
 #ifdef FREESCALE_KSDK_BM
     PORT_SetPinMux(UART_TX_PORT, UART_TX_PIN, UART_TX_MUX);
     CLOCK_SetLpuartClock(1); /* MCGPLLCLK */
     DbgConsole_Init((uint32_t)UART_PORT, UART_BAUD, DEBUG_CONSOLE_DEVICE_TYPE_LPUART, SYS_CLK_HZ);
 #else
+    register uint16_t sbr, brfa;
+    uint8_t temp;
+
     #ifdef WOLFSSL_FRDM_K64
         /* Enable UART core clock ONLY for FRDM-K64F */
         SIM->SCGC4 |= SIM_SCGC4_UART0_MASK;
@@ -217,8 +217,6 @@ static void hw_rtc_init(void)
 
     /* Enable OSC */
     if ((RTC->CR & RTC_CR_OSCE_MASK) == 0) {
-        int i;
-
         /* Turn on */
         RTC->CR |= RTC_CR_OSCE_MASK;
 

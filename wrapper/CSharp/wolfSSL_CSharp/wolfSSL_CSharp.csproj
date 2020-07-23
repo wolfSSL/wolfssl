@@ -59,6 +59,7 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="wolfSSL.cs" />
+    <Compile Include="X509.cs" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
@@ -67,7 +68,8 @@
   <PropertyGroup>
     <PreBuildEvent>xcopy "$(ProjectDir)..\..\..\certs\server-key.pem" "$(TargetDir)" /Y /R
 xcopy "$(ProjectDir)..\..\..\certs\server-cert.pem" "$(TargetDir)" /Y /R
-xcopy "$(ProjectDir)..\..\..\certs\dh2048.pem" "$(TargetDir)" /Y /R</PreBuildEvent>
+xcopy "$(ProjectDir)..\..\..\certs\dh2048.pem" "$(TargetDir)" /Y /R
+xcopy "$(ProjectDir)..\..\..\certs\ca-cert.pem" "$(TargetDir)" /Y /R</PreBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

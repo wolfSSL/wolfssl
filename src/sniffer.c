@@ -1357,43 +1357,55 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 #if defined(HAVE_SNI) || defined(WOLFSSL_SNIFFER_WATCH)
 
 static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
-                const char* keyFile, int typeKey,
+                const char* keyFile, int keySz, int typeKey,
                 const char* password)
 {
     byte* loadBuf;
     long fileSz = 0;
     XFILE file;
-    int ret;
+    int ret = -1;
 
     if (keyBuf == NULL || keyBufSz == NULL || keyFile == NULL) {
         return -1;
     }
 
-    file = XFOPEN(keyFile, "rb");
-    if (file == XBADFILE) return -1;
-    if(XFSEEK(file, 0, XSEEK_END) != 0) {
-        XFCLOSE(file);
-        return -1;
-    }
-    fileSz = XFTELL(file);
-    if (fileSz > MAX_WOLFSSL_FILE_SIZE || fileSz < 0) {
-        XFCLOSE(file);
-        return -1;
-    }
-    XREWIND(file);
+    if (keySz == 0) {
+        /* load from file */
+        file = XFOPEN(keyFile, "rb");
+        if (file == XBADFILE) return -1;
+        if(XFSEEK(file, 0, XSEEK_END) != 0) {
+            XFCLOSE(file);
+            return -1;
+        }
+        fileSz = XFTELL(file);
+        if (fileSz > MAX_WOLFSSL_FILE_SIZE || fileSz < 0) {
+            XFCLOSE(file);
+            return -1;
+        }
+        XREWIND(file);
 
-    loadBuf = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_FILE);
-    if (loadBuf == NULL) {
+        loadBuf = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_FILE);
+        if (loadBuf == NULL) {
+            XFCLOSE(file);
+            return -1;
+        }
+
+        ret = (int)XFREAD(loadBuf, 1, fileSz, file);
         XFCLOSE(file);
-        return -1;
+
+        if (ret != fileSz) {
+            XFREE(loadBuf, NULL, DYNAMIC_TYPE_FILE);
+            return -1;
+        }
     }
-
-    ret = (int)XFREAD(loadBuf, 1, fileSz, file);
-    XFCLOSE(file);
-
-    if (ret != fileSz) {
-        XFREE(loadBuf, NULL, DYNAMIC_TYPE_FILE);
-        return -1;
+    else {
+        /* use buffer directly */
+        loadBuf = (byte*)XMALLOC(keySz, NULL, DYNAMIC_TYPE_FILE);
+        if (loadBuf == NULL) {
+            return -1;
+        }
+        fileSz = keySz;
+        XMEMCPY(loadBuf, keyFile, fileSz);        
     }
 
     if (typeKey == WOLFSSL_FILETYPE_PEM) {
@@ -1468,7 +1480,7 @@ static int CreateWatchSnifferServer(char* error)
 
 
 static int SetNamedPrivateKey(const char* name, const char* address, int port,
-            const char* keyFile, int typeKey, const char* password, char* error)
+    const char* keyFile, int keySz, int typeKey, const char* password, char* error)
 {
     SnifferServer* sniffer;
     int            ret;
@@ -1499,7 +1511,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         namedKey->name[MAX_SERVER_NAME-1] = '\0';
 
         ret = LoadKeyFile(&namedKey->key, &namedKey->keySz,
-                          keyFile, type, password);
+                          keyFile, keySz, type, password);
         if (ret < 0) {
             SetError(KEY_FILE_STR, error, NULL, 0);
             FreeNamedKey(namedKey);
@@ -1558,7 +1570,13 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
                                                  sniffer->ctx, (void*)password);
     #endif
         }
-        ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
+        if (keySz == 0) {
+            ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
+        }
+        else {
+            ret = wolfSSL_CTX_use_PrivateKey_buffer(sniffer->ctx, 
+                (const byte*)keyFile, keySz, type);    
+        }
         if (ret != WOLFSSL_SUCCESS) {
             SetError(KEY_FILE_STR, error, NULL, 0);
             if (isNew)
@@ -1602,7 +1620,30 @@ int ssl_SetNamedPrivateKey(const char* name,
     TraceSetNamedServer(name, address, port, keyFile);
 
     wc_LockMutex(&ServerListMutex);
-    ret = SetNamedPrivateKey(name, address, port, keyFile,
+    ret = SetNamedPrivateKey(name, address, port, keyFile, 0,
+                             typeKey, password, error);
+    wc_UnLockMutex(&ServerListMutex);
+
+    if (ret == 0)
+        Trace(NEW_SERVER_STR);
+
+    return ret;
+}
+
+
+int ssl_SetNamedPrivateKeyBuffer(const char* name,
+                                const char* address, int port,
+                                const char* keyBuf, int keySz, 
+                                int typeKey, const char* password, 
+                                char* error)
+{
+    int ret;
+
+    TraceHeader();
+    TraceSetNamedServer(name, address, port, NULL);
+
+    wc_LockMutex(&ServerListMutex);
+    ret = SetNamedPrivateKey(name, address, port, keyBuf, keySz,
                              typeKey, password, error);
     wc_UnLockMutex(&ServerListMutex);
 
@@ -1626,7 +1667,28 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
     TraceSetServer(address, port, keyFile);
 
     wc_LockMutex(&ServerListMutex);
-    ret = SetNamedPrivateKey(NULL, address, port, keyFile,
+    ret = SetNamedPrivateKey(NULL, address, port, keyFile, 0,
+                             typeKey, password, error);
+    wc_UnLockMutex(&ServerListMutex);
+
+    if (ret == 0)
+        Trace(NEW_SERVER_STR);
+
+    return ret;
+}
+
+int ssl_SetPrivateKeyBuffer(const char* address, int port,
+                            const char* keyBuf, int keySz, 
+                            int typeKey, const char* password, 
+                            char* error)
+{
+    int ret;
+
+    TraceHeader();
+    TraceSetServer(address, port, NULL);
+
+    wc_LockMutex(&ServerListMutex);
+    ret = SetNamedPrivateKey(NULL, address, port, keyBuf, keySz,
                              typeKey, password, error);
     wc_UnLockMutex(&ServerListMutex);
 
@@ -1875,14 +1937,14 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             }
         }
 
-        if (ret == 0) {
         #ifdef WC_RSA_BLINDING
+        if (ret == 0) {
             ret = wc_RsaSetRNG(&key, session->sslServer->rng);
             if (ret != 0) {
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             }
-        #endif
         }
+        #endif
 
         if (ret == 0) {
             session->keySz = length * WOLFSSL_BIT_SIZE;
@@ -4580,7 +4642,7 @@ int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
     keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
                                           WOLFSSL_FILETYPE_ASN1;
 
-    ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, keyType, password);
+    ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, 0, keyType, password);
     if (ret < 0) {
         SetError(KEY_FILE_STR, error, NULL, 0);
         XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);

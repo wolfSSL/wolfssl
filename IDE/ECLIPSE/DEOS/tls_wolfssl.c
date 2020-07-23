@@ -380,10 +380,7 @@ void wolfssl_server_test(uintData_t statusPtr)
     int  socketAddrLen=sizeof(sockaddr);
     char rx_buf[RX_BUF_SIZE];
     char tx_buf[TX_BUF_SIZE];
-    unsigned  char attempt_conn;
     clientConnectionHandleType TCPserverHandle;
-    void * sendBuffer;
-    DWORD bufferSizeInBytes;
 
     WOLFSSL * ssl;
     WOLFSSL_CTX * ctx;
@@ -572,7 +569,6 @@ int  wolfsslRunTests (void)
 {
     thread_handle_t TCPhandle;
     threadStatus ts;
-    int ret;
 
     #if !defined(NO_CRYPT_TEST)
         wolfcrypt_test(NULL);

@@ -238,6 +238,8 @@ WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key);
+WOLFSSL_API int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out,
+                              word32 outLen, RsaKey* key, int pad_type);
 WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                                         enum wc_HashType hash, int mgf,
                                         RsaKey* key);
@@ -278,9 +280,8 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
-#ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
-#endif
+WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+
 
 #ifdef WC_RSA_BLINDING
     WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
@@ -349,6 +350,15 @@ WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
                                           const byte* e, word32 eSz,
                                           int nlen, int* isPrime);
 #endif
+
+WOLFSSL_LOCAL int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
+        word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
+        enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen,
+        int saltLen, int bits, void* heap);
+WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
+                                   byte padValue, int padType, enum wc_HashType hType,
+                                   int mgf, byte* optLabel, word32 labelLen, int saltLen,
+                                   int bits, void* heap);
 
 #endif /* HAVE_USER_RSA */
 

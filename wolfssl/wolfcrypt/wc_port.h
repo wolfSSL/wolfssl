@@ -156,8 +156,10 @@
 
 #else
     #ifndef SINGLE_THREADED
-        #define WOLFSSL_PTHREADS
-        #include <pthread.h>
+        #ifndef  WOLFSSL_USER_MUTEX
+            #define WOLFSSL_PTHREADS
+            #include <pthread.h>
+        #endif
     #endif
     #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
         !defined(NO_FILESYSTEM)
@@ -238,6 +240,8 @@
         typedef struct k_mutex wolfSSL_Mutex;
     #elif defined(WOLFSSL_TELIT_M2MB)
         typedef M2MB_OS_MTX_HANDLE wolfSSL_Mutex;
+    #elif defined(WOLFSSL_USER_MUTEX)
+        /* typedef User_Mutex wolfSSL_Mutex; */
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -245,7 +249,7 @@
 
 /* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ or STM32 */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
-    defined(STM32_CRYPTO)
+    defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -527,7 +531,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #define NEED_TMP_TIME
 
-#elif defined(WOLFSSL_XILINX) && defined(FREERTOS)
+#elif defined(WOLFSSL_XILINX)
     #define USER_TIME
     #include <time.h>
 
@@ -553,6 +557,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
+    extern time_t pic32_time(time_t* timer);
     #define XTIME(t1)       pic32_time((t1))
     #define XGMTIME(c, t)   gmtime((c))
 
@@ -683,7 +688,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 #if !defined(XVALIDATE_DATE) && !defined(HAVE_VALIDATE_DATE)
     #define USE_WOLF_VALIDDATE
-    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+    #define XVALIDATE_DATE(d, f, t) wc_ValidateDate((d), (f), (t))
 #endif
 
 /* wolf struct tm and time_t */
@@ -765,6 +770,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     WOLFSSL_API int wolfSSL_SetHandleCb(wolfSSL_DSP_Handle_cb in);
     WOLFSSL_LOCAL int wolfSSL_InitHandle();
     WOLFSSL_LOCAL void wolfSSL_CleanupHandle();
+#endif
+
+#ifdef WOLFSSL_SCE
+    #ifndef WOLFSSL_SCE_GSCE_HANDLE
+        #define WOLFSSL_SCE_GSCE_HANDLE g_sce
+    #endif
 #endif
 
 #ifdef __cplusplus

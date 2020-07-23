@@ -636,11 +636,10 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte l)
+static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, byte l)
 {
     byte i;
     byte *s8 = (byte *)sha3->s;
-    byte padChar = 0x06; /* NIST SHA-3 */
 
     sha3->t[p * 8 - 1]  = 0x00;
 #ifdef WOLFSSL_HASH_FLAGS
@@ -709,6 +708,11 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         return BAD_FUNC_ARG;
     }
 
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
     #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
@@ -759,7 +763,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    ret = Sha3Final(sha3, hash, p, len);
+    ret = Sha3Final(sha3, 0x06, hash, p, len);
     if (ret != 0)
         return ret;
 
@@ -1137,6 +1141,85 @@ int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
         *flags = sha3->flags;
     }
     return 0;
+}
+#endif
+
+#if defined(WOLFSSL_SHAKE256)
+/* Initialize the state for a Shake256 hash operation.
+ *
+ * shake  wc_Shake object holding state.
+ * heap   Heap reference for dynamic memory allocation. (Used in async ops.)
+ * devId  Device identifier for asynchronous operation.
+ * returns 0 on success.
+ */
+int wc_InitShake256(wc_Shake* shake, void* heap, int devId)
+{
+    return wc_InitSha3(shake, heap, devId);
+}
+
+/* Update the SHAKE256 hash state with message data.
+ *
+ * shake  wc_Shake object holding state.
+ * data  Message data to be hashed.
+ * len   Length of the message data.
+ * returns 0 on success.
+ */
+int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
+{
+    if (shake == NULL || (data == NULL && len > 0)) {
+         return BAD_FUNC_ARG;
+    }
+
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
+    return Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
+}
+
+/* Calculate the SHAKE256 hash based on all the message data seen.
+ * The state is initialized ready for a new message to hash.
+ *
+ * shake  wc_Shake object holding state.
+ * hash  Buffer to hold the hash result. Must be at least 64 bytes.
+ * returns 0 on success.
+ */
+int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
+{
+    int ret;
+
+    if (shake == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, hashLen);
+    if (ret != 0)
+        return ret;
+
+    return InitSha3(shake);  /* reset state */
+}
+
+/* Dispose of any dynamically allocated data from the SHAKE256 operation.
+ * (Required for async ops.)
+ *
+ * shake  wc_Shake object holding state.
+ * returns 0 on success.
+ */
+void wc_Shake256_Free(wc_Shake* shake)
+{
+    wc_Sha3Free(shake);
+}
+
+/* Copy the state of the SHA3-512 operation.
+ *
+ * src  wc_Shake object holding state top copy.
+ * dst  wc_Shake object to copy into.
+ * returns 0 on success.
+ */
+int wc_Shake256_Copy(wc_Shake* src, wc_Shake* dst)
+{
+    return wc_Sha3Copy(src, dst);
 }
 #endif
 

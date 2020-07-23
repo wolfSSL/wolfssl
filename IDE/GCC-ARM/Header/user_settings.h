@@ -189,14 +189,17 @@ extern "C" {
 
     /* Use alternate ECC size for ECC math */
     #ifdef USE_FAST_MATH
+        /* MAX ECC BITS = ROUND8(MAX ECC) * 2 */
         #ifdef NO_RSA
             /* Custom fastmath size if not using RSA */
-            /* MAX = ROUND32(ECC BITS 256) + SIZE_OF_MP_DIGIT(32) */
             #undef  FP_MAX_BITS
-            #define FP_MAX_BITS     (256 + 32)
+            #define FP_MAX_BITS     (256 * 2)
         #else
             #undef  ALT_ECC_SIZE
             #define ALT_ECC_SIZE
+            /* wolfSSL will compute the FP_MAX_BITS_ECC, but it can be overriden */
+            //#undef  FP_MAX_BITS_ECC
+            //#define FP_MAX_BITS_ECC (256 * 2)
         #endif
 
         /* Speedups specific to curve */

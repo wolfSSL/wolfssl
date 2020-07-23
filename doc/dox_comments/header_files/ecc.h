@@ -395,6 +395,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     byte digest[] = { initialize with message hash };
     wc_InitRng(&rng); // initialize rng
     wc_ecc_init(&key); // initialize key
+    mp_init(&r); // initialize r component
+    mp_init(&s); // initialize s component
     wc_ecc_make_key(&rng, 32, &key); // make public/private key pair
     ret = wc_ecc_sign_hash_ex(digest, sizeof(digest), &rng, &key, &r, &s);
 
@@ -1012,7 +1014,7 @@ int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
     byte buff[] = { initialize with ANSI X9.63 formatted key };
 
     ecc_key pubKey;
-    wc_ecc_init_key(&pubKey);
+    wc_ecc_init(&pubKey);
 
     ret = wc_ecc_import_x963(buff, sizeof(buff), &pubKey);
     if ( ret != 0) {
@@ -1081,7 +1083,7 @@ NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at compile
     byte priv[] = { initialize with the raw private key };
 
     ecc_key key;
-    wc_ecc_init_key(&key);
+    wc_ecc_init(&key);
     ret = wc_ecc_import_private_key(priv, sizeof(priv), pub, sizeof(pub),
     &key);
     if ( ret != 0) {
@@ -1750,8 +1752,51 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
-    \sa Wc_ecc_encrypt
+    \sa wc_ecc_encrypt
 */
 WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+
+/*!
+    \ingroup ECC
+
+    \brief Enable ECC support for non-blocking operations. Supported for 
+        Single Precision (SP) math with the following build options:
+            WOLFSSL_SP_NONBLOCK
+            WOLFSSL_SP_SMALL
+            WOLFSSL_SP_NO_MALLOC
+            WC_ECC_NONBLOCK
+
+    \return 0 Returned upon successfully setting the callback context the input message
+
+    \param key pointer to the ecc_key object
+    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP 
+
+    _Example_
+    \code
+    int ret;
+    ecc_key ecc;
+    ecc_nb_ctx_t nb_ctx;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret == 0) {
+        ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
+        if (ret == 0) {
+            do {
+                ret = wc_ecc_verify_hash_ex(
+                    &r, &s,       // r/s as mp_int
+                    hash, hashSz, // computed hash digest
+                    &verify_res,  // verification result 1=success
+                    &key
+                );
+
+                // TODO: Real-time work can be called here 
+            } while (ret == FP_WOULDBLOCK);
+        }
+        wc_ecc_free(&key);
+    }
+    \endcode
+*/
+WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);

@@ -595,7 +595,7 @@ extern unsigned int my_rng_seed_gen(void);
 #endif
 
 #if 1
-    #define FP_MAX_BITS_ECC 512
+    #define FP_MAX_BITS_ECC (256 + 32)
 #endif
 
 /* ------------------------------------------------------------------------- */

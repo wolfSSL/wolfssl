@@ -37,7 +37,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef HAVE_CHACHA
+#if defined(HAVE_CHACHA) && !defined(WOLFSSL_ARMASM)
 
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

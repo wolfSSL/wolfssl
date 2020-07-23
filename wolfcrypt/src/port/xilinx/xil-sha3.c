@@ -130,13 +130,17 @@ int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* out)
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifdef WOLFSSL_XILINX_CRYPTO_OLD
+        if (wc_Sha3_384_Copy(sha, &s) != 0) {
+            WOLFSSL_MSG("Unable to copy SHA3 structure");
+            return MEMORY_E;
+        }
 
-    if (wc_Sha3_384_Copy(sha, &s) != 0) {
-        WOLFSSL_MSG("Unable to copy SHA3 structure");
-        return MEMORY_E;
-    }
-
-    return wc_Sha3_384_Final(&s, out);
+        return wc_Sha3_384_Final(&s, out);
+#else
+    XSecure_Sha3_ReadHash(&(sha->hw), out);
+    return 0;
+#endif
 }
 
 
@@ -151,8 +155,13 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_XILINX_CRYPTO_OLD
     XMEMCPY((byte*)dst, (byte*)src, sizeof(wc_Sha3));
     return 0;
+#else
+    WOLFSSL_MSG("Copy of SHA3 struct not supported with this build");
+    return -1;
+#endif
 }
 
 #endif

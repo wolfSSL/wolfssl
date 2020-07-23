@@ -33,10 +33,12 @@
         <li>\ref ChaCha</li>
         <li>\ref ChaCha20Poly1305</li>
         <li>\ref Curve25519</li>
+        <li>\ref Curve448</li>
         <li>\ref DSA</li>
         <li>\ref Diffie-Hellman</li>
         <li>\ref ECC</li>
         <li>\ref ED25519</li>
+        <li>\ref ED448</li>
         <li>\ref HC128</li>
         <li>\ref HMAC</li>
         <li>\ref IDEA</li>
