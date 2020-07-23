@@ -4913,35 +4913,50 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     #else
         mp_int* sign_k = NULL;
     #endif
+    #ifdef WC_ECC_NONBLOCK_ONLY
+        /* perform blocking call to non-blocking function */
+        ecc_nb_ctx_t nb_ctx;
+        XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+    #endif
     #ifndef WOLFSSL_SP_NO_256
         if (ecc_sets[key->idx].id == ECC_SECP256R1) {
-        #ifdef WC_ECC_NONBLOCK
+        #if defined(WC_ECC_NONBLOCK) || defined(WC_ECC_NONBLOCK_ONLY)
             if (key->nb_ctx) {
                 return sp_ecc_sign_256_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, 
                     &key->k, r, s, sign_k, key->heap);
             }
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            do { /* perform blocking call to non-blocking function */
+                err = sp_ecc_sign_256_nb(&nb_ctx.sp_ctx, in, inlen, rng, 
+                    &key->k, r, s, sign_k, key->heap);
+            } while (err == FP_WOULDBLOCK);
+            return err;
+            #endif
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
             return sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, sign_k, 
                 key->heap);
-        #else
-            return NOT_COMPILED_IN;
         #endif
         }
     #endif
     #ifdef WOLFSSL_SP_384
         if (ecc_sets[key->idx].id == ECC_SECP384R1) {
-        #ifdef WC_ECC_NONBLOCK
+        #if defined(WC_ECC_NONBLOCK) || defined(WC_ECC_NONBLOCK_ONLY)
             if (key->nb_ctx) {
                 return sp_ecc_sign_384_nb(&key->nb_ctx->sp_ctx, in, inlen, rng, 
                     &key->k, r, s, sign_k, key->heap);
             }
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            do { /* perform blocking call to non-blocking function */
+                err = sp_ecc_sign_384_nb(&nb_ctx.sp_ctx, in, inlen, rng, 
+                    &key->k, r, s, sign_k, key->heap);
+            } while (err == FP_WOULDBLOCK);
+            return err;
+            #endif
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
             return sp_ecc_sign_384(in, inlen, rng, &key->k, r, s, sign_k, 
                 key->heap);
-        #else
-            return NOT_COMPILED_IN;
         #endif
         }
     #endif
@@ -6013,37 +6028,54 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
     #endif
     ) {
+    #ifdef WC_ECC_NONBLOCK_ONLY
+        /* perform blocking call to non-blocking function */
+        ecc_nb_ctx_t nb_ctx;
+        XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+    #endif
     #ifndef WOLFSSL_SP_NO_256
         if (ecc_sets[key->idx].id == ECC_SECP256R1) {
-        #ifdef WC_ECC_NONBLOCK
+        #if defined(WC_ECC_NONBLOCK) || defined(WC_ECC_NONBLOCK_ONLY)
             if (key->nb_ctx) {
                 return sp_ecc_verify_256_nb(&key->nb_ctx->sp_ctx, hash, hashlen, 
                     key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, 
                     key->heap);
             }
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            do { /* perform blocking call to non-blocking function */
+                err = sp_ecc_verify_256_nb(&nb_ctx->sp_ctx, hash, hashlen, 
+                    key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, 
+                    key->heap);
+            } while (err == FP_WOULDBLOCK);
+            return err;
+            #endif
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
             return sp_ecc_verify_256(hash, hashlen, key->pubkey.x, 
                 key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
-        #else
-            return NOT_COMPILED_IN;
         #endif
         }
     #endif
     #ifdef WOLFSSL_SP_384
         if (ecc_sets[key->idx].id == ECC_SECP384R1) {
-        #ifdef WC_ECC_NONBLOCK
+        #if defined(WC_ECC_NONBLOCK) || defined(WC_ECC_NONBLOCK_ONLY)
             if (key->nb_ctx) {
                 return sp_ecc_verify_384_nb(&key->nb_ctx->sp_ctx, hash, hashlen, 
                     key->pubkey.x,  key->pubkey.y, key->pubkey.z, r, s, res, 
                     key->heap);
             }
+            #ifdef WC_ECC_NONBLOCK_ONLY
+            do { /* perform blocking call to non-blocking function */
+                err = sp_ecc_verify_384_nb(&nb_ctx.sp_ctx, hash, hashlen, 
+                    key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, 
+                    key->heap);
+            } while (err == FP_WOULDBLOCK);
+            return err;
+            #endif
         #endif
         #ifndef WC_ECC_NONBLOCK_ONLY
             return sp_ecc_verify_384(hash, hashlen, key->pubkey.x, 
                 key->pubkey.y, key->pubkey.z, r, s, res, key->heap);
-        #else
-            return NOT_COMPILED_IN;
         #endif
         }
     #endif
