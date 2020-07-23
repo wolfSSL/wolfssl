@@ -593,7 +593,6 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                         printf("SSL_write bench error %d!\n", err);
                         if (!exitWithRet)
                             err_sys("SSL_write failed");
-                        ret = err;
                         goto doExit;
                     }
                     tx_time += current_time(0) - start;

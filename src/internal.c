@@ -10007,6 +10007,8 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
     /* Determine if verify was okay */
     if (ret == 0) {
         verify_ok = 1;
+        use_cb = 1; /* use verify callback on success, in case callback
+                     * could force fail a cert */
     }
 
     /* Determine if verify callback should be used */

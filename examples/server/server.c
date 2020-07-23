@@ -381,8 +381,10 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                         err_sys_ex(runWithErrors, "SSL_read failed");
                         break;
                     }
-                    if (err == WOLFSSL_ERROR_ZERO_RETURN)
+                    if (err == WOLFSSL_ERROR_ZERO_RETURN) {
+                        free(buffer);
                         return WOLFSSL_ERROR_ZERO_RETURN;
+                    }
                 }
                 else {
                     rx_pos += ret;
@@ -1813,7 +1815,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
                             (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),
-                  myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ? myVerify : NULL);
+                  (myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ||
+                   myVerifyAction == VERIFY_FORCE_FAIL) ? myVerify : NULL);
 
     #ifdef TEST_BEFORE_DATE
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
