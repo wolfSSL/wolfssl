@@ -3898,7 +3898,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(
 WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509);
 
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef HAVE_PK_CALLBACKS
 WOLFSSL_API int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl);
