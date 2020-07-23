@@ -140,6 +140,36 @@ WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
 /*!
     \ingroup Random
 
+    \brief Creates a new random number.
+
+
+    \return rng on success
+    \return NULL on error
+
+
+    \param rng random number generator initialized with wc_InitRng
+
+    _Example_
+    \code
+    RNG  rng;
+    byte nonce[] = { initialize nonce };
+    word32 nonceSz = sizeof(nonce);
+
+    wc_rng_new(&nonce, nonceSz, &heap);
+
+
+    \endcode
+
+    \sa wc_InitRng
+    \sa wc_rng_free
+    \sa wc_FreeRng
+    \sa wc_RNG_HealthTest
+*/
+WOLFSSL_API WC_RNG* wc_rng_new(byte* nonce, word32 nonceSz, void* heap)
+
+/*!
+    \ingroup Random
+
     \brief Calls wc_RNG_GenerateBlock to copy a byte of pseudorandom
     data to b. Will reseed rng if needed.
 
@@ -210,6 +240,36 @@ WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
     \sa wc_RNG_HealthTest
 */
 WOLFSSL_API int  wc_FreeRng(WC_RNG*);
+
+/*!
+    \ingroup Random
+
+    \brief Should be called when RNG no longer needed in order to securely
+    free rng.
+
+
+    \param rng random number generator initialized with wc_InitRng
+
+    _Example_
+    \code
+    RNG  rng;
+    byte nonce[] = { initialize nonce };
+    word32 nonceSz = sizeof(nonce);
+
+    rng = wc_rng_new(&nonce, nonceSz, &heap);
+
+    // use rng
+
+    wc_rng_free(&rng);
+
+    \endcode
+
+    \sa wc_InitRng
+    \sa wc_rng_new
+    \sa wc_FreeRng
+    \sa wc_RNG_HealthTest
+*/
+WOLFSSL_API WC_RNG* wc_rng_free(WC_RNG* rng);
 
 /*!
     \ingroup Random
