@@ -1285,7 +1285,7 @@ static int bench_tls_server(info_t* info)
             ret = SocketWaitClient(info);
         #ifdef BENCH_USE_NONBLOCK
             if (ret == -2) {
-                sleep(0);
+                XSLEEP_MS(0);
                 continue;
             }
         #endif
@@ -1831,7 +1831,7 @@ int bench_tls(void* args)
                     info = &theadInfo[i];
                     if (!info->to_client.done || !info->to_server.done) {
                         doShutdown = 0;
-                        sleep(1); /* Allow other threads to run */
+                        XSLEEP_MS(1000); /* Allow other threads to run */
                     }
 
                 }

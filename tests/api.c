@@ -34432,7 +34432,7 @@ static void test_wolfSSL_ASN1_STRING_print(void){
 
     asnStr = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
     ASN1_STRING_set(asnStr,(const void*)unprintableData,
-            sizeof(unprintableData));
+            (int)sizeof(unprintableData));
     /* test */
     p_len = wolfSSL_ASN1_STRING_print(bio, asnStr);
     AssertIntEQ(p_len, 46);

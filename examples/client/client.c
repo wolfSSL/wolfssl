@@ -65,6 +65,15 @@
 #define OCSP_STAPLINGV2_MULTI 3
 #define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
 
+#if defined(XUSLEEP) && defined(NO_MAIN_DRIVER)
+    /* This is to force the server's thread to get a chance to
+     * execute before continuing the resume in non-blocking
+     * DTLS test cases. */
+    #define TEST_DELAY() XSLEEP_US(10000)
+#else
+    #define TEST_DELAY() XSLEEP_MS(1000)
+#endif
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -3135,13 +3144,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 /* allow some time for exporting the session */
 #ifdef WOLFSSL_SESSION_EXPORT_DEBUG
-#ifdef USE_WINDOWS_API
-    Sleep(500);
-#elif defined(WOLFSSL_TIRTOS)
-    Task_sleep(1);
-#else
-    sleep(1);
-#endif
+    TEST_DELAY();
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
 #ifdef WOLFSSL_TLS13
@@ -3240,13 +3243,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
         if (dtlsUDP) {
-#ifdef USE_WINDOWS_API
-            Sleep(500);
-#elif defined(WOLFSSL_TIRTOS)
-            Task_sleep(1);
-#else
-            sleep(1);
-#endif
+            TEST_DELAY();
         }
         tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, sslResume);
         if (wolfSSL_set_fd(sslResume, sockfd) != WOLFSSL_SUCCESS) {
@@ -3368,13 +3365,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     /* allow some time for exporting the session */
     #ifdef WOLFSSL_SESSION_EXPORT_DEBUG
-        #ifdef USE_WINDOWS_API
-            Sleep(500);
-        #elif defined(WOLFSSL_TIRTOS)
-            Task_sleep(1);
-        #else
-            sleep(1);
-        #endif
+        TEST_DELAY();
     #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
 #ifdef HAVE_SECURE_RENEGOTIATION
