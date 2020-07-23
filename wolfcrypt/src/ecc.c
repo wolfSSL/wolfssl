@@ -4913,7 +4913,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     #else
         mp_int* sign_k = NULL;
     #endif
-    #ifdef WC_ECC_NONBLOCK_ONLY
+    #if defined(WC_ECC_NONBLOCK) && defined(WC_ECC_NONBLOCK_ONLY)
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
         XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
@@ -6028,7 +6028,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
     #endif
     ) {
-    #ifdef WC_ECC_NONBLOCK_ONLY
+    #if defined(WC_ECC_NONBLOCK) && defined(WC_ECC_NONBLOCK_ONLY)
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
         XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
