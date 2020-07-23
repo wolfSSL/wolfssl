@@ -19,23 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
+#include <wolfssl/wolfcrypt/settings.h>
+
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.c
  */
-
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
-
-#include <stdint.h>
 #include <wolfssl/wolfcrypt/fe_operations.h>
-
 
 void fe_init()
 {
@@ -776,123 +771,235 @@ void fe_invert(fe r, const fe a)
         "str	%x[r], [x29, #144]\n\t"
         "str	%x[a], [x29, #152]\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x1, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "ldr	x1, [x29, #152]\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #16\n\t"
         "add	x1, x29, #16\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #48\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #4\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert1_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert1_%=\n\t"
         "add	x0, x29, #48\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
         "add	x1, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #9\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert2_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert2_%=\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #19\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_fe_invert3_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert3_%=\n\t"
         "add	x0, x29, #0x50\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #10\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert4_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert4_%=\n\t"
         "add	x0, x29, #48\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
         "add	x1, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #49\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert5_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert5_%=\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #0x63\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_fe_invert6_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert6_%=\n\t"
         "add	x0, x29, #0x50\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #50\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_invert7_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert7_%=\n\t"
         "add	x0, x29, #48\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x20, #5\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_invert8_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x20, x20, #1\n\t"
         "cmp	x20, #0\n\t"
         "bne	L_fe_invert8_%=\n\t"
         "ldr	x0, [x29, #144]\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "ldp	x29, x30, [sp], #0xa0\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :
@@ -2215,123 +2322,235 @@ int curve25519(byte* r, byte* n, byte* a)
         /* Invert */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
         "add	x1, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x1, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x1, x29, #16\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #48\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
         "add	x1, x29, #0x50\n\t"
         "add	x2, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #4\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_1_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_1_%=\n\t"
         "add	x0, x29, #0x50\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
         "add	x1, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #9\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_2_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_2_%=\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x90\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #19\n\t"
         "add	x1, x29, #0x90\n\t"
         "\n"
     "L_curve25519_inv_3_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_3_%=\n\t"
         "add	x0, x29, #0x70\n\t"
         "add	x2, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #10\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_4_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_4_%=\n\t"
         "add	x0, x29, #0x50\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x70\n\t"
         "add	x1, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #49\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_5_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_5_%=\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x90\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #0x63\n\t"
         "add	x1, x29, #0x90\n\t"
         "\n"
     "L_curve25519_inv_6_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_6_%=\n\t"
         "add	x0, x29, #0x70\n\t"
         "add	x2, x29, #0x70\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #50\n\t"
         "add	x1, x29, #0x70\n\t"
         "\n"
     "L_curve25519_inv_7_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_7_%=\n\t"
         "add	x0, x29, #0x50\n\t"
         "add	x2, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x24, #5\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_curve25519_inv_8_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x24, x24, #1\n\t"
         "cmp	x24, #0\n\t"
         "bne	L_curve25519_inv_8_%=\n\t"
         "add	x0, x29, #16\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "ldr	%x[r], [x29, #176]\n\t"
         /* Multiply */
         "ldp	x6, x7, [%x[r]]\n\t"
@@ -2491,122 +2710,234 @@ void fe_pow22523(fe r, const fe a)
         "str	%x[r], [x29, #112]\n\t"
         "str	%x[a], [x29, #120]\n\t"
         "add	x0, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x1, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "ldr	x1, [x29, #120]\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #16\n\t"
         "add	x1, x29, #16\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "add	x1, x29, #48\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #4\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_1_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_1_%=\n\t"
         "add	x0, x29, #16\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #9\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_2_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_2_%=\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #19\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_pow22523_3_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_3_%=\n\t"
         "add	x0, x29, #48\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #10\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_4_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_4_%=\n\t"
         "add	x0, x29, #16\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #48\n\t"
         "add	x1, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #49\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_5_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_5_%=\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "add	x0, x29, #0x50\n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #0x63\n\t"
         "add	x1, x29, #0x50\n\t"
         "\n"
     "L_fe_pow22523_6_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_6_%=\n\t"
         "add	x0, x29, #48\n\t"
         "add	x2, x29, #48\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #50\n\t"
         "add	x1, x29, #48\n\t"
         "\n"
     "L_fe_pow22523_7_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_7_%=\n\t"
         "add	x0, x29, #16\n\t"
         "add	x2, x29, #16\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "mov	x21, #2\n\t"
         "add	x1, x29, #16\n\t"
         "\n"
     "L_fe_pow22523_8_%=: \n\t"
+#ifndef __APPLE__
         "bl	fe_sq\n\t"
+#else
+        "bl	_fe_sq\n\t"
+#endif /* __APPLE__ */
         "sub	x21, x21, #1\n\t"
         "cmp	x21, #0\n\t"
         "bne	L_fe_pow22523_8_%=\n\t"
         "ldr	x0, [x29, #112]\n\t"
         "ldr	x2, [x29, #120]\n\t"
+#ifndef __APPLE__
         "bl	fe_mul\n\t"
+#else
+        "bl	_fe_mul\n\t"
+#endif /* __APPLE__ */
         "ldp	x29, x30, [sp], #0x80\n\t"
         : [r] "+r" (r), [a] "+r" (a)
         :

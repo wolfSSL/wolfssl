@@ -10,7 +10,6 @@
 		52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */ = {isa = PBXBuildFile; fileRef = 52114C8621B5A7320022ADA1 /* sp_c64.c */; };
 		A46FE16F2493E8F800A25BE7 /* armv8-chacha.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */; };
 		A46FE1702493E8F800A25BE7 /* sp_int.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE14D2493E8F600A25BE7 /* sp_int.c */; };
-		A46FE1732493E8F800A25BE7 /* armv8-poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE1502493E8F600A25BE7 /* armv8-poly1305.c */; };
 		A46FE1742493E8F800A25BE7 /* sp_cortexm.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE1512493E8F600A25BE7 /* sp_cortexm.c */; };
 		A46FE1752493E8F800A25BE7 /* blake2s.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE1522493E8F600A25BE7 /* blake2s.c */; };
 		A46FE1772493E8F800A25BE7 /* wc_pkcs11.c in Sources */ = {isa = PBXBuildFile; fileRef = A46FE1542493E8F600A25BE7 /* wc_pkcs11.c */; };
@@ -95,20 +94,20 @@
 		A4ADF9281FCE0C5600A06E90 /* ecc.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8CC1FCE0C5500A06E90 /* ecc.c */; };
 		A4ADF92A1FCE0C5600A06E90 /* coding.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8CE1FCE0C5500A06E90 /* coding.c */; };
 		A4ADF92C1FCE0C5600A06E90 /* ge_low_mem.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8D01FCE0C5500A06E90 /* ge_low_mem.c */; };
-		A4CA2EA124C8AF97003CCC50 /* armv8-curve25519.c in Sources */ = {isa = PBXBuildFile; fileRef = A4CA2E9C24C8AF97003CCC50 /* armv8-curve25519.c */; };
 		A4CA2EA324C8AF97003CCC50 /* armv8-sha512.c in Sources */ = {isa = PBXBuildFile; fileRef = A4CA2E9E24C8AF97003CCC50 /* armv8-sha512.c */; };
-		A4CA2EA524C8B273003CCC50 /* armv8-sha512-asm.c in Sources */ = {isa = PBXBuildFile; fileRef = A4CA2EA424C8B273003CCC50 /* armv8-sha512-asm.c */; };
 		A4DFEC0D1FD4CAA300A7BB33 /* benchmark.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DFEC0C1FD4CAA300A7BB33 /* benchmark.c */; };
 		A4DFEC101FD4CB8500A7BB33 /* armv8-sha256.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DFEC0E1FD4CB8500A7BB33 /* armv8-sha256.c */; };
 		A4DFEC111FD4CB8500A7BB33 /* armv8-aes.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DFEC0F1FD4CB8500A7BB33 /* armv8-aes.c */; };
 		A4DFEC3C1FD6B9CC00A7BB33 /* test.c in Sources */ = {isa = PBXBuildFile; fileRef = A4DFEC3B1FD6B9CC00A7BB33 /* test.c */; };
+		CB81DE1D24C9284700B98DA6 /* armv8-poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = CB81DE1C24C9284700B98DA6 /* armv8-poly1305.c */; };
+		CB81DE1F24C93EC000B98DA6 /* armv8-curve25519.S in Sources */ = {isa = PBXBuildFile; fileRef = CB81DE1E24C93EC000B98DA6 /* armv8-curve25519.S */; };
+		CB81DE2324C93FB300B98DA6 /* armv8-sha512-asm.S in Sources */ = {isa = PBXBuildFile; fileRef = CB81DE2224C93FB300B98DA6 /* armv8-sha512-asm.S */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		52114C8621B5A7320022ADA1 /* sp_c64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_c64.c; path = ../../../wolfcrypt/src/sp_c64.c; sourceTree = "<group>"; };
 		A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-chacha.c"; path = "../../../wolfcrypt/src/port/arm/armv8-chacha.c"; sourceTree = "<group>"; };
 		A46FE14D2493E8F600A25BE7 /* sp_int.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_int.c; path = ../../../wolfcrypt/src/sp_int.c; sourceTree = "<group>"; };
-		A46FE1502493E8F600A25BE7 /* armv8-poly1305.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-poly1305.c"; path = "../../../wolfcrypt/src/port/arm/armv8-poly1305.c"; sourceTree = "<group>"; };
 		A46FE1512493E8F600A25BE7 /* sp_cortexm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_cortexm.c; path = ../../../wolfcrypt/src/sp_cortexm.c; sourceTree = "<group>"; };
 		A46FE1522493E8F600A25BE7 /* blake2s.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = blake2s.c; path = ../../../wolfcrypt/src/blake2s.c; sourceTree = "<group>"; };
 		A46FE1542493E8F600A25BE7 /* wc_pkcs11.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wc_pkcs11.c; path = ../../../wolfcrypt/src/wc_pkcs11.c; sourceTree = "<group>"; };
@@ -198,13 +197,14 @@
 		A4ADF8CC1FCE0C5500A06E90 /* ecc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ecc.c; path = ../../../wolfcrypt/src/ecc.c; sourceTree = "<group>"; };
 		A4ADF8CE1FCE0C5500A06E90 /* coding.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = coding.c; path = ../../../wolfcrypt/src/coding.c; sourceTree = "<group>"; };
 		A4ADF8D01FCE0C5500A06E90 /* ge_low_mem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ge_low_mem.c; path = ../../../wolfcrypt/src/ge_low_mem.c; sourceTree = "<group>"; };
-		A4CA2E9C24C8AF97003CCC50 /* armv8-curve25519.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-curve25519.c"; path = "../../../wolfcrypt/src/port/arm/armv8-curve25519.c"; sourceTree = "<group>"; };
 		A4CA2E9E24C8AF97003CCC50 /* armv8-sha512.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-sha512.c"; path = "../../../wolfcrypt/src/port/arm/armv8-sha512.c"; sourceTree = "<group>"; };
-		A4CA2EA424C8B273003CCC50 /* armv8-sha512-asm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-sha512-asm.c"; path = "../../../wolfcrypt/src/port/arm/armv8-sha512-asm.c"; sourceTree = "<group>"; };
 		A4DFEC0C1FD4CAA300A7BB33 /* benchmark.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = benchmark.c; path = ../../../wolfcrypt/benchmark/benchmark.c; sourceTree = "<group>"; };
 		A4DFEC0E1FD4CB8500A7BB33 /* armv8-sha256.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-sha256.c"; path = "../../../wolfcrypt/src/port/arm/armv8-sha256.c"; sourceTree = "<group>"; };
 		A4DFEC0F1FD4CB8500A7BB33 /* armv8-aes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-aes.c"; path = "../../../wolfcrypt/src/port/arm/armv8-aes.c"; sourceTree = "<group>"; };
 		A4DFEC3B1FD6B9CC00A7BB33 /* test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = test.c; path = ../../../wolfcrypt/test/test.c; sourceTree = "<group>"; };
+		CB81DE1C24C9284700B98DA6 /* armv8-poly1305.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "armv8-poly1305.c"; path = "../../../wolfcrypt/src/port/arm/armv8-poly1305.c"; sourceTree = "<group>"; };
+		CB81DE1E24C93EC000B98DA6 /* armv8-curve25519.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-curve25519.S"; path = "../../../wolfcrypt/src/port/arm/armv8-curve25519.S"; sourceTree = "<group>"; };
+		CB81DE2224C93FB300B98DA6 /* armv8-sha512-asm.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = "armv8-sha512-asm.S"; path = "../../../wolfcrypt/src/port/arm/armv8-sha512-asm.S"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -279,11 +279,11 @@
 				A4ADF8921FCE0C4E00A06E90 /* arc4.c */,
 				A4DFEC0F1FD4CB8500A7BB33 /* armv8-aes.c */,
 				A46FE14C2493E8F500A25BE7 /* armv8-chacha.c */,
-				A4CA2E9C24C8AF97003CCC50 /* armv8-curve25519.c */,
-				A46FE1502493E8F600A25BE7 /* armv8-poly1305.c */,
+				CB81DE1E24C93EC000B98DA6 /* armv8-curve25519.S */,
+				CB81DE1C24C9284700B98DA6 /* armv8-poly1305.c */,
 				A4DFEC0E1FD4CB8500A7BB33 /* armv8-sha256.c */,
-				A4CA2EA424C8B273003CCC50 /* armv8-sha512-asm.c */,
 				A4CA2E9E24C8AF97003CCC50 /* armv8-sha512.c */,
+				CB81DE2224C93FB300B98DA6 /* armv8-sha512-asm.S */,
 				A4ADF8A01FCE0C4F00A06E90 /* asm.c */,
 				A4ADF8C21FCE0C5300A06E90 /* asn.c */,
 				A4ADF8B11FCE0C5100A06E90 /* blake2b.c */,
@@ -443,6 +443,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB81DE2324C93FB300B98DA6 /* armv8-sha512-asm.S in Sources */,
 				A4ADF9041FCE0C5600A06E90 /* des3.c in Sources */,
 				A46FE18A2493E8F800A25BE7 /* ge_448.c in Sources */,
 				A4ADF9121FCE0C5600A06E90 /* wc_port.c in Sources */,
@@ -464,10 +465,11 @@
 				A4ADF8DB1FCE0C5600A06E90 /* hc128.c in Sources */,
 				A4ADF8E31FCE0C5600A06E90 /* compress.c in Sources */,
 				A4ADF8731FCE0C1C00A06E90 /* tls13.c in Sources */,
-				A4CA2EA124C8AF97003CCC50 /* armv8-curve25519.c in Sources */,
 				A4ADF90D1FCE0C5600A06E90 /* blake2b.c in Sources */,
 				A4ADF9071FCE0C5600A06E90 /* dh.c in Sources */,
 				A46FE1912493E8F800A25BE7 /* sp_c32.c in Sources */,
+				CB81DE1D24C9284700B98DA6 /* armv8-poly1305.c in Sources */,
+				CB81DE1F24C93EC000B98DA6 /* armv8-curve25519.S in Sources */,
 				A4ADF8F31FCE0C5600A06E90 /* rsa.c in Sources */,
 				A46FE1752493E8F800A25BE7 /* blake2s.c in Sources */,
 				A4ADF8FA1FCE0C5600A06E90 /* pkcs12.c in Sources */,
@@ -483,7 +485,6 @@
 				A4ADF8D51FCE0C5600A06E90 /* md5.c in Sources */,
 				A46FE1892493E8F800A25BE7 /* sp_dsp32.c in Sources */,
 				A4ADF8DF1FCE0C5600A06E90 /* sha256.c in Sources */,
-				A4CA2EA524C8B273003CCC50 /* armv8-sha512-asm.c in Sources */,
 				A4ADF8711FCE0C1C00A06E90 /* sniffer.c in Sources */,
 				A46FE1882493E8F800A25BE7 /* sp_arm32.c in Sources */,
 				A4ADF8701FCE0C1C00A06E90 /* tls.c in Sources */,
@@ -509,7 +510,6 @@
 				A4ADF9051FCE0C5600A06E90 /* cmac.c in Sources */,
 				52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */,
 				A4ADF8F41FCE0C5600A06E90 /* pkcs7.c in Sources */,
-				A46FE1732493E8F800A25BE7 /* armv8-poly1305.c in Sources */,
 				A4ADF90B1FCE0C5600A06E90 /* logging.c in Sources */,
 				A4ADF8E01FCE0C5600A06E90 /* ecc_fp.c in Sources */,
 				A4ADF8EB1FCE0C5600A06E90 /* chacha20_poly1305.c in Sources */,
@@ -683,10 +683,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 2S2PAGNS5B;
+				DEVELOPMENT_TEAM = TJKX238PPD;
 				INFOPLIST_FILE = wolfBench/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.wolfSSL.wolfBench;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wolfSSL.wolfBench-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -697,10 +697,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 2S2PAGNS5B;
+				DEVELOPMENT_TEAM = TJKX238PPD;
 				INFOPLIST_FILE = wolfBench/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.wolfSSL.wolfBench;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wolfSSL.wolfBench-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

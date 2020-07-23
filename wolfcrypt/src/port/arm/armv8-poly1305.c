@@ -207,11 +207,11 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        v28.D[0], x9         \n\t"
         "AND        x22, x22, #0x3ffffff \n\t"
         /* Zero accumulator registers */
-        "MOVI       v15.2D, #0x0         \n\t"
-        "MOVI       v16.2D, #0x0         \n\t"
-        "MOVI       v17.2D, #0x0         \n\t"
-        "MOVI       v18.2D, #0x0         \n\t"
-        "MOVI       v19.2D, #0x0         \n\t"
+        "MOVI       v15.16B, #0x0        \n\t"
+        "MOVI       v16.16B, #0x0        \n\t"
+        "MOVI       v17.16B, #0x0        \n\t"
+        "MOVI       v18.16B, #0x0        \n\t"
+        "MOVI       v19.16B, #0x0        \n\t"
         /* Set hibit */
         "CMP        %[finished], #0      \n\t"
         "CSET       x9, EQ               \n\t"
