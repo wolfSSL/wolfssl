@@ -25284,6 +25284,11 @@ static int test_wc_HashGetFlags(void)
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
 
+static void test_wolfSSL_lhash(void)
+{
+
+}
+
 static void test_wolfSSL_X509_NAME(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
@@ -39493,6 +39498,7 @@ void ApiTest(void)
     test_wolfSSL_mcast();
 
     /* compatibility tests */
+    test_wolfSSL_lhash();
     test_wolfSSL_X509_NAME();
 #ifndef NO_BIO
     test_wolfSSL_X509_INFO();

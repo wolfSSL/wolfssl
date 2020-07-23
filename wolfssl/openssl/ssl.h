@@ -1129,6 +1129,12 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 
 #endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
+
+#ifndef NO_WOLFSSL_STUB
+#define b2i_PrivateKey_bio(...)         NULL
+#define b2i_PVK_bio(...)                NULL
+#endif
+
 #define SSL_CTX_get_default_passwd_cb   wolfSSL_CTX_get_default_passwd_cb
 #define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_CTX_get_default_passwd_cb_userdata
 
@@ -1166,6 +1172,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
+#define OPENSSL_CSTRING   WOLFSSL_STRING
 
 #define TLSEXT_TYPE_application_layer_protocol_negotiation    16
 

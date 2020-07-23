@@ -110,6 +110,7 @@
     #include <wolfssl/wolfcrypt/curve448.h>
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #include <wolfssl/openssl/ocsp.h>
+        #include <wolfssl/openssl/lhash.h>
     #endif /* WITH_STUNNEL */
     #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
         #include <wolfssl/wolfcrypt/sha512.h>
@@ -18410,36 +18411,13 @@ WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(const WOLFSSL_X509* x509)
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x509)
 {
-    WOLFSSL_STACK* node;
     WOLFSSL_ENTER("wolfSSL_sk_X509_push");
 
     if (sk == NULL || x509 == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    /* no previous values in stack */
-    if (sk->data.x509 == NULL) {
-        sk->data.x509 = x509;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = wolfSSL_sk_new_node(sk->heap);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-
-    /* push new x509 onto head of stack */
-    node->data.x509 = sk->data.x509;
-    node->next      = sk->next;
-    node->type      = sk->type;
-    sk->next        = node;
-    sk->data.x509   = x509;
-    sk->num        += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, x509);
 }
 
 
@@ -18564,39 +18542,9 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk)
 int wolfSSL_sk_ACCESS_DESCRIPTION_push(WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
                                               WOLFSSL_ACCESS_DESCRIPTION* access)
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_ACCESS_DESCRIPTION_push");
 
-    if (sk == NULL || access == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    /* no previous values in stack */
-    if (sk->data.access == NULL) {
-        sk->data.access = access;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                   DYNAMIC_TYPE_ASN1);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.access  = sk->data.access;
-    node->next         = sk->next;
-    node->type         = sk->type;
-    sk->next           = node;
-    sk->data.access    = access;
-    sk->num            += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, access);
 }
 
 /* Frees all nodes in ACCESS_DESCRIPTION stack
@@ -18720,39 +18668,78 @@ int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in)
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 {
-    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_STACK* node;
+    WOLFSSL_CIPHER ciph;
     WOLFSSL_ENTER("wolfSSL_sk_push");
 
+    if (!sk) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Check if empty data */
     switch (sk->type) {
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        case STACK_TYPE_X509:
-            ret = wolfSSL_sk_X509_push(sk, (WOLFSSL_X509*) data);
-            break;
-        #ifndef NO_WOLFSSL_STUB
         case STACK_TYPE_CIPHER:
-            ret = wolfSSL_sk_CIPHER_push(sk, (WOLFSSL_CIPHER*) data);
-            break;
-        #endif
-        case STACK_TYPE_GEN_NAME:
-            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
-            break;
-        case STACK_TYPE_ACCESS_DESCRIPTION:
-            ret = wolfSSL_sk_ACCESS_DESCRIPTION_push(sk,
-                                            (WOLFSSL_ACCESS_DESCRIPTION*) data);
-            break;
-        case STACK_TYPE_NULL:
-            ret = wolfSSL_sk_GENERIC_push(sk, (void*) data);
-            break;
-        case STACK_TYPE_OBJ:
-            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
+            /* check if entire struct is zero */
+            XMEMSET(&ciph, 0, sizeof(WOLFSSL_CIPHER));
+            if (XMEMCMP(&sk->data.cipher, &ciph,
+                    sizeof(WOLFSSL_CIPHER)) == 0) {
+                sk->data.cipher = *(WOLFSSL_CIPHER*)data;
+                sk->num = 1;
+                return WOLFSSL_SUCCESS;
+            }
             break;
     #endif
         default:
-            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
+            /* All other types are pointers */
+            if (!sk->data.generic) {
+                sk->data.generic = (void*)data;
+                sk->num = 1;
+                return WOLFSSL_SUCCESS;
+            }
             break;
     }
 
-    return ret;
+    /* stack already has value(s) create a new node and add more */
+    node = wolfSSL_sk_new_node(sk->heap);
+    if (!node) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* push new x509 onto head of stack */
+    node->next      = sk->next;
+    node->type      = sk->type;
+    sk->next        = node;
+    sk->num        += 1;
+
+#ifdef OPENSSL_ALL
+    node->comp = sk->comp;
+    node->hash_fn = sk->hash_fn;
+    node->hash = sk->hash;
+    sk->hash = 0;
+#endif
+    switch (sk->type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_CIPHER:
+            node->data.cipher = sk->data.cipher;
+            sk->data.cipher = *(WOLFSSL_CIPHER*)data;
+            if (sk->hash_fn) {
+                sk->hash = sk->hash_fn(&sk->data.cipher);
+            }
+            break;
+    #endif
+        default:
+            /* All other types are pointers */
+            node->data.generic = sk->data.generic;
+            sk->data.generic = (void*)data;
+            if (sk->hash_fn) {
+                sk->hash = sk->hash_fn(sk->data.generic);
+            }
+            break;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
 
 /* Creates and returns new GENERAL_NAME structure */
@@ -19074,6 +19061,278 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
 }
 
 #if defined(OPENSSL_ALL)
+
+void *wolfSSL_lh_retrieve(WOLFSSL_STACK *sk, void *data)
+{
+    unsigned long hash;
+
+    WOLFSSL_ENTER("wolfSSL_lh_retrieve");
+
+    if (!sk || !data) {
+        WOLFSSL_MSG("Bad parameters");
+        return NULL;
+    }
+
+    if (!sk->hash_fn) {
+        WOLFSSL_MSG("No hash function defined");
+        return NULL;
+    }
+
+    hash = sk->hash_fn(data);
+
+    while (sk) {
+        /* Calc hash if not done so yet */
+        if (!sk->hash) {
+            switch (sk->type) {
+                case STACK_TYPE_CIPHER:
+                    sk->hash = sk->hash_fn(&sk->data.cipher);
+                    break;
+                default:
+                    sk->hash = sk->hash_fn(sk->data.generic);
+                    break;
+            }
+        }
+        if (sk->hash == hash) {
+            switch (sk->type) {
+                case STACK_TYPE_CIPHER:
+                    return &sk->data.cipher;
+                default:
+                    return sk->data.generic;
+            }
+        }
+        sk = sk->next;
+    }
+
+    return NULL;
+}
+
+/**
+ * This is the same hashing algo for WOLFSSL_CONF_VALUE as OpenSSL
+ */
+static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
+{
+    if (val)
+        return (wolfSSL_LH_strhash(val->section) << 2) ^
+                wolfSSL_LH_strhash(val->name);
+    else
+        return 0;
+}
+
+static int wolfSSL_CONF_VALUE_cmp(const WOLFSSL_CONF_VALUE *a,
+                                  const WOLFSSL_CONF_VALUE *b)
+{
+    int cmp_val;
+
+    if (!a || !b) {
+        return -1;
+    }
+
+    if (a->section != b->section) {
+        if ((cmp_val = XSTRCMP(a->section, b->section)) != 0) {
+            return cmp_val;
+        }
+    }
+
+    if (a->name && b->name) {
+        return XSTRCMP(a->name, b->name);
+    }
+    else if (a->name == b->name) {
+        return 0;
+    }
+    else {
+        return a->name ? 1 : -1;
+    }
+}
+
+/* Use MD5 for hashing */
+unsigned long wolfSSL_LH_strhash(const char *str)
+{
+    unsigned long ret = 0;
+    int strLen;
+    byte digest[WC_MD5_DIGEST_SIZE];
+    WOLFSSL_ENTER("wolfSSL_LH_strhash");
+
+    if (!str)
+        return 0;
+
+#ifndef NO_MD5
+    strLen = XSTRLEN(str);
+    if (wc_Md5Hash((const byte*)str, strLen, digest) != 0) {
+        WOLFSSL_MSG("wc_Md5Hash error");
+        return 0;
+    }
+    /* Take first 4 bytes in small endian as unsigned long */
+    ret  = digest[0];
+    ret |= digest[1] << 8;
+    ret |= digest[2] << 16;
+    ret |= digest[3] << 24;
+#else
+    WOLFSSL_MSG("No md5 available for wolfSSL_LH_strhash");
+#endif
+    return ret;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(
+        WOLF_LHASH_OF(WOLFSSL_CONF_VALUE) *sk, WOLFSSL_CONF_VALUE *data)
+{
+    WOLFSSL_ENTER("wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve");
+
+    if (!sk || !data) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    return wolfSSL_lh_retrieve(sk, data);
+}
+
+int wolfSSL_CONF_modules_load(const WOLFSSL_CONF *cnf, const char *appname,
+                      unsigned long flags)
+{
+    WOLFSSL_ENTER("wolfSSL_CONF_modules_load");
+    WOLFSSL_MSG("All wolfSSL modules are already compiled in. "
+                "wolfSSL_CONF_modules_load doesn't load anything new.");
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth)
+{
+    WOLFSSL_CONF* ret;
+    WOLFSSL_ENTER("wolfSSL_NCONF_new");
+
+    if (meth) {
+        WOLFSSL_MSG("wolfSSL does not support CONF_METHOD");
+    }
+
+    ret = (WOLFSSL_CONF*)XMALLOC(sizeof(WOLFSSL_CONF), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (ret)
+        XMEMSET(ret, 0, sizeof(WOLFSSL_CONF));
+    return ret;
+}
+
+char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
+        const char *group, const char *name)
+{
+    WOLFSSL_CONF_VALUE find_val;
+    WOLFSSL_CONF_VALUE *val;
+    WOLFSSL_ENTER("wolfSSL_NCONF_get_string");
+
+    if (!conf) {
+#ifdef HAVE_SECURE_GETENV
+        return secure_getenv(name);
+#else
+        WOLFSSL_MSG("Missing secure_getenv");
+        return NULL;
+#endif
+    }
+
+    find_val.name = (char *)name;
+    if (group) {
+        find_val.section = (char *)group;
+        val = wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(conf->data, &find_val);
+        if (val)
+            return val->value;
+        if (XSTRCMP(group, "ENV") == 0) {
+#ifdef HAVE_SECURE_GETENV
+            return secure_getenv(name);
+#else
+        WOLFSSL_MSG("Missing secure_getenv");
+            return NULL;
+#endif
+        }
+    }
+
+    find_val.section = (char *)"default";
+    val = wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(conf->data, &find_val);
+    if (val)
+        return val->value;
+    else
+        return NULL;
+}
+
+/**
+ * The WOLFSSL_CONF->value member is treated as a
+ * WOLFSSL_STACK_OF(WOLFSSL_CONF_VALUE) which becomes
+ * the return value.
+ * @param conf
+ * @param section
+ * @return WOLFSSL_STACK_OF(WOLFSSL_CONF_VALUE)
+ */
+WOLFSSL_STACK *wolfSSL_NCONF_get_section(
+        const WOLFSSL_CONF *conf, const char *section)
+{
+    WOLFSSL_CONF_VALUE *val;
+    WOLFSSL_CONF_VALUE find_val;
+
+    WOLFSSL_ENTER("wolfSSL_NCONF_get_section");
+
+    if (!conf || !section) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    find_val.name = NULL;
+    find_val.section = (char*)section;
+    val = wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(conf->data, &find_val);
+    if (val)
+        return (WOLFSSL_STACK*)val->value;
+    else
+        return NULL;
+}
+
+WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc)
+{
+    WOLFSSL_STACK* ret;
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_new");
+    ret = wolfSSL_sk_new_node(NULL);
+    if (!ret)
+        return NULL;
+    ret->comp = compFunc ? compFunc : (wolf_sk_compare_cb)wolfSSL_CONF_VALUE_cmp;
+    ret->hash_fn = (wolf_sk_hash_cb)wolfSSL_CONF_VALUE_hash;
+    ret->type = STACK_TYPE_CONF_VALUE;
+    return ret;
+}
+
+/* Free the structure for WOLFSSL_CONF_VALUE stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_num");
+    if (sk)
+        wolfSSL_sk_num(sk);
+    return 0;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_sk_CONF_VALUE_value(const WOLFSSL_STACK *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_value");
+    if (sk)
+        return wolfSSL_sk_value(sk, i);
+    return NULL;
+}
+
 WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* wolfSSL_sk_X509_EXTENSION_new_null(void)
 {
     WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
@@ -19742,39 +20001,13 @@ WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void)
 int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
                                               WOLFSSL_ASN1_OBJECT* obj)
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_push");
 
     if (sk == NULL || obj == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    /* no previous values in stack */
-    if (sk->data.obj == NULL) {
-        sk->data.obj = obj;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                                             DYNAMIC_TYPE_ASN1);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new obj onto head of stack */
-    node->data.obj  = sk->data.obj;
-    node->next      = sk->next;
-    node->type      = sk->type;
-    sk->next        = node;
-    sk->data.obj    = obj;
-    sk->num        += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, obj);
 }
 
 
@@ -20341,19 +20574,14 @@ WOLFSSL_STACK* wolfSSL_sk_new_cipher(void)
     return sk;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* Keep as stubs for now */
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
                                                       WOLFSSL_CIPHER* cipher)
 {
-    WOLFSSL_STUB("wolfSSL_sk_CIPHER_push");
-    (void)sk;
-    (void)cipher;
-    return 0;
+    return wolfSSL_sk_push(sk, cipher);
 }
 
-
+#ifndef NO_WOLFSSL_STUB
 WOLFSSL_CIPHER* wolfSSL_sk_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
 {
     WOLFSSL_STUB("wolfSSL_sk_CIPHER_pop");
@@ -27750,7 +27978,7 @@ int wolfSSL_sk_num(const WOLFSSL_STACK* sk)
     return (int)sk->num;
 }
 
-void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
+void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_value");
 
@@ -27944,38 +28172,9 @@ void wolfSSL_sk_GENERIC_pop_free(WOLFSSL_STACK* sk,
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_GENERIC_push(WOLFSSL_STACK* sk, void* generic)
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_GENERIC_push");
 
-    if (sk == NULL || generic == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-
-    /* no previous values in stack */
-    if (sk->data.generic == NULL) {
-        sk->data.generic = generic;
-        sk->num += 1;
-        return WOLFSSL_SUCCESS;
-    }
-
-    /* stack already has value(s) create a new node and add more */
-    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK),NULL,DYNAMIC_TYPE_SSL);
-    if (node == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FAILURE;
-    }
-    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
-
-    /* push new node onto head of stack */
-    node->type         = sk->type;
-    node->data.generic = sk->data.generic;
-    node->next         = sk->next;
-    sk->next           = node;
-    sk->data.generic   = generic;
-    sk->num           += 1;
-
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_sk_push(sk, generic);
 }
 void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
 {
@@ -28036,33 +28235,6 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             break;
     }
 }
-
-#if defined(OPENSSL_ALL)
-/* Free the structure for WOLFSSL_CONF_VALUE stack
- *
- * sk  stack to free nodes in
- */
-void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
-{
-    WOLFSSL_STACK* node;
-    WOLFSSL_STACK* tmp;
-    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
-
-    if (sk == NULL)
-        return;
-
-    /* parse through stack freeing each node */
-    node = sk->next;
-    while (node) {
-        tmp  = node;
-        node = node->next;
-        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-
-    /* free head of stack */
-    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
-}
-#endif /* OPENSSL_ALL */
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)

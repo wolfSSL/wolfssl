@@ -149,6 +149,7 @@
 
 #define BIO_CTRL_DGRAM_QUERY_MTU   40
 
+#define BIO_FP_TEXT                0x00
 #define BIO_NOCLOSE                0x00
 #define BIO_CLOSE                  0x01
 

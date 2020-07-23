@@ -102,8 +102,8 @@
     extern "C" {
 #endif
 
-/* for now LHASH is not implemented */
-typedef int WOLFSSL_LHASH;
+/* LHASH is implemented as a stack */
+typedef struct WOLFSSL_STACK WOLFSSL_LHASH;
 #ifndef WOLF_LHASH_OF
     #define WOLF_LHASH_OF(x) WOLFSSL_LHASH
 #endif
@@ -2089,7 +2089,7 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_
 #endif
 
 WOLFSSL_API int wolfSSL_sk_num(const WOLFSSL_STACK* sk);
-WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
+WOLFSSL_API void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i);
 
 #if (defined(HAVE_EX_DATA) || defined(FORTRESS)) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL))
@@ -3648,6 +3648,7 @@ WOLFSSL_API void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
 
 typedef int (*wolf_sk_compare_cb)(const void* const *a,
                                   const void* const *b);
+typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
     wolf_sk_compare_cb);
 WOLFSSL_API int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)*,
