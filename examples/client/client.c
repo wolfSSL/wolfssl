@@ -495,7 +495,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
-    int useX448)
+    int useX448, int exitWithRet)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -600,7 +600,9 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     } while (err == WC_PENDING_E);
                     if (ret != len) {
                         printf("SSL_write bench error %d!\n", err);
-                        err_sys("SSL_write failed");
+                        if (!exitWithRet)
+                            err_sys("SSL_write failed");
+                        goto doExit;
                     }
                     tx_time += current_time(0) - start;
 
@@ -654,6 +656,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         else {
             err_sys("Client buffer malloc failed");
         }
+doExit:
         if(tx_buffer) XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(rx_buffer) XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -664,6 +667,9 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl); ssl = NULL;
     CloseSocket(sockfd);
+
+    if (exitWithRet)
+        return err;
 
 #if !defined(__MINGW32__)
     printf("wolfSSL Client Benchmark %zu bytes\n"
@@ -1603,6 +1609,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)loadCertKeyIntoSSLObj;
 
     StackTrap();
+
+    /* Reinitialize the global myVerifyAction. */
+    myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
@@ -2622,9 +2631,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                      block, throughput, useX25519, useX448);
+                                      block, throughput, useX25519, useX448,
+                                      exitWithRet);
         wolfSSL_CTX_free(ctx); ctx = NULL;
-        XEXIT_T(EXIT_SUCCESS);
+        if (!exitWithRet)
+            XEXIT_T(EXIT_SUCCESS);
+        else
+            goto exit;
     }
 
     #if defined(WOLFSSL_MDK_ARM)
@@ -3155,12 +3168,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
         goto exit;
     }
 
     err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
         ((func_args*)args)->return_code = err;
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
         goto exit;
     }
 

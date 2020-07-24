@@ -381,6 +381,10 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                         err_sys_ex(runWithErrors, "SSL_read failed");
                         break;
                     }
+                    if (err == WOLFSSL_ERROR_ZERO_RETURN) {
+                        free(buffer);
+                        return WOLFSSL_ERROR_ZERO_RETURN;
+                    }
                 }
                 else {
                     rx_pos += ret;
@@ -438,7 +442,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         );
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
@@ -1097,6 +1101,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
+
+    /* Reinitialize the global myVerifyAction. */
+    myVerifyAction = VERIFY_OVERRIDE_ERROR;
+
     /* Not Used: h, z, F, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
@@ -1807,7 +1815,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
                             (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),
-                  myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ? myVerify : NULL);
+                  (myVerifyAction == VERIFY_OVERRIDE_DATE_ERR ||
+                   myVerifyAction == VERIFY_FORCE_FAIL) ? myVerify : NULL);
 
     #ifdef TEST_BEFORE_DATE
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
@@ -2446,7 +2455,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
         }
         else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {
-            ServerEchoData(ssl, clientfd, echoData, block, throughput);
+            err = ServerEchoData(ssl, clientfd, echoData, block, throughput);
+            if (err != 0) {
+                SSL_free(ssl); ssl = NULL;
+                SSL_CTX_free(ctx); ctx = NULL;
+                CloseSocket(clientfd);
+                CloseSocket(sockfd);
+                ((func_args*)args)->return_code = err;
+                goto exit;
+            }
         }
 
 #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)

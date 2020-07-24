@@ -1696,7 +1696,7 @@ enum {
     VERIFY_USE_PREVERFIY,
     VERIFY_OVERRIDE_DATE_ERR,
 };
-static int myVerifyAction = VERIFY_OVERRIDE_ERROR;
+static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
 /* The verify callback is called for every certificate only when
  * --enable-opensslextra is defined because it sets WOLFSSL_ALWAYS_VERIFY_CB and
