@@ -154,13 +154,12 @@ int wc_ecc_check_key(ecc_key* key);
 
     \brief This function frees an ecc_key key after it has been used.
 
-    \return int integer returned indicating wolfSSL error or success status.
 
-    \param key pointer to the ecc_key object to free
+    \param key pointer to the ecc_key structure to free
 
     _Example_
     \code
-    // initialize key and perform secure exchanges
+    // initialize key and perform ECC operations
     ...
     wc_ecc_key_free(&key);
     \endcode
@@ -169,7 +168,7 @@ int wc_ecc_check_key(ecc_key* key);
     \sa wc_ecc_init_ex
 */
 WOLFSSL_API
-int wc_ecc_key_free(ecc_key* key);
+void wc_ecc_key_free(ecc_key* key);
 
 /*!
     \ingroup ECC
@@ -573,6 +572,8 @@ int wc_ecc_init(ecc_key* key);
     \return MEMORY_E Returned if there is an error allocating memory
 
     \param key pointer to the ecc_key object to initialize
+    \param devId ID to use with async hardware
+    \param heap pointer to a heap identifier
 
     _Example_
     \code

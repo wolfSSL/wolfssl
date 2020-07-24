@@ -140,14 +140,16 @@ WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
 /*!
     \ingroup Random
 
-    \brief Creates a new random number.
+    \brief Creates a new WC_RNG structure.
 
 
-    \return rng on success
+    \return WC_RNG structure on success
     \return NULL on error
 
 
-    \param rng random number generator initialized with wc_InitRng
+    \param heap pointer to a heap identifier
+    \param nonce pointer to the buffer containing the nonce
+    \param nonceSz length of the nonce
 
     _Example_
     \code
