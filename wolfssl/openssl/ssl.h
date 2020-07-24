@@ -402,6 +402,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509V3_EXT_i2d                  wolfSSL_X509V3_EXT_i2d
 #define X509_get0_extensions            wolfSSL_X509_get0_extensions
+#define X509_get_extensions             wolfSSL_X509_get0_extensions
+#define X509_REQ_get_extensions         wolfSSL_X509_get0_extensions
 #define X509_get_ext                    wolfSSL_X509_get_ext
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
@@ -1222,7 +1224,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tlsext_ticket_key_cb wolfSSL_CTX_set_tlsext_ticket_key_cb
 #define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
 #define SSL_CTX_get_extra_chain_certs   wolfSSL_CTX_get_extra_chain_certs
+#define sk_OPENSSL_STRING_num           wolfSSL_sk_WOLFSSL_STRING_num
 #define sk_OPENSSL_STRING_value         wolfSSL_sk_WOLFSSL_STRING_value
+#define sk_OPENSSL_PSTRING_num          wolfSSL_sk_WOLFSSL_STRING_num
+#define sk_OPENSSL_PSTRING_value        wolfSSL_sk_WOLFSSL_STRING_value
+#define sk_OPENSSL_STRING_free          wolfSSL_sk_free
 #define SSL_get0_alpn_selected          wolfSSL_get0_alpn_selected
 #define SSL_select_next_proto           wolfSSL_select_next_proto
 #define SSL_CTX_set_alpn_select_cb      wolfSSL_CTX_set_alpn_select_cb

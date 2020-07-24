@@ -75,10 +75,13 @@
 #define V_ASN1_UTF8STRING               12
 #define V_ASN1_SEQUENCE                 16
 #define V_ASN1_SET                      17
+#define V_ASN1_PRINTABLESTRING          19
+#define V_ASN1_T61STRING                20
 #define V_ASN1_IA5STRING                22
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
-#define V_ASN1_PRINTABLESTRING          19
+#define V_ASN1_UNIVERSALSTRING          28
+#define V_ASN1_BMPSTRING                30
 
 
 #define V_ASN1_CONSTRUCTED              0x20

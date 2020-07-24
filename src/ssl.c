@@ -19191,7 +19191,172 @@ int wolfSSL_CONF_modules_load(const WOLFSSL_CONF *cnf, const char *appname,
     WOLFSSL_ENTER("wolfSSL_CONF_modules_load");
     WOLFSSL_MSG("All wolfSSL modules are already compiled in. "
                 "wolfSSL_CONF_modules_load doesn't load anything new.");
+    (void)cnf;
+    (void)appname;
+    (void)flags;
     return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new(void)
+{
+    WOLFSSL_CONF_VALUE* ret;
+
+    WOLFSSL_ENTER("wolfSSL_CONF_new");
+
+    ret = (WOLFSSL_CONF_VALUE*)XMALLOC(sizeof(WOLFSSL_CONF_VALUE),
+            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (ret)
+        XMEMSET(ret, 0, sizeof(WOLFSSL_CONF_VALUE));
+    return ret;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
+        char* name, char* value)
+{
+    WOLFSSL_CONF_VALUE* ret;
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_CONF_VALUE_new_values");
+
+    if (!(ret = wolfSSL_CONF_VALUE_new())) {
+        WOLFSSL_MSG("wolfSSL_CONF_VALUE_new error");
+        return NULL;
+    }
+
+    if (section) {
+        len = XSTRLEN(section);
+        ret->section = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (!ret->section) {
+            WOLFSSL_MSG("malloc error");
+            wolfSSL_X509V3_conf_free(ret);
+            return NULL;
+        }
+    }
+
+    if (name) {
+        len = XSTRLEN(name);
+        ret->name = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (!ret->name) {
+            WOLFSSL_MSG("malloc error");
+            wolfSSL_X509V3_conf_free(ret);
+            return NULL;
+        }
+    }
+
+    if (value) {
+        len = XSTRLEN(value);
+        ret->value = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (!ret->value) {
+            WOLFSSL_MSG("malloc error");
+            wolfSSL_X509V3_conf_free(ret);
+            return NULL;
+        }
+    }
+
+    return ret;
+}
+
+int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
+        WOLFSSL_CONF_VALUE *section, WOLFSSL_CONF_VALUE *value)
+{
+    WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *sk = NULL;
+
+    if (!conf || !section || !value) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *)section->value;
+    value->section = section->section;
+
+    if (wolfSSL_sk_CONF_VALUE_push(sk, value) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
+        return WOLFSSL_FAILURE;
+    }
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
+        const char *section)
+{
+    WOLFSSL_CONF_VALUE* ret = NULL;
+    WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *sk = NULL;
+    int slen;
+
+    WOLFSSL_ENTER("wolfSSL_CONF_new_section");
+
+    if (!conf || !section) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    slen = XSTRLEN(section);
+
+    if (!(ret = wolfSSL_CONF_VALUE_new())) {
+        WOLFSSL_MSG("wolfSSL_CONF_new error");
+        goto error;
+    }
+
+    if (!(ret->section = (char*)XMALLOC(slen+1, NULL, DYNAMIC_TYPE_OPENSSL))) {
+        WOLFSSL_MSG("section malloc error");
+        goto error;
+    }
+
+    if (!(sk = wolfSSL_sk_CONF_VALUE_new(NULL))) {
+        WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_new error");
+        goto error;
+    }
+
+    ret->value = (char*)sk;
+
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, ret) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
+        goto error;
+    }
+
+    return ret;
+error:
+    if (ret) {
+        /* NULL so that wolfSSL_X509V3_conf_free doesn't attempt to free it */
+        ret->value = NULL;
+        wolfSSL_X509V3_conf_free(ret);
+    }
+    if (sk) {
+        wolfSSL_sk_CONF_VALUE_free(sk);
+    }
+    return NULL;
+}
+
+WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
+        const char *section)
+{
+    WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *sk = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_CONF_get_section");
+
+    if (!conf || !section) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    sk = conf->data;
+
+    while (sk) {
+        WOLFSSL_CONF_VALUE* val = sk->data.conf;
+        if (val) {
+            if (XSTRCMP(section, val->section) == 0) {
+                return val;
+            }
+        }
+        sk = sk->next;
+    }
+
+    return NULL;
 }
 
 WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth)
@@ -19279,6 +19444,191 @@ WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         return NULL;
 }
 
+#define SKIP_WHITESPACE(idx, max_idx) \
+    while (idx < max_idx && (*idx == ' ' || *idx == '\t')) \
+        {idx++;}
+int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
+{
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_BIO *in = NULL;
+    char* buf = NULL;
+    char* idx = NULL;
+    char* bufEnd = NULL;
+    CONF_VALUE* section = NULL;
+    long line = 0;
+    int bufLen = 0;
+
+    if (!conf || !file) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Open file */
+    if (!(in = wolfSSL_BIO_new_file(file, "rb"))) {
+        WOLFSSL_MSG("wolfSSL_BIO_new_file error");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Read file */
+    bufLen = wolfSSL_BIO_get_len(in);
+    if (bufLen <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_get_len error");
+        goto cleanup;
+    }
+    if (!(buf = (char*)XMALLOC(bufLen, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+        WOLFSSL_MSG("malloc error");
+        goto cleanup;
+    }
+    if (wolfSSL_BIO_read(in, buf, bufLen) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_BIO_read error");
+        goto cleanup;
+    }
+
+    if (!(section = wolfSSL_CONF_new_section(conf, "default"))) {
+        WOLFSSL_MSG("wolfSSL_CONF_new_section error");
+        goto cleanup;
+    }
+
+    /* LETS START READING SOME CONFIGS */
+    idx = buf;
+    bufEnd = buf + bufLen;
+    while (idx < bufEnd) {
+        char* lineEnd = XSTRNSTR(idx, "\n", bufEnd - idx);
+        char* maxIdx;
+        if (!lineEnd)
+            lineEnd = bufEnd; /* Last line in file */
+        maxIdx = XSTRNSTR(idx, "#", lineEnd - idx);
+        if (!maxIdx)
+            maxIdx = lineEnd;
+        line++;
+        SKIP_WHITESPACE(idx, maxIdx);
+        if (idx == maxIdx) {
+            /* Empty line */
+            idx = lineEnd + 1;
+            continue;
+        }
+
+        if (*idx == '[') {
+            /* New section. Spaces not allowed in section name. */
+            char* sectionName;
+            int sectionNameLen;
+
+            SKIP_WHITESPACE(idx, maxIdx);
+            sectionName = idx;
+            /* Find end of section name */
+            while (idx < maxIdx && *idx != ' ' && *idx != ']')
+                idx++;
+            sectionNameLen = idx - sectionName;
+            SKIP_WHITESPACE(idx, maxIdx);
+
+            if (*idx != ']') {
+                WOLFSSL_MSG("Section definition error. "
+                            "Closing brace not found.");
+                goto cleanup;
+            }
+
+            sectionName[sectionNameLen] = '\0';
+            if (!(section = wolfSSL_CONF_get_section(conf, sectionName)))
+                section = wolfSSL_CONF_new_section(conf, sectionName);
+        }
+        else {
+            char* name;
+            int   nameLen;
+            char* value;
+            int   valueLen;
+            WOLFSSL_CONF_VALUE* newVal = NULL;
+
+            SKIP_WHITESPACE(idx, maxIdx);
+            name = idx;
+            /* Find end of name */
+            while (idx < maxIdx && *idx != ' ' && *idx != '=')
+                idx++;
+            nameLen = idx - name;
+            SKIP_WHITESPACE(idx, maxIdx);
+            if (*idx != '=') {
+                WOLFSSL_MSG("Missing equals sign");
+                goto cleanup;
+            }
+            idx++;
+            SKIP_WHITESPACE(idx, maxIdx);
+            value = idx;
+            /* Find end of value */
+            idx = maxIdx;
+            while (*idx == ' ' || *idx == '\t')
+                idx--;
+            valueLen = idx - value;
+
+            /* Sanity checks */
+            if (nameLen <= 0 || valueLen <= 0) {
+                WOLFSSL_MSG("Sanity checks failed");
+                goto cleanup;
+            }
+            name[nameLen] = '\0';
+            value[valueLen] = '\0';
+
+            if (!(newVal = wolfSSL_CONF_VALUE_new_values(section->section,
+                    name, value))) {
+                WOLFSSL_MSG("wolfSSL_CONF_VALUE_new_values error");
+                goto cleanup;
+            }
+
+            if (wolfSSL_CONF_add_string(conf, section, newVal) !=
+                    WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("wolfSSL_CONF_add_string error");
+                goto cleanup;
+            }
+        }
+        idx = lineEnd + 1;
+    }
+
+    ret = WOLFSSL_SUCCESS;
+cleanup:
+    if (in)
+        wolfSSL_BIO_free(in);
+    if (buf)
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (eline)
+        *eline = line;
+    return ret;
+}
+
+
+void wolfSSL_NCONF_free(WOLFSSL_CONF *conf)
+{
+    WOLFSSL_ENTER("wolfSSL_NCONF_free");
+    if (conf) {
+        wolfSSL_sk_CONF_VALUE_free(conf->data);
+    }
+}
+
+void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
+{
+    WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *sk = NULL;
+
+    if (val) {
+        if (val->name) {
+            /* Not a section. Don't free section as it is a shared pointer. */
+            XFREE(val->name, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (val->value)
+                XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        else {
+            /* Section so val->value is a stack */
+            if (val->section)
+                XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
+            /* Only free the stack structures. The contained conf values
+             * will be freed in wolfSSL_NCONF_free */
+            sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;
+            while (sk) {
+                WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *tmp = sk->next;
+                XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+                sk = tmp;
+            }
+        }
+        XFREE(val, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc)
 {
     WOLFSSL_STACK* ret;
@@ -19310,6 +19660,7 @@ void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
     while (node) {
         tmp  = node;
         node = node->next;
+        wolfSSL_X509V3_conf_free(tmp->data.conf);
         XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 
@@ -19331,6 +19682,19 @@ WOLFSSL_CONF_VALUE *wolfSSL_sk_CONF_VALUE_value(const WOLFSSL_STACK *sk, int i)
     if (sk)
         return wolfSSL_sk_value(sk, i);
     return NULL;
+}
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_CONF_VALUE_push(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk,
+        WOLFSSL_CONF_VALUE* val)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_push");
+
+    if (sk == NULL || val == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_sk_push(sk, val);
 }
 
 WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* wolfSSL_sk_X509_EXTENSION_new_null(void)
@@ -41263,6 +41627,37 @@ void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 }
 /* End Functions for openssl/buffer.h */
 
+size_t wolfSSL_strlcpy(char *dst, const char *src, size_t dstSize)
+{
+    size_t i;
+
+    if (!dstSize)
+        return 0;
+
+    /* Always have to leave a space for NULL */
+    for (i = 0; i < (dstSize - 1) && *src != '\0'; i++) {
+        *dst++ = *src++;
+    }
+    *dst = '\0';
+
+    return i; /* return length without NULL */
+}
+
+size_t wolfSSL_strlcat(char *dst, const char *src, size_t dstSize)
+{
+    size_t dstLen;
+
+    if (!dstSize)
+        return 0;
+
+    dstLen = XSTRLEN(dst);
+
+    if (dstSize < dstLen)
+        return dstLen + XSTRLEN(src);
+
+    return dstLen + wolfSSL_strlcpy(dst + dstLen, src, dstSize - dstLen);
+
+}
 #endif /* OPENSSL_EXTRA */
 
 
@@ -45627,7 +46022,23 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
     return wolfSSL_X509_d2i(NULL, x->derCert->buffer, x->derCert->length);
 }
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+char* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
+    int idx)
+{
+    for (; idx > 0 && strings != NULL; idx--)
+        strings = strings->next;
+    if (strings == NULL)
+        return NULL;
+    return strings->data.string;
+}
+
+int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
+{
+    if (strings)
+        return strings->num;
+    return 0;
+}
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)

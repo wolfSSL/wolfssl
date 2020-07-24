@@ -26,6 +26,10 @@
 
 struct WOLFSSL_TXT_DB {
     WOLF_STACK_OF(WOLFSSL_STRING) *data;
+    WOLF_LHASH_OF(WOLFSSL_STRING) **index;
+    long error;
+    long arg1;
+    long arg2;
 };
 
 typedef struct WOLFSSL_TXT_DB TXT_DB;

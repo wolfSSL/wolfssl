@@ -49,35 +49,55 @@ typedef WOLFSSL_CONF CONF;
 typedef WOLFSSL_CONF_VALUE CONF_VALUE;
 typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
 
+WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new(void);
+WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
+        char* name, char* value);
+WOLFSSL_API int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
+        WOLFSSL_CONF_VALUE *section, WOLFSSL_CONF_VALUE *value);
+WOLFSSL_API void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val);
+
 WOLFSSL_API WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc);
 WOLFSSL_API void wolfSSL_sk_CONF_VALUE_free(struct WOLFSSL_STACK *sk);
 WOLFSSL_API int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk);
 WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_sk_CONF_VALUE_value(
         const struct WOLFSSL_STACK *sk, int i);
+WOLFSSL_API int wolfSSL_sk_CONF_VALUE_push(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk,
+        WOLFSSL_CONF_VALUE* val);
 
 WOLFSSL_API WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth);
 WOLFSSL_API char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
         const char *group, const char *name);
 WOLFSSL_API WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         const WOLFSSL_CONF *conf, const char *section);
+WOLFSSL_API int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline);
+WOLFSSL_API void wolfSSL_NCONF_free(WOLFSSL_CONF *conf);
 
 WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(
         WOLF_LHASH_OF(WOLFSSL_CONF_VALUE) *sk, WOLFSSL_CONF_VALUE *data);
 
 WOLFSSL_API int wolfSSL_CONF_modules_load(const WOLFSSL_CONF *cnf, const char *appname,
                       unsigned long flags);
+WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
+        const char *section);
+WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
+        const char *section);
 
 #define sk_CONF_VALUE_new               wolfSSL_sk_CONF_VALUE_new
 #define sk_CONF_VALUE_free              wolfSSL_sk_CONF_VALUE_free
+#define sk_CONF_VALUE_pop_free(a,b)     wolfSSL_sk_CONF_VALUE_free(a)
 #define sk_CONF_VALUE_num               wolfSSL_sk_CONF_VALUE_num
 #define sk_CONF_VALUE_value             wolfSSL_sk_CONF_VALUE_value
 
 #define lh_CONF_VALUE_retrieve          wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve
+#define lh_CONF_VALUE_insert            wolfSSL_sk_CONF_VALUE_push
 
 #define NCONF_new                       wolfSSL_NCONF_new
 #define NCONF_get_string                wolfSSL_NCONF_get_string
 #define NCONF_get_section               wolfSSL_NCONF_get_section
 
+#define CONF_modules_load               wolfSSL_CONF_modules_load
+
+#define X509V3_conf_free                wolfSSL_X509V3_conf_free
 
 #ifdef  __cplusplus
 } /* extern "C" */
