@@ -3999,9 +3999,6 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 #if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-GCM mode"
 
-#elif defined(WOLFSSL_NRF51_AES)
-    #error "nRF51 doesn't currently support AES-GCM mode"
-
 #endif
 
 #ifdef WOLFSSL_ARMASM
