@@ -8438,7 +8438,7 @@ int aesgcm_test(void)
         0xba, 0x63, 0x7b, 0x39
     };
 
-#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_256)
+#if defined(WOLFSSL_AES_256)
     const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
@@ -9014,7 +9014,7 @@ int gmac_test(void)
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -6201;
 
-#if !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
+#if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(NO_AES_DECRYPT)
     {
         const byte badT[] =
         {
@@ -9053,7 +9053,7 @@ int gmac_test(void)
             return -6208;
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG HAVE_SELFTEST */
+#endif /* !WC_NO_RNG && !HAVE_SELFTEST && !NO_AES_DECRYPT */
 #endif /* HAVE_FIPS */
 
     return 0;
