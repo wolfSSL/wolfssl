@@ -1521,9 +1521,9 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef HAVE_ED448
     static const byte keyEd448Oid[] = {43, 101, 113};
 #endif /* HAVE_ED448 */
-#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+#ifndef NO_DH
     static const byte keyDhOid[] = {42, 134, 72, 134, 247, 13, 1, 3, 1};
-#endif /* ! NO_DH ... */
+#endif /* !NO_DH */
 
 /* curveType */
 #ifdef HAVE_ECC
@@ -1869,12 +1869,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyEd448Oid);
                     break;
                 #endif /* HAVE_ED448 */
-                #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+                #ifndef NO_DH
                 case DHk:
                     oid = keyDhOid;
                     *oidSz = sizeof(keyDhOid);
                     break;
-                #endif /* ! NO_DH && (WOLFSSL_QT || OPENSSL_ALL */
+                #endif /* !NO_DH */
                 default:
                     break;
             }
@@ -4416,17 +4416,20 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #endif /* !NO_RSA */
 
 #ifndef NO_DH
-
+/* Supports either:
+ * - DH params G/P (PKCS#3 DH) file or 
+ * - DH key file (if WOLFSSL_DH_EXTRA enabled) */
+/* The wc_DhParamsLoad function also loads DH params, but directly into buffers, not DhKey */
 int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 {
     int ret = 0;
     int length;
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-                                (HAVE_FIPS_VERSION>2))
+#ifdef WOLFSSL_DH_EXTRA
+    #if !defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     word32 oid = 0, temp = 0;
     #endif
-    #endif
+#endif
 
     WOLFSSL_ENTER("wc_DhKeyDecode");
 
@@ -4435,26 +4438,33 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-                                (HAVE_FIPS_VERSION>2))
-    temp = *inOutIdx;
-    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-    #endif
 
+#ifdef WOLFSSL_DH_EXTRA
+    #if !defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    temp = *inOutIdx;
+    #endif
+#endif
     /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
         ret = ASN_DH_KEY_E;
     }
 
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
-                                (HAVE_FIPS_VERSION>2))
+#ifdef WOLFSSL_DH_EXTRA
+    #if !defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     /* If ASN_DH_KEY_E: Check if input started at beginning of key */
     if (ret == ASN_DH_KEY_E) {
-        /* rewind back to after the first sequence */
         *inOutIdx = temp;
+
+        /* the version (0) */
+        if (GetASNInt(input, inOutIdx, &length, inSz) < 0) {
+            return ASN_PARSE_E;
+        }
+        *inOutIdx += length;
+
+        /* Size of dhKeyAgreement section */
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
@@ -4466,8 +4476,8 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-            GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
+        if (GetInt(&key->p, input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->g, input, inOutIdx, inSz) < 0) {
             return ASN_DH_KEY_E;
         }
     }
@@ -4487,7 +4497,9 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
             /* Found Octet String */
             if (GetInt(&key->priv, input, inOutIdx, inSz) == 0) {
                 WOLFSSL_MSG("Found Private Key");
-                ret = 0;
+
+                /* Compute public */
+                ret = mp_exptmod(&key->g, &key->priv, &key->p, &key->pub);
             }
         } else {
             /* Don't use length from failed CheckBitString/GetOctetString */
@@ -4496,13 +4508,12 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         }
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-    #endif /* WOLFSSL_QT || OPENSSL_ALL */
+#endif /* WOLFSSL_DH_EXTRA */
 
-    WOLFSSL_MSG("wc_DhKeyDecode Success");
+    WOLFSSL_LEAVE("wc_DhKeyDecode", ret);
 
     return ret;
 }
-
 
 int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
@@ -4541,7 +4552,7 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 
     return 0;
 }
-#endif /* NO_DH */
+#endif /* !NO_DH */
 
 
 #ifndef NO_DSA
@@ -9895,7 +9906,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             if (footer) *footer = END_PUB_KEY;
             ret = 0;
             break;
-    #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    #ifndef NO_DH
         case DH_PRIVATEKEY_TYPE:
     #endif
         case PKCS8_PRIVATEKEY_TYPE:
@@ -15068,7 +15079,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 
     return 0;
 }
-#endif /* !NO_DH && WOLFSSL_QT || OPENSSL_ALL */
+#endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
 #ifdef HAVE_ECC
 

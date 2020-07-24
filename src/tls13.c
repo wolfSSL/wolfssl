@@ -444,6 +444,9 @@ static const byte binderKeyLabel[BINDER_KEY_LABEL_SZ + 1] =
 static int DeriveBinderKey(WOLFSSL* ssl, byte* key)
 {
     WOLFSSL_MSG("Derive Binder Key");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         binderKeyLabel, BINDER_KEY_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -467,6 +470,9 @@ static const byte binderKeyResumeLabel[BINDER_KEY_RESUME_LABEL_SZ + 1] =
 static int DeriveBinderKeyResume(WOLFSSL* ssl, byte* key)
 {
     WOLFSSL_MSG("Derive Binder Key - Resumption");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         binderKeyResumeLabel, BINDER_KEY_RESUME_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -491,6 +497,9 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Early Traffic Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
                     earlyTrafficLabel, EARLY_TRAFFIC_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -523,6 +532,9 @@ static int DeriveEarlyExporterSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Early Exporter Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
                     earlyExporterLabel, EARLY_EXPORTER_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -556,6 +568,9 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Client Handshake Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -587,6 +602,9 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Server Handshake Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
                     serverHandshakeLabel, SERVER_HANDSHAKE_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -618,6 +636,9 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Client Traffic Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     clientAppLabel, CLIENT_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -649,6 +670,9 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Server Traffic Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     serverAppLabel, SERVER_APP_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -681,6 +705,9 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
     WOLFSSL_MSG("Derive Exporter Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                     exporterMasterLabel, EXPORTER_MASTER_LABEL_SZ,
                     ssl->specs.mac_algorithm, 1);
@@ -710,9 +737,12 @@ static const byte resumeMasterLabel[RESUME_MASTER_LABEL_SZ + 1] =
  * key  The derived key.
  * returns 0 on success, otherwise failure.
  */
-static int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
+int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
 {
     WOLFSSL_MSG("Derive Resumption Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
                      resumeMasterLabel, RESUME_MASTER_LABEL_SZ,
                      ssl->specs.mac_algorithm, 1);
@@ -761,9 +791,12 @@ static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret)
  *
  * ssl  The SSL/TLS object.
  */
-static int DeriveEarlySecret(WOLFSSL* ssl)
+int DeriveEarlySecret(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Derive Early Secret");
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     return Tls13_HKDF_Extract(ssl->arrays->secret, NULL, 0,
             ssl->arrays->psk_key, ssl->arrays->psk_keySz,
@@ -784,13 +817,14 @@ static const byte derivedLabel[DERIVED_LABEL_SZ + 1] =
  *
  * ssl  The SSL/TLS object.
  */
-static int DeriveHandshakeSecret(WOLFSSL* ssl)
+int DeriveHandshakeSecret(WOLFSSL* ssl)
 {
     byte key[WC_MAX_DIGEST_SIZE];
     int ret;
-
     WOLFSSL_MSG("Derive Handshake Secret");
-
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -807,13 +841,14 @@ static int DeriveHandshakeSecret(WOLFSSL* ssl)
  *
  * ssl  The SSL/TLS object.
  */
-static int DeriveMasterSecret(WOLFSSL* ssl)
+int DeriveMasterSecret(WOLFSSL* ssl)
 {
     byte key[WC_MAX_DIGEST_SIZE];
     int ret;
-
     WOLFSSL_MSG("Derive Master Secret");
-
+    if (ssl == NULL || ssl->arrays == NULL) {
+        return BAD_FUNC_ARG;
+    }
     ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
                         derivedLabel, DERIVED_LABEL_SZ,
                         NULL, 0, ssl->specs.mac_algorithm);
@@ -838,8 +873,7 @@ static const byte resumptionLabel[RESUMPTION_LABEL_SZ+1] = "resumption";
  * secret    The derived secret.
  * returns 0 on success, otherwise failure.
  */
-static int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen,
-                               byte* secret)
+int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret)
 {
     int         digestAlg;
     /* Only one protocol version defined at this time. */
@@ -893,6 +927,10 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     int  hashType = WC_SHA256;
     int  hashSz = WC_SHA256_DIGEST_SIZE;
     int  ret = BAD_FUNC_ARG;
+
+    if (ssl == NULL || key == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* Get the hash of the previous handshake messages. */
     switch (ssl->specs.mac_algorithm) {
@@ -965,7 +1003,7 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
  *          store ready for provisioning.
  * returns 0 on success, otherwise failure.
  */
-static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
+int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
     int   ret = BAD_FUNC_ARG; /* Assume failure */
     int   i = 0;
@@ -1320,39 +1358,6 @@ end:
 #endif
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
-
-#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_SESSION_TICKET) || \
-                                    !defined(NO_PSK))
-/* Add input to all handshake hashes.
- *
- * ssl    The SSL/TLS object.
- * input  The data to hash.
- * sz     The size of the data to hash.
- * returns 0 on success, otherwise failure.
- */
-static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
-{
-    int ret = BAD_FUNC_ARG;
-
-#ifndef NO_SHA256
-    ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, input, sz);
-    if (ret != 0)
-        return ret;
-#endif
-#ifdef WOLFSSL_SHA384
-    ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, input, sz);
-    if (ret != 0)
-        return ret;
-#endif
-#ifdef WOLFSSL_TLS13_SHA512
-    ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, input, sz);
-    if (ret != 0)
-        return ret;
-#endif
-
-    return ret;
-}
-#endif
 
 /* Extract the handshake header information.
  *
@@ -2402,10 +2407,10 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
     ret = InitHandshakeHashes(ssl);
     if (ret != 0)
         return ret;
-    ret = HashOutputRaw(ssl, header, sizeof(header));
+    ret = HashRaw(ssl, header, sizeof(header));
     if (ret != 0)
         return ret;
-    return HashOutputRaw(ssl, hash, hashSz);
+    return HashRaw(ssl, hash, hashSz);
 }
 
 /* The value in the random field of a ServerHello to indicate
@@ -2578,7 +2583,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
         return ret;
 
     /* Hash binders to complete the hash of the ClientHello. */
-    ret = HashOutputRaw(ssl, output + idx, len);
+    ret = HashRaw(ssl, output + idx, len);
     if (ret < 0)
         return ret;
 
@@ -3456,7 +3461,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     }
 
     /* Hash the rest of the ClientHello. */
-    ret = HashInputRaw(ssl, input + helloSz - bindersLen, bindersLen);
+    ret = HashRaw(ssl, input + helloSz - bindersLen, bindersLen);
     if (ret != 0)
         return ret;
 
@@ -3624,9 +3629,9 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
     if ((ret = InitHandshakeHashes(ssl)) != 0)
         return ret;
-    if ((ret = HashOutputRaw(ssl, header, sizeof(header))) != 0)
+    if ((ret = HashRaw(ssl, header, sizeof(header))) != 0)
         return ret;
-    if ((ret = HashOutputRaw(ssl, cookieData + idx, hashSz)) != 0)
+    if ((ret = HashRaw(ssl, cookieData + idx, hashSz)) != 0)
         return ret;
 
     /* Reconstruct the HelloRetryMessage for handshake hash. */
@@ -3705,9 +3710,9 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     WOLFSSL_BUFFER(cookieData, cookie->len);
 #endif
 
-    if ((ret = HashOutputRaw(ssl, hrr, hrrIdx)) != 0)
+    if ((ret = HashRaw(ssl, hrr, hrrIdx)) != 0)
         return ret;
-    return HashOutputRaw(ssl, cookieData, cookie->len);
+    return HashRaw(ssl, cookieData, cookie->len);
 }
 #endif
 
@@ -5849,7 +5854,7 @@ exit_dcv:
  * sniff     Indicates whether we are sniffing packets.
  * returns 0 on success and otherwise failure.
  */
-static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                            word32 size, word32 totalSz, int sniff)
 {
     int    ret;
@@ -5888,19 +5893,22 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         secret = ssl->keys.server_write_MAC_secret;
     }
-    else
+    else {
         secret = ssl->keys.client_write_MAC_secret;
+    }
 
-    ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
-    if (ret != 0)
-        return ret;
-    if (size != finishedSz)
-        return BUFFER_ERROR;
+    if (sniff == NO_SNIFF) {
+        ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
+        if (ret != 0)
+            return ret;
+        if (size != finishedSz)
+            return BUFFER_ERROR;
+    }
 
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
-        if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
-    #endif
+#ifdef WOLFSSL_CALLBACKS
+    if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
+    if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
+#endif
 
     if (sniff == NO_SNIFF) {
         /* Actually check verify data. */
@@ -6349,8 +6357,8 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     word32 ageAdd;
     word16 length;
     word32 now;
-    const byte*  nonce;
-    byte         nonceLength;
+    const byte* nonce;
+    byte        nonceLength;
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_DO);
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
@@ -6506,14 +6514,14 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
         static byte endOfEarlyData[] = { 0x05, 0x00, 0x00, 0x00 };
-        ret = HashInputRaw(ssl, endOfEarlyData, sizeof(endOfEarlyData));
+        ret = HashRaw(ssl, endOfEarlyData, sizeof(endOfEarlyData));
         if (ret != 0)
             return ret;
     }
 #endif
-    if ((ret = HashInputRaw(ssl, header, sizeof(header))) != 0)
+    if ((ret = HashRaw(ssl, header, sizeof(header))) != 0)
         return ret;
-    if ((ret = HashInputRaw(ssl, mac, finishedSz)) != 0)
+    if ((ret = HashRaw(ssl, mac, finishedSz)) != 0)
         return ret;
 
     if ((ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret)) != 0)

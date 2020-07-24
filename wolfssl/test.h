@@ -3613,15 +3613,16 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
                              int enc, byte* ticket, int inLen, int* outLen,
                              void* userCtx)
     {
-        (void)ssl;
-        (void)userCtx;
-
         int ret;
         word16 sLen = XHTONS(inLen);
         byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
         int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
         byte* tmp = aad;
 
+        (void)ssl;
+        (void)userCtx;
+
+        /* encrypt */
         if (enc) {
             XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
 
@@ -3642,8 +3643,9 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
                                               mac);
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
-        } else {
-            /* decrypt */
+        }
+        /* decrypt */
+        else {
 
             /* see if we know this key */
             if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
@@ -3670,7 +3672,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         return WOLFSSL_TICKET_RET_OK;
     }
 
-#endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
+#endif  /* HAVE_SESSION_TICKET && HAVE_CHACHA && HAVE_POLY1305 */
 
 static WC_INLINE word16 GetRandomPort(void)
 {

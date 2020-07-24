@@ -455,6 +455,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define MAX_PATH 256
     #endif
 
+    WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf, 
+        size_t* bufLen, void* heap);
+
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \
     !defined(WOLFSSL_NUCLEUS_1_2)
     typedef struct ReadDirCtx {

@@ -1897,6 +1897,11 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         ctx->alpn_cli_protos = NULL;
     }
 #endif
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    if (ctx->staticKE.key) {
+        FreeDer(&ctx->staticKE.key);
+    }
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
@@ -5680,6 +5685,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.useClientOrder = ctx->useClientOrder;
     ssl->options.mutualAuth = ctx->mutualAuth;
 
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    ssl->staticKE = ctx->staticKE;
+#endif
+
 #ifdef WOLFSSL_TLS13
     #ifdef HAVE_SESSION_TICKET
         ssl->options.noTicketTls13 = ctx->noTicketTls13;
@@ -6407,6 +6416,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         CertReqCtx* curr = ssl->certReqCtx;
         ssl->certReqCtx = curr->next;
         XFREE(curr, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    if (ssl->staticKE.key != NULL && ssl->staticKE.key != ssl->ctx->staticKE.key) {
+        FreeDer(&ssl->staticKE.key);
     }
 #endif
 
@@ -7674,49 +7688,46 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
 }
 #endif /* (HAVE_ED25519 || HAVE_ED448) && !WOLFSSL_NO_CLIENT_AUTH */
 
-int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
+int HashRaw(WOLFSSL* ssl, const byte* data, int sz)
 {
     int ret = 0;
 
-    (void)output;
+    (void)data;
     (void)sz;
 
-    if (ssl->hsHashes == NULL)
+    if (ssl->hsHashes == NULL) {
         return BAD_FUNC_ARG;
+    }
 
-#ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
-        ssl->fuzzerCb(ssl, output, sz, FUZZ_HASH, ssl->fuzzerCtx);
-#endif
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hsHashes->hashSha, output, sz);
+        wc_ShaUpdate(&ssl->hsHashes->hashSha, data, sz);
     #endif
     #ifndef NO_MD5
-        wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
+        wc_Md5Update(&ssl->hsHashes->hashMd5, data, sz);
     #endif
 #endif /* NO_OLD_TLS */
 
     if (IsAtLeastTLSv1_2(ssl)) {
     #ifndef NO_SHA256
-        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, output, sz);
+        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, data, sz);
         if (ret != 0)
             return ret;
     #endif
     #ifdef WOLFSSL_SHA384
-        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, output, sz);
+        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, data, sz);
         if (ret != 0)
             return ret;
     #endif
     #ifdef WOLFSSL_SHA512
-        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, output, sz);
+        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, data, sz);
         if (ret != 0)
             return ret;
     #endif
     #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
                 (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
-        ret = EdDSA_Update(ssl, output, sz);
+        ret = EdDSA_Update(ssl, data, sz);
         if (ret != 0)
             return ret;
     #endif
@@ -7728,7 +7739,6 @@ int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 /* add output to md5 and sha handshake hashes, exclude record header */
 int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 {
-    int ret = 0;
     const byte* adj;
 
     if (ssl->hsHashes == NULL)
@@ -7747,54 +7757,22 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
         sz  -= DTLS_RECORD_EXTRA;
     }
 #endif
-#ifndef NO_OLD_TLS
-    #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
-    #endif
-    #ifndef NO_MD5
-        wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
-    #endif
-#endif
 
-    if (IsAtLeastTLSv1_2(ssl)) {
-    #ifndef NO_SHA256
-        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
-                (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
-        ret = EdDSA_Update(ssl, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    }
-
-    return ret;
+    return HashRaw(ssl, adj, sz);
 }
 
 
 /* add input to md5 and sha handshake hashes, include handshake header */
 int HashInput(WOLFSSL* ssl, const byte* input, int sz)
 {
-    int ret = 0;
     const byte* adj;
+
+    if (ssl->hsHashes == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     adj = input - HANDSHAKE_HEADER_SZ;
     sz += HANDSHAKE_HEADER_SZ;
-
-    (void)adj;
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -7803,45 +7781,7 @@ int HashInput(WOLFSSL* ssl, const byte* input, int sz)
     }
 #endif
 
-    if (ssl->hsHashes == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-#ifndef NO_OLD_TLS
-    #ifndef NO_SHA
-        wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
-    #endif
-    #ifndef NO_MD5
-        wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
-    #endif
-#endif
-
-    if (IsAtLeastTLSv1_2(ssl)) {
-    #ifndef NO_SHA256
-        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
-               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
-                (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
-        ret = EdDSA_Update(ssl, adj, sz);
-        if (ret != 0)
-            return ret;
-    #endif
-    }
-
-    return ret;
+    return HashRaw(ssl, adj, sz);
 }
 
 
@@ -16940,15 +16880,15 @@ int SendCertificate(WOLFSSL* ssl)
             if (!ssl->options.dtls) {
                 AddFragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
                 if (!IsEncryptionOn(ssl, 1))
-                    HashOutputRaw(ssl, output + RECORD_HEADER_SZ,
+                    HashRaw(ssl, output + RECORD_HEADER_SZ,
                                   HANDSHAKE_HEADER_SZ);
             }
             else {
             #ifdef WOLFSSL_DTLS
                 AddHeaders(output, payloadSz, certificate, ssl);
-                HashOutputRaw(ssl,
-                              output + RECORD_HEADER_SZ + DTLS_RECORD_EXTRA,
-                              HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
+                HashRaw(ssl,
+                        output + RECORD_HEADER_SZ + DTLS_RECORD_EXTRA,
+                        HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA);
                 /* Adding the headers increments these, decrement them for
                  * actual message header. */
                 ssl->keys.dtls_handshake_number--;
@@ -16960,22 +16900,22 @@ int SendCertificate(WOLFSSL* ssl)
             /* list total */
             c32to24(listSz, output + i);
             if (ssl->options.dtls || !IsEncryptionOn(ssl, 1))
-                HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+                HashRaw(ssl, output + i, CERT_HEADER_SZ);
             i += CERT_HEADER_SZ;
             length -= CERT_HEADER_SZ;
             fragSz -= CERT_HEADER_SZ;
             if (certSz) {
                 c32to24(certSz, output + i);
                 if (ssl->options.dtls || !IsEncryptionOn(ssl, 1))
-                    HashOutputRaw(ssl, output + i, CERT_HEADER_SZ);
+                    HashRaw(ssl, output + i, CERT_HEADER_SZ);
                 i += CERT_HEADER_SZ;
                 length -= CERT_HEADER_SZ;
                 fragSz -= CERT_HEADER_SZ;
 
                 if (ssl->options.dtls || !IsEncryptionOn(ssl, 1)) {
-                    HashOutputRaw(ssl, ssl->buffers.certificate->buffer, certSz);
+                    HashRaw(ssl, ssl->buffers.certificate->buffer, certSz);
                     if (certChainSz)
-                        HashOutputRaw(ssl, ssl->buffers.certChain->buffer,
+                        HashRaw(ssl, ssl->buffers.certChain->buffer,
                                       certChainSz);
                 }
             }
@@ -21029,7 +20969,7 @@ exit_dpk:
         return ret;
     }
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448 */
 
 /* Persistable DoServerKeyExchange arguments */
 typedef struct DskeArgs {
@@ -28102,6 +28042,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     } InternalTicket;
 
+    /* RFC 5077 defines this for session tickets */
     /* fit within SESSION_TICKET_LEN */
     typedef struct ExternalTicket {
         byte key_name[WOLFSSL_TICKET_NAME_SZ];  /* key context name */

@@ -10385,7 +10385,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
     !defined(NO_ASN)
     #ifndef NO_DH
-        static const char* dhKey = CERT_ROOT "dh2048.der";
+        static const char* dhParamsFile = CERT_ROOT "dh2048.der";
+        #ifdef WOLFSSL_DH_EXTRA
+            static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
+        #endif
     #endif
     #ifndef NO_DSA
         static const char* dsaKey = CERT_ROOT "dsa2048.der";
@@ -14144,7 +14147,6 @@ static int dh_fips_generate_test(WC_RNG *rng)
     if (ret != 0) {
         ERROR_OUT(-7796, exit_gen_test);
     }
-
 #endif /* WOLFSSL_KEY_GEN */
 #endif /* HAVE_SELFTEST */
 
@@ -14428,7 +14430,7 @@ int dh_test(void)
 #elif defined(NO_ASN)
     /* don't use file, no DER parsing */
 #elif !defined(NO_FILESYSTEM)
-    XFILE  file = XFOPEN(dhKey, "rb");
+    XFILE  file = XFOPEN(dhParamsFile, "rb");
     if (!file)
         return -7900;
 
@@ -14544,6 +14546,36 @@ int dh_test(void)
             return -7918;
     }
 #endif
+
+    
+
+    /* Test DH key import / export */
+#ifdef WOLFSSL_DH_EXTRA
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
+    file = XFOPEN(dhKeyFile, "rb");
+    if (!file)
+        return -7950;
+    bytes = (word32)XFREAD(tmp, 1, sizeof(tmp), file);
+    XFCLOSE(file);
+
+    idx = 0;
+    ret = wc_DhKeyDecode(tmp, &idx, &key, bytes);
+    if (ret != 0) {
+        return -7951;
+    }
+#endif
+
+    privSz = sizeof(priv);
+    pubSz = sizeof(pub);
+    ret = wc_DhExportKeyPair(&key, priv, &privSz, pub, &pubSz);
+    if (ret != 0) {
+        return -7952;
+    }
+    ret = wc_DhImportKeyPair(&key2, priv, privSz, pub, pubSz);
+    if (ret != 0) {
+        return -7953;
+    }
+#endif /* WOLFSSL_DH_EXTRA */
 
     ret = dh_generate_test(&rng);
     if (ret == 0)
