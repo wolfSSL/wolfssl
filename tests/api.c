@@ -27194,15 +27194,16 @@ static int test_wc_ERR_print_errors_fp (void)
     WOLFSSL_ERROR(BAD_FUNC_ARG);
     XFILE fp = XFOPEN("./tests/test-log-dump-to-file.txt", "ar");
     wc_ERR_print_errors_fp(fp);
-
+#if defined(DEBUG_WOLFSSL)
     AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
     sz = XFTELL(fp);
     if (sz == 0) {
         ret = BAD_FUNC_ARG;
     }
-
+#endif
     printf(resultFmt, ret == 0 ? passed : failed);
     XFCLOSE(fp);
+    (void)sz;
 #endif
     return ret;
 }/*End test_wc_ERR_print_errors_fp*/
