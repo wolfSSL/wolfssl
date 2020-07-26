@@ -3528,14 +3528,19 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 return 0;
             #endif
 
-            /* accept the first good status_type and return */
-            ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+            /* TLS 1.3 servers MUST NOT act upon presence or information in
+             * this extension (RFC 8448 Section 4.4.2.1).
+             */
+            if (!IsAtLeastTLSv1_3(ssl->version)) {
+                /* accept the first good status_type and return */
+                ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
                                          status_type, 0, ssl->heap, ssl->devId);
-            if (ret != WOLFSSL_SUCCESS)
-                return ret; /* throw error */
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret; /* throw error */
 
-            TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST_V2);
-            ssl->status_request_v2 = status_type;
+                TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST_V2);
+                ssl->status_request_v2 = status_type;
+            }
 
             return 0;
         }
@@ -10327,6 +10332,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
+        /* Don't send out any extension except those that are turned off. */
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
@@ -10421,6 +10427,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
+        /* Don't send out any extension except those that are turned off. */
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
@@ -10524,6 +10531,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 
     #ifdef WOLFSSL_TLS13
         case encrypted_extensions:
+            /* Send out all extension except those that are turned on. */
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
@@ -10533,6 +10541,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
         #if defined(HAVE_SECURE_RENEGOTIATION)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
@@ -10553,6 +10564,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
         case certificate:
+            /* Don't send out any extension except those that are turned off. */
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
             /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
@@ -10640,6 +10652,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 
     #ifdef WOLFSSL_TLS13
             case encrypted_extensions:
+                /* Send out all extension except those that are turned on. */
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
@@ -10649,6 +10662,9 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
         #if defined(HAVE_SECURE_RENEGOTIATION)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
@@ -10669,6 +10685,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
     #ifdef WOLFSSL_TLS13
         #ifndef NO_CERTS
             case certificate:
+                /* Don't send out any extension except those that are turned
+                 * off. */
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
                 /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
