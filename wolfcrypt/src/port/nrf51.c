@@ -174,7 +174,7 @@ static void rtc_config(void)
     uint32_t err_code;
 
     /* Start the internal LFCLK XTAL oscillator */
-#ifdef NRF52
+#if defined(NRF52) || defined(NRF52_SERIES)
     err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
     nrf_drv_clock_lfclk_request(NULL);
