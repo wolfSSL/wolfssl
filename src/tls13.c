@@ -3202,7 +3202,13 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         ssl->options.sendVerify = SEND_CERT;
     }
     else {
+#ifndef WOLFSSL_NO_CLIENT_CERT_ERROR
         ssl->options.sendVerify = SEND_BLANK_CERT;
+#else
+        WOLFSSL_MSG("Certificate required but none set on client");
+        SendAlert(ssl, alert_fatal, illegal_parameter);
+        return NO_CERT_ERROR;
+#endif
     }
 
     /* This message is always encrypted so add encryption padding. */
