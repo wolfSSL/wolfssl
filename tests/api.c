@@ -7710,7 +7710,7 @@ static int test_wc_Sha224Final (void)
 static int test_wc_Sha224SetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     word32 flags = 0;
@@ -7742,7 +7742,7 @@ static int test_wc_Sha224SetFlags (void)
 static int test_wc_Sha224GetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     word32 flags = 0;
@@ -7775,7 +7775,7 @@ static int test_wc_Sha224GetFlags (void)
 static int test_wc_Sha224Free (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
 
     printf(testingFmt, "wc_Sha224Free()");
@@ -7794,7 +7794,7 @@ static int test_wc_Sha224Free (void)
 static int test_wc_Sha224GetHash (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     byte hash1[WC_SHA224_DIGEST_SIZE];
@@ -7841,7 +7841,7 @@ static int test_wc_Sha224GetHash (void)
 static int test_wc_Sha224Copy (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     wc_Sha224 temp;
