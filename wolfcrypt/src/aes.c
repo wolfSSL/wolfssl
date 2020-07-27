@@ -2391,6 +2391,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
+        XMEMCPY(aes->key, userKey, keylen);
         ret = nrf51_aes_set_key(userKey);
 
     #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
