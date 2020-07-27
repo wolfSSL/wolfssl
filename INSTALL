@@ -88,4 +88,10 @@
     $ make
     $ sudo make install
 
+    To build library only and not build examples and test apps use:
+    $ cmake .. -DBUILD_TESTS=NO
+
+    To build with debugging use:
+    $ cmake .. -DCMAKE_BUILD_TYPE=Debug
+
     Make sure and run the built examples and test from the wolfssl-root to properly find the ./certs directory.
