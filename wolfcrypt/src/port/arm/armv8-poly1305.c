@@ -24,9 +24,6 @@
  * and Daniel J. Bernstein
  */
 
-
-#ifdef __aarch64__
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -34,6 +31,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
+#ifdef __aarch64__
+
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -208,11 +207,11 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        v28.D[0], x9         \n\t"
         "AND        x22, x22, #0x3ffffff \n\t"
         /* Zero accumulator registers */
-        "MOVI       v15.2D, #0x0         \n\t"
-        "MOVI       v16.2D, #0x0         \n\t"
-        "MOVI       v17.2D, #0x0         \n\t"
-        "MOVI       v18.2D, #0x0         \n\t"
-        "MOVI       v19.2D, #0x0         \n\t"
+        "MOVI       v15.16B, #0x0        \n\t"
+        "MOVI       v16.16B, #0x0        \n\t"
+        "MOVI       v17.16B, #0x0        \n\t"
+        "MOVI       v18.16B, #0x0        \n\t"
+        "MOVI       v19.16B, #0x0        \n\t"
         /* Set hibit */
         "CMP        %[finished], #0      \n\t"
         "CSET       x9, EQ               \n\t"
@@ -1162,5 +1161,5 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 }
 
 #endif /* HAVE_POLY1305 */
-#endif /* WOLFSSL_ARMASM */
 #endif /* __aarch64__ */
+#endif /* WOLFSSL_ARMASM */

@@ -7394,11 +7394,11 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[128], m[64], r[128];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -7734,10 +7734,10 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -7796,16 +7796,16 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[64], tmpb[64];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
@@ -18953,11 +18953,11 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[192], m[96], r[192];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -19373,10 +19373,10 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -19435,16 +19435,16 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[96], tmpb[96];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
@@ -26940,11 +26940,11 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[256], m[128], r[256];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -27440,10 +27440,10 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -27502,16 +27502,16 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[128], tmpb[128];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
