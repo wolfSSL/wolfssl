@@ -1450,7 +1450,6 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef WOLFSSL_SOLARIS
-    #define WOLFSSL_NO_MUTEXLOCK_AFTER_FREE
     /* Avoid naming clash with fp_zero from math.h > ieefp.h */
     #define WOLFSSL_DH_CONST
 #endif
