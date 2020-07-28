@@ -171,16 +171,15 @@ extern "C" {
     #undef  ECC_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
-    /* Enable cofactor support */
     #ifdef HAVE_FIPS
         #undef  HAVE_ECC_CDH
-        #define HAVE_ECC_CDH
-    #endif
+        #define HAVE_ECC_CDH /* Enable cofactor support */
 
-    /* Validate import */
-    #ifdef HAVE_FIPS
+        #undef NO_STRICT_ECDSA_LEN
+        #define NO_STRICT_ECDSA_LEN /* Do not force fixed len w/ FIPS */
+
         #undef  WOLFSSL_VALIDATE_ECC_IMPORT
-        #define WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
     #endif
 
     /* Compressed Key Support */
