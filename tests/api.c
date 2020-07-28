@@ -27362,6 +27362,7 @@ static void test_wolfSSL_ERR_print_errors(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     ERR_clear_error(); /* clear out any error nodes */
     ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
+    /* Choosing -295 as an unused errno between MIN_CODE_E < x < WC_LAST_E. */
     ERR_put_error(0,SYS_F_BIND, -295, "asn.c", 100);
 
     ERR_print_errors(bio);
