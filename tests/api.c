@@ -27361,7 +27361,113 @@ static void test_wolfSSL_ERR_print_errors_cb(void)
     printf(resultFmt, passed);
     #endif
 }
+/*
+ * Testing WOLFSSL_ERROR_MSG
+ */
+static int test_WOLFSSL_ERROR_MSG (void)
+{
+    int ret = 0;
+#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+    const char* msg = "Everyone gets Friday off.";
 
+    printf(testingFmt, "WOLFSSL_ERROR_MSG()");
+
+    WOLFSSL_ERROR_MSG(msg);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_WOLFSSL_ERROR_MSG*/
+/*
+ * Testing wc_ERR_remove_state
+ */
+static int test_wc_ERR_remove_state (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+
+    printf(testingFmt, "wc_ERR_remove_state()");
+
+    wc_ERR_remove_state();
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_wc_ERR_remove_state*/
+/*
+ * Testing wc_ERR_print_errors_fp
+ */
+static int test_wc_ERR_print_errors_fp (void)
+{
+    int ret = 0;
+#if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)) && \
+    (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM))
+    long sz;
+
+    printf(testingFmt, "wc_ERR_print_errors_fp()");
+
+    WOLFSSL_ERROR(BAD_FUNC_ARG);
+    XFILE fp = XFOPEN("./tests/test-log-dump-to-file.txt", "ar");
+    wc_ERR_print_errors_fp(fp);
+#if defined(DEBUG_WOLFSSL)
+    AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
+    sz = XFTELL(fp);
+    if (sz == 0) {
+        ret = BAD_FUNC_ARG;
+    }
+#endif
+    printf(resultFmt, ret == 0 ? passed : failed);
+    XFCLOSE(fp);
+    (void)sz;
+#endif
+    return ret;
+}/*End test_wc_ERR_print_errors_fp*/
+#ifdef DEBUG_WOLFSSL
+static void Logging_cb(const int logLevel, const char *const logMessage)
+{
+    (void)logLevel;
+    (void)logMessage;
+}
+#endif
+/*
+ * Testing wolfSSL_GetLoggingCb
+ */
+static int test_wolfSSL_GetLoggingCb (void)
+{
+    int ret = 0;
+#ifdef DEBUG_WOLFSSL
+    printf(testingFmt, "wolfSSL_GetLoggingCb()");
+
+    /*Testing without wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        if(wolfSSL_GetLoggingCb() == NULL){ /*Should be true*/
+            ret = 0;
+        }
+        if(wolfSSL_GetLoggingCb() != NULL){ /*Should not be true*/
+            ret = -1;
+        }
+    }
+    /*Testing with wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        ret = wolfSSL_SetLoggingCb(Logging_cb);
+        if (ret == 0){
+            if(wolfSSL_GetLoggingCb() == NULL){ /*Should not be true*/
+                ret = -1;
+            }
+            if (ret == 0) {
+                if(wolfSSL_GetLoggingCb() == Logging_cb){ /*Should be true*/
+                    ret = 0;
+                }
+            }
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/*End test_wolfSSL_GetLoggingCb*/
 static void test_wolfSSL_HMAC(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
@@ -33603,7 +33709,7 @@ static int test_wc_InitRngNonce(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
@@ -33629,14 +33735,14 @@ static int test_wc_InitRngNonce_ex(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     word32  nonceSz = sizeof(nonce);
 
     printf(testingFmt, "wc_InitRngNonce_ex()");
-    
+
     if (ret == 0){
         ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
     }
@@ -35141,6 +35247,10 @@ void ApiTest(void)
     test_wolfSSL_ERR_peek_last_error_line();
 #endif
     test_wolfSSL_ERR_print_errors_cb();
+    AssertFalse(test_wolfSSL_GetLoggingCb());
+    AssertFalse(test_WOLFSSL_ERROR_MSG());
+    AssertFalse(test_wc_ERR_remove_state());
+    AssertFalse(test_wc_ERR_print_errors_fp());
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_X509_STORE_CTX();

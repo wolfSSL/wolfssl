@@ -12,3 +12,4 @@ rm -f ./certeccrsa.der
 rm -f ./ecc-key.der
 rm -f ./ecc-key.pem
 rm -f ./ecc-public-key.der
+rm -f ./tests/test-log-dump-to-file.txt
