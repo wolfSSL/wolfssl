@@ -383,61 +383,61 @@ RTOS: FreeRTOS
  wolfSSL version 4.4.1
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                125 KB took 1.161 seconds,  107.666 KB/s
-AES-128-CBC-enc      3 MB took 1.004 seconds,    2.772 MB/s
-AES-128-CBC-dec      3 MB took 1.000 seconds,    2.734 MB/s
-AES-256-CBC-enc      3 MB took 1.000 seconds,    2.759 MB/s
-AES-256-CBC-dec      3 MB took 1.004 seconds,    2.723 MB/s
-AES-128-GCM-enc      2 MB took 1.004 seconds,    2.334 MB/s
-AES-128-GCM-dec      2 MB took 1.000 seconds,    2.319 MB/s
-AES-256-GCM-enc      2 MB took 1.008 seconds,    2.325 MB/s
-AES-256-GCM-dec      2 MB took 1.008 seconds,    2.301 MB/s
-CHACHA             275 KB took 1.051 seconds,  261.656 KB/s
-CHA-POLY           200 KB took 1.020 seconds,  196.078 KB/s
-POLY1305             1 MB took 1.000 seconds,    1.050 MB/s
-SHA-256              1 MB took 1.000 seconds,    1.367 MB/s
-HMAC-SHA256          1 MB took 1.008 seconds,    1.332 MB/s
-RSA     2048 public         18 ops took 1.004 sec, avg 55.778 ms, 17.928 ops/sec
-RSA     2048 private         2 ops took 3.894 sec, avg 1947.000 ms, 0.514 ops/sec
-DH      2048 key gen         2 ops took 1.768 sec, avg 884.000 ms, 1.131 ops/sec
+RNG                150 KB took 1.105 seconds,  135.747 KB/s
+AES-128-CBC-enc      4 MB took 1.000 seconds,    4.468 MB/s
+AES-128-CBC-dec      4 MB took 1.000 seconds,    4.297 MB/s
+AES-256-CBC-enc      4 MB took 1.000 seconds,    3.857 MB/s
+AES-256-CBC-dec      4 MB took 1.004 seconds,    3.745 MB/s
+AES-128-GCM-enc      4 MB took 1.000 seconds,    3.662 MB/s
+AES-128-GCM-dec      4 MB took 1.004 seconds,    3.648 MB/s
+AES-256-GCM-enc      3 MB took 1.004 seconds,    3.258 MB/s
+AES-256-GCM-dec      3 MB took 1.000 seconds,    3.247 MB/s
+CHACHA               1 MB took 1.008 seconds,    1.138 MB/s
+CHA-POLY           825 KB took 1.023 seconds,  806.452 KB/s
+POLY1305             4 MB took 1.000 seconds,    3.711 MB/s
+SHA-256              2 MB took 1.000 seconds,    1.855 MB/s
+HMAC-SHA256          2 MB took 1.008 seconds,    1.817 MB/s
+RSA     2048 public         20 ops took 1.106 sec, avg 55.300 ms, 18.083 ops/sec
+RSA     2048 private         2 ops took 3.804 sec, avg 1902.000 ms, 0.526 ops/sec
+DH      2048 key gen         2 ops took 1.772 sec, avg 886.000 ms, 1.129 ops/sec
 DH      2048 agree           2 ops took 1.773 sec, avg 886.500 ms, 1.128 ops/sec
-ECC      256 key gen        32 ops took 1.004 sec, avg 31.375 ms, 31.873 ops/sec
-ECDHE    256 agree          16 ops took 1.024 sec, avg 64.000 ms, 15.625 ops/sec
-ECDSA    256 sign            2 ops took 7.749 sec, avg 3874.500 ms, 0.258 ops/sec
-ECDSA    256 verify         10 ops took 1.012 sec, avg 101.200 ms, 9.881 ops/sec
+ECC      256 key gen        36 ops took 1.011 sec, avg 28.083 ms, 35.608 ops/sec
+ECDHE    256 agree          18 ops took 1.086 sec, avg 60.333 ms, 16.575 ops/sec
+ECDSA    256 sign           22 ops took 1.004 sec, avg 45.636 ms, 21.912 ops/sec
+ECDSA    256 verify         12 ops took 1.133 sec, avg 94.417 ms, 10.591 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
 
-### STM32L562E (STM PKA/AES-CBC/Hash Acceleration, -Os, SP-ASM Cortex-M)
+### STM32L562E (STM PKA ECC/AES-CBC/Hash Acceleration, -Os, SP-ASM Cortex-M)
 
 ```
 ------------------------------------------------------------------------------
  wolfSSL version 4.4.1
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                125 KB took 1.165 seconds,  107.296 KB/s
-AES-128-CBC-enc      3 MB took 1.008 seconds,    2.761 MB/s
-AES-128-CBC-dec      3 MB took 1.004 seconds,    2.723 MB/s
-AES-256-CBC-enc      3 MB took 1.000 seconds,    2.759 MB/s
-AES-256-CBC-dec      3 MB took 1.004 seconds,    2.723 MB/s
-AES-128-GCM-enc      2 MB took 1.004 seconds,    2.334 MB/s
-AES-128-GCM-dec      2 MB took 1.004 seconds,    2.310 MB/s
-AES-256-GCM-enc      2 MB took 1.000 seconds,    2.319 MB/s
-AES-256-GCM-dec      2 MB took 1.000 seconds,    2.295 MB/s
-CHACHA             275 KB took 1.047 seconds,  262.655 KB/s
-CHA-POLY           200 KB took 1.015 seconds,  197.044 KB/s
-POLY1305             1 MB took 1.000 seconds,    1.050 MB/s
-SHA-256              1 MB took 1.000 seconds,    1.367 MB/s
-HMAC-SHA256          1 MB took 1.004 seconds,    1.337 MB/s
-RSA     2048 public         18 ops took 1.004 sec, avg 55.778 ms, 17.928 ops/sec
-RSA     2048 private         2 ops took 3.894 sec, avg 1947.000 ms, 0.514 ops/sec
-DH      2048 key gen         2 ops took 1.777 sec, avg 888.500 ms, 1.125 ops/sec
+RNG                150 KB took 1.105 seconds,  135.747 KB/s
+AES-128-CBC-enc      4 MB took 1.000 seconds,    4.468 MB/s
+AES-128-CBC-dec      4 MB took 1.000 seconds,    4.297 MB/s
+AES-256-CBC-enc      4 MB took 1.000 seconds,    3.857 MB/s
+AES-256-CBC-dec      4 MB took 1.004 seconds,    3.745 MB/s
+AES-128-GCM-enc      4 MB took 1.000 seconds,    3.662 MB/s
+AES-128-GCM-dec      4 MB took 1.004 seconds,    3.648 MB/s
+AES-256-GCM-enc      3 MB took 1.004 seconds,    3.258 MB/s
+AES-256-GCM-dec      3 MB took 1.000 seconds,    3.247 MB/s
+CHACHA               1 MB took 1.008 seconds,    1.138 MB/s
+CHA-POLY           825 KB took 1.023 seconds,  806.452 KB/s
+POLY1305             4 MB took 1.000 seconds,    3.711 MB/s
+SHA-256              2 MB took 1.000 seconds,    1.855 MB/s
+HMAC-SHA256          2 MB took 1.008 seconds,    1.817 MB/s
+RSA     2048 public         20 ops took 1.106 sec, avg 55.300 ms, 18.083 ops/sec
+RSA     2048 private         2 ops took 3.804 sec, avg 1902.000 ms, 0.526 ops/sec
+DH      2048 key gen         2 ops took 1.772 sec, avg 886.000 ms, 1.129 ops/sec
 DH      2048 agree           2 ops took 1.773 sec, avg 886.500 ms, 1.128 ops/sec
-ECC      256 key gen        32 ops took 1.000 sec, avg 31.250 ms, 32.000 ops/sec
-ECDHE    256 agree          16 ops took 1.027 sec, avg 64.188 ms, 15.579 ops/sec
-ECDSA    256 sign           20 ops took 1.020 sec, avg 51.000 ms, 19.608 ops/sec
-ECDSA    256 verify         10 ops took 1.011 sec, avg 101.100 ms, 9.891 ops/sec
+ECC      256 key gen        11 ops took 1.067 sec, avg 97.000 ms, 10.309 ops/sec
+ECDHE    256 agree          12 ops took 1.130 sec, avg 94.167 ms, 10.619 ops/sec
+ECDSA    256 sign           22 ops took 1.071 sec, avg 48.682 ms, 20.542 ops/sec
+ECDSA    256 verify         12 ops took 1.125 sec, avg 93.750 ms, 10.667 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
@@ -450,31 +450,31 @@ Benchmark Test: Return code 0
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
 RNG                 75 KB took 1.274 seconds,   58.870 KB/s
-AES-128-CBC-enc    125 KB took 1.031 seconds,  121.242 KB/s
-AES-128-CBC-dec    125 KB took 1.075 seconds,  116.279 KB/s
-AES-192-CBC-enc    125 KB took 1.110 seconds,  112.613 KB/s
-AES-192-CBC-dec    125 KB took 1.149 seconds,  108.790 KB/s
-AES-256-CBC-enc    125 KB took 1.184 seconds,  105.574 KB/s
-AES-256-CBC-dec    125 KB took 1.224 seconds,  102.124 KB/s
-AES-128-GCM-enc     25 KB took 2.976 seconds,    8.401 KB/s
-AES-128-GCM-dec     25 KB took 2.976 seconds,    8.401 KB/s
-AES-192-GCM-enc     25 KB took 3.016 seconds,    8.289 KB/s
-AES-192-GCM-dec     25 KB took 3.016 seconds,    8.289 KB/s
-AES-256-GCM-enc     25 KB took 3.040 seconds,    8.224 KB/s
-AES-256-GCM-dec     25 KB took 3.044 seconds,    8.213 KB/s
-CHACHA             275 KB took 1.051 seconds,  261.656 KB/s
-CHA-POLY           200 KB took 1.012 seconds,  197.628 KB/s
-POLY1305             1 MB took 1.020 seconds,    1.077 MB/s
-SHA-256            150 KB took 1.105 seconds,  135.747 KB/s
-HMAC-SHA256        150 KB took 1.114 seconds,  134.650 KB/s
-RSA     2048 public          6 ops took 1.306 sec, avg 217.667 ms, 4.594 ops/sec
-RSA     2048 private         2 ops took 24.713 sec, avg 12356.500 ms, 0.081 ops/sec
-DH      2048 key gen         1 ops took 2.439 sec, avg 2439.000 ms, 0.410 ops/sec
-DH      2048 agree           2 ops took 10.035 sec, avg 5017.500 ms, 0.199 ops/sec
-ECC      256 key gen         1 ops took 2.565 sec, avg 2565.000 ms, 0.390 ops/sec
-ECDHE    256 agree           2 ops took 5.125 sec, avg 2562.500 ms, 0.390 ops/sec
-ECDSA    256 sign            2 ops took 5.192 sec, avg 2596.000 ms, 0.385 ops/sec
-ECDSA    256 verify          2 ops took 3.314 sec, avg 1657.000 ms, 0.604 ops/sec
+AES-128-CBC-enc    475 KB took 1.036 seconds,  458.494 KB/s
+AES-128-CBC-dec    450 KB took 1.007 seconds,  446.872 KB/s
+AES-192-CBC-enc    400 KB took 1.024 seconds,  390.625 KB/s
+AES-192-CBC-dec    400 KB took 1.047 seconds,  382.044 KB/s
+AES-256-CBC-enc    350 KB took 1.023 seconds,  342.131 KB/s
+AES-256-CBC-dec    350 KB took 1.051 seconds,  333.016 KB/s
+AES-128-GCM-enc     25 KB took 1.310 seconds,   19.084 KB/s
+AES-128-GCM-dec     25 KB took 1.306 seconds,   19.142 KB/s
+AES-192-GCM-enc     25 KB took 1.330 seconds,   18.797 KB/s
+AES-192-GCM-dec     25 KB took 1.329 seconds,   18.811 KB/s
+AES-256-GCM-enc     25 KB took 1.341 seconds,   18.643 KB/s
+AES-256-GCM-dec     25 KB took 1.345 seconds,   18.587 KB/s
+CHACHA               1 MB took 1.012 seconds,    1.230 MB/s
+CHA-POLY           850 KB took 1.000 seconds,  850.000 KB/s
+POLY1305             4 MB took 1.004 seconds,    3.672 MB/s
+SHA-256            750 KB took 1.020 seconds,  735.294 KB/s
+HMAC-SHA256        750 KB took 1.031 seconds,  727.449 KB/s
+RSA     2048 public         10 ops took 1.086 sec, avg 108.600 ms, 9.208 ops/sec
+RSA     2048 private         2 ops took 12.894 sec, avg 6447.000 ms, 0.155 ops/sec
+DH      2048 key gen         1 ops took 1.200 sec, avg 1200.000 ms, 0.833 ops/sec
+DH      2048 agree           2 ops took 4.867 sec, avg 2433.500 ms, 0.411 ops/sec
+ECC      256 key gen         1 ops took 1.514 sec, avg 1514.000 ms, 0.661 ops/sec
+ECDHE    256 agree           2 ops took 3.028 sec, avg 1514.000 ms, 0.661 ops/sec
+ECDSA    256 sign            2 ops took 3.066 sec, avg 1533.000 ms, 0.652 ops/sec
+ECDSA    256 verify          2 ops took 1.973 sec, avg 986.500 ms, 1.014 ops/sec
 Benchmark complete
 Benchmark Test: Return code 0
 ```
