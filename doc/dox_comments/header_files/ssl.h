@@ -2719,7 +2719,7 @@ WOLFSSL_API int  wolfSSL_library_init(void);
     \sa wolfSSL_CTX_SetDevId
     \sa wolfSSL_CTX_GetDevId
 */
-WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
+WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
 
 /*!
     \brief This function sets the Device Id at the WOLFSSL_CTX context level.
@@ -2727,7 +2727,7 @@ WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
     \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG if ssl is NULL.
 
-    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
     \param devId ID to use with async hardware
 
     _Example_
@@ -2742,7 +2742,7 @@ WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_GetDevId
 */
-WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId)
+WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId);
 
 /*!
     \brief This function retrieves the Device Id.
