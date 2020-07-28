@@ -436,7 +436,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_set_version                wolfSSL_X509_set_version
 #define X509_REQ_set_version            wolfSSL_X509_set_version
 #define X509_sign                       wolfSSL_X509_sign
+#define X509_sign_ctx                   wolfSSL_X509_sign_ctx
 #define X509_print                      wolfSSL_X509_print
+#define X509_REQ_print                  wolfSSL_X509_print
 #define X509_print_ex                   wolfSSL_X509_print_ex
 #define X509_print_fp                   wolfSSL_X509_print_fp
 #define X509_REQ_print_fp               wolfSSL_X509_print_fp
@@ -445,6 +447,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_verify                     wolfSSL_X509_verify
 #define X509_REQ_verify                 wolfSSL_X509_REQ_verify
 #define X509_check_private_key          wolfSSL_X509_check_private_key
+#define X509_REQ_check_private_key      wolfSSL_X509_check_private_key
 #define X509_check_ca                   wolfSSL_X509_check_ca
 #define X509_check_host                 wolfSSL_X509_check_host
 #define X509_check_ip_asc               wolfSSL_X509_check_ip_asc
@@ -452,6 +455,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_check_issued               wolfSSL_X509_check_issued
 #define X509_dup                        wolfSSL_X509_dup
 #define X509_add_ext                    wolfSSL_X509_add_ext
+#define X509_delete_ext                 wolfSSL_X509_delete_ext
 
 #define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
 #define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
@@ -686,10 +690,16 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define sk_ASN1_OBJECT_free             wolfSSL_sk_ASN1_OBJECT_free
 
+#define ASN1_TIME_new                   wolfSSL_ASN1_TIME_new
+#define ASN1_UTCTIME_new                wolfSSL_ASN1_TIME_new
 #define ASN1_TIME_free                  wolfSSL_ASN1_TIME_free
+#define ASN1_UTCTIME_free               wolfSSL_ASN1_TIME_free
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print
 #define ASN1_TIME_to_generalizedtime    wolfSSL_ASN1_TIME_to_generalizedtime
+#define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
+#define ASN1_TIME_set_string            wolfSSL_ASN1_TIME_set_string
+#define ASN1_TIME_to_string             wolfSSL_ASN1_TIME_to_string
 #define ASN1_GENERALIZEDTIME_print      wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_GENERALIZEDTIME_free       wolfSSL_ASN1_GENERALIZEDTIME_free
 
@@ -707,13 +717,19 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define i2a_ASN1_OBJECT                 wolfSSL_i2a_ASN1_OBJECT
 #define i2d_ASN1_OBJECT                 wolfSSL_i2d_ASN1_OBJECT
 
+#define ASN1_STRING_new                 wolfSSL_ASN1_STRING_new
+#define ASN1_STRING_free                wolfSSL_ASN1_STRING_free
+#define ASN1_STRING_cmp                 wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
+#define ASN1_UNIVERSALSTRING_to_string  wolfSSL_ASN1_UNIVERSALSTRING_to_string
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex
 #define ASN1_STRING_print(x, y)         wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
 #define d2i_DISPLAYTEXT                 wolfSSL_d2i_DISPLAYTEXT
+
+#define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
 

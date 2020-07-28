@@ -569,7 +569,6 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     return kLen; /* same as digest size */
 }
 
-
 /* check mac on pkcs12, pkcs12->mac has been sanity checked before entering *
  * returns the result of comparison, success is 0 */
 static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
@@ -611,6 +610,15 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 #endif
 
     return XMEMCMP(digest, mac->digest, mac->digestSz);
+}
+
+int wc_PKCS12_verify_ex(WC_PKCS12* pkcs12, const byte* psw, word32 pswSz)
+{
+    if (pkcs12 == NULL || pkcs12->safe == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return wc_PKCS12_verify(pkcs12, pkcs12->safe->data, pkcs12->safe->dataSz,
+            psw, pswSz);
 }
 
 

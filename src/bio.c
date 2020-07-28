@@ -1322,6 +1322,25 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
 }
 
 #ifndef NO_FILESYSTEM
+WOLFSSL_BIO *wolfSSL_BIO_new_fd(int fd, int close_flag)
+{
+    WOLFSSL_BIO* bio;
+
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    if (!bio) {
+        WOLFSSL_MSG("wolfSSL_BIO_new error");
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_set_fd(bio, fd, close_flag) != WOLFSSL_SUCCESS) {
+        wolfSSL_BIO_free(bio);
+        WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+        return NULL;
+    }
+
+    return bio;
+}
+
 long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_fp");

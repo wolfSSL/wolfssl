@@ -67,6 +67,8 @@ WOLFSSL_API int wolfSSL_sk_CONF_VALUE_push(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk
 WOLFSSL_API WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth);
 WOLFSSL_API char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
         const char *group, const char *name);
+WOLFSSL_API int wolfSSL_NCONF_get_number(const CONF *conf, const char *group,
+        const char *name, long *result);
 WOLFSSL_API WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         const WOLFSSL_CONF *conf, const char *section);
 WOLFSSL_API int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline);
@@ -92,8 +94,11 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
 #define lh_CONF_VALUE_insert            wolfSSL_sk_CONF_VALUE_push
 
 #define NCONF_new                       wolfSSL_NCONF_new
+#define NCONF_free                      wolfSSL_NCONF_free
 #define NCONF_get_string                wolfSSL_NCONF_get_string
 #define NCONF_get_section               wolfSSL_NCONF_get_section
+#define NCONF_get_number                wolfSSL_NCONF_get_number
+#define NCONF_load                      wolfSSL_NCONF_load
 
 #define CONF_modules_load               wolfSSL_CONF_modules_load
 
