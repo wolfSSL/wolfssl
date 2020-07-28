@@ -13679,7 +13679,7 @@ static int test_wc_LockMutex_ex (void)
     int ret = 0;
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     int flag = CRYPTO_LOCK;
-    int type = F_LOCK;
+    int type = 0;
     const char* file = "./test-LockMutex_ex.txt";
     int line = 0;
     XFILE fp = XFOPEN("./test-LockMutex_ex.txt", "ar");
