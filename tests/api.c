@@ -131,7 +131,7 @@
         #endif
     #endif
     #if !defined(DER_SZ)
-        #define DER_SZ (keySz * 2 + 1)
+        #define DER_SZ(ks) (ks * 2 + 1)
     #endif
 #endif
 #ifndef NO_ASN
@@ -20018,9 +20018,9 @@ static int test_wc_ecc_pointFns (void)
     ecc_point*  cpypt = NULL;
     int         idx = 0;
     int         keySz = KEY32;
-    byte        der[DER_SZ];
+    byte        der[DER_SZ(KEY32)];
     word32      derlenChk = 0;
-    word32      derSz = (int)sizeof(der);
+    word32      derSz = DER_SZ(KEY32);
 
     /* Init stack variables. */
     XMEMSET(der, 0, derSz);

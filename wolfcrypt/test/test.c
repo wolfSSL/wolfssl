@@ -28493,12 +28493,15 @@ int mutex_test(void)
     XFREE(mm, NULL, DYNAMIC_TYPE_MUTEX);
 #endif
 
+    /* Can optionally enable advanced pthread tests using "ENABLE_PTHREAD_LOCKFREE_TESTS" */
 #ifdef WOLFSSL_PTHREADS
     if (wc_InitMutex(&m) != 0)
         return -12701;
     if (wc_LockMutex(&m) != 0)
         return -12702;
-#if !defined(WOLFSSL_SOLARIS)
+#if !defined(WOLFSSL_SOLARIS) && defined(ENABLE_PTHREAD_LOCKFREE_TESTS)
+    /* trying to free a locked mutex is not portable behavior with pthread */
+    /* Attempting to destroy a locked mutex results in undefined behavior */
     if (wc_FreeMutex(&m) != BAD_MUTEX_E)
         return -12703;
 #endif
@@ -28506,7 +28509,8 @@ int mutex_test(void)
         return -12704;
     if (wc_FreeMutex(&m) != 0)
         return -12705;
-#if !defined(WOLFSSL_NO_MUTEXLOCK_AFTER_FREE)
+#if !defined(WOLFSSL_SOLARIS) && defined(ENABLE_PTHREAD_LOCKFREE_TESTS)
+    /* Trying to use a pthread after free'ing is not portable behavior */
     if (wc_LockMutex(&m) != BAD_MUTEX_E)
         return -12706;
     if (wc_UnLockMutex(&m) != BAD_MUTEX_E)
