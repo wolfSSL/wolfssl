@@ -5195,9 +5195,17 @@ void bench_ntruKeyGen(void)
 
 #ifdef HAVE_ECC
 
-/* Default to testing P-256 */
+/* Detect ECC key size to use */
 #ifndef BENCH_ECC_SIZE
-    #define BENCH_ECC_SIZE  32
+    #ifndef NO_ECC256
+        #define BENCH_ECC_SIZE 32
+    #elif defined(HAVE_ECC384)
+        #define BENCH_ECC_SIZE 48
+    #elif defined(HAVE_ECC224)
+        #define BENCH_ECC_SIZE 28
+    #else
+        #error No ECC keygen size defined for benchmark
+    #endif
 #endif
 static int bench_ecc_size = BENCH_ECC_SIZE;
 

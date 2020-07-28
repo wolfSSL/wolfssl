@@ -344,7 +344,7 @@ int scrypt_test(void);
         int  ecc_encrypt_test(void);
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A)
+        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256)
         /* skip for ATECC508/608A, cannot import private key buffers */
         int ecc_test_buffers(void);
     #endif
@@ -1016,7 +1016,7 @@ initDefaultName();
             test_pass("ECC Enc  test passed!\n");
     #endif
     #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-        !defined(WOLFSSL_ATECC608A)
+        !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256)
         /* skip for ATECC508/608A, cannot import private key buffers */
         if ( (ret = ecc_test_buffers()) != 0)
             return err_sys("ECC buffer test failed!\n", ret);
@@ -17768,9 +17768,17 @@ int x963kdf_test(void)
 
 #ifdef HAVE_ECC
 
+/* size to use for ECC key gen tests */
 #ifndef ECC_KEYGEN_SIZE
-    /* size to use for ECC key gen tests */
-    #define ECC_KEYGEN_SIZE 32
+    #ifndef NO_ECC256
+        #define ECC_KEYGEN_SIZE 32
+    #elif defined(HAVE_ECC384)
+        #define ECC_KEYGEN_SIZE 48
+    #elif defined(HAVE_ECC224)
+        #define ECC_KEYGEN_SIZE 28
+    #else
+        #error No ECC keygen size defined for test
+    #endif
 #endif
 #ifdef BENCH_EMBEDDED
     #define ECC_SHARED_SIZE 128
@@ -18288,6 +18296,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     wc_ecc_init_ex(&key, HEAP_HINT, devId);
 
+#ifndef NO_ECC256
 #ifdef USE_CERT_BUFFERS_256
     XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
     tmpSz = (size_t)sizeof_ecc_key_der_256;
@@ -18367,13 +18376,16 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9627, done);
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
-#if defined(WOLFSSL_CRYPTOCELL)
-    /* create a new key since building private key from public key is unsupported */
+#endif /* !NO_ECC256 */
+
+    /* create a new key since above test for loading key is not supported */
+#if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, &key);
     if (ret != 0) {
         ERROR_OUT(-9628, done);
     }
 #endif
+
 #ifdef HAVE_ECC_SIGN
     tmpSz = sizeof(tmp);
     ret = 0;
@@ -20812,7 +20824,7 @@ done:
 #endif /* HAVE_ECC_ENCRYPT */
 
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256)
 int ecc_test_buffers(void) {
     size_t bytes;
     ecc_key cliKey;
@@ -20924,7 +20936,7 @@ int ecc_test_buffers(void) {
 
     return 0;
 }
-#endif /* USE_CERT_BUFFERS_256 */
+#endif /* USE_CERT_BUFFERS_256 && !WOLFSSL_ATECCX08A && !NO_ECC256 */
 #endif /* HAVE_ECC */
 
 
