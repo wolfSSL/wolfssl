@@ -1432,7 +1432,19 @@ int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
+                          const char *name, const char *value)
+{
+    WOLFSSL_STUB("wolfSSL_EVP_PKEY_CTX_ctrl_str");
+    (void)ctx;
+    (void)name;
+    (void)value;
+    return WOLFSSL_FAILURE;
+}
+#endif /* NO_WOLFSSL_STUB */
+
+#if !defined(NO_DH) && defined(HAVE_ECC)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION!=2))
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
