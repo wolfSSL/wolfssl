@@ -1988,7 +1988,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
         calls/ifs) */
 #ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
      if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
-          P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+          P->used < (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
         redux = fast_mp_montgomery_reduce;
      } else
 #endif
@@ -2234,7 +2234,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
      calls/ifs) */
 #ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
   if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
-       P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+       P->used < (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
      redux = fast_mp_montgomery_reduce;
   } else
 #endif
@@ -2594,7 +2594,7 @@ int mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
   digs = n->used * 2 + 1;
   if ((digs < (int)MP_WARRAY) &&
       n->used <
-      (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+      (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_mp_montgomery_reduce (x, n, rho);
   }
 
@@ -3041,7 +3041,7 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
 
     if ((digs < (int)MP_WARRAY) &&
         MIN(a->used, b->used) <=
-        (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+        (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
       res = fast_s_mp_mul_digs (a, b, c, digs);
     } else
 #endif
@@ -3504,7 +3504,7 @@ int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* can we use the fast multiplier? */
   if ((digs < (int)MP_WARRAY) &&
       MIN (a->used, b->used) <
-          (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+          (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_digs (a, b, c, digs);
   }
 
@@ -4012,7 +4012,7 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 #ifdef BN_FAST_S_MP_MUL_HIGH_DIGS_C
   if (((a->used + b->used + 1) < (int)MP_WARRAY)
       && MIN (a->used, b->used) <
-      (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+      (1L << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_high_digs (a, b, c, digs);
   }
 #endif
@@ -4543,7 +4543,7 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
 
 #if defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA)
 
-const mp_digit ltm_prime_tab[PRIME_SIZE] = {
+const FLASH_QUALIFIER mp_digit ltm_prime_tab[PRIME_SIZE] = {
   0x0002, 0x0003, 0x0005, 0x0007, 0x000B, 0x000D, 0x0011, 0x0013,
   0x0017, 0x001D, 0x001F, 0x0025, 0x0029, 0x002B, 0x002F, 0x0035,
   0x003B, 0x003D, 0x0043, 0x0047, 0x0049, 0x004F, 0x0053, 0x0059,
