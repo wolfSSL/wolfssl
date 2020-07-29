@@ -2275,10 +2275,10 @@ extern void uITRON4_free(void *p) ;
 /* For FIPSv2 make sure the ECDSA encoding allows extra bytes
  * but make sure users consider enabling it */
 #if !defined(NO_STRICT_ECDSA_LEN) && defined(HAVE_FIPS) && \
-        defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2    
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    /* ECDSA length checks off by default for CAVP testing
+     * consider enabling strict checks in production */
     #define NO_STRICT_ECDSA_LEN
-    #warning "ECDSA length checks off by default for CAVP testing"
-    #warning "consider enabling strict checks in production"
 #endif
 
 
