@@ -800,7 +800,7 @@
 <gridItem id="BSP_CFG_USER_STACK_ENABLE" selectedIndex="1"/>
 <gridItem id="BSP_CFG_USTACK_BYTES" selectedIndex="0x2000"/>
 <gridItem id="BSP_CFG_ISTACK_BYTES" selectedIndex="0x400"/>
-<gridItem id="BSP_CFG_HEAP_BYTES" selectedIndex="0xc000"/>
+<gridItem id="BSP_CFG_HEAP_BYTES" selectedIndex="0xF000"/>
 <gridItem id="BSP_CFG_IO_LIB_ENABLE" selectedIndex="1"/>
 <gridItem id="BSP_CFG_USER_CHARGET_ENABLED" selectedIndex="0"/>
 <gridItem id="BSP_CFG_USER_CHARGET_FUNCTION" selectedIndex="my_sw_charget_function"/>

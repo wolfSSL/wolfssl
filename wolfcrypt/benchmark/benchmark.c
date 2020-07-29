@@ -187,6 +187,10 @@
     #endif
 #endif
 
+#ifdef  WOLFSSL_RENESAS_TSIP_CRYPT
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -1170,14 +1174,14 @@ static WC_INLINE void bench_stats_init(void)
     INIT_CYCLE_COUNTER
 }
 
-static WC_INLINE void bench_stats_start(int* count, double* start)
+WC_INLINE void bench_stats_start(int* count, double* start)
 {
     *count = 0;
     *start = current_time(1);
     BEGIN_INTEL_CYCLES
 }
 
-static WC_INLINE int bench_stats_sym_check(double start)
+WC_INLINE int bench_stats_sym_check(double start)
 {
     return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
 }
@@ -1185,7 +1189,7 @@ static WC_INLINE int bench_stats_sym_check(double start)
 
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
  * except for AES direct that operates on AES_BLOCK_SIZE blocks */
-static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
+void bench_stats_sym_finish(const char* desc, int doAsync, int count,
                                    int countSz, double start, int ret)
 {
     double total, persec = 0, blocks = count;
@@ -1432,7 +1436,11 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AES_CBC
     if (bench_all || (bench_cipher_algs & BENCH_AES_CBC)) {
     #ifndef NO_SW_BENCH
+        #ifdef  WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+        tsip_bench_aescbc(0);
+        #else
         bench_aescbc(0);
+        #endif
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
@@ -1444,7 +1452,12 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AESGCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_GCM)) {
     #ifndef NO_SW_BENCH
+    
+    #ifdef  WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+        tsip_bench_aesgcm(0);
+    #else
         bench_aesgcm(0);
+    #endif
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \

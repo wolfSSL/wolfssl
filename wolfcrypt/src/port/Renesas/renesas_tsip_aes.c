@@ -151,6 +151,255 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     tsip_hw_unlock();
     return ret;
 }
+/*-------------------------------------------------------------------
 
+    wc_tsip_AesGcmEncrypt
+
+-------------------------------------------------------------------*/
+int wc_tsip_AesGcmEncrypt(
+            Aes*  aes, 
+            byte* out, const byte* in,  word32 sz,
+            byte*       iv,             word32 ivSz,
+            byte*       authTag,        word32 authTagSz,
+            const byte* authIn,         word32 authInSz)
+{
+
+    tsip_gcm_handle_t   hdl;
+    word32              ret;
+    uint32_t            dataLen;  
+    word32              blocks = (sz/ AES_BLOCK_SIZE);
+
+    if ( in == NULL  || out == NULL || aes == NULL ||
+         iv == NULL  || authTag == NULL || authIn == NULL ){   
+        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: Bad Arg");
+      return BAD_FUNC_ARG;
+    }
+ 
+    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
+        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: illegal key size");
+        return  BAD_FUNC_ARG;
+    }
+
+    if((ret = tsip_hw_lock()) != 0){
+        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: Failed to lock");
+        return ret;
+    }
+
+    /* Initialization step */
+
+    if (aes->ctx.keySize == 16) {
+        ret = R_TSIP_Aes128GcmEncryptInit(&hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
+    } else{
+        ret = R_TSIP_Aes256GcmEncryptInit(&hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
+    }
+    if( ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("<< R_TSIP_AesXXXGcmEncryptInit : failed");
+        goto finalize;
+    }
+
+    /* passing additional authentication data step */
+
+    if (aes->ctx.keySize == 16){
+        ret = R_TSIP_Aes128GcmEncryptUpdate(
+            &hdl,(uint8_t*)NULL,(uint8_t*)out,(uint32_t)0,
+            (uint8_t*)authIn,authInSz);
+    }
+    else{
+        ret = R_TSIP_Aes256GcmEncryptUpdate(
+            &hdl,(uint8_t*)NULL,(uint8_t*)out,(uint32_t)0,
+            (uint8_t*)authIn,authInSz);
+    }
+
+    if(ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesxxxGcmEncryptUpdate : failed");
+        goto finalize;
+    }
+  
+    while (ret == TSIP_SUCCESS && blocks--) {
+
+        if (aes->ctx.keySize == 16){
+
+            ret = R_TSIP_Aes128GcmEncryptUpdate(
+                    &hdl,(uint8_t*)in,(uint8_t*)out,(uint32_t)AES_BLOCK_SIZE,  NULL, 0);
+
+        }
+        else{
+
+            ret = R_TSIP_Aes256GcmEncryptUpdate(
+                    &hdl,(uint8_t*)in,(uint8_t*)out,(uint32_t)AES_BLOCK_SIZE,
+                    NULL, 0);
+
+        }
+        in  += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
+    }
+
+    if(ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesxxxGcmEncryptUpdate: failed");
+        goto finalize;
+    }
+
+finalize:
+
+    /* Once R_TSIP_Aed EncryptInit or R_TSIP_Aed Encrypt Update is called,
+     * R_TSIP_AesxxxGcmEncryptFinal must be called regardres of the result
+     * of the previous call. Otherwise, TSIP can not come out from its 
+     * error state and all the trailing APIs will fail. 
+     */   
+    if (aes->ctx.keySize == 16) {
+        ret = R_TSIP_Aes128GcmEncryptFinal(
+                &hdl,out,&dataLen,authTag);
+    } 
+    else {
+        ret = R_TSIP_Aes256GcmEncryptFinal(
+                &hdl,out,&dataLen,authTag);
+    }
+    if(ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesxxxGcmEncryptFinal: failed");
+    }
+
+exit:    
+    tsip_hw_unlock();
+
+    return ret;
+}
+/*-------------------------------------------------------------------
+
+    wc_tsip_AesGcmDecrypt
+
+-------------------------------------------------------------------*/
+int wc_tsip_AesGcmDecrypt(
+            Aes*  aes, 
+            byte* out, const byte* in,  word32 sz,
+            byte*       iv,             word32 ivSz,
+            byte*       authTag,        word32 authTagSz,
+            const byte* authIn,         word32 authInSz)
+{                            
+
+    tsip_gcm_handle_t   hdl;
+    word32              ret;
+    word32              blocks = (sz/ AES_BLOCK_SIZE);
+    uint32_t            dataLen;
+    
+    if ( in == NULL  || out == NULL || aes == NULL ||
+         iv == NULL  || authTag == NULL || authIn == NULL ){    
+      return BAD_FUNC_ARG;
+    }
+
+    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
+        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: illegal key size");
+        return  BAD_FUNC_ARG;
+    }
+
+    if((ret = tsip_hw_lock()) != 0){
+        WOLFSSL_MSG("<< wc_tsip_AesGcmDecrypt: Failed to lock");
+        return ret;
+    }
+
+    /*  */
+    if (aes->ctx.keySize == 16) {
+        ret = R_TSIP_Aes128GcmDecryptInit(
+                &hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
+    } 
+    else{
+        ret = R_TSIP_Aes256GcmDecryptInit(
+                &hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
+    }
+    if( ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptInit: failed ");
+        goto finalize;
+    }  
+
+
+    /* pass only AuthTag and it's size before passing cipher text */
+    if (aes->ctx.keySize == 16){
+
+        ret = R_TSIP_Aes128GcmDecryptUpdate(
+                    &hdl,
+                    (uint8_t*)NULL, /* buffer for cipher text*/
+                    (uint8_t*)out, /* buffer for plain text */
+                    (uint32_t)0,
+                    (uint8_t*)authIn,
+                    authInSz);
+    }
+    else{
+        ret = R_TSIP_Aes256GcmDecryptUpdate(
+                    &hdl,
+                    (uint8_t*)NULL, 
+                    (uint8_t*)out,
+                    (uint32_t)0,
+                    (uint8_t*)authIn,
+                    authInSz);
+    }
+
+    if(ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptUpdate: failed");
+        goto finalize;
+    }
+
+    /* pass chipher text repeatedly */
+              
+    while ((ret == TSIP_SUCCESS) && blocks--) {
+
+        if (aes->ctx.keySize == 16){ 
+            ret = R_TSIP_Aes128GcmDecryptUpdate(
+                    &hdl,
+                    (uint8_t*)in, 
+                    (uint8_t*)out,
+                    (uint32_t)AES_BLOCK_SIZE,
+                    NULL,
+                    0);
+        }
+        else{
+
+            ret = R_TSIP_Aes256GcmDecryptUpdate(
+                    &hdl,
+                    (uint8_t*)in, 
+                    (uint8_t*)out,
+                    (uint32_t)AES_BLOCK_SIZE,
+                    NULL,
+                    0);
+        }
+        in  += AES_BLOCK_SIZE;
+        out += AES_BLOCK_SIZE;
+    }
+    
+    if( ret != TSIP_SUCCESS){
+        WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptUpdate: failed");
+        goto finalize;
+    }
+
+finalize:
+    
+    if (aes->ctx.keySize == 16) {
+ 
+        ret = R_TSIP_Aes128GcmDecryptFinal(
+                    &hdl,
+                    out,
+                    &dataLen,
+                    authTag,
+                    authTagSz);       
+    } 
+    else {
+
+        ret = R_TSIP_Aes256GcmDecryptFinal(
+                    &hdl,
+                    out,
+                    &dataLen,
+                    authTag,
+                    authTagSz);
+    }
+    
+    if( ret != TSIP_SUCCESS ){
+        WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptFinal: failed");
+        ret = 0;
+    }
+
+exit:
+    
+    tsip_hw_unlock();
+
+    return ret;
+}
 #endif /* WOLFSSL_RENESAS_TSIP_CRYPT */
 #endif /* NO_AES */
