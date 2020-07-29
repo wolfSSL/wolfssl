@@ -5812,6 +5812,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
+
+        #if !defined(NO_WOLFSSL_CLIENT)
+            if (ssl->options.side == WOLFSSL_CLIENT_END)
+                ssl->options.serverState = SERVER_CERT_VERIFY_COMPLETE;
+        #endif
         } /* case TLS_ASYNC_FINALIZE */
 
         case TLS_ASYNC_END:
@@ -6922,8 +6927,19 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                     WOLFSSL_MSG("Finished received out of order");
                     return OUT_OF_ORDER_E;
                 }
-                if (ssl->options.serverState <
+                /* Must have seen certificate and verify from server except when
+                 * using PSK. */
+            #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                if (ssl->arrays->psk_keySz != 0) {
+                    if (ssl->options.serverState !=
                                          SERVER_ENCRYPTED_EXTENSIONS_COMPLETE) {
+                        WOLFSSL_MSG("Finished received out of order");
+                        return OUT_OF_ORDER_E;
+                    }
+                }
+                else
+            #endif
+                if (ssl->options.serverState != SERVER_CERT_VERIFY_COMPLETE) {
                     WOLFSSL_MSG("Finished received out of order");
                     return OUT_OF_ORDER_E;
                 }
@@ -6931,7 +6947,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
         #endif
         #ifndef NO_WOLFSSL_SERVER
             if (ssl->options.side == WOLFSSL_SERVER_END) {
-                if (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
+                if (ssl->options.serverState != SERVER_FINISHED_COMPLETE) {
                     WOLFSSL_MSG("Finished received out of order");
                     return OUT_OF_ORDER_E;
                 }
