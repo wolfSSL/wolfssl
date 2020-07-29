@@ -33757,11 +33757,24 @@ static int test_get_digit (void)
         ret = -1;
     }
     if (ret == 0) {
-        ret = get_digit(NULL, n);
+        if (get_digit(NULL, n) != 0) { /* Should not hit this*/
+            ret = -1;
+        }
     }
-
     if (ret == 0) {
-        ret = get_digit(&a, n);
+        if (get_digit(NULL, n) == 0) { /* Should hit this*/
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        if (get_digit(&a, n) != 0) { /* Should not hit this*/
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        if (get_digit(&a, n) == 0) { /* Should hit this*/
+            ret = 0;
+        }
     }
 
 
