@@ -6,7 +6,7 @@ This example includes:
 * wolfCrypt benchmark
 * wolfSSL TLS client/server test using in-memory transfers
 
-These examples use the CubeMX Hal for STM32.
+These examples use the Cube HAL for STM32.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ To disable hardware crypto acceleration you can define:
 * `NO_STM32_HASH`
 * `NO_STM32_CRYPTO`
 
-To enable the latest CubeMX HAL support please define `STM32_HAL_V2`.
+To enable the latest Cube HAL support please define `STM32_HAL_V2`.
 
 If you'd like to use the older Standard Peripheral library undefine `WOLFSSL_STM32_CUBEMX`.
 
