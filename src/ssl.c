@@ -9526,20 +9526,16 @@ err:
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_CERTS
-int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
+int wolfSSL_X509_add_altname_ex(WOLFSSL_X509* x509, const char* name,
+        word32 nameSz, int type)
 {
     DNS_entry* newAltName = NULL;
     char* nameCopy = NULL;
-    word32 nameSz;
 
     if (x509 == NULL)
         return WOLFSSL_FAILURE;
 
-    if (name == NULL)
-        return WOLFSSL_SUCCESS;
-
-    nameSz = (word32)XSTRLEN(name);
-    if (nameSz == 0)
+    if ((name == NULL) || (nameSz == 0))
         return WOLFSSL_SUCCESS;
 
     newAltName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
@@ -9553,7 +9549,9 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
         return WOLFSSL_FAILURE;
     }
 
-    XMEMCPY(nameCopy, name, nameSz + 1);
+    XMEMCPY(nameCopy, name, nameSz);
+
+    nameCopy[nameSz] = '\0';
 
     newAltName->next = x509->altNames;
     newAltName->type = type;
@@ -9562,6 +9560,25 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
     x509->altNames = newAltName;
 
     return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
+{
+    word32 nameSz;
+
+    if (name == NULL)
+        return WOLFSSL_SUCCESS;
+
+    nameSz = (word32)XSTRLEN(name);
+    if (nameSz == 0)
+        return WOLFSSL_SUCCESS;
+
+    if (type == ASN_IP_TYPE) {
+        WOLFSSL_MSG("Type not supported, use wolfSSL_X509_add_altname_ex");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_X509_add_altname_ex(x509, name, nameSz, type);
 }
 
 
