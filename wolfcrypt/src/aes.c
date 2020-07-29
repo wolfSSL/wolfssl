@@ -5961,8 +5961,6 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
-    /* Hardware requires counter + 1 */
-    IncrementGcmCounter((byte*)ctr);
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -5986,6 +5984,9 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         authPadSz = authInSz;
         authInPadded = (byte*)authIn;
     }
+
+    /* Hardware requires counter + 1 */
+    IncrementGcmCounter((byte*)ctr);
 
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
@@ -6081,12 +6082,14 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
+    /* hardware requires +1, so subtract it */
+    DecrementGcmCounter((byte*)ctr);
+
     if (ret == 0) {
         /* return authTag */
         if (authTag) {
             /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
             if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
-                DecrementGcmCounter((byte*)ctr); /* hardware requires +1, so subtract it */
                 GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
                 wc_AesEncrypt(aes, (byte*)ctr, (byte*)tag);
                 xorbuf(authTag, tag, authTagSz);
@@ -6404,8 +6407,6 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
-    /* Hardware requires counter + 1 */
-    IncrementGcmCounter((byte*)ctr);
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -6429,6 +6430,9 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         authPadSz = authInSz;
         authInPadded = (byte*)authIn;
     }
+
+    /* Hardware requires counter + 1 */
+    IncrementGcmCounter((byte*)ctr);
 
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
@@ -6529,9 +6533,11 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
+    /* hardware requires +1, so subtract it */
+    DecrementGcmCounter((byte*)ctr);
+
     /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
     if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
-        DecrementGcmCounter((byte*)ctr); /* hardware requires +1, so subtract it */
         GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
         wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
         xorbuf(tag, partialBlock, sizeof(tag));
