@@ -156,6 +156,7 @@
         select(0, NULL, NULL, NULL, &tv); \
     } while (0)
     #define XSLEEP_US(u) XSELECT_WAIT(0,u)
+    #define XSLEEP_MS(m) XSELECT_WAIT(0,(m)*1000)
 #endif /* USE_WINDOWS_API */
 
 #ifndef XSLEEP_MS
