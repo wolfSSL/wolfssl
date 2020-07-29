@@ -52,7 +52,7 @@ srcフォルダがあります。このフォルダに、smcプロジェクト�
 -------------------------------------
 
 テストアプリケーションは、暗号化テスト、ベンチマーク、TLSクライアント、TLSサーバーの
-4種類の動作を選択できます。選択は、common/user_settings.hの
+4種類の動作を選択できます。選択は、test/src/wolfssl_demo.hの
 定義文を有効化することで行います。
 
 -------------------------------------
@@ -129,7 +129,7 @@ There is a src folder. Copy src/smc_gen in the smc project folder to test/src fo
 -------------------------------------
 
 Test applications include encryption test, benchmark, TLS client, TLS server
-You can select four types of operation. Select from common/user_settings.h
+You can select four types of operation. Select from test/src/wolfssl_demo.h
 This is done by activating one of those commented definition statements.
 
 -------------------------------------
