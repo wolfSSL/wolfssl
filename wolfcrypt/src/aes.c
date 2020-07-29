@@ -3731,15 +3731,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_IVInitTypeDef ivInit;
         #endif
 
-            ret = wolfSSL_CryptHwMutexLock();
+        #ifdef WOLFSSL_STM32_CUBEMX
+            ret = wc_Stm32_Aes_Init(aes, &hcryp);
             if (ret != 0) {
                 return ret;
             }
 
-        #ifdef WOLFSSL_STM32_CUBEMX
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wolfSSL_CryptHwMutexLock();
             if (ret != 0) {
-                wolfSSL_CryptHwMutexUnLock();
                 return ret;
             }
 
@@ -3775,7 +3774,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #else /* Standard Peripheral Library */
             ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
             if (ret != 0) {
-                wolfSSL_CryptHwMutexUnLock();
+                return ret;
+            }
+
+            ret = wolfSSL_CryptHwMutexLock();
+            if (ret != 0) {
                 return ret;
             }
 
@@ -3820,7 +3823,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);
-
         #endif /* WOLFSSL_STM32_CUBEMX */
 
             wolfSSL_CryptHwMutexUnLock();
@@ -4145,7 +4147,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0) {
-        wc_AesEncrypt(aes, iv, aes->H);
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            wc_AesEncrypt(aes, iv, aes->H);
+            wolfSSL_CryptHwMutexUnLock();
+        }
     #ifdef GCM_TABLE
         GenerateM0(aes);
     #endif /* GCM_TABLE */

@@ -253,7 +253,7 @@
 #endif
 
 #if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || (!defined(NO_RSA) && \
-                                                       !defined(NO_SIG_WRAPPER))
+                                !defined(NO_SIG_WRAPPER)) || !defined(WC_NO_RNG)
     static int  devId = INVALID_DEVID;
 #endif
 #ifndef NO_DSA

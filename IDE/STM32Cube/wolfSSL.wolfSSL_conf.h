@@ -155,11 +155,16 @@ extern "C" {
 #elif defined(STM32L562xx)
     #define WOLFSSL_STM32L5
     #define WOLFSSL_STM32_PKA
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
     #define HAL_CONSOLE_UART huart1
 #elif defined(STM32L552xx)
     #define WOLFSSL_STM32L5
     #undef  NO_STM32_HASH
     #define HAL_CONSOLE_UART hlpuart1
+#elif defined(STM32F207xx)
+    #define WOLFSSL_STM32F2
+    #define HAL_CONSOLE_UART huart3
 #else
 	#warning Please define a hardware platform!
     #define WOLFSSL_STM32F4 /* default */
@@ -325,8 +330,8 @@ extern "C" {
     #ifdef USE_FAST_MATH
         #ifdef NO_RSA
             /* Custom fastmath size if not using RSA */
-            /* MAX = ROUND32(ECC BITS 256) + SIZE_OF_MP_DIGIT(32) */
-            #define FP_MAX_BITS     (256 + 32)
+            /* MAX = ROUND32(ECC BITS) * 2 */
+            #define FP_MAX_BITS     (256 * 2)
         #else
             #define ALT_ECC_SIZE
         #endif
@@ -334,7 +339,7 @@ extern "C" {
         /* Enable TFM optimizations for ECC */
         //#define TFM_ECC192
         //#define TFM_ECC224
-        #define TFM_ECC256
+        //#define TFM_ECC256
         //#define TFM_ECC384
         //#define TFM_ECC521
     #endif
@@ -370,6 +375,8 @@ extern "C" {
 //#define WOLFSSL_AES_XTS
 //#define WOLFSSL_AES_DIRECT
 //#define HAVE_AES_ECB
+//#define HAVE_AES_KEYWRAP
+//#define AES_MAX_KEY_SIZE 256
 
 /* ChaCha20 / Poly1305 */
 #undef HAVE_CHACHA
