@@ -13682,7 +13682,6 @@ static int test_wc_LockMutex_ex (void)
     int type = 0;
     const char* file = "./test-LockMutex_ex.txt";
     int line = 0;
-    XFILE fp = XFOPEN("./test-LockMutex_ex.txt", "ar");
 
     printf(testingFmt, "wc_LockMutex_ex()");
 
@@ -13700,7 +13699,6 @@ static int test_wc_LockMutex_ex (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-    XFCLOSE(fp);
 
 #endif
     return ret;
