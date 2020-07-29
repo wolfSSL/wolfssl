@@ -6494,7 +6494,7 @@ int wolfSSL_EVP_PKEY_type(int type)
 }
 
 
-int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_id(const WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey != NULL)
         return pkey->type;
@@ -6502,13 +6502,25 @@ int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey)
 }
 
 
-int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_base_id(const WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey == NULL)
         return NID_undef;
     return wolfSSL_EVP_PKEY_type(pkey->type);
 }
 
+int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid)
+{
+    (void)pkey;
+#ifndef NO_SHA256
+    if (pnid) {
+        *pnid = NID_sha256;
+    }
+    return WOLFSSL_SUCCESS;
+#else
+    return -2;
+#endif
+}
 
 /* increments ref count of WOLFSSL_EVP_PKEY. Return 1 on success, 0 on error */
 int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)

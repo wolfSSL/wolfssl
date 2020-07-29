@@ -3360,6 +3360,8 @@ WOLFSSL_API int wolfSSL_X509_NAME_add_entry_by_txt(WOLFSSL_X509_NAME *name,
 WOLFSSL_API int wolfSSL_X509_NAME_add_entry_by_NID(WOLFSSL_X509_NAME *name, int nid,
                                            int type, const unsigned char *bytes,
                                            int len, int loc, int set);
+WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_delete_entry(
+        WOLFSSL_X509_NAME *name, int loc);
 WOLFSSL_API int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
             const WOLFSSL_X509_NAME* y);
 WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void);
@@ -3418,6 +3420,8 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_ASN1(int pri, WOLFSSL_CTX* ctx,
 WOLFSSL_API int wolfSSL_X509_cmp(const WOLFSSL_X509* a, const WOLFSSL_X509* b);
 WOLFSSL_API const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x, int loc);
+WOLFSSL_API int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
+        const WOLFSSL_ASN1_OBJECT *obj, int lastpos);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x, int loc);
 WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void);
@@ -4008,6 +4012,8 @@ WOLFSSL_API unsigned char* wolfSSL_ASN1_TIME_get_data(WOLFSSL_ASN1_TIME *t);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                                 WOLFSSL_ASN1_TIME **out);
 WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
+WOLFSSL_API int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
+        char *buf, int size);
 WOLFSSL_API int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE *store);
 WOLFSSL_API long wolfSSL_X509_get_version(const WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509* x);

@@ -8290,6 +8290,30 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
    return ext;
 }
 
+int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
+        const WOLFSSL_ASN1_OBJECT *obj, int lastpos)
+{
+    const WOLF_STACK_OF(WOLFSSL_X509_EXTENSION) *sk;
+
+    if (!x || !obj) {
+        WOLFSSL_MSG("Bad parameter");
+        return -1;
+    }
+
+    sk = wolfSSL_X509_get0_extensions(x);
+    if (!sk) {
+        WOLFSSL_MSG("No extensions");
+        return -1;
+    }
+    lastpos++;
+    if (lastpos < 0)
+        lastpos = 0;
+    for (; lastpos < wolfSSL_sk_num(sk); lastpos++)
+        if (wolfSSL_OBJ_cmp(wolfSSL_sk_value(sk, lastpos), obj) == 0)
+            return lastpos;
+    return -1;
+}
+
 /* Pushes a new X509_EXTENSION* ext onto the stack inside WOLFSSL_X509* x509.
  * This is currently a helper function for wolfSSL_X509_get_ext
  * Caller does not free the returned WOLFSSL_X509_EXTENSION*
@@ -21164,7 +21188,8 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
         fieldCheckIdx = strBuf + fieldsSz;
         fieldPtr[fieldPtrIdx++] = fieldCheckIdx;
         while (*fieldCheckIdx != '\0') {
-            if (*fieldCheckIdx == '\t') {
+            /* Handle escaped tabs */
+            if (*fieldCheckIdx == '\t' && fieldCheckIdx[-1] != '\\') {
                 fieldPtr[fieldPtrIdx++] = fieldCheckIdx + 1;
                 *fieldCheckIdx = '\0';
                 if (fieldPtrIdx > num) {
@@ -21199,8 +21224,94 @@ error:
     return ret;
 }
 
+long wolfSSL_TXT_DB_write(WOLFSSL_BIO  *out, WOLFSSL_TXT_DB *db)
+{
+    const WOLF_STACK_OF(WOLFSSL_STRING)* data;
+    long totalLen = 0;
+    char buf[512]; /* Should be more than enough for a single row */
+    char* bufEnd = buf + sizeof(buf);
+    int sz;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_write");
+
+    if (!out || !db || !db->num_fields) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    data = db->data;
+    while (data) {
+        char** fields = (char**)data->data.string;
+        char* idx = buf;
+
+        if (!fields) {
+            WOLFSSL_MSG("Missing row");
+            return WOLFSSL_FAILURE;
+        }
+
+        for (i = 0; i < db->num_fields; i++) {
+            char* fieldValue = fields[i];
+            if (!fieldValue) {
+                WOLFSSL_MSG("Missing fields ptr");
+                return WOLFSSL_FAILURE;
+            }
+
+            /* Copy over field escaping tabs */
+            while (*fieldValue != '\0') {
+                if (idx+1 < bufEnd) {
+                    if (*fieldValue == '\t')
+                        *idx++ = '\\';
+                    *idx++ = *fieldValue++;
+                }
+                else {
+                    WOLFSSL_MSG("Data row is too big");
+                    return WOLFSSL_FAILURE;
+                }
+            }
+            if (idx < bufEnd) {
+                *idx++ = '\t';
+            }
+            else {
+                WOLFSSL_MSG("Data row is too big");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        idx[-1] = '\n';
+        sz = idx - buf;
+
+        if (wolfSSL_BIO_write(out, buf, sz) != sz) {
+            WOLFSSL_MSG("wolfSSL_BIO_write error");
+            return WOLFSSL_FAILURE;
+        }
+        totalLen += sz;
+
+        data = data->next;
+    }
+
+    return totalLen;
+}
+
+int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
+{
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_insert");
+
+    if (!db || !row || !db->data) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_sk_push(db->data, row) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_sk_push error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 void wolfSSL_TXT_DB_free(WOLFSSL_TXT_DB *db)
 {
+    WOLFSSL_ENTER("wolfSSL_TXT_DB_free");
     if (db) {
         if (db->data) {
             wolfSSL_sk_free(db->data);
@@ -40711,12 +40822,47 @@ err:
     {
         int ret;
         WOLFSSL_X509_NAME_ENTRY* entry;
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_NID");
         entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes,
                 len);
         if (entry == NULL)
             return WOLFSSL_FAILURE;
         ret = wolfSSL_X509_NAME_add_entry(name, entry, loc, set);
         wolfSSL_X509_NAME_ENTRY_free(entry);
+        return ret;
+    }
+
+    WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_delete_entry(
+            WOLFSSL_X509_NAME *name, int loc)
+    {
+        WOLFSSL_X509_NAME_ENTRY* ret;
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_delete_entry");
+
+        if (!name) {
+            WOLFSSL_MSG("Bad parameter");
+            return NULL;
+        }
+
+        ret = wolfSSL_X509_NAME_get_entry(name, loc);
+        if (!ret) {
+            WOLFSSL_MSG("loc entry not found");
+            return NULL;
+        }
+
+        if (loc <= DN_NAMES_MAX + name->fullName.dcNum) {
+            name->fullName.loc[loc] = ASN_DN_NULL;
+        }
+        else if (name->fullName.dcMode) {
+            if (name->fullName.fullName != NULL) {
+                if (loc == name->fullName.dcNum) {
+                    name->fullName.dcNum = 0;
+                }
+                else {
+                    name->fullName.dcIdx[loc] = -1;
+                }
+            }
+        }
+
         return ret;
     }
     #endif /* !NO_CERTS */
@@ -41583,7 +41729,37 @@ err:
         if (name->entry[loc].set) {
             return &name->entry[loc];
         }
-        else {
+        /* DC component */
+        if (name->fullName.dcMode) {
+            if (name->fullName.fullName != NULL){
+                if (loc == name->fullName.dcNum){
+                    name->cnEntry.data.data
+                        = &name->fullName.fullName[name->fullName.cIdx];
+                    name->cnEntry.data.length = name->fullName.cLen;
+                    name->cnEntry.nid         = ASN_COUNTRY_NAME;
+                }
+                else if (name->fullName.dcIdx[loc] >= 0) {
+                    name->cnEntry.data.data
+                        = &name->fullName.fullName[name->fullName.dcIdx[loc]];
+                    name->cnEntry.data.length = name->fullName.dcLen[loc];
+                    name->cnEntry.nid         = ASN_DOMAIN_COMPONENT;
+                }
+                else {
+                    WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
+                    return NULL;
+                }
+            }
+            name->cnEntry.data.type = CTC_UTF8;
+        /* common name index case */
+        } else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
+            /* get CN shortcut from x509 since it has null terminator */
+            name->cnEntry.data.data   = name->x509->subjectCN;
+            name->cnEntry.data.length = name->fullName.cnLen;
+            name->cnEntry.data.type   = CTC_UTF8;
+            name->cnEntry.nid         = ASN_COMMON_NAME;
+            name->cnEntry.set         = 1;
+        } else {
+            WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
             return NULL;
         }
     }
@@ -45861,14 +46037,138 @@ WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 
 #endif /* NO_SESSION_CACHE */
 
+int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
+                    unsigned int flags, char **peername)
+{
+    int         ret;
+    DecodedCert dCert;
+
+    WOLFSSL_ENTER("wolfSSL_X509_check_host");
+
+    /* flags and peername not needed for Nginx. */
+    (void)flags;
+    (void)peername;
+
+    if (flags == WOLFSSL_NO_WILDCARDS) {
+        WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
+        return WOLFSSL_FAILURE;
+    }
+
+    InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
+    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
+    if (ret != 0) {
+        FreeDecodedCert(&dCert);
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = CheckHostName(&dCert, (char *)chk, chklen);
+    FreeDecodedCert(&dCert);
+    if (ret != 0)
+        return WOLFSSL_FAILURE;
+    return WOLFSSL_SUCCESS;
+}
+
 #ifndef NO_BIO
+int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
+        char *buf, int size)
+{
+    int readNextLine;
+    int lineLen;
+    int len;
+    byte isNumCheck;
+    word32 outLen;
+    const int extraTagSz = MAX_LENGTH_SZ - 1;
+
+    WOLFSSL_ENTER("wolfSSL_a2i_ASN1_INTEGER");
+
+    if (!bio || !asn1 || !buf || size <= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Reset asn1 */
+    if (asn1->isDynamic && asn1->data) {
+        XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        asn1->isDynamic = 0;
+    }
+    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    asn1->data = asn1->intData;
+    asn1->length = 0;
+    asn1->negative = 0;
+    asn1->type = V_ASN1_INTEGER;
+
+    lineLen = wolfSSL_BIO_gets(bio, buf, size);
+    do {
+        readNextLine = 0;
+        if (lineLen <= 0) {
+            WOLFSSL_MSG("wolfSSL_BIO_gets error");
+            return WOLFSSL_FAILURE;
+        }
+        while (lineLen && buf[lineLen-1] == '\n' && buf[lineLen-1] == '\r')
+            lineLen--;
+        if (buf[lineLen-1] == '\\')
+            readNextLine = 1;
+        /* Ignore none-hex chars at the end of the line */
+        outLen = 1;
+        while (lineLen && Base16_Decode((byte*)buf + lineLen - 1, 1,
+                &isNumCheck, &outLen) == ASN_INPUT_E)
+            lineLen--;
+        if (!lineLen || lineLen % 2) {
+            WOLFSSL_MSG("Invalid line length");
+            return WOLFSSL_FAILURE;
+        }
+        len = asn1->length + (lineLen/2);
+        /* Check if it will fit in static memory and
+         * save space for the ASN tag in front */
+        if (len > (int)(sizeof(asn1->intData) - extraTagSz)) {
+            /* Allocate mem for data */
+            if (asn1->isDynamic) {
+                byte* tmp = XREALLOC(asn1->data, len + extraTagSz, NULL,
+                        DYNAMIC_TYPE_OPENSSL);
+                if (!tmp) {
+                    WOLFSSL_MSG("realloc error");
+                    return WOLFSSL_FAILURE;
+                }
+                asn1->data = tmp;
+            }
+            else {
+                asn1->data = XMALLOC(len + extraTagSz, NULL,
+                        DYNAMIC_TYPE_OPENSSL);
+                if (!asn1->data) {
+                    WOLFSSL_MSG("malloc error");
+                    return WOLFSSL_FAILURE;
+                }
+                XMEMCPY(asn1->data, asn1->intData, asn1->length);
+            }
+        }
+        len = lineLen/2;
+        if (Base16_Decode((byte*)buf, lineLen, asn1->data + asn1->length,
+                (word32*)&len) != 0) {
+            WOLFSSL_MSG("Base16_Decode error");
+            return WOLFSSL_FAILURE;
+        }
+        asn1->length += len;
+    } while (readNextLine);
+
+    /* Write ASN tag */
+    outLen = SetLength(asn1->length, NULL);
+    if (asn1->data[0] == 0x80)
+        outLen++; /* Special ASN integer case */
+    XMEMMOVE(asn1->data + outLen + 1, asn1->data, asn1->length);
+    asn1->data[0] = ASN_INTEGER;
+    (void)SetLength(asn1->length, asn1->data + 1);
+    if (asn1->data[outLen+1] == 0x80)
+        asn1->data[outLen] = 0;
+
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 {
-    static char num[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    int    i;
-    word32 j;
-    word32 len = 0;
+    word32 idx = 1;
+    int len = 0;
+    byte buf[512];
+    word32 bufLen = 512;
 
     WOLFSSL_ENTER("wolfSSL_i2a_ASN1_INTEGER");
 
@@ -45876,32 +46176,9 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
         return WOLFSSL_FAILURE;
 
     /* Skip ASN.1 INTEGER (type) byte. */
-    i = 1;
-    /* When indefinite length, can't determine length with data available. */
-    if (a->data[i] == 0x80)
+    if (a->data[idx] == 0x80 || /* Indefinite length, can't determine length */
+            GetLength(a->data, &idx, &len, a->length) < 0) {
         return 0;
-    /* One length byte if less than 0x80. */
-    if (a->data[i] < 0x80)
-        len = a->data[i++];
-    /* Multiple length byte if greater than 0x80. */
-    else if (a->data[i] > 0x80) {
-        switch (a->data[i++] - 0x80) {
-            case 4:
-                len |= a->data[i++] << 24;
-                FALL_THROUGH;
-            case 3:
-                len |= a->data[i++] << 16;
-                FALL_THROUGH;
-            case 2:
-                len |= a->data[i++] <<  8;
-                FALL_THROUGH;
-            case 1:
-                len |= a->data[i++];
-                break;
-            default:
-                /* Not supporting greater than 4 bytes of length. */
-                return 0;
-        }
     }
 
     /* Zero length integer is the value zero. */
@@ -45910,14 +46187,11 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
         return 2;
     }
 
-    /* Don't do negative - just write out every byte. */
-    for (j = 0; j < len; i++,j++) {
-        wolfSSL_BIO_write(bp, &num[a->data[i] >> 4], 1);
-        wolfSSL_BIO_write(bp, &num[a->data[i] & 0xf], 1);
+    if (Base16_Encode(a->data + idx, len, buf, &bufLen) != 0) {
+        return 0;
     }
 
-    /* Two nibbles written for each byte. */
-    return len * 2;
+    return wolfSSL_BIO_write(bp, buf, bufLen);
 }
 #endif /* !NO_BIO */
 

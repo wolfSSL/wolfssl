@@ -346,6 +346,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
     #define SSL_MODE_RELEASE_BUFFERS    0x00000010U
     #define ASN1_BOOLEAN                WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                wolfSSL_X509_get_ext
+    #define X509_get_ext_by_OBJ         wolfSSL_X509_get_ext_by_OBJ
     #define X509_cmp                    wolfSSL_X509_cmp
     #define X509_EXTENSION_get_object   wolfSSL_X509_EXTENSION_get_object
     #define X509_EXTENSION_get_critical wolfSSL_X509_EXTENSION_get_critical
@@ -705,6 +706,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define ASN1_tag2str                    wolfSSL_ASN1_tag2str
 
+#define a2i_ASN1_INTEGER                wolfSSL_a2i_ASN1_INTEGER
 #define i2a_ASN1_INTEGER                wolfSSL_i2a_ASN1_INTEGER
 #define i2c_ASN1_INTEGER                wolfSSL_i2c_ASN1_INTEGER
 #define ASN1_INTEGER_new                wolfSSL_ASN1_INTEGER_new

@@ -702,7 +702,7 @@ AC_ARG_ENABLE([mcast],
 # signal (--enable-signal)
 # lighty (--enable-lighty) HAVE_LIGHTY
 # stunnel (--enable-stunnel) HAVE_STUNNEL
-# libest (--enable-libest)
+# libest (--enable-libest) HAVE_LIBEST
 # asio (--enable-asio) WOLFSSL_ASIO
 # libwebsockets (--enable-libwebsockets) WOLFSSL_LIBWEBSOCKETS
 # qt (--enable-qt) WOLFSSL_QT
@@ -4250,7 +4250,7 @@ AC_ARG_ENABLE([libest],
     
 if test "$ENABLED_LIBEST" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DHAVE_LIBEST"
 
     # Requires opensslextra and opensslall
     if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
