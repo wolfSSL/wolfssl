@@ -111,6 +111,7 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
 #ifndef NO_WOLFSSL_STUB
 #define X509V3_EXT_add_nconf(...) 0
+#define X509V3_parse_list(...)    NULL
 #endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print

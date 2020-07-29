@@ -26,6 +26,7 @@
 #define WOLFSSL_DH_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/opensslv.h>
 
 #ifdef __cplusplus
     extern "C" {
