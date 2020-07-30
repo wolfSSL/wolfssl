@@ -654,6 +654,14 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   n = x->used - 1;
   t = y->used - 1;
 
+  /* would result in neg value ? */
+  if (n < t) {
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+    return FP_VAL;
+  }
+
   /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
   fp_lshd (y, n - t); /* y = y*b**{n-t} */
 
