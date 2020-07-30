@@ -85,8 +85,8 @@
     $ mkdir build
     $ cd build
     $ cmake ..
-    $ make
-    $ sudo make install
+    $ cmake --build .
+    $ cmake --install .
 
     To build library only and not build examples and test apps use:
     $ cmake .. -DBUILD_TESTS=NO
@@ -95,3 +95,8 @@
     $ cmake .. -DCMAKE_BUILD_TYPE=Debug
 
     Make sure and run the built examples and test from the wolfssl-root to properly find the ./certs directory.
+
+    CMake on Windows with Visual Studio
+    1. Open Command Prompt
+    2. Run the Visual Studio batch to setup command line variables: Example: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+    3. Then use steps above
