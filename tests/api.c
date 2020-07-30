@@ -13662,6 +13662,63 @@ static int test_wc_SetKeyUsage (void)
     return ret;
 
 } /* END  test_wc_SetKeyUsage */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+static void sample_mutex_cb (int flag, int type, const char* file, int line)
+{
+    (void)flag;
+    (void)type;
+    (void)file;
+    (void)line;
+}
+#endif
+/*
+ * Testing wc_LockMutex_ex
+ */
+static int test_wc_LockMutex_ex (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    int flag = CRYPTO_LOCK;
+    int type = 0;
+    const char* file = "./test-LockMutex_ex.txt";
+    int line = 0;
+
+    printf(testingFmt, "wc_LockMutex_ex()");
+
+    /*without SetMutexCb*/
+    ret = wc_LockMutex_ex(flag, type, file, line);
+    if (ret ==  BAD_STATE_E) {
+        ret = 0;
+    }
+    /*with SetMutexCb*/
+    if (ret == 0) {
+        ret = wc_SetMutexCb(sample_mutex_cb);
+        if (ret == 0) {
+             ret = wc_LockMutex_ex(flag, type, file, line);
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_wc_LockMutex_ex*/
+/*
+ * Testing wc_SetMutexCb
+ */
+static int test_wc_SetMutexCb (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
+    printf(testingFmt, "wc_SetMutexCb()");
+
+    ret = wc_SetMutexCb(sample_mutex_cb);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/*End test_wc_SetMutexCb*/
 
 /*
  * Testing wc_RsaKeyToDer()
@@ -35582,6 +35639,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
 
+    AssertIntEQ(test_wc_SetMutexCb(), 0);
+    AssertIntEQ(test_wc_LockMutex_ex(), 0);
 
     AssertIntEQ(test_wc_RsaKeyToDer(), 0);
     AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);
