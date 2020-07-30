@@ -165,6 +165,10 @@ extern "C" {
 #elif defined(STM32F207xx)
     #define WOLFSSL_STM32F2
     #define HAL_CONSOLE_UART huart3
+#elif defined(STM32F107xC)
+	#define WOLFSSL_STM32F1
+	#define HAL_CONSOLE_UART huart4
+	#define NO_STM32_RNG
 #else
 	#warning Please define a hardware platform!
     #define WOLFSSL_STM32F4 /* default */

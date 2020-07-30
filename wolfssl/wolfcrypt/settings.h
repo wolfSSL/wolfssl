@@ -1242,7 +1242,9 @@ extern void uITRON4_free(void *p) ;
     #endif
     #define NO_OLD_RNGNAME
     #ifdef WOLFSSL_STM32_CUBEMX
-        #if defined(WOLFSSL_STM32F2)
+		#if defined(WOLFSSL_STM32F1)
+			#include "stm32f1xx_hal.h"
+        #elif defined(WOLFSSL_STM32F2)
             #include "stm32f2xx_hal.h"
 		#elif defined(WOLFSSL_STM32L5)
             #include "stm32l5xx_hal.h"
