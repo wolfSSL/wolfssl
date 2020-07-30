@@ -33738,6 +33738,7 @@ static int test_mp_rand (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
     mp_clear(&a);
+    wc_FreeRng(&rng);
 #endif
     return ret;
 }/* End test_mp_rand*/
