@@ -55,18 +55,20 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 1. Create or open a Cube Project based on your hardware.
 2. Under “Software Packs” choose “Select Components”.
 3. Find and check all components for the wolfSSL.wolfSSL packs (wolfSSL / Core, wolfCrypt / Core and wolfCrypt / Test). Close
-4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the basic parameters.
+4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the parameters.
 5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math”
 6. Generate Code
+7. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
 
-### STM32 Cube IOC Templates (for existing targets)
+### STM32 Cube Pack Examples
 
-1. Using the STM32CubeMX tool, load the `<wolfssl-root>/IDE/STM32Cube/Boards/*.ioc` file for your target.
-2. Adjust the HAL options based on your specific micro-controller.
-3. Enable the security RNG/HASH/CRYPT if available.
-4. Enable the RTC and UART if available.
-5. Add wolfSSL via Additional Software and check/configure wolfSSL.
-6. Generate source code.
+In the `I-CUBE-WOLFSSL-WOLFSSL.pack` pack there are pre-assembled example projects available.
+After installing the pack you can find these example projects in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects`.
+To use an example:
+
+1. Open STM32CubeIDE
+2. Choose "Import" -> "Import an Existing STM32CubeMX Configuration File (.ioc)".
+3. Browse to find the .ioc in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects` and click finish.
 
 ## Example `IDE/STM32Cube/wolfssl_example.c` Output
 
