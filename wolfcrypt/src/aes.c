@@ -288,7 +288,7 @@
 
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO)
-     /* STM32F2/F4/F7/L4 hardware AES support for ECB, CBC, CTR and GCM modes */
+     /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 
@@ -4028,18 +4028,6 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
             return;
     }
 }
-#ifdef STM32_CRYPTO_AES_GCM
-static WC_INLINE void DecrementGcmCounter(byte* inOutCtr)
-{
-    int i;
-
-    /* in network byte order so start at end and work back */
-    for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - CTR_SZ; i--) {
-        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
-            return;
-    }
-}
-#endif /* STM32_CRYPTO_AES_GCM */
 #endif /* !FREESCALE_LTC_AES_GCM */
 
 #if defined(GCM_SMALL) || defined(GCM_TABLE)
@@ -5932,6 +5920,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 #endif
     word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
+    word32 ctrInit[AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
@@ -5961,6 +5950,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
+    XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -6082,16 +6072,13 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
-    /* hardware requires +1, so subtract it */
-    DecrementGcmCounter((byte*)ctr);
-
     if (ret == 0) {
         /* return authTag */
         if (authTag) {
             /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
             if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
                 GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-                wc_AesEncrypt(aes, (byte*)ctr, (byte*)tag);
+                wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)tag);
                 xorbuf(authTag, tag, authTagSz);
             }
             else {
@@ -6379,6 +6366,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
     word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[AES_BLOCK_SIZE/sizeof(word32)];
+    word32 ctrInit[AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
     int authPadSz, wasAlloc = 0;
@@ -6407,6 +6395,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
+    XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -6533,13 +6522,10 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
-    /* hardware requires +1, so subtract it */
-    DecrementGcmCounter((byte*)ctr);
-
     /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
     if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
         GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
-        wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
+        wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)partialBlock);
         xorbuf(tag, partialBlock, sizeof(tag));
     }
 
