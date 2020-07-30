@@ -65,7 +65,7 @@
 #define OCSP_STAPLINGV2_MULTI 3
 #define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
 
-#if defined(XUSLEEP) && defined(NO_MAIN_DRIVER)
+#if defined(XSLEEP_US) && defined(NO_MAIN_DRIVER)
     /* This is to force the server's thread to get a chance to
      * execute before continuing the resume in non-blocking
      * DTLS test cases. */
