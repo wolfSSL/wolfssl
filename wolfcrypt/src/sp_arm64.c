@@ -4888,11 +4888,11 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[64], m[32], r[64];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -5124,10 +5124,10 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -5186,16 +5186,16 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[32], tmpb[32];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
@@ -12597,11 +12597,11 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[96], m[48], r[96];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -12861,10 +12861,10 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -12923,16 +12923,16 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[48], tmpb[48];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
@@ -17528,11 +17528,11 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit a[128], m[64], r[128];
 #else
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
 #endif
-    sp_digit *ah;
+    sp_digit *ah = NULL;
     sp_digit e[1];
     int err = MP_OKAY;
 
@@ -17820,10 +17820,10 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a;
+    sp_digit* a = NULL;
     sp_digit* d = NULL;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     int err = MP_OKAY;
 
     (void)pm;
@@ -17882,16 +17882,16 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit tmpa[64], tmpb[64];
 #else
     sp_digit* t = NULL;
-    sp_digit* a;
-    sp_digit* p;
-    sp_digit* q;
-    sp_digit* dp;
-    sp_digit* tmpa;
-    sp_digit* tmpb;
+    sp_digit* a = NULL;
+    sp_digit* p = NULL;
+    sp_digit* q = NULL;
+    sp_digit* dp = NULL;
+    sp_digit* tmpa = NULL;
+    sp_digit* tmpb = NULL;
 #endif
-    sp_digit* r;
-    sp_digit* qi;
-    sp_digit* dq;
+    sp_digit* r = NULL;
+    sp_digit* qi = NULL;
+    sp_digit* dq = NULL;
     sp_digit c;
     int err = MP_OKAY;
 
@@ -20053,6 +20053,141 @@ static void sp_256_div2_4(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * p  Point to double.
  * t  Temporary ordinate data.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_dbl_4_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_dbl_4_ctx;
+
+static int sp_256_proj_point_dbl_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, const sp_point_256* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_dbl_4_ctx* ctx = (sp_256_proj_point_dbl_4_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_dbl_4_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*4;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_256_mont_sqr_4(ctx->t1, p->z, p256_mod, p256_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_256_mont_mul_4(ctx->z, p->y, p->z, p256_mod, p256_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_256_mont_dbl_4(ctx->z, ctx->z, p256_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_256_mont_sub_4(ctx->t2, p->x, ctx->t1, p256_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_256_mont_add_4(ctx->t1, p->x, ctx->t1, p256_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_256_mont_mul_4(ctx->t2, ctx->t1, ctx->t2, p256_mod, p256_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_256_mont_tpl_4(ctx->t1, ctx->t2, p256_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_256_mont_dbl_4(ctx->y, p->y, p256_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_256_mont_sqr_4(ctx->y, ctx->y, p256_mod, p256_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_256_mont_sqr_4(ctx->t2, ctx->y, p256_mod, p256_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_256_div2_4(ctx->t2, ctx->t2, p256_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_256_mont_mul_4(ctx->y, ctx->y, p->x, p256_mod, p256_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_256_mont_sqr_4(ctx->x, ctx->t1, p256_mod, p256_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_256_mont_sub_4(ctx->x, ctx->x, ctx->y, p256_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_256_mont_sub_4(ctx->x, ctx->x, ctx->y, p256_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_256_mont_sub_4(ctx->y, ctx->y, ctx->x, p256_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_256_mont_mul_4(ctx->y, ctx->y, ctx->t1, p256_mod, p256_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_256_mont_sub_4(ctx->y, ctx->y, ctx->t2, p256_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_256_proj_point_dbl_4(sp_point_256* r, const sp_point_256* p, sp_digit* t)
 {
     sp_digit* t1 = t;
@@ -20303,6 +20438,209 @@ static int sp_256_cmp_equal_4(const sp_digit* a, const sp_digit* b)
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_add_4_ctx {
+    int state;
+    sp_256_proj_point_dbl_4_ctx dbl_ctx;
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_add_4_ctx;
+
+static int sp_256_proj_point_add_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, 
+    const sp_point_256* p, const sp_point_256* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_add_4_ctx* ctx = (sp_256_proj_point_add_4_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_256* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_4_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*4;
+        ctx->t3 = t + 4*4;
+        ctx->t4 = t + 6*4;
+        ctx->t5 = t + 8*4;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_256_sub_4(ctx->t1, p256_mod, q->y);
+        sp_256_norm_4(ctx->t1);
+        if ((sp_256_cmp_equal_4(p->x, q->x) & sp_256_cmp_equal_4(p->z, q->z) &
+            (sp_256_cmp_equal_4(p->y, q->y) | sp_256_cmp_equal_4(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_256_proj_point_dbl_4_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_256));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<4; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<4; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<4; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_256_mont_sqr_4(ctx->t1, q->z, p256_mod, p256_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_256_mont_mul_4(ctx->t3, ctx->t1, q->z, p256_mod, p256_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_256_mont_mul_4(ctx->t1, ctx->t1, ctx->x, p256_mod, p256_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_4(ctx->t2, ctx->z, p256_mod, p256_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_256_mont_mul_4(ctx->t4, ctx->t2, ctx->z, p256_mod, p256_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_256_mont_mul_4(ctx->t2, ctx->t2, q->x, p256_mod, p256_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_256_mont_mul_4(ctx->t3, ctx->t3, ctx->y, p256_mod, p256_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_4(ctx->t4, ctx->t4, q->y, p256_mod, p256_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_256_mont_sub_4(ctx->t2, ctx->t2, ctx->t1, p256_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_256_mont_sub_4(ctx->t4, ctx->t4, ctx->t3, p256_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_256_mont_mul_4(ctx->z, ctx->z, q->z, p256_mod, p256_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_256_mont_mul_4(ctx->z, ctx->z, ctx->t2, p256_mod, p256_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_256_mont_sqr_4(ctx->x, ctx->t4, p256_mod, p256_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_256_mont_sqr_4(ctx->t5, ctx->t2, p256_mod, p256_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_256_mont_mul_4(ctx->y, ctx->t1, ctx->t5, p256_mod, p256_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_256_mont_mul_4(ctx->t5, ctx->t5, ctx->t2, p256_mod, p256_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_256_mont_sub_4(ctx->x, ctx->x, ctx->t5, p256_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_256_mont_dbl_4(ctx->t1, ctx->y, p256_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_256_mont_sub_4(ctx->x, ctx->x, ctx->t1, p256_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_256_mont_sub_4(ctx->y, ctx->y, ctx->x, p256_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_256_mont_mul_4(ctx->y, ctx->y, ctx->t4, p256_mod, p256_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_256_mont_mul_4(ctx->t5, ctx->t5, ctx->t3, p256_mod, p256_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_256_mont_sub_4(ctx->y, ctx->y, ctx->t5, p256_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_256_proj_point_add_4(sp_point_256* r, const sp_point_256* p, const sp_point_256* q,
         sp_digit* t)
 {
@@ -35477,6 +35815,46 @@ static void sp_256_mont_sqr_n_order_4(sp_digit* r, const sp_digit* a, int n)
  * a   Number to invert.
  * td  Temporary data.
  */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_mont_inv_order_4_ctx {
+    int state;
+    int i;
+} sp_256_mont_inv_order_4_ctx;
+static int sp_256_mont_inv_order_4_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const sp_digit* a,
+        sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_mont_inv_order_4_ctx* ctx = (sp_256_mont_inv_order_4_ctx*)sp_ctx;
+    
+    typedef char ctx_size_test[sizeof(sp_256_mont_inv_order_4_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        XMEMCPY(t, a, sizeof(sp_digit) * 4);
+        ctx->i = 254;
+        ctx->state = 1;
+        break;
+    case 1:
+        sp_256_mont_sqr_order_4(t, t);
+        if ((p256_order_minus_2[ctx->i / 64] & ((sp_int_digit)1 << (ctx->i % 64))) != 0) {
+            sp_256_mont_mul_order_4(t, t, a);
+        }
+        ctx->i--;
+        if (ctx->i == 0) {
+            ctx->state = 2;
+        }
+        break;
+    case 2:
+        XMEMCPY(r, t, sizeof(sp_digit) * 4U);
+        err = MP_OKAY;
+        break;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -35592,6 +35970,165 @@ static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
  * returns RNG failures, MEMORY_E when memory allocation fails and
  * MP_OKAY on success.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_sign_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_4_ctx mulmod_ctx;
+        sp_256_mont_inv_order_4_ctx mont_inv_order_ctx;
+    };
+    sp_digit e[2*4];
+    sp_digit x[2*4];
+    sp_digit k[2*4];
+    sp_digit r[2*4];
+    sp_digit tmp[3 * 2*4];
+    sp_point_256 point;
+    sp_digit* s;
+    sp_digit* kInv;
+    int i;
+} sp_ecc_sign_256_ctx;
+
+int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_sign_256_ctx* ctx = (sp_ecc_sign_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_sign_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    (void)heap;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->s = ctx->e;
+        ctx->kInv = ctx->k;
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(ctx->e, 4, hash, (int)hashLen);
+
+        ctx->i = SP_ECC_MAX_SIG_GEN;
+        ctx->state = 1;
+        break;
+    case 1: /* GEN */
+        sp_256_from_mp(ctx->x, 4, priv);
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_4(rng, ctx->k);
+        }
+        else {
+            sp_256_from_mp(ctx->k, 4, km);
+            mp_zero(km);
+        }
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 2;
+        break; 
+    case 2: /* MULMOD */
+        err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+            &ctx->point, &p256_base, ctx->k, 1, heap);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* MODORDER */
+    {
+        int64_t c;
+        /* r = point->x mod order */
+        XMEMCPY(ctx->r, ctx->point.x, sizeof(sp_digit) * 4U);
+        sp_256_norm_4(ctx->r);
+        c = sp_256_cmp_4(ctx->r, p256_order);
+        sp_256_cond_sub_4(ctx->r, ctx->r, p256_order, 0L - (sp_digit)(c >= 0));
+        sp_256_norm_4(ctx->r);
+        ctx->state = 4;
+        break;
+    }
+    case 4: /* KMODORDER */
+        /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_4(ctx->k, ctx->k, p256_norm_order);
+        err = sp_256_mod_4(ctx->k, ctx->k, p256_order);
+        if (err == MP_OKAY) {
+            sp_256_norm_4(ctx->k);
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 5;
+        }
+        break;
+    case 5: /* KINV */
+        /* kInv = 1/k mod order */
+        err = sp_256_mont_inv_order_4_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->kInv, ctx->k, ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* KINVNORM */
+        sp_256_norm_4(ctx->kInv);
+        ctx->state = 7;
+        break;
+    case 7: /* R */
+        /* s = r * x + e */
+        sp_256_mul_4(ctx->x, ctx->x, ctx->r);
+        ctx->state = 8;
+        break;
+    case 8: /* S1 */
+        err = sp_256_mod_4(ctx->x, ctx->x, p256_order);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* S2 */
+    {
+        sp_digit carry;
+        int64_t c;
+        sp_256_norm_4(ctx->x);
+        carry = sp_256_add_4(ctx->s, ctx->e, ctx->x);
+        sp_256_cond_sub_4(ctx->s, ctx->s, p256_order, 0 - carry);
+        sp_256_norm_4(ctx->s);
+        c = sp_256_cmp_4(ctx->s, p256_order);
+        sp_256_cond_sub_4(ctx->s, ctx->s, p256_order, 0L - (sp_digit)(c >= 0));
+        sp_256_norm_4(ctx->s);
+
+        /* s = s * k^-1 mod order */
+        sp_256_mont_mul_order_4(ctx->s, ctx->s, ctx->kInv);
+        sp_256_norm_4(ctx->s);
+
+        /* Check that signature is usable. */
+        if (sp_256_iszero_4(ctx->s) == 0) {
+            ctx->state = 10;
+            break;
+        }
+
+        /* not usable gen, try again */
+        ctx->i--;
+        if (ctx->i == 0) {
+            err = RNG_FAILURE_E;
+        }
+        ctx->state = 1;
+        break;
+    }
+    case 10: /* RES */
+        err = sp_256_to_mp(ctx->r, rm);
+        if (err == MP_OKAY) {
+            err = sp_256_to_mp(ctx->s, sm);
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 10) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 4U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 4U);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
@@ -35763,6 +36300,169 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
  * returns RNG failures, MEMORY_E when memory allocation fails and
  * MP_OKAY on success.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_verify_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_4_ctx mulmod_ctx;
+        sp_256_mont_inv_order_4_ctx mont_inv_order_ctx;
+        sp_256_proj_point_dbl_4_ctx dbl_ctx;
+        sp_256_proj_point_add_4_ctx add_ctx;
+    };
+    sp_digit u1[2*4];
+    sp_digit u2[2*4];
+    sp_digit s[2*4];
+    sp_digit tmp[2*4 * 5];
+    sp_point_256 p1;
+    sp_point_256 p2;
+} sp_ecc_verify_256_ctx;
+
+int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, mp_int* pX,
+    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_verify_256_ctx* ctx = (sp_ecc_verify_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_verify_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(ctx->u1, 4, hash, (int)hashLen);
+        sp_256_from_mp(ctx->u2, 4, r);
+        sp_256_from_mp(ctx->s, 4, sm);
+        sp_256_from_mp(ctx->p2.x, 4, pX);
+        sp_256_from_mp(ctx->p2.y, 4, pY);
+        sp_256_from_mp(ctx->p2.z, 4, pZ);
+        sp_256_mul_4(ctx->s, ctx->s, p256_norm_order);
+        err = sp_256_mod_4(ctx->s, ctx->s, p256_order);
+        if (err == MP_OKAY)
+            ctx->state = 1;
+        break;
+    case 1: /* NORMS1 */
+        sp_256_norm_4(ctx->s);
+        XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+        ctx->state = 2;
+        break;
+    case 2: /* NORMS2 */
+        err = sp_256_mont_inv_order_4_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* NORMS3 */
+        sp_256_mont_mul_order_4(ctx->u1, ctx->u1, ctx->s);
+        ctx->state = 4;
+        break;
+    case 4: /* NORMS4 */
+        sp_256_mont_mul_order_4(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* MULBASE */
+        err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* MULMOD */
+        err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 7;
+        }
+        break;
+    case 7: /* ADD */
+        err = sp_256_proj_point_add_4_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY)
+            ctx->state = 8;
+        break;
+    case 8: /* DBLPREP */
+        if (sp_256_iszero_4(ctx->p1.z)) {
+            if (sp_256_iszero_4(ctx->p1.x) && sp_256_iszero_4(ctx->p1.y)) {
+                XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+                ctx->state = 9;
+                break;
+            }
+            else {
+                /* Y ordinate is not used from here - don't set. */
+                int i;
+                for (i=0; i<4; i++) {
+                    ctx->p1.x[i] = 0;
+                }
+                XMEMCPY(ctx->p1.z, p256_norm_mod, sizeof(p256_norm_mod));
+            }
+        }
+        ctx->state = 10;
+        break;
+    case 9: /* DBL */
+        err = sp_256_proj_point_dbl_4_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+            &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 10;
+        }
+        break;
+    case 10: /* MONT */
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(ctx->u2, 4, r);
+        err = sp_256_mod_mul_norm_4(ctx->u2, ctx->u2, p256_mod);
+        if (err == MP_OKAY)
+            ctx->state = 11;
+        break;
+    case 11: /* SQR */
+        /* u1 = r.z'.z' mod prime */
+        sp_256_mont_sqr_4(ctx->p1.z, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12: /* MUL */
+        sp_256_mont_mul_4(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13: /* RES */
+        err = MP_OKAY; /* math okay, now check result */
+        *res = (int)(sp_256_cmp_4(ctx->p1.x, ctx->u1) == 0);
+        if (*res == 0) {
+            sp_digit carry;
+            int64_t c;
+
+            /* Reload r and add order. */
+            sp_256_from_mp(ctx->u2, 4, r);
+            carry = sp_256_add_4(ctx->u2, ctx->u2, p256_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_4(ctx->u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_4(ctx->u2, p256_mod);
+                if (c < 0) {
+                    /* Convert to Montogomery form */
+                    err = sp_256_mod_mul_norm_4(ctx->u2, ctx->u2, p256_mod);
+                    if (err == MP_OKAY) {
+                        /* u1 = (r + 1*order).z'.z' mod prime */
+                        sp_256_mont_mul_4(ctx->u1, ctx->u2, ctx->p1.z, p256_mod,
+                                                                  p256_mp_mod);
+                        *res = (int)(sp_256_cmp_4(ctx->p1.x, ctx->u1) == 0);
+                    }
+                }
+            }
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 13) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
 {
@@ -38098,6 +38798,141 @@ static void sp_384_div2_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
  * p  Point to double.
  * t  Temporary ordinate data.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_384_proj_point_dbl_6_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_384_proj_point_dbl_6_ctx;
+
+static int sp_384_proj_point_dbl_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, const sp_point_384* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_384_proj_point_dbl_6_ctx* ctx = (sp_384_proj_point_dbl_6_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_384_proj_point_dbl_6_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*6;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_384_mont_sqr_6(ctx->t1, p->z, p384_mod, p384_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_384_mont_mul_6(ctx->z, p->y, p->z, p384_mod, p384_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_384_mont_dbl_6(ctx->z, ctx->z, p384_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_384_mont_sub_6(ctx->t2, p->x, ctx->t1, p384_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_384_mont_add_6(ctx->t1, p->x, ctx->t1, p384_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_384_mont_mul_6(ctx->t2, ctx->t1, ctx->t2, p384_mod, p384_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_384_mont_tpl_6(ctx->t1, ctx->t2, p384_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_384_mont_dbl_6(ctx->y, p->y, p384_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_384_mont_sqr_6(ctx->y, ctx->y, p384_mod, p384_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_384_mont_sqr_6(ctx->t2, ctx->y, p384_mod, p384_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_384_div2_6(ctx->t2, ctx->t2, p384_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_384_mont_mul_6(ctx->y, ctx->y, p->x, p384_mod, p384_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_384_mont_sqr_6(ctx->x, ctx->t1, p384_mod, p384_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_384_mont_sub_6(ctx->x, ctx->x, ctx->y, p384_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_384_mont_sub_6(ctx->x, ctx->x, ctx->y, p384_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_384_mont_sub_6(ctx->y, ctx->y, ctx->x, p384_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_384_mont_mul_6(ctx->y, ctx->y, ctx->t1, p384_mod, p384_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_384_mont_sub_6(ctx->y, ctx->y, ctx->t2, p384_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_384_proj_point_dbl_6(sp_point_384* r, const sp_point_384* p, sp_digit* t)
 {
     sp_digit* t1 = t;
@@ -38260,6 +39095,209 @@ static int sp_384_cmp_equal_6(const sp_digit* a, const sp_digit* b)
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_384_proj_point_add_6_ctx {
+    int state;
+    sp_384_proj_point_dbl_6_ctx dbl_ctx;
+    const sp_point_384* ap[2];
+    sp_point_384* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_384_proj_point_add_6_ctx;
+
+static int sp_384_proj_point_add_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, 
+    const sp_point_384* p, const sp_point_384* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_384_proj_point_add_6_ctx* ctx = (sp_384_proj_point_add_6_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_384* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_384_proj_point_add_6_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*6;
+        ctx->t3 = t + 4*6;
+        ctx->t4 = t + 6*6;
+        ctx->t5 = t + 8*6;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_384_sub_6(ctx->t1, p384_mod, q->y);
+        sp_384_norm_6(ctx->t1);
+        if ((sp_384_cmp_equal_6(p->x, q->x) & sp_384_cmp_equal_6(p->z, q->z) &
+            (sp_384_cmp_equal_6(p->y, q->y) | sp_384_cmp_equal_6(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_384_proj_point_dbl_6_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_384*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_384));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<6; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<6; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<6; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_384_mont_sqr_6(ctx->t1, q->z, p384_mod, p384_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_384_mont_mul_6(ctx->t3, ctx->t1, q->z, p384_mod, p384_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_384_mont_mul_6(ctx->t1, ctx->t1, ctx->x, p384_mod, p384_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_384_mont_sqr_6(ctx->t2, ctx->z, p384_mod, p384_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_384_mont_mul_6(ctx->t4, ctx->t2, ctx->z, p384_mod, p384_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_384_mont_mul_6(ctx->t2, ctx->t2, q->x, p384_mod, p384_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_384_mont_mul_6(ctx->t3, ctx->t3, ctx->y, p384_mod, p384_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_384_mont_mul_6(ctx->t4, ctx->t4, q->y, p384_mod, p384_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_384_mont_sub_6(ctx->t2, ctx->t2, ctx->t1, p384_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_384_mont_sub_6(ctx->t4, ctx->t4, ctx->t3, p384_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_384_mont_mul_6(ctx->z, ctx->z, q->z, p384_mod, p384_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_384_mont_mul_6(ctx->z, ctx->z, ctx->t2, p384_mod, p384_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_384_mont_sqr_6(ctx->x, ctx->t4, p384_mod, p384_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_384_mont_sqr_6(ctx->t5, ctx->t2, p384_mod, p384_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_384_mont_mul_6(ctx->y, ctx->t1, ctx->t5, p384_mod, p384_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_384_mont_mul_6(ctx->t5, ctx->t5, ctx->t2, p384_mod, p384_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_384_mont_sub_6(ctx->x, ctx->x, ctx->t5, p384_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_384_mont_dbl_6(ctx->t1, ctx->y, p384_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_384_mont_sub_6(ctx->x, ctx->x, ctx->t1, p384_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_384_mont_sub_6(ctx->y, ctx->y, ctx->x, p384_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_384_mont_mul_6(ctx->y, ctx->y, ctx->t4, p384_mod, p384_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_384_mont_mul_6(ctx->t5, ctx->t5, ctx->t3, p384_mod, p384_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_384_mont_sub_6(ctx->y, ctx->y, ctx->t5, p384_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_384_proj_point_add_6(sp_point_384* r, const sp_point_384* p, const sp_point_384* q,
         sp_digit* t)
 {
@@ -41099,6 +42137,46 @@ static void sp_384_mont_sqr_n_order_6(sp_digit* r, const sp_digit* a, int n)
  * a   Number to invert.
  * td  Temporary data.
  */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_384_mont_inv_order_6_ctx {
+    int state;
+    int i;
+} sp_384_mont_inv_order_6_ctx;
+static int sp_384_mont_inv_order_6_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const sp_digit* a,
+        sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_384_mont_inv_order_6_ctx* ctx = (sp_384_mont_inv_order_6_ctx*)sp_ctx;
+    
+    typedef char ctx_size_test[sizeof(sp_384_mont_inv_order_6_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        XMEMCPY(t, a, sizeof(sp_digit) * 6);
+        ctx->i = 382;
+        ctx->state = 1;
+        break;
+    case 1:
+        sp_384_mont_sqr_order_6(t, t);
+        if ((p384_order_minus_2[ctx->i / 64] & ((sp_int_digit)1 << (ctx->i % 64))) != 0) {
+            sp_384_mont_mul_order_6(t, t, a);
+        }
+        ctx->i--;
+        if (ctx->i == 0) {
+            ctx->state = 2;
+        }
+        break;
+    case 2:
+        XMEMCPY(r, t, sizeof(sp_digit) * 6U);
+        err = MP_OKAY;
+        break;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 static void sp_384_mont_inv_order_6(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -41185,6 +42263,165 @@ static void sp_384_mont_inv_order_6(sp_digit* r, const sp_digit* a,
  * returns RNG failures, MEMORY_E when memory allocation fails and
  * MP_OKAY on success.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_sign_384_ctx {
+    int state;
+    union {
+        sp_384_ecc_mulmod_6_ctx mulmod_ctx;
+        sp_384_mont_inv_order_6_ctx mont_inv_order_ctx;
+    };
+    sp_digit e[2*6];
+    sp_digit x[2*6];
+    sp_digit k[2*6];
+    sp_digit r[2*6];
+    sp_digit tmp[3 * 2*6];
+    sp_point_384 point;
+    sp_digit* s;
+    sp_digit* kInv;
+    int i;
+} sp_ecc_sign_384_ctx;
+
+int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_sign_384_ctx* ctx = (sp_ecc_sign_384_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_sign_384_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    (void)heap;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->s = ctx->e;
+        ctx->kInv = ctx->k;
+        if (hashLen > 48U) {
+            hashLen = 48U;
+        }
+
+        sp_384_from_bin(ctx->e, 6, hash, (int)hashLen);
+
+        ctx->i = SP_ECC_MAX_SIG_GEN;
+        ctx->state = 1;
+        break;
+    case 1: /* GEN */
+        sp_384_from_mp(ctx->x, 6, priv);
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_384_ecc_gen_k_6(rng, ctx->k);
+        }
+        else {
+            sp_384_from_mp(ctx->k, 6, km);
+            mp_zero(km);
+        }
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 2;
+        break; 
+    case 2: /* MULMOD */
+        err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+            &ctx->point, &p384_base, ctx->k, 1, heap);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* MODORDER */
+    {
+        int64_t c;
+        /* r = point->x mod order */
+        XMEMCPY(ctx->r, ctx->point.x, sizeof(sp_digit) * 6U);
+        sp_384_norm_6(ctx->r);
+        c = sp_384_cmp_6(ctx->r, p384_order);
+        sp_384_cond_sub_6(ctx->r, ctx->r, p384_order, 0L - (sp_digit)(c >= 0));
+        sp_384_norm_6(ctx->r);
+        ctx->state = 4;
+        break;
+    }
+    case 4: /* KMODORDER */
+        /* Conv k to Montgomery form (mod order) */
+        sp_384_mul_6(ctx->k, ctx->k, p384_norm_order);
+        err = sp_384_mod_6(ctx->k, ctx->k, p384_order);
+        if (err == MP_OKAY) {
+            sp_384_norm_6(ctx->k);
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 5;
+        }
+        break;
+    case 5: /* KINV */
+        /* kInv = 1/k mod order */
+        err = sp_384_mont_inv_order_6_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->kInv, ctx->k, ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* KINVNORM */
+        sp_384_norm_6(ctx->kInv);
+        ctx->state = 7;
+        break;
+    case 7: /* R */
+        /* s = r * x + e */
+        sp_384_mul_6(ctx->x, ctx->x, ctx->r);
+        ctx->state = 8;
+        break;
+    case 8: /* S1 */
+        err = sp_384_mod_6(ctx->x, ctx->x, p384_order);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* S2 */
+    {
+        sp_digit carry;
+        int64_t c;
+        sp_384_norm_6(ctx->x);
+        carry = sp_384_add_6(ctx->s, ctx->e, ctx->x);
+        sp_384_cond_sub_6(ctx->s, ctx->s, p384_order, 0 - carry);
+        sp_384_norm_6(ctx->s);
+        c = sp_384_cmp_6(ctx->s, p384_order);
+        sp_384_cond_sub_6(ctx->s, ctx->s, p384_order, 0L - (sp_digit)(c >= 0));
+        sp_384_norm_6(ctx->s);
+
+        /* s = s * k^-1 mod order */
+        sp_384_mont_mul_order_6(ctx->s, ctx->s, ctx->kInv);
+        sp_384_norm_6(ctx->s);
+
+        /* Check that signature is usable. */
+        if (sp_384_iszero_6(ctx->s) == 0) {
+            ctx->state = 10;
+            break;
+        }
+
+        /* not usable gen, try again */
+        ctx->i--;
+        if (ctx->i == 0) {
+            err = RNG_FAILURE_E;
+        }
+        ctx->state = 1;
+        break;
+    }
+    case 10: /* RES */
+        err = sp_384_to_mp(ctx->r, rm);
+        if (err == MP_OKAY) {
+            err = sp_384_to_mp(ctx->s, sm);
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 10) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 6U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 6U);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
@@ -41356,6 +42593,169 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
  * returns RNG failures, MEMORY_E when memory allocation fails and
  * MP_OKAY on success.
  */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_verify_384_ctx {
+    int state;
+    union {
+        sp_384_ecc_mulmod_6_ctx mulmod_ctx;
+        sp_384_mont_inv_order_6_ctx mont_inv_order_ctx;
+        sp_384_proj_point_dbl_6_ctx dbl_ctx;
+        sp_384_proj_point_add_6_ctx add_ctx;
+    };
+    sp_digit u1[2*6];
+    sp_digit u2[2*6];
+    sp_digit s[2*6];
+    sp_digit tmp[2*6 * 5];
+    sp_point_384 p1;
+    sp_point_384 p2;
+} sp_ecc_verify_384_ctx;
+
+int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, mp_int* pX,
+    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_verify_384_ctx* ctx = (sp_ecc_verify_384_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_verify_384_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (hashLen > 48U) {
+            hashLen = 48U;
+        }
+
+        sp_384_from_bin(ctx->u1, 6, hash, (int)hashLen);
+        sp_384_from_mp(ctx->u2, 6, r);
+        sp_384_from_mp(ctx->s, 6, sm);
+        sp_384_from_mp(ctx->p2.x, 6, pX);
+        sp_384_from_mp(ctx->p2.y, 6, pY);
+        sp_384_from_mp(ctx->p2.z, 6, pZ);
+        sp_384_mul_6(ctx->s, ctx->s, p384_norm_order);
+        err = sp_384_mod_6(ctx->s, ctx->s, p384_order);
+        if (err == MP_OKAY)
+            ctx->state = 1;
+        break;
+    case 1: /* NORMS1 */
+        sp_384_norm_6(ctx->s);
+        XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+        ctx->state = 2;
+        break;
+    case 2: /* NORMS2 */
+        err = sp_384_mont_inv_order_6_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* NORMS3 */
+        sp_384_mont_mul_order_6(ctx->u1, ctx->u1, ctx->s);
+        ctx->state = 4;
+        break;
+    case 4: /* NORMS4 */
+        sp_384_mont_mul_order_6(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* MULBASE */
+        err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* MULMOD */
+        err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 7;
+        }
+        break;
+    case 7: /* ADD */
+        err = sp_384_proj_point_add_6_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY)
+            ctx->state = 8;
+        break;
+    case 8: /* DBLPREP */
+        if (sp_384_iszero_6(ctx->p1.z)) {
+            if (sp_384_iszero_6(ctx->p1.x) && sp_384_iszero_6(ctx->p1.y)) {
+                XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+                ctx->state = 9;
+                break;
+            }
+            else {
+                /* Y ordinate is not used from here - don't set. */
+                int i;
+                for (i=0; i<6; i++) {
+                    ctx->p1.x[i] = 0;
+                }
+                XMEMCPY(ctx->p1.z, p384_norm_mod, sizeof(p384_norm_mod));
+            }
+        }
+        ctx->state = 10;
+        break;
+    case 9: /* DBL */
+        err = sp_384_proj_point_dbl_6_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+            &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 10;
+        }
+        break;
+    case 10: /* MONT */
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_384_from_mp(ctx->u2, 6, r);
+        err = sp_384_mod_mul_norm_6(ctx->u2, ctx->u2, p384_mod);
+        if (err == MP_OKAY)
+            ctx->state = 11;
+        break;
+    case 11: /* SQR */
+        /* u1 = r.z'.z' mod prime */
+        sp_384_mont_sqr_6(ctx->p1.z, ctx->p1.z, p384_mod, p384_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12: /* MUL */
+        sp_384_mont_mul_6(ctx->u1, ctx->u2, ctx->p1.z, p384_mod, p384_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13: /* RES */
+        err = MP_OKAY; /* math okay, now check result */
+        *res = (int)(sp_384_cmp_6(ctx->p1.x, ctx->u1) == 0);
+        if (*res == 0) {
+            sp_digit carry;
+            int64_t c;
+
+            /* Reload r and add order. */
+            sp_384_from_mp(ctx->u2, 6, r);
+            carry = sp_384_add_6(ctx->u2, ctx->u2, p384_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_384_norm_6(ctx->u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_384_cmp_6(ctx->u2, p384_mod);
+                if (c < 0) {
+                    /* Convert to Montogomery form */
+                    err = sp_384_mod_mul_norm_6(ctx->u2, ctx->u2, p384_mod);
+                    if (err == MP_OKAY) {
+                        /* u1 = (r + 1*order).z'.z' mod prime */
+                        sp_384_mont_mul_6(ctx->u1, ctx->u2, ctx->p1.z, p384_mod,
+                                                                  p384_mp_mod);
+                        *res = (int)(sp_384_cmp_6(ctx->p1.x, ctx->u1) == 0);
+                    }
+                }
+            }
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 13) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
 int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
     mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
 {

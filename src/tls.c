@@ -3528,14 +3528,19 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 return 0;
             #endif
 
-            /* accept the first good status_type and return */
-            ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
+            /* TLS 1.3 servers MUST NOT act upon presence or information in
+             * this extension (RFC 8448 Section 4.4.2.1).
+             */
+            if (!IsAtLeastTLSv1_3(ssl->version)) {
+                /* accept the first good status_type and return */
+                ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
                                          status_type, 0, ssl->heap, ssl->devId);
-            if (ret != WOLFSSL_SUCCESS)
-                return ret; /* throw error */
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret; /* throw error */
 
-            TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST_V2);
-            ssl->status_request_v2 = status_type;
+                TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST_V2);
+                ssl->status_request_v2 = status_type;
+            }
 
             return 0;
         }
@@ -6621,14 +6626,14 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         return ret;
     }
 
-    /* Allocate space for the public key. */
+    /* Allocate space for the public key */
     dataSz = params->p_len;
     keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (keyData == NULL) {
         ret = MEMORY_E;
         goto end;
     }
-    /* Allocate space for the private key. */
+    /* Allocate space for the private key */
     key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     if (key == NULL) {
         ret = MEMORY_E;
@@ -6642,20 +6647,34 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret != 0)
         goto end;
 
-    /* Generate a new key pair. */
-    ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, (byte*)key, &keySz, keyData,
-                               &dataSz);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* TODO: Make this function non-blocking */
-    if (ret == WC_PENDING_E) {
-        ret = wc_AsyncWait(ret, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_DH_EXTRA)
+    if (ssl->staticKE.key && ssl->staticKE.keyAlgo == WC_PK_TYPE_DH) {
+        DerBuffer* keyDer = ssl->staticKE.key;
+        word32 idx = 0;
+        WOLFSSL_MSG("Using static DH key");
+        ret = wc_DhKeyDecode(keyDer->buffer, &idx, dhKey, keyDer->length);
+        if (ret == 0) {
+            ret = wc_DhExportKeyPair(dhKey, (byte*)key, &keySz, keyData, &dataSz);
+        }
     }
+    else
 #endif
+    {
+        /* Generate a new key pair */
+        ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, (byte*)key, &keySz, keyData,
+                                &dataSz);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* TODO: Make this function non-blocking */
+        if (ret == WC_PENDING_E) {
+            ret = wc_AsyncWait(ret, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+    }
     if (ret != 0)
         goto end;
 
     if (params->p_len != dataSz) {
-        /* Pad the front of the key data with zeros. */
+        /* Zero pad the front of the public key to match prime "p" size */
         XMEMMOVE(keyData + params->p_len - dataSz, keyData, dataSz);
         XMEMSET(keyData, 0, params->p_len - dataSz);
     }
@@ -6913,13 +6932,26 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
     if (ret != 0)
         goto end;
-    ret = wc_ecc_make_key_ex(ssl->rng, keySize, eccKey, curveId);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    /* TODO: Make this function non-blocking */
-    if (ret == WC_PENDING_E) {
-        ret = wc_AsyncWait(ret, &eccKey->asyncDev, WC_ASYNC_FLAG_NONE);
+
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    if (ssl->staticKE.key && ssl->staticKE.keyAlgo == WC_PK_TYPE_ECDH) {
+        DerBuffer* keyDer = ssl->staticKE.key;
+        word32 idx = 0;
+        WOLFSSL_MSG("Using static ECDH key");
+        ret = wc_EccPrivateKeyDecode(keyDer->buffer, &idx, eccKey, keyDer->length);
     }
+    else
 #endif
+    {
+        /* Generate ephemeral ECC key */
+        ret = wc_ecc_make_key_ex(ssl->rng, keySize, eccKey, curveId);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        /* TODO: Make this function non-blocking */
+        if (ret == WC_PENDING_E) {
+            ret = wc_AsyncWait(ret, &eccKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        }
+    #endif
+    }
     if (ret != 0)
         goto end;
 
@@ -9120,6 +9152,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 MFL_FREE_ALL(extension->data, heap);
                 break;
 
+            case TLSX_EXTENDED_MASTER_SECRET:
             case TLSX_TRUNCATED_HMAC:
                 /* Nothing to do. */
                 break;
@@ -9235,7 +9268,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
         /* extension type + extension data length. */
         length += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
 
-
         switch (extension->type) {
 
             case TLSX_SERVER_NAME:
@@ -9254,6 +9286,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 length += MFL_GET_SIZE(extension->data);
                 break;
 
+            case TLSX_EXTENDED_MASTER_SECRET:
             case TLSX_TRUNCATED_HMAC:
                 /* always empty. */
                 break;
@@ -9402,6 +9435,11 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_MAX_FRAGMENT_LENGTH:
                 WOLFSSL_MSG("Max Fragment Length extension to write");
                 offset += MFL_WRITE((byte*)extension->data, output + offset);
+                break;
+
+            case TLSX_EXTENDED_MASTER_SECRET:
+                WOLFSSL_MSG("Extended Master Secret");
+                /* always empty. */
                 break;
 
             case TLSX_TRUNCATED_HMAC:
@@ -10294,6 +10332,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
+        /* Don't send out any extension except those that are turned off. */
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
@@ -10388,6 +10427,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
+        /* Don't send out any extension except those that are turned off. */
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
 #if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
@@ -10491,6 +10531,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 
     #ifdef WOLFSSL_TLS13
         case encrypted_extensions:
+            /* Send out all extension except those that are turned on. */
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
@@ -10500,6 +10541,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
         #if defined(HAVE_SECURE_RENEGOTIATION)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
@@ -10520,6 +10564,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
         case certificate:
+            /* Don't send out any extension except those that are turned off. */
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
             /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
@@ -10607,6 +10652,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 
     #ifdef WOLFSSL_TLS13
             case encrypted_extensions:
+                /* Send out all extension except those that are turned on. */
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
@@ -10616,6 +10662,9 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
         #endif
         #if defined(HAVE_SECURE_RENEGOTIATION)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
@@ -10636,6 +10685,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
     #ifdef WOLFSSL_TLS13
         #ifndef NO_CERTS
             case certificate:
+                /* Don't send out any extension except those that are turned
+                 * off. */
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
                 /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,

@@ -2660,6 +2660,75 @@ WOLFSSL_API void wolfSSL_load_error_strings(void);
 WOLFSSL_API int  wolfSSL_library_init(void);
 
 /*!
+    \brief This function sets the Device Id at the WOLFSSL session level.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param devId ID to use with async hardware
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+    int DevId = -2;
+
+    wolfSSL_SetDevId(ssl, devId);
+
+    \endcode
+
+    \sa wolfSSL_CTX_SetDevId
+    \sa wolfSSL_CTX_GetDevId
+*/
+WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
+
+/*!
+    \brief This function sets the Device Id at the WOLFSSL_CTX context level.
+
+    \return WOLFSSL_SUCCESS upon success.
+    \return BAD_FUNC_ARG if ssl is NULL.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param devId ID to use with async hardware
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+    int DevId = -2;
+
+    wolfSSL_CTX_SetDevId(ctx, devId);
+
+    \endcode
+
+    \sa wolfSSL_SetDevId
+    \sa wolfSSL_CTX_GetDevId
+*/
+WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId);
+
+/*!
+    \brief This function retrieves the Device Id.
+
+    \return devId upon success.
+    \return INVALID_DEVID if both ssl and ctx are NULL.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL_CTX* ctx;
+
+    wolfSSL_CTX_GetDevId(ctx, ssl);
+
+    \endcode
+
+    \sa wolfSSL_SetDevId
+    \sa wolfSSL_CTX_SetDevId
+
+*/
+WOLFSSL_API int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
+
+/*!
     \ingroup Setup
 
     \brief This function enables or disables SSL session caching.
@@ -4386,6 +4455,31 @@ WOLFSSL_API int wolfSSL_X509_NAME_get_text_by_NID(
 WOLFSSL_API int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
 
 /*!
+    \brief This function frees a WOLFSSL_X509 structure.
+
+
+    \param x509 a pointer to the WOLFSSL_X509 struct.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALOC(sizeof(WOLFSSL_X509), NULL,
+    DYNAMIC_TYPE_X509) ;
+
+    wolfSSL_X509_free(x509);
+
+    \endcode
+
+    \sa wolfSSL_X509_get_signature
+    \sa wolfSSL_X509_version
+    \sa wolfSSL_X509_get_der
+    \sa wolfSSL_X509_get_serial_number
+    \sa wolfSSL_X509_notBefore
+    \sa wolfSSL_X509_notAfter
+
+*/
+WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509* x509);
+
+/*!
     \ingroup CertsKeys
 
     \brief Gets the X509 signature and stores it in the buffer.
@@ -4499,6 +4593,67 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
 */
 WOLFSSL_API int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store,
                                                             unsigned long flag);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function the certificate "not before" validity encoded as
+    a byte array.
+
+
+    \return NULL returned if the WOLFSSL_X509 structure is NULL.
+    \return byte is returned that contains the notBeforeData.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+							DYNAMIC_TYPE_X509);
+    ...
+    byte* notBeforeData = wolfSSL_X509_notBefore(x509);
+
+
+    \endcode
+
+    \sa wolfSSL_X509_get_signature
+    \sa wolfSSL_X509_version
+    \sa wolfSSL_X509_get_der
+    \sa wolfSSL_X509_get_serial_number
+    \sa wolfSSL_X509_notAfter
+    \sa wolfSSL_X509_free
+*/
+WOLFSSL_API const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function the certificate "not after" validity encoded as
+    a byte array.
+
+    \return NULL returned if the WOLFSSL_X509 structure is NULL.
+    \return byte is returned that contains the notAfterData.
+
+    \param x509 pointer to a WOLFSSL_X509 structure.
+
+    _Example_
+    \code
+    WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+							DYNAMIC_TYPE_X509);
+    ...
+    byte* notAfterData = wolfSSL_X509_notAfter(x509);
+
+
+    \endcode
+
+    \sa wolfSSL_X509_get_signature
+    \sa wolfSSL_X509_version
+    \sa wolfSSL_X509_get_der
+    \sa wolfSSL_X509_get_serial_number
+    \sa wolfSSL_X509_notBefore
+    \sa wolfSSL_X509_free
+*/
+WOLFSSL_API const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509);
 
 /*!
     \ingroup Setup
@@ -7566,6 +7721,27 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
                                                const unsigned char*,
                                                unsigned int);
+
+/*!
+    \brief This function retrieves the random number.
+
+    \return rng upon success.
+    \return NULL if ssl is NULL.
+
+    \param ssl pointer to a SSL object, created with wolfSSL_new().
+
+    _Example_
+    \code
+    WOLFSSL* ssl;
+
+    wolfSSL_GetRNG(ssl);
+
+    \endcode
+
+    \sa  wolfSSL_CTX_new_rng
+
+*/
+WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -13529,3 +13705,26 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method_ex(void* heap);
 */
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method(void);
 
+/*!
+ \ingroup SSL
+ \brief This function sets a fixed / static ephemeral key for testing only
+ \return 0 Key loaded successfully
+ \param ctx A WOLFSSL_CTX context pointer
+ \param keyAlgo enum wc_PkType like WC_PK_TYPE_DH and WC_PK_TYPE_ECDH
+ \param key key file path (if keySz == 0) or actual key buffer (PEM or ASN.1)
+ \param keySz key size (should be 0 for "key" arg is file path)
+ \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
+ */
+WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, const char* key, unsigned int keySz, int format);
+
+/*!
+ \ingroup SSL
+ \brief This function sets a fixed / static ephemeral key for testing only
+ \return 0 Key loaded successfully
+ \param ssl A WOLFSSL object pointer
+ \param keyAlgo enum wc_PkType like WC_PK_TYPE_DH and WC_PK_TYPE_ECDH
+ \param key key file path (if keySz == 0) or actual key buffer (PEM or ASN.1)
+ \param keySz key size (should be 0 for "key" arg is file path)
+ \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
+ */
+WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);

@@ -55,6 +55,7 @@
     #endif
     #define SOCKET_T SOCKET
     #define SNPRINTF _snprintf
+    #define XSLEEP_MS(t) Sleep(t)
 #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
     #include <string.h>
     #include "rl_net.h"
@@ -69,9 +70,9 @@
         return(ret) ;
     }
     #if defined(HAVE_KEIL_RTX)
-        #define sleep(t) os_dly_wait(t/1000+1);
+        #define XSLEEP_MS(t)  os_dly_wait(t)
     #elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
-        #define sleep(t) osDelay(t/1000+1);
+        #define XSLEEP_MS(t)  osDelay(t)
     #endif
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
@@ -88,6 +89,7 @@
         char **h_addr_list; /* list of addresses from name server */
     };
     #define SOCKET_T int
+    #define XSLEEP_MS(t) Task_sleep(t/1000)
 #elif defined(WOLFSSL_VXWORKS)
     #include <hostLib.h>
     #include <sockLib.h>
@@ -148,7 +150,18 @@
         #include <signal.h>  /* ignore SIGPIPE */
     #endif
     #define SNPRINTF snprintf
+
+    #define XSELECT_WAIT(x,y) do { \
+        struct timeval tv = {(x),(y)}; \
+        select(0, NULL, NULL, NULL, &tv); \
+    } while (0)
+    #define XSLEEP_US(u) XSELECT_WAIT(0,u)
+    #define XSLEEP_MS(m) XSELECT_WAIT(0,(m)*1000)
 #endif /* USE_WINDOWS_API */
+
+#ifndef XSLEEP_MS
+    #define XSLEEP_MS(t) sleep(t/1000)
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -1684,7 +1697,7 @@ enum {
     VERIFY_USE_PREVERFIY,
     VERIFY_OVERRIDE_DATE_ERR,
 };
-static int myVerifyAction = VERIFY_OVERRIDE_ERROR;
+static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
 /* The verify callback is called for every certificate only when
  * --enable-opensslextra is defined because it sets WOLFSSL_ALWAYS_VERIFY_CB and
@@ -3601,15 +3614,16 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
                              int enc, byte* ticket, int inLen, int* outLen,
                              void* userCtx)
     {
-        (void)ssl;
-        (void)userCtx;
-
         int ret;
         word16 sLen = XHTONS(inLen);
         byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
         int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
         byte* tmp = aad;
 
+        (void)ssl;
+        (void)userCtx;
+
+        /* encrypt */
         if (enc) {
             XMEMCPY(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ);
 
@@ -3630,8 +3644,9 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
                                               mac);
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
-        } else {
-            /* decrypt */
+        }
+        /* decrypt */
+        else {
 
             /* see if we know this key */
             if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
@@ -3658,7 +3673,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         return WOLFSSL_TICKET_RET_OK;
     }
 
-#endif  /* HAVE_SESSION_TICKET && CHACHA20 && POLY1305 */
+#endif  /* HAVE_SESSION_TICKET && HAVE_CHACHA && HAVE_POLY1305 */
 
 static WC_INLINE word16 GetRandomPort(void)
 {

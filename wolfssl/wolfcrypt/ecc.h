@@ -58,6 +58,11 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#ifdef WOLFSSL_HAVE_SP_ECC
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#endif
+
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -353,6 +358,19 @@ enum {
 #endif
 };
 
+/* ECC non-blocking */
+#ifdef WC_ECC_NONBLOCK
+    typedef struct ecc_nb_ctx {
+    #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
+        sp_ecc_ctx_t sp_ctx;
+    #else
+        /* build configuration not supported */
+        #error ECC non-blocking only supports SP (--enable-sp=nonblock)
+    #endif
+    } ecc_nb_ctx_t;
+#endif /* WC_ECC_NONBLOCK */
+
+
 /* An ECC Key */
 struct ecc_key {
     int type;           /* Public or Private */
@@ -412,6 +430,9 @@ struct ecc_key {
 
 #ifdef WOLFSSL_DSP
     remote_handle64 handle;
+#endif
+#ifdef WC_ECC_NONBLOCK
+    ecc_nb_ctx_t* nb_ctx;
 #endif
 };
 
@@ -755,6 +776,10 @@ int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle);
 WOLFSSL_LOCAL
 int sp_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash, word32 hashLen, mp_int* pX,
     mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+#endif
+
+#ifdef WC_ECC_NONBLOCK
+    WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);
 #endif
 
 #ifdef __cplusplus

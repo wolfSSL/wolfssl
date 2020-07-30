@@ -388,7 +388,9 @@
 
 #ifdef WOLFSSL_ATECC508A
     /* backwards compatibility */
+#ifndef WOLFSSL_ATECC_NO_ECDH_ENC
     #define WOLFSSL_ATECC_ECDH_ENC
+#endif
     #ifdef WOLFSSL_ATECC508A_DEBUG
         #define WOLFSSL_ATECC_DEBUG
     #endif
@@ -917,6 +919,19 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_SMALL_STACK
     #undef  TFM_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT
+#endif
+
+/* To support storing some of the large constant tables in flash memory rather than SRAM.
+   Useful for processors that have limited SRAM, such as the AVR family of microtrollers. */
+#ifdef WOLFSSL_USE_FLASHMEM
+    /* This is supported on the avr-gcc compiler, for more information see:
+         https://gcc.gnu.org/onlinedocs/gcc/Named-Address-Spaces.html */
+    #define FLASH_QUALIFIER __flash
+
+    /* Copy data out of flash memory and into SRAM */
+    #define XMEMCPY_P(pdest, psrc, size) memcpy_P((pdest), (psrc), (size))
+#else
+    #define FLASH_QUALIFIER
 #endif
 
 #ifdef FREESCALE_MQX_5_0
@@ -1450,7 +1465,6 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef WOLFSSL_SOLARIS
-    #define WOLFSSL_NO_MUTEXLOCK_AFTER_FREE
     /* Avoid naming clash with fp_zero from math.h > ieefp.h */
     #define WOLFSSL_DH_CONST
 #endif

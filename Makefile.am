@@ -118,7 +118,8 @@ CLEANFILES+= cert.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der \
              pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
-             pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der
+             pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
+             tests/test-log-dump-to-file.txt
 
 exampledir = $(docdir)/example
 dist_example_DATA=

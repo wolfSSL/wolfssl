@@ -152,6 +152,27 @@ int wc_ecc_check_key(ecc_key* key);
 /*!
     \ingroup ECC
 
+    \brief This function frees an ecc_key key after it has been used.
+
+
+    \param key pointer to the ecc_key structure to free
+
+    _Example_
+    \code
+    // initialize key and perform ECC operations
+    ...
+    wc_ecc_key_free(&key);
+    \endcode
+
+    \sa wc_ecc_key_new
+    \sa wc_ecc_init_ex
+*/
+WOLFSSL_API
+void wc_ecc_key_free(ecc_key* key);
+
+/*!
+    \ingroup ECC
+
     \brief This function generates a new secret key using a local private key
     and a received public key. It stores this shared secret key in the buffer
     out and updates outlen to hold the number of bytes written to the output
@@ -540,6 +561,54 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 */
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
+
+/*!
+    \ingroup ECC
+
+    \brief This function initializes an ecc_key object for future
+    use with message verification or key negotiation.
+
+    \return 0 Returned upon successfully initializing the ecc_key object
+    \return MEMORY_E Returned if there is an error allocating memory
+
+    \param key pointer to the ecc_key object to initialize
+    \param devId ID to use with async hardware
+    \param heap pointer to a heap identifier
+
+    _Example_
+    \code
+    ecc_key key;
+    wc_ecc_init_ex(&key, heap, devId);
+    \endcode
+
+    \sa wc_ecc_make_key
+    \sa wc_ecc_free
+    \sa wc_ecc_init
+*/
+WOLFSSL_API
+int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
+
+/*!
+    \ingroup ECC
+
+    \brief This function uses a user defined heap and allocates space for the
+    key structure.
+
+    \return 0 Returned upon successfully initializing the ecc_key object
+    \return MEMORY_E Returned if there is an error allocating memory
+
+
+    _Example_
+    \code
+    wc_ecc_key_new(&heap);
+    \endcode
+
+    \sa wc_ecc_make_key
+    \sa wc_ecc_key_free
+    \sa wc_ecc_init
+*/
+WOLFSSL_API
+ecc_key* wc_ecc_key_new(void* heap);
 
 /*!
     \ingroup ECC
@@ -1752,8 +1821,51 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
     \endcode
 
-    \sa Wc_ecc_encrypt
+    \sa wc_ecc_encrypt
 */
 WOLFSSL_API
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
+
+/*!
+    \ingroup ECC
+
+    \brief Enable ECC support for non-blocking operations. Supported for 
+        Single Precision (SP) math with the following build options:
+            WOLFSSL_SP_NONBLOCK
+            WOLFSSL_SP_SMALL
+            WOLFSSL_SP_NO_MALLOC
+            WC_ECC_NONBLOCK
+
+    \return 0 Returned upon successfully setting the callback context the input message
+
+    \param key pointer to the ecc_key object
+    \param ctx pointer to ecc_nb_ctx_t structure with stack data cache for SP 
+
+    _Example_
+    \code
+    int ret;
+    ecc_key ecc;
+    ecc_nb_ctx_t nb_ctx;
+
+    ret = wc_ecc_init(&ecc);
+    if (ret == 0) {
+        ret = wc_ecc_set_nonblock(&ecc, &nb_ctx);
+        if (ret == 0) {
+            do {
+                ret = wc_ecc_verify_hash_ex(
+                    &r, &s,       // r/s as mp_int
+                    hash, hashSz, // computed hash digest
+                    &verify_res,  // verification result 1=success
+                    &key
+                );
+
+                // TODO: Real-time work can be called here 
+            } while (ret == FP_WOULDBLOCK);
+        }
+        wc_ecc_free(&key);
+    }
+    \endcode
+*/
+WOLFSSL_API int wc_ecc_set_nonblock(ecc_key *key, ecc_nb_ctx_t* ctx);

@@ -1107,20 +1107,20 @@ exit_rng_ht:
 }
 
 
-const byte seedA[] = {
+const FLASH_QUALIFIER byte seedA_data[] = {
     0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
     0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
     0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
     0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
 };
 
-const byte reseedSeedA[] = {
+const FLASH_QUALIFIER byte reseedSeedA_data[] = {
     0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
     0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
     0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
 };
 
-const byte outputA[] = {
+const FLASH_QUALIFIER byte outputA_data[] = {
     0x04, 0xee, 0xc6, 0x3b, 0xb2, 0x31, 0xdf, 0x2c, 0x63, 0x0a, 0x1a, 0xfb,
     0xe7, 0x24, 0x94, 0x9d, 0x00, 0x5a, 0x58, 0x78, 0x51, 0xe1, 0xaa, 0x79,
     0x5e, 0x47, 0x73, 0x47, 0xc8, 0xb0, 0x56, 0x62, 0x1c, 0x18, 0xbd, 0xdc,
@@ -1134,7 +1134,7 @@ const byte outputA[] = {
     0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
 };
 
-const byte seedB[] = {
+const FLASH_QUALIFIER byte seedB_data[] = {
     0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
     0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
     0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, /* nonce next */
@@ -1142,7 +1142,7 @@ const byte seedB[] = {
     0xdb, 0xcb, 0xcc, 0x2e
 };
 
-const byte outputB[] = {
+const FLASH_QUALIFIER byte outputB_data[] = {
     0xd3, 0xe1, 0x60, 0xc3, 0x5b, 0x99, 0xf3, 0x40, 0xb2, 0x62, 0x82, 0x64,
     0xd1, 0x75, 0x10, 0x60, 0xe0, 0x04, 0x5d, 0xa3, 0x83, 0xff, 0x57, 0xa5,
     0x7d, 0x73, 0xa6, 0x73, 0xd2, 0xb8, 0xd8, 0x0d, 0xaa, 0xf6, 0xa6, 0xc3,
@@ -1175,17 +1175,65 @@ static int wc_RNG_HealthTestLocal(int reseed)
 #endif
 
     if (reseed) {
-        ret = wc_RNG_HealthTest(1, seedA, sizeof(seedA),
-                                reseedSeedA, sizeof(reseedSeedA),
+#ifdef WOLFSSL_USE_FLASHMEM
+        byte* seedA = (byte*)XMALLOC(sizeof(seedA_data), NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+        byte* reseedSeedA = (byte*)XMALLOC(sizeof(reseedSeedA_data), NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+        byte* outputA = (byte*)XMALLOC(sizeof(outputA_data), NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (!seedA || !reseedSeedA || !outputA) {
+            XFREE(seedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(reseedSeedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY_P(seedA, seedA_data, sizeof(seedA_data));
+            XMEMCPY_P(reseedSeedA, reseedSeedA_data, sizeof(reseedSeedA_data));
+            XMEMCPY_P(outputA, outputA_data, sizeof(outputA_data));
+#else
+        const byte* seedA = seedA_data;
+        const byte* reseedSeedA = reseedSeedA_data;
+        const byte* outputA = outputA_data;
+#endif
+        ret = wc_RNG_HealthTest(1, seedA, sizeof(seedA_data),
+                                reseedSeedA, sizeof(reseedSeedA_data),
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
             if (ConstantCompare(check, outputA,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
         }
+
+#ifdef WOLFSSL_USE_FLASHMEM
+            XFREE(seedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(reseedSeedA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputA, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif
     }
     else {
-        ret = wc_RNG_HealthTest(0, seedB, sizeof(seedB),
+#ifdef WOLFSSL_USE_FLASHMEM
+        byte* seedB = (byte*)XMALLOC(sizeof(seedB_data), NULL,
+                             DYNAMIC_TYPE_TMP_BUFFER);
+        byte* outputB = (byte*)XMALLOC(sizeof(outputB_data), NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (!seedB || !outputB) {
+            XFREE(seedB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY_P(seedB, seedB_data, sizeof(seedB_data));
+            XMEMCPY_P(outputB, outputB_data, sizeof(outputB_data));
+#else
+        const byte* seedB = seedB_data;
+        const byte* outputB = outputB_data;
+#endif
+        ret = wc_RNG_HealthTest(0, seedB, sizeof(seedB_data),
                                 NULL, 0,
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
@@ -1200,16 +1248,22 @@ static int wc_RNG_HealthTestLocal(int reseed)
          * byte 32, feed them into the health test separately. */
         if (ret == 0) {
             ret = wc_RNG_HealthTest_ex(0,
-                                    seedB + 32, sizeof(seedB) - 32,
+                                    seedB + 32, sizeof(seedB_data) - 32,
                                     seedB, 32,
                                     NULL, 0,
                                     check, RNG_HEALTH_TEST_CHECK_SIZE,
                                     NULL, INVALID_DEVID);
             if (ret == 0) {
-                if (ConstantCompare(check, outputB, sizeof(outputB)) != 0)
+                if (ConstantCompare(check, outputB, sizeof(outputB_data)) != 0)
                     ret = -1;
             }
         }
+
+#ifdef WOLFSSL_USE_FLASHMEM
+            XFREE(seedB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(outputB, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+#endif
     }
 
 #ifdef WOLFSSL_SMALL_STACK

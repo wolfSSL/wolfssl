@@ -19,36 +19,66 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
+#include <wolfssl/wolfcrypt/settings.h>
+
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
-	.text
-	.align	2
-	.globl	fe_init
-	.type	fe_init, %function
+#ifndef __APPLE__
+.text
+.globl	fe_init
+.type	fe_init,@function
+.align	2
 fe_init:
+#else
+.section	__TEXT,__text
+.globl	_fe_init
+.p2align	2
+_fe_init:
+#endif /* __APPLE__ */
 	ret
+#ifndef __APPLE__
 	.size	fe_init,.-fe_init
-	.text
-	.align	2
-	.globl	fe_frombytes
-	.type	fe_frombytes, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_frombytes
+.type	fe_frombytes,@function
+.align	2
 fe_frombytes:
+#else
+.section	__TEXT,__text
+.globl	_fe_frombytes
+.p2align	2
+_fe_frombytes:
+#endif /* __APPLE__ */
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
 	and	x5, x5, #0x7fffffffffffffff
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_frombytes,.-fe_frombytes
-	.text
-	.align	2
-	.globl	fe_tobytes
-	.type	fe_tobytes, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_tobytes
+.type	fe_tobytes,@function
+.align	2
 fe_tobytes:
+#else
+.section	__TEXT,__text
+.globl	_fe_tobytes
+.p2align	2
+_fe_tobytes:
+#endif /* __APPLE__ */
 	mov	x7, #19
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
@@ -65,45 +95,81 @@ fe_tobytes:
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_tobytes,.-fe_tobytes
-	.text
-	.align	2
-	.globl	fe_1
-	.type	fe_1, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_1
+.type	fe_1,@function
+.align	2
 fe_1:
+#else
+.section	__TEXT,__text
+.globl	_fe_1
+.p2align	2
+_fe_1:
+#endif /* __APPLE__ */
 	# Set one
 	mov	x1, #1
 	stp	x1, xzr, [x0]
 	stp	xzr, xzr, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_1,.-fe_1
-	.text
-	.align	2
-	.globl	fe_0
-	.type	fe_0, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_0
+.type	fe_0,@function
+.align	2
 fe_0:
+#else
+.section	__TEXT,__text
+.globl	_fe_0
+.p2align	2
+_fe_0:
+#endif /* __APPLE__ */
 	# Set zero
 	stp	xzr, xzr, [x0]
 	stp	xzr, xzr, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_0,.-fe_0
-	.text
-	.align	2
-	.globl	fe_copy
-	.type	fe_copy, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_copy
+.type	fe_copy,@function
+.align	2
 fe_copy:
+#else
+.section	__TEXT,__text
+.globl	_fe_copy
+.p2align	2
+_fe_copy:
+#endif /* __APPLE__ */
 	# Copy
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_copy,.-fe_copy
-	.text
-	.align	2
-	.globl	fe_sub
-	.type	fe_sub, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_sub
+.type	fe_sub,@function
+.align	2
 fe_sub:
+#else
+.section	__TEXT,__text
+.globl	_fe_sub
+.p2align	2
+_fe_sub:
+#endif /* __APPLE__ */
 	# Sub
 	ldp	x3, x4, [x1]
 	ldp	x5, x6, [x1, #16]
@@ -126,12 +192,21 @@ fe_sub:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_sub,.-fe_sub
-	.text
-	.align	2
-	.globl	fe_add
-	.type	fe_add, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_add
+.type	fe_add,@function
+.align	2
 fe_add:
+#else
+.section	__TEXT,__text
+.globl	_fe_add
+.p2align	2
+_fe_add:
+#endif /* __APPLE__ */
 	# Add
 	ldp	x3, x4, [x1]
 	ldp	x5, x6, [x1, #16]
@@ -154,12 +229,21 @@ fe_add:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_add,.-fe_add
-	.text
-	.align	2
-	.globl	fe_neg
-	.type	fe_neg, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_neg
+.type	fe_neg,@function
+.align	2
 fe_neg:
+#else
+.section	__TEXT,__text
+.globl	_fe_neg
+.p2align	2
+_fe_neg:
+#endif /* __APPLE__ */
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
 	mov	x6, #-19
@@ -173,12 +257,21 @@ fe_neg:
 	stp	x6, x7, [x0]
 	stp	x8, x9, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_neg,.-fe_neg
-	.text
-	.align	2
-	.globl	fe_isnonzero
-	.type	fe_isnonzero, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_isnonzero
+.type	fe_isnonzero,@function
+.align	2
 fe_isnonzero:
+#else
+.section	__TEXT,__text
+.globl	_fe_isnonzero
+.p2align	2
+_fe_isnonzero:
+#endif /* __APPLE__ */
 	mov	x6, #19
 	ldp	x1, x2, [x0]
 	ldp	x3, x4, [x0, #16]
@@ -196,12 +289,21 @@ fe_isnonzero:
 	orr	x3, x3, x4
 	orr	x0, x0, x3
 	ret
+#ifndef __APPLE__
 	.size	fe_isnonzero,.-fe_isnonzero
-	.text
-	.align	2
-	.globl	fe_isnegative
-	.type	fe_isnegative, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_isnegative
+.type	fe_isnegative,@function
+.align	2
 fe_isnegative:
+#else
+.section	__TEXT,__text
+.globl	_fe_isnegative
+.p2align	2
+_fe_isnegative:
+#endif /* __APPLE__ */
 	mov	x6, #19
 	ldp	x1, x2, [x0]
 	ldp	x3, x4, [x0, #16]
@@ -212,12 +314,21 @@ fe_isnegative:
 	and	x0, x1, #1
 	eor	x0, x0, x5, lsr 63
 	ret
+#ifndef __APPLE__
 	.size	fe_isnegative,.-fe_isnegative
-	.text
-	.align	2
-	.globl	fe_cmov_table
-	.type	fe_cmov_table, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_cmov_table
+.type	fe_cmov_table,@function
+.align	2
 fe_cmov_table:
+#else
+.section	__TEXT,__text
+.globl	_fe_cmov_table
+.p2align	2
+_fe_cmov_table:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
 	str	x17, [x29, #40]
@@ -438,12 +549,21 @@ fe_cmov_table:
 	ldr	x28, [x29, #120]
 	ldp	x29, x30, [sp], #0x80
 	ret
+#ifndef __APPLE__
 	.size	fe_cmov_table,.-fe_cmov_table
-	.text
-	.align	2
-	.globl	fe_mul
-	.type	fe_mul, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_mul
+.type	fe_mul,@function
+.align	2
 fe_mul:
+#else
+.section	__TEXT,__text
+.globl	_fe_mul
+.p2align	2
+_fe_mul:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
 	str	x17, [x29, #24]
@@ -596,12 +716,21 @@ fe_mul:
 	ldr	x22, [x29, #56]
 	ldp	x29, x30, [sp], #0x40
 	ret
+#ifndef __APPLE__
 	.size	fe_mul,.-fe_mul
-	.text
-	.align	2
-	.globl	fe_sq
-	.type	fe_sq, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_sq
+.type	fe_sq,@function
+.align	2
 fe_sq:
+#else
+.section	__TEXT,__text
+.globl	_fe_sq
+.p2align	2
+_fe_sq:
+#endif /* __APPLE__ */
 	# Square
 	ldp	x13, x14, [x1]
 	ldp	x15, x16, [x1, #16]
@@ -709,12 +838,21 @@ fe_sq:
 	stp	x5, x6, [x0]
 	stp	x7, x8, [x0, #16]
 	ret
+#ifndef __APPLE__
 	.size	fe_sq,.-fe_sq
-	.text
-	.align	2
-	.globl	fe_invert
-	.type	fe_invert, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_invert
+.type	fe_invert,@function
+.align	2
 fe_invert:
+#else
+.section	__TEXT,__text
+.globl	_fe_invert
+.p2align	2
+_fe_invert:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x20, [x29, #168]
@@ -722,124 +860,245 @@ fe_invert:
 	str	x0, [x29, #144]
 	str	x1, [x29, #152]
 	add	x0, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x1, x29, #48
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	ldr	x1, [x29, #152]
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #16
 	add	x1, x29, #16
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #48
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x20, #4
 	add	x1, x29, #0x50
 L_fe_invert1:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert1
 	add	x0, x29, #48
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
 	add	x1, x29, #48
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x20, #9
 	add	x1, x29, #0x50
 L_fe_invert2:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert2
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x20, #19
 	add	x1, x29, #0x70
 L_fe_invert3:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert3
 	add	x0, x29, #0x50
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x20, #10
 	add	x1, x29, #0x50
 L_fe_invert4:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert4
 	add	x0, x29, #48
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
 	add	x1, x29, #48
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x20, #49
 	add	x1, x29, #0x50
 L_fe_invert5:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert5
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x20, #0x63
 	add	x1, x29, #0x70
 L_fe_invert6:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert6
 	add	x0, x29, #0x50
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x20, #50
 	add	x1, x29, #0x50
 L_fe_invert7:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert7
 	add	x0, x29, #48
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x20, #5
 	add	x1, x29, #48
 L_fe_invert8:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert8
 	ldr	x0, [x29, #144]
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	ldr	x20, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_invert,.-fe_invert
-	.text
-	.align	2
-	.globl	curve25519
-	.type	curve25519, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	curve25519
+.type	curve25519,@function
+.align	2
 curve25519:
+#else
+.section	__TEXT,__text
+.globl	_curve25519
+.p2align	2
+_curve25519:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-288]!
 	add	x29, sp, #0
 	str	x17, [x29, #200]
@@ -2157,115 +2416,227 @@ L_curve25519_bits:
 	# Invert
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
 	add	x1, x29, #48
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x1, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x1, x29, #16
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #48
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
 	add	x1, x29, #0x50
 	add	x2, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x24, #4
 	add	x1, x29, #0x70
 L_curve25519_inv_1:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_1
 	add	x0, x29, #0x50
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
 	add	x1, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x24, #9
 	add	x1, x29, #0x70
 L_curve25519_inv_2:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_2
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x90
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x24, #19
 	add	x1, x29, #0x90
 L_curve25519_inv_3:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_3
 	add	x0, x29, #0x70
 	add	x2, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x24, #10
 	add	x1, x29, #0x70
 L_curve25519_inv_4:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_4
 	add	x0, x29, #0x50
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x70
 	add	x1, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x24, #49
 	add	x1, x29, #0x70
 L_curve25519_inv_5:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_5
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x90
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x24, #0x63
 	add	x1, x29, #0x90
 L_curve25519_inv_6:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_6
 	add	x0, x29, #0x70
 	add	x2, x29, #0x70
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x24, #50
 	add	x1, x29, #0x70
 L_curve25519_inv_7:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_7
 	add	x0, x29, #0x50
 	add	x2, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x24, #5
 	add	x1, x29, #0x50
 L_curve25519_inv_8:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_8
 	add	x0, x29, #16
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	ldr	x0, [x29, #176]
 	# Multiply
 	ldp	x6, x7, [x0]
@@ -2417,12 +2788,21 @@ L_curve25519_inv_8:
 	ldr	x28, [x29, #280]
 	ldp	x29, x30, [sp], #0x120
 	ret
+#ifndef __APPLE__
 	.size	curve25519,.-curve25519
-	.text
-	.align	2
-	.globl	fe_pow22523
-	.type	fe_pow22523, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_pow22523
+.type	fe_pow22523,@function
+.align	2
 fe_pow22523:
+#else
+.section	__TEXT,__text
+.globl	_fe_pow22523
+.p2align	2
+_fe_pow22523:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
 	str	x21, [x29, #136]
@@ -2430,123 +2810,244 @@ fe_pow22523:
 	str	x0, [x29, #112]
 	str	x1, [x29, #120]
 	add	x0, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x1, x29, #48
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	ldr	x1, [x29, #120]
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #16
 	add	x1, x29, #16
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	add	x1, x29, #48
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x21, #4
 	add	x1, x29, #48
 L_fe_pow22523_1:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_1
 	add	x0, x29, #16
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x21, #9
 	add	x1, x29, #48
 L_fe_pow22523_2:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_2
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x21, #19
 	add	x1, x29, #0x50
 L_fe_pow22523_3:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_3
 	add	x0, x29, #48
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x21, #10
 	add	x1, x29, #48
 L_fe_pow22523_4:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_4
 	add	x0, x29, #16
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #48
 	add	x1, x29, #16
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x21, #49
 	add	x1, x29, #48
 L_fe_pow22523_5:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_5
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	add	x0, x29, #0x50
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	mov	x21, #0x63
 	add	x1, x29, #0x50
 L_fe_pow22523_6:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_6
 	add	x0, x29, #48
 	add	x2, x29, #48
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x21, #50
 	add	x1, x29, #48
 L_fe_pow22523_7:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_7
 	add	x0, x29, #16
 	add	x2, x29, #16
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	mov	x21, #2
 	add	x1, x29, #16
 L_fe_pow22523_8:
+#ifndef __APPLE__
 	bl	fe_sq
+#else
+	bl	_fe_sq
+#endif /* __APPLE__ */
 	sub	x21, x21, #1
 	cmp	x21, #0
 	bne	L_fe_pow22523_8
 	ldr	x0, [x29, #112]
 	ldr	x2, [x29, #120]
+#ifndef __APPLE__
 	bl	fe_mul
+#else
+	bl	_fe_mul
+#endif /* __APPLE__ */
 	ldr	x21, [x29, #136]
 	ldp	x29, x30, [sp], #0x90
 	ret
+#ifndef __APPLE__
 	.size	fe_pow22523,.-fe_pow22523
-	.text
-	.align	2
-	.globl	fe_ge_to_p2
-	.type	fe_ge_to_p2, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_to_p2
+.type	fe_ge_to_p2,@function
+.align	2
 fe_ge_to_p2:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_to_p2
+.p2align	2
+_fe_ge_to_p2:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
 	str	x17, [x29, #72]
@@ -2990,12 +3491,21 @@ fe_ge_to_p2:
 	ldr	x22, [x29, #104]
 	ldp	x29, x30, [sp], #0x70
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_to_p2,.-fe_ge_to_p2
-	.text
-	.align	2
-	.globl	fe_ge_to_p3
-	.type	fe_ge_to_p3, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_to_p3
+.type	fe_ge_to_p3,@function
+.align	2
 fe_ge_to_p3:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_to_p3
+.p2align	2
+_fe_ge_to_p3:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-160]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -3578,12 +4088,21 @@ fe_ge_to_p3:
 	ldr	x26, [x29, #152]
 	ldp	x29, x30, [sp], #0xa0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_to_p3,.-fe_ge_to_p3
-	.text
-	.align	2
-	.globl	fe_ge_dbl
-	.type	fe_ge_dbl, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_dbl
+.type	fe_ge_dbl,@function
+.align	2
 fe_ge_dbl:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_dbl
+.p2align	2
+_fe_ge_dbl:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -4134,12 +4653,21 @@ fe_ge_dbl:
 	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_dbl,.-fe_ge_dbl
-	.text
-	.align	2
-	.globl	fe_ge_madd
-	.type	fe_ge_madd, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_madd
+.type	fe_ge_madd,@function
+.align	2
 fe_ge_madd:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_madd
+.p2align	2
+_fe_ge_madd:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -4709,12 +5237,21 @@ fe_ge_madd:
 	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_madd,.-fe_ge_madd
-	.text
-	.align	2
-	.globl	fe_ge_msub
-	.type	fe_ge_msub, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_msub
+.type	fe_ge_msub,@function
+.align	2
 fe_ge_msub:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_msub
+.p2align	2
+_fe_ge_msub:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -5284,12 +5821,21 @@ fe_ge_msub:
 	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_msub,.-fe_ge_msub
-	.text
-	.align	2
-	.globl	fe_ge_add
-	.type	fe_ge_add, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_add
+.type	fe_ge_add,@function
+.align	2
 fe_ge_add:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_add
+.p2align	2
+_fe_ge_add:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -5998,12 +6544,21 @@ fe_ge_add:
 	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_add,.-fe_ge_add
-	.text
-	.align	2
-	.globl	fe_ge_sub
-	.type	fe_ge_sub, %function
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	fe_ge_sub
+.type	fe_ge_sub,@function
+.align	2
 fe_ge_sub:
+#else
+.section	__TEXT,__text
+.globl	_fe_ge_sub
+.p2align	2
+_fe_ge_sub:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
@@ -6712,7 +7267,9 @@ fe_ge_sub:
 	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
+#ifndef __APPLE__
 	.size	fe_ge_sub,.-fe_ge_sub
+#endif /* __APPLE__ */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 

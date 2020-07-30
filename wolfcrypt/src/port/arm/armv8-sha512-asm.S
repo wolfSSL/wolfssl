@@ -19,17 +19,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
+#include <wolfssl/wolfcrypt/settings.h>
+
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
+#ifndef __APPLE__
 	.text
-	.section	.rodata
 	.type	L_SHA512_transform_neon_len_k, %object
+	.section	.rodata
 	.size	L_SHA512_transform_neon_len_k, 640
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
 	.align	3
+#else
+	.p2align	3
+#endif /* __APPLE__ */
 L_SHA512_transform_neon_len_k:
 	.xword	0x428a2f98d728ae22
 	.xword	0x7137449123ef65cd
@@ -111,18 +124,33 @@ L_SHA512_transform_neon_len_k:
 	.xword	0x597f299cfc657e2a
 	.xword	0x5fcb6fab3ad6faec
 	.xword	0x6c44198c4a475817
+#ifndef __APPLE__
 	.text
-	.section	.rodata
 	.type	L_SHA512_transform_neon_len_ror8, %object
+	.section	.rodata
 	.size	L_SHA512_transform_neon_len_ror8, 16
+#else
+	.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
 	.align	4
+#else
+	.p2align	4
+#endif /* __APPLE__ */
 L_SHA512_transform_neon_len_ror8:
 	.xword	0x7060504030201, 0x80f0e0d0c0b0a09
-	.text
-	.align	2
-	.globl	Transform_Sha512_Len
-	.type	Transform_Sha512_Len, %function
+#ifndef __APPLE__
+.text
+.globl	Transform_Sha512_Len
+.type	Transform_Sha512_Len,@function
+.align	2
 Transform_Sha512_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_Len
+.p2align	2
+_Transform_Sha512_Len:
+#endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
 	str	x17, [x29, #16]
@@ -133,8 +161,18 @@ Transform_Sha512_Len:
 	stp	x26, x27, [x29, #80]
 	stp	d8, d9, [x29, #96]
 	stp	d10, d11, [x29, #112]
+#ifndef __APPLE__
 	adr	x3, L_SHA512_transform_neon_len_k
+#else
+	adrp	x3, L_SHA512_transform_neon_len_k@PAGE
+	add	x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
 	adr	x27, L_SHA512_transform_neon_len_ror8
+#else
+	adrp	x27, L_SHA512_transform_neon_len_ror8@PAGE
+	add	x27, x27, :lo12:L_SHA512_transform_neon_len_ror8@PAGEOFF
+#endif /* __APPLE__ */
 	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
 	ldp	x4, x5, [x0]
@@ -1026,7 +1064,12 @@ L_sha512_len_neon_start:
 	add	x6, x6, x21
 	add	x5, x5, x20
 	add	x4, x4, x19
+#ifndef __APPLE__
 	adr	x3, L_SHA512_transform_neon_len_k
+#else
+	adrp	x3, L_SHA512_transform_neon_len_k@PAGE
+	add	x3, x3, :lo12:L_SHA512_transform_neon_len_k@PAGEOFF
+#endif /* __APPLE__ */
 	subs	w2, w2, #0x80
 	bne	L_sha512_len_neon_begin
 	stp	x4, x5, [x0]
@@ -1043,7 +1086,9 @@ L_sha512_len_neon_start:
 	ldp	d10, d11, [x29, #112]
 	ldp	x29, x30, [sp], #0x80
 	ret
+#ifndef __APPLE__
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
+#endif /* __APPLE__ */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
 

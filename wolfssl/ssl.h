@@ -2541,7 +2541,7 @@ struct DhKey;
 typedef int (*CallbackDhAgree)(WOLFSSL* ssl, struct DhKey* key,
         const unsigned char* priv, unsigned int privSz,
         const unsigned char* otherPubKeyDer, unsigned int otherPubKeySz,
-        unsigned char* out, unsigned int* outlen,
+        unsigned char* out, word32* outlen,
         void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX*, CallbackDhAgree);
 WOLFSSL_API void  wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
@@ -2639,7 +2639,7 @@ WOLFSSL_API void* wolfSSL_GetX448SharedSecretCtx(WOLFSSL* ssl);
 #ifndef NO_RSA
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
-       unsigned char* out, unsigned int* outSz,
+       unsigned char* out, word32* outSz,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaSignCb(WOLFSSL_CTX*, CallbackRsaSign);
@@ -2684,7 +2684,7 @@ WOLFSSL_API void* wolfSSL_GetRsaPssVerifyCtx(WOLFSSL* ssl);
 /* RSA Public Encrypt cb */
 typedef int (*CallbackRsaEnc)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
-       unsigned char* out, unsigned int* outSz,
+       unsigned char* out, word32* outSz,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaEncCb(WOLFSSL_CTX*, CallbackRsaEnc);
@@ -3898,7 +3898,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(
 WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509);
 
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef HAVE_PK_CALLBACKS
 WOLFSSL_API int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl);
@@ -3908,6 +3908,15 @@ WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
 #ifdef HAVE_ENCRYPT_THEN_MAC
 WOLFSSL_API int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX *, int);
 WOLFSSL_API int wolfSSL_AllowEncryptThenMac(WOLFSSL *s, int);
+#endif
+
+/* This feature is used to set a fixed ephemeral key and is for testing only */
+/* Currently allows ECDHE and DHE only */
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+    const char* key, unsigned int keySz, int format);
+WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+    const char* key, unsigned int keySz, int format);
 #endif
 
 #ifdef __cplusplus

@@ -131,7 +131,7 @@
         #endif
     #endif
     #if !defined(DER_SZ)
-        #define DER_SZ (keySz * 2 + 1)
+        #define DER_SZ(ks) (ks * 2 + 1)
     #endif
 #endif
 #ifndef NO_ASN
@@ -7710,7 +7710,7 @@ static int test_wc_Sha224Final (void)
 static int test_wc_Sha224SetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     word32 flags = 0;
@@ -7742,7 +7742,7 @@ static int test_wc_Sha224SetFlags (void)
 static int test_wc_Sha224GetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     word32 flags = 0;
@@ -7775,7 +7775,7 @@ static int test_wc_Sha224GetFlags (void)
 static int test_wc_Sha224Free (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
 
     printf(testingFmt, "wc_Sha224Free()");
@@ -7794,7 +7794,7 @@ static int test_wc_Sha224Free (void)
 static int test_wc_Sha224GetHash (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     byte hash1[WC_SHA224_DIGEST_SIZE];
@@ -7841,7 +7841,7 @@ static int test_wc_Sha224GetHash (void)
 static int test_wc_Sha224Copy (void)
 {
     int flag = 0;
-#if !defined(NO_SHA224) && \
+#if defined(WOLFSSL_SHA224) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha224 sha224;
     wc_Sha224 temp;
@@ -13662,6 +13662,63 @@ static int test_wc_SetKeyUsage (void)
     return ret;
 
 } /* END  test_wc_SetKeyUsage */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+static void sample_mutex_cb (int flag, int type, const char* file, int line)
+{
+    (void)flag;
+    (void)type;
+    (void)file;
+    (void)line;
+}
+#endif
+/*
+ * Testing wc_LockMutex_ex
+ */
+static int test_wc_LockMutex_ex (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    int flag = CRYPTO_LOCK;
+    int type = 0;
+    const char* file = "./test-LockMutex_ex.txt";
+    int line = 0;
+
+    printf(testingFmt, "wc_LockMutex_ex()");
+
+    /*without SetMutexCb*/
+    ret = wc_LockMutex_ex(flag, type, file, line);
+    if (ret ==  BAD_STATE_E) {
+        ret = 0;
+    }
+    /*with SetMutexCb*/
+    if (ret == 0) {
+        ret = wc_SetMutexCb(sample_mutex_cb);
+        if (ret == 0) {
+             ret = wc_LockMutex_ex(flag, type, file, line);
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_wc_LockMutex_ex*/
+/*
+ * Testing wc_SetMutexCb
+ */
+static int test_wc_SetMutexCb (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
+    printf(testingFmt, "wc_SetMutexCb()");
+
+    ret = wc_SetMutexCb(sample_mutex_cb);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/*End test_wc_SetMutexCb*/
 
 /*
  * Testing wc_RsaKeyToDer()
@@ -20018,9 +20075,9 @@ static int test_wc_ecc_pointFns (void)
     ecc_point*  cpypt = NULL;
     int         idx = 0;
     int         keySz = KEY32;
-    byte        der[DER_SZ];
+    byte        der[DER_SZ(KEY32)];
     word32      derlenChk = 0;
-    word32      derSz = (int)sizeof(der);
+    word32      derSz = DER_SZ(KEY32);
 
     /* Init stack variables. */
     XMEMSET(der, 0, derSz);
@@ -27361,7 +27418,113 @@ static void test_wolfSSL_ERR_print_errors_cb(void)
     printf(resultFmt, passed);
     #endif
 }
+/*
+ * Testing WOLFSSL_ERROR_MSG
+ */
+static int test_WOLFSSL_ERROR_MSG (void)
+{
+    int ret = 0;
+#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+    const char* msg = "Everyone gets Friday off.";
 
+    printf(testingFmt, "WOLFSSL_ERROR_MSG()");
+
+    WOLFSSL_ERROR_MSG(msg);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_WOLFSSL_ERROR_MSG*/
+/*
+ * Testing wc_ERR_remove_state
+ */
+static int test_wc_ERR_remove_state (void)
+{
+    int ret = 0;
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+
+    printf(testingFmt, "wc_ERR_remove_state()");
+
+    wc_ERR_remove_state();
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/*End test_wc_ERR_remove_state*/
+/*
+ * Testing wc_ERR_print_errors_fp
+ */
+static int test_wc_ERR_print_errors_fp (void)
+{
+    int ret = 0;
+#if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)) && \
+    (!defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM))
+    long sz;
+
+    printf(testingFmt, "wc_ERR_print_errors_fp()");
+
+    WOLFSSL_ERROR(BAD_FUNC_ARG);
+    XFILE fp = XFOPEN("./tests/test-log-dump-to-file.txt", "ar");
+    wc_ERR_print_errors_fp(fp);
+#if defined(DEBUG_WOLFSSL)
+    AssertTrue(XFSEEK(fp, 0, XSEEK_END) == 0);
+    sz = XFTELL(fp);
+    if (sz == 0) {
+        ret = BAD_FUNC_ARG;
+    }
+#endif
+    printf(resultFmt, ret == 0 ? passed : failed);
+    XFCLOSE(fp);
+    (void)sz;
+#endif
+    return ret;
+}/*End test_wc_ERR_print_errors_fp*/
+#ifdef DEBUG_WOLFSSL
+static void Logging_cb(const int logLevel, const char *const logMessage)
+{
+    (void)logLevel;
+    (void)logMessage;
+}
+#endif
+/*
+ * Testing wolfSSL_GetLoggingCb
+ */
+static int test_wolfSSL_GetLoggingCb (void)
+{
+    int ret = 0;
+#ifdef DEBUG_WOLFSSL
+    printf(testingFmt, "wolfSSL_GetLoggingCb()");
+
+    /*Testing without wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        if(wolfSSL_GetLoggingCb() == NULL){ /*Should be true*/
+            ret = 0;
+        }
+        if(wolfSSL_GetLoggingCb() != NULL){ /*Should not be true*/
+            ret = -1;
+        }
+    }
+    /*Testing with wolfSSL_SetLoggingCb()*/
+    if (ret == 0) {
+        ret = wolfSSL_SetLoggingCb(Logging_cb);
+        if (ret == 0){
+            if(wolfSSL_GetLoggingCb() == NULL){ /*Should not be true*/
+                ret = -1;
+            }
+            if (ret == 0) {
+                if(wolfSSL_GetLoggingCb() == Logging_cb){ /*Should be true*/
+                    ret = 0;
+                }
+            }
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/*End test_wolfSSL_GetLoggingCb*/
 static void test_wolfSSL_HMAC(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
@@ -33603,7 +33766,7 @@ static int test_wc_InitRngNonce(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))    
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
@@ -33629,14 +33792,14 @@ static int test_wc_InitRngNonce_ex(void)
 {
     int     ret=0;
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))   
+   (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     WC_RNG  rng;
     byte    nonce[] = "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     word32  nonceSz = sizeof(nonce);
 
     printf(testingFmt, "wc_InitRngNonce_ex()");
-    
+
     if (ret == 0){
         ret = wc_InitRngNonce_ex(&rng, nonce, nonceSz, HEAP_HINT, devId);
     }
@@ -34432,7 +34595,7 @@ static void test_wolfSSL_ASN1_STRING_print(void){
 
     asnStr = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
     ASN1_STRING_set(asnStr,(const void*)unprintableData,
-            sizeof(unprintableData));
+            (int)sizeof(unprintableData));
     /* test */
     p_len = wolfSSL_ASN1_STRING_print(bio, asnStr);
     AssertIntEQ(p_len, 46);
@@ -35141,6 +35304,10 @@ void ApiTest(void)
     test_wolfSSL_ERR_peek_last_error_line();
 #endif
     test_wolfSSL_ERR_print_errors_cb();
+    AssertFalse(test_wolfSSL_GetLoggingCb());
+    AssertFalse(test_WOLFSSL_ERROR_MSG());
+    AssertFalse(test_wc_ERR_remove_state());
+    AssertFalse(test_wc_ERR_print_errors_fp());
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_X509_STORE_CTX();
@@ -35472,6 +35639,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
 
+    AssertIntEQ(test_wc_SetMutexCb(), 0);
+    AssertIntEQ(test_wc_LockMutex_ex(), 0);
 
     AssertIntEQ(test_wc_RsaKeyToDer(), 0);
     AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);

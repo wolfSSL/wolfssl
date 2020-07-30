@@ -3311,9 +3311,9 @@ int fp_is_bit_set (fp_int *a, fp_digit b)
     fp_digit i;
 
     if (b > FP_MAX_BITS)
-        return 0;
-    else
-        i = b/DIGIT_BIT;
+        return FP_VAL;
+
+    i = b/DIGIT_BIT;
 
     if ((fp_digit)a->used < i)
         return 0;
@@ -3327,9 +3327,9 @@ int fp_set_bit (fp_int * a, fp_digit b)
     fp_digit i;
 
     if (b > FP_MAX_BITS)
-        return 0;
-    else
-        i = b/DIGIT_BIT;
+        return FP_VAL;
+
+    i = b/DIGIT_BIT;
 
     /* set the used count of where the bit will go if required */
     if (a->used < (int)(i+1))

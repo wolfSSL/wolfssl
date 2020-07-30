@@ -56,7 +56,9 @@
     #define HAVE_CHACHA
 
     #define HAVE_CURVE25519
-    #define HAVE_ED25519
+    #ifndef WOLFSSL_ARMASM
+        #define HAVE_ED25519
+    #endif
 
     /* TLS extensions */
     #define HAVE_ONE_TIME_AUTH

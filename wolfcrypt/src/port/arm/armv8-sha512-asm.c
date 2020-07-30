@@ -19,17 +19,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif /* HAVE_CONFIG_H */
+#include <wolfssl/wolfcrypt/settings.h>
+
 /* Generated using (from wolfssl):
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.c
  */
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
-#include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 
 static const uint64_t L_SHA512_transform_neon_len_k[] = {
@@ -125,8 +125,18 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-16]!\n\t"
         "add	x29, sp, #0\n\t"
+#ifndef __APPLE__
         "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+#else
+        "adrp	x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
+        "add	x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
         "adr	x27, %[L_SHA512_transform_neon_len_ror8]\n\t"
+#else
+        "adrp	x27, %[L_SHA512_transform_neon_len_ror8]@PAGE\n\t"
+        "add	x27, x27, %[L_SHA512_transform_neon_len_ror8]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
         "ld1	{v11.16b}, [x27]\n\t"
         /* Load digest into working vars */
         "ldp	x4, x5, [%x[sha512]]\n\t"
@@ -1020,7 +1030,12 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x6, x6, x21\n\t"
         "add	x5, x5, x20\n\t"
         "add	x4, x4, x19\n\t"
+#ifndef __APPLE__
         "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
+#else
+        "adrp	x3, %[L_SHA512_transform_neon_len_k]@PAGE\n\t"
+        "add	x3, x3, %[L_SHA512_transform_neon_len_k]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
         "subs	%w[len], %w[len], #0x80\n\t"
         "bne	L_sha512_len_neon_begin_%=\n\t"
         "stp	x4, x5, [%x[sha512]]\n\t"

@@ -25,6 +25,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
     #include <wolfssl/wolfcrypt/memory.h>
@@ -49,8 +51,8 @@ int main(void)
 /* do a full build */
 
 #ifdef _MSC_VER
-	/* builds on *nix too, for scanf device and port */
-	#define _CRT_SECURE_NO_WARNINGS
+    /* builds on *nix too, for scanf device and port */
+    #define _CRT_SECURE_NO_WARNINGS
 #endif
 
 #include <pcap/pcap.h>     /* pcap stuff */
@@ -96,6 +98,44 @@ enum {
 #endif
 
 
+#define DEFAULT_SERVER_EPH_KEY_ECC "../../certs/statickeys/ecc-secp256r1.pem"
+#define DEFAULT_SERVER_EPH_KEY_DH  "../../certs/statickeys/dh-ffdhe2048.pem"
+#ifndef DEFAULT_SERVER_EPH_KEY
+    #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
+        (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+        #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC
+    #elif !defined(NO_DH)
+        #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_DH
+    #endif
+#endif
+
+#define DEFAULT_SERVER_KEY_RSA "../../certs/server-key.pem"
+#define DEFAULT_SERVER_KEY_ECC "../../certs/ecc-key.pem"
+#ifndef DEFAULT_SERVER_KEY
+    #ifndef NO_RSA
+        #define DEFAULT_SERVER_KEY DEFAULT_SERVER_KEY_RSA
+    #elif defined(HAVE_ECC)
+        #define DEFAULT_SERVER_KEY DEFAULT_SERVER_KEY_ECC
+    #endif
+#endif
+     
+
+#ifdef WOLFSSL_SNIFFER_WATCH
+static const byte rsaHash[] = {
+    0x4e, 0xa8, 0x55, 0x02, 0xe1, 0x84, 0x7e, 0xe1, 
+    0xb5, 0x97, 0xd2, 0xf0, 0x92, 0x3a, 0xfd, 0x0d, 
+    0x98, 0x26, 0x06, 0x85, 0x8d, 0xa4, 0xc7, 0x35, 
+    0xd4, 0x74, 0x8f, 0xd0, 0xe7, 0xa8, 0x27, 0xaa
+};
+static const byte eccHash[] = {
+    0x80, 0x3d, 0xff, 0xca, 0x2e, 0x20, 0xd9, 0xdf, 
+    0xfe, 0x64, 0x4e, 0x25, 0x6a, 0xee, 0xee, 0x60, 
+    0xc1, 0x48, 0x7b, 0xff, 0xa0, 0xfb, 0xeb, 0xac, 
+    0xe2, 0xa4, 0xdd, 0xb5, 0x18, 0x38, 0x78, 0x38
+};
+#endif
+
+
 pcap_t* pcap = NULL;
 pcap_if_t* alldevs = NULL;
 
@@ -113,7 +153,6 @@ static void FreeAll(void)
 
 
 #ifdef WOLFSSL_SNIFFER_STATS
-
 static void DumpStats(void)
 {
     SSLStats sslStats;
@@ -152,8 +191,7 @@ static void DumpStats(void)
     printf("SSL Stats (sslEncryptedConns):%lu\n",
             sslStats.sslEncryptedConns);
 }
-
-#endif
+#endif /* WOLFSSL_SNIFFER_STATS */
 
 
 static void sig_handler(const int sig)
@@ -170,64 +208,45 @@ static void sig_handler(const int sig)
 
 static void err_sys(const char* msg)
 {
-	fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "%s\n", msg);
     if (msg)
-	    exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
 }
 
 
 #ifdef _WIN32
-	#define SNPRINTF _snprintf
+    #define SNPRINTF _snprintf
 #else
-	#define SNPRINTF snprintf
+    #define SNPRINTF snprintf
 #endif
 
 
 static char* iptos(const struct in_addr* addr)
 {
-	static char    output[32];
-	byte *p = (byte*)&addr->s_addr;
+    static char output[32];
+    byte *p = (byte*)&addr->s_addr;
 
-	snprintf(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+    snprintf(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 
-	return output;
+    return output;
 }
-
 
 static const char* ip6tos(const struct in6_addr* addr)
 {
-	static char    output[42];
-	return inet_ntop(AF_INET6, addr, output, 42);
+    static char output[42];
+    return inet_ntop(AF_INET6, addr, output, 42);
 }
 
 
 #if defined(WOLFSSL_SNIFFER_STORE_DATA_CB) || defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
-
 static inline unsigned int min(unsigned int a, unsigned int b)
 {
     return a > b ? b : a;
 }
-
 #endif
 
 
 #ifdef WOLFSSL_SNIFFER_WATCH
-
-const byte rsaHash[] = {
-    0xD1, 0xB6, 0x12, 0xAD, 0xB6, 0x50, 0x7B, 0x59,
-    0x97, 0x83, 0x6B, 0xCB, 0x35, 0xF5, 0xB8, 0x67,
-    0xEB, 0x83, 0x75, 0x40, 0x1B, 0x42, 0x61, 0xF1,
-    0x03, 0x72, 0xDC, 0x09, 0x0D, 0x60, 0x83, 0x15
-};
-
-const byte eccHash[] = {
-    0xDA, 0x08, 0x6D, 0xB5, 0x0B, 0xC4, 0x9F, 0x8A,
-    0x9E, 0x61, 0x9E, 0x87, 0x57, 0x5F, 0x00, 0xAA,
-    0x76, 0xE5, 0x1C, 0x9C, 0x74, 0x2A, 0x19, 0xBE,
-    0x22, 0xAE, 0x25, 0x3F, 0xA8, 0xAF, 0x8E, 0x7F
-};
-
-
 static int myWatchCb(void* vSniffer,
         const unsigned char* certHash, unsigned int certHashSz,
         const unsigned char* certChain, unsigned int certChainSz,
@@ -240,23 +259,23 @@ static int myWatchCb(void* vSniffer,
     (void)ctx;
 
     if (certHashSz == sizeof(rsaHash) &&
-            memcmp(certHash, rsaHash, certHashSz) == 0)
-        certName = "../../certs/server-key.pem";
+            XMEMCMP(certHash, rsaHash, certHashSz) == 0) {
+        certName = DEFAULT_SERVER_KEY_RSA;
+    }
     if (certHashSz == sizeof(eccHash) &&
-            memcmp(certHash, eccHash, certHashSz) == 0)
-        certName = "../../certs/ecc-key.pem";
+            XMEMCMP(certHash, eccHash, certHashSz) == 0) {
+        certName = DEFAULT_SERVER_KEY_ECC;
+    }
 
     if (certName == NULL)
         return -1;
 
     return ssl_SetWatchKey_file(vSniffer, certName, FILETYPE_PEM, NULL, error);
 }
-
-#endif
+#endif /* WOLFSSL_SNIFFER_WATCH */
 
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
-
 static int myStoreDataCb(const unsigned char* decryptBuf,
         unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx)
 {
@@ -283,29 +302,28 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
         *data = tmpData;
     }
 
-    memcpy(*data + decryptBufOffset, decryptBuf + decryptBufOffset, qty);
+    XMEMCPY(*data + decryptBufOffset, decryptBuf + decryptBufOffset, qty);
 
     return qty;
 }
-
-#endif
+#endif /* WOLFSSL_SNIFFER_STORE_DATA_CB */
 
 
 int main(int argc, char** argv)
 {
     int          ret = 0;
     int          hadBadPacket = 0;
-	int		     inum;
-	int		     port;
+    int          inum = 0;
+    int          port = 0;
     int          saveFile = 0;
-	int		     i = 0;
+    int          i = 0, defDev = 0;
     int          frame = ETHER_IF_FRAME_LEN;
     char         err[PCAP_ERRBUF_SIZE];
-	char         filter[32];
-	const char  *server = NULL;
-	struct       bpf_program fp;
-	pcap_if_t   *d;
-	pcap_addr_t *a;
+    char         filter[32];
+    const char  *server = NULL;
+    struct       bpf_program fp;
+    pcap_if_t   *d;
+    pcap_addr_t *a;
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
     struct iovec chain[CHAIN_INPUT_COUNT];
     int          chainSz;
@@ -315,6 +333,9 @@ int main(int argc, char** argv)
 
 #ifndef _WIN32
     ssl_InitSniffer();   /* dll load on Windows */
+#endif
+#ifdef DEBUG_WOLFSSL
+    //wolfSSL_Debugging_ON();
 #endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);
@@ -326,54 +347,58 @@ int main(int argc, char** argv)
 #endif
 
     if (argc == 1) {
+        char cmdLineArg[128];
         /* normal case, user chooses device and port */
 
-	    if (pcap_findalldevs(&alldevs, err) == -1)
-		    err_sys("Error in pcap_findalldevs");
+        if (pcap_findalldevs(&alldevs, err) == -1)
+            err_sys("Error in pcap_findalldevs");
 
-	    for (d = alldevs; d; d=d->next) {
-		    printf("%d. %s", ++i, d->name);
-		    if (d->description)
-			    printf(" (%s)\n", d->description);
-		    else
-			    printf(" (No description available)\n");
-	    }
-
-	    if (i == 0)
-		    err_sys("No interfaces found! Make sure pcap or WinPcap is"
-                    " installed correctly and you have sufficient permissions");
-
-	    printf("Enter the interface number (1-%d): ", i);
-	    ret = scanf("%d", &inum);
-        if (ret != 1) {
-            printf("scanf port failed\n");
+        for (d = alldevs; d; d=d->next) {
+            printf("%d. %s", ++i, d->name);
+            if (strcmp(d->name, "lo0") == 0) {
+                defDev = i;
+            }
+            if (d->description)
+                printf(" (%s)\n", d->description);
+            else
+                printf(" (No description available)\n");
         }
 
-	    if (inum < 1 || inum > i)
-		    err_sys("Interface number out of range");
+        if (i == 0)
+            err_sys("No interfaces found! Make sure pcap or WinPcap is"
+                    " installed correctly and you have sufficient permissions");
 
-	    /* Jump to the selected adapter */
-	    for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+        printf("Enter the interface number (1-%d) [default: %d]: ", i, defDev);
+        XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
+        if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin))
+            inum = XATOI(cmdLineArg);
+        if (inum == 0)
+            inum = defDev;
+        else if (inum < 1 || inum > i)
+            err_sys("Interface number out of range");
 
-	    pcap = pcap_create(d->name, err);
+        /* Jump to the selected adapter */
+        for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+
+        pcap = pcap_create(d->name, err);
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
         /* print out addresses for selected interface */
-	    for (a = d->addresses; a; a = a->next) {
+        for (a = d->addresses; a; a = a->next) {
             if (a->addr->sa_family == AF_INET) {
-				server =
+                server =
                     iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
-		        printf("server = %s\n", server);
+                printf("server = %s\n", server);
             }
             else if (a->addr->sa_family == AF_INET6) {
                 server =
                     ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
-		        printf("server = %s\n", server);
+                printf("server = %s\n", server);
             }
-	    }
-	    if (server == NULL)
-		    err_sys("Unable to get device IPv4 or IPv6 address");
+        }
+        if (server == NULL)
+            err_sys("Unable to get device IPv4 or IPv6 address");
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -383,7 +408,7 @@ int main(int argc, char** argv)
 
         ret = pcap_set_buffer_size(pcap, 1000000);
         if (ret != 0)
-		    printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+            printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_promisc(pcap, 1);
         if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
@@ -392,24 +417,27 @@ int main(int argc, char** argv)
         ret = pcap_activate(pcap);
         if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
 
-	    printf("Enter the port to scan: ");
-	    ret = scanf("%d", &port);
-        if (ret != 1)
-            printf("scanf port failed\n");
+        printf("Enter the port to scan [default: 11111]: ");
+        XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
+        if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
+            port = XATOI(cmdLineArg);
+        }
+        if (port <= 0)
+            port = 11111;
 
-	    SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
+        SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
 
-	    ret = pcap_compile(pcap, &fp, filter, 0, 0);
+        ret = pcap_compile(pcap, &fp, filter, 0, 0);
         if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_setfilter(pcap, &fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
-	    /* get IPv4 or IPv6 addresses for selected interface */
-	    for (a = d->addresses; a; a = a->next) {
+        /* get IPv4 or IPv6 addresses for selected interface */
+        for (a = d->addresses; a; a = a->next) {
             server = NULL;
             if (a->addr->sa_family == AF_INET) {
-				server =
+                server =
                     iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
             }
             else if (a->addr->sa_family == AF_INET6) {
@@ -418,35 +446,41 @@ int main(int argc, char** argv)
             }
 
             if (server) {
-            #ifndef WOLFSSL_SNIFFER_WATCH
-                ret = ssl_SetPrivateKey(server, port,
-                        "../../certs/server-key.pem",
-                        FILETYPE_PEM, NULL, err);
+            #ifdef DEFAULT_SERVER_KEY
+                ret = ssl_SetPrivateKey(server, port, DEFAULT_SERVER_KEY, 
+                    FILETYPE_PEM, NULL, err);
                 if (ret != 0) {
                     printf("Please run directly from sslSniffer/sslSnifferTest"
                            "dir\n");
                 }
+            #endif
+            #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(DEFAULT_SERVER_EPH_KEY)
+                ret = ssl_SetEphemeralKey(server, port, DEFAULT_SERVER_EPH_KEY, 
+                    FILETYPE_PEM, NULL, err);
+                if (ret != 0) {
+                    printf("Please run directly from sslSniffer/sslSnifferTest"
+                           "dir\n");
+                }
+            #endif /* WOLFSSL_STATIC_EPHEMERAL */
+            #ifndef WOLFSSL_SNIFFER_WATCH
             #ifdef HAVE_SNI
-                {
-                    char altName[128];
-
-                    printf("Enter alternate SNI: ");
-                    ret = scanf("%s", altName);
-
-                    if (strnlen(altName, 128) > 0) {
-                        ret = ssl_SetNamedPrivateKey(altName,
-                                server, port, "../../certs/server-key.pem",
+                printf("Enter alternate SNI: ");
+                XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
+                if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
+                    if (XSTRLEN(cmdLineArg) > 0) {
+                        ret = ssl_SetNamedPrivateKey(cmdLineArg,
+                                server, port, DEFAULT_SERVER_KEY,
                                 FILETYPE_PEM, NULL, err);
                         if (ret != 0) {
                             printf("Please run directly from "
-                                   "sslSniffer/sslSnifferTest dir\n");
+                                    "sslSniffer/sslSnifferTest dir\n");
                         }
                     }
                 }
-            #endif
-            #endif
+            #endif /* HAVE_SNI */
+            #endif /* WOLFSSL_SNIFFER_WATCH */
             }
-	    }
+        }
     }
     else if (argc >= 3) {
         saveFile = 1;
@@ -457,6 +491,8 @@ int main(int argc, char** argv)
         }
         else {
             const char* passwd = NULL;
+            int loadCount = 0;
+
             /* defaults for server and port */
             port = 443;
             server = "127.0.0.1";
@@ -465,13 +501,30 @@ int main(int argc, char** argv)
                 server = argv[3];
 
             if (argc >= 5)
-                port = atoi(argv[4]);
+                port = XATOI(argv[4]);
 
             if (argc >= 6)
                 passwd = argv[5];
 
+            /* try and load as both static ephemeral and private key */
+            /* only fail if no key is loaded */
+        #ifdef WOLFSSL_STATIC_EPHEMERAL
+            ret = ssl_SetEphemeralKey(server, port, argv[2],
+                                FILETYPE_PEM, passwd, err);
+            if (ret == 0)
+                loadCount++;
+        #endif
             ret = ssl_SetPrivateKey(server, port, argv[2],
-                                    FILETYPE_PEM, passwd, err);
+                                FILETYPE_PEM, passwd, err);
+            if (ret == 0)
+                loadCount++;
+            if (loadCount > 0) {
+                ret = 0;
+            }
+            else {
+                printf("Failed loading private key %d\n", ret);
+                exit(EXIT_FAILURE);
+            }
         }
     }
     else {
@@ -498,8 +551,8 @@ int main(int argc, char** argv)
             byte* data = NULL;
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
-				packet        += frame;
-				header.caplen -= frame;
+                packet        += frame;
+                header.caplen -= frame;
             }
             else
                 continue;
