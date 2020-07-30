@@ -8,7 +8,7 @@
 # $ mkdir build
 # $ cd build
 # $ cmake ..
-# $ make
+# $ cmake --build .
 
 # To build library only and not build examples and test apps use:
 # $ cmake .. -DBUILD_TESTS=NO
@@ -89,11 +89,17 @@ file(GLOB TEST_SOURCE_FILES
 ####################################################
 # Output Files
 ####################################################
-# DH requires math (m) library
-link_libraries(m)
 
 # Build wolfssl library
 add_library(wolfssl ${LIB_SOURCE_FILES})
+
+if(WIN32)
+    # For Windows link ws2_32
+    target_link_libraries(wolfssl PUBLIC $<$<PLATFORM_ID:Windows>:ws2_32>)
+else()
+    # DH requires math (m) library
+    target_link_libraries(wolfssl PUBLIC m)
+endif()
 
 # Optionally build example and test applications
 if(BUILD_TESTS)
@@ -140,3 +146,5 @@ if(BUILD_TESTS)
     target_link_libraries(unit_test wolfssl)
     target_link_libraries(unit_test Threads::Threads)
 endif()
+
+# TODO: Add install() for library, headers and test applications
