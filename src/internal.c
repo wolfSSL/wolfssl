@@ -10077,7 +10077,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         store->userCtx = (ssl != NULL) ? ssl->verifyCbCtx : cm;
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifdef HAVE_EX_DATA
         if (wolfSSL_CRYPTO_set_ex_data(&store->ex_data, 0, ssl)
                 != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Failed to store ssl context in WOLFSSL_X509_STORE_CTX");

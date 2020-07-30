@@ -22940,7 +22940,7 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 
         ctx->sesChain = NULL;
         ctx->domain = NULL;
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
         XMEMSET(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 #endif
         ctx->userCtx = NULL;
@@ -23869,7 +23869,7 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_ex_data");
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     if (ctx != NULL) {
         return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data, idx);
     }
@@ -23889,7 +23889,7 @@ int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
                                        void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_ex_data");
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     if (ctx != NULL)
     {
         return wolfSSL_CRYPTO_set_ex_data(&ctx->ex_data, idx, data);
@@ -39102,7 +39102,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
-#if (defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA)) || defined(FORTRESS) || \
+#if (defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA)) || \
     defined(WOLFSSL_WPAS_SMALL)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
@@ -39171,7 +39171,7 @@ int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)
     return WOLFSSL_FAILURE;
 }
 
-#endif /* (OPENSSL_EXTRA && HAVE_EX_DATA) || FORTRESS || WOLFSSL_WPAS_SMALL */
+#endif /* (OPENSSL_EXTRA && HAVE_EX_DATA) || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 
@@ -39208,7 +39208,7 @@ int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
 int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 {
     WOLFSSL_ENTER("wolfSSL_set_ex_data");
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     if (ssl != NULL)
     {
         return wolfSSL_CRYPTO_set_ex_data(&ssl->ex_data, idx, data);
@@ -39225,7 +39225,7 @@ int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_ex_data");
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     if (ssl != NULL) {
         return wolfSSL_CRYPTO_get_ex_data(&ssl->ex_data, idx);
     }
@@ -42864,7 +42864,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
 void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
@@ -42894,7 +42894,7 @@ int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *d
 #endif
     return WOLFSSL_FAILURE;
 }
-#endif /* HAVE_EX_DATA || FORTRESS */
+#endif /* HAVE_EX_DATA */
 
 void *wolfSSL_X509_get_ex_data(X509 *x509, int idx)
 {

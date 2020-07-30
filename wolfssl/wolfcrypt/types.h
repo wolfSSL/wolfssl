@@ -42,7 +42,7 @@
      * needs to be defined somwhere that all structs can import
      * (with minimal depencencies).
      */
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifdef HAVE_EX_DATA
     typedef struct WOLFSSL_CRYPTO_EX_DATA {
         void* ex_data[MAX_EX_DATA];
     } WOLFSSL_CRYPTO_EX_DATA;

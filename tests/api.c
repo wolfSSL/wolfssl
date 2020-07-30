@@ -25056,7 +25056,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         int i = 0, tmpData = 5;
         void* tmpDataRet;
         AssertNotNull(ctx = X509_STORE_CTX_new());
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #ifdef HAVE_EX_DATA
         for (i = 0; i < MAX_EX_DATA; i++) {
             AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
                         WOLFSSL_SUCCESS);
@@ -26075,7 +26075,7 @@ static void test_wolfSSL_set_options(void)
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
 
     AssertNotNull(ssl = SSL_new(ctx));
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#ifdef HAVE_EX_DATA
     AssertIntEQ(SSL_set_app_data(ssl, (void*)appData), SSL_SUCCESS);
     AssertNotNull(SSL_get_app_data((const WOLFSSL*)ssl));
     if (ssl) {
