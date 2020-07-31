@@ -26757,6 +26757,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
             return BUFFER_ERROR;
+        /* Make sure the suiteSz is a multiple of 3. (Old Client Hello) */
+        if (clSuites.suiteSz % 3 != 0)
+            return BUFFER_ERROR;
         clSuites.hashSigAlgoSz = 0;
 
         /* session size */
@@ -27220,6 +27223,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ato16(&input[i], &clSuites.suiteSz);
         i += OPAQUE16_LEN;
 
+        /* Cipher suite lists are always multiples of two in length. */
+        if (clSuites.suiteSz % 2 != 0)
+            return BUFFER_ERROR;
+
         /* suites and compression length check */
         if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
@@ -27429,6 +27436,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         i += OPAQUE16_LEN;
 
                         if (OPAQUE16_LEN + hashSigAlgoSz > extSz)
+                            return BUFFER_ERROR;
+
+                        if (hashSigAlgoSz % 2 != 0)
                             return BUFFER_ERROR;
 
                         clSuites.hashSigAlgoSz = hashSigAlgoSz;

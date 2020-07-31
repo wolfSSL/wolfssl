@@ -6423,6 +6423,10 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
+    /* Sig Algo list size must be even. */
+    if (suites->hashSigAlgoSz % 2 != 0)
+        return BUFFER_ERROR;
+
     /* truncate hashSigAlgo list if too long */
     suites->hashSigAlgoSz = len;
     if (suites->hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
