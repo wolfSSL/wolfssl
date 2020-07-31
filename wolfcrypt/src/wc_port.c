@@ -837,8 +837,9 @@ int wolfSSL_CryptHwMutexInit(void)
 int wolfSSL_CryptHwMutexLock(void)
 {
     int ret = BAD_MUTEX_E;
-    wolfSSL_CryptHwMutexInit(); /* Make sure HW Mutex has been initialized */
-    if (wcCryptHwMutexInit) {
+    /* Make sure HW Mutex has been initialized */
+    ret = wolfSSL_CryptHwMutexInit();
+    if (ret == 0) {
         ret = wc_LockMutex(&wcCryptHwMutex);
     }
     return ret;
