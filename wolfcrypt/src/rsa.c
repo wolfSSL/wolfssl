@@ -1157,7 +1157,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         return PSS_SALTLEN_E;
     }
 #endif
-    if ((int)pkcsBlockLen - hLen < saltLen + 2) {
+    if ((int)pkcsBlockLen - (int)inputLen - hLen < saltLen + 2) {
         return PSS_SALTLEN_E;
     }
 
