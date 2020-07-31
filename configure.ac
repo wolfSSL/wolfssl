@@ -334,7 +334,6 @@ then
     enable_srp=yes
     enable_certservice=yes
     enable_jni=yes
-    enable_lighty=yes
     enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
@@ -3209,7 +3208,13 @@ if test "$ENABLED_CRL_MONITOR" = "yes"
 then
     case $host_os in
     *linux* | *darwin* | *freebsd*)
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
+        if test "x$ENABLED_SINGLETHREADED" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+        else
+            ENABLED_CRL_MONITOR="no"
+            AC_MSG_ERROR([crl monitor requires threading / pthread])
+        fi
+        ;;
     *)
         if test "x$ENABLED_DISTRO" = "xyes" ; then
             ENABLED_CRL_MONITOR="no"
@@ -3912,11 +3917,15 @@ then
     # recommended
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
-    AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
-    ENABLED_SINGLETHREADED="yes"
-    # w/ lighttpd 1.4.56 once WolfSSL is updated to expose non-filesystem funcs
-    #AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
-    #ENABLED_FILESYSTEM=no
+
+    if test "x$ENABLED_ALL" = "xno"; then
+        AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
+        ENABLED_SINGLETHREADED="yes"
+
+        # w/lighttpd 1.4.56 once wolfSSL is updated to expose non-filesystem funcs
+        #AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+        #ENABLED_FILESYSTEM=no
+    fi
 fi
 
 if test "$ENABLED_NGINX" = "yes"
