@@ -159,6 +159,7 @@ extern "C" {
 #define HAVE_HASHDRBG
 #define HAVE_CURVE25519
 #define HAVE_ED25519
+#define CURVED25519_SMALL
 #define HAVE_CURVE448
 #define HAVE_POLY1305
 #define HAVE_CHACHA
