@@ -334,6 +334,7 @@ then
     enable_srp=yes
     enable_certservice=yes
     enable_jni=yes
+    enable_lighty=yes
     enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
@@ -3914,15 +3915,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL"
-    # recommended
-    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
-    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
-
+    # recommended if building wolfSSL specifically for use by lighttpd
     if test "x$ENABLED_ALL" = "xno"; then
-        AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
-        ENABLED_SINGLETHREADED="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
+        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+        ENABLED_OLD_TLS=no
+        if test "x$ENABLED_CRL_MONITOR" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
+            ENABLED_SINGLETHREADED="yes"
+        fi
 
-        # w/lighttpd 1.4.56 once wolfSSL is updated to expose non-filesystem funcs
+        # w/ lighttpd 1.4.56 once wolfSSL updated to expose non-filesystem funcs
         #AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
         #ENABLED_FILESYSTEM=no
     fi
