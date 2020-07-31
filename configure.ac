@@ -1884,7 +1884,7 @@ AC_ARG_ENABLE([sslv3],
     [ ENABLED_SSLV3=no]
     )
 
-if test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_HAPROXY" = "xyes" && test "x$ENABLED_ALL" = "xno"
 then
     ENABLED_SSLV3="yes"
 fi
@@ -1981,9 +1981,13 @@ then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL -DHAVE_EX_DATA"
     fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS -DOPENSSL_NO_SSL2"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DSESSION_CERTS -DOPENSSL_NO_SSL2"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN -DHAVE_EX_DATA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
+    if test "x$ENABLED_ALL" = "xno"; then
+        # Don't enable old SSL/TLS for --enable-all, which is used by distro
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_ALLOW_TLSV10"
+    fi
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
@@ -5544,9 +5548,10 @@ echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
 echo "   * Multicast:                  $ENABLED_MCAST"
-echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
-echo "   * SSL version 3.0:            $ENABLED_SSLV3"
-echo "   * TLS v1.0:                   $ENABLED_TLSV10"
+echo "   * SSL v3.0 (Old):             $ENABLED_SSLV3"
+echo "   * TLS v1.0 (Old):             $ENABLED_TLSV10"
+echo "   * TLS v1.1 (Old):             $ENABLED_OLD_TLS"
+echo "   * TLS v1.2:                   $ENABLED_TLSV12"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
