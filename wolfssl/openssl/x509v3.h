@@ -101,6 +101,8 @@ WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
                                           const WOLFSSL_ASN1_STRING *s);
 WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
+WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
+        const char *section, WOLFSSL_X509 *cert);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
 #define AUTHORITY_KEYID_free      wolfSSL_AUTHORITY_KEYID_free
@@ -109,8 +111,8 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
+#define X509V3_EXT_add_nconf      wolfSSL_X509V3_EXT_add_nconf
 #ifndef NO_WOLFSSL_STUB
-#define X509V3_EXT_add_nconf(...) 0
 #define X509V3_parse_list(...)    NULL
 #endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING

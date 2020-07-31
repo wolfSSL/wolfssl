@@ -8862,6 +8862,20 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
 }
 #endif /* !NO_BIO */
 
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
+        const char *section, WOLFSSL_X509 *cert)
+{
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_add_nconf");
+    WOLFSSL_STUB("wolfSSL_X509V3_EXT_add_nconf");
+    (void)conf;
+    (void)ctx;
+    (void)section;
+    (void)cert;
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 /* Returns crit flag in X509_EXTENSION object */
 int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
 {
@@ -18726,6 +18740,9 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
                     sizeof(WOLFSSL_CIPHER)) == 0) {
                 sk->data.cipher = *(WOLFSSL_CIPHER*)data;
                 sk->num = 1;
+                if (sk->hash_fn) {
+                    sk->hash = sk->hash_fn(&sk->data.cipher);
+                }
                 return WOLFSSL_SUCCESS;
             }
             break;
@@ -18735,6 +18752,9 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
             if (!sk->data.generic) {
                 sk->data.generic = (void*)data;
                 sk->num = 1;
+                if (sk->hash_fn) {
+                    sk->hash = sk->hash_fn(sk->data.generic);
+                }
                 return WOLFSSL_SUCCESS;
             }
             break;
@@ -19265,32 +19285,35 @@ WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
 
     if (section) {
         len = XSTRLEN(section);
-        ret->section = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        ret->section = (char*)XMALLOC(len+1, NULL, DYNAMIC_TYPE_OPENSSL);
         if (!ret->section) {
             WOLFSSL_MSG("malloc error");
             wolfSSL_X509V3_conf_free(ret);
             return NULL;
         }
+        XMEMCPY(ret->section, section, len+1);
     }
 
     if (name) {
         len = XSTRLEN(name);
-        ret->name = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        ret->name = (char*)XMALLOC(len+1, NULL, DYNAMIC_TYPE_OPENSSL);
         if (!ret->name) {
             WOLFSSL_MSG("malloc error");
             wolfSSL_X509V3_conf_free(ret);
             return NULL;
         }
+        XMEMCPY(ret->name, name, len+1);
     }
 
     if (value) {
         len = XSTRLEN(value);
-        ret->value = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        ret->value = (char*)XMALLOC(len+1, NULL, DYNAMIC_TYPE_OPENSSL);
         if (!ret->value) {
             WOLFSSL_MSG("malloc error");
             wolfSSL_X509V3_conf_free(ret);
             return NULL;
         }
+        XMEMCPY(ret->value, value, len+1);
     }
 
     return ret;
@@ -19346,6 +19369,7 @@ WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
         WOLFSSL_MSG("section malloc error");
         goto error;
     }
+    XMEMCPY(ret->section, section, slen+1);
 
     if (!(sk = wolfSSL_sk_CONF_VALUE_new(NULL))) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_new error");
@@ -19409,8 +19433,14 @@ WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth)
     }
 
     ret = (WOLFSSL_CONF*)XMALLOC(sizeof(WOLFSSL_CONF), NULL, DYNAMIC_TYPE_OPENSSL);
-    if (ret)
+    if (ret) {
         XMEMSET(ret, 0, sizeof(WOLFSSL_CONF));
+        ret->data = wolfSSL_sk_CONF_VALUE_new(NULL);
+        if (!ret->data) {
+            wolfSSL_NCONF_free(ret);
+            return NULL;
+        }
+    }
     return ret;
 }
 
@@ -19539,7 +19569,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
         WOLFSSL_MSG("malloc error");
         goto cleanup;
     }
-    if (wolfSSL_BIO_read(in, buf, bufLen) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_BIO_read(in, buf, bufLen) != bufLen) {
         WOLFSSL_MSG("wolfSSL_BIO_read error");
         goto cleanup;
     }
@@ -19572,6 +19602,13 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
             /* New section. Spaces not allowed in section name. */
             char* sectionName;
             int sectionNameLen;
+
+            if (idx < maxIdx)
+                idx++;
+            else {
+                WOLFSSL_MSG("Invalid section definition.");
+                goto cleanup;
+            }
 
             SKIP_WHITESPACE(idx, maxIdx);
             sectionName = idx;
@@ -19613,10 +19650,10 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
             SKIP_WHITESPACE(idx, maxIdx);
             value = idx;
             /* Find end of value */
-            idx = maxIdx;
+            idx = maxIdx-1;
             while (*idx == ' ' || *idx == '\t')
                 idx--;
-            valueLen = idx - value;
+            valueLen = idx - value + 1;
 
             /* Sanity checks */
             if (nameLen <= 0 || valueLen <= 0) {
@@ -21151,7 +21188,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
 
     bufSz = wolfSSL_BIO_get_len(in);
     if (bufSz <= 0 ||
-            !(buf = (char*)XMALLOC(sizeof(bufSz+1), NULL,
+            !(buf = (char*)XMALLOC(bufSz+1, NULL,
                     DYNAMIC_TYPE_TMP_BUFFER))) {
         WOLFSSL_MSG("malloc error or no data in BIO");
         goto error;
@@ -21163,6 +21200,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
     }
 
     buf[bufSz] = '\0';
+    idx = buf;
     for (bufEnd = buf + bufSz; idx < bufEnd; idx = lineEnd + 1) {
         char* strBuf = NULL;
         char** fieldPtr = NULL;
@@ -21183,6 +21221,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
             goto error;
         }
         XMEMCPY(strBuf + fieldsSz, idx, lineEnd - idx + 1); /* + 1 for NULL */
+        XMEMSET(strBuf, 0, fieldsSz);
         /* Check for appropriate number of fields */
         fieldPtr = (char**)strBuf;
         fieldCheckIdx = strBuf + fieldsSz;
@@ -25063,8 +25102,8 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 {
     WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
 
-    FreeCRL(crl, 1);
-    return;
+    if (crl)
+        FreeCRL(crl, 1);
 }
 #endif /* HAVE_CRL && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
@@ -28661,10 +28700,24 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 
 int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str)
 {
-    WOLFSSL_STUB("wolfSSL_ASN1_TIME_set_string");
-    (void)s;
-    (void)str;
-    return WOLFSSL_FAILURE;
+    int slen;
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_set_string");
+
+    if (!str) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+    slen = XSTRLEN(str)+1;
+    if (slen > CTC_DATE_SIZE) {
+        WOLFSSL_MSG("Date string too long");
+        return WOLFSSL_FAILURE;
+    }
+    if (s) {
+        XMEMCPY(s->data, str, slen);
+        s->length = slen;
+        s->type = slen == ASN_UTC_TIME_SIZE ? ASN_UTC_TIME : ASN_GENERALIZED_TIME;
+    }
+    return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_WOLFSSL_STUB */
 
@@ -40850,7 +40903,10 @@ err:
         }
 
         if (loc <= DN_NAMES_MAX + name->fullName.dcNum) {
-            name->fullName.loc[loc] = ASN_DN_NULL;
+            XMEMMOVE(&name->fullName.loc[loc], &name->fullName.loc[loc+1],
+                    DN_NAMES_MAX + name->fullName.dcNum - loc - 1);
+            if (name->fullName.dcNum > 0)
+                name->fullName.dcNum--;
         }
         else if (name->fullName.dcMode) {
             if (name->fullName.fullName != NULL) {
@@ -40861,6 +40917,12 @@ err:
                     name->fullName.dcIdx[loc] = -1;
                 }
             }
+        }
+        else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
+            name->fullName.cnIdx = -1;
+        }
+        else {
+            WOLFSSL_MSG("Couldn't find name entry");
         }
 
         return ret;
@@ -46104,7 +46166,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
             WOLFSSL_MSG("wolfSSL_BIO_gets error");
             return WOLFSSL_FAILURE;
         }
-        while (lineLen && buf[lineLen-1] == '\n' && buf[lineLen-1] == '\r')
+        while (lineLen && (buf[lineLen-1] == '\n' || buf[lineLen-1] == '\r'))
             lineLen--;
         if (buf[lineLen-1] == '\\')
             readNextLine = 1;
@@ -46157,8 +46219,13 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
     XMEMMOVE(asn1->data + outLen + 1, asn1->data, asn1->length);
     asn1->data[0] = ASN_INTEGER;
     (void)SetLength(asn1->length, asn1->data + 1);
-    if (asn1->data[outLen+1] == 0x80)
+    if (asn1->data[outLen+1] == 0x80) {
         asn1->data[outLen] = 0;
+        asn1->dataMax = asn1->length += 1 + outLen + 1;
+    }
+    else {
+        asn1->dataMax = asn1->length += 1 + outLen;
+    }
 
     return WOLFSSL_SUCCESS;
 }
@@ -46649,14 +46716,14 @@ WOLF_STACK_OF(WOLFSSL_STRING)* wolfSSL_sk_WOLFSSL_STRING_new(void)
     return ret;
 }
 
-char* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
+WOLFSSL_STRING* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
     int idx)
 {
     for (; idx > 0 && strings != NULL; idx--)
         strings = strings->next;
     if (strings == NULL)
         return NULL;
-    return strings->data.string;
+    return (WOLFSSL_STRING*)strings->data.string;
 }
 
 int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)

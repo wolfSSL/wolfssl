@@ -505,6 +505,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_NAME_add_entry             wolfSSL_X509_NAME_add_entry
 #define X509_NAME_add_entry_by_txt      wolfSSL_X509_NAME_add_entry_by_txt
 #define X509_NAME_add_entry_by_NID      wolfSSL_X509_NAME_add_entry_by_NID
+#define X509_NAME_delete_entry          wolfSSL_X509_NAME_delete_entry
 #define X509_NAME_oneline               wolfSSL_X509_NAME_oneline
 #define X509_NAME_get_index_by_NID      wolfSSL_X509_NAME_get_index_by_NID
 #define X509_NAME_print_ex              wolfSSL_X509_NAME_print_ex
@@ -730,6 +731,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex
 #define ASN1_STRING_print(x, y)         wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
 #define d2i_DISPLAYTEXT                 wolfSSL_d2i_DISPLAYTEXT
+#ifndef NO_WOLFSSL_STUB
+#define ASN1_STRING_set_default_mask_asc(...) 1
+#endif
 
 #define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
 
@@ -1302,6 +1306,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_OBJECT_get_type(x)         0
 
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version()
+
+#ifndef NO_WOLFSSL_STUB
+#define OBJ_create_objects(...)
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

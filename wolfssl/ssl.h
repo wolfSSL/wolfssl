@@ -3658,8 +3658,8 @@ WOLFSSL_API void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*
     void (*f) (WOLFSSL_X509_INFO*));
 WOLFSSL_API void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)*);
 
-typedef int (*wolf_sk_compare_cb)(const void* const *a,
-                                  const void* const *b);
+typedef int (*wolf_sk_compare_cb)(const void* a,
+                                  const void* b);
 typedef unsigned long (*wolf_sk_hash_cb) (const void *v);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(
     wolf_sk_compare_cb);
@@ -3913,7 +3913,7 @@ WOLFSSL_API int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer,
     WOLFSSL_X509 *subject);
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_STRING)* wolfSSL_sk_WOLFSSL_STRING_new(void);
-WOLFSSL_API char* wolfSSL_sk_WOLFSSL_STRING_value(
+WOLFSSL_API WOLFSSL_STRING* wolfSSL_sk_WOLFSSL_STRING_value(
     WOLF_STACK_OF(WOLFSSL_STRING)* strings, int idx);
 WOLFSSL_API int wolfSSL_sk_WOLFSSL_STRING_num(
     WOLF_STACK_OF(WOLFSSL_STRING)* strings);
