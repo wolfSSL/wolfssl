@@ -611,35 +611,36 @@ int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key)
     int ret = 0;
 
     /* sanity check on arguments */
-    if ((in == NULL) || (key == NULL)) {
-        ret = BAD_FUNC_ARG;
+    if (in == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        /* compressed prefix according to draft
-         * https://tools.ietf.org/html/draft-ietf-openpgp-rfc4880bis-06 */
-        if (in[0] == 0x40 && inLen > ED448_PUB_KEY_SIZE) {
-            /* key is stored in compressed format so just copy in */
-            XMEMCPY(key->p, (in + 1), ED448_PUB_KEY_SIZE);
+    if (inLen < ED448_PUB_KEY_SIZE)
+        return BAD_FUNC_ARG;
+
+    /* compressed prefix according to draft
+     * https://tools.ietf.org/html/draft-ietf-openpgp-rfc4880bis-06 */
+    if (in[0] == 0x40 && inLen > ED448_PUB_KEY_SIZE) {
+        /* key is stored in compressed format so just copy in */
+        XMEMCPY(key->p, (in + 1), ED448_PUB_KEY_SIZE);
+        key->pubKeySet = 1;
+    }
+    /* importing uncompressed public key */
+    else if (in[0] == 0x04 && inLen > 2*ED448_PUB_KEY_SIZE) {
+        /* pass in (x,y) and store compressed key */
+        ret = ge448_compress_key(key->p, in+1, in+1+ED448_PUB_KEY_SIZE);
+        if (ret == 0)
             key->pubKeySet = 1;
-        }
-        /* importing uncompressed public key */
-        else if (in[0] == 0x04 && inLen > 2*ED448_PUB_KEY_SIZE) {
-            /* pass in (x,y) and store compressed key */
-            ret = ge448_compress_key(key->p, in+1, in+1+ED448_PUB_KEY_SIZE);
-            if (ret == 0)
-                key->pubKeySet = 1;
-        }
-        else if (inLen == ED448_PUB_KEY_SIZE) {
-            /* if not specified compressed or uncompressed check key size
-             * if key size is equal to compressed key size copy in key */
-            XMEMCPY(key->p, in, ED448_PUB_KEY_SIZE);
-            key->pubKeySet = 1;
-        }
-        else {
-            /* bad public key format */
-            ret = BAD_FUNC_ARG;
-        }
+    }
+    else if (inLen == ED448_PUB_KEY_SIZE) {
+        /* if not specified compressed or uncompressed check key size
+         * if key size is equal to compressed key size copy in key */
+        XMEMCPY(key->p, in, ED448_PUB_KEY_SIZE);
+        key->pubKeySet = 1;
+    }
+    else {
+        /* bad public key format */
+        ret = BAD_FUNC_ARG;
     }
 
     return ret;
