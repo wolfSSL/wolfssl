@@ -1885,6 +1885,87 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     return 0;
 }
 
+
+int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
+        const WOLFSSL_EVP_PKEY *from)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_copy_parameters");
+
+    if (!to || !from) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (to->type == EVP_PKEY_NONE) {
+        to->type = from->type;
+    }
+    else if (to->type != from->type) {
+        WOLFSSL_MSG("Different key types");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch(from->type) {
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        if (from->ecc) {
+            if (!to->ecc && !(to->ecc = wolfSSL_EC_KEY_new())) {
+                WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+                return WOLFSSL_FAILURE;
+            }
+            to->ecc->group->curve_idx = from->ecc->group->curve_idx;
+            to->ecc->group->curve_nid = from->ecc->group->curve_nid;
+            to->ecc->group->curve_oid = from->ecc->group->curve_oid;
+        }
+        else {
+            WOLFSSL_MSG("Missing ECC struct");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+#endif
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
+        if (from->dsa) {
+            WOLFSSL_BIGNUM cpy;
+            if (!to->dsa && !(to->dsa = wolfSSL_DSA_new())) {
+                WOLFSSL_MSG("wolfSSL_DSA_new error");
+                return WOLFSSL_FAILURE;
+            }
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->p))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->p = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->q)) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->q = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->g)) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->g = cpy;
+        }
+        else {
+            WOLFSSL_MSG("Missing DSA struct");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+#endif
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
+#endif
+#ifndef NO_DH
+    case EVP_PKEY_DH:
+#endif
+    default:
+        WOLFSSL_MSG("Copy parameters not available for this key type");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 {
@@ -3183,11 +3264,21 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         {"SHA", "SHA1"},
         { NULL, NULL}
     };
+    char nameUpper[15]; /* 15 bytes should be enough for any name */
+    size_t i;
 
     const struct alias  *al;
     const struct s_ent *ent;
 
+    for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
+        nameUpper[i] = XTOUPPER(name[i]);
+    }
+    if (i < sizeof(nameUpper))
+        nameUpper[i] = '\0';
+    else
+        return NULL;
 
+    name = nameUpper;
     for (al = alias_tbl; al->name != NULL; al++)
         if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
             name = al->name;

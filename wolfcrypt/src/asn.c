@@ -9443,7 +9443,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    ret = 0;
     int    checkPathLen = 0;
     int    decrementMaxPathLen = 0;
-    word32 confirmOID;
+    word32 confirmOID = 0;
 #if defined(WOLFSSL_RENESAS_TSIP)
     int    idx = 0;
 #endif
