@@ -33615,6 +33615,25 @@ static int test_get_rand_digit (void)
         ret = get_rand_digit(&rng, &d);
     }
     if (ret == 0) {
+        ret = get_rand_digit(NULL, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = get_rand_digit(NULL, &d);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = get_rand_digit(&rng, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
         ret = wc_FreeRng(&rng);
     }
 
@@ -33743,7 +33762,7 @@ static int test_mp_rand (void)
     return ret;
 }/* End test_mp_rand*/
 /*
- * Testing mp_rand
+ * Testing get_digit
  */
 static int test_get_digit (void)
 {
@@ -33758,22 +33777,22 @@ static int test_get_digit (void)
         ret = -1;
     }
     if (ret == 0) {
-        if (get_digit(NULL, n) != 0) { /* Should not hit this*/
+        if (get_digit(NULL, n) != 0) { /* Should not hit this */
             ret = -1;
         }
     }
     if (ret == 0) {
-        if (get_digit(NULL, n) == 0) { /* Should hit this*/
+        if (get_digit(NULL, n) == 0) { /* Should hit this */
             ret = 0;
         }
     }
     if (ret == 0) {
-        if (get_digit(&a, n) != 0) { /* Should not hit this*/
+        if (get_digit(&a, n) != 0) { /* Should not hit this */
             ret = -1;
         }
     }
     if (ret == 0) {
-        if (get_digit(&a, n) == 0) { /* Should hit this*/
+        if (get_digit(&a, n) == 0) { /* Should hit this */
             ret = 0;
         }
     }
