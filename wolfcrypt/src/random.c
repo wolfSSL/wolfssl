@@ -2092,6 +2092,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             ) {
                 return -1;
             }
+            initialized = 1;
         }
 
         while (remaining > 0) {
