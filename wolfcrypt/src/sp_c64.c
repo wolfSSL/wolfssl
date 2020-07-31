@@ -1735,7 +1735,7 @@ static int sp_2048_mod_exp_18(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 36) + 36];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -2680,7 +2680,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 72) + 72];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -2832,10 +2832,10 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
-    sp_digit* norm = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
+    sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
     int i;
@@ -2929,9 +2929,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #else
     sp_digit* d = NULL;
 #endif
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
     sp_digit e[1] = {0};
     int err = MP_OKAY;
 
@@ -3170,15 +3170,15 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* t = NULL;
-    sp_digit* a = NULL;
-    sp_digit* p = NULL;
-    sp_digit* q = NULL;
-    sp_digit* dp = NULL;
-    sp_digit* dq = NULL;
-    sp_digit* qi = NULL;
-    sp_digit* tmpa = NULL;
-    sp_digit* tmpb = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* p;
+    sp_digit* q;
+    sp_digit* dp;
+    sp_digit* dq;
+    sp_digit* qi;
+    sp_digit* tmpa;
+    sp_digit* tmpb;
+    sp_digit* r;
     int err = MP_OKAY;
 
     (void)dm;
@@ -5916,7 +5916,7 @@ static int sp_3072_mod_exp_27(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 54) + 54];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -6831,7 +6831,7 @@ static int sp_3072_mod_exp_54(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 108) + 108];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -6983,10 +6983,10 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
-    sp_digit* norm = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
+    sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
     int i;
@@ -7080,9 +7080,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #else
     sp_digit* d = NULL;
 #endif
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
     sp_digit e[1] = {0};
     int err = MP_OKAY;
 
@@ -7321,15 +7321,15 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* t = NULL;
-    sp_digit* a = NULL;
-    sp_digit* p = NULL;
-    sp_digit* q = NULL;
-    sp_digit* dp = NULL;
-    sp_digit* dq = NULL;
-    sp_digit* qi = NULL;
-    sp_digit* tmpa = NULL;
-    sp_digit* tmpb = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* p;
+    sp_digit* q;
+    sp_digit* dp;
+    sp_digit* dq;
+    sp_digit* qi;
+    sp_digit* tmpa;
+    sp_digit* tmpb;
+    sp_digit* r;
     int err = MP_OKAY;
 
     (void)dm;
@@ -10213,7 +10213,7 @@ static int sp_4096_mod_exp_39(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 78) + 78];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -11227,7 +11227,7 @@ static int sp_4096_mod_exp_78(sp_digit* r, const sp_digit* a, const sp_digit* e,
     sp_digit td[(32 * 156) + 156];
 #endif
     sp_digit* t[32];
-    sp_digit* rt = NULL;
+    sp_digit* rt;
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -11379,10 +11379,10 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
-    sp_digit* norm = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
+    sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
     int i;
@@ -11476,9 +11476,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #else
     sp_digit* d = NULL;
 #endif
-    sp_digit* a = NULL;
-    sp_digit* m = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* m;
+    sp_digit* r;
     sp_digit e[1] = {0};
     int err = MP_OKAY;
 
@@ -11717,15 +11717,15 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 #else
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* t = NULL;
-    sp_digit* a = NULL;
-    sp_digit* p = NULL;
-    sp_digit* q = NULL;
-    sp_digit* dp = NULL;
-    sp_digit* dq = NULL;
-    sp_digit* qi = NULL;
-    sp_digit* tmpa = NULL;
-    sp_digit* tmpb = NULL;
-    sp_digit* r = NULL;
+    sp_digit* a;
+    sp_digit* p;
+    sp_digit* q;
+    sp_digit* dp;
+    sp_digit* dq;
+    sp_digit* qi;
+    sp_digit* tmpa;
+    sp_digit* tmpb;
+    sp_digit* r;
     int err = MP_OKAY;
 
     (void)dm;
@@ -17900,14 +17900,13 @@ static int sp_256_ecc_is_point_5(sp_point_256* point, void* heap)
         err = MEMORY_E;
     }
 #endif
+    (void)heap;
 
     if (err == MP_OKAY) {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
         t1 = d + 0 * 5;
         t2 = d + 2 * 5;
 #else
-        (void)heap;
-
         t1 = t1d;
         t2 = t2d;
 #endif
@@ -24402,14 +24401,13 @@ static int sp_384_ecc_is_point_7(sp_point_384* point, void* heap)
         err = MEMORY_E;
     }
 #endif
+    (void)heap;
 
     if (err == MP_OKAY) {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
         t1 = d + 0 * 7;
         t2 = d + 2 * 7;
 #else
-        (void)heap;
-
         t1 = t1d;
         t2 = t2d;
 #endif

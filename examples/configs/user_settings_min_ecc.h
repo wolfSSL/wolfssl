@@ -21,7 +21,7 @@
 
 /* should be renamed to user_settings.h for customer use
  * generated from configure options:
- * ./configure --prefix=/usr/local \
+ * ./configure \
     --enable-cryptonly --enable-ecc --enable-sp \
     --disable-rsa --disable-dh --disable-sha3 --disable-sha224 --disable-md5 \
     --disable-sha --disable-pkcs12 --disable-memory \
@@ -55,6 +55,7 @@ extern "C" {
 
 /* Use single precision math only */
 #define WOLFSSL_SP
+#define WOLFSSL_SP_SMALL
 #define WOLFSSL_SP_MATH
 #define WOLFSSL_HAVE_SP_ECC
 
@@ -65,19 +66,14 @@ extern "C" {
 /* Enable ECC */
 #define HAVE_ECC
 #define ECC_USER_CURVES /* Only 256-Bit Curves */
-#define ECC_SHAMIR
+//#define ECC_SHAMIR
 
-/* Reduce ECC build size */
+/* Optional Feature Disables */
 #define NO_SIG_WRAPPER
-#define NO_ECC_DHE
-#define NO_ECC_KEY_EXPORT
-#ifdef BUILD_VERIFY_ONLY
-    /* Disable Sign */    
-    #define NO_ECC_SIGN
-
-    /* Disable RNG */
-    #define WC_NO_RNG
-#endif
+//#define NO_ECC_KEY_EXPORT 
+//#define NO_ECC_DHE
+//#define NO_ECC_SIGN
+//#define NO_ECC_VERIFY
 
 /* Disable Algorithms */
 #define NO_AES
@@ -94,13 +90,16 @@ extern "C" {
 #define NO_RABBIT
 #define NO_PWDBASED
 #define NO_PKCS12
-#define NO_PSK
+#define NO_PKCS8
+//#define WC_NO_RNG
 
 /* Disable Features */
-#define NO_ASN
+//#define NO_ASN
+//#define NO_CERTS
 #define NO_WOLFSSL_MEMORY
 #define WOLFSSL_NO_PEM
-#define NO_CODING
+//#define NO_CODING
+#define NO_PSK
 #ifndef DEBUG
     #define DEBGUG_WOLFSSL
     #define NO_ERROR_STRINGS
