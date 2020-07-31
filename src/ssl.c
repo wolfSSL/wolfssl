@@ -11412,7 +11412,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
     #endif
 
-    #ifdef WOLFSSL_ALLOW_SSLV3
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_client_method(void)
     {
         return wolfSSLv3_client_method_ex(NULL);
@@ -11428,7 +11428,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             InitSSL_Method(method, MakeSSLv3());
         return method;
     }
-    #endif /* WOLFSSL_ALLOW_SSLV3 */
+    #endif /* WOLFSSL_ALLOW_SSLV3 && !NO_OLD_TLS */
 
 
     WOLFSSL_METHOD* wolfSSLv23_client_method(void)
@@ -11804,7 +11804,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
     #endif
 
-    #ifdef WOLFSSL_ALLOW_SSLV3
+    #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv3_server_method(void)
     {
         return wolfSSLv3_server_method_ex(NULL);
@@ -11822,7 +11822,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
         return method;
     }
-    #endif /* WOLFSSL_ALLOW_SSLV3 */
+    #endif /* WOLFSSL_ALLOW_SSLV3 && !NO_OLD_TLS */
 
     WOLFSSL_METHOD* wolfSSLv23_server_method(void)
     {
