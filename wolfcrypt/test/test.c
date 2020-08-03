@@ -11783,6 +11783,8 @@ done:
 #endif
 
 #if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
+/* Need to create known good signatures to test with this. */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
 static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
@@ -12090,6 +12092,7 @@ exit_rsa_pss:
 
     return ret;
 }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 #endif
 
 #ifdef WC_RSA_NO_PADDING
@@ -13919,7 +13922,10 @@ int rsa_test(void)
 #endif /* WOLFSSL_CERT_GEN */
 
 #if defined(WC_RSA_PSS) && !defined(HAVE_FIPS_VERSION) /* not supported with FIPSv1 */
+/* Need to create known good signatures to test with this. */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     ret = rsa_pss_test(&rng, &key);
+#endif
 #endif
 
 exit_rsa:

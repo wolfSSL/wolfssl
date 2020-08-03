@@ -107,7 +107,7 @@ typedef enum {
 } WOLFSSL_ASN1_TYPES;
 
 #define ASN1_SEQUENCE(type) \
-    static const type __##type##_dummy_struct;\
+    static type __##type##_dummy_struct;\
     static const WOLFSSL_ASN1_TEMPLATE type##_member_data[]
 
 #define ASN1_SIMPLE(type, member, member_type) \

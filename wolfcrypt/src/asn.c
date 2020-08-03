@@ -893,7 +893,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 
 #if (!defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)) \
     || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA))
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || !defined(NO_DSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -1368,12 +1368,7 @@ end:
 }
 #endif
 
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
-
-#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || \
-    defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
-
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING with a 16-bit value.
  *
  * val         16-bit value to encode.
@@ -1406,11 +1401,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
     return idx;
 }
-#endif /* WOLFSSL_CERT_EXT */
-#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 || defined(HAVE_ED448) */
-#endif /* WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN */
-
-
+#endif /* WOLFSSL_CERT_EXT || WOLFSSL_CERT_GEN */
 
 /* hashType */
 #ifdef WOLFSSL_MD2
@@ -5150,7 +5141,7 @@ static int GetKey(DecodedCert* cert)
 #ifndef NO_DSA
     int tmpLen;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_NTRU)
+#if defined(HAVE_ECC) || defined(HAVE_NTRU) || !defined(NO_DSA)
     int tmpIdx = cert->srcIdx;
 #endif
 
