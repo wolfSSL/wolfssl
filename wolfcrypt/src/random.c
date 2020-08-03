@@ -2124,36 +2124,42 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
-#elif defined(WOLFSSL_NRF51)
+#elif defined(WOLFSSL_NRF51) || defined(WOLFSSL_NRF5x)
     #include "app_error.h"
     #include "nrf_drv_rng.h"
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int remaining = sz, length, pos = 0;
-        uint8_t available;
         uint32_t err_code;
+        uint8_t available;
+        static uint8_t initialized = 0;
 
         (void)os;
 
         /* Make sure RNG is running */
-        err_code = nrf_drv_rng_init(NULL);
-        if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
-            return -1;
+        if (!initialized) {
+            err_code = nrf_drv_rng_init(NULL);
+            if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE
+            #ifdef NRF_ERROR_MODULE_ALREADY_INITIALIZED
+                && err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED
+            #endif
+            ) {
+                return -1;
+            }
+            initialized = 1;
         }
 
         while (remaining > 0) {
-            err_code = nrf_drv_rng_bytes_available(&available);
-            if (err_code == NRF_SUCCESS) {
-                length = (remaining < available) ? remaining : available;
-                if (length > 0) {
-                    err_code = nrf_drv_rng_rand(&output[pos], length);
-                    remaining -= length;
-                    pos += length;
+            available = 0;
+            nrf_drv_rng_bytes_available(&available); /* void func */
+            length = (remaining < available) ? remaining : available;
+            if (length > 0) {
+                err_code = nrf_drv_rng_rand(&output[pos], length);
+                if (err_code != NRF_SUCCESS) {
+                    break;
                 }
-            }
-
-            if (err_code != NRF_SUCCESS) {
-                break;
+                remaining -= length;
+                pos += length;
             }
         }
 

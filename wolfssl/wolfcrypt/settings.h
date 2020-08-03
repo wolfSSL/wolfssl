@@ -622,7 +622,6 @@
 #ifdef WOLFSSL_NRF5x
         #define SIZEOF_LONG 4
         #define SIZEOF_LONG_LONG 8
-        #define NO_ASN_TIME
         #define NO_DEV_RANDOM
         #define NO_FILESYSTEM
         #define NO_MAIN_DRIVER
@@ -630,7 +629,6 @@
         #define SINGLE_THREADED
         #define USE_FAST_MATH
         #define TFM_TIMING_RESISTANT
-        #define USE_WOLFSSL_MEMORY
         #define WOLFSSL_NRF51
         #define WOLFSSL_USER_IO
         #define NO_SESSION_CACHE

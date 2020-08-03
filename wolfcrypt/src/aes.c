@@ -2391,6 +2391,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
+        XMEMCPY(aes->key, userKey, keylen);
         ret = nrf51_aes_set_key(userKey);
 
     #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
@@ -3998,9 +3999,6 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-GCM mode"
-
-#elif defined(WOLFSSL_NRF51_AES)
-    #error "nRF51 doesn't currently support AES-GCM mode"
 
 #endif
 
