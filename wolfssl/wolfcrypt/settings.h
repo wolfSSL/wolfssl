@@ -2269,6 +2269,15 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_TLS13
 #endif
 
+/* For FIPSv2 make sure the ECDSA encoding allows extra bytes
+ * but make sure users consider enabling it */
+#if !defined(NO_STRICT_ECDSA_LEN) && defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    /* ECDSA length checks off by default for CAVP testing
+     * consider enabling strict checks in production */
+    #define NO_STRICT_ECDSA_LEN
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */
