@@ -33727,7 +33727,7 @@ static int test_mp_rand (void)
     int ret = 0;
 #if defined(WC_RSA_BLINDING) && defined(WOLFSSL_PUBLIC_MP) 
     mp_int  a;
-    int     digits = 1; /*Setting equal to 0 causes a segmentation fault, line 183*/
+    int     digits = 1;
     WC_RNG  rng;
 
     printf(testingFmt, "mp_rand()");
@@ -33829,14 +33829,14 @@ static int test_wc_export_int (void)
             ret = 0;
         }
     }
-    len = 255;
+    len = sizeof(buf)-1;
     if (ret == 0) {
         ret = wc_export_int(&mp, buf, &len, keySz, encType);
         if (ret == BUFFER_E) {
             ret = 0;
         }
     }
-    len = 256;
+    len = sizeof(buf);
     if (ret == 0) {
         ret = wc_export_int(&mp, buf, &len, keySz, WC_TYPE_HEX_STR);
     }
