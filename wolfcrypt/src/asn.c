@@ -647,7 +647,7 @@ const char* GetSigName(int oid) {
  * output     Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
-static int SetASNInt(int len, byte firstByte, byte* output)
+int SetASNInt(int len, byte firstByte, byte* output)
 {
     word32 idx = 0;
 

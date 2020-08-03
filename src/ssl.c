@@ -19769,7 +19769,7 @@ int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_num");
     if (sk)
-        wolfSSL_sk_num(sk);
+        return wolfSSL_sk_num(sk);
     return 0;
 }
 
@@ -21290,10 +21290,9 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO  *out, WOLFSSL_TXT_DB *db)
         }
 
         for (i = 0; i < db->num_fields; i++) {
-            char* fieldValue = fields[i];
+            const char* fieldValue = fields[i];
             if (!fieldValue) {
-                WOLFSSL_MSG("Missing fields ptr");
-                return WOLFSSL_FAILURE;
+                fieldValue = "";
             }
 
             /* Copy over field escaping tabs */
@@ -23814,7 +23813,6 @@ static int wolfSSL_i2d_X509_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, i
         return WOLFSSL_FAILURE;
     }
 #endif
-
 
     if (wolfSSL_X509_make_der(x509, req, der, &derSz, 1) != WOLFSSL_SUCCESS) {
         goto cleanup;
@@ -28813,7 +28811,7 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
         case STACK_TYPE_CONF_VALUE:
-            return (void*)sk->data.conf->value;
+            return (void*)sk->data.conf;
         case STACK_TYPE_NULL:
         default:
             return (void*)sk->data.generic;
@@ -30459,6 +30457,9 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
 {
     WOLFSSL_ASN1_INTEGER* a;
     int len;
+    const int extraTagSz = MAX_LENGTH_SZ + 1;
+    byte intTag[MAX_LENGTH_SZ + 1];
+    int idx = 0;
     WOLFSSL_ENTER("wolfSSL_BN_to_ASN1_INTEGER");
 
     if (ai == NULL) {
@@ -30483,9 +30484,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
             len = 1;
 
         /* allocate buffer */
-        if (len > (int)sizeof(a->intData)) {
+        if (len + extraTagSz > (int)sizeof(a->intData)) {
             /* create new data buffer and copy over */
-            a->data = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+            a->data = (byte*)XMALLOC(len + extraTagSz, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
             if (a->data == NULL) {
                 if (a != ai)
                     wolfSSL_ASN1_INTEGER_free(a);
@@ -30497,7 +30499,6 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
             XMEMSET(a->intData, 0, sizeof(a->intData));
             a->data = a->intData;
         }
-        a->length = len;
 
         /* populate data */
         if (wolfSSL_BN_is_zero(bn)) {
@@ -30507,6 +30508,12 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
             len = wolfSSL_BN_bn2bin(bn, a->data);
         }
         a->length = len;
+
+        /* Write ASN tag */
+        idx = SetASNInt(a->length, a->data[0], intTag);
+        XMEMMOVE(a->data + idx, a->data, a->length);
+        XMEMCPY(a->data, intTag, idx);
+        a->dataMax = a->length += idx;
     }
 
     return a;
@@ -42895,10 +42902,15 @@ int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
 
 int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
 {
-    byte* pem;
+    byte* pem = NULL;
     int   pemSz = 0;
-    const unsigned char* der;
-    int derSz;
+    /* Get large buffer to hold cert der */
+    int  derSz = 8192;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* der;
+#else
+    byte der[8192];
+#endif
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_AUX()");
@@ -42908,25 +42920,31 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
         return WOLFSSL_FAILURE;
     }
 
-    der = wolfSSL_X509_get_der(cert, &derSz);
-    if (der == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (!der) {
+        WOLFSSL_MSG("malloc failed");
         return WOLFSSL_FAILURE;
+    }
+#endif
+
+    if (wolfSSL_X509_make_der(cert, 0, der, &derSz, 1) != WOLFSSL_SUCCESS) {
+        goto error;
     }
 
     /* get PEM size */
     pemSz = wc_DerToPemEx(der, derSz, NULL, 0, NULL, CERT_TYPE);
     if (pemSz < 0) {
-        return WOLFSSL_FAILURE;
+        goto error;
     }
 
     /* create PEM buffer and convert from DER */
     pem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (pem == NULL) {
-        return WOLFSSL_FAILURE;
+        goto error;
     }
     if (wc_DerToPemEx(der, derSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
-        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+        goto error;
     }
 
     /* write the PEM to BIO */
@@ -42935,6 +42953,14 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
 
     if (ret <= 0) return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
+
+error:
+    #ifdef WOLFSSL_SMALL_STACK
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    if (pem)
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return WOLFSSL_FAILURE;
 }
 
 #endif /* !NO_BIO */
@@ -46139,7 +46165,9 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
     int len;
     byte isNumCheck;
     word32 outLen;
-    const int extraTagSz = MAX_LENGTH_SZ - 1;
+    const int extraTagSz = MAX_LENGTH_SZ + 1;
+    byte intTag[MAX_LENGTH_SZ + 1];
+    int idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_a2i_ASN1_INTEGER");
 
@@ -46213,19 +46241,10 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
     } while (readNextLine);
 
     /* Write ASN tag */
-    outLen = SetLength(asn1->length, NULL);
-    if (asn1->data[0] == 0x80)
-        outLen++; /* Special ASN integer case */
-    XMEMMOVE(asn1->data + outLen + 1, asn1->data, asn1->length);
-    asn1->data[0] = ASN_INTEGER;
-    (void)SetLength(asn1->length, asn1->data + 1);
-    if (asn1->data[outLen+1] == 0x80) {
-        asn1->data[outLen] = 0;
-        asn1->dataMax = asn1->length += 1 + outLen + 1;
-    }
-    else {
-        asn1->dataMax = asn1->length += 1 + outLen;
-    }
+    idx = SetASNInt(asn1->length, asn1->data[0], intTag);
+    XMEMMOVE(asn1->data + idx, asn1->data, asn1->length);
+    XMEMCPY(asn1->data, intTag, idx);
+    asn1->dataMax = asn1->length += idx;
 
     return WOLFSSL_SUCCESS;
 }
@@ -46254,11 +46273,12 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
         return 2;
     }
 
-    if (Base16_Encode(a->data + idx, len, buf, &bufLen) != 0) {
+    if (Base16_Encode(a->data + idx, len, buf, &bufLen) != 0 ||
+            bufLen <= 0) {
         return 0;
     }
 
-    return wolfSSL_BIO_write(bp, buf, bufLen);
+    return wolfSSL_BIO_write(bp, buf, bufLen - 1); /* Don't write out NULL char */
 }
 #endif /* !NO_BIO */
 
@@ -46716,14 +46736,14 @@ WOLF_STACK_OF(WOLFSSL_STRING)* wolfSSL_sk_WOLFSSL_STRING_new(void)
     return ret;
 }
 
-WOLFSSL_STRING* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
+WOLFSSL_STRING wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
     int idx)
 {
     for (; idx > 0 && strings != NULL; idx--)
         strings = strings->next;
     if (strings == NULL)
         return NULL;
-    return (WOLFSSL_STRING*)strings->data.string;
+    return strings->data.string;
 }
 
 int wolfSSL_sk_WOLFSSL_STRING_num(WOLF_STACK_OF(WOLFSSL_STRING)* strings)
@@ -51003,6 +51023,12 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
     WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
     if (!ctx || !ctx->x509)
         return;
+
+    if (!ctx->x509) {
+        ctx->x509 = wolfSSL_X509_new();
+        if (!ctx->x509)
+            return;
+    }
 
     /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
     if (issuer)

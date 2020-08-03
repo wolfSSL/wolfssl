@@ -1249,7 +1249,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_OPENSSL_STRING_num           wolfSSL_sk_WOLFSSL_STRING_num
 #define sk_OPENSSL_STRING_value         wolfSSL_sk_WOLFSSL_STRING_value
 #define sk_OPENSSL_PSTRING_num          wolfSSL_sk_WOLFSSL_STRING_num
-#define sk_OPENSSL_PSTRING_value        wolfSSL_sk_WOLFSSL_STRING_value
+#define sk_OPENSSL_PSTRING_value        (WOLFSSL_STRING*)wolfSSL_sk_WOLFSSL_STRING_value
 #define sk_OPENSSL_STRING_free          wolfSSL_sk_free
 #define SSL_get0_alpn_selected          wolfSSL_get0_alpn_selected
 #define SSL_select_next_proto           wolfSSL_select_next_proto
