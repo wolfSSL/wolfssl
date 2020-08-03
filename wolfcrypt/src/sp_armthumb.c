@@ -21639,14 +21639,13 @@ static int sp_256_ecc_is_point_8(sp_point_256* point, void* heap)
         err = MEMORY_E;
     }
 #endif
+    (void)heap;
 
     if (err == MP_OKAY) {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
         t1 = d + 0 * 8;
         t2 = d + 2 * 8;
 #else
-        (void)heap;
-
         t1 = t1d;
         t2 = t2d;
 #endif
@@ -28135,14 +28134,13 @@ static int sp_384_ecc_is_point_12(sp_point_384* point, void* heap)
         err = MEMORY_E;
     }
 #endif
+    (void)heap;
 
     if (err == MP_OKAY) {
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
         t1 = d + 0 * 12;
         t2 = d + 2 * 12;
 #else
-        (void)heap;
-
         t1 = t1d;
         t2 = t2d;
 #endif

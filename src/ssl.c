@@ -19331,11 +19331,13 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
     if (session == NULL)
         return WOLFSSL_FAILURE;
 
+#ifdef OPENSSL_EXTRA
     if (wc_LockMutex(&session->refMutex) != 0) {
         WOLFSSL_MSG("Failed to lock session mutex");
     }
     session->refCount++;
     wc_UnLockMutex(&session->refMutex);
+#endif
     return WOLFSSL_SUCCESS;
 }
 
