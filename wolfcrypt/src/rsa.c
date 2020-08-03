@@ -1129,6 +1129,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     hLen = wc_HashGetDigestSize(hType);
     if (hLen < 0)
         return hLen;
+    if ((int)inputLen != hLen) {
+        return BAD_FUNC_ARG;
+    }
 
     hiBits = (bits - 1) & 0x7;
     if (hiBits == 0) {
