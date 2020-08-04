@@ -2882,7 +2882,7 @@ static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret == 0) {
         ret = wc_Ed448PrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
         if (ret == 0)
-            ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey);
+            ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey, NULL, 0);
         wc_ed448_free(&myKey);
     }
 
@@ -2914,7 +2914,8 @@ static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     if (ret == 0) {
         ret = wc_ed448_import_public(key, keySz, &myKey);
         if (ret == 0) {
-            ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey);
+            ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey,
+                                                                      NULL, 0);
         }
         wc_ed448_free(&myKey);
     }
