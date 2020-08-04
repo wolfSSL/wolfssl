@@ -43,9 +43,9 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_HAVE_SP_RSA:         Enable SP RSA support
  * WOLFSSL_HAVE_SP_DH:          Enable SP DH support
  * WOLFSSL_HAVE_SP_ECC:         Enable SP ECC support
- * WOLFSSL_SP_MATH:             Use only single precision math and algorithms 
+ * WOLFSSL_SP_MATH:             Use only single precision math and algorithms
  *      it supports (no fastmath tfm.c or normal integer.c)
- * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large 
+ * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large
  *      stack variables
  * WOLFSSL_SP_NO_MALLOC:        Always use stack, no heap XMALLOC/XFREE allowed
  * WOLFSSL_SP_NO_2048:          Disable RSA/DH 2048-bit support
@@ -59,11 +59,11 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly speedups
  * WOLFSSL_SP_ARM64_ASM         Enable Aarch64 assembly speedups
  * WOLFSSL_SP_ARM_CORTEX_M_ASM  Enable Cortex-M assembly speedups
- * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups 
+ * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups
  *      (used with -mthumb)
  * SP_WORD_SIZE                 Force 32 or 64 bit mode
- * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which 
- *      will return FP_WOULDBLOCK for long operations and function must be 
+ * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which
+ *      will return FP_WOULDBLOCK for long operations and function must be
  *      called again until complete.
  */
 
@@ -192,7 +192,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     int i, j = 0, k;
 
     /* Extra digit added to SP_INT_DIGITS to be used in calculations. */
-    if (inSz > SP_INT_DIGITS * (int)sizeof(a->dp[0])) {
+    if (inSz > (SP_INT_DIGITS - 1) * (int)sizeof(a->dp[0])) {
         err = MP_VAL;
     }
     else if (inSz == 0) {
@@ -1063,8 +1063,10 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
         }
     }
     r->dp[0] = t;
-    for (++i; i < a->used; i++)
-        r->dp[i] = a->dp[i];
+    if (r != a) {
+        for (++i; i < a->used; i++)
+            r->dp[i] = a->dp[i];
+    }
 
     return MP_OKAY;
 }
