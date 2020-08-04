@@ -288,7 +288,7 @@
 
 /* Define AES implementation includes and functions */
 #if defined(STM32_CRYPTO)
-     /* STM32F2/F4/F7/L4 hardware AES support for ECB, CBC, CTR and GCM modes */
+     /* STM32F2/F4/F7/L4/L5/H7/WB55 hardware AES support for ECB, CBC, CTR and GCM modes */
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 
@@ -3731,15 +3731,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_IVInitTypeDef ivInit;
         #endif
 
-            ret = wolfSSL_CryptHwMutexLock();
+        #ifdef WOLFSSL_STM32_CUBEMX
+            ret = wc_Stm32_Aes_Init(aes, &hcryp);
             if (ret != 0) {
                 return ret;
             }
 
-        #ifdef WOLFSSL_STM32_CUBEMX
-            ret = wc_Stm32_Aes_Init(aes, &hcryp);
+            ret = wolfSSL_CryptHwMutexLock();
             if (ret != 0) {
-                wolfSSL_CryptHwMutexUnLock();
                 return ret;
             }
 
@@ -3775,7 +3774,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         #else /* Standard Peripheral Library */
             ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
             if (ret != 0) {
-                wolfSSL_CryptHwMutexUnLock();
+                return ret;
+            }
+
+            ret = wolfSSL_CryptHwMutexLock();
+            if (ret != 0) {
                 return ret;
             }
 
@@ -3820,7 +3823,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             /* disable crypto processor */
             CRYP_Cmd(DISABLE);
-
         #endif /* WOLFSSL_STM32_CUBEMX */
 
             wolfSSL_CryptHwMutexUnLock();
@@ -4024,18 +4026,6 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
             return;
     }
 }
-#ifdef STM32_CRYPTO_AES_GCM
-static WC_INLINE void DecrementGcmCounter(byte* inOutCtr)
-{
-    int i;
-
-    /* in network byte order so start at end and work back */
-    for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - CTR_SZ; i--) {
-        if (--inOutCtr[i] != 0xFF)  /* we're done unless we underflow */
-            return;
-    }
-}
-#endif /* STM32_CRYPTO_AES_GCM */
 #endif /* !FREESCALE_LTC_AES_GCM */
 
 #if defined(GCM_SMALL) || defined(GCM_TABLE)
@@ -4145,7 +4135,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0) {
-        wc_AesEncrypt(aes, iv, aes->H);
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            wc_AesEncrypt(aes, iv, aes->H);
+            wolfSSL_CryptHwMutexUnLock();
+        }
     #ifdef GCM_TABLE
         GenerateM0(aes);
     #endif /* GCM_TABLE */
@@ -5924,6 +5918,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 #endif
     word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
+    word32 ctrInit[AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
@@ -5953,8 +5948,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
-    /* Hardware requires counter + 1 */
-    IncrementGcmCounter((byte*)ctr);
+    XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -5978,6 +5972,9 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         authPadSz = authInSz;
         authInPadded = (byte*)authIn;
     }
+
+    /* Hardware requires counter + 1 */
+    IncrementGcmCounter((byte*)ctr);
 
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
@@ -6078,9 +6075,8 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         if (authTag) {
             /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
             if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
-                DecrementGcmCounter((byte*)ctr); /* hardware requires +1, so subtract it */
                 GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-                wc_AesEncrypt(aes, (byte*)ctr, (byte*)tag);
+                wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)tag);
                 xorbuf(authTag, tag, authTagSz);
             }
             else {
@@ -6368,6 +6364,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
     word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[AES_BLOCK_SIZE/sizeof(word32)];
+    word32 ctrInit[AES_BLOCK_SIZE/sizeof(word32)];
     word32 authhdr[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
     int authPadSz, wasAlloc = 0;
@@ -6396,8 +6393,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     else {
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
-    /* Hardware requires counter + 1 */
-    IncrementGcmCounter((byte*)ctr);
+    XMEMCPY(ctrInit, ctr, sizeof(ctr)); /* save off initial counter for GMAC */
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
@@ -6421,6 +6417,9 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         authPadSz = authInSz;
         authInPadded = (byte*)authIn;
     }
+
+    /* Hardware requires counter + 1 */
+    IncrementGcmCounter((byte*)ctr);
 
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
@@ -6523,9 +6522,8 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 
     /* For STM32 GCM fallback to software if partial AES block or IV != 12 */
     if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
-        DecrementGcmCounter((byte*)ctr); /* hardware requires +1, so subtract it */
         GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
-        wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
+        wc_AesEncrypt(aes, (byte*)ctrInit, (byte*)partialBlock);
         xorbuf(tag, partialBlock, sizeof(tag));
     }
 

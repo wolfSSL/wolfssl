@@ -823,33 +823,31 @@ char* wc_strsep(char **stringp, const char *delim)
 static wolfSSL_Mutex wcCryptHwMutex;
 static int wcCryptHwMutexInit = 0;
 
-int wolfSSL_CryptHwMutexInit(void) {
+int wolfSSL_CryptHwMutexInit(void)
+{
     int ret = 0;
-    if(wcCryptHwMutexInit == 0) {
+    if (wcCryptHwMutexInit == 0) {
         ret = wc_InitMutex(&wcCryptHwMutex);
-        if(ret == 0) {
+        if (ret == 0) {
             wcCryptHwMutexInit = 1;
         }
     }
     return ret;
 }
-
-int wolfSSL_CryptHwMutexLock(void) {
+int wolfSSL_CryptHwMutexLock(void)
+{
     int ret = BAD_MUTEX_E;
-
     /* Make sure HW Mutex has been initialized */
-    wolfSSL_CryptHwMutexInit();
-
-    if(wcCryptHwMutexInit) {
+    ret = wolfSSL_CryptHwMutexInit();
+    if (ret == 0) {
         ret = wc_LockMutex(&wcCryptHwMutex);
     }
     return ret;
 }
-
-int wolfSSL_CryptHwMutexUnLock(void) {
+int wolfSSL_CryptHwMutexUnLock(void)
+{
     int ret = BAD_MUTEX_E;
-
-    if(wcCryptHwMutexInit) {
+    if (wcCryptHwMutexInit) {
         ret = wc_UnLockMutex(&wcCryptHwMutex);
     }
     return ret;
