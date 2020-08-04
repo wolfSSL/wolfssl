@@ -33760,8 +33760,259 @@ static int test_wc_RNG_GenerateBlock(void)
 }
 #endif
 /*
- * Testing wc_InitRngNonce
+ * Testing get_rand_digit
  */
+static int test_get_rand_digit (void)
+{
+    int ret = 0;
+#if !defined(WC_NO_RNG) && defined(WOLFSSL_PUBLIC_MP)
+
+    WC_RNG      rng;
+    mp_digit    d;
+
+    printf(testingFmt, "get_rand_digit()");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        ret = get_rand_digit(&rng, &d);
+    }
+    if (ret == 0) {
+        ret = get_rand_digit(NULL, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = get_rand_digit(NULL, &d);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = get_rand_digit(&rng, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_FreeRng(&rng);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+
+}/* End test_get_rand_digit*/
+/*
+ * Testing get_digit_count
+ */
+static int test_get_digit_count (void)
+{
+    int ret = 0;
+#if !defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_PUBLIC_MP)
+    mp_int a;
+
+    printf(testingFmt, "get_digit_count()");
+
+    if (mp_init(&a) != MP_OKAY) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        ret = get_digit_count(NULL);
+    }
+    if (ret == 0) {
+        ret = get_digit_count(&a);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    mp_clear(&a);
+#endif
+    return ret;
+
+}/* End test_get_digit_count*/
+/*
+ * Testing mp_cond_copy
+ */
+static int test_mp_cond_copy (void)
+{
+    int     ret = 0;
+#if defined(WOLFSSL_PUBLIC_MP)    
+    mp_int  a;
+    mp_int  b;
+    int     copy = 0;
+
+    printf(testingFmt, "mp_cond_copy()");
+
+    if (mp_init(&a) != MP_OKAY) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        if (mp_init(&b) != MP_OKAY) {
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_cond_copy(NULL, copy, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_cond_copy(NULL, copy, &b);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_cond_copy(&a, copy, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_cond_copy(&a, copy, &b);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    mp_clear(&a);
+    mp_clear(&b);
+#endif    
+    return ret;
+
+}/* End test_mp_cond_copy*/
+/*
+ * Testing mp_rand
+ */
+static int test_mp_rand (void)
+{
+    int ret = 0;
+#if defined(WC_RSA_BLINDING) && defined(WOLFSSL_PUBLIC_MP) 
+    mp_int  a;
+    int     digits = 1;
+    WC_RNG  rng;
+
+    printf(testingFmt, "mp_rand()");
+
+    if (mp_init(&a) != MP_OKAY) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+
+    if (ret == 0) {
+        ret = mp_rand(&a, digits, NULL);
+        if (ret == MISSING_RNG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_rand(NULL, digits, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = mp_rand(&a, digits, &rng);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    mp_clear(&a);
+    wc_FreeRng(&rng);
+#endif
+    return ret;
+}/* End test_mp_rand*/
+/*
+ * Testing get_digit
+ */
+static int test_get_digit (void)
+{
+    int     ret = 0;
+#if defined(WOLFSSL_PUBLIC_MP)     
+    mp_int  a;
+    int     n = 0;
+
+    printf(testingFmt, "get_digit()");
+
+    if (mp_init(&a) != MP_OKAY) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        if (get_digit(NULL, n) != 0) { /* Should not hit this */
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        if (get_digit(NULL, n) == 0) { /* Should hit this */
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        if (get_digit(&a, n) != 0) { /* Should not hit this */
+            ret = -1;
+        }
+    }
+    if (ret == 0) {
+        if (get_digit(&a, n) == 0) { /* Should hit this */
+            ret = 0;
+        }
+    }
+
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    mp_clear(&a);
+#endif    
+    return ret;
+}/* End test_get_digit*/
+/*
+ * Testing wc_export_int
+ */
+static int test_wc_export_int (void)
+{
+    int         ret = 0;
+#if defined(WOLFSSL_PUBLIC_MP)     
+    mp_int      mp;
+    byte        buf[256];
+    word32      keySz = (word32)sizeof(buf);
+    word32      len = (word32)sizeof(buf);
+
+
+    int encType = WC_TYPE_UNSIGNED_BIN;
+
+    printf(testingFmt, "wc_export_int()");
+
+    if (mp_init(&mp) != MP_OKAY) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        ret = wc_export_int(NULL, buf, &len, keySz, encType);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    len = sizeof(buf)-1;
+    if (ret == 0) {
+        ret = wc_export_int(&mp, buf, &len, keySz, encType);
+        if (ret == BUFFER_E) {
+            ret = 0;
+        }
+    }
+    len = sizeof(buf);
+    if (ret == 0) {
+        ret = wc_export_int(&mp, buf, &len, keySz, WC_TYPE_HEX_STR);
+    }
+    if (ret == 0) {
+        ret = wc_export_int(&mp, buf, &len, keySz, encType);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    mp_clear(&mp);
+#endif    
+    return ret;
+
+}/* End test_wc_export_int*/
 static int test_wc_InitRngNonce(void)
 {
     int     ret=0;
@@ -35693,6 +35944,12 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 
 #endif
+    AssertIntEQ(test_get_rand_digit(), 0);
+    AssertIntEQ(test_get_digit_count(), 0);
+    AssertIntEQ(test_mp_cond_copy(), 0);
+    AssertIntEQ(test_mp_rand(), 0);
+    AssertIntEQ(test_get_digit(), 0);
+    AssertIntEQ(test_wc_export_int(), 0);
     AssertIntEQ(test_wc_InitRngNonce(), 0);
     AssertIntEQ(test_wc_InitRngNonce_ex(), 0);
     AssertIntEQ(test_wc_ed25519_make_key(), 0);
