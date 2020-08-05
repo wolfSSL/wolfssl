@@ -20716,7 +20716,8 @@ static int test_wc_EccPrivateKeyToDer (void)
 static int test_wc_Ed25519KeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
 
     byte            output[FOURK_BUF];
     ed25519_key     ed25519Key;
@@ -20780,7 +20781,8 @@ static int test_wc_Ed25519KeyToDer (void)
 static int test_wc_Ed25519PrivateKeyToDer (void)
 {
     int ret = 0;
-#if defined(HAVE_ED25519)
+#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
 
     byte            output[FOURK_BUF];
     ed25519_key     ed25519PrivKey;
@@ -20991,7 +20993,7 @@ static int test_wc_SetSubjectBuffer (void)
     if (ret == 0) {
         file = XFOPEN("./certs/ca-cert.der", "rb");
         if (file != NULL) {
-            derSz = XFREAD(der, 1, FOURK_BUF, file);
+            derSz = (word32)XFREAD(der, 1, FOURK_BUF, file);
             XFCLOSE(file);
         }
     }
