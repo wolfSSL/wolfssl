@@ -21005,7 +21005,7 @@ static int test_wc_SetSubjectBuffer (void)
             ret = 0;
         }
     }
-
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
     return ret;
