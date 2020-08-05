@@ -379,7 +379,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_ext                    wolfSSL_X509_get_ext
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
+#define X509_issuer_name_hash           wolfSSL_X509_issuer_name_hash
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
+#define X509_subject_name_hash          wolfSSL_X509_subject_name_hash
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
 #define X509_get0_pubkey                wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
@@ -573,7 +575,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_X509_REVOKED_value           wolfSSL_sk_X509_REVOKED_value
 
 #define X509_OBJECT_free_contents       wolfSSL_X509_OBJECT_free_contents
-#define X509_subject_name_hash          wolfSSL_X509_subject_name_hash
 
 #define X509_check_purpose(...)         0
 
