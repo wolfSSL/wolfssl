@@ -2,7 +2,8 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/README
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/README_EN.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/README_JP.md
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/wolfssl/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/wolfssl/.project
 EXTRA_DIST+= IDE/Renesas/e2studio/RX72NEnvisionKit/test/.cproject
