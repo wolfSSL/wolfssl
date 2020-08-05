@@ -20599,7 +20599,612 @@ static int test_wc_ecc_is_valid_idx (void)
 
 } /* END test_wc_ecc_is_valid_idx */
 
+/*
+ * Testing ToTraditional
+ */
+static int test_ToTraditional (void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
 
+    XFILE   f;
+    byte    input[TWOK_BUF];
+    word32  sz;
+
+    printf(testingFmt, "ToTraditional()");
+
+    f = XFOPEN("./certs/server-keyPkcs8.der", "rb");
+    AssertTrue((f != XBADFILE));
+    sz = (word32)XFREAD(input, 1, sizeof(input), f);
+    XFCLOSE(f);
+
+    /* Good case */
+    ret = ToTraditional(input, sz);
+    if (ret != 0  && ret != ASN_PARSE_E) {
+        ret = 0;
+    }
+    /* Bad cases */
+    if (ret == 0) {
+        ret = ToTraditional(NULL, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = ToTraditional(NULL, sz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = ToTraditional(input, 0);
+        if (ret == ASN_PARSE_E) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_ToTraditional*/
+/*
+ * Testing wc_Ed25519KeyToDer
+ */
+static int test_wc_EccPrivateKeyToDer (void)
+{
+    int ret = 0;
+#if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+
+    byte            output[FOURK_BUF];
+    ecc_key         eccKey;
+    WC_RNG          rng;
+    word32          inLen;
+    printf(testingFmt, "wc_EccPrivateKeyToDer()");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        ret = wc_ecc_init(&eccKey);
+        if (ret == 0) {
+            wc_ecc_make_key(&rng, KEY14, &eccKey);
+        }
+        inLen = (word32)sizeof(eccKey);
+        /* Bad Cases */
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyToDer(NULL, NULL, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyToDer(NULL, output, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyToDer(&eccKey, NULL, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyToDer(&eccKey, output, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        /*Good Case */
+        if (ret == 0) {
+            ret = wc_EccPrivateKeyToDer(&eccKey, output, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
+        wc_ecc_free(&eccKey);
+    }
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_EccPrivateKeyToDer*/
+/*
+ * Testing wc_Ed25519KeyToDer
+ */
+static int test_wc_Ed25519KeyToDer (void)
+{
+    int ret = 0;
+#if defined(HAVE_ED25519)
+
+    byte            output[FOURK_BUF];
+    ed25519_key     ed25519Key;
+    WC_RNG          rng;
+    word32          inLen;
+    
+    printf(testingFmt, "wc_Ed25519KeyToDer()");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        ret = wc_ed25519_init(&ed25519Key);
+        if (ret == 0) {
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
+        }
+        inLen = (word32)sizeof(ed25519Key);
+        
+        /* Bad Cases */
+        if (ret == 0) {
+            ret = wc_Ed25519KeyToDer(NULL, NULL, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519KeyToDer(NULL, output, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519KeyToDer(&ed25519Key, output, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        /* Good Case */
+        if (ret == 0) {
+            ret = wc_Ed25519KeyToDer(&ed25519Key, output, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
+        wc_ed25519_free(&ed25519Key);
+    }
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_Ed25519KeyToDer*/
+/*
+ * Testing wc_Ed25519PrivateKeyToDer
+ */
+static int test_wc_Ed25519PrivateKeyToDer (void)
+{
+    int ret = 0;
+#if defined(HAVE_ED25519)
+
+    byte            output[FOURK_BUF];
+    ed25519_key     ed25519PrivKey;
+    WC_RNG          rng;
+    word32          inLen;
+    
+    printf(testingFmt, "wc_Ed25519PrivateKeyToDer()");
+
+    ret = wc_InitRng(&rng);
+
+
+    if (ret == 0) {
+        ret = wc_ed25519_init(&ed25519PrivKey);
+        if (ret == 0) {
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519PrivKey);
+        }
+        inLen = (word32)sizeof(ed25519PrivKey);
+        
+        /* Bad Cases */
+        if (ret == 0) {
+            ret = wc_Ed25519PrivateKeyToDer(NULL, NULL, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519PrivateKeyToDer(NULL, output, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        /* Good Case */
+        if (ret == 0) {
+            ret = wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
+        wc_ed25519_free(&ed25519PrivKey);
+    }
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_Ed25519PrivateKeyToDer*/
+/*
+ * Testing wc_Ed448KeyToDer
+ */
+static int test_wc_Ed448KeyToDer (void)
+{
+    int ret = 0;
+#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
+
+    byte            output[ONEK_BUF];
+    ed448_key       ed448Key;
+    WC_RNG          rng;
+    word32          inLen;
+
+    printf(testingFmt, "wc_Ed448KeyToDer()");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        ret = wc_ed448_init(&ed448Key);
+        if (ret == 0) {
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
+        }
+        inLen = sizeof(output);
+        
+        /* Bad Cases */
+        if (ret == 0) {
+            ret = wc_Ed448KeyToDer(NULL, NULL, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448KeyToDer(NULL, output, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448KeyToDer(&ed448Key, NULL, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448KeyToDer(&ed448Key, output, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        /* Good Case */
+        if (ret == 0) {
+            ret = wc_Ed448KeyToDer(&ed448Key, output, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
+        wc_ed448_free(&ed448Key);
+    }
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_Ed448KeyToDer*/
+/*
+ * Testing wc_Ed448PrivateKeyToDer
+ */
+static int test_wc_Ed448PrivateKeyToDer (void)
+{
+    int ret = 0;
+#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
+
+    byte            output[ONEK_BUF];
+    ed448_key       ed448PrivKey;
+    WC_RNG          rng;
+    word32          inLen;
+
+    printf(testingFmt, "wc_Ed448PrivateKeyToDer()");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        ret = wc_ed448_init(&ed448PrivKey);
+        if (ret == 0) {
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448PrivKey);
+        }
+        inLen = sizeof(output);
+        
+        /* Bad Cases */
+        if (ret == 0) {
+            ret = wc_Ed448PrivateKeyToDer(NULL, NULL, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448PrivateKeyToDer(NULL, output, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, inLen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        if (ret == 0) {
+            ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, 0);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        /* Good case */
+        if (ret == 0) {
+            ret = wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, inLen);
+            if (ret > 0) {
+                ret = 0;
+            }
+        }
+        wc_ed448_free(&ed448PrivKey);
+    }
+    wc_FreeRng(&rng);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_Ed448PrivateKeyToDer*/
+/*
+ * Testing wc_SetSubjectBuffer
+ */
+static int test_wc_SetSubjectBuffer (void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_CERT_GEN) 
+    Cert    cert;
+    FILE*   file;
+    byte*   der;
+    word32  derSz;
+    
+    printf(testingFmt, "wc_SetSubjectBuffer()");
+
+    derSz = FOURK_BUF;
+    der = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ret = -1;
+    }
+    if (ret == 0) {
+        file = XFOPEN("./certs/ca-cert.der", "rb");
+        if (file != NULL) {
+            derSz = XFREAD(der, 1, FOURK_BUF, file);
+            XFCLOSE(file);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_InitCert(&cert);
+    }
+
+    if (ret == 0) {
+        ret = wc_SetSubjectBuffer(&cert, der, derSz);
+    }
+
+    if (ret == 0) {
+        ret = wc_SetSubjectBuffer(NULL, der, derSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}/* End test_wc_SetSubjectBuffer*/
+
+/*
+ * Testing wc_SetSubjectKeyIdFromPublicKey_ex
+ */
+static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    WC_RNG          rng;
+    Cert            cert;
+#if defined(HAVE_ED25519)
+    ed25519_key     ed25519Key;
+    ed25519_key*    ed25519PrivKey = NULL;
+#endif
+#if !defined(NO_RSA) && defined(HAVE_RSA)
+    RsaKey          rsaKey;
+    RsaKey*         rsaPrivKey = NULL;
+    int             bits = 2048;
+#endif
+    ecc_key         eccKey;
+    ecc_key*        eccPrivKey = NULL;
+#if defined(HAVE_ED448)
+    ed448_key       ed448Key;
+    ed448_key*      ed448PrivKey = NULL;
+#endif
+
+    printf(testingFmt, "wc_SetSubjectKeyIdFromPublicKey_ex()");
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+
+    wc_InitCert(&cert);
+#if defined(HAVE_ED25519)
+    if (ret == 0) { /*ED25519*/
+        ret = wc_ed25519_init(&ed25519Key);
+        ed25519PrivKey = &ed25519Key;
+        if (ret == 0) {
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, ed25519PrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
+                                                  ed25519PrivKey);
+        }
+        wc_ed25519_free(ed25519PrivKey);
+    }
+#endif
+#if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
+    if (ret == 0) { /*RSA*/
+        ret = wc_InitRsaKey(&rsaKey, NULL);
+        rsaPrivKey = &rsaKey;
+        if (ret == 0) {
+            MAKE_RSA_KEY(rsaPrivKey, bits, WC_RSA_EXPONENT, &rng);
+        }
+        if (ret == 0) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, RSA_TYPE, rsaPrivKey);
+        }
+        wc_FreeRsaKey(rsaPrivKey);
+    }
+#endif
+    if (ret == 0) { /*ECC*/
+        ret = wc_ecc_init(&eccKey);
+        eccPrivKey = &eccKey;
+        if (ret == 0) {
+            wc_ecc_make_key(&rng, KEY14, eccPrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, eccPrivKey);
+        }
+        wc_ecc_free(eccPrivKey);
+    }
+#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
+
+    if (ret == 0) { /*ED448*/
+        ret = wc_ed448_init(&ed448Key);
+        ed448PrivKey = &ed448Key;
+        if (ret == 0) {
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, ed448PrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
+                                                  ed448PrivKey);
+        }
+        wc_ed448_free(ed448PrivKey);
+    }
+#endif
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeRng(&rng);
+#endif
+    return ret;
+}/* End test_wc_SetSubjectKeyIdFromPublicKey_ex*/
+/*
+ * Testing wc_SetAuthKeyIdFromPublicKey_ex
+ */
+static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
+{
+    int ret = 0;
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    WC_RNG          rng;
+    Cert            cert;
+#if defined(HAVE_ED25519)
+    ed25519_key     ed25519Key;
+    ed25519_key*    ed25519PrivKey = NULL;
+#endif
+#if !defined(NO_RSA) && defined(HAVE_RSA)
+    RsaKey          rsaKey;
+    RsaKey*         rsaPrivKey = NULL;
+    int             bits = 2048;
+#endif
+    ecc_key         eccKey;
+    ecc_key*        eccPrivKey = NULL;
+#if defined(HAVE_ED448)
+    ed448_key       ed448Key;
+    ed448_key*      ed448PrivKey = NULL;
+#endif
+
+    printf(testingFmt, "wc_SetAuthKeyIdFromPublicKey_ex()");
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+
+    wc_InitCert(&cert);
+#if defined(HAVE_ED25519)
+    if (ret == 0) { /*ED25519*/
+        ret = wc_ed25519_init(&ed25519Key);
+        ed25519PrivKey = &ed25519Key;
+        if (ret == 0) {
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, ed25519PrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
+                                                  ed25519PrivKey);
+        }
+        wc_ed25519_free(ed25519PrivKey);
+    }
+#endif
+#if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
+    if (ret == 0) { /*RSA*/
+        ret = wc_InitRsaKey(&rsaKey, NULL);
+        rsaPrivKey = &rsaKey;
+        if (ret == 0) {
+            MAKE_RSA_KEY(rsaPrivKey, bits, WC_RSA_EXPONENT, &rng);
+        }
+        if (ret == 0) {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, RSA_TYPE, rsaPrivKey);
+        }
+        wc_FreeRsaKey(rsaPrivKey);
+    }
+#endif
+    if (ret == 0) { /*ECC*/
+        ret = wc_ecc_init(&eccKey);
+        eccPrivKey = &eccKey;
+        if (ret == 0) {
+            wc_ecc_make_key(&rng, KEY14, eccPrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, eccPrivKey);
+        }
+        wc_ecc_free(eccPrivKey);
+    }
+#if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
+
+    if (ret == 0) { /*ED448*/
+        ret = wc_ed448_init(&ed448Key);
+        ed448PrivKey = &ed448Key;
+        if (ret == 0) {
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, ed448PrivKey);
+        }
+        if (ret == 0) {
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
+                                                  ed448PrivKey);
+        }
+        wc_ed448_free(ed448PrivKey);
+    }
+#endif
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeRng(&rng);
+#endif /*defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)*/
+    return ret;
+}/* End test_wc_SetAuthKeyIdFromPublicKey_ex*/
 /*
  * Testing wc_PKCS7_New()
  */
@@ -36024,6 +36629,17 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_verify_hash_ex(), 0);
     AssertIntEQ(test_wc_ecc_mulmod(), 0);
     AssertIntEQ(test_wc_ecc_is_valid_idx(), 0);
+
+
+    AssertIntEQ(test_ToTraditional(), 0);
+    AssertIntEQ(test_wc_EccPrivateKeyToDer(), 0);
+    AssertIntEQ(test_wc_Ed25519KeyToDer(), 0);
+    AssertIntEQ(test_wc_Ed25519PrivateKeyToDer(), 0);
+    AssertIntEQ(test_wc_Ed448KeyToDer(), 0);
+    AssertIntEQ(test_wc_Ed448PrivateKeyToDer(), 0);
+    AssertIntEQ(test_wc_SetAuthKeyIdFromPublicKey_ex(), 0);
+    AssertIntEQ(test_wc_SetSubjectBuffer(), 0);
+    AssertIntEQ(test_wc_SetSubjectKeyIdFromPublicKey_ex(), 0);
 
     test_wc_PKCS7_New();
     test_wc_PKCS7_Init();
