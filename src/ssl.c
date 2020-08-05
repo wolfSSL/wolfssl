@@ -22989,7 +22989,40 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #endif /* XSNPRINTF */
 #endif /* !NO_BIO */
 
-#endif /* OPENSSL_EXTRA */
+    int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
+            const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_signature_print");
+
+        if (!bp || !sigalg || !sig) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_BIO_puts(bp, "    Signature Algorithm: ") <= 0) {
+            WOLFSSL_MSG("wolfSSL_BIO_puts error");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wolfSSL_i2a_ASN1_OBJECT(bp, sigalg->algorithm) <= 0) {
+            WOLFSSL_MSG("wolfSSL_i2a_ASN1_OBJECT error");
+            return WOLFSSL_FAILURE;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+
+#ifndef NO_WOLFSSL_STUB
+    void wolfSSL_X509_get0_signature(const WOLFSSL_ASN1_BIT_STRING **psig,
+            const WOLFSSL_X509_ALGOR **palg, const WOLFSSL_X509 *x509)
+    {
+        (void)psig;
+        (void)palg;
+        (void)x509;
+        WOLFSSL_STUB("wolfSSL_X509_get0_signature");
+    }
+#endif
+
 #endif /* !NO_CERTS */
 
 #ifdef OPENSSL_EXTRA
@@ -51153,6 +51186,20 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     WOLFSSL_STUB("wolfSSL_X509_REQ_add1_attr_by_NID");
     (void)req;
     (void)nid;
+    (void)type;
+    (void)bytes;
+    (void)len;
+    return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
+                              const char *attrname, int type,
+                              const unsigned char *bytes, int len)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_add1_attr_by_txt");
+    WOLFSSL_STUB("wolfSSL_X509_REQ_add1_attr_by_txt");
+    (void)req;
+    (void)attrname;
     (void)type;
     (void)bytes;
     (void)len;

@@ -1355,6 +1355,10 @@ WOLFSSL_API int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset
 WOLFSSL_API int wolfSSL_X509_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
     unsigned long nmflags, unsigned long cflag);
 WOLFSSL_API int wolfSSL_X509_print_fp(XFILE fp, WOLFSSL_X509 *x509);
+WOLFSSL_API int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
+        const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig);
+WOLFSSL_API void wolfSSL_X509_get0_signature(const WOLFSSL_ASN1_BIT_STRING **psig,
+        const WOLFSSL_X509_ALGOR **palg, const WOLFSSL_X509 *x509);
 WOLFSSL_API int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
 WOLFSSL_ABI WOLFSSL_API char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*,
                                                                     char*, int);
@@ -3594,6 +3598,9 @@ WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                                                   int len);
 WOLFSSL_API int wolfSSL_X509_REQ_get_attr_by_NID(const WOLFSSL_X509 *req,
         int nid, int lastpos);
+WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
+                              const char *attrname, int type,
+                              const unsigned char *bytes, int len);
 WOLFSSL_API WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
         const WOLFSSL_X509 *req, int loc);
 

@@ -229,6 +229,7 @@ enum
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 1020,             /* id-pe 24 */
     NID_commonName = 0x03,             /* matches ASN_COMMON_NAME in asn.h */
+    NID_buildingName = 1494,
 
 
     NID_surname = 0x04,                /* SN */
