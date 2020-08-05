@@ -411,8 +411,6 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     mp_int r; // destination for r component of signature.
     mp_int s; // destination for s component of signature.
 
-    byte sig[512]; // will hold generated signature
-    sigSz = sizeof(sig);
     byte digest[] = { initialize with message hash };
     wc_InitRng(&rng); // initialize rng
     wc_ecc_init(&key); // initialize key
@@ -472,7 +470,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     \param hash pointer to the buffer containing the hash of the message
     verified
     \param hashlen length of the hash of the message verified
-    \param stat pointer to the result of the verification. 1 indicates the
+    \param res pointer to the result of the verification. 1 indicates the
     message was successfully verified
     \param key pointer to a public ECC key with which to verify the signature
 
@@ -498,7 +496,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 */
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
-                    word32 hashlen, int* stat, ecc_key* key);
+                    word32 hashlen, int* res, ecc_key* key);
 
 /*!
     \ingroup ECC
@@ -516,7 +514,7 @@ Note: Do not use the return value to test for valid.  Only use stat.
     \param s The signature S component to verify
     \param hash The hash (message digest) that was signed
     \param hashlen The length of the hash (octets)
-    \param stat Result of signature, 1==valid, 0==invalid
+    \param res Result of signature, 1==valid, 0==invalid
     \param key The corresponding public ECC key
 
     _Example_
@@ -537,7 +535,7 @@ Note: Do not use the return value to test for valid.  Only use stat.
 */
 WOLFSSL_API
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-                          word32 hashlen, int* stat, ecc_key* key);
+                          word32 hashlen, int* res, ecc_key* key);
 
 /*!
     \ingroup ECC

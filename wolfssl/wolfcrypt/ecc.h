@@ -518,10 +518,10 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key);
 #ifdef HAVE_ECC_VERIFY
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
-                    word32 hashlen, int* stat, ecc_key* key);
+                    word32 hashlen, int* res, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
-                          word32 hashlen, int* stat, ecc_key* key);
+                          word32 hashlen, int* res, ecc_key* key);
 #endif /* HAVE_ECC_VERIFY */
 
 WOLFSSL_API
