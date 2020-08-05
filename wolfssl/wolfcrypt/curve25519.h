@@ -87,6 +87,9 @@ enum {
 };
 
 WOLFSSL_API
+int wc_curve25519(int public_size, byte* public, int private_size, const byte* private);
+
+WOLFSSL_API
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
 
 WOLFSSL_API

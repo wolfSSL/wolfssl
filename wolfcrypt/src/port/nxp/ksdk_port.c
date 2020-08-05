@@ -974,7 +974,7 @@ static const ECPoint ecBasePoint = {
     0x1e, 0xe0, 0xb4, 0x86, 0xa0, 0xb8, 0xa1, 0x19, 0xae, 0x20},
 };
 
-const ECPoint *wc_curve25519_GetBasePoint(void)
+const ECPoint *nxp_ltc_curve25519_GetBasePoint(void)
 {
     return &ecBasePoint;
 }
@@ -1122,7 +1122,7 @@ status_t LTC_PKHA_Curve25519ComputeY(ltc_pkha_ecc_point_t *ltcPoint)
 /* if type is set, the input point p is in Montgomery curve coordinates,
     so there is a map to Weierstrass curve */
 /* q output point is always in Montgomery curve coordinates */
-int wc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
+int nxp_ltc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
 {
     status_t status;
     ltc_pkha_ecc_point_t ltcPoint;
