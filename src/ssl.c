@@ -36911,6 +36911,11 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
             return ret;
         }
 
+        if ((x509->serialSz == 0) && (cert.serialSz <= EXTERNAL_SERIAL_SIZE)) {
+            XMEMCPY(x509->serial, cert.serial, cert.serialSz);
+            x509->serialSz = cert.serialSz;
+        }
+
         /* Dispose of the public key object. */
     #ifndef NO_RSA
         if (x509->pubKeyOID == RSAk)
