@@ -301,6 +301,9 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_GROUP_get_order              wolfSSL_EC_GROUP_get_order
 #define EC_GROUP_order_bits             wolfSSL_EC_GROUP_order_bits
 #define EC_GROUP_method_of              wolfSSL_EC_GROUP_method_of
+#ifndef NO_WOLFSSL_STUB
+#define EC_GROUP_set_point_conversion_form(...)
+#endif
 
 #define EC_METHOD_get_field_type        wolfSSL_EC_METHOD_get_field_type
 

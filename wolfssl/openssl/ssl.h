@@ -387,6 +387,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_sign_ctx               wolfSSL_X509_REQ_sign_ctx
 #define X509_REQ_add_extensions         wolfSSL_X509_REQ_add_extensions
 #define X509_REQ_add1_attr_by_NID       wolfSSL_X509_REQ_add1_attr_by_NID
+#define X509_REQ_add1_attr_by_txt       wolfSSL_X509_REQ_add1_attr_by_txt
 #define X509_REQ_get_attr_by_NID        wolfSSL_X509_REQ_get_attr_by_NID
 #define X509_REQ_get_attr               wolfSSL_X509_REQ_get_attr
 #define X509_to_X509_REQ                wolfSSL_X509_to_X509_REQ
@@ -443,6 +444,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_print_ex                   wolfSSL_X509_print_ex
 #define X509_print_fp                   wolfSSL_X509_print_fp
 #define X509_REQ_print_fp               wolfSSL_X509_print_fp
+#define X509_signature_print            wolfSSL_X509_signature_print
+#define X509_get0_signature             wolfSSL_X509_get0_signature
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string
 #define X509_verify_cert                wolfSSL_X509_verify_cert
 #define X509_verify                     wolfSSL_X509_verify
@@ -603,6 +606,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_REVOKED            wolfSSL_X509_CRL_get_REVOKED
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
+#define X509_REQ_get_X509_PUBKEY        wolfSSL_X509_get_X509_PUBKEY
 #define X509_get0_tbs_sigalg            wolfSSL_X509_get0_tbs_sigalg
 #define X509_PUBKEY_get0_param          wolfSSL_X509_PUBKEY_get0_param
 #define X509_PUBKEY_get                 wolfSSL_X509_PUBKEY_get
