@@ -51,12 +51,45 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
+/* compute the public key from an existing private key, using bare vectors. */
+int wc_curve25519(int public_size, byte* public, int private_size, const byte* private) {
+    int ret;
+
+    if ((public_size != CURVE25519_KEYSIZE) ||
+        (private_size != CURVE25519_KEYSIZE))
+        return ECC_BAD_ARG_E;
+    if ((public == NULL) || (private == NULL))
+        return ECC_BAD_ARG_E;
+
+    /* check clamping */
+    if ((private[0] & ~248) ||
+        (private[CURVE25519_KEYSIZE-1] & 128))
+        return ECC_BAD_ARG_E;
+
+#ifdef FREESCALE_LTC_ECC
+    {
+        const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
+        ECPoint wc_pub;
+        ret = nxp_ltc_curve25519(&wc_pub, private, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
+        if (ret == 0)
+            XMEMCPY(public, wc_pub.point, CURVE25519_KEY_SIZE);
+    }
+#else
+    {
+        static const unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
+        ret = curve25519(public, private, basepoint);
+    }
+#endif
+
+    return ret;
+}
+
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 {
 #ifdef FREESCALE_LTC_ECC
-    const ECPoint* basepoint = wc_curve25519_GetBasePoint();
+    const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
 #else
-    unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
+    static const unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
 #endif
     int  ret;
 
@@ -83,7 +116,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 
     /* compute public key */
     #ifdef FREESCALE_LTC_ECC
-        ret = wc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
+        ret = nxp_ltc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
     #else
         ret = curve25519(key->p.point, key->k.point, basepoint);
     #endif
@@ -127,7 +160,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         return ECC_BAD_ARG_E;
 
     #ifdef FREESCALE_LTC_ECC
-        ret = wc_curve25519(&o, private_key->k.point, &public_key->p, kLTC_Curve25519 /* input point P on Curve25519 */);
+        ret = nxp_ltc_curve25519(&o, private_key->k.point, &public_key->p, kLTC_Curve25519 /* input point P on Curve25519 */);
     #else
         ret = curve25519(o, private_key->k.point, public_key->p.point);
     #endif
