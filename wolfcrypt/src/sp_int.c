@@ -48,7 +48,6 @@
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
- * WOLFSSL_SP_CACHE_RESISTANT   Enable cache resistantant code
  * WOLFSSL_SP_ASM               Enable assembly speedups (detect platform)
  * WOLFSSL_SP_X86_64_ASM        Enable Intel x86 assembly speedups like AVX/AVX2
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly speedups
@@ -688,6 +687,8 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
     }
 }
 
+#if defined(WOLFSSL_SP_SMALL) || (defined(WOLFSSL_KEY_GEN) || \
+                                         !defined(NO_DH) && !defined(WC_NO_RNG))
 /* Multiply a by digit n and put result into r shifting up o digits.
  *   r = (a * n) << (o * SP_WORD_SIZE)
  *
@@ -714,6 +715,7 @@ static void _sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r, int o)
     r->used = i+o+1;
     sp_clamp(r);
 }
+#endif
 
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
