@@ -21,6 +21,11 @@
 
 /* Implementation by Sean Parkinson. */
 
+/*
+DESCRIPTION
+This library provides single precision (SP) integer math functions.
+
+*/
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -38,9 +43,9 @@
  * WOLFSSL_HAVE_SP_RSA:         Enable SP RSA support
  * WOLFSSL_HAVE_SP_DH:          Enable SP DH support
  * WOLFSSL_HAVE_SP_ECC:         Enable SP ECC support
- * WOLFSSL_SP_MATH:             Use only single precision math and algorithms 
+ * WOLFSSL_SP_MATH:             Use only single precision math and algorithms
  *      it supports (no fastmath tfm.c or normal integer.c)
- * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large 
+ * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large
  *      stack variables
  * WOLFSSL_SP_NO_MALLOC:        Always use stack, no heap XMALLOC/XFREE allowed
  * WOLFSSL_SP_NO_2048:          Disable RSA/DH 2048-bit support
@@ -54,11 +59,11 @@
  * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly speedups
  * WOLFSSL_SP_ARM64_ASM         Enable Aarch64 assembly speedups
  * WOLFSSL_SP_ARM_CORTEX_M_ASM  Enable Cortex-M assembly speedups
- * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups 
+ * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups
  *      (used with -mthumb)
  * SP_WORD_SIZE                 Force 32 or 64 bit mode
- * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which 
- *      will return FP_WOULDBLOCK for long operations and function must be 
+ * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which
+ *      will return FP_WOULDBLOCK for long operations and function must be
  *      called again until complete.
  */
 
@@ -178,10 +183,10 @@ int sp_unsigned_bin_size(sp_int* a)
  * a     SP integer.
  * in    Array of bytes.
  * inSz  Number of data bytes in array.
- * returns BAD_FUNC_ARG when the number is too big to fit in an SP and
+ * returns MP_VAL when the number is too big to fit in an SP and
            MP_OKAY otherwise.
  */
-int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz)
+int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
 {
     int err = MP_OKAY;
     int i, j = 0, k;
@@ -190,8 +195,11 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz)
     if (inSz > (SP_INT_DIGITS - 1) * (int)sizeof(a->dp[0])) {
         err = MP_VAL;
     }
-
-    if (err == MP_OKAY) {
+    else if (inSz == 0) {
+        XMEMSET(a->dp, 0, a->size * sizeof(*a->dp));
+        a->used = 0;
+    }
+    else {
         for (i = inSz-1; i >= (SP_WORD_SIZE/8); i -= (SP_WORD_SIZE/8), j++) {
             a->dp[j]  = (((sp_int_digit)in[i-0]) << (0*8))
                      |  (((sp_int_digit)in[i-1]) << (1*8))
@@ -212,9 +220,9 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz)
             }
         }
         a->used = j + 1;
-    }
 
-    sp_clamp(a);
+        sp_clamp(a);
+    }
 
     return err;
 }
@@ -1019,12 +1027,27 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
     int i = 0;
     sp_int_digit t;
 
+    if (a == NULL || r == NULL || a->used > SP_INT_DIGITS)
+        return BAD_FUNC_ARG;
+
     r->used = a->used;
-    if (a->used == 0) {
-        r->used = d > 0;
+
+    if (d == 0) {
+        /*copy the content of <a> to <r>*/
+        for (; i < a->used; i++)
+            r->dp[i] = a->dp[i];
+
+        return MP_OKAY;
     }
-    t = a->dp[0] + d;
-    if (t < a->dp[0]) {
+
+    if (a->used == 0) {
+        r->used = 1;
+        t = d;
+    }
+    else
+        t = a->dp[0] + d;
+
+    if (a->used != 0 && t < a->dp[0]) {
         for (++i; i < a->used; i++) {
             r->dp[i] = a->dp[i] + 1;
             if (r->dp[i] != 0) {
@@ -1033,18 +1056,21 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
         }
         if (i == a->used) {
             r->used++;
-            r->dp[i] = 1;
+            if (i < SP_INT_DIGITS)
+                r->dp[i] = 1;
+            else
+                return MP_VAL;
         }
     }
     r->dp[0] = t;
     if (r != a) {
-        for (++i; i < a->used; i++) {
+        for (++i; i < a->used; i++)
             r->dp[i] = a->dp[i];
-        }
     }
 
     return MP_OKAY;
 }
+
 
 #if !defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
     !defined(WOLFSSL_RSA_VERIFY_ONLY)

@@ -19,7 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*
 
+DESCRIPTION
+This library provides the interface to the RSA.
+RSA keys can be used to encrypt, decrypt, sign and verify data.
+
+*/
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -605,59 +611,61 @@ int wc_CheckRsaKey(RsaKey* key)
         if (mp_set_int(k, 0x2342) != MP_OKAY)
             ret = MP_READ_E;
     }
-
 #ifdef WOLFSSL_HAVE_SP_RSA
-#ifndef WOLFSSL_SP_NO_2048
-    if (mp_count_bits(&key->n) == 2048) {
-        ret = sp_ModExp_2048(k, &key->e, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-        ret = sp_ModExp_2048(tmp, &key->d, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-    }
-    else
-#endif
-#ifndef WOLFSSL_SP_NO_3072
-    if (mp_count_bits(&key->n) == 3072) {
-        ret = sp_ModExp_3072(k, &key->e, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-        ret = sp_ModExp_3072(tmp, &key->d, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-    }
-    else
-#endif
-#ifdef WOLFSSL_SP_4096
-    if (mp_count_bits(&key->n) == 4096) {
-        ret = sp_ModExp_4096(k, &key->e, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-        ret = sp_ModExp_4096(tmp, &key->d, &key->n, tmp);
-        if (ret != 0)
-            ret = MP_EXPTMOD_E;
-    }
-    else
-#endif
-#endif
-#ifdef WOLFSSL_SP_MATH
-    {
-        ret = WC_KEY_SIZE_E;
-    }
-#else
-    {
-        if (ret == 0) {
-            if (mp_exptmod(k, &key->e, &key->n, tmp) != MP_OKAY)
-                ret = MP_EXPTMOD_E;
+    if (ret == 0) {
+        switch (mp_count_bits(&key->n)) {
+    #ifndef WOLFSSL_SP_NO_2048
+            case 2048:
+                ret = sp_ModExp_2048(k, &key->e, &key->n, tmp);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+                if (ret == 0) {
+                    ret = sp_ModExp_2048(tmp, &key->d, &key->n, tmp);
+                    if (ret != 0)
+                        ret = MP_EXPTMOD_E;
+                }
+                break;
+    #endif /* WOLFSSL_SP_NO_2048 */
+    #ifndef WOLFSSL_SP_NO_3072
+            case 3072:
+                ret = sp_ModExp_3072(k, &key->e, &key->n, tmp);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+                if (ret == 0) {
+                  ret = sp_ModExp_3072(tmp, &key->d, &key->n, tmp);
+                  if (ret != 0)
+                      ret = MP_EXPTMOD_E;
+                }
+                break;
+    #endif /* WOLFSSL_SP_NO_3072 */
+    #ifdef WOLFSSL_SP_4096
+            case 4096:
+                ret = sp_ModExp_4096(k, &key->e, &key->n, tmp);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+                if (ret == 0) {
+                  ret = sp_ModExp_4096(tmp, &key->d, &key->n, tmp);
+                  if (ret != 0)
+                      ret = MP_EXPTMOD_E;
+                }
+                break;
+    #endif /* WOLFSSL_SP_4096 */
+                default:
+                    ret = WC_KEY_SIZE_E;
         }
+    }
+#endif /* WOLFSSL_HAVE_SP_RSA */
+#ifndef WOLFSSL_SP_MATH
+    if (ret == 0) {
+        if (mp_exptmod(k, &key->e, &key->n, tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
 
-        if (ret == 0) {
-            if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
-                ret = MP_EXPTMOD_E;
-        }
+    if (ret == 0) {
+        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
     }
-#endif
+#endif /* !WOLFSSL_SP_MATH */
 
     if (ret == 0) {
         if (mp_cmp(k, tmp) != MP_EQ)
@@ -815,10 +823,10 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
         XMEMCPY(tmp, seed, seedSz);
 
         /* counter to byte array appended to tmp */
-        tmp[seedSz]     = (counter >> 24) & 0xFF;
-        tmp[seedSz + 1] = (counter >> 16) & 0xFF;
-        tmp[seedSz + 2] = (counter >>  8) & 0xFF;
-        tmp[seedSz + 3] = (counter)       & 0xFF;
+        tmp[seedSz]     = (byte)((counter >> 24) & 0xFF);
+        tmp[seedSz + 1] = (byte)((counter >> 16) & 0xFF);
+        tmp[seedSz + 2] = (byte)((counter >>  8) & 0xFF);
+        tmp[seedSz + 3] = (byte)((counter)       & 0xFF);
 
         /* hash and append to existing output */
         if ((ret = wc_Hash(hType, tmp, (seedSz + 4), tmp, tmpSz)) != 0) {
@@ -1127,6 +1135,9 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     hiBits = (bits - 1) & 0x7;
     if (hiBits == 0) {
+        /* Per RFC8017, set the leftmost 8emLen - emBits bits of the
+           leftmost octet in DB to zero.
+        */
         *(pkcsBlock++) = 0;
         pkcsBlockLen--;
     }
@@ -1163,7 +1174,6 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     if ((int)pkcsBlockLen - hLen < saltLen + 2) {
         return PSS_SALTLEN_E;
     }
-
     maskLen = pkcsBlockLen - 1 - hLen;
 
 #if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
@@ -1206,12 +1216,16 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         ret = wc_Hash(hType, s, (word32)(m - s), pkcsBlock + maskLen, hLen);
     }
     if (ret == 0) {
+       /* Set the last eight bits or trailer field to the octet 0xbc */
         pkcsBlock[pkcsBlockLen - 1] = RSA_PSS_PAD_TERM;
 
         ret = RsaMGF(mgf, pkcsBlock + maskLen, hLen, pkcsBlock, maskLen, heap);
     }
     if (ret == 0) {
-        pkcsBlock[0] &= (1 << hiBits) - 1;
+        /* Clear the first high bit when "8emLen - emBits" is non-zero.
+           where emBits = n modBits - 1 */
+        if (hiBits)
+            pkcsBlock[0] &= (1 << hiBits) - 1;
 
         m = pkcsBlock + maskLen - saltLen - 1;
         *(m++) ^= 0x01;
@@ -1240,15 +1254,15 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
         return BAD_FUNC_ARG;
     }
 
+    if (pkcsBlockLen - RSA_MIN_PAD_SZ < inputLen) {
+        WOLFSSL_MSG("RsaPad error, invalid length");
+        return RSA_PAD_E;
+    }
     pkcsBlock[0] = 0x0;       /* set first byte to zero and advance */
     pkcsBlock++; pkcsBlockLen--;
     pkcsBlock[0] = padValue;  /* insert padValue */
 
     if (padValue == RSA_BLOCK_TYPE_1) {
-        if (pkcsBlockLen < inputLen + 2) {
-            WOLFSSL_MSG("RsaPad error, invalid length");
-            return RSA_PAD_E;
-        }
 
         /* pad with 0xff bytes */
         XMEMSET(&pkcsBlock[1], 0xFF, pkcsBlockLen - inputLen - 2);
@@ -1258,12 +1272,6 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
         /* pad with non-zero random bytes */
         word32 padLen, i;
         int    ret;
-
-        if (pkcsBlockLen < inputLen + 1) {
-            WOLFSSL_MSG("RsaPad error, invalid length");
-            return RSA_PAD_E;
-        }
-
         padLen = pkcsBlockLen - inputLen - 1;
         ret    = wc_RNG_GenerateBlock(rng, &pkcsBlock[1], padLen);
         if (ret != 0) {
@@ -1460,9 +1468,10 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
  * saltLen       Length of salt to put in padding.
  * bits          Length of key in bits.
  * heap          Used for dynamic memory allocation.
- * returns 0 on success, PSS_SALTLEN_E when the salt length is invalid,
- * BAD_PADDING_E when the padding is not valid, MEMORY_E when allocation fails
- * and other negative values on error.
+ * returns       the sum of salt length and SHA-256 digest size on success.
+ *               Otherwise, PSS_SALTLEN_E for an incorrect salt length,
+ *               WC_KEY_SIZE_E for an incorrect encoded message (EM) size
+                 and other negative values on error.
  */
 static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
                         byte **output, enum wc_HashType hType, int mgf,
@@ -2662,7 +2671,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 #endif
 
         if (mp_init(c) != MP_OKAY)
-            ret = MEMORY_E;
+            ret = MP_INIT_E;
         if (ret == 0) {
             if (mp_read_unsigned_bin(c, in, inLen) != 0)
                 ret = MP_READ_E;

@@ -22,7 +22,12 @@
 /*!
     \file wolfssl/wolfcrypt/types.h
 */
+/*
+DESCRIPTION
+This library defines the primitive data types and abstraction macros to
+decouple library dependencies with standard string, memory and so on.
 
+*/
 #ifndef WOLF_CRYPT_TYPES_H
 #define WOLF_CRYPT_TYPES_H
 

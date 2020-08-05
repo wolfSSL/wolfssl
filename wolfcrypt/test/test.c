@@ -11581,9 +11581,12 @@ static int rsa_decode_test(RsaKey* keyPub)
         ret = -7473;
         goto done;
     }
-    /* TODO: probably should fail when length is -1! */
     ret = wc_RsaPublicKeyDecodeRaw(n, (word32)-1, e, sizeof(e), keyPub);
+#ifndef WOLFSSL_SP_MATH
     if (ret != 0) {
+#else
+    if (ret != ASN_GETINT_E) {
+#endif
         ret = -7474;
         goto done;
     }
@@ -11592,7 +11595,11 @@ static int rsa_decode_test(RsaKey* keyPub)
     if (ret != 0)
         return -7475;
     ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, (word32)-1, keyPub);
+#ifndef WOLFSSL_SP_MATH
     if (ret != 0) {
+#else
+    if (ret != ASN_GETINT_E) {
+#endif
         ret = -7476;
         goto done;
     }
