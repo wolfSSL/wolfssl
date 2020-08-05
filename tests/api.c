@@ -33915,6 +33915,12 @@ static int test_mp_rand (void)
         }
     }
     if (ret == 0) {
+        ret = mp_rand(&a, 0, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }    
+    if (ret == 0) {
         ret = mp_rand(&a, digits, &rng);
     }
 
