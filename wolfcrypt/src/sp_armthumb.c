@@ -17650,37 +17650,120 @@ static void sp_256_proj_point_add_8(sp_point_256* r, const sp_point_256* p, cons
     }
 }
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible point that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_256_get_point_16_8(sp_point_256* r, const sp_point_256* table,
+    int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->z[0] = 0;
+    r->z[1] = 0;
+    r->z[2] = 0;
+    r->z[3] = 0;
+    r->z[4] = 0;
+    r->z[5] = 0;
+    r->z[6] = 0;
+    r->z[7] = 0;
+    for (i = 1; i < 16; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->z[0] |= mask & table[i].z[0];
+        r->z[1] |= mask & table[i].z[1];
+        r->z[2] |= mask & table[i].z[2];
+        r->z[3] |= mask & table[i].z[3];
+        r->z[4] |= mask & table[i].z[4];
+        r->z[5] |= mask & table[i].z[5];
+        r->z[6] |= mask & table[i].z[6];
+        r->z[7] |= mask & table[i].z[7];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
+ *
+ * Simple, smaller code size and memory size, of windowing.
+ * Calculate uindow of 4 bits.
+ * Only add points from table.
  *
  * r     Resulting point.
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 td[16];
     sp_point_256 rtd;
     sp_digit tmpd[2 * 8 * 5];
+#ifndef WC_NO_CACHE_RESISTANT
+    sp_point_256 pd;
+#endif
 #endif
     sp_point_256* t;
     sp_point_256* rt;
+#ifndef WC_NO_CACHE_RESISTANT
+    sp_point_256* p;
+#endif
     sp_digit* tmp;
     sp_digit n;
     int i;
     int c, y;
     int err;
 
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
     err = sp_256_point_new_8(heap, rtd, rt);
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#ifndef WC_NO_CACHE_RESISTANT
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 17, heap, DYNAMIC_TYPE_ECC);
+#else
     t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 16, heap, DYNAMIC_TYPE_ECC);
+#endif
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
@@ -17693,6 +17776,13 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
 #endif
 
     if (err == MP_OKAY) {
+#ifndef WC_NO_CACHE_RESISTANT
+    #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+        p = t + 16;
+    #else
+        p = &pd;
+    #endif
+#endif
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
@@ -17734,7 +17824,16 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
         n = k[i+1] << 0;
         c = 28;
         y = n >> 28;
-        XMEMCPY(rt, &t[y], sizeof(sp_point_256));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_point_16_8(rt, t, y);
+            rt->infinity = !y;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[y], sizeof(sp_point_256));
+        }
         n <<= 4;
         for (; i>=0 || c>=4; ) {
             if (c < 4) {
@@ -17750,7 +17849,17 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
             sp_256_proj_point_dbl_8(rt, rt, tmp);
             sp_256_proj_point_dbl_8(rt, rt, tmp);
 
-            sp_256_proj_point_add_8(rt, rt, &t[y], tmp);
+    #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_point_16_8(p, t, y);
+                p->infinity = !y;
+                sp_256_proj_point_add_8(rt, rt, p, tmp);
+            }
+            else
+    #endif
+            {
+                sp_256_proj_point_add_8(rt, rt, &t[y], tmp);
+            }
         }
 
         if (map != 0) {
@@ -18063,17 +18172,73 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
 }
 
 #endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_256_get_entry_16_8(sp_point_256* r,
+    const sp_table_entry_256* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    for (i = 1; i < 16; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * r     Resulting point.
- * k     Scalar to multiply by.
- * map   Indicates whether to convert result to affine.
- * heap  Heap to use for allocation.
+ * Implementation uses striping of bits.
+ * Choose bits 4 bits apart.
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
-        const sp_table_entry_256* table, const sp_digit* k, int map, void* heap)
+        const sp_table_entry_256* table, const sp_digit* k, int map,
+        int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 rtd;
@@ -18088,6 +18253,8 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     int err;
 
     (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
 
@@ -18113,8 +18280,15 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (j=0,x=63; j<4; j++,x+=64) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_entry_16_8(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=62; i>=0; i--) {
             y = 0;
@@ -18123,8 +18297,16 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_entry_16_8(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_256_proj_point_add_qz1_8(rt, rt, p, t);
         }
@@ -18233,14 +18415,15 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_fast_8(r, g, k, map, heap);
+    return sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
 #else
     sp_digit tmp[2 * 8 * 5];
     sp_cache_256_t* cache;
@@ -18265,11 +18448,11 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #endif /* HAVE_THREAD_LS */
 
         if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, heap);
+            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
         }
         else {
             err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
-                    map, heap);
+                    map, ct, heap);
         }
     }
 
@@ -18361,17 +18544,73 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
 }
 
 #endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_256_get_entry_256_8(sp_point_256* r,
+    const sp_table_entry_256* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    for (i = 1; i < 256; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * r     Resulting point.
- * k     Scalar to multiply by.
- * map   Indicates whether to convert result to affine.
- * heap  Heap to use for allocation.
+ * Implementation uses striping of bits.
+ * Choose bits 8 bits apart.
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
-        const sp_table_entry_256* table, const sp_digit* k, int map, void* heap)
+        const sp_table_entry_256* table, const sp_digit* k, int map,
+        int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256 rtd;
@@ -18386,6 +18625,8 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     int err;
 
     (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
 
@@ -18411,8 +18652,15 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (j=0,x=31; j<8; j++,x+=32) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_entry_256_8(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=30; i>=0; i--) {
             y = 0;
@@ -18421,8 +18669,16 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_entry_256_8(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_256_proj_point_add_qz1_8(rt, rt, p, t);
         }
@@ -18531,14 +18787,15 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_256_ecc_mulmod_fast_8(r, g, k, map, heap);
+    return sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
 #else
     sp_digit tmp[2 * 8 * 5];
     sp_cache_256_t* cache;
@@ -18563,11 +18820,11 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #endif /* HAVE_THREAD_LS */
 
         if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, heap);
+            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
         }
         else {
             err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
-                    map, heap);
+                    map, ct, heap);
         }
     }
 
@@ -18612,7 +18869,7 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
 
-            err = sp_256_ecc_mulmod_8(point, point, k, map, heap);
+            err = sp_256_ecc_mulmod_8(point, point, k, map, 1, heap);
     }
     if (err == MP_OKAY) {
         err = sp_256_point_to_ecc_point_8(point, r);
@@ -18716,14 +18973,15 @@ static const sp_table_entry_256 p256_table[16] = {
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_8(r, &p256_base, p256_table,
-                                      k, map, heap);
+                                      k, map, ct, heap);
 }
 
 #else
@@ -20014,14 +20272,15 @@ static const sp_table_entry_256 p256_table[256] = {
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_8(r, &p256_base, p256_table,
-                                      k, map, heap);
+                                      k, map, ct, heap);
 }
 
 #endif
@@ -20060,7 +20319,7 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
 
-            err = sp_256_ecc_mulmod_base_8(point, k, map, heap);
+            err = sp_256_ecc_mulmod_base_8(point, k, map, 1, heap);
     }
     if (err == MP_OKAY) {
         err = sp_256_point_to_ecc_point_8(point, r);
@@ -20239,12 +20498,12 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_256_ecc_gen_k_8(rng, k);
     }
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_base_8(point, k, 1, NULL);
+            err = sp_256_ecc_mulmod_base_8(point, k, 1, 1, NULL);
     }
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, NULL);
+            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, NULL);
     }
     if (err == MP_OKAY) {
         if ((sp_256_iszero_8(point->x) == 0) || (sp_256_iszero_8(point->y) == 0)) {
@@ -20355,7 +20614,7 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, priv);
         sp_256_point_from_ecc_point_8(point, pub);
-            err = sp_256_ecc_mulmod_8(point, point, k, 1, heap);
+            err = sp_256_ecc_mulmod_8(point, point, k, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         sp_256_to_bin(point->x, out);
@@ -21029,7 +21288,7 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         break; 
     case 2: /* MULMOD */
         err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
-            &ctx->point, &p256_base, ctx->k, 1, heap);
+            &ctx->point, &p256_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
         }
@@ -21206,7 +21465,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             mp_zero(km);
         }
         if (err == MP_OKAY) {
-                err = sp_256_ecc_mulmod_base_8(point, k, 1, NULL);
+                err = sp_256_ecc_mulmod_base_8(point, k, 1, 1, NULL);
         }
 
         if (err == MP_OKAY) {
@@ -21366,14 +21625,14 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 5;
         break;
     case 5: /* MULBASE */
-        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, heap);
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 6;
         }
         break;
     case 6: /* MULMOD */
-        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, heap);
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 7;
@@ -21539,10 +21798,10 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
             sp_256_mont_mul_order_8(u2, u2, s);
         }
 
-            err = sp_256_ecc_mulmod_base_8(p1, u1, 0, heap);
+            err = sp_256_ecc_mulmod_base_8(p1, u1, 0, 0, heap);
     }
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, heap);
+            err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, 0, heap);
     }
 
     if (err == MP_OKAY) {
@@ -21777,7 +22036,7 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
-            err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, heap);
+            err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         /* Check result is infinity */
@@ -21789,7 +22048,7 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Base * private = point */
-            err = sp_256_ecc_mulmod_base_8(p, priv, 1, heap);
+            err = sp_256_ecc_mulmod_base_8(p, priv, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         /* Check result is public key */
@@ -24136,37 +24395,144 @@ static void sp_384_proj_point_add_12(sp_point_384* r, const sp_point_384* p, con
     }
 }
 
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible point that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_384_get_point_16_12(sp_point_384* r, const sp_point_384* table,
+    int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    r->z[0] = 0;
+    r->z[1] = 0;
+    r->z[2] = 0;
+    r->z[3] = 0;
+    r->z[4] = 0;
+    r->z[5] = 0;
+    r->z[6] = 0;
+    r->z[7] = 0;
+    r->z[8] = 0;
+    r->z[9] = 0;
+    r->z[10] = 0;
+    r->z[11] = 0;
+    for (i = 1; i < 16; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+        r->z[0] |= mask & table[i].z[0];
+        r->z[1] |= mask & table[i].z[1];
+        r->z[2] |= mask & table[i].z[2];
+        r->z[3] |= mask & table[i].z[3];
+        r->z[4] |= mask & table[i].z[4];
+        r->z[5] |= mask & table[i].z[5];
+        r->z[6] |= mask & table[i].z[6];
+        r->z[7] |= mask & table[i].z[7];
+        r->z[8] |= mask & table[i].z[8];
+        r->z[9] |= mask & table[i].z[9];
+        r->z[10] |= mask & table[i].z[10];
+        r->z[11] |= mask & table[i].z[11];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
+ *
+ * Simple, smaller code size and memory size, of windowing.
+ * Calculate uindow of 4 bits.
+ * Only add points from table.
  *
  * r     Resulting point.
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 td[16];
     sp_point_384 rtd;
     sp_digit tmpd[2 * 12 * 6];
+#ifndef WC_NO_CACHE_RESISTANT
+    sp_point_384 pd;
+#endif
 #endif
     sp_point_384* t;
     sp_point_384* rt;
+#ifndef WC_NO_CACHE_RESISTANT
+    sp_point_384* p;
+#endif
     sp_digit* tmp;
     sp_digit n;
     int i;
     int c, y;
     int err;
 
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
     err = sp_384_point_new_12(heap, rtd, rt);
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#ifndef WC_NO_CACHE_RESISTANT
+    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 17, heap, DYNAMIC_TYPE_ECC);
+#else
     t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 16, heap, DYNAMIC_TYPE_ECC);
+#endif
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
@@ -24179,6 +24545,13 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
 #endif
 
     if (err == MP_OKAY) {
+#ifndef WC_NO_CACHE_RESISTANT
+    #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+        p = t + 16;
+    #else
+        p = &pd;
+    #endif
+#endif
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
@@ -24220,7 +24593,16 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
         n = k[i+1] << 0;
         c = 28;
         y = n >> 28;
-        XMEMCPY(rt, &t[y], sizeof(sp_point_384));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_384_get_point_16_12(rt, t, y);
+            rt->infinity = !y;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[y], sizeof(sp_point_384));
+        }
         n <<= 4;
         for (; i>=0 || c>=4; ) {
             if (c < 4) {
@@ -24236,7 +24618,17 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
             sp_384_proj_point_dbl_12(rt, rt, tmp);
             sp_384_proj_point_dbl_12(rt, rt, tmp);
 
-            sp_384_proj_point_add_12(rt, rt, &t[y], tmp);
+    #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_384_get_point_16_12(p, t, y);
+                p->infinity = !y;
+                sp_384_proj_point_add_12(rt, rt, p, tmp);
+            }
+            else
+    #endif
+            {
+                sp_384_proj_point_add_12(rt, rt, &t[y], tmp);
+            }
         }
 
         if (map != 0) {
@@ -24549,17 +24941,89 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
 }
 
 #endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_384_get_entry_16_12(sp_point_384* r,
+    const sp_table_entry_384* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    for (i = 1; i < 16; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * r     Resulting point.
- * k     Scalar to multiply by.
- * map   Indicates whether to convert result to affine.
- * heap  Heap to use for allocation.
+ * Implementation uses striping of bits.
+ * Choose bits 4 bits apart.
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
-        const sp_table_entry_384* table, const sp_digit* k, int map, void* heap)
+        const sp_table_entry_384* table, const sp_digit* k, int map,
+        int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 rtd;
@@ -24574,6 +25038,8 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     int err;
 
     (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
 
@@ -24599,8 +25065,15 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (j=0,x=95; j<4; j++,x+=96) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_384_get_entry_16_12(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=94; i>=0; i--) {
             y = 0;
@@ -24609,8 +25082,16 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_384_get_entry_16_12(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_384_proj_point_add_qz1_12(rt, rt, p, t);
         }
@@ -24719,14 +25200,15 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_fast_12(r, g, k, map, heap);
+    return sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
 #else
     sp_digit tmp[2 * 12 * 7];
     sp_cache_384_t* cache;
@@ -24751,11 +25233,11 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #endif /* HAVE_THREAD_LS */
 
         if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, heap);
+            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
         }
         else {
             err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
-                    map, heap);
+                    map, ct, heap);
         }
     }
 
@@ -24847,17 +25329,89 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
 }
 
 #endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+/* Touch each possible entry that could be being copied.
+ *
+ * r      Point to copy into.
+ * table  Table - start of the entires to access
+ * idx    Index of entry to retrieve.
+ */
+static void sp_384_get_entry_256_12(sp_point_384* r,
+    const sp_table_entry_384* table, int idx)
+{
+    int i;
+    sp_digit mask;
+
+    r->x[0] = 0;
+    r->x[1] = 0;
+    r->x[2] = 0;
+    r->x[3] = 0;
+    r->x[4] = 0;
+    r->x[5] = 0;
+    r->x[6] = 0;
+    r->x[7] = 0;
+    r->x[8] = 0;
+    r->x[9] = 0;
+    r->x[10] = 0;
+    r->x[11] = 0;
+    r->y[0] = 0;
+    r->y[1] = 0;
+    r->y[2] = 0;
+    r->y[3] = 0;
+    r->y[4] = 0;
+    r->y[5] = 0;
+    r->y[6] = 0;
+    r->y[7] = 0;
+    r->y[8] = 0;
+    r->y[9] = 0;
+    r->y[10] = 0;
+    r->y[11] = 0;
+    for (i = 1; i < 256; i++) {
+        mask = 0 - (i == idx);
+        r->x[0] |= mask & table[i].x[0];
+        r->x[1] |= mask & table[i].x[1];
+        r->x[2] |= mask & table[i].x[2];
+        r->x[3] |= mask & table[i].x[3];
+        r->x[4] |= mask & table[i].x[4];
+        r->x[5] |= mask & table[i].x[5];
+        r->x[6] |= mask & table[i].x[6];
+        r->x[7] |= mask & table[i].x[7];
+        r->x[8] |= mask & table[i].x[8];
+        r->x[9] |= mask & table[i].x[9];
+        r->x[10] |= mask & table[i].x[10];
+        r->x[11] |= mask & table[i].x[11];
+        r->y[0] |= mask & table[i].y[0];
+        r->y[1] |= mask & table[i].y[1];
+        r->y[2] |= mask & table[i].y[2];
+        r->y[3] |= mask & table[i].y[3];
+        r->y[4] |= mask & table[i].y[4];
+        r->y[5] |= mask & table[i].y[5];
+        r->y[6] |= mask & table[i].y[6];
+        r->y[7] |= mask & table[i].y[7];
+        r->y[8] |= mask & table[i].y[8];
+        r->y[9] |= mask & table[i].y[9];
+        r->y[10] |= mask & table[i].y[10];
+        r->y[11] |= mask & table[i].y[11];
+    }
+}
+#endif /* !WC_NO_CACHE_RESISTANT */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
- * r     Resulting point.
- * k     Scalar to multiply by.
- * map   Indicates whether to convert result to affine.
- * heap  Heap to use for allocation.
+ * Implementation uses striping of bits.
+ * Choose bits 8 bits apart.
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
-        const sp_table_entry_384* table, const sp_digit* k, int map, void* heap)
+        const sp_table_entry_384* table, const sp_digit* k, int map,
+        int ct, void* heap)
 {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384 rtd;
@@ -24872,6 +25426,8 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     int err;
 
     (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
     (void)heap;
 
 
@@ -24897,8 +25453,15 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (j=0,x=47; j<8; j++,x+=48) {
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
         }
-        XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
-        XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_384_get_entry_256_12(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
         rt->infinity = !y;
         for (i=46; i>=0; i--) {
             y = 0;
@@ -24907,8 +25470,16 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
-            XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
-            XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_384_get_entry_256_12(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
             p->infinity = !y;
             sp_384_proj_point_add_qz1_12(rt, rt, p, t);
         }
@@ -25017,14 +25588,15 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
  * g     Point to multiply.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
 #ifndef FP_ECC
-    return sp_384_ecc_mulmod_fast_12(r, g, k, map, heap);
+    return sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
 #else
     sp_digit tmp[2 * 12 * 7];
     sp_cache_384_t* cache;
@@ -25049,11 +25621,11 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #endif /* HAVE_THREAD_LS */
 
         if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, heap);
+            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
         }
         else {
             err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
-                    map, heap);
+                    map, ct, heap);
         }
     }
 
@@ -25098,7 +25670,7 @@ int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(point, gm);
 
-            err = sp_384_ecc_mulmod_12(point, point, k, map, heap);
+            err = sp_384_ecc_mulmod_12(point, point, k, map, 1, heap);
     }
     if (err == MP_OKAY) {
         err = sp_384_point_to_ecc_point_12(point, r);
@@ -25202,14 +25774,15 @@ static const sp_table_entry_384 p384_table[16] = {
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
     return sp_384_ecc_mulmod_stripe_12(r, &p384_base, p384_table,
-                                      k, map, heap);
+                                      k, map, ct, heap);
 }
 
 #else
@@ -26500,14 +27073,15 @@ static const sp_table_entry_384 p384_table[256] = {
  * r     Resulting point.
  * k     Scalar to multiply by.
  * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
-        int map, void* heap)
+        int map, int ct, void* heap)
 {
     return sp_384_ecc_mulmod_stripe_12(r, &p384_base, p384_table,
-                                      k, map, heap);
+                                      k, map, ct, heap);
 }
 
 #endif
@@ -26546,7 +27120,7 @@ int sp_ecc_mulmod_base_384(mp_int* km, ecc_point* r, int map, void* heap)
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 12, km);
 
-            err = sp_384_ecc_mulmod_base_12(point, k, map, heap);
+            err = sp_384_ecc_mulmod_base_12(point, k, map, 1, heap);
     }
     if (err == MP_OKAY) {
         err = sp_384_point_to_ecc_point_12(point, r);
@@ -26738,12 +27312,12 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_384_ecc_gen_k_12(rng, k);
     }
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_base_12(point, k, 1, NULL);
+            err = sp_384_ecc_mulmod_base_12(point, k, 1, 1, NULL);
     }
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, NULL);
+            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, NULL);
     }
     if (err == MP_OKAY) {
         if ((sp_384_iszero_12(point->x) == 0) || (sp_384_iszero_12(point->y) == 0)) {
@@ -26854,7 +27428,7 @@ int sp_ecc_secret_gen_384(mp_int* priv, ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 12, priv);
         sp_384_point_from_ecc_point_12(point, pub);
-            err = sp_384_ecc_mulmod_12(point, point, k, 1, heap);
+            err = sp_384_ecc_mulmod_12(point, point, k, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         sp_384_to_bin(point->x, out);
@@ -27520,7 +28094,7 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         break; 
     case 2: /* MULMOD */
         err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
-            &ctx->point, &p384_base, ctx->k, 1, heap);
+            &ctx->point, &p384_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
         }
@@ -27697,7 +28271,7 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             mp_zero(km);
         }
         if (err == MP_OKAY) {
-                err = sp_384_ecc_mulmod_base_12(point, k, 1, NULL);
+                err = sp_384_ecc_mulmod_base_12(point, k, 1, 1, NULL);
         }
 
         if (err == MP_OKAY) {
@@ -27857,14 +28431,14 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 5;
         break;
     case 5: /* MULBASE */
-        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, heap);
+        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 6;
         }
         break;
     case 6: /* MULMOD */
-        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, heap);
+        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 7;
@@ -28030,10 +28604,10 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
             sp_384_mont_mul_order_12(u2, u2, s);
         }
 
-            err = sp_384_ecc_mulmod_base_12(p1, u1, 0, heap);
+            err = sp_384_ecc_mulmod_base_12(p1, u1, 0, 0, heap);
     }
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, heap);
+            err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, 0, heap);
     }
 
     if (err == MP_OKAY) {
@@ -28272,7 +28846,7 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
-            err = sp_384_ecc_mulmod_12(p, pub, p384_order, 1, heap);
+            err = sp_384_ecc_mulmod_12(p, pub, p384_order, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         /* Check result is infinity */
@@ -28284,7 +28858,7 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Base * private = point */
-            err = sp_384_ecc_mulmod_base_12(p, priv, 1, heap);
+            err = sp_384_ecc_mulmod_base_12(p, priv, 1, 1, heap);
     }
     if (err == MP_OKAY) {
         /* Check result is public key */
