@@ -1331,8 +1331,10 @@ WOLFSSL_API char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME*, char*, int);
 #endif
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(
                                                                  WOLFSSL_X509*);
+WOLFSSL_API unsigned long  wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(
                                                                  WOLFSSL_X509*);
+WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509);
 WOLFSSL_API int  wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509*, int);
 WOLFSSL_API int  wolfSSL_X509_ext_get_critical_by_NID(WOLFSSL_X509*, int);
 WOLFSSL_API int  wolfSSL_X509_get_isCA(WOLFSSL_X509*);
@@ -3895,7 +3897,6 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY** pkey, pem_password_cb* cb, void* u);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(
     WOLFSSL_EVP_PKEY** pkey, const unsigned char** data, long length);
-WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509);
 
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
