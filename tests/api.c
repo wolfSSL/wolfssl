@@ -20654,7 +20654,7 @@ static int test_ToTraditional (void)
 static int test_wc_EccPrivateKeyToDer (void)
 {
     int ret = 0;
-#if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 
     byte            output[FOURK_BUF];
     ecc_key         eccKey;
