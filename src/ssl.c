@@ -4141,7 +4141,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 static WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 {
     return ((word32)hashID[0] << 24) | ((word32)hashID[1] << 16) |
-        (hashID[2] <<  8) | hashID[3];
+           ((word32)hashID[2] <<  8) |  (word32)hashID[3];
 }
 
 #endif /* !NO_CERTS || !NO_SESSION_CACHE */
@@ -19783,9 +19783,10 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
     return NULL;
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
+#if defined(OPENSSL_EXTRA) && (!defined(NO_SHA) || !defined(NO_SHA256))
 /******************************************************************************
 * wolfSSL_X509_subject_name_hash - compute the hash digest of the raw subject name
+* This function prefers SHA-1 (if available) for compatibility
 *
 * RETURNS:
 * The beginning of the hash digest. Otherwise, returns zero.
@@ -19795,36 +19796,59 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 */
 unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
 {
-    word32 ret = 0;
-    int retHash;
+    unsigned long ret = 0;
+    int retHash = NOT_COMPILED_IN;
     WOLFSSL_X509_NAME *subjectName = NULL;
+    byte digest[WC_MAX_DIGEST_SIZE];
 
-#ifdef WOLFSSL_PIC32MZ_HASH
-        byte digest[PIC32_DIGEST_SIZE];
-#else
-        byte digest[WC_SHA_DIGEST_SIZE];
-#endif
-
-    if (x509 == NULL){
-        return WOLFSSL_FAILURE;
+    if (x509 == NULL) {
+        return ret;
     }
 
     subjectName = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)x509);
-
-    if (subjectName != NULL){
+    if (subjectName != NULL) {
+    #ifndef NO_SHA
         retHash = wc_ShaHash((const byte*)subjectName->name,
                              (word32)subjectName->sz, digest);
-
-        if(retHash != 0){
-            WOLFSSL_MSG("Hash of X509 subjectName has failed");
-            return WOLFSSL_FAILURE;
+    #elif !defined(NO_SHA256)
+        retHash = wc_Sha256Hash((const byte*)subjectName->name,
+                                (word32)subjectName->sz, digest);
+    #endif
+        if (retHash == 0) {
+            ret = (unsigned long)MakeWordFromHash(digest);
         }
-        ret = MakeWordFromHash(digest);
     }
 
-    return (unsigned long)ret;
+    return ret;
 }
-#endif /* OPENSSL_EXTRA && !NO_SHA */
+
+unsigned long wolfSSL_X509_issuer_name_hash(const WOLFSSL_X509* x509)
+{
+    unsigned long ret = 0;
+    int retHash = NOT_COMPILED_IN;
+    WOLFSSL_X509_NAME *issuerName = NULL;
+    byte digest[WC_MAX_DIGEST_SIZE];
+
+    if (x509 == NULL) {
+        return ret;
+    }
+
+    issuerName = wolfSSL_X509_get_issuer_name((WOLFSSL_X509*)x509);
+    if (issuerName != NULL) {
+    #ifndef NO_SHA
+        retHash = wc_ShaHash((const byte*)issuerName->name,
+                             (word32)issuerName->sz, digest);
+    #elif !defined(NO_SHA256)
+        retHash = wc_Sha256Hash((const byte*)issuerName->name,
+                                (word32)issuerName->sz, digest);
+    #endif
+        if (retHash == 0) {
+            ret = (unsigned long)MakeWordFromHash(digest);
+        }
+    }
+    return ret;
+}
+#endif /* OPENSSL_EXTRA && (!NO_SHA || !NO_SHA256) */
 
 WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
@@ -20056,7 +20080,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
 #if defined(OPENSSL_ALL)
 /* Takes two WOLFSSL_X509* certificates and performs a Sha hash of each, if the
-   * has values are the same, then it will do an XMEMCMP to confirm they are
+   * hash values are the same, then it will do an XMEMCMP to confirm they are
    * identical. Returns a 0 when certificates match, returns a negative number
    * when certificates are not a match.
 */
@@ -20064,64 +20088,31 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
         const byte* derA;
         const byte* derB;
-        int retHashA;
-        int retHashB;
         int outSzA = 0;
         int outSzB = 0;
-
-        #ifdef WOLFSSL_PIC32MZ_HASH
-            byte digestA[PIC32_DIGEST_SIZE];
-            byte digestB[PIC32_DIGEST_SIZE];
-        #else
-            byte digestA[WC_SHA_DIGEST_SIZE];
-            byte digestB[WC_SHA_DIGEST_SIZE];
-        #endif
 
         if (a == NULL || b == NULL){
             return BAD_FUNC_ARG;
         }
 
         derA = wolfSSL_X509_get_der((WOLFSSL_X509*)a, &outSzA);
-        if(derA == NULL){
+        if (derA == NULL){
             WOLFSSL_MSG("wolfSSL_X509_get_der - certificate A has failed");
             return WOLFSSL_FATAL_ERROR;
         }
         derB = wolfSSL_X509_get_der((WOLFSSL_X509*)b, &outSzB);
-        if(derB == NULL){
+        if (derB == NULL){
             WOLFSSL_MSG("wolfSSL_X509_get_der - certificate B has failed");
             return WOLFSSL_FATAL_ERROR;
         }
 
-        retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
-        if(retHashA != 0){
-            WOLFSSL_MSG("Hash of certificate A has failed");
-            return WOLFSSL_FATAL_ERROR;
-        }
-        retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
-        if(retHashB != 0){
-            WOLFSSL_MSG("Hash of certificate B has failed");
-            return WOLFSSL_FATAL_ERROR;
-        }
-
-        if (outSzA == outSzB){
-            #ifdef WOLFSSL_PIC32MZ_HASH
-            if(XMEMCMP(digestA, digestB, PIC32_DIGEST_SIZE) != 0){
-                return WOLFSSL_FATAL_ERROR;
-            }
-            #else
-            if(XMEMCMP(digestA, digestB, WC_SHA_DIGEST_SIZE) != 0){
-                return WOLFSSL_FATAL_ERROR;
-            }
-            #endif
-            else{
-                WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
-                return 0;
-            }
-        }
-        else{
+        if (outSzA != outSzB || XMEMCMP(derA, derB, outSzA) != 0) {
             WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_FATAL_ERROR);
             return WOLFSSL_FATAL_ERROR;
         }
+
+        WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+        return 0;
     }
 #endif /* OPENSSL_ALL */
 
