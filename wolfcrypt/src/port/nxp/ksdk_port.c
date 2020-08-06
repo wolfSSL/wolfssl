@@ -1122,7 +1122,7 @@ status_t LTC_PKHA_Curve25519ComputeY(ltc_pkha_ecc_point_t *ltcPoint)
 /* if type is set, the input point p is in Montgomery curve coordinates,
     so there is a map to Weierstrass curve */
 /* q output point is always in Montgomery curve coordinates */
-int nxp_ltc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
+int nxp_ltc_curve25519(ECPoint *q, const byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
 {
     status_t status;
     ltc_pkha_ecc_point_t ltcPoint;
