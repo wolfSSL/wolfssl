@@ -26783,6 +26783,8 @@ static void test_wolfSSL_X509_sign(void)
     long clientKeySz = (long)sizeof_client_key_der_2048;
     long clientPubKeySz = (long)sizeof_client_keypub_der_2048;
 #endif
+    byte sn[16];
+    int snSz = sizeof(sn);
 
     printf(testingFmt, "wolfSSL_X509_sign\n");
 
@@ -26851,12 +26853,14 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntEQ(X509_get_ext_count(x509), SSL_FAILURE);
 #endif
 
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
+                WOLFSSL_SUCCESS);
 #ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 798 */
-    AssertIntEQ(ret, 798);
+    /* Valid case - size should be 798 with 16 byte serial number */
+    AssertIntEQ(ret, 782 + snSz);
 #else /* WOLFSSL_ALT_NAMES */
-    /* Valid case - size should be 927 */
-    AssertIntEQ(ret, 927);
+    /* Valid case - size should be 927 with 16 byte serial number */
+    AssertIntEQ(ret, 911 + snSz);
 #endif /* WOLFSSL_ALT_NAMES */
 
     X509_NAME_free(name);
