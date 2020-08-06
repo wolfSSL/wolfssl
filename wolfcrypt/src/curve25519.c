@@ -51,13 +51,16 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
+static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] = {9};
+
 /* compute the public key from an existing private key, using bare vectors. */
 int wc_curve25519(int public_size, byte* public, int private_size, const byte* private) {
     int ret;
 
     if ((public_size != CURVE25519_KEYSIZE) ||
-        (private_size != CURVE25519_KEYSIZE))
+        (private_size != CURVE25519_KEYSIZE)) {
         return ECC_BAD_ARG_E;
+    }
     if ((public == NULL) || (private == NULL))
         return ECC_BAD_ARG_E;
 
@@ -72,13 +75,10 @@ int wc_curve25519(int public_size, byte* public, int private_size, const byte* p
         ECPoint wc_pub;
         ret = nxp_ltc_curve25519(&wc_pub, private, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
         if (ret == 0)
-            XMEMCPY(public, wc_pub.point, CURVE25519_KEY_SIZE);
+            XMEMCPY(public, wc_pub.point, CURVE25519_KEYSIZE);
     }
 #else
-    {
-        static const unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
-        ret = curve25519(public, private, basepoint);
-    }
+    ret = curve25519(public, private, kCurve25519BasePoint);
 #endif
 
     return ret;
@@ -88,8 +88,6 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 {
 #ifdef FREESCALE_LTC_ECC
     const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
-#else
-    static const unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
 #endif
     int  ret;
 
@@ -118,7 +116,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     #ifdef FREESCALE_LTC_ECC
         ret = nxp_ltc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
     #else
-        ret = curve25519(key->p.point, key->k.point, basepoint);
+        ret = curve25519(key->p.point, key->k.point, kCurve25519BasePoint);
     #endif
     if (ret != 0) {
         ForceZero(key->k.point, keysize);
