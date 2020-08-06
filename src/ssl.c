@@ -32964,7 +32964,8 @@ WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned ch
         return NULL;
     }
 
-    if (wc_ecc_import_private_key(*in, len, NULL, 0, (ecc_key*)eckey->internal) != MP_OKAY) {
+    if (wc_ecc_import_private_key(*in, (word32)len, NULL, 0,
+            (ecc_key*)eckey->internal) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_import_private_key error");
         goto error;
     }
@@ -37333,10 +37334,10 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
 
         /* Set the X509_NAME buffer as the input data for cert.
          * in is NOT a full certificate. Just the name. */
-        InitDecodedCert(&cert, *in, length, NULL);
+        InitDecodedCert(&cert, *in, (word32)length, NULL);
 
         /* Parse the X509 subject name */
-        if (GetName(&cert, SUBJECT, length) != 0) {
+        if (GetName(&cert, SUBJECT, (int)length) != 0) {
             WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
             return NULL;
         }
