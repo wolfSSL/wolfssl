@@ -11,7 +11,7 @@
     _Example_
     \code
     Sha256 sha256[1];
-    if ((ret = wc_InitSha356(sha256)) != 0) {
+    if ((ret = wc_InitSha256(sha256)) != 0) {
         WOLFSSL_MSG("wc_InitSha256 failed");
     }
     else {
@@ -77,7 +77,7 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     byte data[] = { Data to be hashed };
     word32 len = sizeof(data);
 
-    if ((ret = wc_InitSha356(sha256)) != 0) {
+    if ((ret = wc_InitSha256(sha256)) != 0) {
        WOLFSSL_MSG("wc_InitSha256 failed");
     }
     else {
@@ -140,7 +140,7 @@ WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256);
     \code
     Sha256 sha256[1];
     byte hash[32];
-    if ((ret = wc_InitSha356(sha256)) != 0) {
+    if ((ret = wc_InitSha256(sha256)) != 0) {
        WOLFSSL_MSG("wc_InitSha256 failed");
     }
     else {
