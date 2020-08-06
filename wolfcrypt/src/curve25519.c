@@ -53,7 +53,11 @@ const curve25519_set_type curve25519_sets[] = {
 
 static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] = {9};
 
-/* compute the public key from an existing private key, using bare vectors. */
+/* compute the public key from an existing private key, using bare vectors.
+ *
+ * return value is propagated from curve25519() (0 on success), or ECC_BAD_ARG_E,
+ * and the byte vectors are little endian.
+ */
 int wc_curve25519_make_pub(int public_size, byte* public, int private_size, const byte* private) {
     int ret;
 
