@@ -17120,7 +17120,7 @@ static int test_wc_curve25519_make_pub (void)
         }
     }
     if (ret == 0) {
-      ret = wc_curve25519_make_pub((int)sizeof key.k.point, key.k.point, (int)sizeof out, out);
+      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
     }
     /*test bad cases*/
     if (ret == 0) {
@@ -17130,19 +17130,19 @@ static int test_wc_curve25519_make_pub (void)
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof key.k.point, NULL, (int)sizeof out, out);
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, NULL);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof key.k.point, key.k.point, (int)sizeof out - 1, out);
+        ret = wc_curve25519_make_pub((int)sizeof out - 1, out, (int)sizeof key.k.point, key.k.point);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_curve25519_make_pub((int)sizeof key.k.point, key.k.point, (int)sizeof out, NULL);
+        ret = wc_curve25519_make_pub((int)sizeof out, NULL, (int)sizeof key.k.point, key.k.point);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
@@ -17150,7 +17150,7 @@ static int test_wc_curve25519_make_pub (void)
     if (ret == 0) {
         /* verify clamping test */
         key.k.point[0] |= ~248;
-        ret = wc_curve25519_make_pub((int)sizeof key.k.point, key.k.point, (int)sizeof out, out);
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
         if (ret == ECC_BAD_ARG_E) {
             ret = 0;
         }
@@ -17158,7 +17158,7 @@ static int test_wc_curve25519_make_pub (void)
     }
     /* repeat the expected-to-succeed test. */
     if (ret == 0) {
-      ret = wc_curve25519_make_pub((int)sizeof key.k.point, key.k.point, (int)sizeof out, out);
+      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
