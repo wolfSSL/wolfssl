@@ -20598,8 +20598,75 @@ static int test_wc_ecc_is_valid_idx (void)
 
 
 } /* END test_wc_ecc_is_valid_idx */
+/*
+ * Testing wc_ecc_get_curve_id_from_oid()
+ */
+static int test_wc_ecc_get_curve_id_from_oid (void)
+{
+    int ret = 0;
+#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) 
+    word32 len = 8;
+    const byte oid[] = {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07};
 
+    printf(testingFmt, "wc_ecc_get_curve_id_from_oid()");
 
+    /* Bad Cases */
+    ret = wc_ecc_get_curve_id_from_oid(NULL, len);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_ecc_get_curve_id_from_oid(oid, 0);
+        if (ret == ECC_CURVE_INVALID) {
+            ret = 0;
+        }
+    }
+    /* Good Case */
+    if (ret == 0) {
+        ret = wc_ecc_get_curve_id_from_oid(oid, len);
+        if (ret == 7) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}/* END test_wc_ecc_get_curve_id_from_oid */
+/*
+ * Testing wc_ecc_sig_size_calc()
+ */
+static int test_wc_ecc_sig_size_calc (void)
+{
+    int ret = 0;
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+    ecc_key     key;
+    WC_RNG      rng;
+    int         sz;
+
+    printf(testingFmt, "wc_ecc_sig_size_calc()");
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, 16, &key);
+        }
+    }
+    sz = sizeof(key);
+    if (ret == 0) {
+        ret = wc_ecc_sig_size_calc(sz);
+        if (ret > 0) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_ecc_sig_size_calc */
 /*
  * Testing wc_PKCS7_New()
  */
@@ -36024,6 +36091,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_verify_hash_ex(), 0);
     AssertIntEQ(test_wc_ecc_mulmod(), 0);
     AssertIntEQ(test_wc_ecc_is_valid_idx(), 0);
+    AssertIntEQ(test_wc_ecc_get_curve_id_from_oid(), 0);
+    AssertIntEQ(test_wc_ecc_sig_size_calc(), 0);
 
     test_wc_PKCS7_New();
     test_wc_PKCS7_Init();
