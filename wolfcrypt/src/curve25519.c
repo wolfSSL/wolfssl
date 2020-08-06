@@ -70,8 +70,9 @@ int wc_curve25519_make_pub(int public_size, byte* public, int private_size, cons
 
     /* check clamping */
     if ((private[0] & ~248) ||
-        (private[CURVE25519_KEYSIZE-1] & 128))
+        (private[CURVE25519_KEYSIZE-1] & 128)) {
         return ECC_BAD_ARG_E;
+    }
 
 #ifdef FREESCALE_LTC_ECC
     {
