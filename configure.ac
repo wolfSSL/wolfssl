@@ -2535,13 +2535,29 @@ AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" != "xrand"],
 AC_ARG_ENABLE([selftest],
     [AS_HELP_STRING([--enable-selftest],[Enable selftest, Will NOT work w/o CAVP selftest license (default: disabled)])],
     [ ENABLED_SELFTEST=$enableval ],
-    [ ENABLED_SELFTEST=no ]
+    [ ENABLED_SELFTEST="no" ]
     )
 
-if test "x$ENABLED_SELFTEST" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST"
-fi
+AS_CASE([$ENABLED_SELFTEST],
+    ["v2"],[
+        # selftest v2 (wolfCrypt 4.1.0)
+        ENABLED_SELFTEST="yes"
+        SELFTEST_VERSION="v2"
+    ],
+    ["no"],[SELFTEST_VERSION="none"],
+    [
+        # selftest v1 (wolfCrypt 3.14.2)
+        ENABLED_SELFTEST="yes"
+        SELFTEST_VERSION="v1"
+    ])
+
+AS_CASE([$SELFTEST_VERSION],
+    ["v2"],[
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST -DHAVE_SELFTEST_VERSION=2"
+    ],
+    ["v1"],[
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST"
+    ])
 
 
 # set sha224 default

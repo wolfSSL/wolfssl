@@ -28,6 +28,7 @@ Platform is one of:
     openrtos-3.9.2
     linux-ecc
     netbsd-selftest
+    marvell-linux-selftest
     sgx
     netos-7.6
     linuxv2 (FIPSv2, use for Win10)
@@ -99,6 +100,13 @@ NETBSD_FIPS_VERSION=v3.14.2b
 NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
 NETBSD_CRYPT_VERSION=v3.14.2
 NETBSD_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
+
+# non-FIPS, CAVP only but pull in selftest
+# will reset above variables below in platform switch
+MARVELL_LINUX_FIPS_VERSION=v3.14.2b
+MARVELL_LINUX_FIPS_REPO=git@github.com:wolfssl/fips.git
+MARVELL_LINUX_CRYPT_VERSION=v4.1.0-stable
+MARVELL_LINUX_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
 
 STM32L4_V2_FIPS_VERSION=WCv4.0.1-stable
 STM32L4_V2_FIPS_REPO=git@github.com:wolfSSL/fips.git
@@ -184,6 +192,18 @@ netbsd-selftest)
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
   CAVP_SELFTEST_ONLY="yes"
+  ;;
+marvell-linux-selftest)
+  FIPS_VERSION=$MARVELL_LINUX_FIPS_VERSION
+  FIPS_REPO=$MARVELL_LINUX_FIPS_REPO
+  CRYPT_VERSION=$MARVELL_LINUX_CRYPT_VERSION
+  CRYPT_REPO=$MARVELL_LINUX_CRYPT_REPO
+  FIPS_SRCS=( selftest.c )
+  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  CAVP_SELFTEST_ONLY="yes"
+  CAVP_SELFTEST_OPTION=v2
   ;;
 sgx)
   FIPS_VERSION=$SGX_FIPS_VERSION
@@ -333,7 +353,12 @@ done
 ./autogen.sh
 if [ "x$CAVP_SELFTEST_ONLY" == "xyes" ];
 then
-    ./configure --enable-selftest
+    if [ "x$CAVP_SELFTEST_OPTION" == "xv2" ]
+    then
+        ./configure --enable-selftest=v2
+    else
+        ./configure --enable-selftest
+    fi
 else
     ./configure --enable-fips=$FIPS_OPTION
 fi
