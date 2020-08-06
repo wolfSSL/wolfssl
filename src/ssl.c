@@ -32097,6 +32097,7 @@ int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
 int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 {
     int     initTmpRng = 0;
+    int     eccEnum;
     WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRNG = NULL;
@@ -32139,10 +32140,10 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
     }
 
     /* NIDToEccEnum returns -1 for invalid NID so if key->group->curve_nid
-     * is 0 then pass 0 as arg */
-    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal,
-            key->group->curve_nid ? NIDToEccEnum(key->group->curve_nid) : 0
-            ) != MP_OKAY) {
+     * is 0 then pass ECC_CURVE_DEF as arg */
+    eccEnum = key->group->curve_nid ?
+            NIDToEccEnum(key->group->curve_nid) : ECC_CURVE_DEF;
+    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal, eccEnum) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key wc_ecc_make_key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
@@ -33035,7 +33036,7 @@ int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
 
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
 {
-    if (eckey && (form == POINT_CONVERSION_COMPRESSED
+    if (eckey && (form == POINT_CONVERSION_UNCOMPRESSED
 #ifdef HAVE_COMP_KEY
                   || form == POINT_CONVERSION_COMPRESSED
 #endif
@@ -37330,8 +37331,11 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
             return NULL;
         }
 
+        /* Set the X509_NAME buffer as the input data for cert.
+         * in is NOT a full certificate. Just the name. */
         InitDecodedCert(&cert, *in, length, NULL);
 
+        /* Parse the X509 subject name */
         if (GetName(&cert, SUBJECT, length) != 0) {
             WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
             return NULL;
