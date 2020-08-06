@@ -20088,12 +20088,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
         const byte* derA;
         const byte* derB;
-        int retHashA;
-        int retHashB;
         int outSzA = 0;
         int outSzB = 0;
-        byte digestA[WC_MAX_DIGEST_SIZE];
-        byte digestB[WC_MAX_DIGEST_SIZE];
 
         if (a == NULL || b == NULL){
             return BAD_FUNC_ARG;
