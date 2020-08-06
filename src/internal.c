@@ -18999,6 +18999,8 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
         authStr = "SRP";
     else if (XSTRNCMP(n1,"ECDSA",5) == 0)
         authStr = "ECDSA";
+    else if (XSTRNCMP(n0,"ADH",3) == 0)
+        authStr = "None";
     else
         authStr = "unknown";
 
