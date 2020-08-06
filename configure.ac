@@ -3917,9 +3917,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL"
     # recommended if building wolfSSL specifically for use by lighttpd
     if test "x$ENABLED_ALL" = "xno"; then
-        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
-        AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
-        ENABLED_OLD_TLS=no
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_COMP"
+        if test "x$ENABLED_SSLV3" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL3"
+            if test "x$ENABLED_TLSV10" = "xno"; then
+                AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+                ENABLED_OLD_TLS=no
+            fi
+        fi
         if test "x$ENABLED_CRL_MONITOR" = "xno"; then
             AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
             ENABLED_SINGLETHREADED="yes"
