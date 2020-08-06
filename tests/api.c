@@ -20621,7 +20621,7 @@ static int test_ToTraditional (void)
 
     /* Good case */
     ret = ToTraditional(input, sz);
-    if (ret != 0  && ret != ASN_PARSE_E) {
+    if (ret > 0) {
         ret = 0;
     }
     /* Bad cases */
@@ -20656,7 +20656,7 @@ static int test_wc_EccPrivateKeyToDer (void)
     int ret = 0;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG)
 
-    byte            output[FOURK_BUF];
+    byte            output[ONEK_BUF];
     ecc_key         eccKey;
     WC_RNG          rng;
     word32          inLen;
@@ -20667,9 +20667,9 @@ static int test_wc_EccPrivateKeyToDer (void)
     if (ret == 0) {
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
-            wc_ecc_make_key(&rng, KEY14, &eccKey);
+            ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
         }
-        inLen = (word32)sizeof(eccKey);
+        inLen = (word32)sizeof(output);
         /* Bad Cases */
         if (ret == 0) {
             ret = wc_EccPrivateKeyToDer(NULL, NULL, 0);
@@ -20719,7 +20719,7 @@ static int test_wc_Ed25519KeyToDer (void)
 #if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
-    byte            output[FOURK_BUF];
+    byte            output[ONEK_BUF];
     ed25519_key     ed25519Key;
     WC_RNG          rng;
     word32          inLen;
@@ -20731,9 +20731,9 @@ static int test_wc_Ed25519KeyToDer (void)
     if (ret == 0) {
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
         }
-        inLen = (word32)sizeof(ed25519Key);
+        inLen = (word32)sizeof(output);
         
         /* Bad Cases */
         if (ret == 0) {
@@ -20784,7 +20784,7 @@ static int test_wc_Ed25519PrivateKeyToDer (void)
 #if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
-    byte            output[FOURK_BUF];
+    byte            output[ONEK_BUF];
     ed25519_key     ed25519PrivKey;
     WC_RNG          rng;
     word32          inLen;
@@ -20797,9 +20797,9 @@ static int test_wc_Ed25519PrivateKeyToDer (void)
     if (ret == 0) {
         ret = wc_ed25519_init(&ed25519PrivKey);
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519PrivKey);
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519PrivKey);
         }
-        inLen = (word32)sizeof(ed25519PrivKey);
+        inLen = (word32)sizeof(output);
         
         /* Bad Cases */
         if (ret == 0) {
@@ -20862,7 +20862,7 @@ static int test_wc_Ed448KeyToDer (void)
     if (ret == 0) {
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
+            ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
         }
         inLen = sizeof(output);
         
@@ -20927,7 +20927,7 @@ static int test_wc_Ed448PrivateKeyToDer (void)
     if (ret == 0) {
         ret = wc_ed448_init(&ed448PrivKey);
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448PrivKey);
+            ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448PrivKey);
         }
         inLen = sizeof(output);
         
@@ -21011,7 +21011,7 @@ static int test_wc_SetSubjectBuffer (void)
             ret = 0;
         }
     }
-    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
     return ret;
@@ -21028,18 +21028,14 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
     Cert            cert;
 #if defined(HAVE_ED25519)
     ed25519_key     ed25519Key;
-    ed25519_key*    ed25519PrivKey = NULL;
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA)
     RsaKey          rsaKey;
-    RsaKey*         rsaPrivKey = NULL;
     int             bits = 2048;
 #endif
     ecc_key         eccKey;
-    ecc_key*        eccPrivKey = NULL;
 #if defined(HAVE_ED448)
     ed448_key       ed448Key;
-    ed448_key*      ed448PrivKey = NULL;
 #endif
 
     printf(testingFmt, "wc_SetSubjectKeyIdFromPublicKey_ex()");
@@ -21054,55 +21050,51 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
 #if defined(HAVE_ED25519)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
-        ed25519PrivKey = &ed25519Key;
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, ed25519PrivKey);
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
-                                                  ed25519PrivKey);
+                                                  &ed25519Key);
         }
-        wc_ed25519_free(ed25519PrivKey);
+        wc_ed25519_free(&ed25519Key);
     }
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
     if (ret == 0) { /*RSA*/
         ret = wc_InitRsaKey(&rsaKey, NULL);
-        rsaPrivKey = &rsaKey;
         if (ret == 0) {
-            MAKE_RSA_KEY(rsaPrivKey, bits, WC_RSA_EXPONENT, &rng);
+            MAKE_RSA_KEY(&rsaKey, bits, WC_RSA_EXPONENT, &rng);
         }
         if (ret == 0) {
-            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, RSA_TYPE, rsaPrivKey);
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, RSA_TYPE, &rsaKey);
         }
-        wc_FreeRsaKey(rsaPrivKey);
+        wc_FreeRsaKey(&rsaKey);
     }
 #endif
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
-        eccPrivKey = &eccKey;
         if (ret == 0) {
-            wc_ecc_make_key(&rng, KEY14, eccPrivKey);
+            wc_ecc_make_key(&rng, KEY14, &eccKey);
         }
         if (ret == 0) {
-            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, eccPrivKey);
+            ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
         }
-        wc_ecc_free(eccPrivKey);
+        wc_ecc_free(&eccKey);
     }
 #if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
-        ed448PrivKey = &ed448Key;
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, ed448PrivKey);
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
-                                                  ed448PrivKey);
+                                                  &ed448Key);
         }
-        wc_ed448_free(ed448PrivKey);
+        wc_ed448_free(&ed448Key);
     }
 #endif
 
@@ -21123,18 +21115,14 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
     Cert            cert;
 #if defined(HAVE_ED25519)
     ed25519_key     ed25519Key;
-    ed25519_key*    ed25519PrivKey = NULL;
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA)
     RsaKey          rsaKey;
-    RsaKey*         rsaPrivKey = NULL;
     int             bits = 2048;
 #endif
     ecc_key         eccKey;
-    ecc_key*        eccPrivKey = NULL;
 #if defined(HAVE_ED448)
     ed448_key       ed448Key;
-    ed448_key*      ed448PrivKey = NULL;
 #endif
 
     printf(testingFmt, "wc_SetAuthKeyIdFromPublicKey_ex()");
@@ -21149,55 +21137,51 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
 #if defined(HAVE_ED25519)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
-        ed25519PrivKey = &ed25519Key;
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, ed25519PrivKey);
+            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
-                                                  ed25519PrivKey);
+                                                  &ed25519Key);
         }
-        wc_ed25519_free(ed25519PrivKey);
+        wc_ed25519_free(&ed25519Key);
     }
 #endif
 #if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
     if (ret == 0) { /*RSA*/
         ret = wc_InitRsaKey(&rsaKey, NULL);
-        rsaPrivKey = &rsaKey;
         if (ret == 0) {
-            MAKE_RSA_KEY(rsaPrivKey, bits, WC_RSA_EXPONENT, &rng);
+            MAKE_RSA_KEY(&rsaKey, bits, WC_RSA_EXPONENT, &rng);
         }
         if (ret == 0) {
-            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, RSA_TYPE, rsaPrivKey);
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, RSA_TYPE, &rsaKey);
         }
-        wc_FreeRsaKey(rsaPrivKey);
+        wc_FreeRsaKey(&rsaKey);
     }
 #endif
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
-        eccPrivKey = &eccKey;
         if (ret == 0) {
-            wc_ecc_make_key(&rng, KEY14, eccPrivKey);
+            wc_ecc_make_key(&rng, KEY14, &eccKey);
         }
         if (ret == 0) {
-            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, eccPrivKey);
+            ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
         }
-        wc_ecc_free(eccPrivKey);
+        wc_ecc_free(&eccKey);
     }
 #if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
-        ed448PrivKey = &ed448Key;
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, ed448PrivKey);
+            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
-                                                  ed448PrivKey);
+                                                  &ed448Key);
         }
-        wc_ed448_free(ed448PrivKey);
+        wc_ed448_free(&ed448Key);
     }
 #endif
 
