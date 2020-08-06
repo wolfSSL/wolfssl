@@ -20604,7 +20604,7 @@ static int test_wc_ecc_is_valid_idx (void)
 static int test_wc_ecc_get_curve_id_from_oid (void)
 {
     int ret = 0;
-#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) 
+#if defined(HAVE_ECC) && !defined(NO_ECC256)
     word32 len = 8;
     const byte oid[] = {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07};
 
@@ -20654,7 +20654,7 @@ static int test_wc_ecc_sig_size_calc (void)
             ret = wc_ecc_make_key(&rng, 16, &key);
         }
     }
-    sz = sizeof(key);
+    sz = key.dp->size;
     if (ret == 0) {
         ret = wc_ecc_sig_size_calc(sz);
         if (ret > 0) {
@@ -20663,7 +20663,8 @@ static int test_wc_ecc_sig_size_calc (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
+    wc_ecc_free(&key);
+    wc_FreeRng(&rng);
 #endif
     return ret;
 } /* END test_wc_ecc_sig_size_calc */
