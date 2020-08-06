@@ -120,7 +120,7 @@ AS_CASE([$ENABLED_FIPS],
         ENABLED_FIPS="yes"
         FIPS_VERSION="v1"
     ])
-    
+
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
@@ -491,7 +491,7 @@ AC_ARG_ENABLE([libwebsockets],
     )
 if test "$ENABLED_LIBWEBSOCKETS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LIBWEBSOCKETS -DOPENSSL_NO_EC"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LIBWEBSOCKETS -DHAVE_EX_DATA -DOPENSSL_NO_EC"
 fi
 
 
@@ -4190,7 +4190,7 @@ AC_ARG_WITH([octeon-sync],
         AM_CFLAGS="$AM_CFLAGS -I$OCTEON_ROOT/executive"
         AS_CASE([$OCTEON_HOST],['linux'],[AM_CFLAGS="$AM_CFLAGS -DCVMX_BUILD_FOR_LINUX_HOST"])
 
-        #-I$OCTEON_ROOT/target/include 
+        #-I$OCTEON_ROOT/target/include
         AM_LDFLAGS="$AM_LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
         AM_LDFLAGS="$AM_LDFLAGS -L$OCTEON_ROOT/executive/$OCTEON_OBJ -lcvmx -lfdt"
 
