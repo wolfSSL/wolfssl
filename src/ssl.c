@@ -11861,6 +11861,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
 
 
+    WOLFSSL_ABI
     int wolfSSL_accept(WOLFSSL* ssl)
     {
 #if !(defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13))
