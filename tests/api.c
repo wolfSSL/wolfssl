@@ -688,11 +688,11 @@ static void test_for_double_Free(void)
 "HA384:TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-"
 "8-SHA256:TLS13-SHA256-SHA256:TLS13-SHA384-SHA384";
 #ifndef NO_RSA
-	testCertFile = svrCertFile;
-	testKeyFile = svrKeyFile;
+        testCertFile = svrCertFile;
+        testKeyFile = svrKeyFile;
 #elif defined(HAVE_ECC)
-	testCertFile = eccCertFile;
-	testKeyFile = eccKeyFile;
+        testCertFile = eccCertFile;
+        testKeyFile = eccKeyFile;
 #else
     skipTest = 1;
 #endif
@@ -16684,7 +16684,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     pubkSz = CURVE25519_KEYSIZE;
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key,privateKey,
-	                    NULL,publicKey, &pubkSz,EC25519_LITTLE_ENDIAN)){
+                            NULL,publicKey, &pubkSz,EC25519_LITTLE_ENDIAN)){
 
         printf(testingFmt,"failed at bad-arg-case-3.");
         fflush( stdout );
@@ -16749,7 +16749,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     pubkSz = CURVE25519_KEYSIZE;
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
-	                      NULL, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
+                              NULL, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
 
         printf(testingFmt,"failed at bad-arg-case-8.");
         fflush( stdout );
@@ -17093,6 +17093,74 @@ static int test_wc_curve25519_shared_secret_ex (void)
 #endif
     return ret;
 } /*END test_wc_curve25519_shared_secret_ex*/
+/*
+ * Testing wc_curve25519_make_pub
+ */
+static int test_wc_curve25519_make_pub (void)
+{
+    int ret = 0;
+#if defined(HAVE_CURVE25519)
+    WC_RNG          rng;
+    curve25519_key  key;
+    byte            out[CURVE25519_KEYSIZE];
+
+    printf(testingFmt, "wc_curve25519_make_pub()");
+
+    ret = wc_curve25519_init(&key);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &key);
+        }
+    }
+    if (ret == 0) {
+      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+    }
+    /*test bad cases*/
+    if (ret == 0) {
+        ret = wc_curve25519_make_pub((int)sizeof key.k.point - 1, key.k.point, (int)sizeof out, out);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, NULL);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_pub((int)sizeof out - 1, out, (int)sizeof key.k.point, key.k.point);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_pub((int)sizeof out, NULL, (int)sizeof key.k.point, key.k.point);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        /* verify clamping test */
+        key.k.point[0] |= ~248;
+        ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        }
+        key.k.point[0] &= 248;
+    }
+    /* repeat the expected-to-succeed test. */
+    if (ret == 0) {
+      ret = wc_curve25519_make_pub((int)sizeof out, out, (int)sizeof key.k.point, key.k.point);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+    wc_FreeRng(&rng);
+#endif
+    return ret;
+} /*END test_wc_curve25519_make_pub */
 /*
  * Testing test_wc_curve25519_export_public_ex
  */
@@ -31021,8 +31089,8 @@ static void test_wolfSSL_sk_CIPHER_description(void)
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
     char buf[256];
-    char test_str[9] = "0000000\0";
-    const char badStr[] = "unknown\0";
+    char test_str[9] = "0000000";
+    const char badStr[] = "unknown";
     const char certPath[] = "./certs/client-cert.pem";
     XMEMSET(buf, 0, sizeof(buf));
 
@@ -35785,11 +35853,11 @@ static void test_wolfSSL_dtls_set_mtu(void)
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
 #ifndef NO_RSA
-	testCertFile = svrCertFile;
-	testKeyFile = svrKeyFile;
+        testCertFile = svrCertFile;
+        testKeyFile = svrKeyFile;
 #elif defined(HAVE_ECC)
-	testCertFile = eccCertFile;
-	testKeyFile = eccKeyFile;
+        testCertFile = eccCertFile;
+        testKeyFile = eccKeyFile;
 #endif
     if  (testCertFile != NULL && testKeyFile != NULL) {
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile,
@@ -36611,6 +36679,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_curve25519_size (), 0);
     AssertIntEQ(test_wc_curve25519_make_key (), 0);
     AssertIntEQ(test_wc_curve25519_shared_secret_ex (), 0);
+    AssertIntEQ(test_wc_curve25519_make_pub (), 0);
     AssertIntEQ(test_wc_curve25519_export_public_ex (), 0);
     AssertIntEQ(test_wc_curve25519_export_private_raw_ex (), 0);
     AssertIntEQ(test_wc_curve25519_import_private_raw_ex (), 0);
