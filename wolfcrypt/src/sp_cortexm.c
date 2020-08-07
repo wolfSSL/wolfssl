@@ -21189,7 +21189,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         break;
     case 4: /* NORMS3 */
         sp_256_mont_mul_order_8(ctx->u1, ctx->u1, ctx->s);
-        ctx->state = 4;
+        ctx->state = 5;
         break;
     case 5: /* NORMS4 */
         sp_256_mont_mul_order_8(ctx->u2, ctx->u2, ctx->s);
@@ -27712,7 +27712,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         break;
     case 4: /* NORMS3 */
         sp_384_mont_mul_order_12(ctx->u1, ctx->u1, ctx->s);
-        ctx->state = 4;
+        ctx->state = 5;
         break;
     case 5: /* NORMS4 */
         sp_384_mont_mul_order_12(ctx->u2, ctx->u2, ctx->s);
