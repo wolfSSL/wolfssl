@@ -20604,7 +20604,8 @@ static int test_wc_ecc_is_valid_idx (void)
 static int test_wc_ecc_get_curve_id_from_oid (void)
 {
     int ret = 0;
-#if defined(HAVE_ECC) && !defined(NO_ECC256)
+#if defined(HAVE_ECC) && !defined(NO_ECC256)  && !defined(HAVE_SELFTEST) && \
+(!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     word32 len = 8;
     const byte oid[] = {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07};
 
@@ -20640,7 +20641,8 @@ static int test_wc_ecc_get_curve_id_from_oid (void)
 static int test_wc_ecc_sig_size_calc (void)
 {
     int ret = 0;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+(!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2))
     ecc_key     key;
     WC_RNG      rng;
     int         sz;
@@ -20653,8 +20655,9 @@ static int test_wc_ecc_sig_size_calc (void)
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, 16, &key);
         }
+        sz = key.dp->size;
     }
-    sz = key.dp->size;
+
     if (ret == 0) {
         ret = wc_ecc_sig_size_calc(sz);
         if (ret > 0) {
