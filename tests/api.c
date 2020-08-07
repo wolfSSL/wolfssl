@@ -252,10 +252,6 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
-#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || (!defined(NO_RSA) && \
-                                !defined(NO_SIG_WRAPPER)) || !defined(WC_NO_RNG)
-    static int  devId = INVALID_DEVID;
-#endif
 #ifndef NO_DSA
     #include <wolfssl/wolfcrypt/dsa.h>
     #ifndef ONEK_BUF
@@ -421,6 +417,8 @@ enum {
     TESTING_RSA = 1,
     TESTING_ECC = 2
 };
+
+static int devId = INVALID_DEVID;
 
 
 /*----------------------------------------------------------------------------*
@@ -36703,6 +36701,8 @@ void ApiTest(void)
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
     wolfSSL_Cleanup();
+
+    (void)devId;
 
     printf(" End API Tests\n");
 
