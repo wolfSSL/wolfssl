@@ -2438,7 +2438,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
-#ifdef HAVE_EXT_CACHE
+#if defined(HAVE_EXT_CACHE) && !defined(NO_SESSION_CACHE)
     wolfSSL_CTX_sess_set_get_cb(ctx, mySessGetCb);
     wolfSSL_CTX_sess_set_new_cb(ctx, mySessNewCb);
     wolfSSL_CTX_sess_set_remove_cb(ctx, mySessRemCb);
@@ -3203,7 +3203,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+#if !defined(NO_SESSION_CACHE) && (defined(OPENSSL_EXTRA) || \
+        defined(HAVE_EXT_CACHE))
     if (session != NULL && resumeSession) {
         flatSessionSz = wolfSSL_i2d_SSL_SESSION(session, NULL);
         if (flatSessionSz != 0) {
