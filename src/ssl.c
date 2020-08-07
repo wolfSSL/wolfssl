@@ -33246,8 +33246,12 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_EC_POINT *p1,
                          const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
 {
-    mp_int a, prime;
+    mp_int a, prime, mu;
     mp_digit mp = 0;
+    ecc_point* montP1 = NULL;
+    ecc_point* montP2 = NULL;
+    ecc_point* eccP1;
+    ecc_point* eccP2;
     int ret = WOLFSSL_FAILURE;
 
     (void)ctx;
@@ -33265,7 +33269,7 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     }
 
     /* read the curve prime and a */
-    if (mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL) != MP_OKAY) {
+    if (mp_init_multi(&prime, &a, &mu, NULL, NULL, NULL) != MP_OKAY) {
         WOLFSSL_MSG("mp_init_multi error");
         goto cleanup;
     }
@@ -33287,9 +33291,44 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         goto cleanup;
     }
 
-    if (ecc_projective_add_point((ecc_point*)p1->internal, (ecc_point*)p2->internal,
-                                 (ecc_point*)r->internal, &a, &prime, mp)
-            != MP_OKAY) {
+    eccP1 = (ecc_point*)p1->internal;
+    eccP2 = (ecc_point*)p2->internal;
+
+    if (!(montP1 = wc_ecc_new_point_h(NULL)) ||
+            !(montP2 = wc_ecc_new_point_h(NULL))) {
+        WOLFSSL_MSG("wc_ecc_new_point_h nqm error");
+        goto cleanup;
+    }
+
+    if ((mp_montgomery_calc_normalization(&mu, &prime)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_montgomery_calc_normalization error");
+        goto cleanup;
+    }
+
+    /* Convert to Montgomery form */
+    if (mp_cmp_d(&mu, 1) == MP_EQ) {
+        if (wc_ecc_copy_point(eccP1, montP1) != MP_OKAY ||
+                wc_ecc_copy_point(eccP2, montP2) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_copy_point error");
+            goto cleanup;
+        }
+    } else {
+        if (mp_mulmod(eccP1->x, &mu, &prime, montP1->x) != MP_OKAY ||
+                mp_mulmod(eccP1->y, &mu, &prime, montP1->y) != MP_OKAY ||
+                mp_mulmod(eccP1->z, &mu, &prime, montP1->z) != MP_OKAY) {
+            WOLFSSL_MSG("mp_mulmod error");
+            goto cleanup;
+        }
+        if (mp_mulmod(eccP2->x, &mu, &prime, montP2->x) != MP_OKAY ||
+                mp_mulmod(eccP2->y, &mu, &prime, montP2->y) != MP_OKAY ||
+                mp_mulmod(eccP2->z, &mu, &prime, montP2->z) != MP_OKAY) {
+            WOLFSSL_MSG("mp_mulmod error");
+            goto cleanup;
+        }
+    }
+
+    if (ecc_projective_add_point(montP1, montP2, (ecc_point*)r->internal,
+            &a, &prime, mp) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_mulmod nqm error");
         goto cleanup;
     }
@@ -33303,6 +33342,9 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 cleanup:
     mp_clear(&a);
     mp_clear(&prime);
+    mp_clear(&mu);
+    wc_ecc_del_point_h(montP1, NULL);
+    wc_ecc_del_point_h(montP2, NULL);
     return ret;
 }
 
