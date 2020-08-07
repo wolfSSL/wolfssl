@@ -10006,6 +10006,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     #endif /* HAVE_FIPS */
 #endif /* HAVE_ECC */
 
+#ifndef NO_DH
             /* Add FFDHE supported groups. */
         #ifdef HAVE_FFDHE_8192
             if (8192/8 >= ssl->options.minDhKeySz &&
@@ -10052,6 +10053,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                     return ret;
             }
         #endif
+#endif
 
     (void)ssl;
     (void)extensions;

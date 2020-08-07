@@ -495,6 +495,7 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void);
 #endif
+
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
 WOLFSSL_TEST_SUBROUTINE int blob_test(void);
 #endif
@@ -1331,7 +1332,8 @@ initDefaultName();
 #endif
 
 #if defined(WOLF_CRYPTO_CB) && \
-    !(defined(HAVE_INTEL_QAT_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC))
+    !(defined(HAVE_INTEL_QAT_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
+      defined(WOLFSSL_QNX_CAAM))
     if ( (ret = cryptocb_test()) != 0)
         return err_sys("crypto callback test failed!\n", ret);
     else
@@ -1424,6 +1426,7 @@ initDefaultName();
         args.argc = argc;
         args.argv = argv;
 #endif
+        wolfSSL_Debugging_ON();
         if ((ret = wolfCrypt_Init()) != 0) {
             printf("wolfCrypt_Init failed %d\n", ret);
             err_sys("Error with wolfCrypt_Init!\n", -1003);
@@ -20178,6 +20181,7 @@ static int ecc_test_vector_item(const eccVector* vector)
             ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
                                                vector->msgLen, &verify, userA);
     } while (ret == WC_PENDING_E);
+
     if (ret != 0)
         goto done;
     TEST_SLEEP();
@@ -20767,7 +20771,8 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #endif /* !NO_ECC256 */
 
     /* create a new key since above test for loading key is not supported */
-#if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256)
+#if defined(WOLFSSL_CRYPTOCELL) || defined(NO_ECC256) || \
+    defined(WOLFSSL_QNX_CAAM)
     ret  = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, key);
     if (ret != 0) {
         ERROR_OUT(-9861, done);
@@ -20827,6 +20832,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9866, done);
     }
 
+#ifndef WOLFSSL_QNX_CAAM
     /* make private only key */
     wc_ecc_free(key);
     wc_ecc_init_ex(key, HEAP_HINT, devId);
@@ -20841,6 +20847,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     if (ret == 0) {
         ERROR_OUT(-9868, done);
     }
+#endif /* WOLFSSL_QNX_CAAM */
 
     /* make public key for shared secret */
     wc_ecc_init_ex(pub, HEAP_HINT, devId);
@@ -21858,7 +21865,9 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
 #endif
 
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_QNX_CAAM)
+
 static int ecc_exp_imp_test(ecc_key* key)
 {
     int        ret;
@@ -21988,7 +21997,7 @@ done:
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_QNX_CAAM)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -22146,13 +22155,14 @@ static int ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_QNX_CAAM)
     ret = ecc_exp_imp_test(key);
     if (ret < 0)
         goto done;
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_CRYPTOCELL)
+    !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_QNX_CAAM)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(key);
     if (ret < 0)
@@ -34038,6 +34048,7 @@ WOLFSSL_TEST_SUBROUTINE int blob_test(void)
 
 
     XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(out, 0, sizeof(out));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
     if (ret != 0) {

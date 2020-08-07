@@ -1652,6 +1652,10 @@ extern void uITRON4_free(void *p) ;
     /* large performance gain with HAVE_AES_ECB defined */
     #undef HAVE_AES_ECB
     #define HAVE_AES_ECB
+
+    //@TODO used for now until plugging in caam aes use with qnx
+    #undef WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
 #endif
 #endif
 

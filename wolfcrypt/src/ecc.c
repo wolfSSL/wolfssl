@@ -159,6 +159,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
 
+#if defined(WOLFSSL_QNX_CAAM)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -4793,6 +4797,11 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     (void)devId;
 #endif
 
+    //@TODO for now set as CAAM operation for all
+#ifdef WOLFSSL_QNX_CAAM
+    key->devId = 7;//WOLFSSL_CAAM_DEVID
+#endif
+
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     key->slot = ATECC_INVALID_SLOT;
 #else
@@ -5126,8 +5135,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 #endif
 #endif
 
-    if (in == NULL || out == NULL || outlen == NULL || key == NULL ||
-                                                                rng == NULL) {
+    if (in == NULL || out == NULL || outlen == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
 
@@ -5139,6 +5147,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         /* fall-through when unavailable */
     }
 #endif
+
+    if (rng == NULL) {
+        WOLFSSL_MSG("rng was NULL");
+        return ECC_BAD_ARG_E;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     /* handle async cases */
@@ -5740,6 +5753,13 @@ int wc_ecc_free(ecc_key* key)
     wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC);
     #endif
     wc_ecc_free_async(key);
+#endif
+
+#ifdef WOLFSSL_QNX_CAAM
+    /* free secure memory */
+    if (key->blackKey > 0) {
+       caamFreePart(key->partNum); 
+    }
 #endif
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
@@ -7209,6 +7229,22 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
+#ifdef WOLFSSL_QNX_CAAM
+    /* check if public key in secure memory */
+    if (key->securePubKey > 0) {
+        int keySz = wc_ecc_size(key);
+
+        /* store byte point type */
+        out[0] = ECC_POINT_UNCOMP;
+
+        if (caamReadPartition((CAAM_ADDRESS)key->securePubKey, out+1, keySz*2) != 0)
+            return WC_HW_E;
+
+        *outLen = 1 + 2*keySz;
+        return MP_OKAY;
+    }
+#endif
+
    if (key->type == 0 || wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL){
        return ECC_BAD_ARG_E;
    }
@@ -7673,6 +7709,18 @@ int wc_ecc_check_key(ecc_key* key)
         XMEMSET(b, 0, sizeof(mp_int));
     #endif
 
+    #ifdef WOLFSSL_QNX_CAAM
+    /* NIST P256 keys can be black encrypted ones */
+    if (key->blackKey > 0 && wc_ecc_size(key) == 32) {
+        /* encrypted key was used */
+        #ifdef WOLFSSL_SMALL_STACK
+        XFREE(b, key->heap, DYNAMIC_TYPE_ECC);
+        #endif
+        FREE_CURVE_SPECS();
+        return 0;
+    }
+    #endif
+
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 1 */
     /* pubkey point cannot be at infinity */
     if (wc_ecc_point_is_at_infinity(&key->pubkey)) {
@@ -7994,16 +8042,40 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     /* private key, d */
     if (d != NULL) {
         if (dLen == NULL ||
-            (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY))
+            (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY)) {
             return BAD_FUNC_ARG;
+        }
 
     #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
         /* Hardware cannot export private portion */
         return NOT_COMPILED_IN;
     #else
-        err = wc_export_int(&key->k, d, dLen, keySz, encType);
-        if (err != MP_OKAY)
-            return err;
+        if (encType == WC_TYPE_BLACK_KEY) {
+            #ifdef WOLFSSL_QNX_CAAM
+            if (key->blackKey > 0) {
+                if (*dLen < keySz + WC_CAAM_MAC_SZ) {
+                    *dLen = keySz + WC_CAAM_MAC_SZ;
+                    return BUFFER_E;
+                }
+
+                if (caamReadPartition(key->blackKey, d, keySz + WC_CAAM_MAC_SZ) != 0)
+                    return WC_HW_E;
+
+                *dLen = keySz + WC_CAAM_MAC_SZ;
+            }
+            else {
+                WOLFSSL_MSG("No black key stored in structure");
+                return BAD_FUNC_ARG;
+            }
+            #else
+            return NOT_COMPILED_IN;
+            #endif
+        }
+        else {
+            err = wc_export_int(&key->k, d, dLen, keySz, encType);
+            if (err != MP_OKAY)
+                return err;
+        }
     #endif
     }
 
@@ -8038,6 +8110,14 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
     if (out == NULL || outLen == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLFSSL_QNX_CAAM
+    /* check if black key in secure memory */
+    if (key->blackKey > 0) {
+        return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
+            WC_TYPE_BLACK_KEY);
+    }
+#endif
 
     return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
         WC_TYPE_UNSIGNED_BIN);
@@ -8150,6 +8230,35 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         {
             ret = silabs_ecc_import_private(key, key->dp->size);
         }
+#elif defined(WOLFSSL_QNX_CAAM)
+    if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
+        int part = caamFindUnusuedPartition();
+        if (part >= 0) {
+            CAAM_ADDRESS vaddr = caamGetPartition(part, privSz*3);
+            if (vaddr == 0) {
+                WOLFSSL_MSG("Unable to get partition");
+                return MEMORY_E;
+            }
+            if (caamWriteToPartition(vaddr, priv, privSz) != 0)
+                return WC_HW_E;
+
+            key->blackKey = (word32)vaddr;
+
+            if (pub != NULL) {
+                /* +1 to account for x963 compressed bit */
+                if (caamWriteToPartition(vaddr + privSz, pub + 1, pubSz - 1) != 0)
+                    return WC_HW_E;
+                key->securePubKey = (word32)vaddr + privSz;
+            }
+        }
+        else {
+            WOLFSSL_MSG("Unable to find an unused partition");
+            return MEMORY_E;
+        }
+    }
+    else {
+        WOLFSSL_MSG("Importing key that is not a black key!");
+        ret = mp_read_unsigned_bin(&key->k, priv, privSz);
     }
 #else
 

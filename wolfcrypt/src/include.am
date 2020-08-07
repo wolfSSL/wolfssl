@@ -64,9 +64,13 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
               wolfcrypt/src/port/caam/caam_aes.c \
               wolfcrypt/src/port/caam/caam_driver.c \
-              wolfcrypt/src/port/caam/caam_init.c \
+              wolfcrypt/src/port/caam/caam_error.c \
               wolfcrypt/src/port/caam/caam_sha.c \
               wolfcrypt/src/port/caam/caam_doc.pdf \
+              wolfcrypt/src/port/caam/wolfcaam_init.c \
+              wolfcrypt/src/port/caam/wolfcaam_qnx.c \
+              wolfcrypt/src/port/caam/wolfcaam_ecdsa.c \
+              wolfcrypt/src/port/caam/wolfcaam_cmac.c \
               wolfcrypt/src/port/silabs/silabs_aes.c \
               wolfcrypt/src/port/silabs/silabs_ecc.c \
               wolfcrypt/src/port/silabs/silabs_hash.c \
@@ -131,4 +135,11 @@ endif
 
 if BUILD_CRYPTOAUTHLIB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/atmel/atmel.c
+endif
+
+if BUILD_CAAM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_init.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_qnx.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_ecdsa.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/caam/wolfcaam_cmac.c
 endif

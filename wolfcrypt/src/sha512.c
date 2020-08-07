@@ -185,7 +185,8 @@
         }
 #endif
 
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_SILABS_SHA384)
@@ -924,7 +925,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
 /* -------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SHA384
 
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_SILABS_SHA512)
