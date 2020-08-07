@@ -37339,12 +37339,12 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         /* Parse the X509 subject name */
         if (GetName(&cert, SUBJECT, (int)length) != 0) {
             WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
-            return NULL;
+            goto cleanup;
         }
 
         if (!(tmp = wolfSSL_X509_NAME_new())) {
             WOLFSSL_MSG("wolfSSL_X509_NAME_new error");
-            return NULL;
+            goto cleanup;
         }
 
         XSTRNCPY(tmp->staticName, cert.subject, ASN_NAME_MAX);
@@ -37353,7 +37353,8 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
 
         if (name)
             *name = tmp;
-
+cleanup:
+        FreeDecodedCert(&cert);
         return tmp;
     }
 
