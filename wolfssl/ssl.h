@@ -2149,6 +2149,7 @@ WOLFSSL_API int wolfSSL_X509_version(WOLFSSL_X509*);
 WOLFSSL_API int wolfSSL_cmp_peer_cert_to_file(WOLFSSL*, const char*);
 
 WOLFSSL_ABI WOLFSSL_API char* wolfSSL_X509_get_next_altname(WOLFSSL_X509*);
+WOLFSSL_API int wolfSSL_X509_add_altname_ex(WOLFSSL_X509*, const char*, word32, int);
 WOLFSSL_API int wolfSSL_X509_add_altname(WOLFSSL_X509*, const char*, int);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509,

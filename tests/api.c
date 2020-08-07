@@ -27423,7 +27423,7 @@ static void test_wolfSSL_X509_sign(void)
 #ifdef WOLFSSL_ALT_NAMES
     /* Add some subject alt names */
     AssertIntNE(wolfSSL_X509_add_altname(NULL,
-                NULL, ASN_DNS_TYPE), SSL_SUCCESS);
+                "ipsum", ASN_DNS_TYPE), SSL_SUCCESS);
     AssertIntEQ(wolfSSL_X509_add_altname(x509,
                 NULL, ASN_DNS_TYPE), SSL_SUCCESS);
     AssertIntEQ(wolfSSL_X509_add_altname(x509,
@@ -27435,13 +27435,25 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntEQ(wolfSSL_X509_add_altname(x509,
                 "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
                 ASN_DNS_TYPE), SSL_SUCCESS);
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    {
+        unsigned char ip_type[] = {127,0,0,1};
+        AssertIntEQ(wolfSSL_X509_add_altname_ex(x509, (char*)ip_type,
+                sizeof(ip_type), ASN_IP_TYPE), SSL_SUCCESS);
+    }
+#endif
 #endif /* WOLFSSL_ALT_NAMES */
+
     /* Test invalid parameters */
     AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
     AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
     AssertIntEQ(X509_sign(x509, priv, NULL), 0);
 
     ret = X509_sign(x509, priv, EVP_sha256());
+
+#if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
+#endif
 
 #if 0
     /* example for writing to file */
@@ -27472,8 +27484,13 @@ static void test_wolfSSL_X509_sign(void)
     /* Valid case - size should be 798 with 16 byte serial number */
     AssertIntEQ(ret, 782 + snSz);
 #else /* WOLFSSL_ALT_NAMES */
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* Valid case - size should be 936 with 16 byte serial number */
+    AssertIntEQ(ret, 920 + snSz);
+    #else
     /* Valid case - size should be 927 with 16 byte serial number */
     AssertIntEQ(ret, 911 + snSz);
+    #endif
 #endif /* WOLFSSL_ALT_NAMES */
 
     X509_NAME_free(name);
