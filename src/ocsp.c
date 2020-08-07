@@ -453,6 +453,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     }
     else {
         /* cert doesn't have extAuthInfo, assuming CERT_GOOD */
+        WOLFSSL_MSG("Cert has no OCSP URL, assuming CERT_GOOD");
         return 0;
     }
 
