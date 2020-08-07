@@ -101,12 +101,6 @@ void bench_pbkdf2(void);
 
 void bench_stats_print(void);
 
-
-/*WC_INLINE*/ void bench_stats_start(int* count, double* start);
-/*WC_INLINE*/ int bench_stats_sym_check(double start);
-void bench_stats_sym_finish(const char* desc, int doAsync, int count,
-                                   int countSz, double start, int ret);
-
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

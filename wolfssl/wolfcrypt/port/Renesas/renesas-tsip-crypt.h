@@ -209,23 +209,6 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in,
                             word32 sz);
 int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in,
                             word32 sz);
-int wc_tsip_AesGcmEncrypt(struct Aes*  aes, 
-                            byte* out, const byte* in,  word32 sz,
-                            byte*       iv,             word32 ivSz,
-                            byte*       authTag,        word32 authTagSz,
-                            const byte* authIn,         word32 authInSz);
-
-int wc_tsip_AesGcmDecrypt(struct Aes*  aes, 
-                            byte* out, const byte* in,  word32 sz,
-                            byte*       iv,             word32 ivSz,
-                            byte*       authTag,        word32 authTagSz,
-                            const byte* authIn,         word32 authInSz);
-
-void tsip_bench_aescbc(int doAsync);
-
-void tsip_bench_aesgcm(int doAsync);
-
-
 #endif /* WOLFSSL_RENESAS_TSIP_TLS_AES */
 
 #if defined(WOLFSSL_RENESAS_TSIP_CRYPT_DEBUG)
