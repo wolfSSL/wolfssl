@@ -6043,7 +6043,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             }
             #ifdef WC_ECC_NONBLOCK_ONLY
             do { /* perform blocking call to non-blocking function */
-                err = sp_ecc_verify_256_nb(&nb_ctx->sp_ctx, hash, hashlen, 
+                err = sp_ecc_verify_256_nb(&nb_ctx.sp_ctx, hash, hashlen, 
                     key->pubkey.x, key->pubkey.y, key->pubkey.z, r, s, res, 
                     key->heap);
             } while (err == FP_WOULDBLOCK);

@@ -36326,15 +36326,16 @@ static int sp_256_mont_inv_order_8_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const s
         break;
     case 1:
         sp_256_mont_sqr_order_8(t, t);
+        ctx->state = 2;
+        break;
+    case 2:
         if ((p256_order_minus_2[ctx->i / 32] & ((sp_int_digit)1 << (ctx->i % 32))) != 0) {
             sp_256_mont_mul_order_8(t, t, a);
         }
         ctx->i--;
-        if (ctx->i == 0) {
-            ctx->state = 2;
-        }
+        ctx->state = (ctx->i == 0) ? 3 : 1;
         break;
-    case 2:
+    case 3:
         XMEMCPY(r, t, sizeof(sp_digit) * 8U);
         err = MP_OKAY;
         break;
@@ -36826,55 +36827,58 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         sp_256_from_mp(ctx->p2.x, 8, pX);
         sp_256_from_mp(ctx->p2.y, 8, pY);
         sp_256_from_mp(ctx->p2.z, 8, pZ);
+        ctx->state = 1;
+        break;
+    case 1: /* NORMS0 */
         sp_256_mul_8(ctx->s, ctx->s, p256_norm_order);
         err = sp_256_mod_8(ctx->s, ctx->s, p256_order);
         if (err == MP_OKAY)
-            ctx->state = 1;
+            ctx->state = 2;
         break;
-    case 1: /* NORMS1 */
+    case 2: /* NORMS1 */
         sp_256_norm_8(ctx->s);
         XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
-        ctx->state = 2;
+        ctx->state = 3;
         break;
-    case 2: /* NORMS2 */
+    case 3: /* NORMS2 */
         err = sp_256_mont_inv_order_8_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
         if (err == MP_OKAY) {
-            ctx->state = 3;
+            ctx->state = 4;
         }
         break;
-    case 3: /* NORMS3 */
+    case 4: /* NORMS3 */
         sp_256_mont_mul_order_8(ctx->u1, ctx->u1, ctx->s);
-        ctx->state = 4;
-        break;
-    case 4: /* NORMS4 */
-        sp_256_mont_mul_order_8(ctx->u2, ctx->u2, ctx->s);
-        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 5;
         break;
-    case 5: /* MULBASE */
+    case 5: /* NORMS4 */
+        sp_256_mont_mul_order_8(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 6;
+        break;
+    case 6: /* MULBASE */
         err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
-            ctx->state = 6;
-        }
-        break;
-    case 6: /* MULMOD */
-        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
-        if (err == MP_OKAY) {
-            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 7;
         }
         break;
-    case 7: /* ADD */
+    case 7: /* MULMOD */
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 8;
+        }
+        break;
+    case 8: /* ADD */
         err = sp_256_proj_point_add_8_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
         if (err == MP_OKAY)
-            ctx->state = 8;
+            ctx->state = 9;
         break;
-    case 8: /* DBLPREP */
+    case 9: /* DBLPREP */
         if (sp_256_iszero_8(ctx->p1.z)) {
             if (sp_256_iszero_8(ctx->p1.x) && sp_256_iszero_8(ctx->p1.y)) {
                 XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
-                ctx->state = 9;
+                ctx->state = 10;
                 break;
             }
             else {
@@ -36886,33 +36890,33 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
                 XMEMCPY(ctx->p1.z, p256_norm_mod, sizeof(p256_norm_mod));
             }
         }
-        ctx->state = 10;
+        ctx->state = 11;
         break;
-    case 9: /* DBL */
+    case 10: /* DBL */
         err = sp_256_proj_point_dbl_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
-            ctx->state = 10;
+            ctx->state = 11;
         }
         break;
-    case 10: /* MONT */
+    case 11: /* MONT */
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
         sp_256_from_mp(ctx->u2, 8, r);
         err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
         if (err == MP_OKAY)
-            ctx->state = 11;
+            ctx->state = 12;
         break;
-    case 11: /* SQR */
+    case 12: /* SQR */
         /* u1 = r.z'.z' mod prime */
         sp_256_mont_sqr_8(ctx->p1.z, ctx->p1.z, p256_mod, p256_mp_mod);
-        ctx->state = 12;
-        break;
-    case 12: /* MUL */
-        sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
         ctx->state = 13;
         break;
-    case 13: /* RES */
+    case 13: /* MUL */
+        sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14: /* RES */
         err = MP_OKAY; /* math okay, now check result */
         *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
         if (*res == 0) {
@@ -36943,7 +36947,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         break;
     }
 
-    if (err == MP_OKAY && ctx->state != 13) {
+    if (err == MP_OKAY && ctx->state != 14) {
         err = FP_WOULDBLOCK;
     }
 
@@ -45092,15 +45096,16 @@ static int sp_384_mont_inv_order_12_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const 
         break;
     case 1:
         sp_384_mont_sqr_order_12(t, t);
+        ctx->state = 2;
+        break;
+    case 2:
         if ((p384_order_minus_2[ctx->i / 32] & ((sp_int_digit)1 << (ctx->i % 32))) != 0) {
             sp_384_mont_mul_order_12(t, t, a);
         }
         ctx->i--;
-        if (ctx->i == 0) {
-            ctx->state = 2;
-        }
+        ctx->state = (ctx->i == 0) ? 3 : 1;
         break;
-    case 2:
+    case 3:
         XMEMCPY(r, t, sizeof(sp_digit) * 12U);
         err = MP_OKAY;
         break;
@@ -45563,55 +45568,58 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         sp_384_from_mp(ctx->p2.x, 12, pX);
         sp_384_from_mp(ctx->p2.y, 12, pY);
         sp_384_from_mp(ctx->p2.z, 12, pZ);
+        ctx->state = 1;
+        break;
+    case 1: /* NORMS0 */
         sp_384_mul_12(ctx->s, ctx->s, p384_norm_order);
         err = sp_384_mod_12(ctx->s, ctx->s, p384_order);
         if (err == MP_OKAY)
-            ctx->state = 1;
+            ctx->state = 2;
         break;
-    case 1: /* NORMS1 */
+    case 2: /* NORMS1 */
         sp_384_norm_12(ctx->s);
         XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
-        ctx->state = 2;
+        ctx->state = 3;
         break;
-    case 2: /* NORMS2 */
+    case 3: /* NORMS2 */
         err = sp_384_mont_inv_order_12_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
         if (err == MP_OKAY) {
-            ctx->state = 3;
+            ctx->state = 4;
         }
         break;
-    case 3: /* NORMS3 */
+    case 4: /* NORMS3 */
         sp_384_mont_mul_order_12(ctx->u1, ctx->u1, ctx->s);
-        ctx->state = 4;
-        break;
-    case 4: /* NORMS4 */
-        sp_384_mont_mul_order_12(ctx->u2, ctx->u2, ctx->s);
-        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 5;
         break;
-    case 5: /* MULBASE */
+    case 5: /* NORMS4 */
+        sp_384_mont_mul_order_12(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 6;
+        break;
+    case 6: /* MULBASE */
         err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
-            ctx->state = 6;
-        }
-        break;
-    case 6: /* MULMOD */
-        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
-        if (err == MP_OKAY) {
-            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 7;
         }
         break;
-    case 7: /* ADD */
+    case 7: /* MULMOD */
+        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 8;
+        }
+        break;
+    case 8: /* ADD */
         err = sp_384_proj_point_add_12_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
         if (err == MP_OKAY)
-            ctx->state = 8;
+            ctx->state = 9;
         break;
-    case 8: /* DBLPREP */
+    case 9: /* DBLPREP */
         if (sp_384_iszero_12(ctx->p1.z)) {
             if (sp_384_iszero_12(ctx->p1.x) && sp_384_iszero_12(ctx->p1.y)) {
                 XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
-                ctx->state = 9;
+                ctx->state = 10;
                 break;
             }
             else {
@@ -45623,33 +45631,33 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
                 XMEMCPY(ctx->p1.z, p384_norm_mod, sizeof(p384_norm_mod));
             }
         }
-        ctx->state = 10;
+        ctx->state = 11;
         break;
-    case 9: /* DBL */
+    case 10: /* DBL */
         err = sp_384_proj_point_dbl_12_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
-            ctx->state = 10;
+            ctx->state = 11;
         }
         break;
-    case 10: /* MONT */
+    case 11: /* MONT */
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
         sp_384_from_mp(ctx->u2, 12, r);
         err = sp_384_mod_mul_norm_12(ctx->u2, ctx->u2, p384_mod);
         if (err == MP_OKAY)
-            ctx->state = 11;
+            ctx->state = 12;
         break;
-    case 11: /* SQR */
+    case 12: /* SQR */
         /* u1 = r.z'.z' mod prime */
         sp_384_mont_sqr_12(ctx->p1.z, ctx->p1.z, p384_mod, p384_mp_mod);
-        ctx->state = 12;
-        break;
-    case 12: /* MUL */
-        sp_384_mont_mul_12(ctx->u1, ctx->u2, ctx->p1.z, p384_mod, p384_mp_mod);
         ctx->state = 13;
         break;
-    case 13: /* RES */
+    case 13: /* MUL */
+        sp_384_mont_mul_12(ctx->u1, ctx->u2, ctx->p1.z, p384_mod, p384_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14: /* RES */
         err = MP_OKAY; /* math okay, now check result */
         *res = (int)(sp_384_cmp_12(ctx->p1.x, ctx->u1) == 0);
         if (*res == 0) {
@@ -45680,7 +45688,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         break;
     }
 
-    if (err == MP_OKAY && ctx->state != 13) {
+    if (err == MP_OKAY && ctx->state != 14) {
         err = FP_WOULDBLOCK;
     }
 
