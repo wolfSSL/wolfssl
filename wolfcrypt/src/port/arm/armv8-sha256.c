@@ -1081,7 +1081,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER)
     {
-	word32* bufPt = sha256->buffer;
+        word32* bufPt = sha256->buffer;
         __asm__ volatile (
             "VLD1.32 {q0}, [%[in]] \n"
             "VREV32.8 q0, q0 \n"
@@ -1106,7 +1106,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
-    bufPt = sha256->buffer;
+    word32* bufPt = sha256->buffer;
     word32* digPt = sha256->digest;
     __asm__ volatile (
         "#load leftover data\n"
