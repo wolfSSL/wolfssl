@@ -11672,6 +11672,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
 
 #ifndef WOLFSSL_NO_TLS12
+    WOLFSSL_ABI
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
         return wolfTLSv1_2_server_method_ex(NULL);
@@ -11696,6 +11697,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
      *
      * returns the method data for a TLS v1.3 server.
      */
+    WOLFSSL_ABI
     WOLFSSL_METHOD* wolfTLSv1_3_server_method(void)
     {
         return wolfTLSv1_3_server_method_ex(NULL);

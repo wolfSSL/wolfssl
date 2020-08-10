@@ -709,11 +709,11 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_1_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_method(void);
-WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_server_method(void);
+WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_server_method(void);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 #ifdef WOLFSSL_TLS13
     WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method(void);
-    WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_server_method(void);
+    WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_server_method(void);
     WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_client_method(void);
 #endif
 
@@ -861,7 +861,7 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL*);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(WOLFSSL*, const void*, int);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL*, void*, int);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL*, void*, int);
-WOLFSSL_API int  wolfSSL_accept(WOLFSSL*);
+WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
 WOLFSSL_API int  wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
 #ifdef WOLFSSL_TLS13
