@@ -20759,7 +20759,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (sz + 1 > CTC_NAME_SIZE) { /* account for null char */
             /* create new data buffer and copy over */
-            asn1->data = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+            asn1->data = (char*)XMALLOC(sz + 1, NULL, DYNAMIC_TYPE_OPENSSL);
             if (asn1->data == NULL) {
                 return WOLFSSL_FAILURE;
             }
