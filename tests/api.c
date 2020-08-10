@@ -20667,8 +20667,9 @@ static int test_wc_ecc_is_valid_idx (void)
 static int test_ToTraditional (void)
 {
     int ret = 0;
-#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined(NO_ASN) && (defined(HAVE_PKCS8) || defined(HAVE_PKCS12)) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL))
 
     XFILE   f;
     byte    input[TWOK_BUF];
@@ -20710,8 +20711,9 @@ static int test_ToTraditional (void)
 #endif
     return ret;
 }/* End test_ToTraditional*/
+
 /*
- * Testing wc_Ed25519KeyToDer
+ * Testing wc_EccPrivateKeyToDer
  */
 static int test_wc_EccPrivateKeyToDer (void)
 {
@@ -20772,6 +20774,7 @@ static int test_wc_EccPrivateKeyToDer (void)
 #endif
     return ret;
 }/* End test_wc_EccPrivateKeyToDer*/
+
 /*
  * Testing wc_Ed25519KeyToDer
  */
