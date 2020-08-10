@@ -15578,7 +15578,11 @@ int ProcessReply(WOLFSSL* ssl)
                                             ssl->buffers.inputBuffer.length);
 #endif
                     }
-                    else if (!IsAtLeastTLSv1_3(ssl->version)) {
+                    else if (!IsAtLeastTLSv1_3(ssl->version)
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+                            || !TLSv1_3_Capable(ssl)
+#endif
+                            ) {
 #ifndef WOLFSSL_NO_TLS12
                         ret = DoHandShakeMsg(ssl,
                                             ssl->buffers.inputBuffer.buffer,
@@ -20435,7 +20439,7 @@ exit_dpk:
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
     /* returns 1 if able to do TLS 1.3 otherwise 0 */
-    static int TLSv1_3_Capable(WOLFSSL* ssl)
+    int TLSv1_3_Capable(WOLFSSL* ssl)
     {
     #ifndef WOLFSSL_TLS13
         return 0;
