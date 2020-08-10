@@ -19231,8 +19231,8 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 #endif /* NO_CERTS */
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-#ifndef NO_ASN
+#if !defined(NO_ASN) && (defined(OPENSSL_EXTRA) || \
+        defined(OPENSSL_EXTRA_X509_SMALL))
 void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
 {
     if (obj == NULL) {
@@ -19254,12 +19254,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
         XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
     }
 }
-#endif /* NO_ASN */
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#ifndef NO_ASN
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 {
     WOLFSSL_ASN1_OBJECT* obj;
@@ -19278,7 +19273,6 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
     obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
     return obj;
 }
-#endif
 
 WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
 {
@@ -19314,7 +19308,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
     }
     return dup;
 }
+#endif /* !NO_ASN && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
+#ifndef NO_ASN
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Creates and returns a new WOLFSSL_CIPHER stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void)
