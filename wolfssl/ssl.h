@@ -1320,7 +1320,6 @@ WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
 WOLFSSL_API WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
                                               unsigned char **in, long length);
-WOLFSSL_API
 #ifndef NO_RSA
 WOLFSSL_API int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset);
 #endif

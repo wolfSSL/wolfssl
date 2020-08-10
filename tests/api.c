@@ -2137,7 +2137,7 @@ static void test_wolfSSL_ECDSA_SIG(void)
 
 static void test_EC_i2d(void)
 {
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(HAVE_FIPS)
     EC_KEY *key;
     EC_KEY *copy;
     int len;
