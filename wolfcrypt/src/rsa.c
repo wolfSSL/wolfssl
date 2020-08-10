@@ -651,10 +651,16 @@ int wc_CheckRsaKey(RsaKey* key)
                 break;
     #endif /* WOLFSSL_SP_4096 */
                 default:
+                /* If using only single prcsision math then issue key size error, 
+                    otherwise fall-back to multi-precision math calculation */
+                #ifdef WOLFSSL_SP_MATH
                     ret = WC_KEY_SIZE_E;
+                #endif
+                    break;
         }
     }
 #endif /* WOLFSSL_HAVE_SP_RSA */
+
 #ifndef WOLFSSL_SP_MATH
     if (ret == 0) {
         if (mp_exptmod(k, &key->e, &key->n, tmp) != MP_OKAY)
@@ -764,8 +770,8 @@ int wc_CheckRsaKey(RsaKey* key)
 
     return ret;
 }
-#endif
-#endif
+#endif /* WOLFSSL_KEY_GEN && !WOLFSSL_NO_RSA_KEY_CHECK */
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
 
 #if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
