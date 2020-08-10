@@ -19602,6 +19602,9 @@ static int test_wc_ecc_import_raw(void)
         }
     #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, kNullStr, kNullStr, kNullStr, curveName);
             if (ret == ECC_INF_E)
                 ret = BAD_FUNC_ARG; /* This is expected by other tests */
@@ -19609,9 +19612,15 @@ static int test_wc_ecc_import_raw(void)
     #endif
     #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, "0", qy, d, curveName);
         }
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, qx, "0", d, curveName);
         }
     #endif
@@ -20667,8 +20676,9 @@ static int test_wc_ecc_is_valid_idx (void)
 static int test_ToTraditional (void)
 {
     int ret = 0;
-#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined(NO_ASN) && (defined(HAVE_PKCS8) || defined(HAVE_PKCS12)) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL))
 
     XFILE   f;
     byte    input[TWOK_BUF];
@@ -20710,8 +20720,9 @@ static int test_ToTraditional (void)
 #endif
     return ret;
 }/* End test_ToTraditional*/
+
 /*
- * Testing wc_Ed25519KeyToDer
+ * Testing wc_EccPrivateKeyToDer
  */
 static int test_wc_EccPrivateKeyToDer (void)
 {
@@ -20772,6 +20783,7 @@ static int test_wc_EccPrivateKeyToDer (void)
 #endif
     return ret;
 }/* End test_wc_EccPrivateKeyToDer*/
+
 /*
  * Testing wc_Ed25519KeyToDer
  */
