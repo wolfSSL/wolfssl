@@ -33329,12 +33329,12 @@ int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     if (ecc_projective_add_point(montP1, montP2, (ecc_point*)r->internal,
             &a, &prime, mp) != MP_OKAY) {
-        WOLFSSL_MSG("wc_ecc_mulmod nqm error");
+        WOLFSSL_MSG("ecc_projective_add_point error");
         goto cleanup;
     }
 
     if (ecc_map((ecc_point*)r->internal, &prime, mp) != MP_OKAY) {
-        WOLFSSL_MSG("ecc_map nqm error");
+        WOLFSSL_MSG("ecc_map error");
         goto cleanup;
     }
 
@@ -33428,14 +33428,14 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
             goto cleanup;
         }
         /* r = generator * n */
-        if (wc_ecc_mulmod((mp_int*)n->internal, result, result, &a, &prime, 1)
+        if (wc_ecc_mulmod((mp_int*)n->internal, result, result, &a, &prime, 0)
                 != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod nqm error");
             goto cleanup;
         }
         /* tmp = q * m */
         if (wc_ecc_mulmod((mp_int*)m->internal, (ecc_point*)q->internal,
-                tmp, &a, &prime, 1) != MP_OKAY) {
+                tmp, &a, &prime, 0) != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod nqm error");
             goto cleanup;
         }
