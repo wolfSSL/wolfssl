@@ -19602,6 +19602,9 @@ static int test_wc_ecc_import_raw(void)
         }
     #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, kNullStr, kNullStr, kNullStr, curveName);
             if (ret == ECC_INF_E)
                 ret = BAD_FUNC_ARG; /* This is expected by other tests */
@@ -19609,9 +19612,15 @@ static int test_wc_ecc_import_raw(void)
     #endif
     #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, "0", qy, d, curveName);
         }
         if (ret == BAD_FUNC_ARG) {
+        #if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            wc_ecc_free(&key);
+        #endif
             ret = wc_ecc_import_raw(&key, qx, "0", d, curveName);
         }
     #endif
