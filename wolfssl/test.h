@@ -1961,7 +1961,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     int            ret, i, used;
     void*          status;
     unsigned char* myStack = NULL;
-    int            stackSize = 1024*152;
+    int            stackSize = 1024*176;
     pthread_attr_t myAttr;
     pthread_t      threadId;
 
@@ -2915,7 +2915,7 @@ static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         ret = wc_ed448_import_public(key, keySz, &myKey);
         if (ret == 0) {
             ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey,
-                                                                      NULL, 0);
+                                                                       NULL, 0);
         }
         wc_ed448_free(&myKey);
     }
