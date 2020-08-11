@@ -3445,7 +3445,7 @@ AC_ARG_ENABLE([jni],
     )
 if test "$ENABLED_JNI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_JNI -DHAVE_EX_DATA"
 
     # Enable prereqs if not already enabled
     if test "x$ENABLED_DTLS" = "xno"
@@ -3457,6 +3457,11 @@ then
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
+    fi
+    if test "x$ENABLED_OPENSSLALL" = "xno"
+    then
+        ENABLED_OPENSSLALL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL"
     fi
     if test "x$ENABLED_CRL" = "xno"
     then
@@ -3526,6 +3531,11 @@ then
     then
         ENABLED_SNI="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI"
+    fi
+    if test "x$ENABLED_ALPN" = "xno"
+    then
+        ENABLED_ALPN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ALPN"
     fi
 fi
 
