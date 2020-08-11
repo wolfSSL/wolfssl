@@ -7619,11 +7619,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
 static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
     unsigned char* pt;
-    int sz = key->pkey_sz;
+    int sz;
 
     if (!key || !key->pkey_sz)
         return WOLFSSL_FATAL_ERROR;
 
+    sz = key->pkey_sz;
     if (der) {
         pt = (unsigned char*)key->pkey.ptr;
         if (*der) {
