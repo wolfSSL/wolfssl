@@ -1577,6 +1577,24 @@ int mp_div_2(mp_int * a, mp_int * b)
   return MP_OKAY;
 }
 
+/* c = a / 2 (mod b) - constant time (a < b and positive) */
+int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
+{
+    int res;
+
+    if (mp_isodd(a)) {
+        res = mp_add(a, b, c);
+        if (res == MP_OKAY) {
+            res = mp_div_2(c, c);
+        }
+    }
+    else {
+        res = mp_div_2(a, c);
+    }
+
+    return res;
+}
+
 
 /* high level addition (handles signs) */
 int mp_add (mp_int * a, mp_int * b, mp_int * c)
@@ -2992,6 +3010,32 @@ int mp_addmod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
    mp_clear (&t);
 
    return res;
+}
+
+/* d = a - b (mod c) - a < c and b < c and positive */
+int mp_submod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+    int res;
+
+    res = mp_sub(a, b, d);
+    if (res == MP_OKAY && mp_isneg(d)) {
+        res = mp_add(d, c, d);
+    }
+
+    return res;
+}
+
+/* d = a + b (mod c) - a < c and b < c and positive */
+int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+    int res;
+
+    res = mp_add(a, b, d);
+    if (res == MP_OKAY && mp_cmp(d, c) != MP_LT) {
+        res = mp_sub(d, c, d);
+    }
+
+    return res;
 }
 
 /* computes b = a*a */

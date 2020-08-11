@@ -1413,16 +1413,40 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
         }
         if (key) {
             word32 len32 = (word32)len;
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+                                                         !defined(HAVE_SELFTEST)
+            WC_RNG rng;
+            if (wc_InitRng(&rng) != MP_OKAY) {
+                WOLFSSL_MSG("Init RNG failed");
+                return WOLFSSL_FAILURE;
+            }
+            ((ecc_key*)ctx->pkey->ecc->internal)->rng = &rng;
+#endif
             if (*keylen < len32) {
                 WOLFSSL_MSG("buffer too short");
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+                                                         !defined(HAVE_SELFTEST)
+                ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+                wc_FreeRng(&rng);
+#endif
                 return WOLFSSL_FAILURE;
             }
             if (wc_ecc_shared_secret_ssh((ecc_key*)ctx->pkey->ecc->internal,
                                          (ecc_point*)ctx->peerKey->ecc->pub_key->internal,
                                          key, &len32) != MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_shared_secret failed");
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+                                                         !defined(HAVE_SELFTEST)
+                ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+                wc_FreeRng(&rng);
+#endif
                 return WOLFSSL_FAILURE;
             }
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+                                                         !defined(HAVE_SELFTEST)
+            ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
+            wc_FreeRng(&rng);
+#endif
             len = (int)len32;
         }
         *keylen = (size_t)len;

@@ -4243,7 +4243,13 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     else
 #endif
     {
-        ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+        ret = wc_ecc_set_rng(priv_key, ssl->rng);
+        if (ret == 0)
+#endif
+            ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
     }
 
     /* Handle async pending response */

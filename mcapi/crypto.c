@@ -702,13 +702,31 @@ int CRYPT_ECC_DHE_SharedSecretMake(CRYPT_ECC_CTX* priv, CRYPT_ECC_CTX* pub,
 {
     int ret;
     unsigned int inOut = outSz;
+#if defined(ECC_TIMING_RESISTANT)
+    WC_RNG rng;
+#endif
 
     if (priv == NULL || pub == NULL || out == NULL || usedSz == NULL)
         return BAD_FUNC_ARG;
 
+#if defined(ECC_TIMING_RESISTANT)
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+    ret = wc_ecc_set_rng((ecc_key*)priv->holder, &rng);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+#endif
+
     ret = wc_ecc_shared_secret((ecc_key*)priv->holder, (ecc_key*)pub->holder,
                             out, &inOut);
     *usedSz = inOut;
+
+#if defined(ECC_TIMING_RESISTANT)
+    wc_FreeRng(&rng);
+#endif
 
     return ret;
 }
