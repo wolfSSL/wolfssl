@@ -1539,17 +1539,17 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     idx += ret;
 
     SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
-
-    /* set hmac function to use when verifying */
-    if (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
-            ssl->options.dtls == 1) {
-        ssl->hmac = TLS_hmac;
-    }
-
     /* make sure is a valid suite used */
     if (wolfSSL_get_cipher(ssl) == NULL) {
         WOLFSSL_MSG("Can not match cipher suite imported");
         return MATCH_SUITE_ERROR;
+    }
+
+#ifndef WOLFSSL_AEAD_ONLY
+    /* set hmac function to use when verifying */
+    if (ssl->options.tls == 1 || ssl->options.tls1_1 == 1 ||
+            ssl->options.dtls == 1) {
+        ssl->hmac = TLS_hmac;
     }
 
     /* do not allow stream ciphers with DTLS, except for NULL cipher */
@@ -1558,6 +1558,7 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
         WOLFSSL_MSG("Can not import stream ciphers for DTLS");
         return SANITY_CIPHER_E;
     }
+#endif /* !WOLFSSL_AEAD_ONLY */
 
     return idx;
 }
