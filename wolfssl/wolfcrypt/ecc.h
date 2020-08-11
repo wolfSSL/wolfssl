@@ -601,6 +601,8 @@ WOLFSSL_API
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
 int wc_ecc_point_is_at_infinity(ecc_point *p);
+WOLFSSL_API
+int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 WOLFSSL_API

@@ -180,11 +180,11 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define PKCS8_PRIV_KEY_INFO_free        wolfSSL_EVP_PKEY_free
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp
 
+#define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
 #define d2i_PrivateKey                  wolfSSL_d2i_PrivateKey
 #define d2i_AutoPrivateKey              wolfSSL_d2i_AutoPrivateKey
-#define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 #define SSL_use_PrivateKey              wolfSSL_use_PrivateKey
 #define SSL_use_PrivateKey_ASN1         wolfSSL_use_PrivateKey_ASN1
 #define SSL_use_RSAPrivateKey_ASN1      wolfSSL_use_RSAPrivateKey_ASN1
@@ -454,6 +454,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define sk_X509_INFO_free               wolfSSL_sk_X509_INFO_free
 
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
+#define d2i_X509_NAME                   wolfSSL_d2i_X509_NAME
 #define X509_NAME_new                   wolfSSL_X509_NAME_new
 #define X509_NAME_free                  wolfSSL_X509_NAME_free
 #define X509_NAME_dup                   wolfSSL_X509_NAME_dup

@@ -1411,7 +1411,7 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
-if test "$ENABLED_OPENVPN" = "yes"
+if test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_OPENSSH" = "yes"
 then
     ENABLED_CERTGEN=yes
 fi

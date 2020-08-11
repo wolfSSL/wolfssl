@@ -100,6 +100,7 @@
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
     #include <wolfssl/wolfcrypt/des3.h>
+    #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
     #include <wolfssl/wolfcrypt/arc4.h>
@@ -7612,6 +7613,40 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
     return pkey;
+}
+
+/* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
+static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
+{
+    unsigned char* pt;
+    int sz;
+
+    if (!key || !key->pkey_sz)
+        return WOLFSSL_FATAL_ERROR;
+
+    sz = key->pkey_sz;
+    if (der) {
+        pt = (unsigned char*)key->pkey.ptr;
+        if (*der) {
+            /* since this function signature has no size value passed in it is
+             * assumed that the user has allocated a large enough buffer */
+            XMEMCPY(*der, pt, sz);
+            *der += sz;
+        }
+        else {
+            *der = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (*der == NULL) {
+                return WOLFSSL_FATAL_ERROR;
+            }
+            XMEMCPY(*der, pt, sz);
+        }
+    }
+    return sz;
+}
+
+int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
+{
+    return wolfSSL_EVP_PKEY_get_der(key, der);
 }
 
 
@@ -22488,39 +22523,15 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
     return ret;
 }
 
-/* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
-static int wolfSSL_EVP_PKEY_get_der(WOLFSSL_EVP_PKEY* key, unsigned char** der)
-{
-    if (!key)
-        return WOLFSSL_FAILURE;
-    if (der)
-        *der = (unsigned char*)key->pkey.ptr;
-    return key->pkey_sz;
-}
-
 /* Copies unencrypted DER key buffer into "der". If "der" is null then the size
- * of buffer needed is returned
+ * of buffer needed is returned. If *der == NULL then it allocates a buffer.
  * NOTE: This also advances the "der" pointer to be at the end of buffer.
  *
  * Returns size of key buffer on success
  */
-int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
+int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
-    if (key == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (key->pkey_sz <= 0 || !key->pkey.ptr) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (der != NULL) {
-        /* since this function signature has no size value passed in it is
-         * assumed that the user has allocated a large enough buffer */
-        XMEMCPY(*der, key->pkey.ptr, key->pkey_sz);
-        *der += key->pkey_sz;
-    }
-    return key->pkey_sz;
+    return wolfSSL_EVP_PKEY_get_der(key, der);
 }
 
 /* Creates a new WC_PKCS12 structure
@@ -22546,12 +22557,10 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
     WC_PKCS12*      pkcs12;
     WC_DerCertList* list = NULL;
     word32 passSz;
-    byte* keyDer;
+    byte* keyDer = NULL;
     word32 keyDerSz;
     byte* certDer;
     int certDerSz;
-
-    int ret;
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_create()");
 
@@ -22561,11 +22570,8 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
     }
     passSz = (word32)XSTRLEN(pass);
 
-    if ((ret = wolfSSL_EVP_PKEY_get_der(pkey, &keyDer)) < 0) {
-        WOLFSSL_LEAVE("wolfSSL_PKCS12_create", ret);
-        return NULL;
-    }
-    keyDerSz = ret;
+    keyDer = (byte*)pkey->pkey.ptr;
+    keyDerSz = pkey->pkey_sz;
 
     certDer = (byte*)wolfSSL_X509_get_der(cert, &certDerSz);
     if (certDer == NULL) {
@@ -25574,9 +25580,9 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
     if (ppkalg)
         *ppkalg = pub->algor->algorithm;
     if (pk)
-        wolfSSL_EVP_PKEY_get_der(pub->pkey, (unsigned char **)pk);
+        *pk = (unsigned char*)pub->pkey->pkey.ptr;
     if (ppklen)
-        *ppklen = wolfSSL_EVP_PKEY_get_der(pub->pkey, NULL);
+        *ppklen = pub->pkey->pkey_sz;
 
     return WOLFSSL_SUCCESS;
 }
@@ -31367,7 +31373,8 @@ void *wolfSSL_OPENSSL_malloc(size_t a)
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
 
 static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
-                         unsigned char* passwd, int passwdSz, byte **cipherInfo)
+                         unsigned char* passwd, int passwdSz, byte **cipherInfo,
+                         int maxDerSz)
 {
     int ret, paddingSz;
     word32 idx, cipherInfoSz;
@@ -31420,6 +31427,13 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
     paddingSz = ((*derSz)/info->ivSz + 1) * info->ivSz - (*derSz);
     if (paddingSz == 0)
         paddingSz = info->ivSz;
+    if (maxDerSz < *derSz + paddingSz) {
+        WOLFSSL_MSG("not enough DER buffer allocated");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
+#endif
+        return WOLFSSL_FAILURE;
+    }
     XMEMSET(der+(*derSz), (byte)paddingSz, paddingSz);
     (*derSz) += paddingSz;
 
@@ -31865,9 +31879,20 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     /* encrypt DER buffer if required */
     if (passwd != NULL && passwdSz > 0 && cipher != NULL) {
         int ret;
+        int blockSz = wolfSSL_EVP_CIPHER_block_size(cipher);
+        byte *tmpBuf;
+
+        /* Add space for padding */
+        if (!(tmpBuf = XREALLOC(derBuf, derSz + blockSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER))) {
+            WOLFSSL_MSG("Extending DER buffer failed");
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+            return WOLFSSL_FAILURE;
+        }
+        derBuf = tmpBuf;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, derSz + blockSz);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -32096,7 +32121,7 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
     /* set group (OID, nid and idx) */
     eckey->group->curve_oid = ecc_sets[key->idx].oidSum;
-    eckey->group->curve_nid = ecc_sets[key->idx].id;
+    eckey->group->curve_nid = EccEnumToNID(ecc_sets[key->idx].id);
     eckey->group->curve_idx = key->idx;
 
     if (eckey->pub_key->internal != NULL) {
@@ -32264,14 +32289,9 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_KEY *key;
     int x;
-    int eccEnum;
+    int eccEnum = NIDToEccEnum(nid);
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new_by_curve_name");
-
-    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    eccEnum = NIDToEccEnum(nid);
-    if (eccEnum == -1)
-        eccEnum = nid;
 
     key = wolfSSL_EC_KEY_new();
     if (key == NULL) {
@@ -32280,15 +32300,17 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     }
 
     /* set the nid of the curve */
-    key->group->curve_nid = eccEnum;
+    key->group->curve_nid = nid;
 
-    /* search and set the corresponding internal curve idx */
-    for (x = 0; ecc_sets[x].size != 0; x++)
-        if (ecc_sets[x].id == key->group->curve_nid) {
-            key->group->curve_idx = x;
-            key->group->curve_oid = ecc_sets[x].oidSum;
-            break;
-        }
+    if (eccEnum != -1) {
+        /* search and set the corresponding internal curve idx */
+        for (x = 0; ecc_sets[x].size != 0; x++)
+            if (ecc_sets[x].id == eccEnum) {
+                key->group->curve_idx = x;
+                key->group->curve_oid = ecc_sets[x].oidSum;
+                break;
+            }
+    }
 
     return key;
 }
@@ -32485,6 +32507,7 @@ int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
 int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 {
     int     initTmpRng = 0;
+    int     eccEnum;
     WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRNG = NULL;
@@ -32526,8 +32549,11 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         return 0;
     }
 
-    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal,
-                                        key->group->curve_nid) != MP_OKAY) {
+    /* NIDToEccEnum returns -1 for invalid NID so if key->group->curve_nid
+     * is 0 then pass ECC_CURVE_DEF as arg */
+    eccEnum = key->group->curve_nid ?
+            NIDToEccEnum(key->group->curve_nid) : ECC_CURVE_DEF;
+    if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal, eccEnum) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key wc_ecc_make_key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
@@ -32838,6 +32864,13 @@ int wolfSSL_EC_GROUP_cmp(const WOLFSSL_EC_GROUP *a, const WOLFSSL_EC_GROUP *b,
     return 1;
 }
 
+WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_dup(const WOLFSSL_EC_GROUP *src)
+{
+    if (!src)
+        return NULL;
+    return wolfSSL_EC_GROUP_new_by_curve_name(src->curve_nid);
+}
+
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 
@@ -32888,9 +32921,6 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 
     /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
     eccEnum = NIDToEccEnum(nid);
-    if (eccEnum == -1)
-        eccEnum = nid;
-
 
     /* curve group */
     g = (WOLFSSL_EC_GROUP*) XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
@@ -32902,12 +32932,12 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
     XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
 
     /* set the nid of the curve */
-    g->curve_nid = eccEnum;
+    g->curve_nid = nid;
 
-    if (eccEnum > ECC_CURVE_DEF) {
+    if (eccEnum != -1) {
         /* search and set the corresponding internal curve idx */
         for (x = 0; ecc_sets[x].size != 0; x++)
-            if (ecc_sets[x].id == g->curve_nid) {
+            if (ecc_sets[x].id == eccEnum) {
                 g->curve_idx = x;
                 g->curve_oid = ecc_sets[x].oidSum;
                 break;
@@ -33287,10 +33317,14 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
         return WOLFSSL_FAILURE;
     }
 
+#ifdef HAVE_COMP_KEY
     /* Default to compressed form if not set */
     form = in->form == POINT_CONVERSION_UNCOMPRESSED ?
             POINT_CONVERSION_UNCOMPRESSED:
             POINT_CONVERSION_COMPRESSED;
+#else
+    form = POINT_CONVERSION_UNCOMPRESSED;
+#endif
 
     len = wolfSSL_EC_POINT_point2oct(in->group, in->pub_key, form,
                                      NULL, 0, NULL);
@@ -33323,11 +33357,104 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
     return (int)len;
 }
 
+#ifdef HAVE_ECC_KEY_IMPORT
+WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned char **in,
+                                         long len)
+{
+    WOLFSSL_EC_KEY *eckey = NULL;
+    WOLFSSL_ENTER("wolfSSL_d2i_ECPrivateKey");
+
+    if (!in || !*in || len <= 0) {
+        WOLFSSL_MSG("wolfSSL_d2i_ECPrivateKey Bad arguments");
+        return NULL;
+    }
+
+    if (!(eckey = wolfSSL_EC_KEY_new())) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+        return NULL;
+    }
+
+    if (wc_ecc_import_private_key(*in, (word32)len, NULL, 0,
+            (ecc_key*)eckey->internal) != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_import_private_key error");
+        goto error;
+    }
+
+    eckey->inSet = 1;
+
+    if (SetECKeyExternal(eckey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECKeyExternal error");
+        goto error;
+    }
+
+    if (key) {
+        *key = eckey;
+    }
+
+    return eckey;
+
+error:
+    wolfSSL_EC_KEY_free(eckey);
+    return NULL;
+}
+#endif /* HAVE_ECC_KEY_IMPORT */
+
+int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
+{
+    int len;
+    byte* buf = NULL;
+    WOLFSSL_ENTER("wolfSSL_i2d_ECPrivateKey");
+
+    if (!in) {
+        WOLFSSL_MSG("wolfSSL_i2d_ECPrivateKey Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!in->inSet && SetECKeyInternal((WOLFSSL_EC_KEY*)in) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECKeyInternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((len = wc_ecc_size((ecc_key*)in->internal)) <= 0) {
+        WOLFSSL_MSG("wc_ecc_size error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (out) {
+        if (!(buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+            WOLFSSL_MSG("tmp buffer malloc error");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wc_ecc_export_private_only((ecc_key*)in->internal, buf,
+                (word32*)&len) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_export_private_only error");
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (*out) {
+            XMEMCPY(*out, buf, len);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        else {
+            *out = buf;
+        }
+    }
+
+    return len;
+}
+
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
 {
-    if (eckey && (form == POINT_CONVERSION_COMPRESSED ||
-                  form == POINT_CONVERSION_UNCOMPRESSED)) {
+    if (eckey && (form == POINT_CONVERSION_UNCOMPRESSED
+#ifdef HAVE_COMP_KEY
+                  || form == POINT_CONVERSION_COMPRESSED
+#endif
+                  )) {
         eckey->form = form;
+    } else {
+        WOLFSSL_MSG("Incorrect form or HAVE_COMP_KEY not compiled in");
     }
 }
 
@@ -33368,6 +33495,29 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
     return ret;
 }
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+
+#ifdef USE_ECC_B_PARAM
+int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
+                                 const WOLFSSL_EC_POINT *point,
+                                 WOLFSSL_BN_CTX *ctx)
+{
+    (void)ctx;
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_is_on_curve");
+
+    if (!group || !point) {
+        WOLFSSL_MSG("Invalid arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!point->inSet && SetECPointInternal((WOLFSSL_EC_POINT*)point)) {
+        WOLFSSL_MSG("SetECPointInternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wc_ecc_point_is_on_curve((ecc_point*)point->internal, group->curve_idx)
+            == MP_OKAY ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* USE_ECC_B_PARAM */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {
@@ -33502,6 +33652,112 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
+                         const WOLFSSL_EC_POINT *p1,
+                         const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
+{
+    mp_int a, prime, mu;
+    mp_digit mp = 0;
+    ecc_point* montP1 = NULL;
+    ecc_point* montP2 = NULL;
+    ecc_point* eccP1;
+    ecc_point* eccP2;
+    int ret = WOLFSSL_FAILURE;
+
+    (void)ctx;
+
+    if (!group || !r || !p1 || !p2) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_add error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (setupPoint(r) != WOLFSSL_SUCCESS ||
+        setupPoint(p1) != WOLFSSL_SUCCESS ||
+        setupPoint(p2) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("setupPoint error");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* read the curve prime and a */
+    if (mp_init_multi(&prime, &a, &mu, NULL, NULL, NULL) != MP_OKAY) {
+        WOLFSSL_MSG("mp_init_multi error");
+        goto cleanup;
+    }
+
+    if (mp_read_radix(&a, ecc_sets[group->curve_idx].Af, MP_RADIX_HEX)
+            != MP_OKAY) {
+        WOLFSSL_MSG("mp_read_radix a error");
+        goto cleanup;
+    }
+
+    if (mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX)
+            != MP_OKAY) {
+        WOLFSSL_MSG("mp_read_radix prime error");
+        goto cleanup;
+    }
+
+    if (mp_montgomery_setup(&prime, &mp) != MP_OKAY) {
+        WOLFSSL_MSG("mp_montgomery_setup nqm error");
+        goto cleanup;
+    }
+
+    eccP1 = (ecc_point*)p1->internal;
+    eccP2 = (ecc_point*)p2->internal;
+
+    if (!(montP1 = wc_ecc_new_point_h(NULL)) ||
+            !(montP2 = wc_ecc_new_point_h(NULL))) {
+        WOLFSSL_MSG("wc_ecc_new_point_h nqm error");
+        goto cleanup;
+    }
+
+    if ((mp_montgomery_calc_normalization(&mu, &prime)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_montgomery_calc_normalization error");
+        goto cleanup;
+    }
+
+    /* Convert to Montgomery form */
+    if (mp_cmp_d(&mu, 1) == MP_EQ) {
+        if (wc_ecc_copy_point(eccP1, montP1) != MP_OKAY ||
+                wc_ecc_copy_point(eccP2, montP2) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_copy_point error");
+            goto cleanup;
+        }
+    } else {
+        if (mp_mulmod(eccP1->x, &mu, &prime, montP1->x) != MP_OKAY ||
+                mp_mulmod(eccP1->y, &mu, &prime, montP1->y) != MP_OKAY ||
+                mp_mulmod(eccP1->z, &mu, &prime, montP1->z) != MP_OKAY) {
+            WOLFSSL_MSG("mp_mulmod error");
+            goto cleanup;
+        }
+        if (mp_mulmod(eccP2->x, &mu, &prime, montP2->x) != MP_OKAY ||
+                mp_mulmod(eccP2->y, &mu, &prime, montP2->y) != MP_OKAY ||
+                mp_mulmod(eccP2->z, &mu, &prime, montP2->z) != MP_OKAY) {
+            WOLFSSL_MSG("mp_mulmod error");
+            goto cleanup;
+        }
+    }
+
+    if (ecc_projective_add_point(montP1, montP2, (ecc_point*)r->internal,
+            &a, &prime, mp) != MP_OKAY) {
+        WOLFSSL_MSG("ecc_projective_add_point error");
+        goto cleanup;
+    }
+
+    if (ecc_map((ecc_point*)r->internal, &prime, mp) != MP_OKAY) {
+        WOLFSSL_MSG("ecc_map error");
+        goto cleanup;
+    }
+
+    ret = WOLFSSL_SUCCESS;
+cleanup:
+    mp_clear(&a);
+    mp_clear(&prime);
+    mp_clear(&mu);
+    wc_ecc_del_point_h(montP1, NULL);
+    wc_ecc_del_point_h(montP2, NULL);
+    return ret;
+}
+
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -33582,14 +33838,14 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
             goto cleanup;
         }
         /* r = generator * n */
-        if (wc_ecc_mulmod((mp_int*)n->internal, result, result, &a, &prime, 1)
+        if (wc_ecc_mulmod((mp_int*)n->internal, result, result, &a, &prime, 0)
                 != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod nqm error");
             goto cleanup;
         }
         /* tmp = q * m */
         if (wc_ecc_mulmod((mp_int*)m->internal, (ecc_point*)q->internal,
-                tmp, &a, &prime, 1) != MP_OKAY) {
+                tmp, &a, &prime, 0) != MP_OKAY) {
             WOLFSSL_MSG("wc_ecc_mulmod nqm error");
             goto cleanup;
         }
@@ -33644,6 +33900,42 @@ cleanup:
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
         * !defined(HAVE_SELFTEST) */
+
+/* (x, y) -> (x, -y) */
+int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
+                            WOLFSSL_BN_CTX *ctx)
+{
+    ecc_point* p;
+    mp_int prime;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_invert");
+
+    if (!group || !a || !a->internal || setupPoint(a) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    p = (ecc_point*)a->internal;
+
+    /* read the curve prime and a */
+    if (mp_init_multi(&prime, NULL, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        WOLFSSL_MSG("mp_init_multi error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (mp_sub(&prime, p->y, p->y) != MP_OKAY) {
+        WOLFSSL_MSG("mp_sub error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (SetECPointExternal(a) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECPointExternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
 
 void wolfSSL_EC_POINT_clear_free(WOLFSSL_EC_POINT *p)
 {
@@ -34354,7 +34646,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
         int ret;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, der_max_len);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -34664,7 +34956,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         int ret;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, der_max_len);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -37482,6 +37774,46 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
     }
 #endif /* WOLFSSL_CERT_GEN */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+
+    WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
+                                             unsigned char **in, long length)
+    {
+        WOLFSSL_X509_NAME* tmp = NULL;
+        DecodedCert cert;
+
+        WOLFSSL_ENTER("wolfSSL_d2i_X509_NAME");
+
+        if (!in || !*in || length <= 0) {
+            WOLFSSL_MSG("Bad argument");
+            return NULL;
+        }
+
+        /* Set the X509_NAME buffer as the input data for cert.
+         * in is NOT a full certificate. Just the name. */
+        InitDecodedCert(&cert, *in, (word32)length, NULL);
+
+        /* Parse the X509 subject name */
+        if (GetName(&cert, SUBJECT, (int)length) != 0) {
+            WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
+            goto cleanup;
+        }
+
+        if (!(tmp = wolfSSL_X509_NAME_new())) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_new error");
+            goto cleanup;
+        }
+
+        XSTRNCPY(tmp->staticName, cert.subject, ASN_NAME_MAX);
+        tmp->staticName[ASN_NAME_MAX - 1] = '\0';
+        tmp->sz = (int)XSTRLEN(tmp->staticName) + 1;
+
+        if (name)
+            *name = tmp;
+cleanup:
+        FreeDecodedCert(&cert);
+        return tmp;
+    }
+
 
     /* Compares the two X509 names. If the size of x is larger then y then a
      * positive value is returned if x is smaller a negative value is returned.
