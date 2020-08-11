@@ -33502,12 +33502,11 @@ int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_invert");
 
-    if (!group || !a || setupPoint(a) != WOLFSSL_SUCCESS) {
+    if (!group || !a || !a->internal || setupPoint(a) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
     p = (ecc_point*)a->internal;
-
 
     /* read the curve prime and a */
     if (mp_init_multi(&prime, NULL, NULL, NULL, NULL, NULL) != MP_OKAY) {
