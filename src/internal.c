@@ -1859,11 +1859,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         }
     #endif
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        while (ctx->x509Chain != NULL) {
-            WOLFSSL_STACK *next = ctx->x509Chain->next;
-            wolfSSL_X509_free(ctx->x509Chain->data.x509);
-            XFREE(ctx->x509Chain, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->x509Chain = next;
+        if (ctx->x509Chain) {
+            wolfSSL_sk_X509_free(ctx->x509Chain);
+            ctx->x509Chain = NULL;
         }
     #endif
 #endif /* !NO_CERTS */
