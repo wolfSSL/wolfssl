@@ -672,6 +672,7 @@ void ssl_FreeSniffer(void)
         srv = srv->next;
         FreeSnifferServer(removeServer);
     }
+    ServerList = NULL;
 
     for (i = 0; i < HASH_SIZE; i++) {
         session = SessionTable[i];
@@ -681,6 +682,7 @@ void ssl_FreeSniffer(void)
             FreeSnifferSession(removeSession);
         }
     }
+    SessionCount = 0;
 
     wc_UnLockMutex(&SessionMutex);
     wc_UnLockMutex(&ServerListMutex);
