@@ -17642,7 +17642,8 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     if (ssl->earlyData != no_early_data) {
         if (ssl->options.handShakeState == HANDSHAKE_DONE) {
             WOLFSSL_MSG("handshake complete, trying to send early data");
-            return BUILD_MSG_ERROR;
+            ssl->error = BUILD_MSG_ERROR;
+            return WOLFSSL_FATAL_ERROR;
         }
     #ifdef WOLFSSL_EARLY_DATA_GROUP
         groupMsgs = 1;
@@ -17830,7 +17831,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
         #endif
-            return  err;
+            return err;
         }
     }
 
@@ -17840,7 +17841,7 @@ startScr:
         int err;
         WOLFSSL_MSG("Need to start scr, server requested");
         if ( (err = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS)
-            return  err;
+            return err;
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
     }
 #endif
@@ -17850,14 +17851,14 @@ startScr:
             WOLFSSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 WOLFSSL_MSG("Zero return, no more data coming");
-                return 0;         /* no more data coming */
+                return 0; /* no more data coming */
             }
             if (ssl->error == SOCKET_ERROR_E) {
                 if (ssl->options.connReset || ssl->options.isClosed) {
                     WOLFSSL_MSG("Peer reset or closed, connection done");
                     ssl->error = SOCKET_PEER_CLOSED_E;
                     WOLFSSL_ERROR(ssl->error);
-                    return 0;     /* peer reset or closed */
+                    return 0; /* peer reset or closed */
                 }
             }
             return ssl->error;
