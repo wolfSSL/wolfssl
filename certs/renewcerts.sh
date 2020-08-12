@@ -498,7 +498,7 @@ run_renewcerts(){
     check_result $? "Der Cert 11"
     openssl x509 -inform PEM -in server-ecc-comp.pem -outform DER -out server-ecc-comp.der
     check_result $? "Der Cert 12"
-    cat certs/server-cert.der certs/ca-cert.der >certs/server-cert-chain.der
+    cat server-cert.der ca-cert.der >server-cert-chain.der
     check_result $? "Der Cert 13"
     echo "End of section"
     echo "---------------------------------------------------------------------"
