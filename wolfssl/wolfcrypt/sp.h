@@ -28,7 +28,9 @@
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
+#ifndef WOLFSSL_LINUXKM
 #include <stdint.h>
+#endif
 
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/sp_int.h>

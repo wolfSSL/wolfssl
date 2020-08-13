@@ -7652,9 +7652,7 @@ ProtocolVersion MakeDTLSv1_2(void)
     #include <linux/ktime.h>
     word32 LowResTimer(void)
     {
-        struct timespec ts;
-        getnstimeofday(&ts);
-        return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        return (word32)ktime_get_real_ns();
     }
 
 #else

@@ -6108,6 +6108,25 @@ static WC_INLINE int GetTime(int* value, const byte* date, int* idx)
     return 0;
 }
 
+#ifdef WOLFSSL_LINUXKM
+static WC_INLINE int GetTime_Long(long* value, const byte* date, int* idx)
+{
+    int i = *idx;
+
+    if (date[i] < 0x30 || date[i] > 0x39 || date[i+1] < 0x30 ||
+                                                             date[i+1] > 0x39) {
+        return ASN_PARSE_E;
+    }
+
+    *value += (long)btoi(date[i++]) * 10;
+    *value += (long)btoi(date[i++]);
+
+    *idx = i;
+
+    return 0;
+}
+#endif
+
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
 {
@@ -6120,7 +6139,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
             certTime->tm_year = 2000;
     }
     else  { /* format == GENERALIZED_TIME */
+#ifdef WOLFSSL_LINUXKM
+        if (GetTime_Long(&certTime->tm_year, date, idx) != 0) return 0;
+#else
         if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+#endif
         certTime->tm_year *= 100;
     }
 
@@ -6135,7 +6158,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     int tm_min  = certTime->tm_min;
     int tm_sec  = certTime->tm_sec;
 
+#ifdef WOLFSSL_LINUXKM
+    if (GetTime_Long(&tm_year, date, idx) != 0) return 0;
+#else
     if (GetTime(&tm_year, date, idx) != 0) return 0;
+#endif
     if (GetTime(&tm_mon , date, idx) != 0) return 0;
     if (GetTime(&tm_mday, date, idx) != 0) return 0;
     if (GetTime(&tm_hour, date, idx) != 0) return 0;
@@ -6151,7 +6178,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     certTime->tm_sec  = tm_sec;
 #else
     /* adjust tm_year, tm_mon */
+#ifdef WOLFSSL_LINUXKM
+    if (GetTime_Long(&certTime->tm_year, date, idx) != 0) return 0;
+#else
     if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+#endif
     certTime->tm_year -= 1900;
     if (GetTime(&certTime->tm_mon , date, idx) != 0) return 0;
     certTime->tm_mon  -= 1;
@@ -6203,7 +6234,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     idx = 4; /* use idx now for char buffer */
 
     XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
-              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900);
 
     return 1;
 }

@@ -33,7 +33,9 @@
 #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
 
 #include <wolfssl/wolfcrypt/fe_448.h>
+#ifndef WOLFSSL_LINUXKM
 #include <stdint.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

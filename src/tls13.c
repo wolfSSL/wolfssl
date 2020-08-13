@@ -1346,6 +1346,21 @@ end:
     {
         return (word32)(uTaskerSystemTick / (TICK_RESOLUTION / 1000));
     }
+#elif defined(WOLFSSL_LINUXKM)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 32-bit value.
+     */
+    word32 TimeNowInMilliseconds(void)
+    {
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+        return (word32)(ktime_get_real_ns() / (s64)1000000);
+        #else
+        return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
+        #endif
+    }
 #else
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
