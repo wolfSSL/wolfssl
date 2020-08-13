@@ -58,19 +58,20 @@ static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] = {9};
  * return value is propagated from curve25519() (0 on success), or ECC_BAD_ARG_E,
  * and the byte vectors are little endian.
  */
-int wc_curve25519_make_pub(int public_size, byte* public, int private_size, const byte* private) {
+int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
+                           const byte* priv) {
     int ret;
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE)) {
         return ECC_BAD_ARG_E;
     }
-    if ((public == NULL) || (private == NULL))
+    if ((pub == NULL) || (priv == NULL))
         return ECC_BAD_ARG_E;
 
     /* check clamping */
-    if ((private[0] & ~248) ||
-        (private[CURVE25519_KEYSIZE-1] & 128)) {
+    if ((priv[0] & ~248) ||
+        (priv[CURVE25519_KEYSIZE-1] & 128)) {
         return ECC_BAD_ARG_E;
     }
 
@@ -78,13 +79,13 @@ int wc_curve25519_make_pub(int public_size, byte* public, int private_size, cons
     {
         const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
         ECPoint wc_pub;
-        ret = nxp_ltc_curve25519(&wc_pub, private, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
+        ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
         if (ret == 0)
-            XMEMCPY(public, wc_pub.point, CURVE25519_KEYSIZE);
+            XMEMCPY(pub, wc_pub.point, CURVE25519_KEYSIZE);
     }
 #else
     fe_init();
-    ret = curve25519(public, private, kCurve25519BasePoint);
+    ret = curve25519(pub, priv, kCurve25519BasePoint);
 #endif
 
     return ret;

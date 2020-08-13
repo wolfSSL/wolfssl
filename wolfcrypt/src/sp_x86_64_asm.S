@@ -39015,7 +39015,7 @@ _sp_256_get_point_33_4:
         movd	%edx, %xmm13
         addq	$200, %rsi
         movd	%eax, %xmm15
-        movq	$33, %rax
+        movq	$32, %rax
         pshufd	$0, %xmm15, %xmm15
         pshufd	$0, %xmm13, %xmm13
         pxor	%xmm14, %xmm14
@@ -39081,7 +39081,7 @@ _sp_256_get_point_33_avx2_4:
         movd	%edx, %xmm7
         addq	$200, %rsi
         movd	%eax, %xmm9
-        movq	$33, %rax
+        movq	$32, %rax
         vpxor	%ymm8, %ymm8, %ymm8
         vpermd	%ymm7, %ymm8, %ymm7
         vpermd	%ymm9, %ymm8, %ymm9
@@ -39472,7 +39472,7 @@ _sp_256_get_entry_64_4:
         movd	%edx, %xmm9
         addq	$64, %rsi
         movd	%eax, %xmm11
-        movq	$64, %rax
+        movq	$63, %rax
         pshufd	$0, %xmm11, %xmm11
         pshufd	$0, %xmm9, %xmm9
         pxor	%xmm10, %xmm10
@@ -39575,7 +39575,7 @@ _sp_256_get_entry_65_4:
         movd	%edx, %xmm9
         addq	$64, %rsi
         movd	%eax, %xmm11
-        movq	$65, %rax
+        movq	$64, %rax
         pshufd	$0, %xmm11, %xmm11
         pshufd	$0, %xmm9, %xmm9
         pxor	%xmm10, %xmm10
@@ -42016,7 +42016,7 @@ _sp_384_get_point_33_6:
         movd	%edx, %xmm13
         addq	$296, %rsi
         movd	%eax, %xmm15
-        movq	$33, %rax
+        movq	$32, %rax
         pshufd	$0, %xmm15, %xmm15
         pshufd	$0, %xmm13, %xmm13
         pxor	%xmm14, %xmm14
@@ -42060,9 +42060,9 @@ L_384_get_point_33_6_start:
         movdqu	%xmm5, 128(%rdi)
         movq	$1, %rax
         movd	%edx, %xmm13
-        addq	$296, %rsi
+        subq	$9472, %rsi
         movd	%eax, %xmm15
-        movq	$33, %rax
+        movq	$32, %rax
         pshufd	$0, %xmm15, %xmm15
         pshufd	$0, %xmm13, %xmm13
         pxor	%xmm14, %xmm14
@@ -42113,7 +42113,7 @@ _sp_384_get_point_33_avx2_6:
         movd	%edx, %xmm13
         addq	$296, %rsi
         movd	%eax, %xmm15
-        movq	$33, %rax
+        movq	$32, %rax
         vpxor	%ymm14, %ymm14, %ymm14
         vpermd	%ymm13, %ymm14, %ymm13
         vpermd	%ymm15, %ymm14, %ymm15
@@ -42888,7 +42888,7 @@ _sp_384_get_entry_256_6:
         movd	%edx, %xmm13
         addq	$96, %rsi
         movd	%eax, %xmm15
-        movq	$256, %rax
+        movq	$255, %rax
         pshufd	$0, %xmm15, %xmm15
         pshufd	$0, %xmm13, %xmm13
         pxor	%xmm14, %xmm14
