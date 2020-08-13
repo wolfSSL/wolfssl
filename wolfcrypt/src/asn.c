@@ -5564,7 +5564,6 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     WOLFSSL_X509_NAME* dName;
-    int    nid = NID_undef;
 #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
@@ -5639,6 +5638,10 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
         int         copyLen = 0;
         int         strLen  = 0;
         byte        id      = 0;
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
+                && !defined(WOLFCRYPT_ONLY)
+         int        nid = NID_undef;
+    #endif /* OPENSSL_EXTRA */
 
         if (GetSet(cert->source, &cert->srcIdx, &dummy, maxIdx) < 0) {
             WOLFSSL_MSG("Cert name lacks set header, trying sequence");
@@ -6028,11 +6031,13 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
         }
         #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
-        if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, MBSTRING_UTF8,
+        if (nid != NID_undef) {
+            if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, MBSTRING_UTF8,
                             &cert->source[cert->srcIdx], strLen, -1, -1) !=
                             WOLFSSL_SUCCESS) {
-            wolfSSL_X509_NAME_free(dName);
-            return ASN_PARSE_E;
+                wolfSSL_X509_NAME_free(dName);
+                return ASN_PARSE_E;
+            }
         }
         #endif /* OPENSSL_EXTRA */
         cert->srcIdx += strLen;
