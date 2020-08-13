@@ -19628,7 +19628,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 /* return a new malloc'd session with default settings on success */
-WOLFSSL_SESSION* wolfSSL_SESSION_new()
+WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
 {
     WOLFSSL_SESSION* ret = NULL;
 
