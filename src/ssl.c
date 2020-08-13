@@ -34,11 +34,12 @@
 #if !defined(WOLFCRYPT_ONLY) || defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL)
 
+#include <wolfssl/internal.h>
+
 #ifdef HAVE_ERRNO_H
     #include <errno.h>
 #endif
 
-#include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #ifdef NO_INLINE

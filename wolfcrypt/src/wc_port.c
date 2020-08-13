@@ -1050,6 +1050,33 @@ int wolfSSL_CryptHwMutexUnLock(void)
             return BAD_MUTEX_E;
     }
 
+#elif defined(WOLFSSL_KTHREADS)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        mutex_init(m);
+        return 0;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        mutex_destroy(m);
+        return 0;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        mutex_lock(m);
+        return 0;
+    }
+
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        mutex_unlock(m);
+        return 0;
+    }
+
 #elif defined(WOLFSSL_VXWORKS)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
@@ -2263,16 +2290,12 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 
 #if defined(WOLFSSL_LINUXKM)
 
-unsigned long long GetUNIXCompatibleTime(void)
+time_t time(time_t * timer)
 {
-    struct timespec ts;
-    getnstimeofday(&ts);
-    return ts.tv_sec * 1000000000LL + ts.tv_nsec;
-}
-
-time_t XTIME(time_t * timer)
-{
-    return (time_t) (GetUNIXCompatibleTime() / 1000000000LL);
+    time_t ret = ktime_get_real_seconds();
+    if (timer)
+        *timer = ret;
+    return ret;
 }
 
 #endif /* WOLFSSL_LINUXKM */

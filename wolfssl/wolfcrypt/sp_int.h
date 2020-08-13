@@ -27,8 +27,10 @@ This library provides single precision (SP) integer math functions.
 #ifndef WOLF_CRYPT_SP_INT_H
 #define WOLF_CRYPT_SP_INT_H
 
+#ifndef WOLFSSL_LINUXKM
 #include <stdint.h>
 #include <limits.h>
+#endif
 
 /* Make sure WOLFSSL_SP_ASM build option defined when requested */
 #if !defined(WOLFSSL_SP_ASM) && ( \

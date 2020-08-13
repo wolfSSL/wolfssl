@@ -27,7 +27,9 @@
 
 #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
 
+#ifndef WOLFSSL_LINUXKM
 #include <stdint.h>
+#endif
 
 #include <wolfssl/wolfcrypt/types.h>
 

@@ -309,23 +309,6 @@ enum {
     drbgInitV
 };
 
-/* NOTE: if DRBG struct is changed please update random.h drbg_data size */
-typedef struct DRBG {
-    word32 reseedCtr;
-    word32 lastBlock;
-    byte V[DRBG_SEED_LEN];
-    byte C[DRBG_SEED_LEN];
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
-    void* heap;
-    int devId;
-#endif
-    byte   matchCount;
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    wc_Sha256 sha256;
-#endif
-} DRBG;
-
-
 static int wc_RNG_HealthTestLocal(int reseed);
 
 /* Hash Derivation Function */
@@ -808,10 +791,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             rng->status = DRBG_FAILED;
         }
 #else
-        /* compile-time validation of drbg_data size */
-        typedef char drbg_data_test[sizeof(rng->drbg_data) >=
-                sizeof(struct DRBG) ? 1 : -1];
-        (void)sizeof(drbg_data_test);
         rng->drbg = (struct DRBG*)rng->drbg_data;
 #endif
         if (ret == 0) {

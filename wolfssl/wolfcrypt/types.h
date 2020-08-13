@@ -249,7 +249,11 @@ decouple library dependencies with standard string, memory and so on.
     #if defined(__GNUC__)
         #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
             #undef  FALL_THROUGH
-            #define FALL_THROUGH __attribute__ ((fallthrough));
+            #if defined(WOLFSSL_LINUXKM) && defined(fallthrough)
+                #define FALL_THROUGH fallthrough
+            #else
+                #define FALL_THROUGH __attribute__ ((fallthrough));
+            #endif
         #endif
     #endif
     #endif /* FALL_THROUGH */
@@ -583,11 +587,9 @@ decouple library dependencies with standard string, memory and so on.
     #endif /* OPENSSL_EXTRA */
 
 	#ifndef CTYPE_USER
-        #if defined(WOLFSSL_LINUXKM)
-            #include <linux/ctype.h>
-        #else
-            #include <ctype.h>
-        #endif
+            #ifndef WOLFSSL_LINUXKM
+                #include <ctype.h>
+            #endif
 	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
             defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
             #define XTOUPPER(c)     toupper((c))

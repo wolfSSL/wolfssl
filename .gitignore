@@ -5,6 +5,7 @@ ctaocrypt/src/src/
 *.o
 *.patch
 *.deps
+*.d
 *.libs
 *.cache
 .dirstamp

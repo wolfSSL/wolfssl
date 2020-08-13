@@ -28,7 +28,9 @@
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
+#ifndef WOLFSSL_LINUXKM
     #include <stdint.h>
+#endif
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>
