@@ -309,6 +309,8 @@ enum {
     drbgInitV
 };
 
+typedef struct DRBG_internal DRBG;
+
 static int wc_RNG_HealthTestLocal(int reseed);
 
 /* Hash Derivation Function */
@@ -434,7 +436,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
         return BAD_FUNC_ARG;
     }
 
-    return Hash_DRBG_Reseed(rng->drbg, seed, seedSz);
+    return Hash_DRBG_Reseed((DRBG *)rng->drbg, seed, seedSz);
 }
 
 static WC_INLINE void array_add_one(byte* data, word32 dataSz)
@@ -791,7 +793,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             rng->status = DRBG_FAILED;
         }
 #else
-        rng->drbg = (struct DRBG*)rng->drbg_data;
+        rng->drbg = (struct DRBG*)&rng->drbg_data;
 #endif
         if (ret == 0) {
             ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
@@ -803,7 +805,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
 
             if (ret == DRBG_SUCCESS)
-                 ret = Hash_DRBG_Instantiate(rng->drbg,
+	      ret = Hash_DRBG_Instantiate((DRBG *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
 
@@ -950,7 +952,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng->status != DRBG_OK)
         return RNG_FAILURE_E;
 
-    ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+    ret = Hash_DRBG_Generate((DRBG *)rng->drbg, output, sz);
     if (ret == DRBG_NEED_RESEED) {
         if (wc_RNG_HealthTestLocal(1) == 0) {
             byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
@@ -963,10 +965,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
             if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Reseed(rng->drbg, newSeed + SEED_BLOCK_SZ,
+	      ret = Hash_DRBG_Reseed((DRBG *)rng->drbg, newSeed + SEED_BLOCK_SZ,
                                        SEED_SZ);
             if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+	      ret = Hash_DRBG_Generate((DRBG *)rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
         }
@@ -1016,7 +1018,7 @@ int wc_FreeRng(WC_RNG* rng)
 
 #ifdef HAVE_HASHDRBG
     if (rng->drbg != NULL) {
-        if (Hash_DRBG_Uninstantiate(rng->drbg) != DRBG_SUCCESS)
+      if (Hash_DRBG_Uninstantiate((DRBG *)rng->drbg) != DRBG_SUCCESS)
             ret = RNG_FAILURE_E;
 
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)

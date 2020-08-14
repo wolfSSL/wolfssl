@@ -2092,8 +2092,20 @@ extern void uITRON4_free(void *p) ;
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
-    #define WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MAX
+
+    /* tweak the autotools-detected feature set to accommodate switch from user to kernel space: */
+    #undef HAVE_STRINGS_H
+    #undef HAVE_ERRNO_H
+    #undef WOLFSSL_HAVE_MIN
+    #undef WOLFSSL_HAVE_MAX
+    #define WOLFSSL_DH_CONST 1 /* Linux kernel doesn't have floating point math facilities. */
+    #define WOLFSSL_NO_MALLOC 1
+    #define WOLFSSL_NO_SOCK 1
+    #define WOLFSSL_USER_IO 1
+    #undef HAVE_INTEL_RDSEED /* prevents -Wunused-function on wc_GenerateSeed_IntelRD() */
+    #define USE_WOLF_STRTOK
+    #define NO_CRYPT_BENCHMARK 1
+    #define NO_CRYPT_TEST 1
 #endif
 
 

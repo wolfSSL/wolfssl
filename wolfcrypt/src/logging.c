@@ -233,7 +233,7 @@ void WOLFSSL_TIME(int count)
 #elif defined(WOLFSSL_XILINX)
     #include "xil_printf.h"
 #elif defined(WOLFSSL_LINUXKM)
-    #include <linux/kernel.h>
+    /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif

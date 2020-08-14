@@ -149,7 +149,7 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
-typedef struct DRBG {
+struct DRBG_internal {
     word32 reseedCtr;
     word32 lastBlock;
     byte V[DRBG_SEED_LEN];
@@ -162,7 +162,7 @@ typedef struct DRBG {
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     wc_Sha256 sha256;
 #endif
-} DRBG;
+};
 
 /* RNG context */
 struct WC_RNG {
@@ -172,7 +172,7 @@ struct WC_RNG {
     /* Hash-based Deterministic Random Bit Generator */
     struct DRBG* drbg;
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-    byte drbg_data[sizeof(DRBG)];
+    struct DRBG_internal drbg_data;
 #endif
     byte status;
 #endif
