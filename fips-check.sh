@@ -336,7 +336,6 @@ else
         echo "fips-check: Couldn't checkout the FIPS repository."
         exit 1
     fi
-    FIPS_OPTION="v2"
 fi
 
 for SRC in "${FIPS_SRCS[@]}"
