@@ -2368,7 +2368,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
     #endif /* end WOLFSSL_ESPWROOM32 */
- 
+
 #elif defined(WOLFSSL_LINUXKM)
     #include <linux/random.h>
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -2382,9 +2382,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_RENESAS_TSIP)
 #if defined(WOLFSSL_RENESA_TSIP_IAREWRX)
-    #include "r_bsp/mcu/all/r_rx_compiler.h"
+   #include "r_bsp/mcu/all/r_rx_compiler.h"
 #endif
-    #include "r_bsp/platform.h"
+   #include "r_bsp/platform.h"
     #include "r_tsip_rx_if.h"
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)

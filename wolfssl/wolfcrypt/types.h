@@ -456,8 +456,8 @@ decouple library dependencies with standard string, memory and so on.
 	#ifndef STRING_USER
         #if defined(WOLFSSL_LINUXKM)
             #include <linux/string.h>
-        #else    
-    	    #include <string.h>
+        #else
+            #include <string.h>
         #endif
 
 	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
