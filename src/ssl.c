@@ -35,11 +35,6 @@
     defined(OPENSSL_EXTRA_X509_SMALL)
 
 #include <wolfssl/internal.h>
-
-#ifdef HAVE_ERRNO_H
-    #include <errno.h>
-#endif
-
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #ifdef NO_INLINE
@@ -47,6 +42,10 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#ifdef HAVE_ERRNO_H
+    #include <errno.h>
 #endif
 
 

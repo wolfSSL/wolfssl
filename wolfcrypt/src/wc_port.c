@@ -1052,6 +1052,8 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
 #elif defined(WOLFSSL_KTHREADS)
 
+    /* Linux kernel mutex routines are voids, alas. */
+
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
         mutex_init(m);
@@ -2289,15 +2291,20 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 
 
 #if defined(WOLFSSL_LINUXKM)
-
 time_t time(time_t * timer)
 {
-    time_t ret = ktime_get_real_seconds();
+    time_t ret;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+    struct timespec ts;
+    getnstimeofday(&ts);
+    ret = ts.tv_sec * 1000000000LL + ts.tv_nsec;
+#else
+    ret = ktime_get_real_seconds();
+#endif
     if (timer)
         *timer = ret;
     return ret;
 }
-
 #endif /* WOLFSSL_LINUXKM */
 
 #endif /* !NO_ASN_TIME */
