@@ -145,6 +145,8 @@ Release 4.5.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Sniffer API’s for loading buffer directly
 * Fixes and improvements from going through the DO-178 process were added
 * Doxygen updates and fixes for auto documentation generation
+* Changed the configure option for FIPS Ready builds to be
+  `--enable-fips=ready`.
 
 ## This release of wolfSSL includes fixes for 5 security vulnerabilities.
 
