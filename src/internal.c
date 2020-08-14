@@ -8337,9 +8337,12 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS
-    if (IsDtlsNotSctpMode(ssl) && !DtlsCheckWindow(ssl)) {
+    if (IsDtlsNotSctpMode(ssl)) {
+        if (!DtlsCheckWindow(ssl) ||
+                (ssl->keys.curEpoch == 0 && rh->type == application_data)) {
             WOLFSSL_LEAVE("GetRecordHeader()", SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
+        }
     }
 #endif
 
