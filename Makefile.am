@@ -160,9 +160,13 @@ include swig/include.am
 include src/include.am
 include support/include.am
 include wolfcrypt/user-crypto/include.am
+if !BUILD_LINUXKM
 include wolfcrypt/benchmark/include.am
+endif
 include wolfcrypt/src/include.am
+if !BUILD_LINUXKM
 include wolfcrypt/test/include.am
+endif
 include examples/include.am
 include testsuite/include.am
 include tests/include.am
@@ -189,6 +193,10 @@ include tirtos/include.am
 include IDE/include.am
 endif
 include scripts/include.am
+
+if BUILD_LINUXKM
+SUBDIRS = . linuxkm
+endif
 
 if USE_VALGRIND
 TESTS_ENVIRONMENT=./valgrind-error.sh

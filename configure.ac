@@ -3375,7 +3375,25 @@ AC_ARG_ENABLE([linuxkm],
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+
+    AC_PATH_DEFAULT_KERNEL_SOURCE
+    AC_ARG_WITH([linux-source],
+        [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
+        [KROOT=$withval],
+        [KROOT=$DEFAULT_KROOT])
+
+    AC_DEFAULT_KERNEL_ARCH
+    AC_ARG_WITH([linux-arch],
+        [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
+        [KARCH=$withval],
+        [KARCH=$DEFAULT_KARCH])
+
+    AC_DEFINE_KERNEL_KFLAGS
+
+    AM_CPPFLAGS="$KFLAGS $AM_CPPFLAGS"
 fi
+
+
 
 
 #valgrind
@@ -5382,6 +5400,7 @@ AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
+AM_CONDITIONAL([BUILD_LINUXKM],[test "x$ENABLED_LINUXKM" = "xyes"])
 
 
 CREATE_HEX_VERSION
@@ -5394,7 +5413,7 @@ AC_SUBST([LIB_STATIC_ADD])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
-AC_CONFIG_FILES([Makefile wolfssl/version.h wolfssl/options.h cyassl/options.h support/wolfssl.pc rpm/spec])
+AC_CONFIG_FILES([Makefile wolfssl/version.h wolfssl/options.h cyassl/options.h support/wolfssl.pc rpm/spec linuxkm/Makefile])
 
 AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])
@@ -5644,6 +5663,10 @@ echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux Kernel Build Root:    $KROOT" && \
+echo "   * Linux Kernel Build Arch:    $KARCH" && \
+echo "   * Linux Kernel Build Flags:   $KFLAGS"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
@@ -5693,4 +5716,3 @@ if test "$MINGW_LIB_WARNING" = "yes"
 then
     AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
 fi
-
