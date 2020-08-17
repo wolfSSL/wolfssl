@@ -338,3 +338,6 @@ IDE/XCODE/Index
 /IDE/Renesas/e2studio/Projects/test/trash
 /IDE/Renesas/e2studio/Projects/test/*.launch
 /IDE/Renesas/e2studio/Projects/test/*.scfg
+
+# Emacs
+*~
