@@ -74,7 +74,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.24
-%{_libdir}/libwolfssl.so.24.1.0
+%{_libdir}/libwolfssl.so.24.2.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -180,6 +180,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/ocsp.h
 %{_includedir}/wolfssl/openssl/aes.h
 %{_includedir}/wolfssl/openssl/asn1.h
+%{_includedir}/wolfssl/openssl/asn1t.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
 %{_includedir}/wolfssl/openssl/buffer.h
@@ -300,6 +301,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon Aug 17 2020 John Safranek <john@wolfssl.com>
+- Add a missing header.
+- Update for release.
 * Thu Apr 16 2020 John Safranek <john@wolfssl.com>
 - Add some missing headers.
 - Sort the file list.
