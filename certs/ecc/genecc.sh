@@ -34,6 +34,10 @@ openssl x509 -req -in ./certs/server-ecc-req.pem -CA ./certs/ca-ecc-cert.pem -CA
 openssl ca -config ./certs/ecc/wolfssl.cnf -extensions server_cert -days 3650 -notext -md sha256 -in ./certs/server-ecc-req.pem -out ./certs/server-ecc.pem
 openssl x509 -in ./certs/server-ecc.pem -outform der -out ./certs/server-ecc.der
 
+# Generate ECC 256-bit self-signed server cert
+openssl x509 -req -in ./certs/server-ecc-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions server_cert -signkey ./certs/ecc-key.pem -text -out ./certs/server-ecc-self.pem
+openssl x509 -inform pem -in ./certs/server-ecc-self.pem -outform der -out ./certs/server-ecc-self.der
+
 rm ./certs/server-ecc-req.pem 
 
 

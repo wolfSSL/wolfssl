@@ -19104,7 +19104,7 @@ static int test_wc_ecc_shared_secret (void)
     }
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&key, &rng);
@@ -20077,7 +20077,7 @@ static int test_wc_ecc_encryptDecrypt (void)
     }
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&srvKey, &rng);
@@ -20442,7 +20442,7 @@ static int test_wc_ecc_shared_secret_ssh (void)
     printf(testingFmt, "ecc_shared_secret_ssh()");
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&key, &rng);

@@ -3068,6 +3068,13 @@ int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       goto exit;
    }
 
+   /* k can't have more bits than order */
+   if (mp_count_bits(k) > mp_count_bits(order)) {
+      err = ECC_OUT_OF_RANGE_E;
+      goto exit;
+   }
+
+
 #ifdef ECC_TIMING_RESISTANT
    if ((err = mp_init(&t)) != MP_OKAY)
       goto exit;
@@ -4194,6 +4201,17 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         }
     }
 
+#ifndef WOLFSSL_SP_MATH
+    if ((err == MP_OKAY) && (mp_iszero(&key->k) || (key->k.sign == MP_NEG) ||
+                                      (mp_cmp(&key->k, curve->order) != MP_LT)))
+#else
+    if ((err == MP_OKAY) && (mp_iszero(&key->k) ||
+                                      (mp_cmp(&key->k, curve->order) != MP_LT)))
+#endif
+    {
+        err = ECC_PRIV_KEY_E;
+    }
+
     if (err == MP_OKAY) {
     #ifndef ALT_ECC_SIZE
         err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
@@ -4206,7 +4224,6 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         alt_fp_init(pub->z);
     #endif
     }
-
 
     if (err != MP_OKAY) {
     }
@@ -7386,6 +7403,14 @@ int wc_ecc_check_key(ecc_key* key)
         err = ecc_check_pubkey_order(key, &key->pubkey, curve->Af, curve->prime,
                 curve->order);
 
+    /* SP 800-56Ar3, section 5.6.2.1.2 */
+    /* private keys must be in the range [1, n-1] */
+    if ((err == MP_OKAY) && (key->type == ECC_PRIVATEKEY) &&
+                               (mp_iszero(&key->k) || (key->k.sign == MP_NEG) ||
+                               (mp_cmp(&key->k, curve->order) != MP_LT))) {
+        err = ECC_PRIV_KEY_E;
+    }
+
     /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
     /* private * base generator must equal pubkey */
     if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
@@ -9963,6 +9988,11 @@ int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
+
+   /* k can't have more bits than order */
+   if (mp_count_bits(k) > mp_count_bits(order)) {
+      return ECC_OUT_OF_RANGE_E;
+   }
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
