@@ -18293,7 +18293,7 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
         goto done;
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(&priv_key, rng);
     if (ret != 0)
@@ -18528,7 +18528,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     TEST_SLEEP();
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(&key, rng);
     if (ret != 0)
@@ -18785,7 +18785,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(&userA, rng);
     if (ret != 0)
@@ -19578,7 +19578,7 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
         return -9747;
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(key, rng);
     if (ret != 0)
@@ -20813,7 +20813,7 @@ int ecc_encrypt_test(void)
         msg[i] = i;
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(&userA, &rng);
     if (ret != 0) {
@@ -20976,7 +20976,7 @@ int ecc_test_buffers(void) {
         return -10015;
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(&cliKey, &rng);
     if (ret != 0) {

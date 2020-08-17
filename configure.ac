@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[4.4.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[4.5.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=25:0:1
+WOLFSSL_LIBRARY_VERSION=26:0:2
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -104,6 +104,11 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS="no"])
 
 AS_CASE([$ENABLED_FIPS],
+    ["ready"],[
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v2"
+        FIPS_READY="yes"
+    ],
     ["v2"],[
         # FIPS v2
         ENABLED_FIPS="yes"
@@ -2483,7 +2488,10 @@ fi
 # FIPS
 AS_CASE([$FIPS_VERSION],
     ["v2"],[
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+        AS_IF([test "x$FIPS_READY" = "xyes"],
+            [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=3"],
+            [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2"])
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list

@@ -9756,7 +9756,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     case NID_info_access:
         /* typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS */
     {
-        WOLFSSL_STACK* sk = (WOLFSSL_STACK*)data;
+        WOLFSSL_STACK* sk = data;
 
         if (ext->ext_sk) {
             wolfSSL_sk_free(ext->ext_sk);
@@ -9771,7 +9771,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     case NID_basic_constraints:
     {
         /* WOLFSSL_BASIC_CONSTRAINTS */
-        WOLFSSL_BASIC_CONSTRAINTS* bc = (WOLFSSL_BASIC_CONSTRAINTS*)data;
+        WOLFSSL_BASIC_CONSTRAINTS* bc = data;
 
         if (!(ext->obj = wolfSSL_ASN1_OBJECT_new())) {
             WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new failed");
@@ -9791,7 +9791,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     case NID_authority_key_identifier:
     {
         /* AUTHORITY_KEYID */
-        WOLFSSL_AUTHORITY_KEYID* akey = (WOLFSSL_AUTHORITY_KEYID*)data;
+        WOLFSSL_AUTHORITY_KEYID* akey = data;
 
         if (akey->keyid) {
             if (wolfSSL_ASN1_STRING_set(&ext->value, akey->keyid->data,
@@ -19628,7 +19628,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 /* return a new malloc'd session with default settings on success */
-WOLFSSL_SESSION* wolfSSL_SESSION_new()
+WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
 {
     WOLFSSL_SESSION* ret = NULL;
 
@@ -31883,7 +31883,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
         byte *tmpBuf;
 
         /* Add space for padding */
-        if (!(tmpBuf = (byte*)XREALLOC(derBuf, derSz + blockSz, NULL,
+        if (!(tmpBuf = XREALLOC(derBuf, derSz + blockSz, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER))) {
             WOLFSSL_MSG("Extending DER buffer failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);

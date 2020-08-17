@@ -333,11 +333,11 @@ do_openssl_client() {
     then
         echo "#"
         echo "# $OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
-        echo "Hello" | $OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2
+        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -cipher $cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
     else
         echo "#"
         echo "# $OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
-        echo "Hello" | $OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2
+        echo "Hello" | eval "$OPENSSL s_client -connect localhost:$port -reconnect -ciphersuites=$cmpSuite $openssl_version $openssl_psk $openssl_cert1 $openssl_cert2 $openssl_key1 $openssl_key2 $openssl_caCert1 $openssl_caCert2"
     fi
 
     client_result=$?

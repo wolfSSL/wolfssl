@@ -19104,7 +19104,7 @@ static int test_wc_ecc_shared_secret (void)
     }
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&key, &rng);
@@ -20077,7 +20077,7 @@ static int test_wc_ecc_encryptDecrypt (void)
     }
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&srvKey, &rng);
@@ -20442,7 +20442,7 @@ static int test_wc_ecc_shared_secret_ssh (void)
     printf(testingFmt, "ecc_shared_secret_ssh()");
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
     if (ret == 0) {
         ret = wc_ecc_set_rng(&key, &rng);
@@ -21156,7 +21156,7 @@ static int test_wc_SetSubjectBuffer (void)
     printf(testingFmt, "wc_SetSubjectBuffer()");
 
     derSz = FOURK_BUF;
-    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ret = -1;
     }
@@ -32232,12 +32232,11 @@ static void test_wolfSSL_X509V3_EXT(void) {
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_info_access);
-    AssertNotNull(aia =
-                   (WOLFSSL_AUTHORITY_INFO_ACCESS*)wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(aia = wolfSSL_X509V3_EXT_d2i(ext));
     AssertIntEQ(wolfSSL_sk_num(aia), 1); /* Only one URI entry for this cert */
 
     /* URI entry is an ACCESS_DESCRIPTION type */
-    AssertNotNull(ad = (WOLFSSL_ACCESS_DESCRIPTION*)wolfSSL_sk_value(aia, 0));
+    AssertNotNull(ad = wolfSSL_sk_value(aia, 0));
     AssertNotNull(adObj = ad->method);
     /* Make sure nid is OCSP */
     AssertIntEQ(wolfSSL_OBJ_obj2nid(adObj), AIA_OCSP_OID);

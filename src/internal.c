@@ -4243,7 +4243,7 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 #endif
     {
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
         ret = wc_ecc_set_rng(priv_key, ssl->rng);
         if (ret == 0)
@@ -8337,9 +8337,12 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 #ifdef WOLFSSL_DTLS
-    if (IsDtlsNotSctpMode(ssl) && !DtlsCheckWindow(ssl)) {
+    if (IsDtlsNotSctpMode(ssl)) {
+        if (!DtlsCheckWindow(ssl) ||
+                (ssl->keys.curEpoch == 0 && rh->type == application_data)) {
             WOLFSSL_LEAVE("GetRecordHeader()", SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
+        }
     }
 #endif
 
