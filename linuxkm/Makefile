@@ -18,10 +18,6 @@ ifeq "$(AM_CFLAGS)$(CFLAGS)" ""
 $(error $$AM_CFLAGS and $$CFLAGS are both unset.)
 endif
 
-ifeq "$(AM_CCASFLAGS)$(CCASFLAGS)" ""
-$(error $$AM_CCASFLAGS and $$CCASFLAGS are both unset.)
-endif
-
 ifeq "$(src_libwolfssl_la_OBJECTS)" ""
 $(error $$src_libwolfssl_la_OBJECTS is unset.)
 endif

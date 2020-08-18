@@ -98,8 +98,8 @@ still to do: actual kernel module construction per https://www.kernel.org/doc/Do
     #include <linux/kernel.h>
     #include <linux/version.h>
     #include <linux/ctype.h>
-#include <linux/init.h>
-#include <linux/module.h>
+    #include <linux/init.h>
+    #include <linux/module.h>
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
     #endif
