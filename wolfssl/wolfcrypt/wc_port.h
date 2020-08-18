@@ -80,7 +80,9 @@ still to do: actual kernel module construction per https://www.kernel.org/doc/Do
         #undef HAVE_CONFIG_H
     #endif
 
+    #ifndef __KERNEL__
     #define __KERNEL__
+    #endif
 
     _Pragma("GCC diagnostic push");
     /* Linux kernel header files generate profuse warnings unless these are masked out: */
@@ -96,6 +98,8 @@ still to do: actual kernel module construction per https://www.kernel.org/doc/Do
     #include <linux/kernel.h>
     #include <linux/version.h>
     #include <linux/ctype.h>
+#include <linux/init.h>
+#include <linux/module.h>
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
     #endif
@@ -750,9 +754,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #else
     typedef __kernel_time64_t time_t;
     #endif
-    struct tm* gmtime(const time_t* timer);
     extern time_t time(time_t * timer);
     #define XTIME time
+    #define WOLFSSL_GMTIME
     #define XGMTIME(c, t) gmtime(c)
     #define NO_TIMEVAL 1
 

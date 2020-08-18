@@ -2045,7 +2045,9 @@ struct tm* gmtime(const time_t* timer)
     }
 
     ret->tm_mday  = (int)++dayno;
+#ifndef WOLFSSL_LINUXKM
     ret->tm_isdst = 0;
+#endif
 
     return ret;
 }
