@@ -1115,6 +1115,18 @@ then
             fi
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
+
+    elif test "$host_cpu" = "x86_64"
+    then
+        if test "$GCC" = "yes"
+        then
+            # GCC needs these flags, icc doesn't
+            # opt levels greater than 2 may cause problems on systems w/o aesni
+            if test "$CC" != "icc"
+            then
+                AM_CFLAGS="$AM_CFLAGS -msse4"
+            fi
+        fi
     fi
 
     if test "$ENABLED_INTELASM" = "yes"
