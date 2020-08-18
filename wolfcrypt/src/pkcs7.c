@@ -9239,6 +9239,7 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
     switch (pkcs7->state) {
         case WC_PKCS7_DECRYPT_KARI: {
             WC_PKCS7_KARI* kari;
+
         #ifndef NO_PKCS7_STREAM
             /* @TODO for now just get full buffer, needs divided up */
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,

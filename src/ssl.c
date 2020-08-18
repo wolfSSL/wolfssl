@@ -7921,9 +7921,10 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
 /* Creates and returns pointer to a new X509_EXTENSION object in memory */
 WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
 {
+    WOLFSSL_X509_EXTENSION* newExt;
+
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_new");
 
-    WOLFSSL_X509_EXTENSION* newExt;
     newExt = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION),
               NULL, DYNAMIC_TYPE_X509_EXT);
     if (newExt == NULL)

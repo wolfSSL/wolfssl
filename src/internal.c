@@ -9357,10 +9357,13 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
     }
 
     while (altName) {
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+        char name[WOLFSSL_MAX_IPSTR] = {0};
+#endif
+
         WOLFSSL_MSG("\tindividual AltName check");
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        char name[WOLFSSL_MAX_IPSTR] = {0};
         /* check if alt name is stored as IP addr octet */
         if (altName->type == ASN_IP_TYPE) {
             char tmp[4];
