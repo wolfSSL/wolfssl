@@ -2140,7 +2140,6 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
     if (pkey->type == EVP_PKEY_HMAC) {
         int                  hashType;
         const unsigned char* key;
-        size_t               keySz;
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
             hashType = WC_SHA256;
@@ -2174,13 +2173,17 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
         else
              return BAD_FUNC_ARG;
 
-        key = wolfSSL_EVP_PKEY_get0_hmac(pkey, &keySz);
+        {
+            size_t keySz = 0;
 
-        if (wc_HmacInit(&ctx->hash.hmac, NULL, INVALID_DEVID) != 0)
-            return WOLFSSL_FAILURE;
+            key = wolfSSL_EVP_PKEY_get0_hmac(pkey, &keySz);
 
-        if (wc_HmacSetKey(&ctx->hash.hmac, hashType, key, (word32)keySz) != 0)
-            return WOLFSSL_FAILURE;
+            if (wc_HmacInit(&ctx->hash.hmac, NULL, INVALID_DEVID) != 0)
+                return WOLFSSL_FAILURE;
+
+            if (wc_HmacSetKey(&ctx->hash.hmac, hashType, key, (word32)keySz) != 0)
+                return WOLFSSL_FAILURE;
+        }
 
         ctx->isHMAC = 1;
     }
