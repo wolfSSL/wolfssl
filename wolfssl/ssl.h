@@ -2014,10 +2014,9 @@ WOLFSSL_API long wolfSSL_CTX_set_options(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 
-#ifndef NO_CERTS
+#if !defined(NO_FILESYSTEM) && !defined(NO_CHECK_PRIVATE_KEY)
   WOLFSSL_API int  wolfSSL_CTX_check_private_key(const WOLFSSL_CTX*);
-#endif /* !NO_CERTS */
-
+#endif
 WOLFSSL_API void wolfSSL_ERR_free_strings(void);
 WOLFSSL_API void wolfSSL_ERR_remove_state(unsigned long);
 WOLFSSL_API int  wolfSSL_clear(WOLFSSL* ssl);
@@ -3925,9 +3924,9 @@ WOLFSSL_API int wolfSSL_AllowEncryptThenMac(WOLFSSL *s, int);
 /* This feature is used to set a fixed ephemeral key and is for testing only */
 /* Currently allows ECDHE and DHE only */
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const char* key, unsigned int keySz, int format);
-WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format);
 #endif
 
