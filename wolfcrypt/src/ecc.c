@@ -2811,25 +2811,26 @@ static int ecc_point_to_mont(ecc_point* p, ecc_point* r, mp_int* modulus,
        err = mp_init(mu);
    if (err == MP_OKAY) {
        err = mp_montgomery_calc_normalization(mu, modulus);
-   }
 
-   if (err == MP_OKAY) {
-       if (mp_cmp_d(mu, 1) == MP_EQ) {
-           err = mp_copy(p->x, r->x);
-           if (err == MP_OKAY)
-               err = mp_copy(p->y, r->y);
-           if (err == MP_OKAY)
-               err = mp_copy(p->z, r->z);
+       if (err == MP_OKAY) {
+           if (mp_cmp_d(mu, 1) == MP_EQ) {
+               err = mp_copy(p->x, r->x);
+               if (err == MP_OKAY)
+                   err = mp_copy(p->y, r->y);
+               if (err == MP_OKAY)
+                   err = mp_copy(p->z, r->z);
+           }
+           else {
+               err = mp_mulmod(p->x, mu, modulus, r->x);
+               if (err == MP_OKAY)
+                   err = mp_mulmod(p->y, mu, modulus, r->y);
+               if (err == MP_OKAY)
+                   err = mp_mulmod(p->z, mu, modulus, r->z);
+           }
        }
-       else {
-           err = mp_mulmod(p->x, mu, modulus, r->x);
-           if (err == MP_OKAY)
-               err = mp_mulmod(p->y, mu, modulus, r->y);
-           if (err == MP_OKAY)
-               err = mp_mulmod(p->z, mu, modulus, r->z);
-       }
-   }
 
+       mp_clear(mu);
+   }
 #ifdef WOLFSSL_SMALL_STACK
    if (mu != NULL)
       XFREE(mu, heap, DYNAMIC_TYPE_ECC);
