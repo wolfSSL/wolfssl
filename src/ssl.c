@@ -191,7 +191,7 @@ byte tsip_rootCAverified( );
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
-int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf, unsigned int sz)
+int wolfSSL_dtls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz)
 {
     WOLFSSL_ENTER("wolfSSL_session_import");
 

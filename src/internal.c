@@ -629,7 +629,7 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
     return idx;
 }
 
-static int ImportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
+static int ImportCipherSpecState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     CipherSpecs* specs;
@@ -666,7 +666,7 @@ static int ImportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 }
 
 
-static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
+static int ImportKeyState(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
 {
     word32 idx = 0;
     byte  sz;
@@ -962,7 +962,7 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
 /* copy items from Export struct to Options struct
  * On success returns size of buffer used on failure returns a negative value */
-static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
+static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
 {
     int idx = 0;
     Options* options = &ssl->options;
@@ -1144,7 +1144,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 #endif /* !WOLFSSL_SESSION_EXPORT_NOPEER */
 
 
-static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
+static int ImportPeerInfo(WOLFSSL* ssl, const byte* buf, word32 len, byte ver)
 {
     word16 idx = 0;
     word16 ipSz;
@@ -1346,7 +1346,7 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 
 
 /* On success return amount of buffer consumed */
-int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
+int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, const byte* buf, word32 sz)
 {
     word32 idx    = 0;
     word16 length = 0;
@@ -1418,7 +1418,7 @@ int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 
 
 /* On success return amount of buffer consumed */
-int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
+int wolfSSL_dtls_import_internal(WOLFSSL* ssl, const byte* buf, word32 sz)
 {
     word32 idx    = 0;
     word16 length = 0;
