@@ -229,6 +229,15 @@ IDE/MDK-ARM/LPC43xx/LPC43xx/
 *.gcno
 *.gcda
 *.gcov
+!linuxkm/Makefile
+/Kbuild
+linuxkm/*.ko
+linuxkm/Module.symvers
+linuxkm/built-in.a
+linuxkm/modules.order
+linuxkm/wolfcrypt
+linuxkm/libwolfssl.mod
+linuxkm/libwolfssl.mod.c
 
 # MPLAB Generated Files (OS X)
 mcapi/wolfcrypt_mcapi.X/nbproject/Makefile-*
