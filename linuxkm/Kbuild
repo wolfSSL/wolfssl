@@ -1,0 +1,29 @@
+# libwolfssl Kbuild
+
+# wolfcrypto asm provokes many objtool complaints:
+# "call without frame pointer save/setup",
+# "BP used as a scratch register",
+# "indirect jump found in RETPOLINE build",
+# and "is missing an ELF size annotation"
+# see /usr/src/linux/tools/objtool/Documentation/stack-validation.txt
+OBJECT_FILES_NON_STANDARD := y
+
+obj-m := libwolfssl.o
+
+ifeq "$(WOLFSSL_OBJ_FILES)" ""
+$(error $$WOLFSSL_OBJ_FILES is unset.)
+endif
+
+ifeq "$(WOLFSSL_CFLAGS)" ""
+$(error $$WOLFSSL_CFLAGS is unset.)
+endif
+
+ifeq "$(WOLFSSL_ASFLAGS)" ""
+$(error $$WOLFSSL_ASFLAGS is unset.)
+endif
+
+libwolfssl-y := $(WOLFSSL_OBJ_FILES)
+
+ccflags-y := $(WOLFSSL_CFLAGS)
+
+asflags-y := $(WOLFSSL_ASFLAGS)

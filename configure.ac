@@ -3381,16 +3381,18 @@ then
         [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
         [KROOT=$withval],
         [KROOT=$DEFAULT_KROOT])
+    AC_SUBST([KROOT])
 
     AC_DEFAULT_KERNEL_ARCH
     AC_ARG_WITH([linux-arch],
         [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
         [KARCH=$withval],
         [KARCH=$DEFAULT_KARCH])
+    AC_SUBST([KARCH])
 
-    AC_DEFINE_KERNEL_KFLAGS
-
-    AM_CPPFLAGS="$KFLAGS $AM_CPPFLAGS"
+#    AC_DEFINE_KERNEL_KFLAGS
+#
+#    AM_CPPFLAGS="$KFLAGS $AM_CPPFLAGS"
 fi
 
 
@@ -5413,7 +5415,7 @@ AC_SUBST([LIB_STATIC_ADD])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
-AC_CONFIG_FILES([Makefile wolfssl/version.h wolfssl/options.h cyassl/options.h support/wolfssl.pc rpm/spec linuxkm/Makefile])
+AC_CONFIG_FILES([Makefile wolfssl/version.h wolfssl/options.h cyassl/options.h support/wolfssl.pc rpm/spec])
 
 AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])
@@ -5665,8 +5667,7 @@ echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 test "$ENABLED_LINUXKM" = "yes" && \
 echo "   * Linux Kernel Build Root:    $KROOT" && \
-echo "   * Linux Kernel Build Arch:    $KARCH" && \
-echo "   * Linux Kernel Build Flags:   $KFLAGS"
+echo "   * Linux Kernel Build Arch:    $KARCH"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"

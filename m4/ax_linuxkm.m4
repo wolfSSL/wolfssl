@@ -28,14 +28,15 @@ else
 fi
 ])
 
-AC_DEFUN([AC_DEFINE_KERNEL_KFLAGS],
-[
-    AC_MSG_CHECKING([flags for compiling objects for kernel module])
-    if test -z "${KROOT}" || test -z "${KARCH}"; then
-        AC_MSG_ERROR([Linux kernel configuration incomplete (KROOT=${KROOT}, KARCH=${KARCH}).])
-    else
-        GCC_SHORT_VERSION="$($CC -dumpversion)"
-        KFLAGS="-I${KROOT}/include -I${KROOT}/include/uapi -I${KROOT}/arch/${KARCH}/include -I${KROOT}/arch/${KARCH}/include/generated -I${KROOT}/arch/${KARCH}/include/generated/uapi -I${KROOT}/arch/${KARCH}/include/uapi -I${KROOT}/tools/include -I${KROOT}/tools/arch/${KARCH}/include -I${KROOT}/tools/include/uapi -I/usr/lib/gcc/${host_cpu}-${host_vendor}-${host_os}/${GCC_SHORT_VERSION}/include"
-        AC_MSG_RESULT([$KFLAGS])
-    fi
-])
+dnl AC_DEFUN([AC_DEFINE_KERNEL_KFLAGS],
+dnl [
+dnl     AC_MSG_CHECKING([flags for compiling objects for kernel module])
+dnl     if test -z "${KROOT}" || test -z "${KARCH}"; then
+dnl         AC_MSG_ERROR([Linux kernel configuration incomplete (KROOT=${KROOT}, KARCH=${KARCH}).])
+dnl     else
+dnl         GCC_SHORT_VERSION="$($CC -dumpversion)"
+dnl         KFLAGS="-I${KROOT}/include -I${KROOT}/include/uapi -I${KROOT}/arch/${KARCH}/include -I${KROOT}/arch/${KARCH}/include/generated -I${KROOT}/arch/${KARCH}/include/generated/uapi -I${KROOT}/arch/${KARCH}/include/uapi -I${KROOT}/tools/include -I${KROOT}/tools/arch/${KARCH}/include -I${KROOT}/tools/include/uapi -I/usr/lib/gcc/${host_cpu}-${host_vendor}-${host_os}/${GCC_SHORT_VERSION}/include"
+dnl         AC_MSG_RESULT([$KFLAGS])
+dnl     fi
+dnl ])
+dnl

@@ -195,7 +195,8 @@ endif
 include scripts/include.am
 
 if BUILD_LINUXKM
-SUBDIRS = . linuxkm
+export KROOT KARCH AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS src_libwolfssl_la_OBJECTS
+SUBDIRS = linuxkm
 endif
 
 if USE_VALGRIND
