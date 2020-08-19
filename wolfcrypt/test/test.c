@@ -14567,10 +14567,14 @@ int dh_test(void)
     }
 #endif
 
-    
-
     /* Test DH key import / export */
 #ifdef WOLFSSL_DH_EXTRA
+    wc_FreeDhKey(&key);
+    ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-7949, done);
+    }
+
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
     file = XFOPEN(dhKeyFile, "rb");
     if (!file)
