@@ -18578,6 +18578,9 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
         return ret;
     }
     ret = wc_ecc_make_key(rng, keySize, &eccKey);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &eccKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         wc_ecc_free(&eccKey);
         return ret;
