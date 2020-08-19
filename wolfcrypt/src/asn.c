@@ -4446,8 +4446,11 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     #endif
 #endif
     /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
-    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
+    if (GetInt(&key->p, input, inOutIdx, inSz) < 0) {
+        ret = ASN_DH_KEY_E;
+    }
+    if (ret == 0 && GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->p);
         ret = ASN_DH_KEY_E;
     }
 
@@ -4476,8 +4479,11 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (GetInt(&key->p, input, inOutIdx, inSz) < 0 ||
-            GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        if (GetInt(&key->p, input, inOutIdx, inSz) < 0) {
+            return ASN_DH_KEY_E;
+        }
+        if (ret == 0 && GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+            mp_clear(&key->p);
             return ASN_DH_KEY_E;
         }
     }
