@@ -2843,7 +2843,7 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
 {
    int err = MP_OKAY;
 
-   XMEMSET(*key, 0, sizeof(key));
+   XMEMSET(key, 0, sizeof(*key));
 
    key->t1 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
    key->t2 = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
@@ -2865,6 +2865,7 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
 
 static void ecc_key_tmp_final(ecc_key* key, void* heap)
 {
+    (void)heap;
 #ifdef ALT_ECC_SIZE
    if (key->z != NULL)
       XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
@@ -2875,7 +2876,7 @@ static void ecc_key_tmp_final(ecc_key* key, void* heap)
 #endif
    if (key->t2 != NULL)
       XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
-   if (key.t1 != NULL)
+   if (key->t1 != NULL)
       XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
 }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
@@ -2969,7 +2970,7 @@ exit:
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    R->key = NULL;
-   ecc_key_tmp_free(&key, heap);
+   ecc_key_tmp_final(&key, heap);
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
    return err;
@@ -3123,7 +3124,7 @@ exit:
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    R->key = NULL;
-   ecc_key_tmp_free(&key, heap);
+   ecc_key_tmp_final(&key, heap);
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
    return err;
