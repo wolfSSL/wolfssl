@@ -8339,7 +8339,9 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
     if (IsDtlsNotSctpMode(ssl)) {
         if (!DtlsCheckWindow(ssl) ||
-                (ssl->keys.curEpoch == 0 && rh->type == application_data)) {
+                (rh->type == application_data && ssl->keys.curEpoch == 0) ||
+                (rh->type == alert && ssl->options.handShakeDone &&
+                        ssl->keys.curEpoch == 0 && ssl->keys.dtls_epoch != 0)) {
             WOLFSSL_LEAVE("GetRecordHeader()", SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
         }
@@ -12275,6 +12277,14 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("Duplicate Finished received");
                 return DUPLICATE_MSG_E;
             }
+#ifdef HAVE_DTLS
+            if (ssl->options.dtls) {
+                if (ssl->keys.curEpoch == 0) {
+                    WOLFSSL_MSG("Finished received with epoch 0");
+                    return SEQUENCE_ERROR;
+                }
+            }
+#endif
             ssl->msgsReceived.got_finished = 1;
 
             if (ssl->msgsReceived.got_change_cipher == 0) {
