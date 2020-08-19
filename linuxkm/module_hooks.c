@@ -10,7 +10,11 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
+#else
+static int wolfssl_init(void)
+#endif
 {
     int ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
@@ -26,7 +30,11 @@ static int __init wolfssl_init(void)
 
 module_init(wolfssl_init);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static void __exit wolfssl_exit(void)
+#else
+static void wolfssl_exit(void)
+#endif
 {
     int ret = wolfSSL_Cleanup();
     if (ret != WOLFSSL_SUCCESS)

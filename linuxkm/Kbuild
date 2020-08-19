@@ -18,12 +18,9 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
 $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
-ifeq "$(WOLFSSL_ASFLAGS)" ""
-$(error $$WOLFSSL_ASFLAGS is unset.)
-endif
-
 libwolfssl-y := $(WOLFSSL_OBJ_FILES)
 
 ccflags-y := $(WOLFSSL_CFLAGS)
+%/libwolfssl.mod.o: ccflags-y :=
 
 asflags-y := $(WOLFSSL_ASFLAGS)
