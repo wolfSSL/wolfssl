@@ -3402,9 +3402,9 @@ then
         [KARCH=$DEFAULT_KARCH])
     AC_SUBST([KARCH])
 
-#    AC_DEFINE_KERNEL_KFLAGS
-#
-#    AM_CPPFLAGS="$KFLAGS $AM_CPPFLAGS"
+    if test -z "${KROOT}"; then
+        AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
+    fi
 fi
 
 
@@ -5296,6 +5296,40 @@ case $host_os in
         fi ;;
 esac
 
+if test "x$ENABLED_LINUXKM" = "xyes"; then
+    if test "$ENABLED_DISTRO" = "yes"; then
+        AC_MSG_ERROR([--enable-distro is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_AFALG" = "yes"; then
+        AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_DEVCRYPTO" = "yes"; then
+        AC_MSG_ERROR([--enable-devcrypto is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_PKCS11" = "yes"; then
+        AC_MSG_ERROR([--enable-pkcs11 is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_JNI" = "yes"; then
+        AC_MSG_ERROR([--enable-jni is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_16BIT" = "yes"; then
+        AC_MSG_ERROR([--enable-16bit is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SINGLETHREADED" = "yes"; then
+        AC_MSG_ERROR([--enable-singlethreaded is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_VALGRIND" = "yes"; then
+        AC_MSG_ERROR([--enable-valgrind is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_EXAMPLES" = "yes"; then
+        AC_MSG_NOTICE([--enable-examples is incompatible with --enable-linuxkm (forcing to no).])
+        ENABLED_EXAMPLES=no
+    fi
+    if test "$ENABLED_CRYPT_TESTS" = "yes"; then
+        AC_MSG_NOTICE([--enable-crypttests is incompatible with --enable-linuxkm (forcing to no).])
+        ENABLED_CRYPT_TESTS=no
+    fi
+fi
 
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
 # Some of these affect build targets and objects, some trigger different
