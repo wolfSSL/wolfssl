@@ -176,7 +176,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     {
         intel_flags = cpuid_get_flags();
     }
-    #ifdef HAVE_INTEL_RDSEED
+    #if defined(HAVE_INTEL_RDSEED) && !defined(WOLFSSL_LINUXKM)
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
     #ifdef HAVE_INTEL_RDRAND
@@ -1438,6 +1438,7 @@ static WC_INLINE int IntelRDseed64_r(word64* rnd)
     return -1;
 }
 
+#ifndef WOLFSSL_LINUXKM
 /* return 0 on success */
 static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 {
@@ -1468,6 +1469,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
+#endif
 
 #endif /* HAVE_INTEL_RDSEED */
 
