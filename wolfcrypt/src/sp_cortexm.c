@@ -19348,7 +19348,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, NULL);
     }
     if (err == MP_OKAY) {
-        if ((sp_256_iszero_8(point->x) == 0) || (sp_256_iszero_8(point->y) == 0)) {
+        if (sp_256_iszero_8(point->x) || sp_256_iszero_8(point->y)) {
             err = ECC_INF_E;
         }
     }
@@ -26743,7 +26743,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, NULL);
     }
     if (err == MP_OKAY) {
-        if ((sp_384_iszero_12(point->x) == 0) || (sp_384_iszero_12(point->y) == 0)) {
+        if (sp_384_iszero_12(point->x) || sp_384_iszero_12(point->y)) {
             err = ECC_INF_E;
         }
     }
