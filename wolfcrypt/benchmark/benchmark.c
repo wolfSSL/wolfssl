@@ -5457,6 +5457,19 @@ void bench_eccEncrypt(void)
         return;
     }
 
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&userA, &gRng);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_ecc_set_rng(&userB, &gRng);
+    if (ret != 0) {
+        goto exit;
+    }
+#endif
+
     ret = wc_ecc_make_key(&gRng, keySize, &userA);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
