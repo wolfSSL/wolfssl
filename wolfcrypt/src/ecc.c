@@ -2898,8 +2898,9 @@ static int ecc_key_tmp_init(ecc_key* key, void* heap)
    return err;
 }
 
-static void ecc_key_tmp_free(ecc_key* key, void* heap)
+static void ecc_key_tmp_final(ecc_key* key, void* heap)
 {
+    (void)heap;
 #ifdef ALT_ECC_SIZE
    if (key->z != NULL)
       XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
@@ -3004,7 +3005,7 @@ exit:
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    R->key = NULL;
-   ecc_key_tmp_free(&key, heap);
+   ecc_key_tmp_final(&key, heap);
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
    return err;
@@ -3138,6 +3139,23 @@ int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    if (err == MP_OKAY)
       err = ecc_mulmod(&t, tG, R, M, a, modulus, mp, rng);
 
+    /* Check for k == 1 or k == order+1. Result will be 0 point which is not
+     * correct. Calculates 2 * order and get 0 point then adds base point
+     * which results in 0 point with constant time implementation)
+     */
+   if (err == MP_OKAY)
+      err = mp_add_d(order, 1, &t);
+   if (err == MP_OKAY) {
+      int kIsOne = (mp_cmp_d(k, 1) == MP_EQ) | (mp_cmp(k, &t) == MP_EQ);
+      err = mp_cond_copy(tG->x, kIsOne, R->x);
+      if (err == 0) {
+          err = mp_cond_copy(tG->y, kIsOne, R->y);
+      }
+      if (err == 0) {
+          err = mp_cond_copy(tG->z, kIsOne, R->z);
+      }
+   }
+
    mp_forcezero(&t);
    mp_free(&t);
 #else
@@ -3158,7 +3176,7 @@ exit:
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    R->key = NULL;
-   ecc_key_tmp_free(&key, heap);
+   ecc_key_tmp_final(&key, heap);
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
    return err;
