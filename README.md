@@ -73,7 +73,7 @@ should be used for the enum name.
 *** end Notes ***
 
 
-# wolfSSL Release 4.5.0 (August 18, 2020)
+# wolfSSL Release 4.5.0 (August 19, 2020)
 
 If you have questions about this release, feel free to contact us on our
 info@ address.
@@ -126,6 +126,11 @@ Release 4.5.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Fix for sanity check on padding with DES3 conversion of PEM to DER
 * Sanity check for potential out of bounds read with fp_read_radix_16
 * Additional checking of ECC scalars.
+* Fixing the FIPS Ready build w.r.t. ecc.c.
+* When processing certificate names with OpenSSL compatibility layer
+  enabled, unknown name item types were getting handled as having NID 0,
+  and failing. Added a couple more items to what is handled correctly,
+  and ignoring anything that is an unknown type.
 
 ## Improvements/Optimizations
 

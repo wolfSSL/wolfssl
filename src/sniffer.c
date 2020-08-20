@@ -1737,7 +1737,7 @@ int ssl_SetPrivateKeyBuffer(const char* address, int port,
     int ret;
 
     TraceHeader();
-    TraceSetServer(address, port, NULL);
+    TraceSetServer(address, port, "from buffer");
 
     wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(NULL, address, port, keyBuf, keySz,
@@ -1826,7 +1826,7 @@ int ssl_SetEphemeralKeyBuffer(const char* address, int port,
     int ret;
     
     TraceHeader();
-    TraceSetServer(address, port, NULL);
+    TraceSetServer(address, port, "from buffer");
     
     wc_LockMutex(&ServerListMutex);
     ret = SetNamedPrivateKey(NULL, address, port, keyBuf, keySz,
