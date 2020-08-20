@@ -808,7 +808,11 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     sp_int_digit r;
 
     w = ((sp_int_word)hi << SP_WORD_SIZE) | lo;
+#ifdef WOLFSSL_LINUXKM
+    do_div(w, d);
+#else
     w /= d;
+#endif
     r = (sp_int_digit)w;
 
     return r;
@@ -1487,7 +1491,12 @@ static int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     if (err == MP_OKAY) {
         for (i = a->used - 1; i >= 0; i--) {
             w = (w << SP_WORD_SIZE) | a->dp[i];
+#ifdef WOLFSSL_LINUXKM
+            t = (sp_int_digit)w;
+            do_div(t, d);
+#else
             t = (sp_int_digit)(w / d);
+#endif
             w -= (sp_int_word)t * d;
         }
 
