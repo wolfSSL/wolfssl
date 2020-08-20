@@ -3347,36 +3347,6 @@ then
 fi
 
 
-
-# Small Stack - Cache on object
-AC_ARG_ENABLE([smallstackcache],
-    [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
-    [ ENABLED_SMALL_STACK_CACHE=$enableval ],
-    [ ENABLED_SMALL_STACK_CACHE=no ]
-    )
-
-if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
-fi
-
-# Small Stack
-AC_ARG_ENABLE([smallstack],
-    [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
-    [ ENABLED_SMALL_STACK=$enableval ],
-    [ ENABLED_SMALL_STACK=no ]
-    )
-
-if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
-then
-    ENABLED_SMALL_STACK=yes
-fi
-if test "x$ENABLED_SMALL_STACK" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
-fi
-
-
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
     [  --enable-linuxkm        Enable Linux Kernel Module (default: disabled)],
@@ -3408,6 +3378,45 @@ then
 fi
 
 
+# Small Stack - Cache on object
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
+else
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=no
+fi
+AC_ARG_ENABLE([smallstackcache],
+    [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
+    [ ENABLED_SMALL_STACK_CACHE=$enableval ],
+    [ ENABLED_SMALL_STACK_CACHE=$ENABLED_SMALL_STACK_CACHE_DEFAULT ]
+    )
+
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
+fi
+
+# Small Stack
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SMALL_STACK_DEFAULT=yes
+else
+    ENABLED_SMALL_STACK_DEFAULT=no
+fi
+AC_ARG_ENABLE([smallstack],
+    [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
+    [ ENABLED_SMALL_STACK=$enableval ],
+    [ ENABLED_SMALL_STACK=$ENABLED_SMALL_STACK_DEFAULT ]
+    )
+
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    ENABLED_SMALL_STACK=yes
+fi
+if test "x$ENABLED_SMALL_STACK" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
+fi
 
 
 #valgrind
@@ -4028,6 +4037,10 @@ if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     FASTMATH_DEFAULT=yes
 fi
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    FASTMATH_DEFAULT=no
+fi
 if test "$ENABLED_SP_MATH" = "yes"
 then
     FASTMATH_DEFAULT=no
@@ -4085,10 +4098,16 @@ fi
 
 
 # Enable Examples, used to disable examples
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_EXAMPLES_DEFAULT=no
+else
+    ENABLED_EXAMPLES_DEFAULT=yes
+fi
 AC_ARG_ENABLE([examples],
     [AS_HELP_STRING([--enable-examples],[Enable Examples  (default: enabled)])],
     [ ENABLED_EXAMPLES=$enableval ],
-    [ ENABLED_EXAMPLES=yes ]
+    [ ENABLED_EXAMPLES=$ENABLED_EXAMPLES_DEFAULT ]
     )
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
@@ -4097,10 +4116,16 @@ AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
 # Enable wolfCrypt test and benchmark
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_CRYPT_TESTS_DEFAULT=no
+else
+    ENABLED_CRYPT_TESTS_DEFAULT=yes
+fi
 AC_ARG_ENABLE([crypttests],
     [AS_HELP_STRING([--enable-crypttests],[Enable Crypt Bench/Test  (default: enabled)])],
     [ ENABLED_CRYPT_TESTS=$enableval ],
-    [ ENABLED_CRYPT_TESTS=yes ]
+    [ ENABLED_CRYPT_TESTS=$ENABLED_CRYPT_TESTS_DEFAULT ]
     )
 
 
@@ -4334,10 +4359,16 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
 
 
 # Single Precision maths implementation
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SP_DEFAULT=small
+else
+    ENABLED_SP_DEFAULT=no
+fi
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
     [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=no ],
+    [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
 
 ENABLED_SP_RSA=no
@@ -5332,12 +5363,22 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
         AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_EXAMPLES" = "yes"; then
-        AC_MSG_NOTICE([--enable-examples is incompatible with --enable-linuxkm (forcing to no).])
-        ENABLED_EXAMPLES=no
+        AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_CRYPT_TESTS" = "yes"; then
-        AC_MSG_NOTICE([--enable-crypttests is incompatible with --enable-linuxkm (forcing to no).])
-        ENABLED_CRYPT_TESTS=no
+        AC_MSG_ERROR([--enable-crypttests is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SMALL_STACK" != "yes"; then
+        AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SMALL_STACK_CACHE" != "yes"; then
+        AC_MSG_ERROR([--enable-smallstackcache is required for --enable-linuxkm.])
+    fi
+    if test "$ENABLED_AFALG" = "yes"; then
+        AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_DEVCRYPTO" = "yes"; then
+        AC_MSG_ERROR([--enable-devcrypto is incompatible with --enable-linuxkm.])
     fi
 fi
 
