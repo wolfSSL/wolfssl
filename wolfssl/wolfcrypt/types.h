@@ -362,9 +362,9 @@ decouple library dependencies with standard string, memory and so on.
 
     #elif defined(WOLFSSL_LINUXKM)
 	/* the requisite linux/slab.h is included in wc_port.h, with incompatible warnings masked out. */
-        #define XMALLOC(s, h, t)     ((void)h, (void)t, kmalloc((s), GFP_KERNEL))
-        #define XFREE(p, h, t)       {void* xp = (p); if((xp)) kfree((xp));}
-        #define XREALLOC(p, n, h, t) krealloc((p), (n), GFP_KERNEL)
+        #define XMALLOC(s, h, t)     ({(void)(h); (void)(t); kmalloc(s, GFP_KERNEL);})
+        #define XFREE(p, h, t)       ({void* _xp; (void)(h); _xp = (p); if(_xp) kfree(_xp);})
+        #define XREALLOC(p, n, h, t) ({(void)(h); (void)(t); krealloc((p), (n), GFP_KERNEL);})
 
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
             && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
