@@ -4560,7 +4560,12 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
      w = (w << ((mp_word)DIGIT_BIT)) | ((mp_word)a->dp[ix]);
 
      if (w >= b) {
+#ifdef WOLFSSL_LINUXKM
+        t = (mp_digit)w;
+        do_div(t, b);
+#else
         t = (mp_digit)(w / b);
+#endif
         w -= ((mp_word)t) * ((mp_word)b);
       } else {
         t = 0;
