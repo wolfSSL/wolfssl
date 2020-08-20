@@ -1305,7 +1305,11 @@ static void wc_ecc_curve_free(ecc_curve_spec* curve)
     if (curve) {
     #ifdef ECC_CACHE_CURVE
         /* only free custom curves (reset are globally cached) */
-        if (curve->dp && curve->dp->id == ECC_CURVE_CUSTOM) {
+        if (curve->dp 
+        #ifdef WOLFSSL_CUSTOM_CURVES
+            && curve->dp->id == ECC_CURVE_CUSTOM
+        #endif
+        ) {
             wc_ecc_curve_cache_free_spec(curve);
             XFREE(curve, NULL, DYNAMIC_TYPE_ECC);
         }
@@ -1369,7 +1373,11 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
 #endif
 
     /* make sure cache has been allocated */
-    if (ecc_curve_spec_cache[x] == NULL || dp->id == ECC_CURVE_CUSTOM) {
+    if (ecc_curve_spec_cache[x] == NULL
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        || dp->id == ECC_CURVE_CUSTOM
+    #endif
+    ) {
         curve = (ecc_curve_spec*)XMALLOC(sizeof(ecc_curve_spec), NULL, DYNAMIC_TYPE_ECC);
         if (curve == NULL) {
         #if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
@@ -1380,7 +1388,10 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
         XMEMSET(curve, 0, sizeof(ecc_curve_spec));
 
         /* set curve pointer to cache */
-        if (dp->id != ECC_CURVE_CUSTOM) {
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp->id != ECC_CURVE_CUSTOM)
+    #endif
+        {
             ecc_curve_spec_cache[x] = curve;
         }
     }
