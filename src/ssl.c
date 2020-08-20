@@ -36407,6 +36407,7 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
         WOLFSSL_MSG("wc_DhKeyDecode failed");
         return WOLFSSL_FATAL_ERROR;
     }
+    dh->inSet = 1;
 
     if (SetDhExternal(dh) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetDhExternal failed");

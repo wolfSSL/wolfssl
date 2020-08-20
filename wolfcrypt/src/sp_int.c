@@ -151,7 +151,20 @@ int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d, sp_int* e,
 }
 #endif
 
-/* Clear the data from the big number and set to zero.
+/* Free the memory from the big number.
+ *
+ * a  SP integer.
+ */
+void sp_free(sp_int* a)
+{
+    if (a != NULL) {
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_free(&a->raw);
+    #endif
+    }
+}
+
+/* Clear and Free the data from the big number and set to zero.
  *
  * a  SP integer.
  */
@@ -163,6 +176,8 @@ void sp_clear(sp_int* a)
         for (i=0; i<a->used; i++)
             a->dp[i] = 0;
         a->used = 0;
+
+        sp_free(a);
     }
 }
 

@@ -189,6 +189,7 @@ typedef sp_int_digit mp_digit;
 MP_API int sp_init(sp_int* a);
 MP_API int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d,
                          sp_int* e, sp_int* f);
+MP_API void sp_free(sp_int* a);
 MP_API void sp_clear(sp_int* a);
 MP_API int sp_unsigned_bin_size(sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
@@ -250,7 +251,7 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 
 #define CheckFastMathSettings() 1
 
-#define mp_free(a)
+#define mp_free(a)                  sp_free
 
 #define mp_isodd                    sp_isodd
 #define mp_iseven                   sp_iseven

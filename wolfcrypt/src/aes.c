@@ -6919,7 +6919,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
                   const byte* authTag, word32 authTagSz)
 {
     int ret;
-#ifndef NO_AES_DECRYPT
+#ifdef HAVE_AES_DECRYPT
     Aes aes;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
