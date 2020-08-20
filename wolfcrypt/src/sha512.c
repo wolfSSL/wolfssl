@@ -341,7 +341,7 @@ static int InitSha512(wc_Sha512* sha512)
     #define Transform_Sha512_Len(sha512, len) \
                                           (*Transform_Sha512_Len_p)(sha512, len)
 
-    static void Sha512_SetTransform()
+    static void Sha512_SetTransform(void)
     {
         if (transform_check)
             return;
