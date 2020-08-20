@@ -5321,6 +5321,16 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_VALGRIND" = "yes"; then
         AC_MSG_ERROR([--enable-valgrind is incompatible with --enable-linuxkm.])
     fi
+    if test "$ENABLED_FASTMATH" = "yes"; then
+        AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (conflicts with stack size limits).])
+    fi
+    if test "$ENABLED_IOPOOL" = "yes"; then
+        AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
+    fi
+    #FIPS currently depends on thread-local storage
+    if test "$ENABLED_FIPS" = "yes"; then
+        AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
+    fi
     if test "$ENABLED_EXAMPLES" = "yes"; then
         AC_MSG_NOTICE([--enable-examples is incompatible with --enable-linuxkm (forcing to no).])
         ENABLED_EXAMPLES=no

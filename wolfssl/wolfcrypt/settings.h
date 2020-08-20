@@ -2089,6 +2089,8 @@ extern void uITRON4_free(void *p) ;
     #define NO_DEV_RANDOM
     #define NO_WRITEV
     #define NO_FILESYSTEM
+    #define NO_CRYPT_BENCHMARK 1
+    #define NO_CRYPT_TEST 1
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
@@ -2096,14 +2098,13 @@ extern void uITRON4_free(void *p) ;
     /* tweak the autotools-detected feature set to accommodate switch from user to kernel space: */
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
+    #undef HAVE_THREAD_LS
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #define WOLFSSL_DH_CONST 1 /* Linux kernel doesn't have floating point math facilities. */
     #define WOLFSSL_NO_SOCK 1
     #define WOLFSSL_USER_IO 1
     #define USE_WOLF_STRTOK
-    #define NO_CRYPT_BENCHMARK 1
-    #define NO_CRYPT_TEST 1
 #endif
 
 
