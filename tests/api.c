@@ -1271,6 +1271,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
 
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_X509_free(x509);
+    wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 #endif
 }
@@ -28357,27 +28358,30 @@ static int test_wolfSSL_GetLoggingCb (void)
 #ifdef DEBUG_WOLFSSL
     printf(testingFmt, "wolfSSL_GetLoggingCb()");
 
-    /*Testing without wolfSSL_SetLoggingCb()*/
+    /* Testing without wolfSSL_SetLoggingCb() */
     if (ret == 0) {
-        if(wolfSSL_GetLoggingCb() == NULL){ /*Should be true*/
+        if (wolfSSL_GetLoggingCb() == NULL) { /* Should be true */
             ret = 0;
         }
-        if(wolfSSL_GetLoggingCb() != NULL){ /*Should not be true*/
+        if (wolfSSL_GetLoggingCb() != NULL) { /* Should not be true */
             ret = -1;
         }
     }
-    /*Testing with wolfSSL_SetLoggingCb()*/
+    /* Testing with wolfSSL_SetLoggingCb() */
     if (ret == 0) {
         ret = wolfSSL_SetLoggingCb(Logging_cb);
         if (ret == 0){
-            if(wolfSSL_GetLoggingCb() == NULL){ /*Should not be true*/
+            if (wolfSSL_GetLoggingCb() == NULL) { /* Should not be true */
                 ret = -1;
             }
             if (ret == 0) {
-                if(wolfSSL_GetLoggingCb() == Logging_cb){ /*Should be true*/
+                if (wolfSSL_GetLoggingCb() == Logging_cb) { /* Should be true */
                     ret = 0;
                 }
             }
+
+            /* reset logging callback */
+            wolfSSL_SetLoggingCb(NULL);
         }
     }
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -31560,16 +31564,11 @@ static void test_wolfSSL_EC_KEY_dup(void)
     /* NULL private key */
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-#if defined(WOLFSSL_PUBLIC_MP)
-    mp_int* mp = (mp_int*)ecKey->priv_key->internal;
-    mp_forcezero(mp);
-    mp_free(mp);
-    ecKey->priv_key->internal = NULL; /* Set internal key to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-#endif
+
     wolfSSL_BN_free(ecKey->priv_key);
     ecKey->priv_key = NULL; /* Set priv_key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+
     wolfSSL_EC_KEY_free(ecKey);
     wolfSSL_EC_KEY_free(dupKey);
 

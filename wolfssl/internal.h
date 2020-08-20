@@ -911,7 +911,7 @@
     #define BUILD_DES3
 #endif
 
-#if defined(NO_AES) || defined(NO_AES_DECRYPT)
+#if defined(NO_AES) || !defined(HAVE_AES_DECRYPT)
     #define AES_BLOCK_SIZE 16
     #undef  BUILD_AES
 #else

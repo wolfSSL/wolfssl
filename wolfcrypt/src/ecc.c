@@ -1346,9 +1346,12 @@ static int wc_ecc_curve_cache_load_item(ecc_curve_spec* curve, const char* src,
 static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     byte load_mask)
 {
-    int ret = 0, x;
+    int ret = 0;
     ecc_curve_spec* curve;
     byte load_items = 0; /* mask of items to load */
+#ifdef ECC_CACHE_CURVE
+    int x;
+#endif
 
     if (dp == NULL || pCurve == NULL)
         return BAD_FUNC_ARG;
