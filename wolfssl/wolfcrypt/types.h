@@ -202,7 +202,11 @@ decouple library dependencies with standard string, memory and so on.
             #define WC_INLINE
         #endif
     #else
-        #define WC_INLINE
+        #ifdef __GNUC__
+            #define WC_INLINE __attribute__((unused))
+        #else
+            #define WC_INLINE
+        #endif
     #endif
     #endif
 
