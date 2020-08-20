@@ -39,6 +39,8 @@ static void wolfssl_exit(void)
     int ret = wolfSSL_Cleanup();
     if (ret != WOLFSSL_SUCCESS)
         pr_err("wolfSSL_Cleanup() failed: %s", wc_GetErrorString(ret));
+    else
+        pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
 
     return;
 }
