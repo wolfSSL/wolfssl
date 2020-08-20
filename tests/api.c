@@ -27673,16 +27673,18 @@ static void test_wolfSSL_X509_sign(void)
 #endif
 #endif /* WOLFSSL_ALT_NAMES */
 
-    /* Test invalid parameters */
-    AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
-    AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
-    AssertIntEQ(X509_sign(x509, priv, NULL), 0);
-
+    /* test valid sign case */
     ret = X509_sign(x509, priv, EVP_sha256());
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_ALT_NAMES)
+    AssertIntEQ(X509_get_ext_count(x509), 1);
+#endif
 #if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
     AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
 #endif
+
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
+                WOLFSSL_SUCCESS);
 
 #if 0
     /* example for writing to file */
@@ -27694,33 +27696,32 @@ static void test_wolfSSL_X509_sign(void)
     }
     XFCLOSE(tmpFile);
 #endif
+    
+    /* Variation in size depends on ASN.1 encoding when MSB is set */
+#ifndef WOLFSSL_ALT_NAMES
+    /* Valid case - size should be 798-797 with 16 byte serial number */
+    AssertTrue((ret == 781 + snSz) || (ret == 782 + snSz));
+#elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* Valid case - size should be 935-936 with 16 byte serial number */
+    AssertTrue((ret == 919 + snSz) || (ret == 920 + snSz));
+#else
+    /* Valid case - size should be 926-927 with 16 byte serial number */
+    AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
+#endif
+
+    /* Test invalid parameters */
+    AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, priv, NULL), 0);
 
     /* test invalid version number */
 #if defined(OPENSSL_ALL)
-    #ifdef WOLFSSL_ALT_NAMES
-    AssertIntEQ(X509_get_ext_count(x509), 1);
-    #endif
     AssertIntNE(X509_set_version(x509, 6L), 0);
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
 
     /* uses ParseCert which fails on bad version number */
     AssertIntEQ(X509_get_ext_count(x509), SSL_FAILURE);
 #endif
-
-    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
-                WOLFSSL_SUCCESS);
-#ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 798 with 16 byte serial number */
-    AssertIntEQ(ret, 782 + snSz);
-#else /* WOLFSSL_ALT_NAMES */
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 936 with 16 byte serial number */
-    AssertIntEQ(ret, 920 + snSz);
-    #else
-    /* Valid case - size should be 927 with 16 byte serial number */
-    AssertIntEQ(ret, 911 + snSz);
-    #endif
-#endif /* WOLFSSL_ALT_NAMES */
 
     X509_NAME_free(name);
     EVP_PKEY_free(priv);
