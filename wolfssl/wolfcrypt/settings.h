@@ -2089,8 +2089,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_DEV_RANDOM
     #define NO_WRITEV
     #define NO_FILESYSTEM
-    #define NO_CRYPT_BENCHMARK 1
-    #define NO_CRYPT_TEST 1
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8

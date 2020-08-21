@@ -27,6 +27,12 @@ WOLFSSL_ASFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CCASFLAGS) 
 
 WOLFSSL_OBJ_FILES=linuxkm/module_hooks.o $(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(src_libwolfssl_la_OBJECTS)))))
 
+ifeq "$(ENABLED_CRYPT_TESTS)" "yes"
+WOLFSSL_OBJ_FILES+=linuxkm/lkm_testcrypto.o
+else
+WOLFSSL_CFLAGS+=-DNO_CRYPT_TEST
+endif
+
 export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES
 
 libwolfssl.ko:

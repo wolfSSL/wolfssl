@@ -195,7 +195,7 @@ endif
 include scripts/include.am
 
 if BUILD_LINUXKM
-export KROOT KARCH AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS src_libwolfssl_la_OBJECTS
+export KROOT KARCH AM_CFLAGS CFLAGS AM_CCASFLAGS CCASFLAGS src_libwolfssl_la_OBJECTS ENABLED_CRYPT_TESTS
 SUBDIRS = linuxkm
 endif
 

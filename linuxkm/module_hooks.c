@@ -9,6 +9,9 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
+#ifndef NO_CRYPT_TEST
+#include <wolfcrypt/test/test.h>
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
@@ -21,6 +24,14 @@ static int wolfssl_init(void)
         pr_err("wolfSSL_Init() failed: %s", wc_GetErrorString(ret));
         return -ENOTRECOVERABLE;
     }
+
+#ifndef NO_CRYPT_TEST
+    ret = wolfcrypt_test(NULL);
+    if (ret != WOLFSSL_SUCCESS) {
+        pr_err("wolfcrypt_test() failed: %s", wc_GetErrorString(ret));
+        return -ENOTRECOVERABLE;
+    }
+#endif
 
     pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
     pr_info("Copyright (C) 2006-2020 wolfSSL Inc. All Rights Reserved.\n");

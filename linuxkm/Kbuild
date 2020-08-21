@@ -22,5 +22,6 @@ libwolfssl-y := $(WOLFSSL_OBJ_FILES)
 
 ccflags-y := $(WOLFSSL_CFLAGS)
 %/libwolfssl.mod.o: ccflags-y :=
+%/lkm_testcrypto.o: ccflags-y += -DNO_MAIN_DRIVER
 
 asflags-y := $(WOLFSSL_ASFLAGS)
