@@ -11,6 +11,7 @@
 #include <wolfssl/ssl.h>
 #ifndef NO_CRYPT_TEST
 #include <wolfcrypt/test/test.h>
+#include <linux/delay.h>
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
@@ -28,7 +29,8 @@ static int wolfssl_init(void)
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
     if (ret < 0) {
-        pr_err("wolfcrypt_test() failed with code %d", ret);
+        pr_err("wolfcrypt self-test failed.");
+        msleep(10);
         return -ENOTRECOVERABLE;
     }
     pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " self-test passed. See https://www.wolfssl.com/ for information.\n");

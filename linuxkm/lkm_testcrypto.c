@@ -113,7 +113,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
         #include <stdio.h>
     #endif
 
-    #ifdef WOLFSSL_LINUXKM
+    #if defined(WOLFSSL_LINUXKM) && !defined(DEBUG_WOLFSSL_VERBOSE)
         #undef printf
         #define printf(...) ({})
     #endif
@@ -452,7 +452,11 @@ static int err_sys(const char* msg, int es)
     (void)msg;
     (void)es;
 
+#ifdef WOLFSSL_LINUXKM
+    lkm_printf("%s error = %d\n", msg, es);
+#else
     printf("%s error = %d\n", msg, es);
+#endif
 
     EXIT_TEST(-1);
 }
