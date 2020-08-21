@@ -14646,27 +14646,29 @@ static int dh_test(void)
 #endif /* WOLFSSL_DH_EXTRA */
 
     ret = dh_generate_test(&rng);
-    if (ret == 0)
-        ret = dh_fips_generate_test(&rng);
+    if (ret != 0)
+        ERROR_OUT(-7954, done);
+
+    ret = dh_fips_generate_test(&rng);
+    if (ret != 0)
+        ERROR_OUT(-7955, done);
+
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    if (ret == 0)
-        ret = dh_test_check_pubvalue();
+    ret = dh_test_check_pubvalue();
+    if (ret != 0)
+        ERROR_OUT(-7956, done);
 #endif
 
     /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
     #ifdef HAVE_FFDHE_2048
-    if (ret == 0) {
-        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
-        if (ret != 0)
-            printf("error with FFDHE 2048\n");
-    }
+    ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
+    if (ret != 0)
+        ERROR_OUT(-7957, done);
     #endif
     #ifdef HAVE_FFDHE_3072
-    if (ret == 0) {
-        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
-        if (ret != 0)
-            printf("error with FFDHE 3072\n");
-    }
+    ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
+    if (ret != 0)
+        ERROR_OUT(-7958, done);
     #endif
 
     wc_FreeDhKey(&key);
@@ -14674,12 +14676,12 @@ static int dh_test(void)
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_OLD_PRIME_CHECK)
-    if (ret == 0) {
-        /* Test Check Key */
-        ret = wc_DhSetCheckKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
-            NULL, 0, 0, &rng);
-        keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
-    }
+    /* Test Check Key */
+    ret = wc_DhSetCheckKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
+                           NULL, 0, 0, &rng);
+    if (ret != 0)
+        ERROR_OUT(-7959, done);
+    keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
 #endif
 
 done:
