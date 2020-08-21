@@ -111,7 +111,8 @@
     /* work around namespace conflict between wolfssl/internal.h (enum HandShakeType) and linux/key.h (extern int()). */
     #define key_update wc_key_update
 
-    #define printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
+    #define lkm_printf(format, args...) printk(KERN_INFO "wolfssl: %s(): " format, __func__, ## args)
+    #define printf(...) lkm_printf(__VA_ARGS__)
     #define XSNPRINTF snprintf /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     /* the rigmarole around kstrtol() here is to accommodate its warn-unused-result attribute. */
     #define XATOI(s) ({ long _xatoi_res = 0; int _xatoi_ret = kstrtol(s, 10, &_xatoi_res); if (_xatoi_ret != 0) { _xatoi_res = 0; } (int)_xatoi_res; })
