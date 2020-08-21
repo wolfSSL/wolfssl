@@ -4127,6 +4127,7 @@ AC_ARG_ENABLE([crypttests],
     [ ENABLED_CRYPT_TESTS=$enableval ],
     [ ENABLED_CRYPT_TESTS=$ENABLED_CRYPT_TESTS_DEFAULT ]
     )
+AC_SUBST([ENABLED_CRYPT_TESTS])
 
 
 # LIBZ
@@ -5364,9 +5365,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
     if test "$ENABLED_EXAMPLES" = "yes"; then
         AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
-    fi
-    if test "$ENABLED_CRYPT_TESTS" = "yes"; then
-        AC_MSG_ERROR([--enable-crypttests is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
