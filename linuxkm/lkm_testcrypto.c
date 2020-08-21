@@ -113,6 +113,11 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
         #include <stdio.h>
     #endif
 
+    #ifdef WOLFSSL_LINUXKM
+        #undef printf
+        #define printf(...) ({})
+    #endif
+
     /* enable way for customer to override test/bench printf */
     #ifdef XPRINTF
         #undef  printf
@@ -444,6 +449,9 @@ static THREAD_RETURN err_sys(const char* msg, int es)
 static int err_sys(const char* msg, int es)
 #endif
 {
+    (void)msg;
+    (void)es;
+
     printf("%s error = %d\n", msg, es);
 
     EXIT_TEST(-1);
@@ -28839,7 +28847,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
 static int memcb_test(void)
 {
     int ret = 0;
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
     byte* b = NULL;
 #endif
     wolfSSL_Malloc_cb  mc;
@@ -28850,7 +28858,7 @@ static int memcb_test(void)
     if (wolfSSL_GetAllocators(&mc, &fc, &rc) != 0)
         return -12800;
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
     /* test realloc */
     b = (byte*)XREALLOC(b, 1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (b == NULL) {
@@ -28878,7 +28886,7 @@ static int memcb_test(void)
         ret = -12803;
 #endif /* !WOLFSSL_NO_MALLOC */
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
 exit_memcb:
 #endif
 
