@@ -27,13 +27,15 @@ static int wolfssl_init(void)
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
-    if (ret != WOLFSSL_SUCCESS) {
-        pr_err("wolfcrypt_test() failed: %s", wc_GetErrorString(ret));
+    if (ret < 0) {
+        pr_err("wolfcrypt_test() failed with code %d", ret);
         return -ENOTRECOVERABLE;
     }
+    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " self-test passed. See https://www.wolfssl.com/ for information.\n");
+#else
+    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
 #endif
 
-    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
     pr_info("Copyright (C) 2006-2020 wolfSSL Inc. All Rights Reserved.\n");
 
     return 0;
