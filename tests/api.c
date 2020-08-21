@@ -1271,6 +1271,7 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
 
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_X509_free(x509);
+    wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 #endif
 }
@@ -27672,16 +27673,18 @@ static void test_wolfSSL_X509_sign(void)
 #endif
 #endif /* WOLFSSL_ALT_NAMES */
 
-    /* Test invalid parameters */
-    AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
-    AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
-    AssertIntEQ(X509_sign(x509, priv, NULL), 0);
-
+    /* test valid sign case */
     ret = X509_sign(x509, priv, EVP_sha256());
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_ALT_NAMES)
+    AssertIntEQ(X509_get_ext_count(x509), 1);
+#endif
 #if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
     AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
 #endif
+
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
+                WOLFSSL_SUCCESS);
 
 #if 0
     /* example for writing to file */
@@ -27693,33 +27696,32 @@ static void test_wolfSSL_X509_sign(void)
     }
     XFCLOSE(tmpFile);
 #endif
+    
+    /* Variation in size depends on ASN.1 encoding when MSB is set */
+#ifndef WOLFSSL_ALT_NAMES
+    /* Valid case - size should be 798-797 with 16 byte serial number */
+    AssertTrue((ret == 781 + snSz) || (ret == 782 + snSz));
+#elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    /* Valid case - size should be 935-936 with 16 byte serial number */
+    AssertTrue((ret == 919 + snSz) || (ret == 920 + snSz));
+#else
+    /* Valid case - size should be 926-927 with 16 byte serial number */
+    AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
+#endif
+
+    /* Test invalid parameters */
+    AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, priv, NULL), 0);
 
     /* test invalid version number */
 #if defined(OPENSSL_ALL)
-    #ifdef WOLFSSL_ALT_NAMES
-    AssertIntEQ(X509_get_ext_count(x509), 1);
-    #endif
     AssertIntNE(X509_set_version(x509, 6L), 0);
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
 
     /* uses ParseCert which fails on bad version number */
     AssertIntEQ(X509_get_ext_count(x509), SSL_FAILURE);
 #endif
-
-    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
-                WOLFSSL_SUCCESS);
-#ifndef WOLFSSL_ALT_NAMES
-    /* Valid case - size should be 798 with 16 byte serial number */
-    AssertIntEQ(ret, 782 + snSz);
-#else /* WOLFSSL_ALT_NAMES */
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 936 with 16 byte serial number */
-    AssertIntEQ(ret, 920 + snSz);
-    #else
-    /* Valid case - size should be 927 with 16 byte serial number */
-    AssertIntEQ(ret, 911 + snSz);
-    #endif
-#endif /* WOLFSSL_ALT_NAMES */
 
     X509_NAME_free(name);
     EVP_PKEY_free(priv);
@@ -28357,27 +28359,30 @@ static int test_wolfSSL_GetLoggingCb (void)
 #ifdef DEBUG_WOLFSSL
     printf(testingFmt, "wolfSSL_GetLoggingCb()");
 
-    /*Testing without wolfSSL_SetLoggingCb()*/
+    /* Testing without wolfSSL_SetLoggingCb() */
     if (ret == 0) {
-        if(wolfSSL_GetLoggingCb() == NULL){ /*Should be true*/
+        if (wolfSSL_GetLoggingCb() == NULL) { /* Should be true */
             ret = 0;
         }
-        if(wolfSSL_GetLoggingCb() != NULL){ /*Should not be true*/
+        if (wolfSSL_GetLoggingCb() != NULL) { /* Should not be true */
             ret = -1;
         }
     }
-    /*Testing with wolfSSL_SetLoggingCb()*/
+    /* Testing with wolfSSL_SetLoggingCb() */
     if (ret == 0) {
         ret = wolfSSL_SetLoggingCb(Logging_cb);
         if (ret == 0){
-            if(wolfSSL_GetLoggingCb() == NULL){ /*Should not be true*/
+            if (wolfSSL_GetLoggingCb() == NULL) { /* Should not be true */
                 ret = -1;
             }
             if (ret == 0) {
-                if(wolfSSL_GetLoggingCb() == Logging_cb){ /*Should be true*/
+                if (wolfSSL_GetLoggingCb() == Logging_cb) { /* Should be true */
                     ret = 0;
                 }
             }
+
+            /* reset logging callback */
+            wolfSSL_SetLoggingCb(NULL);
         }
     }
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -31560,16 +31565,11 @@ static void test_wolfSSL_EC_KEY_dup(void)
     /* NULL private key */
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
-#if defined(WOLFSSL_PUBLIC_MP)
-    mp_int* mp = (mp_int*)ecKey->priv_key->internal;
-    mp_forcezero(mp);
-    mp_free(mp);
-    ecKey->priv_key->internal = NULL; /* Set internal key to NULL */
-    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-#endif
+
     wolfSSL_BN_free(ecKey->priv_key);
     ecKey->priv_key = NULL; /* Set priv_key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+
     wolfSSL_EC_KEY_free(ecKey);
     wolfSSL_EC_KEY_free(dupKey);
 

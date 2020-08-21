@@ -1265,41 +1265,62 @@ enum ecc_curve_load_mask {
     #define FREE_CURVE_SPECS()
 #endif /* ECC_CACHE_CURVE */
 
-static void _wc_ecc_curve_free(ecc_curve_spec* curve)
+static void wc_ecc_curve_cache_free_spec_item(ecc_curve_spec* curve, mp_int* item,
+    byte mask)
+{
+    if (item) {
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_free(&item->raw);
+    #endif
+        mp_clear(item);
+    }
+    curve->load_mask &= ~mask;
+}
+static void wc_ecc_curve_cache_free_spec(ecc_curve_spec* curve)
 {
     if (curve == NULL) {
         return;
     }
 
     if (curve->load_mask & ECC_CURVE_FIELD_PRIME)
-        mp_clear(curve->prime);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->prime, ECC_CURVE_FIELD_PRIME);
     if (curve->load_mask & ECC_CURVE_FIELD_AF)
-        mp_clear(curve->Af);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->Af, ECC_CURVE_FIELD_AF);
 #ifdef USE_ECC_B_PARAM
     if (curve->load_mask & ECC_CURVE_FIELD_BF)
-        mp_clear(curve->Bf);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->Bf, ECC_CURVE_FIELD_BF);
 #endif
     if (curve->load_mask & ECC_CURVE_FIELD_ORDER)
-        mp_clear(curve->order);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->order, ECC_CURVE_FIELD_ORDER);
     if (curve->load_mask & ECC_CURVE_FIELD_GX)
-        mp_clear(curve->Gx);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->Gx, ECC_CURVE_FIELD_GX);
     if (curve->load_mask & ECC_CURVE_FIELD_GY)
-        mp_clear(curve->Gy);
+        wc_ecc_curve_cache_free_spec_item(curve, curve->Gy, ECC_CURVE_FIELD_GY);
 
     curve->load_mask = 0;
 }
 
 static void wc_ecc_curve_free(ecc_curve_spec* curve)
 {
-    /* don't free cached curves */
-#ifndef ECC_CACHE_CURVE
-    _wc_ecc_curve_free(curve);
-#endif
-    (void)curve;
+    if (curve) {
+    #ifdef ECC_CACHE_CURVE
+        /* only free custom curves (reset are globally cached) */
+        if (curve->dp 
+        #ifdef WOLFSSL_CUSTOM_CURVES
+            && curve->dp->id == ECC_CURVE_CUSTOM
+        #endif
+        ) {
+            wc_ecc_curve_cache_free_spec(curve);
+            XFREE(curve, NULL, DYNAMIC_TYPE_ECC);
+        }
+    #else
+        wc_ecc_curve_cache_free_spec(curve);
+    #endif
+    }
 }
 
-static int wc_ecc_curve_load_item(const char* src, mp_int** dst,
-    ecc_curve_spec* curve, byte mask)
+static int wc_ecc_curve_cache_load_item(ecc_curve_spec* curve, const char* src, 
+    mp_int** dst, byte mask)
 {
     int err;
 
@@ -1329,9 +1350,12 @@ static int wc_ecc_curve_load_item(const char* src, mp_int** dst,
 static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     byte load_mask)
 {
-    int ret = 0, x;
+    int ret = 0;
     ecc_curve_spec* curve;
     byte load_items = 0; /* mask of items to load */
+#ifdef ECC_CACHE_CURVE
+    int x;
+#endif
 
     if (dp == NULL || pCurve == NULL)
         return BAD_FUNC_ARG;
@@ -1349,23 +1373,36 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
 #endif
 
     /* make sure cache has been allocated */
-    if (ecc_curve_spec_cache[x] == NULL) {
-        ecc_curve_spec_cache[x] = (ecc_curve_spec*)XMALLOC(
-            sizeof(ecc_curve_spec), NULL, DYNAMIC_TYPE_ECC);
-        if (ecc_curve_spec_cache[x] == NULL) {
+    if (ecc_curve_spec_cache[x] == NULL
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        || dp->id == ECC_CURVE_CUSTOM
+    #endif
+    ) {
+        curve = (ecc_curve_spec*)XMALLOC(sizeof(ecc_curve_spec), NULL, DYNAMIC_TYPE_ECC);
+        if (curve == NULL) {
         #if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
             wc_UnLockMutex(&ecc_curve_cache_mutex);
         #endif
             return MEMORY_E;
         }
-        XMEMSET(ecc_curve_spec_cache[x], 0, sizeof(ecc_curve_spec));
+        XMEMSET(curve, 0, sizeof(ecc_curve_spec));
+
+        /* set curve pointer to cache */
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp->id != ECC_CURVE_CUSTOM)
+    #endif
+        {
+            ecc_curve_spec_cache[x] = curve;
+        }
     }
-
-    /* set curve pointer to cache */
-    *pCurve = ecc_curve_spec_cache[x];
-
-#endif /* ECC_CACHE_CURVE */
+    else {
+        curve = ecc_curve_spec_cache[x];
+    }
+    /* return new or cached curve */
+    *pCurve = curve;
+#else
     curve = *pCurve;
+#endif /* ECC_CACHE_CURVE */
 
     /* make sure the curve is initialized */
     if (curve->dp != dp) {
@@ -1389,30 +1426,29 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     curve->load_mask |= load_items;
 
     /* load items */
-    x = 0;
     if (load_items & ECC_CURVE_FIELD_PRIME)
-        x += wc_ecc_curve_load_item(dp->prime, &curve->prime, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->prime, &curve->prime,
             ECC_CURVE_FIELD_PRIME);
     if (load_items & ECC_CURVE_FIELD_AF)
-        x += wc_ecc_curve_load_item(dp->Af, &curve->Af, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->Af, &curve->Af,
             ECC_CURVE_FIELD_AF);
 #ifdef USE_ECC_B_PARAM
     if (load_items & ECC_CURVE_FIELD_BF)
-        x += wc_ecc_curve_load_item(dp->Bf, &curve->Bf, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->Bf, &curve->Bf,
             ECC_CURVE_FIELD_BF);
 #endif
     if (load_items & ECC_CURVE_FIELD_ORDER)
-        x += wc_ecc_curve_load_item(dp->order, &curve->order, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->order, &curve->order,
             ECC_CURVE_FIELD_ORDER);
     if (load_items & ECC_CURVE_FIELD_GX)
-        x += wc_ecc_curve_load_item(dp->Gx, &curve->Gx, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->Gx, &curve->Gx,
             ECC_CURVE_FIELD_GX);
     if (load_items & ECC_CURVE_FIELD_GY)
-        x += wc_ecc_curve_load_item(dp->Gy, &curve->Gy, curve,
+        ret += wc_ecc_curve_cache_load_item(curve, dp->Gy, &curve->Gy,
             ECC_CURVE_FIELD_GY);
 
     /* check for error */
-    if (x != 0) {
+    if (ret != 0) {
         wc_ecc_curve_free(curve);
         ret = MP_READ_E;
     }
@@ -1441,7 +1477,7 @@ void wc_ecc_curve_cache_free(void)
     /* free all ECC curve caches */
     for (x = 0; x < (int)ECC_SET_COUNT; x++) {
         if (ecc_curve_spec_cache[x]) {
-            _wc_ecc_curve_free(ecc_curve_spec_cache[x]);
+            wc_ecc_curve_cache_free_spec(ecc_curve_spec_cache[x]);
             XFREE(ecc_curve_spec_cache[x], NULL, DYNAMIC_TYPE_ECC);
             ecc_curve_spec_cache[x] = NULL;
         }

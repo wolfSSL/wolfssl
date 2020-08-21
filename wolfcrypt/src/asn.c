@@ -4446,8 +4446,11 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     #endif
 #endif
     /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
-    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
+    if (GetInt(&key->p, input, inOutIdx, inSz) < 0) {
+        ret = ASN_DH_KEY_E;
+    }
+    if (ret == 0 && GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->p);
         ret = ASN_DH_KEY_E;
     }
 
@@ -4476,8 +4479,11 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (GetInt(&key->p, input, inOutIdx, inSz) < 0 ||
-            GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        if (GetInt(&key->p, input, inOutIdx, inSz) < 0) {
+            return ASN_DH_KEY_E;
+        }
+        if (ret == 0 && GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+            mp_clear(&key->p);
             return ASN_DH_KEY_E;
         }
     }
@@ -6190,15 +6196,15 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 {
     struct tm* ts      = NULL;
     struct tm* tmpTime = NULL;
+    byte* data_ptr  = buf;
+    word32 data_len = 0;
+    int year, mon, day, hour, mini, sec;
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
     (void)tmpTime;
 #endif
-    byte* data_ptr  = buf;
-    word32 data_len = 0;
-    int year, mon, day, hour, mini, sec;
 
     WOLFSSL_ENTER("SetAsnTimeString");
 
@@ -11676,7 +11682,7 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
     idx = wc_ed25519_export_public(key, pub, &pubSz);
     if (idx != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return idx;
     }
@@ -11686,7 +11692,7 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
 #ifdef WOLFSSL_SMALL_STACK
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (algo == NULL) {
-            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
 #endif
@@ -11780,7 +11786,7 @@ static int SetEd448PublicKey(byte* output, ed448_key* key, int with_header)
     idx = wc_ed448_export_public(key, pub, &pubSz);
     if (idx != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return idx;
     }
@@ -11790,7 +11796,7 @@ static int SetEd448PublicKey(byte* output, ed448_key* key, int with_header)
 #ifdef WOLFSSL_SMALL_STACK
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (algo == NULL) {
-            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
 #endif
