@@ -184,6 +184,7 @@ then
     enable_compkey=yes
     enable_curve25519=yes
     enable_curve448=yes
+    enable_ed448=yes
     enable_ed25519=yes
     enable_fpecc=yes
     enable_eccencrypt=yes
