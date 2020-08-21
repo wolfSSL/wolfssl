@@ -5878,6 +5878,13 @@ exit:
     FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
+
+    (void)pending;
+    (void)x;
+    (void)count;
+    (void)times;
+    (void)desc;
+    (void)start;
 }
 
 
