@@ -37668,28 +37668,37 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             const WOLFSSL_EVP_MD* md)
     {
         int  ret;
-        byte der[WC_MAX_X509_GEN]; /* @TODO dynamic based on expected cert size */
-        int  derSz = sizeof(der);
+        /* @TODO dynamic set based on expected cert size */
+	byte *der = XMALLOC(WC_MAX_X509_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        int  derSz = WC_MAX_X509_GEN;
 
         WOLFSSL_ENTER("wolfSSL_X509_sign");
 
-        if (x509 == NULL || pkey == NULL || md == NULL)
-            return WOLFSSL_FAILURE;
+        if (x509 == NULL || pkey == NULL || md == NULL) {
+            ret = WOLFSSL_FAILURE;
+            goto out;
+        }
 
         x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
         if ((ret = wolfSSL_X509_make_der(x509, 0, der, &derSz)) !=
                 WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Unable to make DER for X509");
             WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
 
-        ret = wolfSSL_X509_resign_cert(x509, 0, der, sizeof(der), derSz,
+        ret = wolfSSL_X509_resign_cert(x509, 0, der, WC_MAX_X509_GEN, derSz,
                 (WOLFSSL_EVP_MD*)md, pkey);
         if (ret <= 0) {
             WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
-            return WOLFSSL_FAILURE;
+            ret = WOLFSSL_FAILURE;
+            goto out;
         }
+
+    out:
+	if (der)
+            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -41092,7 +41101,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
     const unsigned char* bioMem = NULL;
     int bioMemSz = 0;
     WOLFSSL_RSA* key = NULL;
-    unsigned char maxKeyBuf[4096];
+    unsigned char *maxKeyBuf = NULL;
     unsigned char* bufPtr = NULL;
     unsigned char* extraBioMem = NULL;
     int extraBioMemSz = 0;
@@ -41119,6 +41128,12 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         return NULL;
     }
 
+    maxKeyBuf = (unsigned char*)XMALLOC(4096, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (maxKeyBuf == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
     bufPtr = maxKeyBuf;
     if (wolfSSL_BIO_read(bio, (unsigned char*)bioMem, (int)bioMemSz) == bioMemSz) {
         const byte* bioMemPt = bioMem; /* leave bioMem pointer unaltered */
@@ -41141,6 +41156,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE((unsigned char*)bioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE((unsigned char*)maxKeyBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }
 
@@ -41156,6 +41172,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE((unsigned char*)bioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE((unsigned char*)maxKeyBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }
             XFREE((unsigned char*)extraBioMem, bio->heap,
@@ -41167,6 +41184,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         }
     }
     XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE((unsigned char*)maxKeyBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return key;
 }
 #endif
@@ -41197,7 +41215,7 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 {
     int ret;
     int derSize;
-    unsigned char maxDerBuf[4096];
+    unsigned char *maxDerBuf;
     unsigned char* key = NULL;
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_RSAPrivateKey()");
@@ -41206,18 +41224,26 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
         WOLFSSL_MSG("one or more inputs were NULL");
         return BAD_FUNC_ARG;
     }
+    maxDerBuf = (unsigned char*)XMALLOC(4096, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (maxDerBuf == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        return MEMORY_E;
+    }
     key = maxDerBuf;
     /* convert RSA struct to der encoded buffer and get the size */
     if ((derSize = wolfSSL_i2d_RSAPrivateKey(rsa, &key)) <= 0) {
         WOLFSSL_MSG("wolfSSL_i2d_RSAPrivateKey() failure");
+        XFREE(maxDerBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
     ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, (const unsigned char*)maxDerBuf,
                                                     derSize, SSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("wolfSSL_CTX_USE_PrivateKey_buffer() failure");
+        XFREE(maxDerBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
+    XFREE(maxDerBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 #endif /* NO_RSA && !HAVE_FAST_RSA */
