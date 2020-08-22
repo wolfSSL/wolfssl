@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 # libwolfssl Kbuild
 
 # wolfcrypto asm provokes many objtool complaints:
@@ -6,7 +8,7 @@
 # "indirect jump found in RETPOLINE build",
 # and "is missing an ELF size annotation"
 # see /usr/src/linux/tools/objtool/Documentation/stack-validation.txt
-OBJECT_FILES_NON_STANDARD := y
+#OBJECT_FILES_NON_STANDARD := y
 
 obj-m := libwolfssl.o
 
@@ -18,9 +20,17 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
 $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
+hostprogs := linuxkm/get_thread_size
+always-y := $(hostprogs)
+HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static
+$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES)): $(obj)/linuxkm/get_thread_size
+KERNEL_THREAD_STACK_SIZE=$(shell $(obj)/linuxkm/get_thread_size)
+MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
+
 libwolfssl-y := $(WOLFSSL_OBJ_FILES)
 
-ccflags-y := $(WOLFSSL_CFLAGS)
+ccflags-y = $(WOLFSSL_CFLAGS) -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
+
 %/libwolfssl.mod.o: ccflags-y :=
 %/lkm_testcrypto.o: ccflags-y += -DNO_MAIN_DRIVER
 

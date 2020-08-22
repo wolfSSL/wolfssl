@@ -2104,6 +2104,7 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_USER_IO 1
     #define USE_WOLF_STRTOK
     #define WOLFSSL_SP_DIV_64
+    #define WOLFSSL_OLD_PRIME_CHECK
 #endif
 
 
