@@ -3645,11 +3645,14 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
   int i, j, x;
 
-  for (x=c-1,j=0,i=0; x >= 0; x--) {
+  for (x=c-1, j=0, i=0; x >= 0 && i < a->used; x--) {
      b[x] = (unsigned char)(a->dp[i] >> j);
      j += 8;
      i += j == DIGIT_BIT;
      j &= DIGIT_BIT - 1;
+  }
+  for (; x >= 0; x--) {
+     b[x] = 0;
   }
 
   return FP_OKAY;

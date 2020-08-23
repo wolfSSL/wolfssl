@@ -442,12 +442,15 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
     int i, j, b;
 
     j = outSz - 1;
-    for (i=0; j>=0; i++) {
+    for (i = 0; j >= 0 && i < a->used; i++) {
         for (b = 0; b < SP_WORD_SIZE; b += 8) {
             out[j--] = a->dp[i] >> b;
             if (j < 0)
                 break;
         }
+    }
+    for (; j >= 0; j--) {
+        out[j] = 0;
     }
 
     return MP_OKAY;
