@@ -837,7 +837,7 @@ int wc_ed448_check_key(ed448_key* key)
         ret = BAD_FUNC_ARG;
     }
 
-    if (!key->pubKeySet) {
+    if (ret == 0 && !key->pubKeySet) {
         ret = PUBLIC_KEY_E;
     }
     if (ret == 0) {
