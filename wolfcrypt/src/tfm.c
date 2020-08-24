@@ -5157,7 +5157,10 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 
    fp_init(r);
    while (fp_iszero(v) == FP_NO) {
-      fp_mod(u, v, r);
+      int err = fp_mod(u, v, r);
+      if (err != MP_OKAY) {
+        return err;
+      }
       fp_copy(v, u);
       fp_copy(r, v);
    }
