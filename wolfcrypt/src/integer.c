@@ -321,9 +321,14 @@ int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
 
     len = mp_unsigned_bin_size(a);
 
+    if (len > c) {
+      return MP_VAL;
+    }
+
     /* pad front w/ zeros to match length */
-    for (i = 0; i < c - len; i++)
-        b[i] = 0x00;
+    for (i = 0; i < c - len; i++) {
+      b[i] = 0x00;
+    }
     return mp_to_unsigned_bin(a, b + i);
 }
 
