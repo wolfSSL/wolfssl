@@ -4427,7 +4427,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     else {
         /* add trusted peer signature */
         peerCert->sigLen = cert->sigLength;
-        peerCert->sig = XMALLOC(cert->sigLength, cm->heap,
+        peerCert->sig = (byte *)XMALLOC(cert->sigLength, cm->heap,
                                                         DYNAMIC_TYPE_SIGNATURE);
         if (peerCert->sig == NULL) {
             FreeDecodedCert(cert);
@@ -37669,7 +37669,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     {
         int  ret;
         /* @TODO dynamic set based on expected cert size */
-	byte *der = XMALLOC(WC_MAX_X509_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+	byte *der = (byte *)XMALLOC(WC_MAX_X509_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         int  derSz = WC_MAX_X509_GEN;
 
         WOLFSSL_ENTER("wolfSSL_X509_sign");

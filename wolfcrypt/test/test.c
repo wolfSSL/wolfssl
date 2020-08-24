@@ -4367,8 +4367,8 @@ static int hc128_test(void)
     HC128 enc_buffer, *enc = &enc_buffer,
         dec_buffer, *dec = &dec_buffer;
 #else
-    HC128 *enc = XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    HC128 *dec = XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    HC128 *enc = (HC128 *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    HC128 *dec = (HC128 *)XMALLOC(sizeof *enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enc) || (! dec)) {
         ERROR_OUT(-4322, out);
     }
@@ -11074,7 +11074,7 @@ static int decodedCertCache_test(void)
     word32 derSz;
 
     derSz = FOURK_BUF;
-    der = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL)
         ret = -7400;
 
@@ -21685,7 +21685,7 @@ static int ed25519_test_cert(void)
     size_t       bytes;
     XFILE        file;
 
-    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ERROR_OUT(-10323, done);
     }
@@ -21811,7 +21811,7 @@ static int ed25519_test_make_cert(void)
         ERROR_OUT(-10336, done);
     }
 #endif
-    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ERROR_OUT(-10337, done);
     }
@@ -22969,7 +22969,7 @@ static int ed448_test_cert(void)
     size_t       bytes;
     XFILE        file;
 
-    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ERROR_OUT(-11023, done);
     }
@@ -23094,7 +23094,7 @@ static int ed448_test_make_cert(void)
         ERROR_OUT(-11036, done);
     }
 #endif
-    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte *)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ERROR_OUT(-11037, done);
     }
@@ -24466,8 +24466,8 @@ static int compress_test(void)
     byte *c;
     byte *d;
 
-    c = XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    d = XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    c = (byte *)XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    d = (byte *)XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (c == NULL || d == NULL) {
         ERROR_OUT(-11700, exit);
     }
@@ -25234,8 +25234,8 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
     };
 
-    enveloped = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    decoded = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(-11761, out);
     }
@@ -25866,8 +25866,8 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
     };
 
-    enveloped = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    decoded = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(-11804, out);
     }
@@ -26810,8 +26810,8 @@ static int pkcs7encrypted_test(void)
 #endif /* NO_AES */
     };
 
-    encrypted = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    decoded = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    encrypted = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! encrypted) || (! decoded)) {
         ERROR_OUT(MEMORY_E, out);
     }
@@ -26969,8 +26969,8 @@ static int pkcs7compressed_test(void)
             "pkcs7compressedData_firmwarePkgData_zlib.der"},
     };
 
-    enveloped = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    decoded = XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(MEMORY_E, out);
     }
