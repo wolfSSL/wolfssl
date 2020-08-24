@@ -2925,7 +2925,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
         !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
-        
+
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
@@ -3538,6 +3538,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_FUNC_ARG;
         }
 
+        if (sz == 0) {
+            return 0;
+        }
+
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
@@ -3635,6 +3639,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (aes == NULL || out == NULL || in == NULL
                                        || sz % AES_BLOCK_SIZE != 0) {
             return BAD_FUNC_ARG;
+        }
+
+        if (sz == 0) {
+            return 0;
         }
 
     #ifdef WOLF_CRYPTO_CB
@@ -3897,7 +3905,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
-   
+
     #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
         !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
         /* esp32 doesn't support CRT mode by hw.     */
@@ -7628,7 +7636,7 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
 
-        return AES_ECB_encrypt(aes, in, out, sz);
+    return AES_ECB_encrypt(aes, in, out, sz);
 }
 
 
@@ -7637,7 +7645,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if ((in == NULL) || (out == NULL) || (aes == NULL))
         return BAD_FUNC_ARG;
 
-        return AES_ECB_decrypt(aes, in, out, sz);
+    return AES_ECB_decrypt(aes, in, out, sz);
 }
 
 #else
@@ -7649,7 +7657,7 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    while (blocks>0) {
+    while (blocks > 0) {
       wc_AesEncryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
@@ -7666,7 +7674,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    while (blocks>0) {
+    while (blocks > 0) {
       wc_AesDecryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
