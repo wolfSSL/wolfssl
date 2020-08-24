@@ -18360,6 +18360,11 @@ static int ecc_test_make_pub(WC_RNG* rng)
     XFILE file;
 #endif
 
+    (void)msg;
+    (void)verify;
+    (void)exportBuf;
+    (void)rng;
+
     wc_ecc_init_ex(&key, HEAP_HINT, devId);
 
 #ifndef NO_ECC256
@@ -20604,7 +20609,7 @@ static int ecc_test_nonblock(WC_RNG* rng)
 int ecc_test(void)
 {
     int ret;
-    WC_RNG  rng;
+    WC_RNG rng;
 
 #ifdef WOLFSSL_CERT_EXT
     ret = ecc_decode_test();
@@ -20617,8 +20622,10 @@ int ecc_test(void)
 #else
     ret = wc_InitRng(&rng);
 #endif
+#ifndef WC_NO_RNG
     if (ret != 0)
         return -9900;
+#endif
 
 #if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
     ret = ecc_test_curve(&rng, 14);
@@ -20935,7 +20942,8 @@ done:
 #endif /* HAVE_ECC_ENCRYPT */
 
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256)
+    !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
+    defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN)
 int ecc_test_buffers(void) {
     size_t bytes;
     ecc_key cliKey;
