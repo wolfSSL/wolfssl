@@ -1078,12 +1078,10 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 start[len] = 0;
             }
             else {
-            #ifdef WOLFSSL_NONBLOCK_OCSP
                 result = wolfSSL_LastError();
-                if (result == SOCKET_EWOULDBLOCK) {
+                if (result == SOCKET_EWOULDBLOCK || result == SOCKET_EAGAIN) {
                     return OCSP_WANT_READ;
                 }
-            #endif
 
                 WOLFSSL_MSG("wolfIO_HttpProcessResponse recv http from peer failed");
                 return -1;
