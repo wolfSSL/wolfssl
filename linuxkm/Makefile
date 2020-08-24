@@ -10,18 +10,6 @@ ifndef SRC_TOP
 SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-ifeq "$(KROOT)" ""
-$(error $$KROOT is unset.)
-endif
-
-ifeq "$(AM_CFLAGS)$(CFLAGS)" ""
-$(error $$AM_CFLAGS and $$CFLAGS are both unset.)
-endif
-
-ifeq "$(src_libwolfssl_la_OBJECTS)" ""
-$(error $$src_libwolfssl_la_OBJECTS is unset.)
-endif
-
 WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS)
 ifeq "$(KARCH)" "x86"
 WOLFSSL_CFLAGS+=-msse -mmmx -msse2 -mavx -mavx2
@@ -40,6 +28,9 @@ endif
 export WOLFSSL_CFLAGS WOLFSSL_ASFLAGS WOLFSSL_OBJ_FILES
 
 libwolfssl.ko:
+	@if test -z "$(KROOT)"; then echo '$$KROOT is unset' >&2; exit 1; fi
+	@if test -z "$(AM_CFLAGS)$(CFLAGS)"; then echo '$$AM_CFLAGS and $$CFLAGS are both unset.' >&2; exit 1; fi
+	@if test -z "$(src_libwolfssl_la_OBJECTS)"; then echo '$$src_libwolfssl_la_OBJECTS is unset.' >&2; exit 1; fi
 	@mkdir -p linuxkm src wolfcrypt/src wolfcrypt/test
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
 	+make -C $(KROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
@@ -47,3 +38,6 @@ libwolfssl.ko:
 .PHONY: clean
 clean:
 	+make -C $(KROOT) M=$(MODULE_TOP) src=$(SRC_TOP) clean
+
+.PHONY: dist
+dist:
