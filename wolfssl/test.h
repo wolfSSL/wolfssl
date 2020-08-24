@@ -2002,12 +2002,19 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
 typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 #define STACK_CHECK_VAL 0x01
 
+#ifdef DEBUG_STACK_SIZE_VERBOSE
+static unsigned char *StackSizeCheck_myStack = NULL;
+static size_t StackSizeCheck_stackSize = 0;
+static void *StackSizeCheck_stackOffsetPointer = 0;
+#endif
+
 static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 {
-    int            ret, i, used;
+    size_t         i;
+    int            ret, used;
     void*          status;
     unsigned char* myStack = NULL;
-    int            stackSize = 1024*176;
+    size_t         stackSize = 1024*176;
     pthread_attr_t myAttr;
     pthread_t      threadId;
 
@@ -2021,6 +2028,11 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
         err_sys_with_errno("posix_memalign failed\n");
 
     XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
+
+#ifdef DEBUG_STACK_SIZE_VERBOSE
+    StackSizeCheck_myStack = myStack;
+    StackSizeCheck_stackSize = stackSize;
+#endif
 
     ret = pthread_attr_init(&myAttr);
     if (ret != 0)
@@ -2047,6 +2059,10 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     }
 
     free(myStack);
+#ifdef DEBUG_STACK_SIZE_VERBOSE
+    StackSizeCheck_myStack = 0;
+    return (int)((size_t)status);
+#endif
 
     used = stackSize - i;
     printf("stack used = %d\n", used);
@@ -2054,9 +2070,100 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     return (int)((size_t)status);
 }
 
+#ifdef DEBUG_STACK_SIZE_VERBOSE
+
+static WC_INLINE int StackSizeSetOffset(void *p)
+{
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    StackSizeCheck_stackOffsetPointer = p;
+
+    return 0;
+}
+
+static WC_INLINE int StackSizeHWM(void)
+{
+    size_t i;
+    int used;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = 0; i < StackSizeCheck_stackSize; i++) {
+        if (StackSizeCheck_myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    used = StackSizeCheck_stackSize - i;
+    printf("stack used = %d\n", used);
+
+    return 0;
+}
+
+static WC_INLINE ssize_t StackSizeHWM_OffsetCorrected(void)
+{
+    size_t i;
+    ssize_t used;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = 0; i < StackSizeCheck_stackSize; i++) {
+        if (StackSizeCheck_myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    used = StackSizeCheck_stackSize - i;
+    if (StackSizeCheck_stackOffsetPointer)
+        used -= (ssize_t)(((char *)StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)StackSizeCheck_stackOffsetPointer);
+
+    return used;
+}
+
+static
+#ifdef __GNUC__
+__attribute__((unused)) __attribute__((noinline))
+#endif
+int StackSizeHWMReset(void)
+{
+    volatile ssize_t i;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = (ssize_t)((char *)&i - (char *)StackSizeCheck_myStack) - (ssize_t)sizeof i - 1; i >= 0; --i)
+    {
+        StackSizeCheck_myStack[i] = STACK_CHECK_VAL;
+    }
+
+    return 0;
+}
+
+#define STACK_SIZE_CHECKPOINT(...) ({  \
+    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    int _ret = (__VA_ARGS__); \
+    printf("relative stack used = %ld\n", HWM); \
+    StackSizeHWMReset();               \
+    _ret;                       \
+    })
+
+#ifdef __GNUC__
+#define STACK_SIZE_INIT() (void)StackSizeSetOffset(__builtin_frame_address(0))
+#endif
+
+#endif /* DEBUG_STACK_SIZE_VERBOSE */
 
 #endif /* HAVE_STACK_SIZE */
 
+#ifndef STACK_SIZE_CHECKPOINT
+#define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
+#endif
+#ifndef STACK_SIZE_INIT
+#define STACK_SIZE_INIT()
+#endif
 
 #ifdef STACK_TRAP
 
