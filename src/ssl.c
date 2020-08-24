@@ -17785,15 +17785,23 @@ int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME* name)
                                        byte* in, int* inOutSz)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_serial_number");
-        if (x509 == NULL || in == NULL ||
-                                   inOutSz == NULL || *inOutSz < x509->serialSz)
+        if (x509 == NULL || inOutSz == NULL) {
+            WOLFSSL_MSG("Null argument passed in");
             return BAD_FUNC_ARG;
+        }
 
-        XMEMCPY(in, x509->serial, x509->serialSz);
+        if (in != NULL) {
+            if (*inOutSz < x509->serialSz) {
+                WOLFSSL_MSG("Serial buffer too small");
+                return BUFFER_E;
+            }
+            XMEMCPY(in, x509->serial, x509->serialSz);
+        }
         *inOutSz = x509->serialSz;
 
         return WOLFSSL_SUCCESS;
     }
+
 
     /* not an openssl compatibility function - getting for derCert */
     const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
@@ -37320,6 +37328,25 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         return ret;
     }
 #endif
+#ifdef WOLFSSL_ALT_NAMES
+    /* converts WOLFSSL_AN1_TIME to Cert form, returns positive size on
+     * success */
+    static int CertDateFromX509(byte* out, int outSz, WOLFSSL_ASN1_TIME* t)
+    {
+        int sz, i;
+
+        if (t->length + 1 >= outSz) {
+            return BUFFER_E;
+        }
+
+        out[0] = t->type;
+        sz = SetLength(t->length - 1, out + 1) + 1;  /* gen tag */
+        for (i = 0; i < t->length - 1; i++) {
+            out[sz + i] = t->data[i];
+        }
+        return t->length - 1 + sz;
+    }
+#endif
 
     /* convert a WOLFSSL_X509 to a Cert structure for writing out */
     static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
@@ -37341,31 +37368,22 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
 
     #ifdef WOLFSSL_ALT_NAMES
         if (x509->notBefore.length > 0) {
-            if ((x509->notBefore.length + 2) < CTC_DATE_SIZE) {
-                cert->beforeDate[0] = x509->notBefore.type;
-                cert->beforeDate[1] = x509->notBefore.length;
-                XMEMCPY(&cert->beforeDate[2], x509->notBefore.data,
-                        x509->notBefore.length);
-                cert->beforeDateSz = x509->notBefore.length + 2;
-            }
-            else {
-                WOLFSSL_MSG("Not before date too large");
+            cert->beforeDateSz = CertDateFromX509(cert->beforeDate,
+                        CTC_DATE_SIZE, &x509->notBefore);
+            if (cert->beforeDateSz <= 0){
+                WOLFSSL_MSG("Not before date error");
                 return WOLFSSL_FAILURE;
             }
         }
         else {
             cert->beforeDateSz = 0;
         }
+
         if (x509->notAfter.length > 0) {
-            if ((x509->notAfter.length + 2) < CTC_DATE_SIZE) {
-                cert->afterDate[0] = x509->notAfter.type;
-                cert->afterDate[1] = x509->notAfter.length;
-                XMEMCPY(&cert->afterDate[2], x509->notAfter.data,
-                        x509->notAfter.length);
-                cert->afterDateSz = x509->notAfter.length + 2;
-            }
-            else {
-                WOLFSSL_MSG("Not after date too large");
+            cert->afterDateSz = CertDateFromX509(cert->afterDate,
+                        CTC_DATE_SIZE, &x509->notAfter);
+            if (cert->afterDateSz <= 0){
+                WOLFSSL_MSG("Not after date error");
                 return WOLFSSL_FAILURE;
             }
         }
@@ -37422,12 +37440,18 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         XMEMCPY(cert->challengePw, x509->challengePw, CTC_NAME_SIZE);
     #endif
 
-        if (x509->serialSz <= CTC_SERIAL_SIZE) {
-            XMEMCPY(cert->serial, x509->serial, x509->serialSz);
-        }
-        else {
-            WOLFSSL_MSG("Serial size error");
-            return WOLFSSL_FAILURE;
+        /* set serial number */
+        if (x509->serialSz > 0) {
+            byte serial[EXTERNAL_SERIAL_SIZE];
+            int  serialSz = EXTERNAL_SERIAL_SIZE;
+
+            ret = wolfSSL_X509_get_serial_number(x509, serial, &serialSz);
+            if (ret != WOLFSSL_SUCCESS || serialSz < 3) {
+                WOLFSSL_MSG("Serial size error");
+                return WOLFSSL_FAILURE;
+            }
+            XMEMCPY(cert->serial, serial, serialSz);
+            cert->serialSz = serialSz;
         }
 
         /* copy over Name structures */
@@ -37614,13 +37638,26 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
             ret = wc_MakeCert_ex(&cert, der, *derSz, type, key, &rng);
             wc_FreeRng(&rng);
         }
-        if (ret < 0) {
-            return ret;
-        }
 
-        if ((x509->serialSz == 0) && (cert.serialSz <= EXTERNAL_SERIAL_SIZE)) {
-            XMEMCPY(x509->serial, cert.serial, cert.serialSz);
-            x509->serialSz = cert.serialSz;
+        if ((ret > 0) && (x509->serialSz == 0) &&
+                (cert.serialSz <= EXTERNAL_SERIAL_SIZE) &&
+                (cert.serialSz > 0)) {
+            WOLFSSL_ASN1_INTEGER *i = wolfSSL_ASN1_INTEGER_new();
+
+            if (i == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                i->length = cert.serialSz + 2;
+                i->data[0] = ASN_INTEGER;
+                i->data[1] = cert.serialSz;
+                XMEMCPY(i->data + 2, cert.serial, cert.serialSz);
+                if (wolfSSL_X509_set_serialNumber(x509, i) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Issue setting generated serial number");
+                    ret = EXTENSIONS_E;
+                }
+                wolfSSL_ASN1_INTEGER_free(i);
+            }
         }
 
         /* Dispose of the public key object. */
@@ -37632,9 +37669,14 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         if (x509->pubKeyOID == ECDSAk)
             wc_ecc_free(&ecc);
     #endif
-        *derSz = ret;
 
-        return WOLFSSL_SUCCESS;
+        if (ret > 0) {
+            *derSz = ret;
+            return WOLFSSL_SUCCESS;
+        }
+        else {
+            return ret;
+        }
     }
 
 
@@ -48280,7 +48322,10 @@ int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
         return WOLFSSL_FAILURE;
     }
 
-    XMEMCPY(&x509->notAfter, t, sizeof(WOLFSSL_ASN1_TIME));
+    x509->notAfter.type = t->type;
+    x509->notAfter.length = t->length;
+
+    XMEMCPY(x509->notAfter.data, t->data, CTC_DATE_SIZE);
 
     return WOLFSSL_SUCCESS;
 }
@@ -48291,7 +48336,10 @@ int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
         return WOLFSSL_FAILURE;
     }
 
-    XMEMCPY(&x509->notBefore, t, sizeof(WOLFSSL_ASN1_TIME));
+    x509->notBefore.type = t->type;
+    x509->notBefore.length = t->length;
+
+    XMEMCPY(x509->notBefore.data, t->data, CTC_DATE_SIZE);
 
     return WOLFSSL_SUCCESS;
 }
@@ -48299,16 +48347,16 @@ int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_serialNumber");
-    if (!x509 || !s || s->dataMax >= EXTERNAL_SERIAL_SIZE)
+    if (!x509 || !s || s->length >= EXTERNAL_SERIAL_SIZE)
         return WOLFSSL_FAILURE;
 
-    if (s->isDynamic)
-        XSTRNCPY((char*)x509->serial,(char*)s->data,s->dataMax);
-    else
-        XSTRNCPY((char*)x509->serial,(char*)s->intData,s->dataMax);
-
-    x509->serial[s->dataMax] = 0;
-    x509->serialSz = s->dataMax;
+    /* WOLFSSL_ASN1_INTEGER has type | size | data */
+    if (s->length < 3) {
+        return WOLFSSL_FAILURE;
+    }
+    XSTRNCPY((char*)x509->serial, (char*)s->data + 2, s->length - 2);
+    x509->serialSz = s->length - 2;
+    x509->serial[s->length] = 0;
 
     return WOLFSSL_SUCCESS;
 }
