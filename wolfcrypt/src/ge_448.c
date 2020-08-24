@@ -632,7 +632,7 @@ void sc448_reduce(uint8_t* b)
     c = t[ 4] >> 56; t[ 5] += c; d[ 4] = (int64_t)(t[ 4] & 0xffffffffffffff);
     c = t[ 5] >> 56; t[ 6] += c; d[ 5] = (int64_t)(t[ 5] & 0xffffffffffffff);
     c = t[ 6] >> 56; t[ 7] += c; d[ 6] = (int64_t)(t[ 6] & 0xffffffffffffff);
-    d[ 7] = t[7];
+    d[ 7] = (uint64_t)t[7];
     /* Mod bits over 56 in last word */
     o = d[7] >> 54; d[ 7] &= 0x3fffffffffffff;
     d[ 0] += 0x873d6d54a7bb0dL * o;
@@ -1030,7 +1030,7 @@ void sc448_muladd(uint8_t* r, const uint8_t* a, const uint8_t* b,
     c = t[ 4] >> 56; t[ 5] += c; rd[ 4] = (int64_t)(t[ 4] & 0xffffffffffffff);
     c = t[ 5] >> 56; t[ 6] += c; rd[ 5] = (int64_t)(t[ 5] & 0xffffffffffffff);
     c = t[ 6] >> 56; t[ 7] += c; rd[ 6] = (int64_t)(t[ 6] & 0xffffffffffffff);
-    rd[ 7] = t[7];
+    rd[ 7] = (uint64_t)t[7];
     /* Mod bits over 56 in last word */
     o = rd[7] >> 54; rd[ 7] &= 0x3fffffffffffff;
     rd[ 0] += 0x873d6d54a7bb0dL * o;
@@ -5422,7 +5422,7 @@ void sc448_reduce(uint8_t* b)
     c = t[12] >> 28; t[13] += c; d[12] = (int32_t)(t[12] & 0xfffffff);
     c = t[13] >> 28; t[14] += c; d[13] = (int32_t)(t[13] & 0xfffffff);
     c = t[14] >> 28; t[15] += c; d[14] = (int32_t)(t[14] & 0xfffffff);
-    d[15] = t[15];
+    d[15] = (uint32_t)t[15];
     /* Mod bits over 28 in last word */
     o = d[15] >> 26; d[15] &= 0x3ffffff;
     d[ 0] += 0x4a7bb0d * o;
@@ -6176,7 +6176,7 @@ void sc448_muladd(uint8_t* r, const uint8_t* a, const uint8_t* b,
     c = t[12] >> 28; t[13] += c; rd[12] = (int32_t)(t[12] & 0xfffffff);
     c = t[13] >> 28; t[14] += c; rd[13] = (int32_t)(t[13] & 0xfffffff);
     c = t[14] >> 28; t[15] += c; rd[14] = (int32_t)(t[14] & 0xfffffff);
-    rd[15] = t[15];
+    rd[15] = (uint32_t)t[15];
     /* Mod bits over 28 in last word */
     o = rd[15] >> 26; rd[15] &= 0x3ffffff;
     rd[ 0] += 0x4a7bb0d * o;
