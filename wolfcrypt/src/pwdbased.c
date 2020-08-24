@@ -501,7 +501,10 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
             if (ret < 0) break;
         }
 
-        if (ret < 0) break;
+        if (ret < 0) {
+            mp_clear(&B1);
+            break;
+        }
 
         currentLen = min(kLen, (int)u);
         XMEMCPY(output, Ai, currentLen);
