@@ -41,3 +41,6 @@ clean:
 
 .PHONY: dist
 dist:
+
+.PHONY: distdir
+distdir:
