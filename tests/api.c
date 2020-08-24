@@ -30534,6 +30534,8 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     BIGNUM* bn;
     X509*   x509;
     char *serialHex;
+    byte serial[1];
+    int  serialSz;
 
     printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
 
@@ -30543,6 +30545,17 @@ static void test_wolfSSL_X509_get_serialNumber(void)
 
     /* check on value of ASN1 Integer */
     AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+
+
+    /* test setting serial number and then retrieving it */
+    AssertNotNull(a = ASN1_INTEGER_new());
+    ASN1_INTEGER_set(a, 3);
+    AssertIntEQ(X509_set_serialNumber(x509, a), WOLFSSL_SUCCESS);
+    serialSz = sizeof(serial);
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, serial, &serialSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(serialSz, 1);
+    AssertIntEQ(serial[0], 3);
 
     X509_free(x509); /* free's a */
 
