@@ -39,6 +39,9 @@
     #define err_sys err_sys_remap /* remap err_sys */
     #include <wolfssl/test.h>
     #undef err_sys
+#else
+    #define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
+    #define STACK_SIZE_INIT()
 #endif
 
 #ifdef __GNUC__
@@ -522,13 +525,13 @@ static int wolfssl_pb_print(const char* msg, ...)
     {
         va_list args;
         va_start(args, fmt);
-        printf(fmt, args);
+        STACK_SIZE_CHECKPOINT(printf(fmt, args));
         va_end(args);
         TEST_SLEEP();
     }
 #else
     /* redirect to printf */
-    #define test_pass printf
+    #define test_pass(...) STACK_SIZE_CHECKPOINT(printf(__VA_ARGS__))
     /* stub the sleep macro */
     #define TEST_SLEEP()
 #endif
@@ -540,6 +543,7 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
+    STACK_SIZE_INIT();
 
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
@@ -12998,7 +13002,6 @@ exit_rsa:
 }
 #endif
 
-_Pragma("GCC diagnostic ignored \"-Wunused-variable\"");
 static int rsa_test(void)
 {
     int    ret;
