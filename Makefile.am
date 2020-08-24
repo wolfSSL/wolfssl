@@ -172,6 +172,9 @@ include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
+if BUILD_LINUXKM
+include linuxkm/include.am
+endif
 
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO
