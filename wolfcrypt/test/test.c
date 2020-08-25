@@ -6025,9 +6025,9 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
-        (void)enc;
+	memset(&enc,0,sizeof enc);
     #ifdef HAVE_AES_DECRYPT
-        (void)dec;
+	memset(&dec,0,sizeof dec);
     #endif
 
 #ifdef WOLFSSL_AES_128
