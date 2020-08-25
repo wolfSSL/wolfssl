@@ -1,6 +1,7 @@
 #!/bin/bash
-# ocsp-stapling.test
 
+# ocsp-stapling2.test
+# Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
 ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
@@ -9,7 +10,8 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
-
+# create a unique ready file ending in PID for the script instance ($$) to take
+# advantage of port zero solution
 WORKSPACE=`pwd`
 CERT_DIR="certs/ocsp"
 
@@ -233,7 +235,7 @@ else
     create_new_cnf $RPORTSELECTED1 $RPORTSELECTED2 $RPORTSELECTED3 \
                    $RPORTSELECTED4
 fi
-sleep 1
+sleep 0.1
 
 # setup ocsp responders
 # OLD: ./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &
@@ -269,7 +271,7 @@ openssl ocsp -port $RPORTSELECTED3 -nmin 1                      \
     $@                                                          \
     &
 
-sleep 1
+sleep 0.1
 # "jobs" is not portable for posix. Must use bash interpreter!
 [ $(jobs -r | wc -l) -ne 3 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
 
@@ -320,7 +322,7 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $resume_port &
-sleep 1
+sleep 0.1
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p $CLI_PORT
@@ -377,7 +379,7 @@ remove_single_rF $ready_file5
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $resume_port -H loadSSL &
 wolf_pid=$!
-sleep 1
+sleep 0.1
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
                          -p $CLI_PORT
