@@ -856,7 +856,8 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
             }
         #endif
         }
-    } while (err == WOLFSSL_ERROR_WANT_WRITE
+    } while (err == WOLFSSL_ERROR_WANT_WRITE ||
+             err == WOLFSSL_ERROR_WANT_READ
     #ifdef WOLFSSL_ASYNC_CRYPT
         || err == WC_PENDING_E
     #endif
@@ -3089,8 +3090,53 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr && forceScr) {
         if (nonBlocking) {
-            printf("not doing secure renegotiation on example with"
-                   " nonblocking yet\n");
+            if (!resumeScr) {
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    if (err == WOLFSSL_ERROR_WANT_READ ||
+                            err == WOLFSSL_ERROR_WANT_WRITE) {
+                        (void)ClientWrite(ssl,
+                                "This is a fun message sent during renegotiation",
+                         sizeof("This is a fun message sent during renegotiation"),
+                                "", 1);
+                        do {
+                            if (err == APP_DATA_READY) {
+                                if ((ret = wolfSSL_read(ssl, reply, sizeof(reply)-1)) < 0) {
+                                    err_sys("APP DATA should be present but error returned");
+                                }
+                                printf("Received message: %s\n", reply);
+                            }
+                            err = 0;
+                            if ((ret = wolfSSL_connect(ssl)) != WOLFSSL_SUCCESS) {
+                                err = wolfSSL_get_error(ssl, ret);
+                            }
+                        } while (ret != WOLFSSL_SUCCESS &&
+                                (err == WOLFSSL_ERROR_WANT_READ ||
+                                        err == WOLFSSL_ERROR_WANT_WRITE ||
+                                        err == APP_DATA_READY));
+
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                                wolfSSL_ERR_error_string(err, buffer));
+                            wolfSSL_free(ssl); ssl = NULL;
+                            wolfSSL_CTX_free(ctx); ctx = NULL;
+                            err_sys("non-blocking wolfSSL_Rehandshake failed");
+                        }
+                        printf("NON-BLOCKING RENEGOTIATION SUCCESSFUL\n");
+                    }
+                    else {
+                        printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                            wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_free(ssl); ssl = NULL;
+                        wolfSSL_CTX_free(ctx); ctx = NULL;
+                        err_sys("non-blocking wolfSSL_Rehandshake failed");
+                    }
+                }
+            }
+            else {
+                printf("not doing secure resumption with non-blocking");
+            }
         } else {
             if (!resumeScr) {
                 printf("Beginning secure renegotiation.\n");

@@ -14587,6 +14587,27 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
 
     *inOutIdx = idx;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (IsSCR(ssl)) {
+        /* If we are in a secure renegotiation then APP DATA is treated
+         * differently */
+        if (ssl->options.dtls) {
+            /* Reset the processReply state since
+             * we finished processing this message. */
+            ssl->options.processReply = doProcessInit;
+            return APP_DATA_READY;
+        }
+        else {
+            /* TODO should fail for TLS? */
+            ssl->buffers.clearOutputBuffer.buffer = NULL;
+            ssl->buffers.clearOutputBuffer.length = 0;
+#ifdef WOLFSSL_EXTRA_ALERTS
+            SendAlert(ssl, alert_fatal, unexpected_message);
+#endif
+            return OUT_OF_ORDER_E;
+        }
+    }
+#endif
     return 0;
 }
 
@@ -14867,6 +14888,9 @@ int ProcessReply(WOLFSSL* ssl)
 #endif
 
     if (ssl->error != 0 && ssl->error != WANT_READ && ssl->error != WANT_WRITE
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        && ssl->error != APP_DATA_READY
+    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         && ssl->error != WC_PENDING_E
     #endif
@@ -17595,14 +17619,15 @@ int DtlsCheckOrder(WOLFSSL* ssl, int order)
 
 /* If secure renegotiation is disabled, this will always return false.
  * Otherwise it checks to see if we are currently renegotiating. */
-static WC_INLINE int IsSCR(WOLFSSL* ssl)
+int IsSCR(WOLFSSL* ssl)
 {
 #ifndef HAVE_SECURE_RENEGOTIATION
     (void)ssl;
 #else /* HAVE_SECURE_RENEGOTIATION */
     if (ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->enabled &&
-            ssl->options.handShakeState != HANDSHAKE_DONE)
+            ssl->secure_renegotiation->enabled &&  /* Is SCR enabled? */
+            ssl->options.handShakeDone && /* At least one handshake done? */
+            ssl->options.handShakeState != HANDSHAKE_DONE) /* Currently handshaking? */
         return 1;
 #endif /* HAVE_SECURE_RENEGOTIATION */
     return 0;
@@ -17651,7 +17676,8 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE && !IsSCR(ssl)) {
+    if (ssl->options.handShakeState != HANDSHAKE_DONE &&
+            !ssl->options.dtls /* Allow data during renegotiation */ ) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -17838,10 +17864,18 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 #ifdef HAVE_SECURE_RENEGOTIATION
 startScr:
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
+        int ret;
         int err;
         WOLFSSL_MSG("Need to start scr, server requested");
-        if ( (err = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS)
-            return err;
+        if ( (ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+            if (err == WOLFSSL_ERROR_WANT_READ ||
+                    err == WOLFSSL_ERROR_WANT_WRITE ||
+                    err == APP_DATA_READY)
+                ssl->secure_renegotiation->startScr = 0;  /* only start once
+                                                           * on non-blocking */
+            return ret;
+        }
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
     }
 #endif
@@ -17871,10 +17905,7 @@ startScr:
         #endif
     }
 
-    if (sz < (int)ssl->buffers.clearOutputBuffer.length)
-        size = sz;
-    else
-        size = ssl->buffers.clearOutputBuffer.length;
+    size = min(sz, ssl->buffers.clearOutputBuffer.length);
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 
