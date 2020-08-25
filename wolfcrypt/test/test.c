@@ -16182,7 +16182,6 @@ static int openssl_test(void)
         EVP_CIPHER_CTX_init(&ctx);
         ret = EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0);
         if (ret == WOLFSSL_SUCCESS) {
-            /* check partial decrypt (not enough padding for full block) */
             ret = EVP_CipherUpdate(&ctx, plain, &idx, cipher, 1);
             if (ret == WOLFSSL_SUCCESS)
                 plainSz += idx;
