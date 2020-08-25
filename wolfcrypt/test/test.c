@@ -13256,7 +13256,7 @@ static int rsa_test(void)
     (void)inLen;
     (void)res;
     {
-        byte signature_2048[] = {
+        static byte signature_2048[] = {
             0x07, 0x6f, 0xc9, 0x85, 0x73, 0x9e, 0x21, 0x79,
             0x47, 0xf1, 0xa3, 0xd7, 0xf4, 0x27, 0x29, 0xbe,
             0x99, 0x5d, 0xac, 0xb2, 0x10, 0x3f, 0x95, 0xda,
@@ -13989,7 +13989,7 @@ static int rsa_test(void)
         }
     #ifdef WOLFSSL_EKU_OID
         {
-            const char unique[] = "2.16.840.1.111111.100.1.10.1";
+            static const char unique[] = "2.16.840.1.111111.100.1.10.1";
             if (wc_SetExtKeyUsageOID(req, unique, sizeof(unique), 0,
                         HEAP_HINT) != 0) {
                 ERROR_OUT(-7771, exit_rsa);
@@ -14524,28 +14524,38 @@ static int dh_test(void)
     int    ret;
     word32 bytes;
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
-    byte   tmp[1024];
-#if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
-    byte   priv[256];
-    byte   pub[256];
-    byte   priv2[256];
-    byte   pub2[256];
-    byte   agree[256];
-    byte   agree2[256];
-#else
-    byte   priv[512];
-    byte   pub[512];
-    byte   priv2[512];
-    byte   pub2[512];
-    byte   agree[512];
-    byte   agree2[512];
-#endif
+    byte   *tmp = NULL,
+      *priv = NULL,
+      *pub = NULL,
+      *priv2 = NULL,
+      *pub2 = NULL,
+      *agree = NULL,
+      *agree2 = NULL;
     word32 agreeSz = (word32)sizeof(agree);
     word32 agreeSz2 = (word32)sizeof(agree2);
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;
     int keyInit = 0;
+
+#define DH_TEST_TMP_SIZE 1024
+    tmp = XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
+    #define DH_TEST_BUF_SIZE 256
+#else
+    #define DH_TEST_BUF_SIZE 256
+#endif
+    priv = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    priv2 = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub2 = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    agree = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    agree2 = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if ((tmp == NULL) || (priv == NULL) || (pub == NULL) ||
+	(priv2 == NULL) || (pub2 == NULL) || (agree == NULL) ||
+	(agree2 == NULL))
+        ERROR_OUT(-7960, done);
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, (size_t)sizeof_dh_key_der_1024);
@@ -14564,9 +14574,9 @@ static int dh_test(void)
 #elif !defined(NO_FILESYSTEM)
     XFILE  file = XFOPEN(dhParamsFile, "rb");
     if (!file)
-        return -7900;
+        ERROR_OUT(-7900, done);
 
-    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), file);
+    bytes = (word32) XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
     XFCLOSE(file);
 #else
     /* No DH key to use. */
@@ -14691,7 +14701,7 @@ static int dh_test(void)
     file = XFOPEN(dhKeyFile, "rb");
     if (!file)
         return -7950;
-    bytes = (word32)XFREAD(tmp, 1, sizeof(tmp), file);
+    bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
     XFCLOSE(file);
 
     idx = 0;
@@ -14701,8 +14711,8 @@ static int dh_test(void)
     }
 #endif
 
-    privSz = sizeof(priv);
-    pubSz = sizeof(pub);
+    privSz = DH_TEST_BUF_SIZE;
+    pubSz = DH_TEST_BUF_SIZE;
     ret = wc_DhExportKeyPair(&key, priv, &privSz, pub, &pubSz);
     if (ret != 0) {
         return -7952;
@@ -14759,7 +14769,24 @@ done:
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
 
+    if (tmp)
+      XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv)
+      XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub)
+      XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv2)
+      XFREE(priv2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub2)
+      XFREE(pub2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (agree)
+      XFREE(agree, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (agree2)
+      XFREE(agree2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
     return ret;
+#undef DH_TEST_BUF_SIZE
+#undef DH_TEST_TMP_SIZE
 }
 
 #endif /* NO_DH */
