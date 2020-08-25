@@ -978,7 +978,9 @@ static const char* client_usage_msg[][59] = {
 #endif
         "-B <num>    Benchmark throughput"
                                 " using <num> bytes and print stats\n", /* 15 */
+#ifndef NO_PSK
         "-s          Use pre Shared keys\n",                            /* 16 */
+#endif
         "-d          Disable peer checks\n",                            /* 17 */
         "-D          Override Date Errors example\n",                   /* 18 */
         "-e          List Every cipher suite available, \n",            /* 19 */
@@ -1138,7 +1140,9 @@ static const char* client_usage_msg[][59] = {
 #endif
         "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定"
                                                   "と結果を出力する\n", /* 15 */
+#ifndef NO_PSK
         "-s          事前共有鍵を使用する\n",                           /* 16 */
+#endif
         "-d          ピア確認を無効とする\n",                           /* 17 */
         "-D          日付エラー用コールバック例の上書きを行う\n",       /* 18 */
         "-e          利用可能な全ての暗号スイートをリスト, \n",         /* 19 */

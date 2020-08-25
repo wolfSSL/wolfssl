@@ -14507,18 +14507,31 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.tls1_3 && ssl->options.handShakeDone == 0) {
-        if (ssl->options.side == WOLFSSL_SERVER_END &&
-                          ssl->earlyData != no_early_data &&
-                          ssl->options.clientState < CLIENT_FINISHED_COMPLETE) {
+        int process = 0;
+
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
             ssl->earlyDataSz += ssl->curSize;
-            if (ssl->earlyDataSz <= ssl->options.maxEarlyDataSz) {
+            if ((ssl->earlyData != no_early_data) &&
+                          (ssl->options.clientState == CLIENT_HELLO_COMPLETE)) {
+                process = 1;
+            }
+            if (!process && (ssl->earlyDataSz <= ssl->options.maxEarlyDataSz)) {
                 WOLFSSL_MSG("Ignoring EarlyData!");
                 *inOutIdx = ssl->buffers.inputBuffer.length;
                 return 0;
             }
-            WOLFSSL_MSG("Too much EarlyData!");
+            if (ssl->earlyDataSz > ssl->options.maxEarlyDataSz) {
+                WOLFSSL_MSG("Too much EarlyData!");
+                process = 0;
+            }
+        }
+        if (!process) {
+            WOLFSSL_MSG("Received App data before a handshake completed");
+            SendAlert(ssl, alert_fatal, unexpected_message);
+            return OUT_OF_ORDER_E;
         }
     }
+    else
 #endif
     if (ssl->options.handShakeDone == 0) {
         WOLFSSL_MSG("Received App data before a handshake completed");
