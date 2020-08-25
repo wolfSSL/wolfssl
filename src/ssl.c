@@ -37446,7 +37446,7 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
             int  serialSz = EXTERNAL_SERIAL_SIZE;
 
             ret = wolfSSL_X509_get_serial_number(x509, serial, &serialSz);
-            if (ret != WOLFSSL_SUCCESS || serialSz < 3) {
+            if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("Serial size error");
                 return WOLFSSL_FAILURE;
             }
