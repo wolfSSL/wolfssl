@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ocsp-stapling.test
-
+# Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
 
 ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
@@ -178,7 +178,8 @@ fi
 # test interop fail case
 ready_file=`pwd`/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  $ready_file"
-./examples/server/server -o -R $ready_file &
+# use random port and bind to any (allows use with IPv6)
+./examples/server/server -b -p $resume_port -o -R $ready_file &
 wolf_pid=$!
 wait_for_readyFile $ready_file
 if [ ! -f $ready_file ]; then
@@ -203,7 +204,7 @@ fi
 
 
 # create a port 0 port to use with openssl ocsp responder
-./examples/server/server -R $ready_file -p $resume_port &
+./examples/server/server -b -p $resume_port -R $ready_file &
 wait_for_readyFile $ready_file
 if [ ! -f $ready_file ]; then
     printf '%s\n' "Failed to create ready file: \"$ready_file\""
@@ -215,7 +216,7 @@ else
     ./examples/client/client -p $RPORTSELECTED
     create_new_cnf $RPORTSELECTED
 fi
-sleep 1
+sleep 0.1
 
 # is our desired server there? - login.live.com doesn't answers PING
 #./scripts/ping.test $server 2
@@ -248,7 +249,7 @@ openssl ocsp -port $RPORTSELECTED -nmin 1                       \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
     "$@" &
 
-sleep 1
+sleep 0.1
 # "jobs" is not portable for posix. Must use bash interpreter!
 [ $(jobs -r | wc -l) -ne 1 ] && \
              printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
@@ -270,7 +271,7 @@ remove_single_rF $ready_file2
 ./examples/server/server -c certs/ocsp/server2-cert.pem -R $ready_file2 \
                          -k certs/ocsp/server2-key.pem -p $resume_port &
 wait_for_readyFile $ready_file2
-sleep 1
+sleep 0.1
 CLI_PORT=`cat $ready_file2`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $CLI_PORT
 RESULT=$?
@@ -311,5 +312,7 @@ if [ $? -ne 0 ]; then
                       && exit 1
     printf '%s\n\n' "Test successfully REVOKED!"
 fi
+
+printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 
 exit 0
