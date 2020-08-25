@@ -32,6 +32,53 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 /*!
     \ingroup RSA
 
+    \brief This function initializes a provided RsaKey struct. The id and
+    len are used to identify the key on the device while the devId identifies
+    the device.  It also takes in a heap identifier, for use with user defined
+    memory overrides (see XMALLOC, XFREE, XREALLOC).
+
+    \return 0 Returned upon successfully initializing the RSA structure for
+    use with encryption and decryption
+    \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL
+    \return BUFFER_E Returned if len is less than 0 or greater than
+    RSA_MAX_ID_LEN.
+
+    \param key pointer to the RsaKey structure to initialize
+    \param id identifier of key on device
+    \param len length of identifier in bytes
+    \param heap pointer to a heap identifier, for use with memory overrides,
+    allowing custom handling of memory allocation. This heap will be the
+    default used when allocating memory for use with this RSA object
+    \param devId ID to use with hardware device
+
+    _Example_
+    \code
+    RsaKey enc;
+    unsigned char* id = (unsigned char*)"RSA2048";
+    int len = 6;
+    int devId = 1;
+    int ret;
+    ret = wc_CryptoDev_RegisterDevice(devId, wc_Pkcs11_CryptoDevCb,
+                                      &token);
+    if ( ret != 0) {
+        // error associating callback and token with device id
+    }
+    ret = wc_InitRsaKey_Id(&enc, id, len, NULL, devId); // not using heap hint
+    if ( ret != 0 ) {
+        // error initializing RSA key
+    }
+    \endcode
+
+    \sa wc_InitRsaKey
+    \sa wc_RsaInitCavium
+    \sa wc_FreeRsaKey
+*/
+WOLFSSL_API int  wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len,
+        void* heap, int devId);
+
+/*!
+    \ingroup RSA
+
     \brief This function frees a provided RsaKey struct using mp_clear.
 
     \return 0 Returned upon successfully freeing the key
