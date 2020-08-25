@@ -20774,8 +20774,8 @@ static int test_wc_ecc_get_curve_id_from_oid (void)
     int ret = 0;
 #if defined(HAVE_ECC) && !defined(NO_ECC256)  && !defined(HAVE_SELFTEST) && \
     !defined(HAVE_FIPS)
-    word32 len = 8;
     const byte oid[] = {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07};
+    word32 len = sizeof(oid);
 
     printf(testingFmt, "wc_ecc_get_curve_id_from_oid()");
 
