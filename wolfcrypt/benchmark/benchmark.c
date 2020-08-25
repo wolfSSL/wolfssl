@@ -1845,11 +1845,14 @@ static void* benchmarks_do(void* args)
     }
     if (bench_all || (bench_asym_algs & BENCH_ECC)) {
     #ifndef NO_SW_BENCH
-        bench_ecc(0);
+        #ifdef HAVE_ECC_BRAINPOOL
+        bench_ecc(0, ECC_BRAINPOOLP256R1);
+        #endif
+        bench_ecc(0, ECC_SECP256R1);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
         !defined(NO_HW_BENCH)
-        bench_ecc(1);
+        bench_ecc(1, ECC_SECP256R1);
     #endif
     }
     #ifdef HAVE_ECC_ENCRYPT
@@ -5299,10 +5302,14 @@ exit:
     }
 }
 
-void bench_ecc(int doAsync)
+/* +8 for 'ECDSA [%s]' and null terminator */
+#define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
+
+void bench_ecc(int doAsync, int curveId)
 {
     int ret = 0, i, times = 0, count = 0, pending = 0;
     const int keySize = bench_ecc_size;
+    char name[BENCH_ECC_NAME_SZ];
     ecc_key genKey[BENCH_MAX_PENDING];
 #ifdef HAVE_ECC_DHE
     ecc_key genKey2[BENCH_MAX_PENDING];
@@ -5352,7 +5359,7 @@ void bench_ecc(int doAsync)
                                     doAsync ? devId : INVALID_DEVID)) < 0) {
             goto exit;
         }
-        ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
+        ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey[i], curveId);
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wc_AsyncWait(ret, &genKey[i].asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
@@ -5364,7 +5371,8 @@ void bench_ecc(int doAsync)
         if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, INVALID_DEVID)) < 0) {
             goto exit;
         }
-        if ((ret = wc_ecc_make_key(&gRng, keySize, &genKey2[i])) > 0) {
+        if ((ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey2[i],
+                    curveId)) > 0) {
             goto exit;
         }
     #endif
@@ -5399,7 +5407,10 @@ void bench_ecc(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdhe:
-    bench_stats_asym_finish("ECDHE", keySize * 8, desc[3], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[3], doAsync, count, start,
+            ret);
 
     if (ret < 0) {
         goto exit;
@@ -5437,7 +5448,10 @@ exit_ecdhe:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_sign:
-    bench_stats_asym_finish("ECDSA", keySize * 8, desc[4], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[4], doAsync, count, start,
+            ret);
 
     if (ret < 0) {
         goto exit;
@@ -5467,7 +5481,10 @@ exit_ecdsa_sign:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_verify:
-    bench_stats_asym_finish("ECDSA", keySize * 8, desc[5], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[5], doAsync, count, start,
+            ret);
 #endif /* HAVE_ECC_VERIFY */
 #endif /* !NO_ASN && HAVE_ECC_SIGN */
 
