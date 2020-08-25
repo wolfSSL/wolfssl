@@ -149,6 +149,7 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
+#ifdef HAVE_HASHDRBG
 struct DRBG_internal {
     word32 reseedCtr;
     word32 lastBlock;
@@ -163,6 +164,7 @@ struct DRBG_internal {
     wc_Sha256 sha256;
 #endif
 };
+#endif
 
 /* RNG context */
 struct WC_RNG {
