@@ -201,6 +201,9 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha256->W = NULL;
+#endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     sha256->flags = 0;
 #endif
