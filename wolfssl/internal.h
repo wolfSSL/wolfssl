@@ -4550,6 +4550,7 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int IsDtlsMsgSCRKeys(WOLFSSL* ssl);
     WOLFSSL_LOCAL int DtlsUseSCRKeys(WOLFSSL* ssl);
     WOLFSSL_LOCAL int DtlsCheckOrder(WOLFSSL* ssl, int order);
+    WOLFSSL_LOCAL int IsSCR(WOLFSSL* ssl);
 #endif
 
     WOLFSSL_LOCAL void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out);

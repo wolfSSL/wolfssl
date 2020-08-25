@@ -2020,6 +2020,22 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
         errno = 0;
 #endif
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->buffers.clearOutputBuffer.length > 0) {
+        int size = min(sz, ssl->buffers.clearOutputBuffer.length);
+        XMEMCPY(data, ssl->buffers.clearOutputBuffer.buffer, size);
+        if (peek == 0) {
+            ssl->buffers.clearOutputBuffer.length -= size;
+            ssl->buffers.clearOutputBuffer.buffer += size;
+        }
+        if (ssl->buffers.clearOutputBuffer.length == 0 &&
+                                               ssl->buffers.inputBuffer.dynamicFlag)
+           ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+        WOLFSSL_LEAVE("wolfSSL_read_internal()", size);
+        return size;
+    }
+#endif
+
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);

@@ -345,7 +345,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
     return ret;
 }
 
-/* Echo number of bytes specified by -e arg */
+/* Echo number of bytes specified by -B arg */
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                    size_t throughput)
 {
@@ -366,7 +366,10 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
         if (select_ret == TEST_RECV_READY) {
 
-            len = min(block, (int)(throughput - xfer_bytes));
+            if (throughput)
+                len = min(block, (int)(throughput - xfer_bytes));
+            else
+                len = block;
             rx_pos = 0;
 
             if (throughput) {
@@ -386,7 +389,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                     else
                 #endif
                     if (err != WOLFSSL_ERROR_WANT_READ &&
-                                             err != WOLFSSL_ERROR_ZERO_RETURN) {
+                                             err != WOLFSSL_ERROR_ZERO_RETURN &&
+                                             err != APP_DATA_READY) {
                         printf("SSL_read echo error %d\n", err);
                         err_sys_ex(runWithErrors, "SSL_read failed");
                         break;
@@ -398,6 +402,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                 }
                 else {
                     rx_pos += ret;
+                    if (!throughput)
+                        break;
                 }
             }
             if (throughput) {
@@ -408,7 +414,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
             /* Write data */
             do {
                 err = 0; /* reset error */
-                ret = SSL_write(ssl, buffer, len);
+                ret = SSL_write(ssl, buffer, min(len, rx_pos));
                 if (ret <= 0) {
                     err = SSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -419,7 +425,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                 #endif
                 }
             } while (err == WC_PENDING_E);
-            if (ret != len) {
+            if (ret != (int)min(len, rx_pos)) {
                 printf("SSL_write echo error %d\n", err);
                 err_sys_ex(runWithErrors, "SSL_write failed");
             }
