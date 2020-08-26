@@ -2856,8 +2856,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 ret += DeriveTlsKeys(session->sslClient);
             }
             else {
+    #ifndef NO_OLD_TLS
                 ret =  DeriveKeys(session->sslServer);
                 ret += DeriveKeys(session->sslClient);
+    #endif
             }
             ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
             ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
