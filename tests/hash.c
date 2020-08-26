@@ -320,6 +320,7 @@ int md5_test(void)
         if (XMEMCMP(hash, test_md5[i].output, WC_MD5_DIGEST_SIZE) != 0)
             return -5 - i;
     }
+    wc_Md5Free(&md5);
 
     return 0;
 }
@@ -380,6 +381,7 @@ int sha_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_ShaFree(&sha);
 
     return 0;
 }
@@ -426,6 +428,7 @@ int sha224_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA224_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha224Free(&sha);
 
     return 0;
 }
@@ -475,6 +478,7 @@ int sha256_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA256_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha256Free(&sha);
 
     return 0;
 }
@@ -529,6 +533,7 @@ int sha512_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha512Free(&sha);
 
     return 0;
 }
@@ -581,6 +586,7 @@ int sha384_test(void)
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA384_DIGEST_SIZE) != 0)
             return -10 - i;
     }
+    wc_Sha384Free(&sha);
 
     return 0;
 }
