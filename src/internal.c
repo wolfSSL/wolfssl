@@ -27594,6 +27594,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 #ifdef WOLFSSL_DTLS
+        wc_HmacFree(&cookieHmac);
+
         if (ret == 0 && ssl->options.dtls)
             DtlsMsgPoolReset(ssl);
 #endif
