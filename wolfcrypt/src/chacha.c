@@ -265,13 +265,14 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         for (i = 0; i < bytes && i < ctx->left; i++) {
             c[i] = (byte)(m[i] ^ output[i]);
         }
-        ctx->left = ctx->left - i;
+        ctx->left -= i;
 
         /* Used up all of the stream that was left, increment the counter */
         if (ctx->left == 0) {
-            ctx->X[CHACHA_MATRIX_CNT_IV] = PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
+            ctx->X[CHACHA_MATRIX_CNT_IV] =
+                                          PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
         }
-        bytes = bytes - i;
+        bytes -= i;
         c += i;
         m += i;
     }
@@ -311,6 +312,26 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_CHACHA_SPEEDUP
+    /* handle left overs */
+    if (msglen > 0 && ctx->left > 0) {
+        byte*  out;
+        word32 i;
+
+        out = (byte*)ctx->over + CHACHA_CHUNK_BYTES - ctx->left;
+        for (i = 0; i < msglen && i < ctx->left; i++) {
+            output[i] = (byte)(input[i] ^ out[i]);
+        }
+        ctx->left -= i;
+
+        msglen -= i;
+        output += i;
+        input += i;
+    }
+
+    if (msglen == 0) {
+        return 0;
+    }
+
     if (!cpuidFlagsSet) {
         cpuidFlags = cpuid_get_flags();
         cpuidFlagsSet = 1;

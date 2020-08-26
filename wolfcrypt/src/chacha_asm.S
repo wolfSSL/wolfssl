@@ -391,18 +391,19 @@ L_chacha_x64_partial_crypt_start:
         addl	52(%rdi), %r13d
         addl	56(%rdi), %r14d
         addl	60(%rdi), %r15d
-        movl	%eax, 48(%rsp)
-        movl	%ebx, 52(%rsp)
-        movl	%ecx, 56(%rsp)
-        movl	%edx, 60(%rsp)
-        movl	%r8d, 64(%rsp)
-        movl	%r9d, 68(%rsp)
-        movl	%r10d, 72(%rsp)
-        movl	%r11d, 76(%rsp)
-        movl	%r12d, 96(%rsp)
-        movl	%r13d, 100(%rsp)
-        movl	%r14d, 104(%rsp)
-        movl	%r15d, 108(%rsp)
+        leaq	80(%rdi), %rbp
+        movl	%eax, (%rbp)
+        movl	%ebx, 4(%rbp)
+        movl	%ecx, 8(%rbp)
+        movl	%edx, 12(%rbp)
+        movl	%r8d, 16(%rbp)
+        movl	%r9d, 20(%rbp)
+        movl	%r10d, 24(%rbp)
+        movl	%r11d, 28(%rbp)
+        movl	%r12d, 48(%rbp)
+        movl	%r13d, 52(%rbp)
+        movl	%r14d, 56(%rbp)
+        movl	%r15d, 60(%rbp)
         movl	8(%rsp), %eax
         movl	12(%rsp), %ebx
         movl	16(%rsp), %ecx
@@ -411,10 +412,10 @@ L_chacha_x64_partial_crypt_start:
         addl	36(%rdi), %ebx
         addl	40(%rdi), %ecx
         addl	44(%rdi), %edx
-        movl	%eax, 80(%rsp)
-        movl	%ebx, 84(%rsp)
-        movl	%ecx, 88(%rsp)
-        movl	%edx, 92(%rsp)
+        movl	%eax, 32(%rbp)
+        movl	%ebx, 36(%rbp)
+        movl	%ecx, 40(%rbp)
+        movl	%edx, 44(%rbp)
         movq	24(%rsp), %rdx
         movq	40(%rsp), %rcx
         addl	$0x01, 48(%rdi)
@@ -424,7 +425,7 @@ L_chacha_x64_partial_crypt_start:
         andl	$7, %r8d
         jz	L_chacha_x64_partial_start64
 L_chacha_x64_partial_start8:
-        movzbl	(%rsp,%rbx,1), %eax
+        movzbl	(%rbp,%rbx,1), %eax
         xorb	(%rsi,%rbx,1), %al
         movb	%al, (%rdx,%rbx,1)
         incl	%ebx
@@ -432,13 +433,16 @@ L_chacha_x64_partial_start8:
         jne	L_chacha_x64_partial_start8
         je	L_chacha_x64_partial_end64
 L_chacha_x64_partial_start64:
-        movq	(%rsp,%rbx,1), %rax
+        movq	(%rbp,%rbx,1), %rax
         xorq	(%rsi,%rbx,1), %rax
         movq	%rax, (%rdx,%rbx,1)
         addl	$8, %ebx
 L_chacha_x64_partial_end64:
         cmpl	%ecx, %ebx
         jne	L_chacha_x64_partial_start64
+        movl	$0x40, %ecx
+        subl	%ebx, %ecx
+        movl	%ecx, 76(%rdi)
 L_chacha_x64_done:
         addq	$0x40, %rsp
         popq	%r15
@@ -915,6 +919,7 @@ L_chacha20_avx1_block_crypt_start:
 L_chacha20_avx1_block_done:
         cmpl	$0x00, %ecx
         je	L_chacha20_avx1_partial_done
+        leaq	80(%rdi), %r10
         vmovdqu	(%rdi), %xmm0
         vmovdqu	16(%rdi), %xmm1
         vmovdqu	32(%rdi), %xmm2
@@ -994,6 +999,9 @@ L_chacha20_avx1_partial_start64:
 L_chacha20_avx1_partial_end64:
         cmpl	%ecx, %r11d
         jne	L_chacha20_avx1_partial_start64
+        movl	$0x40, %r8d
+        subl	%r11d, %r8d
+        movl	%r8d, 76(%rdi)
 L_chacha20_avx1_partial_done:
         addq	$0x190, %rsp
         repz retq

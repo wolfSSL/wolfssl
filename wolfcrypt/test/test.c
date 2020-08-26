@@ -4811,6 +4811,48 @@ int chacha_test(void)
             return -4524-i;
     }
 
+    /* Streaming test */
+    for (i = 1; i <= (int)CHACHA_CHUNK_BYTES; i++) {
+        int j, rem;
+
+        ret = wc_Chacha_SetKey(&enc, keys[0], keySz);
+        if (ret != 0)
+            return -4550;
+        ret = wc_Chacha_SetKey(&dec, keys[0], keySz);
+        if (ret != 0)
+            return -4551;
+
+        ret = wc_Chacha_SetIV(&enc, ivs[2], 0);
+        if (ret != 0)
+            return -4552;
+        ret = wc_Chacha_SetIV(&dec, ivs[2], 0);
+        if (ret != 0)
+            return -4553;
+
+        for (j = 0; j < CHACHA_BIG_TEST_SIZE - i; j+= i) {
+            ret = wc_Chacha_Process(&enc, cipher_big + j, plain_big + j, i);
+            if (ret != 0)
+                return -4554;
+            ret = wc_Chacha_Process(&dec, plain_big + j, cipher_big + j, i);
+            if (ret != 0)
+                return -4555;
+        }
+
+        rem = CHACHA_BIG_TEST_SIZE - j;
+        ret = wc_Chacha_Process(&enc, cipher_big + j, plain_big + j, rem);
+        if (ret != 0)
+            return -4556;
+        ret = wc_Chacha_Process(&dec, plain_big + j, cipher_big + j, rem);
+        if (ret != 0)
+            return -4557;
+
+        if (XMEMCMP(plain_big, input_big, CHACHA_BIG_TEST_SIZE))
+            return -4558;
+
+        if (XMEMCMP(cipher_big, cipher_big_result, CHACHA_BIG_TEST_SIZE))
+            return -4559;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(cipher_big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(plain_big, NULL, DYNAMIC_TYPE_TMP_BUFFER);
