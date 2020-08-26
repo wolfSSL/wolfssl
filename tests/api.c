@@ -30534,7 +30534,7 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     BIGNUM* bn;
     X509*   x509;
     char *serialHex;
-    byte serial[1];
+    byte serial[3];
     int  serialSz;
 
     printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
@@ -30556,6 +30556,29 @@ static void test_wolfSSL_X509_get_serialNumber(void)
             WOLFSSL_SUCCESS);
     AssertIntEQ(serialSz, 1);
     AssertIntEQ(serial[0], 3);
+    ASN1_INTEGER_free(a);
+
+    /* test setting serial number with 0's in it */
+    serial[0] = 0x01;
+    serial[1] = 0x00;
+    serial[2] = 0x02;
+
+    AssertNotNull(a = wolfSSL_ASN1_INTEGER_new());
+    a->data[0] = ASN_INTEGER;
+    a->data[1] = sizeof(serial);
+    XMEMCPY(&a->data[2], serial, sizeof(serial));
+    a->length = sizeof(serial) + 2;
+    AssertIntEQ(X509_set_serialNumber(x509, a), WOLFSSL_SUCCESS);
+
+    XMEMSET(serial, 0, sizeof(serial));
+    serialSz = sizeof(serial);
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, serial, &serialSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(serialSz, 3);
+    AssertIntEQ(serial[0], 0x01);
+    AssertIntEQ(serial[1], 0x00);
+    AssertIntEQ(serial[2], 0x02);
+    ASN1_INTEGER_free(a);
 
     X509_free(x509); /* free's a */
 

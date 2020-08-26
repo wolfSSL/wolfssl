@@ -37284,7 +37284,7 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
 
             if (j >= CTC_MAX_ATTRIB) {
                 WOLFSSL_MSG("No more space left in CertName");
-                break;
+                return MEMORY_E;
             }
 
             cName->name[j].sz   = length;
@@ -48354,7 +48354,7 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
     if (s->length < 3) {
         return WOLFSSL_FAILURE;
     }
-    XSTRNCPY((char*)x509->serial, (char*)s->data + 2, s->length - 2);
+    XMEMCPY(x509->serial, s->data + 2, s->length - 2);
     x509->serialSz = s->length - 2;
     x509->serial[s->length] = 0;
 
