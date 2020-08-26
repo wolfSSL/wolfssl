@@ -396,7 +396,7 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     /* declare/free variable handling for async */
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
