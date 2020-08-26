@@ -120,7 +120,6 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
     return rotlFixed(value, 16U);
 #endif
 }
-#if defined(LITTLE_ENDIAN_ORDER)
 /* This routine performs a byte swap of words array of a given count. */
 WC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
@@ -131,7 +130,6 @@ WC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
         out[i] = ByteReverseWord32(in[i]);
 
 }
-#endif /* LITTLE_ENDIAN_ORDER */
 
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
