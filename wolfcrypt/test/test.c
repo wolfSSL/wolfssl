@@ -1149,7 +1149,7 @@ initDefaultName();
         test_pass("mp       test passed!\n");
 #endif
 
-#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_OLD_PRIME_CHECK)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
@@ -11952,6 +11952,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((in == NULL) || (out == NULL) || (sig == NULL))
+        ERROR_OUT(MEMORY_E, exit_rsa_pss);
+#endif
+
     /* Test all combinations of hash and MGF. */
     for (j = 0; j < (int)(sizeof(hash)/sizeof(*hash)); j++) {
         /* Calculate hash of message. */
@@ -12236,6 +12241,11 @@ static int rsa_no_pad_test(void)
 #endif
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((out == NULL) || (plain == NULL))
+        ERROR_OUT(MEMORY_E, exit_rsa_nopadding);
+#endif
 
     /* initialize stack structures */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -13050,9 +13060,9 @@ static int rsa_test(void)
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (in == NULL)
-        return MEMORY_E;
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((in == NULL) || (out == NULL) || (plain == NULL))
+        ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
 
     /* initialize stack structures */
@@ -13068,7 +13078,7 @@ static int rsa_test(void)
 #if !defined(HAVE_USER_RSA) && !defined(NO_ASN)
     ret = rsa_decode_test(&key);
     if (ret != 0)
-        return ret;
+        ERROR_OUT(ret, exit_rsa);
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -13092,13 +13102,8 @@ static int rsa_test(void)
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmp == NULL
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        || out == NULL || plain == NULL
-    #endif
-    ) {
-        return -7700;
-    }
+    if (tmp == NULL)
+        ERROR_OUT(-7700, exit_rsa);
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
@@ -18051,11 +18056,18 @@ static int ecc_test_vector_item(const eccVector* vector)
     DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
 #endif
 
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((sig == NULL)
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
+        || (sigRaw == NULL)
+#endif
+        )
+        ERROR_OUT(MEMORY_E, done);
+#endif
+
     ret = wc_ecc_init_ex(&userA, HEAP_HINT, devId);
-    if (ret != 0) {
-        FREE_VAR(sig, HEAP_HINT);
-        return ret;
-    }
+    if (ret != 0)
+        goto done;
 
     ret = wc_ecc_import_raw(&userA, vector->Qx, vector->Qy,
                                                   vector->d, vector->curveName);
@@ -18897,7 +18909,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ecc_key userA, userB, pubKey;
     int     curveSize;
 
-#ifdef WOLFSSL_SMALL_STACK
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
     if ((sharedA == NULL) || (sharedB == NULL))
