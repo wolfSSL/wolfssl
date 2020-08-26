@@ -104,7 +104,9 @@ int sp_init(sp_int* a)
 {
     a->used = 0;
     a->size = SP_INT_DIGITS;
-
+#ifdef HAVE_WOLF_BIGINT
+    wc_bigint_init(&a->raw);
+#endif
     return MP_OKAY;
 }
 
@@ -125,26 +127,44 @@ int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d, sp_int* e,
     if (a != NULL) {
         a->used = 0;
         a->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&a->raw);
+    #endif
     }
     if (b != NULL) {
         b->used = 0;
         b->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&b->raw);
+    #endif
     }
     if (c != NULL) {
         c->used = 0;
         c->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&c->raw);
+    #endif
     }
     if (d != NULL) {
         d->used = 0;
         d->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&d->raw);
+    #endif
     }
     if (e != NULL) {
         e->used = 0;
         e->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&e->raw);
+    #endif
     }
     if (f != NULL) {
         f->used = 0;
         f->size = SP_INT_DIGITS;
+    #ifdef HAVE_WOLF_BIGINT
+        wc_bigint_init(&f->raw);
+    #endif
     }
 
     return MP_OKAY;

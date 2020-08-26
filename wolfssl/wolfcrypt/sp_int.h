@@ -251,7 +251,7 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 
 #define CheckFastMathSettings() 1
 
-#define mp_free(a)                  sp_free
+#define mp_free                     sp_free
 
 #define mp_isodd                    sp_isodd
 #define mp_iseven                   sp_iseven
