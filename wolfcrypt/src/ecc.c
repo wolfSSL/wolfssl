@@ -8376,7 +8376,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 /* key size in octets */
 int wc_ecc_size(ecc_key* key)
 {
-    if (key == NULL)
+    if (key == NULL || key->dp == NULL)
         return 0;
 
     return key->dp->size;
