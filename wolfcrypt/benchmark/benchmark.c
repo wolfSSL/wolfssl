@@ -1836,11 +1836,14 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_ECC
     if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY)) {
     #ifndef NO_SW_BENCH
-        bench_eccMakeKey(0);
+        #ifdef HAVE_ECC_BRAINPOOL
+        bench_eccMakeKey(0, ECC_BRAINPOOLP256R1);
+        #endif
+        bench_eccMakeKey(0, ECC_SECP256R1);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
         !defined(NO_HW_BENCH)
-        bench_eccMakeKey(1);
+        bench_eccMakeKey(1, ECC_SECP256R1);
     #endif
     }
     if (bench_all || (bench_asym_algs & BENCH_ECC)) {
@@ -5257,11 +5260,16 @@ void bench_ntruKeyGen(void)
 #endif
 
 #ifdef HAVE_ECC
-void bench_eccMakeKey(int doAsync)
+
+/* +8 for 'ECDSA [%s]' and null terminator */
+#define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
+
+void bench_eccMakeKey(int doAsync, int curveId)
 {
     int ret = 0, i, times, count, pending = 0;
     const int keySize = bench_ecc_size;
     ecc_key genKey[BENCH_MAX_PENDING];
+    char name[BENCH_ECC_NAME_SZ];
     double start;
     const char**desc = bench_desc_words[lng_index];
 
@@ -5284,7 +5292,8 @@ void bench_eccMakeKey(int doAsync)
                         goto exit;
                     }
 
-                    ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
+                    ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey[i],
+                            curveId);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
                         goto exit;
                     }
@@ -5294,7 +5303,8 @@ void bench_eccMakeKey(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit:
-    bench_stats_asym_finish("ECC", keySize * 8, desc[2], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC [%15s]", wc_ecc_get_name(curveId));
+    bench_stats_asym_finish(name, keySize * 8, desc[2], doAsync, count, start, ret);
 
     /* cleanup */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5302,8 +5312,6 @@ exit:
     }
 }
 
-/* +8 for 'ECDSA [%s]' and null terminator */
-#define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
 
 void bench_ecc(int doAsync, int curveId)
 {
@@ -5407,7 +5415,7 @@ void bench_ecc(int doAsync, int curveId)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdhe:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%s]", wc_ecc_get_name(curveId));
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[3], doAsync, count, start,
             ret);
@@ -5448,7 +5456,7 @@ exit_ecdhe:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_sign:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%s]", wc_ecc_get_name(curveId));
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[4], doAsync, count, start,
             ret);
@@ -5481,7 +5489,7 @@ exit_ecdsa_sign:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_verify:
-    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%s]", wc_ecc_get_name(curveId));
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
 
     bench_stats_asym_finish(name, keySize * 8, desc[5], doAsync, count, start,
             ret);
