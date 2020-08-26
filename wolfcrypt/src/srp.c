@@ -188,6 +188,35 @@ static word32 SrpHashSize(SrpType type)
     }
 }
 
+static void SrpHashFree(SrpHash* hash)
+{
+    switch (hash->type) {
+        case SRP_TYPE_SHA:
+        #ifndef NO_SHA
+            wc_ShaFree(&hash->data.sha);
+        #endif
+            break;
+        case SRP_TYPE_SHA256:
+        #ifndef NO_SHA256
+            wc_Sha256Free(&hash->data.sha256);
+        #endif
+            break;
+        case SRP_TYPE_SHA384:
+        #ifdef WOLFSSL_SHA384
+            wc_Sha384Free(&hash->data.sha384);
+        #endif
+            break;
+        case SRP_TYPE_SHA512:
+        #ifdef WOLFSSL_SHA512
+            wc_Sha512Free(&hash->data.sha512);
+        #endif
+            break;
+        default:
+            break;
+    }
+}
+
+
 int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
 {
     int r;
@@ -234,18 +263,21 @@ int wc_SrpInit(Srp* srp, SrpType type, SrpSide side)
     }
 
     /* initializing variables */
-
     XMEMSET(srp, 0, sizeof(Srp));
 
     if ((r = SrpHashInit(&srp->client_proof, type)) != 0)
         return r;
 
-    if ((r = SrpHashInit(&srp->server_proof, type)) != 0)
+    if ((r = SrpHashInit(&srp->server_proof, type)) != 0) {
+        SrpHashFree(&srp->client_proof);
         return r;
-
+    }
     if ((r = mp_init_multi(&srp->N,    &srp->g, &srp->auth,
-                           &srp->priv, 0, 0)) != 0)
+                           &srp->priv, 0, 0)) != 0) {
+        SrpHashFree(&srp->client_proof);
+        SrpHashFree(&srp->server_proof);
         return r;
+    }
 
     srp->side = side;    srp->type   = type;
     srp->salt = NULL;    srp->saltSz = 0;
@@ -282,6 +314,8 @@ void wc_SrpTerm(Srp* srp)
             XFREE(srp->key, srp->heap, DYNAMIC_TYPE_SRP);
         }
 
+        SrpHashFree(&srp->client_proof);
+        SrpHashFree(&srp->server_proof);
         ForceZero(srp, sizeof(Srp));
     }
 }
@@ -353,6 +387,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     }
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
+    SrpHashFree(&hash);
 
     /* update client proof */
 
@@ -360,11 +395,13 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (!r) r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
     if (!r) r = SrpHashFinal(&hash, digest1);
+    SrpHashFree(&hash);
 
     /* digest2 = H(g) */
     if (!r) r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, digest2);
+    SrpHashFree(&hash);
 
     /* digest1 = H(N) ^ H(g) */
     if (r == 0) {
@@ -376,6 +413,7 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     if (!r) r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, srp->user, srp->userSz);
     if (!r) r = SrpHashFinal(&hash, digest2);
+    SrpHashFree(&hash);
 
     /* client proof = H( H(N) ^ H(g) | H(user) | salt) */
     if (!r) r = SrpHashUpdate(&srp->client_proof, digest1, j);
@@ -406,12 +444,14 @@ int wc_SrpSetPassword(Srp* srp, const byte* password, word32 size)
     if (!r) r = SrpHashUpdate(&hash, (const byte*) ":", 1);
     if (!r) r = SrpHashUpdate(&hash, password, size);
     if (!r) r = SrpHashFinal(&hash, digest);
+    SrpHashFree(&hash);
 
     /* digest = H(salt | H(username | ':' | password)) */
     if (!r) r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, srp->salt, srp->saltSz);
     if (!r) r = SrpHashUpdate(&hash, digest, digestSz);
     if (!r) r = SrpHashFinal(&hash, digest);
+    SrpHashFree(&hash);
 
     /* Set x (private key) */
     if (!r) r = mp_read_unsigned_bin(&srp->auth, digest, digestSz);
@@ -579,6 +619,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
             if (!r) r = SrpHashFinal(&hash, srp->key + j);
             j += digestSz;
         }
+        SrpHashFree(&hash);
     }
 
     ForceZero(digest, sizeof(digest));
@@ -641,6 +682,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     /* set u */
     if (!r) r = SrpHashFinal(&hash, digest);
     if (!r) r = mp_read_unsigned_bin(&u, digest, SrpHashSize(srp->type));
+    SrpHashFree(&hash);
 
     /* building s (secret) */
 
