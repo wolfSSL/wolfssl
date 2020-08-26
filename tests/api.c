@@ -33346,6 +33346,10 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     SHA256_Init(&c);
     SHA256_Update(&c, in, inlen);
     SHA256_Final(hash, &c);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* workaround for small stack cache case */
+    wc_Sha256Free((wc_Sha256*)&c);
+#endif
 
     AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
     AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
@@ -35759,6 +35763,10 @@ static void test_wolfSSL_RSA_verify()
     SHA256_Init(&c);
     SHA256_Update(&c, text, strlen(text));
     SHA256_Final(hash, &c);
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    /* workaround for small stack cache case */
+    wc_Sha256Free((wc_Sha256*)&c);
+#endif
 
     /* read privete key file */
     fp = XFOPEN(svrKeyFile, "r");
