@@ -40,3 +40,8 @@ ccflags-y = $(WOLFSSL_CFLAGS) -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpref
 %/lkm_testcrypto.o: ccflags-y += -DNO_MAIN_DRIVER
 
 asflags-y := $(WOLFSSL_ASFLAGS)
+
+# these two _asms are kernel-compatible (they don't reference the pic-related _GLOBAL_OFFSET_TABLE_)
+# but they still irritate objtool: "unannotated intra-function call" and "BP used as a scratch register"
+%/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
+%/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
