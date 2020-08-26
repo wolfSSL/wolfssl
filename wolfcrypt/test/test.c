@@ -18897,6 +18897,19 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ecc_key userA, userB, pubKey;
     int     curveSize;
 
+#ifdef WOLFSSL_SMALL_STACK
+#if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    if ((sharedA == NULL) || (sharedB == NULL))
+        ERROR_OUT(-9652, done);
+#endif
+
+#ifdef HAVE_ECC_SIGN
+    if ((sig == NULL) || (digest == NULL))
+        ERROR_OUT(-9653, done);
+#endif
+#endif /* WOLFSSL_SMALL_STACK */
+
     (void)testVerifyCount;
     (void)dp;
     (void)x;
