@@ -1305,6 +1305,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             if (bio->ptr != NULL) {
                 const WOLFSSL_EVP_MD* md =
                     wolfSSL_EVP_MD_CTX_md((WOLFSSL_EVP_MD_CTX*)bio->ptr);
+                wolfSSL_EVP_MD_CTX_cleanup((WOLFSSL_EVP_MD_CTX*)bio->ptr);
                 wolfSSL_EVP_MD_CTX_init((WOLFSSL_EVP_MD_CTX*)bio->ptr);
                 wolfSSL_EVP_DigestInit((WOLFSSL_EVP_MD_CTX*)bio->ptr, md);
             }

@@ -3369,9 +3369,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         if (ctx) {
             WOLFSSL_ENTER("EVP_MD_CTX_free");
-                wolfSSL_EVP_MD_CTX_cleanup(ctx);
-                XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
-            }
+            wolfSSL_EVP_MD_CTX_cleanup(ctx);
+            XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
     }
 
     /* returns the NID of message digest used by the ctx */
