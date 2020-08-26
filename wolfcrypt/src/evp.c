@@ -5505,7 +5505,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
             case WC_HASH_TYPE_SHA3_512:
         #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
-                wolfSSL_SHA3_512_Update((SHA3_512_CTX*)&ctx->hash, data,
+                ret = wolfSSL_SHA3_512_Update((SHA3_512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
         #endif
                 break;
