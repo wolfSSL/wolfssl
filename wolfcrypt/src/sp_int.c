@@ -102,7 +102,7 @@ int sp_get_digit_count(sp_int *a)
  */
 int sp_init(sp_int* a)
 {
-    XMEMSET(a,0,sizeof *a);
+    a->used = 0;
     a->size = SP_INT_DIGITS;
 #ifdef HAVE_WOLF_BIGINT
     wc_bigint_init(&a->raw);
@@ -125,42 +125,42 @@ int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d, sp_int* e,
                   sp_int* f)
 {
     if (a != NULL) {
-        XMEMSET(a,0,sizeof *a);
+        a->used = 0;
         a->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&a->raw);
     #endif
     }
     if (b != NULL) {
-        XMEMSET(b,0,sizeof *b);
+        b->used = 0;
         b->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&b->raw);
     #endif
     }
     if (c != NULL) {
-        XMEMSET(c,0,sizeof *c);
+        c->used = 0;
         c->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&c->raw);
     #endif
     }
     if (d != NULL) {
-        XMEMSET(d,0,sizeof *d);
+        d->used = 0;
         d->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&d->raw);
     #endif
     }
     if (e != NULL) {
-        XMEMSET(e,0,sizeof *e);
+        e->used = 0;
         e->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&e->raw);
     #endif
     }
     if (f != NULL) {
-        XMEMSET(f,0,sizeof *f);
+        f->used = 0;
         f->size = SP_INT_DIGITS;
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&f->raw);
