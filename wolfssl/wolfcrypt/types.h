@@ -395,8 +395,9 @@ decouple library dependencies with standard string, memory and so on.
         #endif /* WOLFSSL_STATIC_MEMORY */
     #endif
 
-    /* declare/free variable handling for async */
+    /* declare/free variable handling for async and smallstack */
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_SMALL_STACK)
+        #define DECLARE_VAR_IS_HEAP_ALLOC
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
@@ -409,9 +410,19 @@ decouple library dependencies with standard string, memory and so on.
             })
         #define DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
-            int idx##VAR_NAME; \
+            int idx##VAR_NAME, inner_idx_##VAR_NAME; \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+                if (VAR_NAME[idx##VAR_NAME] == NULL) { \
+                    for (inner_idx_##VAR_NAME = 0; inner_idx_##VAR_NAME < idx##VAR_NAME; inner_idx_##VAR_NAME++) { \
+                        XFREE(VAR_NAME[inner_idx_##VAR_NAME], HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    } \
+                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < VAR_ITEMS; inner_idx_##VAR_NAME++) { \
+                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    } \
+                    break; \
+                } \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
             XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
@@ -426,6 +437,7 @@ decouple library dependencies with standard string, memory and so on.
         #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
             FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)
     #else
+        #undef DECLARE_VAR_IS_HEAP_ALLOC
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_SIZE]
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
@@ -437,10 +449,20 @@ decouple library dependencies with standard string, memory and so on.
 
         #define DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
-            int idx##VAR_NAME;
+            int idx##VAR_NAME, inner_idx_##VAR_NAME;
         #define DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+                if (VAR_NAME[idx##VAR_NAME] == NULL) { \
+                    for (inner_idx_##VAR_NAME = 0; inner_idx_##VAR_NAME < idx##VAR_NAME; inner_idx_##VAR_NAME++) { \
+                        XFREE(VAR_NAME[inner_idx_##VAR_NAME], HEAP, DYNAMIC_TYPE_TMP_BUFFER); \
+                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    } \
+                    for (inner_idx_##VAR_NAME = idx##VAR_NAME + 1; inner_idx_##VAR_NAME < VAR_ITEMS; inner_idx_##VAR_NAME++) { \
+                        VAR_NAME[inner_idx_##VAR_NAME] = NULL; \
+                    } \
+                    break; \
+                } \
             }
         #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
