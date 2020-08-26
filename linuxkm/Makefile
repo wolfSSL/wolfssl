@@ -10,7 +10,7 @@ ifndef SRC_TOP
 SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS)
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement
 ifeq "$(KARCH)" "x86"
 WOLFSSL_CFLAGS+=-msse -mmmx -msse2 -mavx -mavx2
 endif
