@@ -861,7 +861,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 #define CONF_modules_free()
 #define ENGINE_cleanup()
-#define HMAC_CTX_cleanup                wolfSSL_HMAC_cleanup
 #define SSL_CTX_need_tmp_RSA(ctx)       0
 #define SSL_CTX_set_tmp_rsa(ctx,rsa)    1
 #define SSL_need_tmp_RSA(ssl)           0

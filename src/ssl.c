@@ -14661,7 +14661,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int r = 0;
         SrpSide srp_side = SRP_CLIENT_SIDE;
-        WC_RNG rng;
         byte salt[SRP_SALT_SIZE];
 
         WOLFSSL_ENTER("wolfSSL_CTX_set_srp_username");
@@ -31152,6 +31151,10 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
     }
 
+    /* Make sure and free if needed */
+    if (ctx->hmac.macType != WC_HASH_TYPE_NONE) {
+        wc_HmacFree(&ctx->hmac);
+    }
     if (key && keylen) {
         WOLFSSL_MSG("keying hmac");
 
@@ -31168,9 +31171,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                         WC_HMAC_BLOCK_SIZE);
         }
         /* OpenSSL compat, no error */
-    } else if(ctx->type >= 0) { /* MD5 == 0 */
+    }
+    else if (ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
-        wc_HmacFree(&ctx->hmac);
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
             ctx->hmac.macType = (byte)ctx->type;
             ctx->hmac.innerHashKeyed = 0;
@@ -31289,20 +31292,26 @@ int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
 {
     WOLFSSL_MSG("wolfSSL_HMAC_cleanup");
 
-    if (ctx)
+    if (ctx) {
         wc_HmacFree(&ctx->hmac);
+    }
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
+void wolfSSL_HMAC_CTX_cleanup(WOLFSSL_HMAC_CTX* ctx)
+{
+    if (ctx) {
+        wolfSSL_HMAC_cleanup(ctx);
+    }
+}
 
 void wolfSSL_HMAC_CTX_free(WOLFSSL_HMAC_CTX* ctx)
 {
-    if (!ctx) {
-        return;
+    if (ctx) {
+        wolfSSL_HMAC_CTX_cleanup(ctx);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
     }
-    wolfSSL_HMAC_cleanup(ctx);
-    XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx)

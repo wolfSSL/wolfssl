@@ -30118,18 +30118,17 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
     AssertIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
 
     AssertIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
-
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
 
     AssertIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
-
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-
     HMAC_CTX_cleanup(&ctx2);
+
     AssertIntEQ(digestSz, digestSz2);
     AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
 
@@ -30141,18 +30140,17 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
     AssertIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
 
     AssertIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
-
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
 
     AssertIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
-
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-
     HMAC_CTX_cleanup(&ctx2);
+
     AssertIntEQ(digestSz, digestSz2);
     AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
 
@@ -30167,13 +30165,13 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
 
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
-
-    HMAC_CTX_cleanup(&ctx1);
     HMAC_CTX_cleanup(&ctx2);
+
     AssertIntEQ(digestSz, digestSz2);
     AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
 
