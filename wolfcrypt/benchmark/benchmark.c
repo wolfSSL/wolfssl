@@ -4485,12 +4485,6 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (message == NULL) {
-        printf("malloc failed\n");
-        goto exit;
-    }
-#endif
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
@@ -4512,10 +4506,6 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     #endif
 
     DECLARE_ARRAY_DYNAMIC_EXE(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
-    if (enc[0] == NULL) {
-        printf("malloc failed\n");
-        goto exit;
-    }
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
@@ -4524,6 +4514,16 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
             goto exit;
         }
     #endif
+    if (enc[0] == NULL) {
+        printf("malloc failed\n");
+        goto exit;
+    }
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (message == NULL) {
+        printf("malloc failed\n");
+        goto exit;
+    }
+#endif
 
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
