@@ -14589,23 +14589,12 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     *inOutIdx = idx;
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (IsSCR(ssl)) {
+        /* Reset the processReply state since
+         * we finished processing this message. */
+        ssl->options.processReply = doProcessInit;
         /* If we are in a secure renegotiation then APP DATA is treated
          * differently */
-        if (ssl->options.dtls) {
-            /* Reset the processReply state since
-             * we finished processing this message. */
-            ssl->options.processReply = doProcessInit;
-            return APP_DATA_READY;
-        }
-        else {
-            /* TODO should fail for TLS? */
-            ssl->buffers.clearOutputBuffer.buffer = NULL;
-            ssl->buffers.clearOutputBuffer.length = 0;
-#ifdef WOLFSSL_EXTRA_ALERTS
-            SendAlert(ssl, alert_fatal, unexpected_message);
-#endif
-            return OUT_OF_ORDER_E;
-        }
+        return APP_DATA_READY;
     }
 #endif
     return 0;
@@ -17676,8 +17665,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE &&
-            !ssl->options.dtls /* Allow data during renegotiation */ ) {
+    if (ssl->options.handShakeState != HANDSHAKE_DONE && !IsSCR(ssl)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
@@ -17837,6 +17825,9 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 #ifdef WOLFSSL_ASYNC_CRYPT
             && ssl->error != WC_PENDING_E
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+            && ssl->error != APP_DATA_READY
+#endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return ssl->error;
@@ -17847,17 +17838,31 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-        int err;
-        WOLFSSL_MSG("Handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            /* if async would block return WANT_WRITE */
-            if (ssl->error == WC_PENDING_E) {
-                return WOLFSSL_CBIO_ERR_WANT_READ;
+    {
+        int negotiate = 0;
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+            if (ssl->options.handShakeState != HANDSHAKE_DONE
+                && ssl->buffers.clearOutputBuffer.length == 0)
+                negotiate = 1;
+        }
+        else
+#endif
+        if (ssl->options.handShakeState != HANDSHAKE_DONE)
+            negotiate = 1;
+
+        if (negotiate) {
+            int err;
+            WOLFSSL_MSG("Handshake not complete, trying to finish");
+            if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                /* if async would block return WANT_WRITE */
+                if (ssl->error == WC_PENDING_E) {
+                    return WOLFSSL_CBIO_ERR_WANT_READ;
+                }
+            #endif
+                return err;
             }
-        #endif
-            return err;
         }
     }
 
@@ -17865,18 +17870,10 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 startScr:
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
         int ret;
-        int err;
-        WOLFSSL_MSG("Need to start scr, server requested");
-        if ( (ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
-            err = wolfSSL_get_error(ssl, 0);
-            if (err == WOLFSSL_ERROR_WANT_READ ||
-                    err == WOLFSSL_ERROR_WANT_WRITE ||
-                    err == APP_DATA_READY)
-                ssl->secure_renegotiation->startScr = 0;  /* only start once
-                                                           * on non-blocking */
-            return ret;
-        }
+        ret = wolfSSL_Rehandshake(ssl);
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
     }
 #endif
 
