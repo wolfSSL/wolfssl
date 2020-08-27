@@ -12689,18 +12689,18 @@ static int sp_256_mod_mul_norm_5(sp_digit* r, const sp_digit* a, const sp_digit*
 
         a32[0] = (sp_digit)(a[0]) & 0xffffffffL;
         a32[1] = (sp_digit)(a[0] >> 32U);
-        a32[1] |= (sp_digit)a[1] << 20U;
+        a32[1] |= (sp_digit)(a[1] << 20U);
         a32[1] &= 0xffffffffL;
         a32[2] = (sp_digit)(a[1] >> 12U) & 0xffffffffL;
         a32[3] = (sp_digit)(a[1] >> 44U);
-        a32[3] |= (sp_digit)a[2] << 8U;
+        a32[3] |= (sp_digit)(a[2] << 8U);
         a32[3] &= 0xffffffffL;
         a32[4] = (sp_digit)(a[2] >> 24U);
-        a32[4] |= (sp_digit)a[3] << 28U;
+        a32[4] |= (sp_digit)(a[3] << 28U);
         a32[4] &= 0xffffffffL;
         a32[5] = (sp_digit)(a[3] >> 4U) & 0xffffffffL;
         a32[6] = (sp_digit)(a[3] >> 36U);
-        a32[6] |= (sp_digit)a[4] << 16U;
+        a32[6] |= (sp_digit)(a[4] << 16U);
         a32[6] &= 0xffffffffL;
         a32[7] = (sp_digit)(a[4] >> 16U) & 0xffffffffL;
 
@@ -18856,26 +18856,26 @@ static int sp_384_mod_mul_norm_7(sp_digit* r, const sp_digit* a, const sp_digit*
 
         a32[0] = (sp_digit)(a[0]) & 0xffffffffL;
         a32[1] = (sp_digit)(a[0] >> 32U);
-        a32[1] |= (sp_digit)a[1] << 23U;
+        a32[1] |= (sp_digit)(a[1] << 23U);
         a32[1] &= 0xffffffffL;
         a32[2] = (sp_digit)(a[1] >> 9U) & 0xffffffffL;
         a32[3] = (sp_digit)(a[1] >> 41U);
-        a32[3] |= (sp_digit)a[2] << 14U;
+        a32[3] |= (sp_digit)(a[2] << 14U);
         a32[3] &= 0xffffffffL;
         a32[4] = (sp_digit)(a[2] >> 18U) & 0xffffffffL;
         a32[5] = (sp_digit)(a[2] >> 50U);
-        a32[5] |= (sp_digit)a[3] << 5U;
+        a32[5] |= (sp_digit)(a[3] << 5U);
         a32[5] &= 0xffffffffL;
         a32[6] = (sp_digit)(a[3] >> 27U);
-        a32[6] |= (sp_digit)a[4] << 28U;
+        a32[6] |= (sp_digit)(a[4] << 28U);
         a32[6] &= 0xffffffffL;
         a32[7] = (sp_digit)(a[4] >> 4U) & 0xffffffffL;
         a32[8] = (sp_digit)(a[4] >> 36U);
-        a32[8] |= (sp_digit)a[5] << 19U;
+        a32[8] |= (sp_digit)(a[5] << 19U);
         a32[8] &= 0xffffffffL;
         a32[9] = (sp_digit)(a[5] >> 13U) & 0xffffffffL;
         a32[10] = (sp_digit)(a[5] >> 45U);
-        a32[10] |= (sp_digit)a[6] << 10U;
+        a32[10] |= (sp_digit)(a[6] << 10U);
         a32[10] &= 0xffffffffL;
         a32[11] = (sp_digit)(a[6] >> 22U) & 0xffffffffL;
 
