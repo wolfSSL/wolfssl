@@ -14577,15 +14577,17 @@ static int dh_test(void)
 #elif defined(NO_ASN)
     /* don't use file, no DER parsing */
 #elif !defined(NO_FILESYSTEM)
-    XFILE  file = XFOPEN(dhParamsFile, "rb");
-    if (!file)
-        ERROR_OUT(-7900, done);
+    {
+        XFILE file = XFOPEN(dhParamsFile, "rb");
+        if (! file)
+            ERROR_OUT(-7900, done);
 
-    bytes = (word32) XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
-    XFCLOSE(file);
+        bytes = (word32) XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
+        XFCLOSE(file);
+    }
 #else
     /* No DH key to use. */
-    return -7901;
+    ERROR_OUT(-7901, done);
 #endif /* USE_CERT_BUFFERS */
 
     (void)idx;
