@@ -537,15 +537,14 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
 
-        for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--)
-        {
-            carry += d[dIdx] + s[sIdx];
+        for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--) {
+            carry += (word16)d[dIdx] + (word16)s[sIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }
 
         for (; carry != 0 && dIdx >= 0; dIdx--) {
-            carry += d[dIdx];
+            carry += (word16)d[dIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }
