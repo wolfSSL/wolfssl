@@ -37743,12 +37743,18 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         return ret;
     }
 
+
+    #ifndef WC_MAX_X509_GEN
+        /* able to override max size until dynamic buffer created */
+        #define WC_MAX_X509_GEN 4096
+    #endif
+
     /* returns the size of signature on success */
     int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
             const WOLFSSL_EVP_MD* md)
     {
         int  ret;
-        byte der[4096]; /* @TODO dynamic set based on expected cert size */
+        byte der[WC_MAX_X509_GEN]; /* @TODO dynamic based on expected cert size */
         int  derSz = sizeof(der);
 
         WOLFSSL_ENTER("wolfSSL_X509_sign");
