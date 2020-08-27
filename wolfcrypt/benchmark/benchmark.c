@@ -4870,7 +4870,7 @@ void bench_dh(int doAsync)
     DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
     DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((pub == NULL) || (pub2 == NULL) || (agree == NULL) || (priv == NULL) || (priv2 == NULL)) {
+    if ((pub[0] == NULL) || (pub2 == NULL) || (agree[0] == NULL) || (priv[0] == NULL) || (priv2 == NULL)) {
         printf("malloc failed\n");
         goto exit;
     }
@@ -5314,13 +5314,13 @@ void bench_ecc(int doAsync)
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
 #ifdef HAVE_ECC_DHE
-    if (shared == NULL) {
+    if (shared[0] == NULL) {
         printf("malloc failed\n");
         goto exit;
     }
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
-    if ((sig == NULL) || (digest == NULL)) {
+    if ((sig[0] == NULL) || (digest[0] == NULL)) {
         printf("malloc failed\n");
         goto exit;
     }
