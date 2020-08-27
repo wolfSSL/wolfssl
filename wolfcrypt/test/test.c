@@ -13015,7 +13015,7 @@ exit_rsa:
 static int rsa_test(void)
 {
     int    ret;
-    byte*  tmp;
+    byte*  tmp = NULL;
     byte*  der = NULL;
     size_t bytes;
     WC_RNG rng;
