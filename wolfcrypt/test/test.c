@@ -14705,11 +14705,13 @@ static int dh_test(void)
     }
 
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
-    file = XFOPEN(dhKeyFile, "rb");
-    if (!file)
-        return -7950;
-    bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
-    XFCLOSE(file);
+    {
+        XFILE file = XFOPEN(dhKeyFile, "rb");
+        if (!file)
+            return -7950;
+        bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
+        XFCLOSE(file);
+    }
 
     idx = 0;
     ret = wc_DhKeyDecode(tmp, &idx, &key, bytes);
