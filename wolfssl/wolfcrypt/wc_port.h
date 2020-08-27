@@ -95,8 +95,6 @@
      */
     #undef current
 
-    #undef noinline
-
     /* prevent gcc's mm_malloc.h from being included, since it unconditionally includes stdlib.h, which is kernel-incompatible: */
     #define _MM_MALLOC_H_INCLUDED
 

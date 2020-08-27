@@ -37,7 +37,9 @@
 
 #include <wolfssl/wolfcrypt/ecc.h>
 
-#if defined(_MSC_VER)
+#ifdef noinline
+    #define SP_NOINLINE noinline
+#elif defined(_MSC_VER)
     #define SP_NOINLINE __declspec(noinline)
 #elif defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
     #define SP_NOINLINE _Pragma("inline = never")
