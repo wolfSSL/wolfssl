@@ -28,7 +28,7 @@ HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
 
-$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES)): $(obj)/linuxkm/get_thread_size
+$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES)): | $(obj)/linuxkm/get_thread_size
 KERNEL_THREAD_STACK_SIZE=$(shell test -x $(obj)/linuxkm/get_thread_size && $(obj)/linuxkm/get_thread_size || echo 16384)
 MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
