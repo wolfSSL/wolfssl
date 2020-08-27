@@ -474,6 +474,17 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         if (ret < 0) {
             err = SSL_get_error(ssl, 0);
 
+        #ifdef HAVE_SECURE_RENEGOTIATION
+            if (err == APP_DATA_READY) {
+                ret = SSL_read(ssl, input, inputLen);
+                if (ret >= 0) {
+                    /* null terminate message */
+                    input[ret] = '\0';
+                    printf("Client message: %s\n", input);
+                    return;
+                }
+            }
+        #endif
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
@@ -487,7 +498,11 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ) {
+            if (err != WOLFSSL_ERROR_WANT_READ
+        #ifdef HAVE_SECURE_RENEGOTIATION
+                    && err != APP_DATA_READY
+        #endif
+            ) {
                 printf("SSL_read input error %d, %s\n", err,
                                                  ERR_error_string(err, buffer));
                 err_sys_ex(runWithErrors, "SSL_read failed");
@@ -499,7 +514,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
-        input[ret] = 0; /* null terminate message */
+        /* null terminate message */
+        input[ret] = '\0';
         printf("Client message: %s\n", input);
     }
 }
@@ -2428,6 +2444,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (echoData == 0 && throughput == 0) {
             ServerRead(ssl, input, sizeof(input)-1);
             err = SSL_get_error(ssl, 0);
+#ifdef HAVE_SECURE_RENEGOTIATION
+            if (err == APP_DATA_READY) {
+                /* Data was sent during SCR so let's get the message
+                 * after the SCR as well */
+                ServerRead(ssl, input, sizeof(input)-1);
+                err = SSL_get_error(ssl, 0);
+            }
+#endif
         }
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
