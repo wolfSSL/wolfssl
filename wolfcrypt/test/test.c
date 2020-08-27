@@ -14548,7 +14548,7 @@ static int dh_test(void)
 #if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     #define DH_TEST_BUF_SIZE 256
 #else
-    #define DH_TEST_BUF_SIZE 256
+    #define DH_TEST_BUF_SIZE 512
 #endif
     priv = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     pub = XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
