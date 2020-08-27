@@ -334,6 +334,7 @@ struct WOLFSSL_ASN1_TYPE {
 
 struct WOLFSSL_X509_ATTRIBUTE {
     WOLFSSL_ASN1_OBJECT *object;
+    WOLFSSL_ASN1_TYPE *value;
     WOLF_STACK_OF(WOLFSSL_ASN1_TYPE) *set;
 };
 
@@ -2771,6 +2772,7 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
     WOLFSSL_API void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER*);
+    WOLFSSL_API int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER*);
 
     WOLFSSL_API int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER*, const char* f,
                                                                  const char* d);
@@ -3603,7 +3605,10 @@ WOLFSSL_API int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
                               const unsigned char *bytes, int len);
 WOLFSSL_API WOLFSSL_X509_ATTRIBUTE *wolfSSL_X509_REQ_get_attr(
         const WOLFSSL_X509 *req, int loc);
-
+WOLFSSL_API WOLFSSL_X509_ATTRIBUTE* wolfSSL_X509_ATTRIBUTE_new(void);
+WOLFSSL_API void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr);
+WOLFSSL_API WOLFSSL_ASN1_TYPE *wolfSSL_X509_ATTRIBUTE_get0_type(
+        WOLFSSL_X509_ATTRIBUTE *attr, int idx);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_X509_to_X509_REQ(WOLFSSL_X509 *x,
         WOLFSSL_EVP_PKEY *pkey, const WOLFSSL_EVP_MD *md);
 #endif

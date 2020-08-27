@@ -30086,7 +30086,8 @@ static void test_wolfSSL_ERR_print_errors(void)
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 57);
     AssertIntEQ(XSTRNCMP("error:295:wolfSSL library:unknown error number:asn.c:100",
                 buf, 56), 0);
-    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 1);
+    AssertIntEQ(buf[0], '\0');
     AssertIntEQ(ERR_get_error_line(NULL, NULL), 0);
 
     BIO_free(bio);
@@ -33280,9 +33281,9 @@ static void test_wolfSSL_get_ciphers_compat(void)
 
 static void test_wolfSSL_X509_PUBKEY_get(void)
 {
-    WOLFSSL_X509_PUBKEY pubkey;
+    WOLFSSL_X509_PUBKEY pubkey = {0};
     WOLFSSL_X509_PUBKEY* key;
-    WOLFSSL_EVP_PKEY evpkey;
+    WOLFSSL_EVP_PKEY evpkey = {0};
     WOLFSSL_EVP_PKEY* evpPkey;
     WOLFSSL_EVP_PKEY* retEvpPkey;
 
@@ -37887,26 +37888,51 @@ static void test_wolfSSL_X509_CRL(void)
 
 static void test_wolfSSL_d2i_X509_REQ(void)
 {
-    const char* csrFile = "./csr.signed.der";
+    const char* csrFile = "./certs/csr.signed.der";
+    const char* csrPopFile = "./certs/csr.attr.der";
     BIO* bio = NULL;
     X509* req = NULL;
     EVP_PKEY *pub_key = NULL;
 
-    AssertNotNull(bio = BIO_new_file(csrFile, "rb"));
-    AssertNotNull(d2i_X509_REQ_bio(bio, &req));
+    {
+        AssertNotNull(bio = BIO_new_file(csrFile, "rb"));
+        AssertNotNull(d2i_X509_REQ_bio(bio, &req));
 
-    /*
-     * Extract the public key from the CSR
-     */
-    AssertNotNull(pub_key = X509_REQ_get_pubkey(req));
+        /*
+         * Extract the public key from the CSR
+         */
+        AssertNotNull(pub_key = X509_REQ_get_pubkey(req));
 
-    /*
-     * Verify the signature in the CSR
-     */
-    AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
+        /*
+         * Verify the signature in the CSR
+         */
+        AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
 
-    X509_free(req);
-    BIO_free(bio);
+        X509_free(req);
+        BIO_free(bio);
+    }
+    {
+        AssertNotNull(bio = BIO_new_file(csrPopFile, "rb"));
+        AssertNotNull(d2i_X509_REQ_bio(bio, &req));
+
+        /*
+         * Extract the public key from the CSR
+         */
+        AssertNotNull(pub_key = X509_REQ_get_pubkey(req));
+
+        /*
+         * Verify the signature in the CSR
+         */
+        AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
+
+        /*
+         * Obtain the challenge password from the CSR
+         */
+        AssertIntGE(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword, -1), 0);
+
+        X509_free(req);
+        BIO_free(bio);
+    }
 }
 
 static void test_wolfSSL_PEM_read_X509(void)

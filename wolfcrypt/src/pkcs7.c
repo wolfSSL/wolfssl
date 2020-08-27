@@ -2269,8 +2269,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     byte signingTime[MAX_TIME_STRING_SZ];
 
-    if (pkcs7 == NULL || (pkcs7->contentSz > 0 && pkcs7->content == NULL) ||
-        pkcs7->hashOID == 0 ||
+    if (pkcs7 == NULL || pkcs7->hashOID == 0 ||
         output == NULL || outputSz == NULL || *outputSz == 0 || hashSz == 0 ||
         hashBuf == NULL) {
         return BAD_FUNC_ARG;

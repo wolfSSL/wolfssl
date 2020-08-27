@@ -2029,6 +2029,8 @@ struct WOLFSSL_CERT_MANAGER {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
+    wolfSSL_Mutex   refMutex;   /* reference count mutex */
+    int             refCount;         /* reference count */
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -3762,6 +3764,7 @@ struct WOLFSSL_X509 {
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #ifdef WOLFSSL_CERT_REQ
+    WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
 #endif
     WOLFSSL_X509_NAME issuer;

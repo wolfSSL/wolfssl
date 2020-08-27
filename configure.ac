@@ -4316,6 +4316,11 @@ then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
+    
+    if test "x$ENABLED_DSA" = "xno"
+    then
+        AC_MSG_WARN([Enabling DSA with --enable-dsa is recommended for libest])
+    fi
 fi
 
 # MD4

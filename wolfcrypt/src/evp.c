@@ -1330,7 +1330,6 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
 {
     WOLFSSL_EVP_PKEY_CTX* ctx;
-    int type = NID_undef;
 
     if (pkey == NULL) return 0;
     if (e != NULL) return 0;
@@ -1344,15 +1343,8 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
-    type = wolfSSL_EVP_PKEY_type(pkey->type);
-
-    if (type != NID_undef) {
-        if (wc_LockMutex(&pkey->refMutex) != 0) {
-            WOLFSSL_MSG("Couldn't lock pkey mutex");
-        }
-        pkey->references++;
-
-        wc_UnLockMutex(&pkey->refMutex);
+    if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Couldn't increase key reference count");
     }
     return ctx;
 }
@@ -1925,7 +1917,7 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
 #ifndef NO_DSA
     case EVP_PKEY_DSA:
         if (from->dsa) {
-            WOLFSSL_BIGNUM cpy;
+            WOLFSSL_BIGNUM* cpy;
             if (!to->dsa && !(to->dsa = wolfSSL_DSA_new())) {
                 WOLFSSL_MSG("wolfSSL_DSA_new error");
                 return WOLFSSL_FAILURE;
@@ -1935,12 +1927,12 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
                 return WOLFSSL_FAILURE;
             }
             to->dsa->p = cpy;
-            if (!(cpy = wolfSSL_BN_dup(from->dsa->q)) {
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->q))) {
                 WOLFSSL_MSG("wolfSSL_BN_dup error");
                 return WOLFSSL_FAILURE;
             }
             to->dsa->q = cpy;
-            if (!(cpy = wolfSSL_BN_dup(from->dsa->g)) {
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->g))) {
                 WOLFSSL_MSG("wolfSSL_BN_dup error");
                 return WOLFSSL_FAILURE;
             }
@@ -2375,21 +2367,16 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
 
         ctx->isHMAC = 1;
     }
-    else {
-        int ret;
+    else if (wolfSSL_EVP_DigestInit(ctx, type) != 1)
+            return WOLFSSL_FAILURE;
 
-        if (ctx->pctx == NULL) {
-            ctx->pctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
-            if (ctx->pctx == NULL)
-                return WOLFSSL_FAILURE;
-        }
-
-        ret = wolfSSL_EVP_DigestInit(ctx, type);
-        if (ret == WOLFSSL_SUCCESS && pctx != NULL)
-            *pctx = ctx->pctx;
-        return ret;
+    if (ctx->pctx == NULL) {
+        ctx->pctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
+        if (ctx->pctx == NULL)
+            return WOLFSSL_FAILURE;
     }
-
+    if (pctx != NULL)
+        *pctx = ctx->pctx;
     return WOLFSSL_SUCCESS;
 }
 
@@ -2399,10 +2386,7 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
 static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
                                         const void *d, unsigned int cnt)
 {
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
-
+    if (ctx->isHMAC) {
         if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
             return WOLFSSL_FAILURE;
 
@@ -2421,11 +2405,8 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
 {
     int  ret;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         Hmac hmacCopy;
-
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
 
         if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
@@ -2561,10 +2542,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
         return WOLFSSL_FAILURE;
 
     /* Return the maximum size of the signaure when sig is NULL. */
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
-
+    if (ctx->isHMAC) {
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
         if (sig == NULL) {
@@ -2594,7 +2572,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     if (wolfssl_evp_digest_pk_final(ctx, digest, &hashLen) <= 0)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         /* Copy the HMAC result as signature. */
         if ((unsigned int)(*siglen) > hashLen)
             *siglen = hashLen;
@@ -2679,9 +2657,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if (ctx == NULL || sig == NULL)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
+    if (ctx->isHMAC) {
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
@@ -2693,7 +2669,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if (wolfssl_evp_digest_pk_final(ctx, digest, &hashLen) <= 0)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         /* Check HMAC result matches the signature. */
         if (XMEMCMP(sig, digest, siglen) == 0)
             return WOLFSSL_SUCCESS;
@@ -5766,11 +5742,15 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     if ((pkey == NULL) || (key == NULL))
         return WOLFSSL_FAILURE;
 
+    if (wolfSSL_RSA_up_ref(key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_RSA_up_ref failed");
+        return WOLFSSL_FAILURE;
+    }
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
         wolfSSL_RSA_free(pkey->rsa);
     }
     pkey->rsa    = key;
-    pkey->ownRsa = 0; /* pkey does not own RSA */
+    pkey->ownRsa = 1; /* pkey does not own RSA but needs to call free on it */
     pkey->type   = EVP_PKEY_RSA;
     if (key->inSet == 0) {
         if (SetRsaInternal(key) != WOLFSSL_SUCCESS) {
@@ -6623,10 +6603,10 @@ int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
         pkey->references++;
         wc_UnLockMutex(&pkey->refMutex);
 
-        return 1;
+        return WOLFSSL_SUCCESS;
     }
 
-    return 0;
+    return WOLFSSL_FAILURE;
 }
 
 #ifndef NO_RSA
