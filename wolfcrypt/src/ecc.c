@@ -1305,7 +1305,7 @@ static void wc_ecc_curve_free(ecc_curve_spec* curve)
     if (curve) {
     #ifdef ECC_CACHE_CURVE
         #ifdef WOLFSSL_CUSTOM_CURVES
-        /* only free custom curves (reset are globally cached) */
+        /* only free custom curves (rest are globally cached) */
         if (curve->dp && curve->dp->id == ECC_CURVE_CUSTOM) {
             wc_ecc_curve_cache_free_spec(curve);
             XFREE(curve, NULL, DYNAMIC_TYPE_ECC);

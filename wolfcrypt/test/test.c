@@ -5336,7 +5336,7 @@ int chacha20_poly1305_aead_test(void)
     }
 
 
-    /* AEAD init/update/final */
+    /* AEAD init/update/final - bad argument tests */
     err = wc_ChaCha20Poly1305_Init(NULL, key1, iv1,
         CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != BAD_FUNC_ARG)
@@ -5374,7 +5374,12 @@ int chacha20_poly1305_aead_test(void)
     if (err != BAD_FUNC_ARG)
         return -4727;
 
-    /* AEAD init/update/final - state tests */
+    /* AEAD init/update/final - bad state tests */
+    /* clear struct - make valgrind happy to resolve 
+        "Conditional jump or move depends on uninitialised value(s)". 
+        The enum is "int" size and aead.state is "byte" */
+    /* The wc_ChaCha20Poly1305_Init function does this normally */
+    XMEMSET(&aead, 0, sizeof(aead));
     aead.state = CHACHA20_POLY1305_STATE_INIT;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
     if (err != BAD_STATE_E)
