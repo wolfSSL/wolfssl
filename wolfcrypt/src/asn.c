@@ -1660,6 +1660,13 @@ static const byte extExtKeyUsageCodeSigningOid[]  = {43, 6, 1, 5, 5, 7, 3, 3};
 static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
+
+#ifdef WOLFSSL_CERT_REQ
+/* csrAttrType */
+static const byte attrChallengePasswordOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 7};
+static const byte attrSerialNumberOid[] = {85, 4, 5};
+#endif
+
 /* kdfType */
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
 
@@ -2287,6 +2294,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 #endif /* WOLFSSL_APACHE_HTTPD */
+#ifdef WOLFSSL_CERT_REQ
+        case oidCsrAttrType:
+            switch (id) {
+                case CHALLENGE_PASSWORD_OID:
+                    oid = attrChallengePasswordOid;
+                    *oidSz = sizeof(attrChallengePasswordOid);
+                    break;
+                case SERIAL_NUMBER_OID:
+                    oid = attrSerialNumberOid;
+                    *oidSz = sizeof(attrSerialNumberOid);
+                    break;
+            }
+            break;
+#endif
         case oidIgnoreType:
         default:
             break;
@@ -2454,8 +2475,11 @@ int SetObjectId(int len, byte* output)
 {
     int idx = 0;
 
-    output[idx++] = ASN_OBJECT_ID;
-    idx += SetLength(len, output + idx);
+    if (output)
+        output[idx++] = ASN_OBJECT_ID;
+    else
+        idx++;
+    idx += SetLength(len, output ? output + idx : NULL);
 
     return idx;
 }
@@ -5453,6 +5477,7 @@ static int GetKey(DecodedCert* cert)
         }
     #endif /* NO_DSA */
         default:
+            WOLFSSL_MSG("Unknown or not compiled in key OID");
             return ASN_UNKNOWN_OID_E;
     }
 }
@@ -9480,9 +9505,67 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
 
             if (len) {
-                WOLFSSL_MSG("Non-empty attributes. wolfSSL doesn't support "
-                            "parsing CSR attributes.");
-                return ASN_VERSION_E;
+                word32 attrMaxIdx = cert->srcIdx + len;
+                word32 oid;
+                byte   tag;
+
+                if (attrMaxIdx > cert->maxIdx) {
+                    WOLFSSL_MSG("Attribute length greater than CSR length");
+                    return ASN_PARSE_E;
+                }
+
+                while (cert->srcIdx < attrMaxIdx) {
+                    /* Attributes have the structure:
+                     * SEQ -> OID -> SET -> ATTRIBUTE */
+                    if (GetSequence(cert->source, &cert->srcIdx, &len,
+                            attrMaxIdx) < 0) {
+                        WOLFSSL_MSG("attr GetSequence error");
+                        return ASN_PARSE_E;
+                    }
+                    if (GetObjectId(cert->source, &cert->srcIdx, &oid,
+                            oidCsrAttrType, attrMaxIdx) < 0) {
+                        WOLFSSL_MSG("attr GetObjectId error");
+                        return ASN_PARSE_E;
+                    }
+                    if (GetSet(cert->source, &cert->srcIdx, &len,
+                            attrMaxIdx) < 0) {
+                        WOLFSSL_MSG("attr GetSet error");
+                        return ASN_PARSE_E;
+                    }
+                    /* For now all supported attributes have the type value
+                     * of ASN_PRINTABLE_STRING or ASN_UTF8STRING but as more
+                     * attributes are supported then this will have to be done
+                     * on a per attribute basis. */
+                    if (GetHeader(cert->source, &tag,
+                            &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                        WOLFSSL_MSG("attr GetHeader error");
+                        return ASN_PARSE_E;
+                    }
+                    if (tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
+                            tag != ASN_IA5_STRING) {
+                        WOLFSSL_MSG("Unsupported attribute value format");
+                        return ASN_PARSE_E;
+                    }
+                    switch (oid) {
+                    case CHALLENGE_PASSWORD_OID:
+                        cert->cPwd = (char*)cert->source + cert->srcIdx;
+                        cert->cPwdLen = len;
+                        cert->srcIdx += len;
+                        break;
+                    case SERIAL_NUMBER_OID:
+                        cert->sNum = (char*)cert->source + cert->srcIdx;
+                        cert->sNumLen = len;
+                        cert->srcIdx += len;
+                        if (cert->sNumLen <= EXTERNAL_SERIAL_SIZE) {
+                            XMEMCPY(cert->serial, cert->sNum, cert->sNumLen);
+                            cert->serialSz = cert->sNumLen;
+                        }
+                        break;
+                    default:
+                        WOLFSSL_MSG("Unsupported attribute type");
+                        return ASN_PARSE_E;
+                    }
+                }
             }
         }
 #endif
@@ -13883,9 +13966,6 @@ int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
                         int extSz)
 {
-    const byte cpOid[] =
-        { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                         0x09, 0x07 };
     const byte erOid[] =
         { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                          0x09, 0x0e };
@@ -13916,8 +13996,11 @@ static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
             cpStrSz = SetUTF8String(pwSz, cpStr);
         }
         cpSetSz = SetSet(cpStrSz + pwSz, cpSet);
-        cpSeqSz = SetSequence(sizeof(cpOid) + cpSetSz + cpStrSz + pwSz, cpSeq);
-        cpSz = cpSeqSz + sizeof(cpOid) + cpSetSz + cpStrSz + pwSz;
+        /* +2 for tag and length parts of the TLV triplet */
+        cpSeqSz = SetSequence(2 + sizeof(attrChallengePasswordOid) + cpSetSz +
+                cpStrSz + pwSz, cpSeq);
+        cpSz = cpSeqSz + 2 + sizeof(attrChallengePasswordOid) + cpSetSz +
+                cpStrSz + pwSz;
     }
 
     if (extSz) {
@@ -13932,8 +14015,10 @@ static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
     if (cpSz) {
         XMEMCPY(&output[sz], cpSeq, cpSeqSz);
         sz += cpSeqSz;
-        XMEMCPY(&output[sz], cpOid, sizeof(cpOid));
-        sz += sizeof(cpOid);
+        sz += SetObjectId(sizeof(attrChallengePasswordOid), output + sz);
+        XMEMCPY(&output[sz], attrChallengePasswordOid,
+                sizeof(attrChallengePasswordOid));
+        sz += sizeof(attrChallengePasswordOid);
         XMEMCPY(&output[sz], cpSet, cpSetSz);
         sz += cpSetSz;
         XMEMCPY(&output[sz], cpStr, cpStrSz);

@@ -9567,6 +9567,37 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     else
         x509->subjectCN[0] = '\0';
 
+#ifdef WOLFSSL_CERT_REQ
+    /* CSR attributes */
+    if (dCert->cPwd) {
+        if (dCert->cPwdLen < CTC_NAME_SIZE) {
+            XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
+            x509->challengePw[dCert->cPwdLen] = '\0';
+            if (x509->challengePwAttr) {
+                wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+            }
+            x509->challengePwAttr = wolfSSL_X509_ATTRIBUTE_new();
+            if (x509->challengePwAttr) {
+                x509->challengePwAttr->value->value.asn1_string =
+                        wolfSSL_ASN1_STRING_new();
+                if (wolfSSL_ASN1_STRING_set(
+                        x509->challengePwAttr->value->value.asn1_string,
+                        dCert->cPwd, dCert->cPwdLen) != WOLFSSL_SUCCESS) {
+                    ret = MEMORY_E;
+                }
+                x509->challengePwAttr->value->type = V_ASN1_PRINTABLESTRING;
+            }
+            else {
+                ret = MEMORY_E;
+            }
+        }
+        else {
+            WOLFSSL_MSG("Challenge password too long");
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
 #ifdef WOLFSSL_SEP
     {
         int minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);

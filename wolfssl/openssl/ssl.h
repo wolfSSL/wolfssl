@@ -390,6 +390,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_REQ_add1_attr_by_txt       wolfSSL_X509_REQ_add1_attr_by_txt
 #define X509_REQ_get_attr_by_NID        wolfSSL_X509_REQ_get_attr_by_NID
 #define X509_REQ_get_attr               wolfSSL_X509_REQ_get_attr
+#define X509_ATTRIBUTE_get0_type        wolfSSL_X509_ATTRIBUTE_get0_type
 #define X509_to_X509_REQ                wolfSSL_X509_to_X509_REQ
 #define X509_REQ_set_subject_name       wolfSSL_X509_REQ_set_subject_name
 #define X509_REQ_set_pubkey             wolfSSL_X509_REQ_set_pubkey
@@ -654,6 +655,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_set_write_buffer_size       wolfSSL_BIO_set_write_buffer_size
 #define BIO_f_ssl                       wolfSSL_BIO_f_ssl
 #define BIO_new_socket                  wolfSSL_BIO_new_socket
+#ifndef NO_WOLFSSL_STUB
+#define BIO_new_connect(...)            NULL
+#define BIO_set_conn_port(...)          0
+#define BIO_do_connect(...)             0
+#endif
 #define SSL_set_bio                     wolfSSL_set_bio
 #define BIO_set_ssl                     wolfSSL_BIO_set_ssl
 #define BIO_eof                         wolfSSL_BIO_eof

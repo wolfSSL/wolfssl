@@ -100,6 +100,7 @@ enum ASN_Tags {
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
     ASN_PRINTABLE_STRING  = 0x13,
+    ASN_IA5_STRING        = 0x16,
     ASN_UTC_TIME          = 0x17,
     ASN_OTHER_TYPE        = 0x00,
     ASN_RFC822_TYPE       = 0x01,
@@ -427,6 +428,7 @@ enum Oid_Types {
     oidCertNameType     = 17,
     oidTlsExtType       = 18,
     oidCrlExtType       = 19,
+    oidCsrAttrType      = 20,
     oidIgnoreType
 };
 
@@ -590,6 +592,13 @@ enum VerifyType {
 enum KeyIdType {
     SKID_TYPE = 0,
     AKID_TYPE = 1
+};
+#endif
+
+#ifdef WOLFSSL_CERT_REQ
+enum CsrAttyType {
+    CHALLENGE_PASSWORD_OID = 659,
+    SERIAL_NUMBER_OID = 94,
 };
 #endif
 
@@ -893,6 +902,14 @@ struct DecodedCert {
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
 #endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
+
+#ifdef WOLFSSL_CERT_REQ
+    /* CSR attributes */
+    char*   cPwd; /* challengePassword */
+    int     cPwdLen;
+    char*   sNum; /* Serial Number */
+    int     sNumLen;
+#endif /* WOLFSSL_CERT_REQ */
 
     Signer* ca;
 #ifndef NO_CERTS
