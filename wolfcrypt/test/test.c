@@ -14682,17 +14682,17 @@ static int dh_test(void)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     if (wc_DhCheckPrivKey(NULL, NULL, 0) != BAD_FUNC_ARG)
-        return -7915;
+        ERROR_OUT(-7915, done);
 
     if (wc_DhCheckPrivKey(&key, priv, privSz) != 0)
-        return -7916;
+        ERROR_OUT(-7916, done);
 
     if (wc_DhExportParamsRaw(NULL, NULL, NULL, NULL, NULL, NULL, NULL) != BAD_FUNC_ARG)
-        return -7917;
+        ERROR_OUT(-7917, done);
     {
         word32 pSz, qSz, gSz;
         if (wc_DhExportParamsRaw(&key, NULL, &pSz, NULL, &qSz, NULL, &gSz) != LENGTH_ONLY_E)
-            return -7918;
+            ERROR_OUT(-7918, done);
     }
 #endif
 
@@ -14708,7 +14708,7 @@ static int dh_test(void)
     {
         XFILE file = XFOPEN(dhKeyFile, "rb");
         if (!file)
-            return -7950;
+            ERROR_OUT(-7950, done);
         bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
         XFCLOSE(file);
     }
@@ -14716,7 +14716,7 @@ static int dh_test(void)
     idx = 0;
     ret = wc_DhKeyDecode(tmp, &idx, &key, bytes);
     if (ret != 0) {
-        return -7951;
+        ERROR_OUT(-7951, done);
     }
 #endif
 
@@ -14724,11 +14724,11 @@ static int dh_test(void)
     pubSz = DH_TEST_BUF_SIZE;
     ret = wc_DhExportKeyPair(&key, priv, &privSz, pub, &pubSz);
     if (ret != 0) {
-        return -7952;
+        ERROR_OUT(-7952, done);
     }
     ret = wc_DhImportKeyPair(&key2, priv, privSz, pub, pubSz);
     if (ret != 0) {
-        return -7953;
+        ERROR_OUT(-7953, done);
     }
 #endif /* WOLFSSL_DH_EXTRA */
 
