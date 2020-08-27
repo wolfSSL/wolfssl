@@ -12227,7 +12227,7 @@ static int rsa_no_pad_test(void)
 {
     WC_RNG rng;
     RsaKey key;
-    byte*  tmp;
+    byte*  tmp = NULL;
     size_t bytes;
     int    ret;
     word32 inLen   = 0;
