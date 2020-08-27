@@ -366,7 +366,6 @@ enum Misc_ASN {
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
     MAX_AIA_SZ          = 2,       /* Max Authority Info Access extension size*/
-    MAX_NAME_ENTRIES    = 13,      /* entries added to x509 name struct */
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
@@ -394,6 +393,12 @@ enum Misc_ASN {
     PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
     PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
 };
+
+#ifndef WC_MAX_NAME_ENTRIES
+    /* entries added to x509 name struct */
+    #define WC_MAX_NAME_ENTRIES 13
+#endif
+#define MAX_NAME_ENTRIES WC_MAX_NAME_ENTRIES
 
 
 enum Oid_Types {
