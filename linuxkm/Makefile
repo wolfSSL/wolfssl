@@ -10,14 +10,14 @@ ifndef SRC_TOP
 SRC_TOP=$(shell dirname $(MODULE_TOP))
 endif
 
-WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement
+WOLFSSL_CFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CFLAGS) $(CFLAGS) -Wno-declaration-after-statement -Wno-redundant-decls
 ifeq "$(KARCH)" "x86"
 WOLFSSL_CFLAGS+=-msse -mmmx -msse2 -mavx -mavx2
 endif
 
 WOLFSSL_ASFLAGS=-DHAVE_CONFIG_H -I$(SRC_TOP) -DBUILDING_WOLFSSL $(AM_CCASFLAGS) $(CCASFLAGS)
 
-WOLFSSL_OBJ_FILES=linuxkm/module_hooks.o $(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(src_libwolfssl_la_OBJECTS)))))
+WOLFSSL_OBJ_FILES=$(patsubst %.lo, %.o, $(patsubst src/src_libwolfssl_la-%, src/%, $(patsubst src/libwolfssl_la-%, src/%, $(patsubst wolfcrypt/src/src_libwolfssl_la-%, wolfcrypt/src/%, $(src_libwolfssl_la_OBJECTS)))))
 
 ifeq "$(ENABLED_CRYPT_TESTS)" "yes"
 WOLFSSL_OBJ_FILES+=wolfcrypt/test/test.o
