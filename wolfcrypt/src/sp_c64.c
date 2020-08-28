@@ -698,8 +698,8 @@ SP_NOINLINE static void sp_2048_mul_36(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -734,8 +734,8 @@ SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -810,8 +810,8 @@ SP_NOINLINE static void sp_2048_mul_18(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -846,8 +846,8 @@ SP_NOINLINE static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -1061,7 +1061,7 @@ SP_NOINLINE static void sp_2048_mul_add_18(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1ffffffffffffffL;
         t >>= 57;
     }
-    r[18] += t;
+    r[18] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -2007,7 +2007,7 @@ SP_NOINLINE static void sp_2048_mul_add_36(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1ffffffffffffffL;
         t >>= 57;
     }
-    r[36] += t;
+    r[36] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -4782,8 +4782,8 @@ SP_NOINLINE static void sp_3072_mul_54(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -4818,8 +4818,8 @@ SP_NOINLINE static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -4952,8 +4952,8 @@ SP_NOINLINE static void sp_3072_mul_27(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -5016,8 +5016,8 @@ SP_NOINLINE static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 114;
-        r[k + 1] = (c >> 57) & 0x1ffffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 114);
+        r[k + 1] = (sp_digit)((c >> 57) & 0x1ffffffffffffffL);
         c = (c & 0x1ffffffffffffffL) << 57;
     }
     r[0] = (sp_digit)(c >> 57);
@@ -5263,7 +5263,7 @@ SP_NOINLINE static void sp_3072_mul_add_27(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1ffffffffffffffL;
         t >>= 57;
     }
-    r[27] += t;
+    r[27] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -6194,7 +6194,7 @@ SP_NOINLINE static void sp_3072_mul_add_54(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1ffffffffffffffL;
         t >>= 57;
     }
-    r[54] += t;
+    r[54] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -9095,8 +9095,8 @@ SP_NOINLINE static void sp_4096_mul_78(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 106;
-        r[k + 1] = (c >> 53) & 0x1fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 106);
+        r[k + 1] = (sp_digit)((c >> 53) & 0x1fffffffffffffL);
         c = (c & 0x1fffffffffffffL) << 53;
     }
     r[0] = (sp_digit)(c >> 53);
@@ -9131,8 +9131,8 @@ SP_NOINLINE static void sp_4096_sqr_78(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 106;
-        r[k + 1] = (c >> 53) & 0x1fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 106);
+        r[k + 1] = (sp_digit)((c >> 53) & 0x1fffffffffffffL);
         c = (c & 0x1fffffffffffffL) << 53;
     }
     r[0] = (sp_digit)(c >> 53);
@@ -9241,8 +9241,8 @@ SP_NOINLINE static void sp_4096_mul_39(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 106;
-        r[k + 1] = (c >> 53) & 0x1fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 106);
+        r[k + 1] = (sp_digit)((c >> 53) & 0x1fffffffffffffL);
         c = (c & 0x1fffffffffffffL) << 53;
     }
     r[0] = (sp_digit)(c >> 53);
@@ -9277,8 +9277,8 @@ SP_NOINLINE static void sp_4096_sqr_39(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 106;
-        r[k + 1] = (c >> 53) & 0x1fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 106);
+        r[k + 1] = (sp_digit)((c >> 53) & 0x1fffffffffffffL);
         c = (c & 0x1fffffffffffffL) << 53;
     }
     r[0] = (sp_digit)(c >> 53);
@@ -9513,7 +9513,7 @@ SP_NOINLINE static void sp_4096_mul_add_39(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1fffffffffffffL;
         t >>= 53;
     }
-    r[39] += t;
+    r[39] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -10492,7 +10492,7 @@ SP_NOINLINE static void sp_4096_mul_add_78(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x1fffffffffffffL;
         t >>= 53;
     }
-    r[78] += t;
+    r[78] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[8];
@@ -12689,18 +12689,18 @@ static int sp_256_mod_mul_norm_5(sp_digit* r, const sp_digit* a, const sp_digit*
 
         a32[0] = (sp_digit)(a[0]) & 0xffffffffL;
         a32[1] = (sp_digit)(a[0] >> 32U);
-        a32[1] |= a[1] << 20U;
+        a32[1] |= (sp_digit)(a[1] << 20U);
         a32[1] &= 0xffffffffL;
         a32[2] = (sp_digit)(a[1] >> 12U) & 0xffffffffL;
         a32[3] = (sp_digit)(a[1] >> 44U);
-        a32[3] |= a[2] << 8U;
+        a32[3] |= (sp_digit)(a[2] << 8U);
         a32[3] &= 0xffffffffL;
         a32[4] = (sp_digit)(a[2] >> 24U);
-        a32[4] |= a[3] << 28U;
+        a32[4] |= (sp_digit)(a[3] << 28U);
         a32[4] &= 0xffffffffL;
         a32[5] = (sp_digit)(a[3] >> 4U) & 0xffffffffL;
         a32[6] = (sp_digit)(a[3] >> 36U);
-        a32[6] |= a[4] << 16U;
+        a32[6] |= (sp_digit)(a[4] << 16U);
         a32[6] &= 0xffffffffL;
         a32[7] = (sp_digit)(a[4] >> 16U) & 0xffffffffL;
 
@@ -12980,8 +12980,8 @@ SP_NOINLINE static void sp_256_mul_5(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 104;
-        r[k + 1] = (c >> 52) & 0xfffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 104);
+        r[k + 1] = (sp_digit)((c >> 52) & 0xfffffffffffffL);
         c = (c & 0xfffffffffffffL) << 52;
     }
     r[0] = (sp_digit)(c >> 52);
@@ -13110,7 +13110,7 @@ SP_NOINLINE static void sp_256_mul_add_5(sp_digit* r, const sp_digit* a,
         r[i] = t & 0xfffffffffffffL;
         t >>= 52;
     }
-    r[5] += t;
+    r[5] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[5];
@@ -13267,8 +13267,8 @@ SP_NOINLINE static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 104;
-        r[k + 1] = (c >> 52) & 0xfffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 104);
+        r[k + 1] = (sp_digit)((c >> 52) & 0xfffffffffffffL);
         c = (c & 0xfffffffffffffL) << 52;
     }
     r[0] = (sp_digit)(c >> 52);
@@ -18369,7 +18369,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_256 pd;
     sp_point_256 qd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_256* p;
     sp_point_256* q = NULL;
     int err;
@@ -18440,7 +18440,7 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_digit tmpd[2 * 5 * 2];
     sp_point_256 pd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_256* p;
     int err;
 
@@ -18499,7 +18499,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit tmpd[2 * 5 * 4];
     sp_point_256 pd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_256* p;
     int err;
 
@@ -18856,26 +18856,26 @@ static int sp_384_mod_mul_norm_7(sp_digit* r, const sp_digit* a, const sp_digit*
 
         a32[0] = (sp_digit)(a[0]) & 0xffffffffL;
         a32[1] = (sp_digit)(a[0] >> 32U);
-        a32[1] |= a[1] << 23U;
+        a32[1] |= (sp_digit)(a[1] << 23U);
         a32[1] &= 0xffffffffL;
         a32[2] = (sp_digit)(a[1] >> 9U) & 0xffffffffL;
         a32[3] = (sp_digit)(a[1] >> 41U);
-        a32[3] |= a[2] << 14U;
+        a32[3] |= (sp_digit)(a[2] << 14U);
         a32[3] &= 0xffffffffL;
         a32[4] = (sp_digit)(a[2] >> 18U) & 0xffffffffL;
         a32[5] = (sp_digit)(a[2] >> 50U);
-        a32[5] |= a[3] << 5U;
+        a32[5] |= (sp_digit)(a[3] << 5U);
         a32[5] &= 0xffffffffL;
         a32[6] = (sp_digit)(a[3] >> 27U);
-        a32[6] |= a[4] << 28U;
+        a32[6] |= (sp_digit)(a[4] << 28U);
         a32[6] &= 0xffffffffL;
         a32[7] = (sp_digit)(a[4] >> 4U) & 0xffffffffL;
         a32[8] = (sp_digit)(a[4] >> 36U);
-        a32[8] |= a[5] << 19U;
+        a32[8] |= (sp_digit)(a[5] << 19U);
         a32[8] &= 0xffffffffL;
         a32[9] = (sp_digit)(a[5] >> 13U) & 0xffffffffL;
         a32[10] = (sp_digit)(a[5] >> 45U);
-        a32[10] |= a[6] << 10U;
+        a32[10] |= (sp_digit)(a[6] << 10U);
         a32[10] &= 0xffffffffL;
         a32[11] = (sp_digit)(a[6] >> 22U) & 0xffffffffL;
 
@@ -19178,8 +19178,8 @@ SP_NOINLINE static void sp_384_mul_7(sp_digit* r, const sp_digit* a,
 
             c += ((int128_t)a[i]) * b[j];
         }
-        r[k + 2] += c >> 110;
-        r[k + 1] = (c >> 55) & 0x7fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 110);
+        r[k + 1] = (sp_digit)((c >> 55) & 0x7fffffffffffffL);
         c = (c & 0x7fffffffffffffL) << 55;
     }
     r[0] = (sp_digit)(c >> 55);
@@ -19340,7 +19340,7 @@ SP_NOINLINE static void sp_384_mul_add_7(sp_digit* r, const sp_digit* a,
         r[i] = t & 0x7fffffffffffffL;
         t >>= 55;
     }
-    r[7] += t;
+    r[7] += (sp_digit)t;
 #else
     int128_t tb = b;
     int128_t t[7];
@@ -19494,8 +19494,8 @@ SP_NOINLINE static void sp_384_sqr_7(sp_digit* r, const sp_digit* a)
            c += ((int128_t)a[i]) * a[i];
         }
 
-        r[k + 2] += c >> 110;
-        r[k + 1] = (c >> 55) & 0x7fffffffffffffL;
+        r[k + 2] += (sp_digit)(c >> 110);
+        r[k + 1] = (sp_digit)((c >> 55) & 0x7fffffffffffffL);
         c = (c & 0x7fffffffffffffL) << 55;
     }
     r[0] = (sp_digit)(c >> 55);
@@ -25165,7 +25165,7 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point_384 pd;
     sp_point_384 qd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_384* p;
     sp_point_384* q = NULL;
     int err;
@@ -25236,7 +25236,7 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_digit tmpd[2 * 7 * 2];
     sp_point_384 pd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_384* p;
     int err;
 
@@ -25295,7 +25295,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit tmpd[2 * 7 * 6];
     sp_point_384 pd;
 #endif
-    sp_digit* tmp;
+    sp_digit* tmp = NULL;
     sp_point_384* p;
     int err;
 
