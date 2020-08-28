@@ -39,9 +39,7 @@
 
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/test.h>
-#ifdef WOLFSSL_DTLS
-    #include <wolfssl/error-ssl.h>
-#endif
+#include <wolfssl/error-ssl.h>
 
 #include "examples/server/server.h"
 
