@@ -3361,20 +3361,22 @@ then
     AC_PATH_DEFAULT_KERNEL_SOURCE
     AC_ARG_WITH([linux-source],
         [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
-        [KROOT=$withval],
-        [KROOT=$DEFAULT_KROOT])
-    AC_SUBST([KROOT])
+        [KERNEL_ROOT=$withval],
+        [KERNEL_ROOT=$DEFAULT_KERNEL_ROOT])
+    AC_SUBST([KERNEL_ROOT])
 
     AC_DEFAULT_KERNEL_ARCH
     AC_ARG_WITH([linux-arch],
         [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
-        [KARCH=$withval],
-        [KARCH=$DEFAULT_KARCH])
-    AC_SUBST([KARCH])
+        [KERNEL_ARCH=$withval],
+        [KERNEL_ARCH=$DEFAULT_KERNEL_ARCH])
+    AC_SUBST([KERNEL_ARCH])
 
-    if test -z "${KROOT}"; then
+    if test -z "${KERNEL_ROOT}"; then
         AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
     fi
+
+    ENABLED_NO_LIBRARY=yes
 fi
 
 
@@ -5498,6 +5500,7 @@ AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "x$ENABLED_LINUXKM" = "xyes"])
+AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "x$ENABLED_NO_LIBRARY" = "xyes"])
 
 
 CREATE_HEX_VERSION
@@ -5761,8 +5764,8 @@ echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 test "$ENABLED_LINUXKM" = "yes" && \
-echo "   * Linux Kernel Build Root:    $KROOT" && \
-echo "   * Linux Kernel Build Arch:    $KARCH"
+echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
+echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
