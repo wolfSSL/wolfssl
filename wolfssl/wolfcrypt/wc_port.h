@@ -88,6 +88,7 @@
     #endif
     #include <linux/net.h>
     #include <linux/slab.h>
+    #include <asm/simd.h>
     _Pragma("GCC diagnostic pop");
 
     /* remove this multifariously conflicting macro, picked up from
@@ -114,7 +115,16 @@
     #define XSNPRINTF snprintf /* needed to suppress inclusion of stdio.h in wolfssl/wolfcrypt/types.h */
     /* the rigmarole around kstrtol() here is to accommodate its warn-unused-result attribute. */
     #define XATOI(s) ({ long _xatoi_res = 0; int _xatoi_ret = kstrtol(s, 10, &_xatoi_res); if (_xatoi_ret != 0) { _xatoi_res = 0; } (int)_xatoi_res; })
-#endif
+
+    #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
+    #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
+
+#else /* ! WOLFSSL_LINUXKM */
+
+    #define SAVE_VECTOR_REGISTERS()
+    #define RESTORE_VECTOR_REGISTERS()
+
+#endif /* WOLFSSL_LINUXKM */
 
 /* THREADING/MUTEX SECTION */
 #ifdef USE_WINDOWS_API

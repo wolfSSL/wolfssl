@@ -6257,23 +6257,29 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_encrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
         return 0;
     }
     else
     #endif
     #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_encrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
         return 0;
     }
     else
     #endif
     if (haveAESNI) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_encrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (const byte*)aes->key, aes->rounds);
+        RESTORE_VECTOR_REGISTERS();
         return 0;
     }
     else
@@ -6727,8 +6733,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_decrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, aes->rounds, &res);
+        RESTORE_VECTOR_REGISTERS();
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
@@ -6737,8 +6745,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_decrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, aes->rounds, &res);
+        RESTORE_VECTOR_REGISTERS();
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
@@ -6746,8 +6756,10 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else
     #endif
     if (haveAESNI) {
+        SAVE_VECTOR_REGISTERS();
         AES_GCM_decrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
                                  authTagSz, (byte*)aes->key, aes->rounds, &res);
+        RESTORE_VECTOR_REGISTERS();
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
