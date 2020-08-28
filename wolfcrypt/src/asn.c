@@ -464,6 +464,17 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
         return ret;
 
     if (*len > 0) {
+
+#ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
+        /* check for invalid padding on negative integer.
+         * c.f. X.690 (ISO/IEC 8825-2:2003 (E)) 10.4.6; RFC 5280 4.1
+         */
+        if (*len > 1) {
+            if ((input[*inOutIdx] == 0xff) && (input[*inOutIdx + 1] & 0x80))
+                return ASN_PARSE_E;
+        }
+#endif
+
         /* remove leading zero, unless there is only one 0x00 byte */
         if ((input[*inOutIdx] == 0x00) && (*len > 1)) {
             (*inOutIdx)++;
