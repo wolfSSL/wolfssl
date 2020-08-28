@@ -238,6 +238,8 @@ linuxkm/modules.order
 linuxkm/wolfcrypt
 linuxkm/libwolfssl.mod
 linuxkm/libwolfssl.mod.c
+linuxkm/module_exports.c
+linuxkm/linuxkm/get_thread_size
 
 # MPLAB Generated Files (OS X)
 mcapi/wolfcrypt_mcapi.X/nbproject/Makefile-*
