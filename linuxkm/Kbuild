@@ -1,16 +1,6 @@
-SHELL=/bin/bash
-
 # libwolfssl Kbuild
 
-# wolfcrypto asm provokes many objtool complaints:
-# "call without frame pointer save/setup",
-# "BP used as a scratch register",
-# "indirect jump found in RETPOLINE build",
-# and "is missing an ELF size annotation"
-# see /usr/src/linux/tools/objtool/Documentation/stack-validation.txt
-#OBJECT_FILES_NON_STANDARD := y
-
-obj-m := libwolfssl.o
+SHELL=/bin/bash
 
 ifeq "$(WOLFSSL_OBJ_FILES)" ""
 $(error $$WOLFSSL_OBJ_FILES is unset.)
@@ -20,6 +10,12 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
 $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
+obj-m := libwolfssl.o
+
+WOLFSSL_OBJ_TARGETS=$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
+
+$(obj)/linuxkm/module_exports.o: $(WOLFSSL_OBJ_TARGETS)
+
 # this mechanism only works in kernel 5.x+ (fallback to hardcoded value)
 hostprogs := linuxkm/get_thread_size
 always-y := $(hostprogs)
@@ -28,16 +24,16 @@ HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
 
-$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES)): | $(obj)/linuxkm/get_thread_size
+$(WOLFSSL_OBJ_TARGETS): | $(obj)/linuxkm/get_thread_size
 KERNEL_THREAD_STACK_SIZE=$(shell test -x $(obj)/linuxkm/get_thread_size && $(obj)/linuxkm/get_thread_size || echo 16384)
 MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
-libwolfssl-y := $(WOLFSSL_OBJ_FILES)
+libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
 ccflags-y = $(WOLFSSL_CFLAGS) -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
 
 %/libwolfssl.mod.o: ccflags-y :=
-%/lkm_testcrypto.o: ccflags-y += -DNO_MAIN_DRIVER
+%/test.o: ccflags-y += -DNO_MAIN_DRIVER
 
 asflags-y := $(WOLFSSL_ASFLAGS)
 
@@ -45,3 +41,12 @@ asflags-y := $(WOLFSSL_ASFLAGS)
 # but they still irritate objtool: "unannotated intra-function call" and "BP used as a scratch register"
 %/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 %/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
+
+# auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
+# exclude symbols that don't match wc_* or wolf*.
+$(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
+	@cp $< $@
+	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) | awk '/^ *[0-9]+: /{if ($$8 !~ /^(wc_|wolf)/){next;} if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) { print "EXPORT_SYMBOL(" $$8 ");"; }}' >> $@
+	@echo 'EXPORT_SYMBOL(wolfcrypt_test);' >> $@
+
+clean-files := module_exports.c
