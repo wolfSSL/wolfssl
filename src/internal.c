@@ -16784,9 +16784,8 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
 
-#ifndef WOLFSSL_NO_TLS12
-
-#if !defined(NO_CERTS) || defined(HAVE_SESSION_TICKET)
+#if (!defined(WOLFSSL_NO_TLS12) && !defined(NO_CERTS)) \
+    || defined(HAVE_SESSION_TICKET)
 static int cipherExtraData(WOLFSSL* ssl)
 {
     /* Cipher data that may be added by BuildMessage */
@@ -16795,6 +16794,8 @@ static int cipherExtraData(WOLFSSL* ssl)
             ssl->specs.pad_size;
 }
 #endif
+
+#ifndef WOLFSSL_NO_TLS12
 
 #ifndef NO_CERTS
 #if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
