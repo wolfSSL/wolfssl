@@ -2287,7 +2287,6 @@ const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
     return (const unsigned char*)pkey->pkey.ptr;
 }
 
-
 /* Initialize an EVP_DigestSign/Verify operation.
  * Initialize a digest for RSA and ECC keys, or HMAC for HMAC key.
  */
@@ -2297,6 +2296,19 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
                                       WOLFSSL_ENGINE *e,
                                       WOLFSSL_EVP_PKEY *pkey)
 {
+    if (!type) {
+        int default_digest;
+        if (wolfSSL_EVP_PKEY_get_default_digest_nid(pkey, &default_digest)
+                != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Could not get default digest");
+            return WOLFSSL_FAILURE;
+        }
+        type = wolfSSL_EVP_get_digestbynid(default_digest);
+        if (!type) {
+            return BAD_FUNC_ARG;
+        }
+    }
+
     if (pkey->type == EVP_PKEY_HMAC) {
         int                  hashType;
         const unsigned char* key;
@@ -2511,7 +2523,7 @@ int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
 {
     WOLFSSL_ENTER("EVP_DigestSignInit");
 
-    if (ctx == NULL || type == NULL || pkey == NULL)
+    if (ctx == NULL || pkey == NULL)
         return BAD_FUNC_ARG;
 
     return wolfSSL_evp_digest_pk_init(ctx, pctx, type, e, pkey);
@@ -5393,7 +5405,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         WOLFSSL_ENTER("EVP_DigestInit");
 
-        if (ctx == NULL || md == NULL) {
+        if (ctx == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -5407,7 +5419,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         /* Set to 0 if no match */
         ctx->macType = wolfSSL_EVP_md2macType(md);
-        if (XSTRNCMP(md, "SHA256", 6) == 0) {
+        if (md == NULL) {
+             XMEMSET(&ctx->hash.digest, 0, sizeof(WOLFSSL_Hasher));
+        }
+        else if (XSTRNCMP(md, "SHA256", 6) == 0) {
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
@@ -5673,6 +5688,10 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 #ifndef NO_SHA
         case NID_sha1:
             return wolfSSL_EVP_sha1();
+#endif
+#ifndef NO_SHA256
+        case NID_sha256:
+            return wolfSSL_EVP_sha256();
 #endif
         default:
             WOLFSSL_MSG("Bad digest id value");
@@ -6582,15 +6601,29 @@ int wolfSSL_EVP_PKEY_base_id(const WOLFSSL_EVP_PKEY *pkey)
 
 int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid)
 {
-    (void)pkey;
-#ifndef NO_SHA256
-    if (pnid) {
-        *pnid = NID_sha256;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get_default_digest_nid");
+
+    if (!pkey || !pnid) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
     }
-    return WOLFSSL_SUCCESS;
-#else
-    return -2;
+
+    switch (pkey->type) {
+    case EVP_PKEY_HMAC:
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
 #endif
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
+#endif
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+#endif
+        *pnid = NID_sha256;
+        return WOLFSSL_SUCCESS;
+    default:
+        return WOLFSSL_FAILURE;
+    }
 }
 
 /* increments ref count of WOLFSSL_EVP_PKEY. Return 1 on success, 0 on error */
