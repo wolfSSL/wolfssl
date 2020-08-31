@@ -2089,6 +2089,7 @@ extern void uITRON4_free(void *p) ;
     #define NO_DEV_RANDOM
     #define NO_WRITEV
     #define NO_FILESYSTEM
+    #define NO_STDIO_FILESYSTEM
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
@@ -2099,9 +2100,9 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_THREAD_LS
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
-    #define WOLFSSL_DH_CONST 1 /* Linux kernel doesn't have floating point math facilities. */
-    #define WOLFSSL_NO_SOCK 1
-    #define WOLFSSL_USER_IO 1
+    #define WOLFSSL_DH_CONST
+    #define WOLFSSL_NO_SOCK
+    #define WOLFSSL_USER_IO
     #define USE_WOLF_STRTOK
     #define WOLFSSL_SP_DIV_64
     #define WOLFSSL_OLD_PRIME_CHECK
