@@ -925,7 +925,6 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
 
 #define EVP_PKEY_NONE                   NID_undef
-#define EVP_PKEY_RSA                    6
 #define EVP_PKEY_RSA2                   19
 #define EVP_PKEY_DH                     28
 #define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
