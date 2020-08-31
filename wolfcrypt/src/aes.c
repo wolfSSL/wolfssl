@@ -3393,11 +3393,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             for (i = 0; i < AES_BLOCK_SIZE; i++)
                 temp_block[i] ^= iv[i];
 
-            i = wolfSSL_CryptHwMutexLock();
-            if (i != 0)
-                return i;
             wc_AesEncrypt(aes, temp_block, out + offset);
-            wolfSSL_CryptHwMutexUnLock();
 
             offset += AES_BLOCK_SIZE;
 
@@ -3421,11 +3417,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         while (blocks--) {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
-            i = wolfSSL_CryptHwMutexLock();
-            if (i != 0)
-                return i;
             wc_AesDecrypt(aes, in + offset, out + offset);
-            wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
             for (i = 0; i < AES_BLOCK_SIZE; i++)
