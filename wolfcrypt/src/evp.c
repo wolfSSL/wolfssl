@@ -1385,8 +1385,9 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             if (*keylen < (size_t)len) {
                 return WOLFSSL_FAILURE;
             }
+            /* computed DH agreement can be less than DH size if leading zeros */
             if (wolfSSL_DH_compute_key(key, ctx->peerKey->dh->pub_key,
-                                       ctx->pkey->dh) != len) {
+                                       ctx->pkey->dh) <= 0) {
                 return WOLFSSL_FAILURE;
             }
         }

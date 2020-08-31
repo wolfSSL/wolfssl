@@ -29795,7 +29795,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
         privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv);
         pubSz  = wolfSSL_BN_bn2bin(otherPub, pub);
         if (dh->inSet == 0 && SetDhInternal(dh) != SSL_SUCCESS){
-                WOLFSSL_MSG("Bad DH set internal");
+            WOLFSSL_MSG("Bad DH set internal");
         }
         if (privSz <= 0 || pubSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
@@ -29810,6 +29810,8 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
     XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 #endif
+
+    WOLFSSL_LEAVE("wolfSSL_DH_compute_key", ret);
 
     return ret;
 }
