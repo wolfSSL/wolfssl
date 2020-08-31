@@ -88,7 +88,13 @@
     #endif
     #include <linux/net.h>
     #include <linux/slab.h>
-    #include <asm/simd.h>
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+            #include <asm/i387.h>
+        #else
+            #include <asm/simd.h>
+        #endif
+    #endif
     _Pragma("GCC diagnostic pop");
 
     /* remove this multifariously conflicting macro, picked up from

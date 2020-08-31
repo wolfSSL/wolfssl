@@ -10,6 +10,8 @@ ifeq "$(WOLFSSL_CFLAGS)" ""
 $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
+WOLFSSL_CFLAGS += -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
+
 obj-m := libwolfssl.o
 
 WOLFSSL_OBJ_TARGETS=$(patsubst %, $(obj)/%, $(WOLFSSL_OBJ_FILES))
@@ -30,17 +32,42 @@ MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
 libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
-ccflags-y = $(WOLFSSL_CFLAGS) -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
+ifeq "$(KERNEL_ARCH)" "x86"
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::= -mno-sse
+    ifeq "$(ENABLED_ASM)" "yes"
+        # x86 kernel disables fp and vector insns and register usage with
+        # "-mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-80387 -mno-fp-ret-in-387".
+        # reenable minimum subset of vector ops needed for compilation,
+	# while explicitly disabling auto-vectorization, and leave fp disabled.
+        # note that including -mavx here is known to introduce unaccommodated
+        # simd register ops, e.g. in integer.c:mp_exch() .
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= -msse -mmmx -fno-builtin -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+    else
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
+    endif
+else ifeq "$(KERNEL_ARCH)" "arm64"
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::=
+    WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
+#        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $AM_CFLAGS -mno-general-regs-only -mno-fpu -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+else ifeq "$(KERNEL_ARCH)" "arm"
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::=
+    WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
+#        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $AM_CFLAGS -mno-general-regs-only -mno-fpu -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+endif
 
-%/libwolfssl.mod.o: ccflags-y :=
-%/test.o: ccflags-y += -DNO_MAIN_DRIVER
+ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
+
+$(obj)/libwolfssl.mod.o: ccflags-y :=
+$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
+
+$(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
 asflags-y := $(WOLFSSL_ASFLAGS)
 
 # these two _asms are kernel-compatible (they don't reference the pic-related _GLOBAL_OFFSET_TABLE_)
 # but they still irritate objtool: "unannotated intra-function call" and "BP used as a scratch register"
-%/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
-%/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
