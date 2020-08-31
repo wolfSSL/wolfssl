@@ -43,7 +43,9 @@ libwolfssl.ko:
 
 .PHONY: install
 install:
-	@echo Module is libwolfssl.ko in $(MODULE_TOP)
+	@echo Automatic Linux kernel module installation not yet supported.
+	@echo Module is $(MODULE_TOP)/libwolfssl.ko
+	@exit 1
 
 .PHONY: clean
 clean:
