@@ -69,6 +69,7 @@
 #define V_ASN1_OBJECT                   6
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
+#define V_ASN1_PRINTABLESTRING          19
 
 #define ASN1_STRING_FLAG_BITS_LEFT       0x008
 #define ASN1_STRING_FLAG_NDEF            0x010
