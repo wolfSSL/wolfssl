@@ -74,6 +74,6 @@ $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
 	@cp $< $@
 	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) | awk '/^ *[0-9]+: /{if ($$8 !~ /^(wc_|wolf)/){next;} if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) { print "EXPORT_SYMBOL(" $$8 ");"; }}' >> $@
-	@echo 'EXPORT_SYMBOL(wolfcrypt_test);' >> $@
+	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL(wolfcrypt_test);\n#endif' >> $@
 
 clean-files := module_exports.c
