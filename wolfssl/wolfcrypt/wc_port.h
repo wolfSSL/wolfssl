@@ -535,7 +535,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define NEED_TMP_TIME
 
 #elif defined(WOLFSSL_XILINX)
-    #define USER_TIME
+    #ifndef XTIME
+        #define XTIME(t1)       xilinx_time((t1))
+    #endif
     #include <time.h>
 
 #elif defined(HAVE_RTP_SYS)
@@ -750,7 +752,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #ifndef FILE_BUFFER_SIZE
-    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input,
+    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input, \
                                     will use dynamic buffer if not big enough */
 #endif
 
