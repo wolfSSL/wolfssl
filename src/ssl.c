@@ -37140,167 +37140,38 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 
 #if defined(WOLFSSL_CERT_GEN)
+    /* Helper function to copy cert name from a WOLFSSL_X509_NAME structure to
+    * a Cert structure.
+    *
+    * returns length of DER on success and a negative error value on failure
+    */
+    static int CopyX509NameToCert(WOLFSSL_X509_NAME* n, byte* out)
+    {
+        unsigned char* der = NULL;
+        int length = BAD_FUNC_ARG, ret = BAD_FUNC_ARG;
+        word32 idx = 0;
 
-/* helper function for CopyX509NameToCertName()
- *
- * returns WOLFSSL_SUCCESS on success
- */
-static int CopyX509NameEntry(char* out, int mx, WOLFSSL_X509_NAME* name,
-        int nid, byte* transfered)
-{
-    int inLen = 0;
-    unsigned char* in = NULL;
-    int i;
-
-    if (nid == ASN_COUNTRY_NAME)
-        nid = NID_countryName;
-    if (nid == ASN_EMAIL_NAME)
-        nid = NID_emailAddress;
-
-    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-        if (name->entry[i].set && name->entry[i].nid == nid) {
-            in = wolfSSL_ASN1_STRING_data(name->entry[i].value);
-            inLen = wolfSSL_ASN1_STRING_length(name->entry[i].value);
-            transfered[i] = 1;
-            break;
-        }
-    }
-
-    if (in == NULL) {
-        /* entry type not found */
-        return WOLFSSL_FAILURE;
-    }
-
-    if (inLen > mx) {
-        WOLFSSL_MSG("Name too long");
-        XMEMCPY(out, in, mx);
-    }
-    else {
-        XMEMCPY(out, in, inLen);
-        out[inLen] = '\0';
-    }
-
-    /* make sure is null terminated */
-    out[mx-1] = '\0';
-
-    return WOLFSSL_SUCCESS;
-}
-
-
-#ifdef WOLFSSL_MULTI_ATTRIB
-/* Converts from NID_* value to wolfSSL value if needed */
-static int ConvertNIDToWolfSSL(int nid)
-{
-    switch (nid) {
-        case NID_commonName : return ASN_COMMON_NAME;
-        case NID_surname :    return ASN_SUR_NAME;
-        case NID_countryName: return ASN_COUNTRY_NAME;
-        case NID_localityName: return ASN_LOCALITY_NAME;
-        case NID_stateOrProvinceName: return ASN_STATE_NAME;
-        case NID_organizationName: return ASN_ORG_NAME;
-        case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
-        case NID_emailAddress: return ASN_EMAIL_NAME;
-        case NID_serialNumber: return ASN_SERIAL_NUMBER;
-        case NID_businessCategory: return ASN_BUS_CAT;
-        case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
-        default:
-            WOLFSSL_MSG("Attribute NID not found");
-            return -1;
-    }
-}
-#endif /* WOLFSSL_MULTI_ATTRIB */
-
-
-/* Helper function to copy cert name from a WOLFSSL_X509_NAME structure to
- * a CertName structure.
- *
- * returns WOLFSSL_SUCCESS on success and a negative error value on failure
- */
-static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
-{
-    int idx = 0;
-#ifdef WOLFSSL_MULTI_ATTRIB
-    int i, j = 0;
-#endif
-    int count = 0;
-    const char* current;
-    byte transferred[MAX_NAME_ENTRIES] = {0};
-
-    if (n == NULL || cName == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* initialize cert name */
-    cName->country[0] = '\0';
-    cName->countryEnc = CTC_PRINTABLE;
-    cName->state[0] = '\0';
-    cName->stateEnc = CTC_UTF8;
-    cName->locality[0] = '\0';
-    cName->localityEnc = CTC_UTF8;
-    cName->sur[0] = '\0';
-    cName->surEnc = CTC_UTF8;
-    cName->org[0] = '\0';
-    cName->orgEnc = CTC_UTF8;
-    cName->unit[0] = '\0';
-    cName->unitEnc = CTC_UTF8;
-    cName->commonName[0] = '\0';
-    cName->commonNameEnc = CTC_UTF8;
-    cName->serialDev[0] = '\0';
-    cName->serialDevEnc = CTC_PRINTABLE;
-#ifdef WOLFSSL_CERT_EXT
-    cName->busCat[0] = '\0';
-    cName->busCatEnc = CTC_UTF8;
-    cName->joiC[0] = '\0';
-    cName->joiCEnc = CTC_PRINTABLE;
-    cName->joiSt[0] = '\0';
-    cName->joiStEnc = CTC_PRINTABLE;
-#endif
-    cName->email[0] = '\0';
-
-    current = GetOneCertName(cName, idx);
-    while (current != NULL) {
-        if (CopyX509NameEntry((char*)current, CTC_NAME_SIZE, n,
-                    GetCertNameId(idx), transferred) == SSL_SUCCESS) {
-            count++;
+        ret = wolfSSL_i2d_X509_NAME(n, &der);
+        if (ret > (int)sizeof(CertName) || ret < 0) {
+            WOLFSSL_MSG("Name conversion error");
+            ret = MEMORY_E;
         }
 
-        idx++;
-        current = GetOneCertName(cName, idx);
-    }
-
-#ifdef WOLFSSL_MULTI_ATTRIB
-    /* copy over multiple entries */
-    idx = wolfSSL_X509_NAME_entry_count(n);
-    for (i = 0; i < MAX_NAME_ENTRIES && count < idx; i++) {
-        /* entry is set but was not yet transferred over */
-        if (n->entry[i].set && transferred[i] == 0) {
-            unsigned char* data;
-            int length;
-
-            WOLFSSL_X509_NAME_ENTRY* e = &n->entry[i];
-
-            data   = wolfSSL_ASN1_STRING_data(e->value);
-            length = wolfSSL_ASN1_STRING_length(e->value);
-
-            if (j >= CTC_MAX_ATTRIB) {
-                WOLFSSL_MSG("No more space left in CertName");
-                return MEMORY_E;
-            }
-
-            cName->name[j].sz   = length;
-            cName->name[j].type = CTC_UTF8;
-            cName->name[j].id   = ConvertNIDToWolfSSL(e->nid);
-            XMEMCPY(cName->name[j].value, data, length);
-
-            j++;
-            count++;
+        if (ret > 0) {
+            /* strip off sequence, this gets added on certificate creation */
+            ret = GetSequence(der, &idx, &length, ret);
         }
 
-    }
-#endif /* WOLFSSL_MULTI_ATTRIB */
+        if (ret > 0) {
+            XMEMCPY(out, der + idx, length);
+        }
 
-    return WOLFSSL_SUCCESS;
-}
+        if (der != NULL)
+            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+
+        return length;
+    }
+
 
 #ifdef WOLFSSL_CERT_REQ
     static int ReqCertFromX509(Cert* cert, WOLFSSL_X509* req)
@@ -37310,7 +37181,16 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         if (wc_InitCert(cert) != 0)
             return WOLFSSL_FAILURE;
 
-        ret = CopyX509NameToCertName(&req->subject, &cert->subject);
+
+        ret = CopyX509NameToCert(&(req->subject), cert->sbjRaw);
+        if (ret < 0) {
+            WOLFSSL_MSG("REQ subject conversion error");
+            ret = MEMORY_E;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
+        }
+
         if (ret == WOLFSSL_SUCCESS) {
             cert->version = req->version;
             cert->isCA = req->isCa;
@@ -37347,6 +37227,7 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         return t->length - 1 + sz;
     }
 #endif
+
 
     /* convert a WOLFSSL_X509 to a Cert structure for writing out */
     static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
@@ -37457,18 +37338,24 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         /* copy over Name structures */
         if (x509->issuerSet)
             cert->selfSigned = 0;
-        if ((ret = CopyX509NameToCertName(&(x509->issuer), &(cert->issuer)))
-            != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error copying over issuer names");
-            WOLFSSL_LEAVE("wolfSSL_X509_to_Cert()", ret);
-            return WOLFSSL_FAILURE;
+
+        ret = CopyX509NameToCert(&(x509->subject), cert->sbjRaw);
+        if (ret < 0) {
+            WOLFSSL_MSG("Subject conversion error");
+            return MEMORY_E;
         }
-        if ((ret = CopyX509NameToCertName(&(x509->subject), &(cert->subject)))
-            != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error copying over subject names");
-            WOLFSSL_LEAVE("wolfSSL_X509_to_Cert()", ret);
-            return WOLFSSL_FAILURE;
+
+        if (cert->selfSigned) {
+            XMEMCPY(cert->issRaw, cert->sbjRaw, sizeof(CertName));
         }
+        else {
+            ret = CopyX509NameToCert(&(x509->issuer), cert->issRaw);
+            if (ret < 0) {
+                WOLFSSL_MSG("Issuer conversion error");
+                return MEMORY_E;
+            }
+        }
+
 
         cert->heap = x509->heap;
 
@@ -37778,53 +37665,6 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
         }
 
         return ret;
-    }
-
-
-    /* Converts the x509 name structure into DER format.
-     *
-     * out  pointer to either a pre setup buffer or a pointer to null for
-     *      creating a dynamic buffer. In the case that a pre-existing buffer is
-     *      used out will be incremented the size of the DER buffer on success.
-     *
-     * returns the size of the buffer on success, or negative value with failure
-     */
-    int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
-    {
-        CertName cName;
-        unsigned char buf[256]; /* ASN_MAX_NAME */
-        int sz;
-        WOLFSSL_ENTER("wolfSSL_i2d_X509_NAME");
-
-        if (out == NULL || name == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        XMEMSET(&cName, 0, sizeof(CertName));
-
-        if (CopyX509NameToCertName(name, &cName) != SSL_SUCCESS) {
-            WOLFSSL_MSG("Error converting x509 name to internal CertName");
-            return SSL_FATAL_ERROR;
-        }
-
-        sz = SetName(buf, sizeof(buf), &cName);
-        if (sz < 0) {
-            return sz;
-        }
-
-        /* using buffer passed in */
-        if (*out != NULL) {
-            XMEMCPY(*out, buf, sz);
-            *out += sz;
-        }
-        else {
-            *out = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (*out == NULL) {
-                return MEMORY_E;
-            }
-            XMEMCPY(*out, buf, sz);
-        }
-
-        return sz;
     }
 #endif /* WOLFSSL_CERT_GEN */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
