@@ -5047,8 +5047,9 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     return ret;
 }
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-     defined(HAVE_ED448)
+#if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+     defined(HAVE_ED448)) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 typedef struct Scv13Args {
     byte*  output; /* not allocated */
     byte*  verify; /* not allocated */
@@ -5435,6 +5436,7 @@ exit_scv:
 }
 #endif
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* handle processing TLS v1.3 certificate (11) */
 /* Parse and handle a TLS v1.3 Certificate message.
  *
@@ -5475,6 +5477,7 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     return ret;
 }
+#endif
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
                                                              defined(HAVE_ED448)
@@ -7104,7 +7107,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* !NO_WOLFSSL_SERVER */
 
     /* Messages received by both client and server. */
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+                           !defined(WOLFSSL_NO_CLIENT_AUTH))
     case certificate:
         WOLFSSL_MSG("processing certificate");
         ret = DoTls13Certificate(ssl, input, inOutIdx, size);
@@ -7529,8 +7533,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_THIRD:
-        #if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
-             defined(HAVE_ED25519) || defined(HAVE_ED448))
+        #if (!defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
+             defined(HAVE_ED25519) || defined(HAVE_ED448))) && \
+             (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {

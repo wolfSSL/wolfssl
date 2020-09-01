@@ -249,6 +249,40 @@ static int IsValidCA(const char* line)
     return ret;
 }
 
+#ifdef WOLFSSL_NO_CLIENT_AUTH
+static int IsClientAuth(const char* line, int* reqClientCert)
+{
+    const char* begin;
+
+    begin = XSTRSTR(line, "-H verifyFail");
+    if (begin != NULL) {
+        return 1;
+    }
+
+    begin = XSTRSTR(line, "-d");
+    if (begin != NULL) {
+        *reqClientCert = 0;
+    }
+    else {
+        *reqClientCert = 1;
+    }
+
+    return 0;
+}
+
+static int IsNoClientCert(const char* line)
+{
+    const char* begin;
+
+    begin = XSTRSTR(line, "-x");
+    if (begin != NULL) {
+        return 1;
+    }
+
+    return 0;
+}
+#endif
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -278,6 +312,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     char        portNumber[8];
 #endif
     int         cliTestShouldFail = 0, svrTestShouldFail = 0;
+#ifdef WOLFSSL_NO_CLIENT_AUTH
+    int         reqClientCert;
+#endif
 
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */
@@ -327,6 +364,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
             printf("protocol version on line %s is too old\n", commandLine);
         #endif
         return VERSION_TOO_OLD;
+    }
+#endif
+#ifdef WOLFSSL_NO_CLIENT_AUTH
+    if (IsClientAuth(commandLine, &reqClientCert)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("client auth on line %s not supported in build\n",
+                   commandLine);
+        #endif
+        return NOT_BUILT_IN;
     }
 #endif
 
@@ -454,6 +500,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #endif
         return NOT_BUILT_IN;
     }
+#ifdef WOLFSSL_NO_CLIENT_AUTH
+    if (reqClientCert && IsNoClientCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("client auth on line %s not supported in build\n",
+                   commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
     printf("trying client command line[%d]: %s\n", tests, commandLine);
     tests++;
 

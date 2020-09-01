@@ -2024,8 +2024,7 @@ WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 
 
 #ifndef NO_CERTS
-#if !defined NOCERTS &&\
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 typedef struct ProcPeerCertArgs {
     buffer*      certs;
 #ifdef WOLFSSL_TLS13
