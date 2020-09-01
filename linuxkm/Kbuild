@@ -1,13 +1,31 @@
-# libwolfssl Kbuild
+# Linux kernel-native Makefile ("Kbuild") for libwolfssl.ko
+#
+# Copyright (C) 2006-2020 wolfSSL Inc.
+#
+# This file is part of wolfSSL.
+#
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 
 SHELL=/bin/bash
 
 ifeq "$(WOLFSSL_OBJ_FILES)" ""
-$(error $$WOLFSSL_OBJ_FILES is unset.)
+    $(error $$WOLFSSL_OBJ_FILES is unset.)
 endif
 
 ifeq "$(WOLFSSL_CFLAGS)" ""
-$(error $$WOLFSSL_CFLAGS is unset.)
+    $(error $$WOLFSSL_CFLAGS is unset.)
 endif
 
 WOLFSSL_CFLAGS += -Wframe-larger-than=$(MAX_STACK_FRAME_SIZE) -mpreferred-stack-boundary=4
@@ -33,26 +51,30 @@ MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
 
 ifeq "$(KERNEL_ARCH)" "x86"
-    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::= -mno-sse
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::= -mno-sse -mno-80387 -mno-fp-ret-in-387
     ifeq "$(ENABLED_ASM)" "yes"
-        # x86 kernel disables fp and vector insns and register usage with
-        # "-mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-80387 -mno-fp-ret-in-387".
-        # reenable minimum subset of vector ops needed for compilation,
-	# while explicitly disabling auto-vectorization, and leave fp disabled.
-        # note that including -mavx here is known to introduce unaccommodated
-        # simd register ops, e.g. in integer.c:mp_exch() .
-        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= -msse -mmmx -fno-builtin -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+        # reenable minimum subset of vector ops needed for compilation of explicitly vectorized
+        # code, while explicitly disabling auto-vectorization, and leave fp disabled.
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= -msse -mmmx -msse2 -mavx -mavx2 -mno-80387 -mno-fp-ret-in-387 -fno-builtin -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
     else
-        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
     endif
 else ifeq "$(KERNEL_ARCH)" "arm64"
-    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::=
-    WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
-#        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $AM_CFLAGS -mno-general-regs-only -mno-fpu -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::= -mgeneral-regs-only -mno-fpu
+    ifeq "$(ENABLED_ASM)" "yes"
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= -mno-general-regs-only -mno-fpu -fno-builtin -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+    else
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
+    endif
 else ifeq "$(KERNEL_ARCH)" "arm"
-    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::=
-    WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::=
-#        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $AM_CFLAGS -mno-general-regs-only -mno-fpu -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+    WOLFSSL_CFLAGS_NO_VECTOR_INSNS ::= -mgeneral-regs-only -mno-fpu
+    ifeq "$(ENABLED_ASM)" "yes"
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= -mno-general-regs-only -mno-fpu -fno-builtin -fno-tree-vectorize -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+    else
+        WOLFSSL_CFLAGS_YES_VECTOR_INSNS ::= $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
+    endif
+else
+    $(error Don't know how to target arch $(KERNEL_ARCH).)
 endif
 
 ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
