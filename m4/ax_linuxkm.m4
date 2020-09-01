@@ -47,3 +47,54 @@ else
   AC_MSG_RESULT([no default configured kernel arch found])
 fi
 ])
+
+
+AC_DEFUN([AX_SIMD_CC_COMPILER_FLAGS], [
+    AX_REQUIRE_DEFINED([AX_APPEND_COMPILE_FLAGS])
+    AC_REQUIRE([AX_VCS_CHECKOUT])
+    AC_REQUIRE([AX_DEBUG])
+
+    AC_LANG_PUSH([C])
+
+    if test -z "$CFLAGS_FPU_DISABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-mno-80387],[CFLAGS_FPU_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-mno-fp-ret-in-387],[CFLAGS_FPU_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-mno-fpu],[CFLAGS_FPU_DISABLE])
+    fi
+
+    if test -z "$CFLAGS_FPU_ENABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-m80387],[CFLAGS_FPU_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-mfpu],[CFLAGS_FPU_ENABLE])
+    fi
+
+    if test -z "$CFLAGS_SIMD_DISABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-mno-sse],[CFLAGS_SIMD_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-mgeneral-regs-only],[CFLAGS_SIMD_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-mno-sse],[CFLAGS_SIMD_DISABLE])
+    fi
+
+    if test -z "$CFLAGS_SIMD_ENABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-msse],[CFLAGS_SIMD_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-mmmx],[CFLAGS_SIMD_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-msse2],[CFLAGS_SIMD_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-mavx],[CFLAGS_SIMD_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-mavx2],[CFLAGS_SIMD_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-mno-general-regs-only],[CFLAGS_SIMD_ENABLE])
+    fi
+
+    if test -z "$CFLAGS_AUTO_VECTORIZE_DISABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-fno-builtin],[CFLAGS_AUTO_VECTORIZE_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-fno-tree-vectorize],[CFLAGS_AUTO_VECTORIZE_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-fno-tree-loop-vectorize],[CFLAGS_AUTO_VECTORIZE_DISABLE])
+        AX_APPEND_COMPILE_FLAGS([-fno-tree-slp-vectorize],[CFLAGS_AUTO_VECTORIZE_DISABLE])
+    fi
+
+    if test -z "$CFLAGS_AUTO_VECTORIZE_ENABLE"; then
+        AX_APPEND_COMPILE_FLAGS([-fbuiltin],[CFLAGS_AUTO_VECTORIZE_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-ftree-vectorize],[CFLAGS_AUTO_VECTORIZE_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-ftree-loop-vectorize],[CFLAGS_AUTO_VECTORIZE_ENABLE])
+        AX_APPEND_COMPILE_FLAGS([-ftree-slp-vectorize],[CFLAGS_AUTO_VECTORIZE_ENABLE])
+    fi
+
+    AC_LANG_POP
+])
