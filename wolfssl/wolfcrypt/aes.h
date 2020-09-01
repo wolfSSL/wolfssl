@@ -62,14 +62,6 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
-#ifdef WOLFSSL_AESNI
-
-#include <wmmintrin.h>
-#include <emmintrin.h>
-#include <smmintrin.h>
-
-#endif /* WOLFSSL_AESNI */
-
 
 #ifdef WOLFSSL_XILINX_CRYPT
 #include "xsecure_aes.h"
