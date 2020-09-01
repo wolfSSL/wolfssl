@@ -5332,6 +5332,14 @@ case $host_os in
 esac
 
 if test "x$ENABLED_LINUXKM" = "xyes"; then
+    AX_SIMD_CC_COMPILER_FLAGS
+    AC_SUBST([CFLAGS_FPU_DISABLE])
+    AC_SUBST([CFLAGS_FPU_ENABLE])
+    AC_SUBST([CFLAGS_SIMD_DISABLE])
+    AC_SUBST([CFLAGS_SIMD_ENABLE])
+    AC_SUBST([CFLAGS_AUTO_VECTORIZE_DISABLE])
+    AC_SUBST([CFLAGS_AUTO_VECTORIZE_ENABLE])
+
     if test "$ENABLED_DISTRO" = "yes"; then
         AC_MSG_ERROR([--enable-distro is incompatible with --enable-linuxkm.])
     fi
@@ -5633,6 +5641,15 @@ echo "   * C++ Flags:                  $CXXFLAGS"
 echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
+echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH" && \
+echo "   * fpu disable C flags:        $CFLAGS_FPU_DISABLE" && \
+echo "   * fpu enable C flags:         $CFLAGS_FPU_ENABLE" && \
+echo "   * SIMD disable C flags:       $CFLAGS_SIMD_DISABLE" && \
+echo "   * SIMD enable C flags:        $CFLAGS_SIMD_ENABLE" && \
+echo "   * No-auto-vectorize C flags:  $CFLAGS_AUTO_VECTORIZE_DISABLE" && \
+echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE"
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
@@ -5764,9 +5781,6 @@ echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
-test "$ENABLED_LINUXKM" = "yes" && \
-echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
-echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
