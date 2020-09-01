@@ -2150,7 +2150,7 @@ time_t XTIME(time_t * timer)
 #if defined(WOLFSSL_XILINX)
 #include "xrtcpsu.h"
 
-time_t XTIME(time_t * timer)
+time_t xilinx_time(time_t * timer)
 {
     time_t sec = 0;
     XRtcPsu_Config* con;
