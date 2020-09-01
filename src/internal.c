@@ -3556,8 +3556,7 @@ static word32 MacSize(WOLFSSL* ssl)
 
 #ifndef NO_RSA
 #ifndef WOLFSSL_NO_TLS12
-#if !defined(NO_WOLFSSL_SERVER) || (!defined(NO_WOLFSSL_CLIENT) && \
-                                               !defined(WOLFSSL_NO_CLIENT_AUTH))
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 static int TypeHash(int hashAlgo)
 {
     switch (hashAlgo) {

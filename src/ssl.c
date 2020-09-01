@@ -5777,7 +5777,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     if (done == 1) {
-    #ifndef NO_WOLFSSL_CM_VERIFY
+    #if !defined(NO_WOLFSSL_CM_VERIFY) && (!defined(NO_WOLFSSL_CLIENT) || \
+                                           !defined(WOLFSSL_NO_CLIENT_AUTH))
         if ((type == CA_TYPE) || (type == CERT_TYPE)) {
             /* Call to over-ride status */
             if ((ctx != NULL) && (ctx->cm != NULL) &&
@@ -6066,6 +6067,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
 }
 #endif /* NO_WOLFSSL_CM_VERIFY */
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* Verify the certificate, WOLFSSL_SUCCESS for ok, < 0 for error */
 int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format, int err_val)
@@ -6172,6 +6174,8 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 {
     return CM_VerifyBuffer_ex(cm, buff, sz, format, 0);
 }
+#endif /* !NO_WOLFSSL_CLIENT || !WOLFSSL_NO_CLIENT_AUTH */
+
 /* turn on OCSP if off and compiled in, set options */
 int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
 {
@@ -6746,6 +6750,7 @@ int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int type)
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* Verify the certificate, WOLFSSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
                              int format)
@@ -6798,7 +6803,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
 
     return ret;
 }
-
+#endif
 
 /* like load verify locations, 1 for success, < 0 for error */
 int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,

@@ -1168,7 +1168,8 @@ static int test_wolfSSL_CertManagerSetVerify(void)
 {
     int ret = 0;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     WOLFSSL_CERT_MANAGER* cm;
     int tmp = myVerifyAction;
     const char* ca_cert = "./certs/ca-cert.pem";
@@ -25948,7 +25949,8 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
 static void test_wolfSSL_X509_LOOKUP_load_file(void)
 {
     #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+       (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     WOLFSSL_X509_STORE*  store;
     WOLFSSL_X509_LOOKUP* lookup;
 
@@ -33811,7 +33813,8 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 /*----------------------------------------------------------------------------*
  | Certificate Failure Checks
  *----------------------------------------------------------------------------*/
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+                           !defined(WOLFSSL_NO_CLIENT_AUTH))
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
         int type)
@@ -36051,7 +36054,8 @@ static void test_wolfSSL_dtls_set_mtu(void)
 }
 
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS)
+    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+    !defined(WOLFSSL_NO_CLIENT_AUTH))
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -36629,7 +36633,9 @@ void ApiTest(void)
     test_tls13_apis();
 #endif
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+                           !defined(WOLFSSL_NO_CLIENT_AUTH))
+    /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */
     /* Bad certificate signature tests */
     AssertIntEQ(test_EccSigFailure_cm(), ASN_SIG_CONFIRM_E);
     AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
@@ -36932,7 +36938,8 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS)
+    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+                           !defined(WOLFSSL_NO_CLIENT_AUTH))
     AssertIntEQ(test_various_pathlen_chains(), WOLFSSL_SUCCESS);
 #endif
 
