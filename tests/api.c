@@ -27763,6 +27763,7 @@ static void test_wolfSSL_X509_sign(void)
     EVP_PKEY_free(priv);
     EVP_PKEY_free(pub);
     X509_free(x509);
+    X509_free(ca);
 
     printf(resultFmt, passed);
 #endif
