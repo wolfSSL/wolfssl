@@ -17919,6 +17919,16 @@ startScr:
                 goto startScr;
             }
         #endif
+    #ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.handShakeDone &&
+                                         ssl->curRL.type == handshake && peek) {
+            WOLFSSL_MSG("Got Handshake Messge in APP data");
+            if (ssl->buffers.inputBuffer.length == 0) {
+                ssl->error = WOLFSSL_ERROR_WANT_READ;
+                return 0;
+            }
+        }
+    #endif
     }
 
     size = min(sz, (int)ssl->buffers.clearOutputBuffer.length);
