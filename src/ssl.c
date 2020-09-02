@@ -23163,6 +23163,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     }
 #endif
 
+#endif /* OPENSSL_EXTRA */
+
 #endif /* !NO_CERTS */
 
 #ifdef OPENSSL_EXTRA
@@ -39739,7 +39741,7 @@ cleanup:
      *          WOLFSSL_X509 with the newly signed buffer.
      * returns size of signed buffer on success and negative values on fail
      */
-    static int wolfSSL_X509_resign_cert(WOLFSSL_X509* x509,
+    static int wolfSSL_X509_resign_cert(WOLFSSL_X509* x509, int req,
             unsigned char* der, int derSz, int certBodySz, WOLFSSL_EVP_MD* md,
             WOLFSSL_EVP_PKEY* pkey)
     {
@@ -39818,6 +39820,20 @@ cleanup:
             XMEMCPY(x509->sig.buffer, der + idx, len);
             x509->sig.length = len;
         }
+
+        /* Put in the new certificate encoding into the x509 object. */
+        FreeDer(&x509->derCert);
+        type = CERT_TYPE;
+    #ifdef WOLFSSL_CERT_REQ
+        if (req) {
+            type = CERTREQ_TYPE;
+        }
+    #endif
+        if (AllocDer(&x509->derCert, derSz, type, NULL) != 0)
+            return WOLFSSL_FATAL_ERROR;
+        XMEMCPY(x509->derCert->buffer, der, derSz);
+        x509->derCert->length = derSz;
+
         return ret;
     }
 
@@ -41102,30 +41118,7 @@ err:
             WOLFSSL_MSG("loc entry not found");
             return NULL;
         }
-
-        if (loc <= DN_NAMES_MAX + name->fullName.dcNum) {
-            XMEMMOVE(&name->fullName.loc[loc], &name->fullName.loc[loc+1],
-                    DN_NAMES_MAX + name->fullName.dcNum - loc - 1);
-            if (name->fullName.dcNum > 0)
-                name->fullName.dcNum--;
-        }
-        else if (name->fullName.dcMode) {
-            if (name->fullName.fullName != NULL) {
-                if (loc == name->fullName.dcNum) {
-                    name->fullName.dcNum = 0;
-                }
-                else {
-                    name->fullName.dcIdx[loc] = -1;
-                }
-            }
-        }
-        else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
-            name->fullName.cnIdx = -1;
-        }
-        else {
-            WOLFSSL_MSG("Couldn't find name entry");
-        }
-
+        name->entry[loc].set = 0;
         return ret;
     }
     #endif /* !NO_CERTS */
@@ -42013,37 +42006,7 @@ err:
         if (name->entry[loc].set) {
             return &name->entry[loc];
         }
-        /* DC component */
-        if (name->fullName.dcMode) {
-            if (name->fullName.fullName != NULL){
-                if (loc == name->fullName.dcNum){
-                    name->cnEntry.data.data
-                        = &name->fullName.fullName[name->fullName.cIdx];
-                    name->cnEntry.data.length = name->fullName.cLen;
-                    name->cnEntry.nid         = ASN_COUNTRY_NAME;
-                }
-                else if (name->fullName.dcIdx[loc] >= 0) {
-                    name->cnEntry.data.data
-                        = &name->fullName.fullName[name->fullName.dcIdx[loc]];
-                    name->cnEntry.data.length = name->fullName.dcLen[loc];
-                    name->cnEntry.nid         = ASN_DOMAIN_COMPONENT;
-                }
-                else {
-                    WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
-                    return NULL;
-                }
-            }
-            name->cnEntry.data.type = CTC_UTF8;
-        /* common name index case */
-        } else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
-            /* get CN shortcut from x509 since it has null terminator */
-            name->cnEntry.data.data   = name->x509->subjectCN;
-            name->cnEntry.data.length = name->fullName.cnLen;
-            name->cnEntry.data.type   = CTC_UTF8;
-            name->cnEntry.nid         = ASN_COMMON_NAME;
-            name->cnEntry.set         = 1;
-        } else {
-            WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
+        else {
             return NULL;
         }
     }
@@ -46340,38 +46303,6 @@ WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 
 #endif /* NO_SESSION_CACHE */
 
-int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
-                    unsigned int flags, char **peername)
-{
-    int         ret;
-    DecodedCert dCert;
-
-    WOLFSSL_ENTER("wolfSSL_X509_check_host");
-
-    /* flags and peername not needed for Nginx. */
-    (void)flags;
-    (void)peername;
-
-    if (flags == WOLFSSL_NO_WILDCARDS) {
-        WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
-        return WOLFSSL_FAILURE;
-    }
-
-    InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
-    ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
-    if (ret != 0) {
-        FreeDecodedCert(&dCert);
-        return WOLFSSL_FAILURE;
-    }
-
-    ret = CheckHostName(&dCert, (char *)chk, chklen);
-    FreeDecodedCert(&dCert);
-    if (ret != 0)
-        return WOLFSSL_FAILURE;
-    return WOLFSSL_SUCCESS;
-}
-
-#ifndef NO_BIO
 int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         char *buf, int size)
 {
@@ -51361,7 +51292,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_X509_resign_cert(req, der, sizeof(der), derSz,
+    if (wolfSSL_X509_resign_cert(req, 1, der, sizeof(der), derSz,
             (WOLFSSL_EVP_MD*)md, pkey) <= 0) {
         return WOLFSSL_FAILURE;
     }

@@ -38827,12 +38827,12 @@ static void test_wolfSSL_ASN1_get_object(void)
     /* Read a couple TLV triplets and make sure they match the expected values */
 
     AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, len) & 0x80, 0);
-    AssertIntEQ(asnLen, 831);
+    AssertIntEQ(asnLen, 863);
     AssertIntEQ(tag, 0x10);
     AssertIntEQ(class, 0);
 
     AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &class, asnLen) & 0x80, 0);
-    AssertIntEQ(asnLen, 741);
+    AssertIntEQ(asnLen, 772);
     AssertIntEQ(tag, 0x10);
     AssertIntEQ(class, 0);
 
