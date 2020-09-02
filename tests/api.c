@@ -27726,7 +27726,7 @@ static void test_wolfSSL_X509_sign(void)
     byte sn[16];
     int snSz = sizeof(sn);
 
-    printf(testingFmt, "wolfSSL_X509_sign\n");
+    printf(testingFmt, "wolfSSL_X509_sign");
 
     /* Set X509_NAME fields */
     AssertNotNull(name = X509_NAME_new());
@@ -32751,6 +32751,7 @@ static void test_wolfSSL_OCSP_get0_info()
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
 #ifdef OPENSSL_ALL
+    printf(testingFmt, "wolfSSL_EVP_PKEY_derive()");
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EVP_PKEY_CTX *ctx;
     unsigned char *skey;
@@ -32800,6 +32801,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif /* HAVE_ECC */
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+    printf(resultFmt, "passed");
 #endif /* OPENSSL_ALL */
 }
 
