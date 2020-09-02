@@ -4366,7 +4366,7 @@ static int hc128_test(void)
     int times = sizeof(test_hc128) / sizeof(testVector), i;
 
     int ret = 0;
-#ifdef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     HC128 enc_buffer, *enc = &enc_buffer,
         dec_buffer, *dec = &dec_buffer;
 #else
@@ -6024,7 +6024,7 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
-	memset(&enc,0,sizeof enc);
+	XMEMSET(&enc,0,sizeof enc);
     #ifdef HAVE_AES_DECRYPT
 	memset(&dec,0,sizeof dec);
     #endif
@@ -14528,38 +14528,42 @@ static int dh_test(void)
     int    ret;
     word32 bytes;
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
-    byte   *tmp = NULL,
-      *priv = NULL,
-      *pub = NULL,
-      *priv2 = NULL,
-      *pub2 = NULL,
-      *agree = NULL,
-      *agree2 = NULL;
-    word32 agreeSz = (word32)sizeof(agree);
-    word32 agreeSz2 = (word32)sizeof(agree2);
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;
     int keyInit = 0;
 
 #define DH_TEST_TMP_SIZE 1024
-    tmp = (byte *)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     #define DH_TEST_BUF_SIZE 256
 #else
     #define DH_TEST_BUF_SIZE 512
 #endif
-    priv = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    pub = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    priv2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    pub2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    agree = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    agree2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    word32 agreeSz = DH_TEST_BUF_SIZE;
+    word32 agreeSz2 = DH_TEST_BUF_SIZE;
+
+#ifdef WOLFSSL_SMALL_STACK
+    byte *tmp = (byte *)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *priv = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *pub = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *priv2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *pub2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *agree = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte *agree2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     if ((tmp == NULL) || (priv == NULL) || (pub == NULL) ||
 	(priv2 == NULL) || (pub2 == NULL) || (agree == NULL) ||
 	(agree2 == NULL))
         ERROR_OUT(-7960, done);
+#else
+    byte tmp[DH_TEST_TMP_SIZE];
+    byte priv[DH_TEST_BUF_SIZE];
+    byte pub[DH_TEST_BUF_SIZE];
+    byte priv2[DH_TEST_BUF_SIZE];
+    byte pub2[DH_TEST_BUF_SIZE];
+    byte agree[DH_TEST_BUF_SIZE];
+    byte agree2[DH_TEST_BUF_SIZE];
+#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, (size_t)sizeof_dh_key_der_1024);
@@ -14777,6 +14781,7 @@ done:
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
 
+#ifdef WOLFSSL_SMALL_STACK
     if (tmp)
       XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (priv)
@@ -14791,6 +14796,7 @@ done:
       XFREE(agree, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (agree2)
       XFREE(agree2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 #undef DH_TEST_BUF_SIZE
