@@ -1918,11 +1918,32 @@ AC_ARG_ENABLE([stacksize],
     [ ENABLED_STACKSIZE=no ]
     )
 
+# verbose, per-test stack size info, currently only implemented in testwolfcrypt
+AC_ARG_ENABLE([stacksize-verbose],
+    [AS_HELP_STRING([--enable-stacksize-verbose],[Enable verbose stack size info on testwolfcrypt (default: disabled)])],
+    [ ENABLED_STACKSIZE_VERBOSE=$enableval ],
+    [ ENABLED_STACKSIZE_VERBOSE=no ]
+    )
+
+if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
+then
+    ENABLED_STACKSIZE=yes
+fi
+
 if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
+fi
+
+if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
+then
+    if test "$thread_ls_on" != "yes"
+    then
+        AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE_VERBOSE"
 fi
 
 
@@ -5376,6 +5397,12 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
     if test "$ENABLED_DEVCRYPTO" = "yes"; then
         AC_MSG_ERROR([--enable-devcrypto is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_STACKSIZE" = "yes"; then
+        AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_STACKLOG" = "yes"; then
+        AC_MSG_ERROR([--enable-stacklog is incompatible with --enable-linuxkm.])
     fi
 fi
 
