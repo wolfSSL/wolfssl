@@ -27536,6 +27536,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
+            #ifdef WOLFSSL_DTLS
+                wc_HmacFree(&cookieHmac);
+            #endif
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
@@ -27570,6 +27573,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 #ifdef WOLFSSL_DTLS
+        wc_HmacFree(&cookieHmac);
+
         if (ret == 0 && ssl->options.dtls)
             DtlsMsgPoolReset(ssl);
 #endif

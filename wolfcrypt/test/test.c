@@ -5336,7 +5336,7 @@ int chacha20_poly1305_aead_test(void)
     }
 
 
-    /* AEAD init/update/final */
+    /* AEAD init/update/final - bad argument tests */
     err = wc_ChaCha20Poly1305_Init(NULL, key1, iv1,
         CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != BAD_FUNC_ARG)
@@ -5374,7 +5374,12 @@ int chacha20_poly1305_aead_test(void)
     if (err != BAD_FUNC_ARG)
         return -4727;
 
-    /* AEAD init/update/final - state tests */
+    /* AEAD init/update/final - bad state tests */
+    /* clear struct - make valgrind happy to resolve 
+        "Conditional jump or move depends on uninitialised value(s)". 
+        The enum is "int" size and aead.state is "byte" */
+    /* The wc_ChaCha20Poly1305_Init function does this normally */
+    XMEMSET(&aead, 0, sizeof(aead));
     aead.state = CHACHA20_POLY1305_STATE_INIT;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
     if (err != BAD_STATE_E)
@@ -15692,6 +15697,7 @@ static int openssl_aes_test(void)
 
 int openssl_test(void)
 {
+    int ret;
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;
     byte       hash[WC_SHA256_DIGEST_SIZE*2];  /* max size */
@@ -15718,7 +15724,6 @@ int openssl_test(void)
     }
 
 #ifndef NO_MD5
-
     a.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     a.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
@@ -15727,18 +15732,20 @@ int openssl_test(void)
     a.outLen = WC_MD5_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_md5());
-
-    EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0)
-        return -8401;
-
+    ret = EVP_DigestInit(&md_ctx, EVP_md5());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0) {
+        return -8402;
+    }
 #endif /* NO_MD5 */
 
 #ifndef NO_SHA
-
     b.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaa";
@@ -15748,18 +15755,20 @@ int openssl_test(void)
     b.outLen = WC_SHA_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha1());
-
-    EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, b.output, WC_SHA_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha1());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, b.output, WC_SHA_DIGEST_SIZE) != 0) {
         return -8402;
-
+    }
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
-
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     e.output = "\xc9\x7c\xa9\xa5\x59\x85\x0c\xe9\x7a\x04\xa9\x6d\xef\x6d\x99"
@@ -15768,17 +15777,20 @@ int openssl_test(void)
     e.outLen = WC_SHA224_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha224());
-
-    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, e.output, WC_SHA224_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha224());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, e.output, WC_SHA224_DIGEST_SIZE) != 0) {
         return -8403;
-
+    }
 #endif /* WOLFSSL_SHA224 */
 
-
+#ifndef NO_SHA256
     d.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     d.output = "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
                "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
@@ -15787,16 +15799,20 @@ int openssl_test(void)
     d.outLen = WC_SHA256_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha256());
-
-    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, d.output, WC_SHA256_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha256());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, d.output, WC_SHA256_DIGEST_SIZE) != 0) {
         return -8404;
+    }
+#endif /* !NO_SHA256 */
 
 #ifdef WOLFSSL_SHA384
-
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     e.output = "\x09\x33\x0c\x33\xf7\x11\x47\xe8\x3d\x19\x2f\xc7\x82\xcd\x1b"
@@ -15807,19 +15823,20 @@ int openssl_test(void)
     e.outLen = WC_SHA384_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha384());
-
-    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, e.output, WC_SHA384_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha384());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, e.output, WC_SHA384_DIGEST_SIZE) != 0) {
         return -8405;
-
+    }
 #endif /* WOLFSSL_SHA384 */
 
-
 #ifdef WOLFSSL_SHA512
-
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
     f.output = "\x8e\x95\x9b\x75\xda\xe3\x13\xda\x8c\xf4\xf7\x28\x14\xfc\x14"
@@ -15831,35 +15848,41 @@ int openssl_test(void)
     f.outLen = WC_SHA512_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha512());
-
-    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, f.output, WC_SHA512_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha512());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, f.output, WC_SHA512_DIGEST_SIZE) != 0) {
         return -8406;
-
+    }
 #endif /* WOLFSSL_SHA512 */
+
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
-
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
-    e.output = "\x54\x3e\x68\x68\xe1\x66\x6c\x1a\x64\x36\x30\xdf\x77\x36\x7a\xe5\xa6\x2a\x85\x07\x0a\x51\xc1\x4c\xbf\x66\x5c\xbc";
+    e.output = "\x54\x3e\x68\x68\xe1\x66\x6c\x1a\x64\x36\x30\xdf\x77\x36\x7a"
+               "\xe5\xa6\x2a\x85\x07\x0a\x51\xc1\x4c\xbf\x66\x5c\xbc";
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA3_224_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha3_224());
-
-    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, e.output, WC_SHA3_224_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha3_224());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, e.output, WC_SHA3_224_DIGEST_SIZE) != 0) {
         return -8407;
-
+    }
 #endif /* WOLFSSL_NOSHA3_224 */
-
 
 #ifndef WOLFSSL_NOSHA3_256
     d.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
@@ -15871,69 +15894,85 @@ int openssl_test(void)
     d.outLen = WC_SHA3_256_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha3_256());
-
-    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, d.output, WC_SHA3_256_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha3_256());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, d.output, WC_SHA3_256_DIGEST_SIZE) != 0) {
         return -8408;
+    }
 #endif /* WOLFSSL_NOSHA3_256 */
-
 
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
-    e.output = "\x79\x40\x7d\x3b\x59\x16\xb5\x9c\x3e\x30\xb0\x98\x22\x97\x47\x91\xc3\x13\xfb\x9e\xcc\x84\x9e\x40\x6f\x23\x59\x2d\x04\xf6\x25\xdc\x8c\x70\x9b\x98\xb4\x3b\x38\x52\xb3\x37\x21\x61\x79\xaa\x7f\xc7";
+    e.output = "\x79\x40\x7d\x3b\x59\x16\xb5\x9c\x3e\x30\xb0\x98\x22\x97\x47"
+               "\x91\xc3\x13\xfb\x9e\xcc\x84\x9e\x40\x6f\x23\x59\x2d\x04\xf6"
+               "\x25\xdc\x8c\x70\x9b\x98\xb4\x3b\x38\x52\xb3\x37\x21\x61\x79"
+               "\xaa\x7f\xc7";
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA3_384_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha3_384());
-
-    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, e.output, WC_SHA3_384_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha3_384());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, e.output, WC_SHA3_384_DIGEST_SIZE) != 0) {
         return -8409;
-
-
+    }
 
 #ifndef WOLFSSL_NOSHA3_512
-
     f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
-    f.output = "\xaf\xeb\xb2\xef\x54\x2e\x65\x79\xc5\x0c\xad\x06\xd2\xe5\x78\xf9\xf8\xdd\x68\x81\xd7\xdc\x82\x4d\x26\x36\x0f\xee\xbf\x18\xa4\xfa\x73\xe3\x26\x11\x22\x94\x8e\xfc\xfd\x49\x2e\x74\xe8\x2e\x21\x89\xed\x0f\xb4\x40\xd1\x87\xf3\x82\x27\x0c\xb4\x55\xf2\x1d\xd1\x85";
+    f.output = "\xaf\xeb\xb2\xef\x54\x2e\x65\x79\xc5\x0c\xad\x06\xd2\xe5\x78"
+               "\xf9\xf8\xdd\x68\x81\xd7\xdc\x82\x4d\x26\x36\x0f\xee\xbf\x18"
+               "\xa4\xfa\x73\xe3\x26\x11\x22\x94\x8e\xfc\xfd\x49\x2e\x74\xe8"
+               "\x2e\x21\x89\xed\x0f\xb4\x40\xd1\x87\xf3\x82\x27\x0c\xb4\x55"
+               "\xf2\x1d\xd1\x85";
     f.inLen  = XSTRLEN(f.input);
     f.outLen = WC_SHA3_512_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
-    EVP_DigestInit(&md_ctx, EVP_sha3_512());
-
-    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
-    EVP_DigestFinal(&md_ctx, hash, 0);
-
-    if (XMEMCMP(hash, f.output, WC_SHA3_512_DIGEST_SIZE) != 0)
+    ret = EVP_DigestInit(&md_ctx, EVP_sha3_512());
+    if (ret == WOLFSSL_SUCCESS) {
+        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+    }
+    EVP_MD_CTX_cleanup(&md_ctx);
+    if (ret != WOLFSSL_SUCCESS || 
+            XMEMCMP(hash, f.output, WC_SHA3_512_DIGEST_SIZE) != 0) {
         return -8410;
-
+    }
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
 
-#ifndef NO_MD5
-    if (RAND_bytes(hash, sizeof(hash)) != 1)
+#ifndef WC_NO_RNG
+    if (RAND_bytes(hash, sizeof(hash)) != WOLFSSL_SUCCESS)
         return -8411;
+#endif
 
+#ifndef NO_MD5
     c.input  = "what do ya want for nothing?";
     c.output = "\x55\x78\xe8\x48\x4b\xcc\x93\x80\x93\xec\x53\xaf\x22\xd6\x14"
                "\x76";
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_MD5_DIGEST_SIZE;
 
-    HMAC(EVP_md5(),
-                 "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen, hash, 0);
-
-    if (XMEMCMP(hash, c.output, WC_MD5_DIGEST_SIZE) != 0)
+    if (HMAC(EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen, 
+            hash, 0) == NULL ||
+        XMEMCMP(hash, c.output, WC_MD5_DIGEST_SIZE) != 0)
+    {
         return -8412;
-
+    }
 #endif /* NO_MD5 */
 
 #ifndef NO_DES3
@@ -15943,24 +15982,16 @@ int openssl_test(void)
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
     };
-
     byte plain[24];
     byte cipher[24];
-
-    const_DES_cblock key =
-    {
+    const_DES_cblock key = {
         0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef
     };
-
-    DES_cblock iv =
-    {
+    DES_cblock iv = {
         0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef
     };
-
     DES_key_schedule sched;
-
-    const byte verify[] =
-    {
+    const byte verify[] = {
         0x8b,0x7c,0x52,0xb0,0x01,0x2b,0x6c,0xb8,
         0x4f,0x0f,0xeb,0xf3,0xfb,0x5f,0x86,0x73,
         0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
@@ -15985,158 +16016,160 @@ int openssl_test(void)
         return -8415;
 
     }  /* end des test */
-
 #endif /* NO_DES3 */
 
 #if !defined(NO_AES) && !defined(WOLFCRYPT_ONLY)
-        if (openssl_aes_test() != 0) {
-            return -8416;
-        }
+    if (openssl_aes_test() != 0) {
+        return -8416;
+    }
 
 #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
-    {  /* evp_cipher test: EVP_aes_128_cbc */
+    {   /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
         int idx, cipherSz, plainSz;
-
         const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
             0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
             0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
             0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
         };
-
-        const byte verify[] =
-        {
+        const byte verify[] = {
             0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
             0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb,
             0x3b,0x5d,0x41,0x97,0x94,0x25,0xa4,0xb4,
             0xae,0x7b,0x34,0xd0,0x3f,0x0c,0xbc,0x06
         };
-
-        const byte verify2[] =
-        {
+        const byte verify2[] = {
             0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
             0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb,
             0x7d,0x37,0x7b,0x0b,0x44,0xaa,0xb5,0xf0,
             0x5f,0x34,0xb4,0xde,0xb5,0xbd,0x2a,0xbb
         };
-
         byte key[] = "0123456789abcdef   ";  /* align */
         byte iv[]  = "1234567890abcdef   ";  /* align */
-
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
+        cipherSz = 0;
         EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
+        ret = EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1);
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherUpdate(&ctx, cipher, &idx, (byte*)msg, sizeof(msg));
+            if (ret == WOLFSSL_SUCCESS)
+                cipherSz += idx;
+        }
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherFinal(&ctx, cipher + cipherSz, &idx);
+            if (ret == WOLFSSL_SUCCESS)
+                cipherSz += idx;
+        }
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
             return -8417;
-
-        if (EVP_CipherUpdate(&ctx, cipher, &idx, (byte*)msg, sizeof(msg)) == 0)
+        if (cipherSz != (int)sizeof(verify) || XMEMCMP(cipher, verify, cipherSz))
             return -8418;
 
-        cipherSz = idx;
-        if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0)
-            return -8419;
-        cipherSz += idx;
-
-        if ((cipherSz != (int)sizeof(verify)) &&
-                                             XMEMCMP(cipher, verify, cipherSz))
-            return -8420;
-
-        EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
-            return -8421;
-
         /* check partial decrypt (not enough padding for full block) */
-        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, 1) == 0)
+        plainSz = 0;
+        EVP_CIPHER_CTX_init(&ctx);
+        ret = EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0);
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherUpdate(&ctx, plain, &idx, cipher, 1);
+            if (ret == WOLFSSL_SUCCESS)
+                plainSz += idx;
+        }
+        if (ret == WOLFSSL_SUCCESS) {
+            /* this test should fail... not enough padding for full block */
+            ret = EVP_CipherFinal(&ctx, plain + plainSz, &idx);
+            if (plainSz == 0 && ret != WOLFSSL_SUCCESS)
+                ret = WOLFSSL_SUCCESS;
+            else
+                ret = -8419;
+        }
+        else
+            ret = -8420;
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+
+        plainSz = 0;
+        EVP_CIPHER_CTX_init(&ctx);
+        ret = EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0);
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherUpdate(&ctx, plain, &idx, cipher, cipherSz);
+            if (ret == WOLFSSL_SUCCESS)
+                plainSz += idx;
+        }
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherFinal(&ctx, plain + plainSz, &idx);
+            if (ret == WOLFSSL_SUCCESS)
+                plainSz += idx;
+        }
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
+            return -8421;
+        if (plainSz != (int)sizeof(msg) || XMEMCMP(plain, msg, sizeof(msg)))
             return -8422;
 
-        plainSz = idx;
-        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) != 0)
+        cipherSz = 0;
+        EVP_CIPHER_CTX_init(&ctx);
+        ret = EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1);
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherUpdate(&ctx, cipher, &idx, msg, AES_BLOCK_SIZE);
+            if (ret == WOLFSSL_SUCCESS)
+                cipherSz += idx;
+        }
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = EVP_CipherFinal(&ctx, cipher + cipherSz, &idx);
+            if (ret == WOLFSSL_SUCCESS)
+                cipherSz += idx;
+        }
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
             return -8423;
-
-        EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
+        if (cipherSz != (int)sizeof(verify2) || XMEMCMP(cipher, verify2, cipherSz))
             return -8424;
-
-        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, cipherSz) == 0)
-            return -8425;
-
-        plainSz = idx;
-        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) == 0)
-            return -8426;
-        plainSz += idx;
-
-        if ((plainSz != sizeof(msg)) || XMEMCMP(plain, msg, sizeof(msg)))
-            return -8427;
-
-        EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
-            return -8428;
-
-        if (EVP_CipherUpdate(&ctx, cipher, &idx, msg, AES_BLOCK_SIZE) == 0)
-            return -8429;
-
-        cipherSz = idx;
-        if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0)
-            return -8430;
-        cipherSz += idx;
-
-        if ((cipherSz != (int)sizeof(verify2)) ||
-                                            XMEMCMP(cipher, verify2, cipherSz))
-            return -8431;
-
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
 #endif /* WOLFSSL_AES_128 && HAVE_AES_CBC */
 
 #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_256)
-    {  /* evp_cipher test: EVP_aes_256_ecb*/
+    {   /* evp_cipher test: EVP_aes_256_ecb*/
         EVP_CIPHER_CTX ctx;
-        const byte msg[] =
-        {
+        const byte msg[] = {
           0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
           0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
         };
-
-        const byte verify[] =
-        {
+        const byte verify[] = {
             0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
             0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
         };
-
-        const byte key[] =
-        {
+        const byte key[] = {
           0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
           0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
           0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
           0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
         };
-
-
         byte cipher[AES_BLOCK_SIZE * 4];
         byte plain [AES_BLOCK_SIZE * 4];
 
         EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key,
-                                                                NULL, 1) == 0)
-            return -8432;
-
-        if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
-            return -8433;
-
+        ret = EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key, NULL, 1);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_Cipher(&ctx, cipher, (byte*)msg, 16);
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
+            return -8430;
         if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
-            return -8434;
+            return -8431;
 
         EVP_CIPHER_CTX_init(&ctx);
-        if (EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key,
-                                                                NULL, 0) == 0)
-            return -8435;
-
-        if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
+        ret = EVP_CipherInit(&ctx, EVP_aes_256_ecb(), (unsigned char*)key, NULL, 0);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = EVP_Cipher(&ctx, plain, cipher, 16);
+        EVP_CIPHER_CTX_cleanup(&ctx);
+        if (ret != WOLFSSL_SUCCESS)
             return -8436;
-
         if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
             return -8437;
-
     }  /* end evp_cipher test */
 #endif /* HAVE_AES_ECB && WOLFSSL_AES_128 */
 

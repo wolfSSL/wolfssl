@@ -403,7 +403,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
                            && !defined(NO_SHA256) && !defined(WC_NO_RNG)
         else {
-            ctx->srp = (Srp*) XMALLOC(sizeof(Srp), heap, DYNAMIC_TYPE_SRP);
+            ctx->srp = (Srp*)XMALLOC(sizeof(Srp), heap, DYNAMIC_TYPE_SRP);
             if (ctx->srp == NULL){
                 WOLFSSL_MSG("Init CTX failed");
                 wolfSSL_CTX_free(ctx);
@@ -451,7 +451,7 @@ void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
     if (ctx) {
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
 && !defined(NO_SHA256) && !defined(WC_NO_RNG)
-        if (ctx->srp != NULL){
+        if (ctx->srp != NULL) {
             if (ctx->srp_password != NULL){
                 XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
                 ctx->srp_password = NULL;
@@ -14661,7 +14661,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int r = 0;
         SrpSide srp_side = SRP_CLIENT_SIDE;
-        WC_RNG rng;
         byte salt[SRP_SALT_SIZE];
 
         WOLFSSL_ENTER("wolfSSL_CTX_set_srp_username");
@@ -14677,10 +14676,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return SSL_FAILURE;
         }
 
-        if (wc_SrpInit(ctx->srp, SRP_TYPE_SHA256, srp_side) < 0){
-            WOLFSSL_MSG("Init CTX failed");
+        if (wc_SrpInit(ctx->srp, SRP_TYPE_SHA256, srp_side) < 0) {
+            WOLFSSL_MSG("Init SRP CTX failed");
             XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
-            wolfSSL_CTX_free(ctx);
+            ctx->srp = NULL;
             return SSL_FAILURE;
         }
         r = wc_SrpSetUsername(ctx->srp, (const byte*)username,
@@ -14692,23 +14691,24 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         /* if wolfSSL_CTX_set_srp_password has already been called, */
         /* execute wc_SrpSetPassword here */
-        if (ctx->srp_password != NULL){
+        if (ctx->srp_password != NULL) {
+            WC_RNG rng;
             if (wc_InitRng(&rng) < 0){
                 WOLFSSL_MSG("wc_InitRng failed");
                 return SSL_FAILURE;
             }
             XMEMSET(salt, 0, sizeof(salt)/sizeof(salt[0]));
-            if (wc_RNG_GenerateBlock(&rng, salt,
-                                     sizeof(salt)/sizeof(salt[0])) <  0){
-                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-                wc_FreeRng(&rng);
+            r = wc_RNG_GenerateBlock(&rng, salt, sizeof(salt)/sizeof(salt[0]));
+            wc_FreeRng(&rng);
+            if (r <  0) {
+                WOLFSSL_MSG("wc_RNG_GenerateBlock failed");   
                 return SSL_FAILURE;
             }
+
             if (wc_SrpSetParams(ctx->srp, srp_N, sizeof(srp_N)/sizeof(srp_N[0]),
                                 srp_g, sizeof(srp_g)/sizeof(srp_g[0]),
-                                salt, sizeof(salt)/sizeof(salt[0])) < 0){
+                                salt, sizeof(salt)/sizeof(salt[0])) < 0) {
                 WOLFSSL_MSG("wc_SrpSetParam failed");
-                wc_FreeRng(&rng);
                 return SSL_FAILURE;
             }
             r = wc_SrpSetPassword(ctx->srp,
@@ -14718,7 +14718,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 WOLFSSL_MSG("fail to set srp password.");
                 return SSL_FAILURE;
             }
-            wc_FreeRng(&rng);
+            
             XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp_password = NULL;
         }
@@ -14729,23 +14729,23 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_CTX_set_srp_password(WOLFSSL_CTX* ctx, char* password)
     {
         int r;
-        WC_RNG rng;
         byte salt[SRP_SALT_SIZE];
 
         WOLFSSL_ENTER("wolfSSL_CTX_set_srp_password");
         if (ctx == NULL || ctx->srp == NULL || password == NULL)
             return SSL_FAILURE;
 
-        if (ctx->srp->user != NULL){
-            if (wc_InitRng(&rng) < 0){
+        if (ctx->srp->user != NULL) {
+            WC_RNG rng;
+            if (wc_InitRng(&rng) < 0) {
                 WOLFSSL_MSG("wc_InitRng failed");
                 return SSL_FAILURE;
             }
             XMEMSET(salt, 0, sizeof(salt)/sizeof(salt[0]));
-            if (wc_RNG_GenerateBlock(&rng, salt,
-                                     sizeof(salt)/sizeof(salt[0])) <  0){
+            r = wc_RNG_GenerateBlock(&rng, salt, sizeof(salt)/sizeof(salt[0]));
+            wc_FreeRng(&rng);
+            if (r <  0) {
                 WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
-                wc_FreeRng(&rng);
                 return SSL_FAILURE;
             }
             if (wc_SrpSetParams(ctx->srp, srp_N, sizeof(srp_N)/sizeof(srp_N[0]),
@@ -31153,6 +31153,10 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
     }
 
+    /* Make sure and free if needed */
+    if (ctx->hmac.macType != WC_HASH_TYPE_NONE) {
+        wc_HmacFree(&ctx->hmac);
+    }
     if (key && keylen) {
         WOLFSSL_MSG("keying hmac");
 
@@ -31169,9 +31173,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                         WC_HMAC_BLOCK_SIZE);
         }
         /* OpenSSL compat, no error */
-    } else if(ctx->type >= 0) { /* MD5 == 0 */
+    }
+    else if (ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
-        wc_HmacFree(&ctx->hmac);
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
             ctx->hmac.macType = (byte)ctx->type;
             ctx->hmac.innerHashKeyed = 0;
@@ -31290,20 +31294,26 @@ int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
 {
     WOLFSSL_MSG("wolfSSL_HMAC_cleanup");
 
-    if (ctx)
+    if (ctx) {
         wc_HmacFree(&ctx->hmac);
+    }
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
+void wolfSSL_HMAC_CTX_cleanup(WOLFSSL_HMAC_CTX* ctx)
+{
+    if (ctx) {
+        wolfSSL_HMAC_cleanup(ctx);
+    }
+}
 
 void wolfSSL_HMAC_CTX_free(WOLFSSL_HMAC_CTX* ctx)
 {
-    if (!ctx) {
-        return;
+    if (ctx) {
+        wolfSSL_HMAC_CTX_cleanup(ctx);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
     }
-    wolfSSL_HMAC_cleanup(ctx);
-    XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx)

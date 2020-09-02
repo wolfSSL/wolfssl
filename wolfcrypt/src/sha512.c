@@ -398,6 +398,9 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     sha512->heap = heap;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha512->W = NULL;
+#endif
 
     ret = InitSha512(sha512);
     if (ret != 0)
@@ -405,10 +408,6 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     Sha512_SetTransform();
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    sha512->W = NULL;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
@@ -507,8 +506,7 @@ static int _Transform_Sha512(wc_Sha512* sha512)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W = sha512->W;
     if (W == NULL) {
-        W = (word64*) XMALLOC(sizeof(word64) * 16, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        W = (word64*)XMALLOC(sizeof(word64) * 16, NULL,DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
         sha512->W = W;
@@ -1019,15 +1017,16 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     }
 
     sha384->heap = heap;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha384->W = NULL;
+#endif
+
     ret = InitSha384(sha384);
     if (ret != 0)
         return ret;
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     Sha512_SetTransform();
-#endif
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    sha384->W = NULL;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)

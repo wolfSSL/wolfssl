@@ -3370,9 +3370,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         if (ctx) {
             WOLFSSL_ENTER("EVP_MD_CTX_free");
-                wolfSSL_EVP_MD_CTX_cleanup(ctx);
-                XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
-            }
+            wolfSSL_EVP_MD_CTX_cleanup(ctx);
+            XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
     }
 
     /* returns the NID of message digest used by the ctx */
@@ -5506,7 +5506,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
             case WC_HASH_TYPE_SHA3_512:
         #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
-                wolfSSL_SHA3_512_Update((SHA3_512_CTX*)&ctx->hash, data,
+                ret = wolfSSL_SHA3_512_Update((SHA3_512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
         #endif
                 break;

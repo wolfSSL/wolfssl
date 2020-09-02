@@ -4300,6 +4300,12 @@ void fp_copy(fp_int *a, fp_int *b)
     }
 }
 
+int mp_init_copy(fp_int * a, fp_int * b)
+{
+    fp_init_copy(a, b);
+    return MP_OKAY;
+}
+
 void fp_init_copy(fp_int *a, fp_int* b)
 {
     if (a != b) {
@@ -5390,13 +5396,6 @@ int mp_div_2(fp_int * a, fp_int * b)
 int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
 {
   return fp_div_2_mod_ct(a, b, c);
-}
-
-
-int mp_init_copy(fp_int * a, fp_int * b)
-{
-    fp_init_copy(a, b);
-    return MP_OKAY;
 }
 
 #ifdef HAVE_COMP_KEY
