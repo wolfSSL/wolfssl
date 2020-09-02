@@ -1112,7 +1112,8 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 start[len] = 0;
             }
             else {
-                result = wolfSSL_LastError();
+                result = TranslateReturnCode(result, sfd);
+                result = wolfSSL_LastError(result);
                 if (result == SOCKET_EWOULDBLOCK || result == SOCKET_EAGAIN) {
                     return OCSP_WANT_READ;
                 }
