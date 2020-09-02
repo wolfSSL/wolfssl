@@ -4436,7 +4436,7 @@ static int hc128_test(void)
 
   out:
 
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (enc)
         XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (dec)
