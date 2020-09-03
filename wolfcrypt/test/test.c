@@ -17561,7 +17561,7 @@ static int scrypt_test(void)
         0xc7, 0x27, 0xaf, 0xb9, 0x4a, 0x83, 0xee, 0x6d,
         0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40
     };
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
+#if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_LINUXKM) && !defined(HAVE_INTEL_QA)
     static const byte verify3[] = {
         0x70, 0x23, 0xbd, 0xcb, 0x3a, 0xfd, 0x73, 0x48,
         0x46, 0x1c, 0x06, 0xcd, 0x81, 0xfd, 0x38, 0xeb,
@@ -17603,7 +17603,7 @@ static int scrypt_test(void)
         return -9003;
 
     /* Don't run these test on embedded, since they use large mallocs */
-#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
+#if !defined(BENCH_EMBEDDED) && !defined(WOLFSSL_LINUXKM) && !defined(HAVE_INTEL_QA)
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
                     (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(verify3));
     if (ret != 0)
@@ -17619,7 +17619,7 @@ static int scrypt_test(void)
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return -9007;
 #endif
-#endif /* !BENCH_EMBEDDED && !HAVE_INTEL_QA */
+#endif /* !BENCH_EMBEDDED && !defined(WOLFSSL_LINUXKM) && !HAVE_INTEL_QA */
 
     ret = wc_scrypt_ex(derived, (byte*)"password", 8, (byte*)"NaCl", 4, 1<<10,
                        8, 16, sizeof(verify2));
