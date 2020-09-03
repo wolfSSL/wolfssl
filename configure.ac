@@ -5404,6 +5404,9 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_STACKLOG" = "yes"; then
         AC_MSG_ERROR([--enable-stacklog is incompatible with --enable-linuxkm.])
     fi
+    if test "$ENABLED_COMPKEY" = "yes"; then
+        AC_MSG_ERROR([--enable-compkey is incompatible with --enable-linuxkm.])
+    fi
 fi
 
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
