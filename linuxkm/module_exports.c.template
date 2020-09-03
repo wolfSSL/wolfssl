@@ -158,3 +158,13 @@
     #include "libntruencrypt/ntru_crypto.h"
 #endif
 
+#include <wolfssl/openssl/x509_vfy.h>
+#include <wolfssl/openssl/buffer.h>
+#include <wolfssl/openssl/ec25519.h>
+#include <wolfssl/openssl/ed25519.h>
+#include <wolfssl/openssl/ec448.h>
+#include <wolfssl/openssl/ed448.h>
+#include <wolfssl/openssl/ecdsa.h>
+#include <wolfssl/openssl/ecdh.h>
+#include <wolfssl/openssl/pem.h>
+
