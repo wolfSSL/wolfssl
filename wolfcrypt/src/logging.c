@@ -230,6 +230,8 @@ void WOLFSSL_TIME(int count)
     #include "m2m_log.h"
 #elif defined(WOLFSSL_ANDROID_DEBUG)
     #include <android/log.h>
+#elif defined(WOLFSSL_XILINX)
+    #include "xil_printf.h"
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
@@ -274,6 +276,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         M2M_LOG_INFO("%s\n", logMessage);
 #elif defined(WOLFSSL_ANDROID_DEBUG)
         __android_log_print(ANDROID_LOG_VERBOSE, "[wolfSSL]", "%s", logMessage);
+#elif defined(WOLFSSL_XILINX)
+        xil_printf("%s\r\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif
