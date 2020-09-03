@@ -28691,7 +28691,7 @@ int mutex_test(void)
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
 #endif
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_USER_MUTEX)
     wolfSSL_Mutex *mm = wc_InitAndAllocMutex();
     if (mm == NULL)
         return -12700;
