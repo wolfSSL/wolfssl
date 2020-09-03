@@ -126,7 +126,10 @@ do_cleanup
 echo ""
 
 cat ./wolfssl/options.h | grep -- 'NO_CERTS'
-if [ $? -ne 0 ]; then
+NO_CERTS=$?
+cat ./wolfssl/options.h | grep -- 'WOLFSSL_NO_CLIENT_AUTH'
+NO_CLIENT_AUTH=$?
+if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
     echo -e "\n\nTLS v1.3 mutual auth fail"
     port=0
