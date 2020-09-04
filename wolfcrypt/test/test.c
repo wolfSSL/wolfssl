@@ -21623,7 +21623,7 @@ static int ecc_test_buffers(void) {
     ecc_key *cliKey = (ecc_key *)XMALLOC(sizeof *cliKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key *servKey = (ecc_key *)XMALLOC(sizeof *servKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    ecc_key cliKey_buf, *cliKey_buf = &cliKey_buf;
+    ecc_key cliKey_buf, *cliKey = &cliKey_buf;
     ecc_key servKey_buf, *servKey = &servKey_buf;
 #endif
     WC_RNG rng;
