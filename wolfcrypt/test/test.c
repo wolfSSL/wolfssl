@@ -20274,7 +20274,11 @@ static int ecc_decode_test(void)
     int        ret;
     word32     inSz;
     word32     inOutIdx;
-    ecc_key    key;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key    *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ecc_key    key_buf, *key = &key_buf;
+#endif
 
     /* SECP256R1 OID: 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07 */
 
@@ -20311,16 +20315,21 @@ static int ecc_decode_test(void)
             0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
             0x03, 0x03, 0x00, 0x04, 0x01 };
 
-    XMEMSET(&key, 0, sizeof(key));
-    wc_ecc_init_ex(&key, HEAP_HINT, devId);
+#ifdef WOLFSSL_SMALL_STACK
+    if (key == NULL)
+        ERROR_OUT(MEMORY_E, done);
+#endif
+
+    XMEMSET(key, 0, sizeof *key);
+    wc_ecc_init_ex(key, HEAP_HINT, devId);
 
     inSz = sizeof(good);
-    ret = wc_EccPublicKeyDecode(NULL, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(NULL, &inOutIdx, key, inSz);
     if (ret != BAD_FUNC_ARG) {
         ret = -9800;
         goto done;
     }
-    ret = wc_EccPublicKeyDecode(good, NULL, &key, inSz);
+    ret = wc_EccPublicKeyDecode(good, NULL, key, inSz);
     if (ret != BAD_FUNC_ARG) {
         ret = -9801;
         goto done;
@@ -20330,7 +20339,7 @@ static int ecc_decode_test(void)
         ret = -9802;
         goto done;
     }
-    ret = wc_EccPublicKeyDecode(good, &inOutIdx, &key, 0);
+    ret = wc_EccPublicKeyDecode(good, &inOutIdx, key, 0);
     if (ret != BAD_FUNC_ARG) {
         ret = -9803;
         goto done;
@@ -20339,14 +20348,14 @@ static int ecc_decode_test(void)
     /* Change offset to produce bad input data. */
     inOutIdx = 2;
     inSz = sizeof(good) - inOutIdx;
-    ret = wc_EccPublicKeyDecode(good, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(good, &inOutIdx, key, inSz);
     if (ret != ASN_PARSE_E) {
         ret = -9804;
         goto done;
     }
     inOutIdx = 4;
     inSz = sizeof(good) - inOutIdx;
-    ret = wc_EccPublicKeyDecode(good, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(good, &inOutIdx, key, inSz);
     if (ret != ASN_PARSE_E) {
         ret = -9805;
         goto done;
@@ -20354,56 +20363,56 @@ static int ecc_decode_test(void)
     /* Bad data. */
     inSz = sizeof(badNoObjId);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badNoObjId, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badNoObjId, &inOutIdx, key, inSz);
     if (ret != ASN_OBJECT_ID_E) {
         ret = -9806;
         goto done;
     }
     inSz = sizeof(badOneObjId);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badOneObjId, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badOneObjId, &inOutIdx, key, inSz);
     if (ret != ASN_OBJECT_ID_E) {
         ret = -9807;
         goto done;
     }
     inSz = sizeof(badObjId1Len);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badObjId1Len, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badObjId1Len, &inOutIdx, key, inSz);
     if (ret != ASN_PARSE_E) {
         ret = -9808;
         goto done;
     }
     inSz = sizeof(badObj2d1Len);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badObj2d1Len, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badObj2d1Len, &inOutIdx, key, inSz);
     if (ret != ASN_PARSE_E) {
         ret = -9809;
         goto done;
     }
     inSz = sizeof(badNotBitStr);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badNotBitStr, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badNotBitStr, &inOutIdx, key, inSz);
     if (ret != ASN_BITSTR_E) {
         ret = -9810;
         goto done;
     }
     inSz = sizeof(badBitStrLen);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badBitStrLen, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badBitStrLen, &inOutIdx, key, inSz);
     if (ret != ASN_PARSE_E) {
         ret = -9811;
         goto done;
     }
     inSz = sizeof(badNoBitStrZero);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badNoBitStrZero, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badNoBitStrZero, &inOutIdx, key, inSz);
     if (ret != ASN_EXPECT_0_E) {
         ret = -9812;
         goto done;
     }
     inSz = sizeof(badPoint);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(badPoint, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(badPoint, &inOutIdx, key, inSz);
     if (ret != ASN_ECC_KEY_E) {
         ret = -9813;
         goto done;
@@ -20411,14 +20420,23 @@ static int ecc_decode_test(void)
 
     inSz = sizeof(good);
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(good, &inOutIdx, &key, inSz);
+    ret = wc_EccPublicKeyDecode(good, &inOutIdx, key, inSz);
     if (ret != 0) {
         ret = -9814;
         goto done;
     }
 
 done:
-    wc_ecc_free(&key);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (key != NULL) {
+        wc_ecc_free(key);
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    wc_ecc_free(key);
+#endif
+
     return ret;
 }
 #endif /* WOLFSSL_CERT_EXT */
