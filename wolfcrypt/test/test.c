@@ -12478,12 +12478,13 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     (void)keypub;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((caKey == NULL)
-#ifdef WOLFSSL_TEST_CERT
-        || (decode == NULL)
-#endif
-        )
+    if (caKey == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
+#ifdef WOLFSSL_TEST_CERT
+    if (decode == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
+#endif
+
 #endif
 
     XMEMSET(caKey, 0, sizeof *caKey);
@@ -13163,19 +13164,21 @@ static int rsa_test(void)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((key == NULL)
+    if (key == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
-	|| (keypub == NULL)
-#endif
-#if defined(HAVE_NTRU)
-	|| (caKey == NULL)
-#endif
-#ifdef WOLFSSL_TEST_CERT
-	|| (cert == NULL)
-#endif
-	)
+    if (keypub == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
+#if defined(HAVE_NTRU)
+    if (caKey == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
+#endif
+#ifdef WOLFSSL_TEST_CERT
+    if (cert == NULL)
+        ERROR_OUT(MEMORY_E, exit_rsa);
+#endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     /* initialize stack structures */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -18288,12 +18291,12 @@ static int ecc_test_vector_item(const eccVector* vector)
 #endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((sig == NULL)
-#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
-        || (sigRaw == NULL)
-#endif
-        )
+    if (sig == NULL)
         ERROR_OUT(MEMORY_E, done);
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
+    if (sigRaw == NULL)
+        ERROR_OUT(MEMORY_E, done);
+#endif
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
