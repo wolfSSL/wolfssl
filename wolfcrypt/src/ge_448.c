@@ -10679,13 +10679,12 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
 #else
     int8_t       *aslide = NULL;
     int8_t       *bslide = NULL;
-    ge448_p2     *pi[16]; /* p,3p,..,31p */
+    ge448_p2     *pi = NULL; /* p,3p,..,31p */
     ge448_p2     *p2 = NULL;
     int          i, ret;
 
     #define PI_PTR(pi) (pi)
 
-    XMEMSET(pi, 0, sizeof pi);
     aslide = (int8_t *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (! aslide) {
         ret = MEMORY_E;
@@ -10696,12 +10695,10 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
         ret = MEMORY_E;
         goto out;
     }
-    for (i = 0; i < (int)(sizeof pi / sizeof pi[0]); ++i) {
-        pi[i] = (ge448_p2 *)XMALLOC(sizeof *pi[i], NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (! pi[i]) {
-            ret = MEMORY_E;
-            goto out;
-        }
+    pi = (ge448_p2 *)XMALLOC(16 * sizeof *pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (! pi) {
+        ret = MEMORY_E;
+        goto out;
     }
     p2 = (ge448_p2 *)XMALLOC(sizeof *p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (! p2) {
@@ -10713,25 +10710,25 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
     slide(aslide, a);
     slide(bslide, b);
 
-    fe448_copy(PI_PTR(pi[0])->X, p->X);
-    fe448_copy(PI_PTR(pi[0])->Y, p->Y);
-    fe448_copy(PI_PTR(pi[0])->Z, p->Z);
+    fe448_copy(pi[0].X, p->X);
+    fe448_copy(pi[0].Y, p->Y);
+    fe448_copy(pi[0].Z, p->Z);
     ge448_dbl(PI_PTR(p2), p);
-    ge448_add(PI_PTR(pi[1]), PI_PTR(p2), PI_PTR(pi[0]));
-    ge448_add(PI_PTR(pi[2]), PI_PTR(p2), PI_PTR(pi[1]));
-    ge448_add(PI_PTR(pi[3]), PI_PTR(p2), PI_PTR(pi[2]));
-    ge448_add(PI_PTR(pi[4]), PI_PTR(p2), PI_PTR(pi[3]));
-    ge448_add(PI_PTR(pi[5]), PI_PTR(p2), PI_PTR(pi[4]));
-    ge448_add(PI_PTR(pi[6]), PI_PTR(p2), PI_PTR(pi[5]));
-    ge448_add(PI_PTR(pi[7]), PI_PTR(p2), PI_PTR(pi[6]));
-    ge448_add(PI_PTR(pi[8]), PI_PTR(p2), PI_PTR(pi[7]));
-    ge448_add(PI_PTR(pi[9]), PI_PTR(p2), PI_PTR(pi[8]));
-    ge448_add(PI_PTR(pi[10]), PI_PTR(p2), PI_PTR(pi[9]));
-    ge448_add(PI_PTR(pi[11]), PI_PTR(p2), PI_PTR(pi[10]));
-    ge448_add(PI_PTR(pi[12]), PI_PTR(p2), PI_PTR(pi[11]));
-    ge448_add(PI_PTR(pi[13]), PI_PTR(p2), PI_PTR(pi[12]));
-    ge448_add(PI_PTR(pi[14]), PI_PTR(p2), PI_PTR(pi[13]));
-    ge448_add(PI_PTR(pi[15]), PI_PTR(p2), PI_PTR(pi[14]));
+    ge448_add(&pi[1], PI_PTR(p2), &pi[0]);
+    ge448_add(&pi[2], PI_PTR(p2), &pi[1]);
+    ge448_add(&pi[3], PI_PTR(p2), &pi[2]);
+    ge448_add(&pi[4], PI_PTR(p2), &pi[3]);
+    ge448_add(&pi[5], PI_PTR(p2), &pi[4]);
+    ge448_add(&pi[6], PI_PTR(p2), &pi[5]);
+    ge448_add(&pi[7], PI_PTR(p2), &pi[6]);
+    ge448_add(&pi[8], PI_PTR(p2), &pi[7]);
+    ge448_add(&pi[9], PI_PTR(p2), &pi[8]);
+    ge448_add(&pi[10], PI_PTR(p2), &pi[9]);
+    ge448_add(&pi[11], PI_PTR(p2), &pi[10]);
+    ge448_add(&pi[12], PI_PTR(p2), &pi[11]);
+    ge448_add(&pi[13], PI_PTR(p2), &pi[12]);
+    ge448_add(&pi[14], PI_PTR(p2), &pi[13]);
+    ge448_add(&pi[15], PI_PTR(p2), &pi[14]);
 
     ge448_0(r);
 
@@ -10746,9 +10743,9 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
         ge448_dbl(r, r);
 
         if (aslide[i] > 0)
-            ge448_add(r, r, PI_PTR(pi[aslide[i]/2]));
+            ge448_add(r, r, &pi[aslide[i]/2]);
         else if (aslide[i] < 0)
-            ge448_sub(r, r ,PI_PTR(pi[(-aslide[i])/2]));
+            ge448_sub(r, r, &pi[(-aslide[i])/2]);
 
         if (bslide[i] > 0)
             ge448_madd(r, r, &base_i[bslide[i]/2]);
@@ -10765,10 +10762,8 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
         XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (bslide)
         XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    for (i = 0; i < (int)(sizeof pi / sizeof pi[0]); ++i) {
-        if (pi[i])
-            XFREE(pi[i], NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    if (pi)
+        XFREE(pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (p2)
         XFREE(p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
