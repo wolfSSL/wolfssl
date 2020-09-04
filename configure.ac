@@ -3385,6 +3385,9 @@ then
     if test "${KERNEL_ROOT}" = ""; then
         AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
     fi
+    if test "${KERNEL_ARCH}" = ""; then
+        AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
+    fi
 
     ENABLED_NO_LIBRARY=yes
 fi
