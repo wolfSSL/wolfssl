@@ -3222,77 +3222,89 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
     #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     {
-        RsaKey rsa;
+        RsaKey *rsa = (RsaKey *)XMALLOC(sizeof *rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rsa == NULL)
+            return MEMORY_E;
 
-        wc_InitRsaKey(&rsa, heap);
-        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+        wc_InitRsaKey(rsa, heap);
+        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
             *algoID = RSAk;
         }
         else {
             WOLFSSL_MSG("Not RSA DER key");
         }
-        wc_FreeRsaKey(&rsa);
+        wc_FreeRsaKey(rsa);
+        XFREE(rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
     #if defined(HAVE_ECC) && !defined(NO_ASN_CRYPT)
     if (*algoID == 0) {
-        ecc_key ecc;
+        ecc_key *ecc = (ecc_key *)XMALLOC(sizeof *ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ecc == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
-        if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
+        wc_ecc_init_ex(ecc, heap, INVALID_DEVID);
+        if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
             *algoID = ECDSAk;
 
             /* now find oid */
-            if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
+            if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
                 WOLFSSL_MSG("Error getting ECC curve OID");
-                wc_ecc_free(&ecc);
+                wc_ecc_free(ecc);
+                XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return BAD_FUNC_ARG;
             }
         }
         else {
             WOLFSSL_MSG("Not ECC DER key either");
         }
-        wc_ecc_free(&ecc);
+        wc_ecc_free(ecc);
+        XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
 #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk) {
-        ed25519_key ed25519;
+        ed25519_key *ed25519 = (ed25519_key *)XMALLOC(sizeof *ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ed25519 == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ed25519_init(&ed25519) == 0) {
-            if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, &ed25519, keySz)
-                                                                         == 0) {
+        if (wc_ed25519_init(ed25519) == 0) {
+            if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, ed25519, keySz) == 0) {
                 *algoID = ED25519k;
             }
             else {
                 WOLFSSL_MSG("Not ED25519 DER key");
             }
-            wc_ed25519_free(&ed25519);
+            wc_ed25519_free(ed25519);
         }
         else {
             WOLFSSL_MSG("GetKeyOID wc_ed25519_init failed");
         }
+        XFREE(ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
 #if defined(HAVE_ED448) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk && *algoID != ED25519k) {
-        ed448_key ed448;
+        ed448_key *ed448 = (ed448_key *)XMALLOC(sizeof *ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ed448 == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ed448_init(&ed448) == 0) {
-            if (wc_Ed448PrivateKeyDecode(key, &tmpIdx, &ed448, keySz) == 0) {
+        if (wc_ed448_init(ed448) == 0) {
+            if (wc_Ed448PrivateKeyDecode(key, &tmpIdx, ed448, keySz) == 0) {
                 *algoID = ED448k;
             }
             else {
                 WOLFSSL_MSG("Not ED448 DER key");
             }
-            wc_ed448_free(&ed448);
+            wc_ed448_free(ed448);
         }
         else {
             WOLFSSL_MSG("GetKeyOID wc_ed448_init failed");
         }
+        XFREE(ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED448 && !NO_ASN_CRYPT */
 
