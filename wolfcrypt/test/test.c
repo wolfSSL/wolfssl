@@ -19075,6 +19075,9 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 
     idx = 0;
     ret = wc_EccPublicKeyDecode(tmpBuf, &idx, eccKey, tmpSz);
+    if (ret != 0) {
+        goto done;
+    }
 
     ret = 0;
 
