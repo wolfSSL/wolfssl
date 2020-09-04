@@ -5352,9 +5352,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([CFLAGS_AUTO_VECTORIZE_DISABLE])
     AC_SUBST([CFLAGS_AUTO_VECTORIZE_ENABLE])
 
-    if test "$ENABLED_DISTRO" = "yes"; then
-        AC_MSG_ERROR([--enable-distro is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_AFALG" = "yes"; then
         AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
     fi
@@ -5377,7 +5374,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
         AC_MSG_ERROR([--enable-valgrind is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_FASTMATH" = "yes"; then
-        AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (conflicts with stack size limits).])
+        AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (exceeds stack limit).])
     fi
     if test "$ENABLED_IOPOOL" = "yes"; then
         AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
@@ -5394,12 +5391,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
     if test "$ENABLED_SMALL_STACK_CACHE" != "yes"; then
         AC_MSG_ERROR([--enable-smallstackcache is required for --enable-linuxkm.])
-    fi
-    if test "$ENABLED_AFALG" = "yes"; then
-        AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
-    fi
-    if test "$ENABLED_DEVCRYPTO" = "yes"; then
-        AC_MSG_ERROR([--enable-devcrypto is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" = "yes"; then
         AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])
