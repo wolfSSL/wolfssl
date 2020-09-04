@@ -12561,13 +12561,13 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     certSz = ret;
 
 #ifdef WOLFSSL_TEST_CERT
-    InitDecodedCert(&decode, der, certSz, HEAP_HINT);
-    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    InitDecodedCert(decode, der, certSz, HEAP_HINT);
+    ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) {
-        FreeDecodedCert(&decode);
+        FreeDecodedCert(decode);
         ERROR_OUT(-7628, exit_rsa);
     }
-    FreeDecodedCert(&decode);
+    FreeDecodedCert(decode);
 #endif
 
     ret = SaveDerAndPem(der, certSz, certDerFile, certPemFile,
@@ -12769,10 +12769,16 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     RsaKey      *caKey = (RsaKey *)XMALLOC(sizeof *caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key     *caEccKey = (ecc_key *)XMALLOC(sizeof *caEccKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     ecc_key     *caEccKeyPub = (ecc_key *)XMALLOC(sizeof *caEccKeyPub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_TEST_CERT
+    DecodedCert *decode = (DecodedCert *)XMALLOC(sizeof *decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #else
     RsaKey      caKey_buf, *caKey = &caKey_buf;
     ecc_key     caEccKey_buf, *caEccKey = &caEccKey_buf;
     ecc_key     caEccKeyPub_buf, *caEccKeyPub = &caEccKeyPub_buf;
+#ifdef WOLFSSL_TEST_CERT
+    DecodedCert decode_buf, *decode = &decode_buf;
+#endif
 #endif
     byte*       der = NULL;
     Cert*       myCert = NULL;
@@ -12783,13 +12789,14 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     || !defined(USE_CERT_BUFFERS_256)
     XFILE       file3;
 #endif
-#ifdef WOLFSSL_TEST_CERT
-    DecodedCert decode;
-#endif
     int ret;
 
 #ifdef WOLFSSL_SMALL_STACK
-    if ((caKey == NULL) || (caEccKey == NULL) || (caEccKeyPub == NULL))
+    if ((caKey == NULL) || (caEccKey == NULL) || (caEccKeyPub == NULL)
+#ifdef WOLFSSL_TEST_CERT
+	|| (decode == NULL)
+#endif
+	)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
 
@@ -12937,14 +12944,14 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     certSz = ret;
 
 #ifdef WOLFSSL_TEST_CERT
-    InitDecodedCert(&decode, der, certSz, 0);
-    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    InitDecodedCert(decode, der, certSz, 0);
+    ret = ParseCert(decode, CERT_TYPE, NO_VERIFY, 0);
     if (ret != 0) {
-        FreeDecodedCert(&decode);
+        FreeDecodedCert(decode);
         ERROR_OUT(-7661, exit_rsa);
 
     }
-    FreeDecodedCert(&decode);
+    FreeDecodedCert(decode);
 #endif
 
     ret = SaveDerAndPem(der, certSz, certEccRsaDerFile, certEccRsaPemFile,
@@ -12968,6 +12975,8 @@ exit_rsa:
         wc_ecc_free(caEccKeyPub);
         XFREE(caEccKeyPub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
+    if (decode != NULL)
+        XFREE(decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     wc_FreeRsaKey(caKey);
     wc_ecc_free(caEccKey);
