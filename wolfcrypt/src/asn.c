@@ -9481,6 +9481,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_CERT_REQ
+    if (type == CERTREQ_TYPE)
+        cert->isCSR = 1;
+#endif
+
     if (cert->sigCtx.state == SIG_STATE_BEGIN) {
         cert->badDate = 0;
         cert->criticalExt = 0;
@@ -10128,8 +10133,9 @@ void wc_FreeDer(DerBuffer** pDer)
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
-/* Note: If items added make sure MAX_X509_HEADER_SZ is
-    updated to reflect maximum length */
+/* Note: If items added make sure MAX_X509_HEADER_SZ is 
+    updated to reflect maximum length and pem_struct_min_sz
+    to reflect minimum size */
 wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
 wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifdef WOLFSSL_CERT_REQ
@@ -10172,11 +10178,9 @@ wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
     wcchar BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
     wcchar END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
-#ifdef HAVE_CRL
-    const char *const BEGIN_CRL = "-----BEGIN X509 CRL-----";
-    wcchar END_CRL   = "-----END X509 CRL-----";
-#endif
 
+const int pem_struct_min_sz = XSTR_SIZEOF("-----BEGIN X509 CRL-----"
+                                             "-----END X509 CRL-----");
 
 static WC_INLINE char* SkipEndOfLineChars(char* line, const char* endOfLine)
 {
@@ -10702,8 +10706,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
         } else
 #ifdef HAVE_CRL
-        if ((type == CRL_TYPE) && (header != BEGIN_CRL)) {
-            header =  BEGIN_CRL;                footer = END_CRL;
+        if ((type == CRL_TYPE) && (header != BEGIN_X509_CRL)) {
+            header =  BEGIN_X509_CRL;           footer = END_X509_CRL;
         } else
 #endif
         {

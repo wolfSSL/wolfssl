@@ -143,6 +143,9 @@ enum DN_Tags {
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
+/* This is the size of the smallest possible PEM header and footer */
+extern const int pem_struct_min_sz;
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef struct WOLFSSL_ObjectInfo {
     int nid;
