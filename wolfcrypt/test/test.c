@@ -12975,8 +12975,10 @@ exit_rsa:
         wc_ecc_free(caEccKeyPub);
         XFREE(caEccKeyPub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#ifdef WOLFSSL_TEST_CERT
     if (decode != NULL)
         XFREE(decode, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #else
     wc_FreeRsaKey(caKey);
     wc_ecc_free(caEccKey);
