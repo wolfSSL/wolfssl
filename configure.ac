@@ -4633,10 +4633,16 @@ if test "$ENABLED_SP_ASM" = "yes"; then
   esac
 fi
 
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_SP" != "no"
+then
+    ENABLED_SP_MATH_DEFAULT=yes
+else
+    ENABLED_SP_MATH_DEFAULT=no
+fi
 AC_ARG_ENABLE([sp-math],
     [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
     [ ENABLED_SP_MATH=$enableval ],
-    [ ENABLED_SP_MATH=no ],
+    [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
@@ -5375,6 +5381,12 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     fi
     if test "$ENABLED_FASTMATH" = "yes"; then
         AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (exceeds stack limit).])
+    fi
+    if test "$ENABLED_FAST_RSA" = "yes"; then
+        AC_MSG_ERROR([--enable-fastrsa is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_LIBZ_RSA" = "yes"; then
+        AC_MSG_ERROR([--with-libz is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_IOPOOL" = "yes"; then
         AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
