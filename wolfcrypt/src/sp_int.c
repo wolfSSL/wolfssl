@@ -1477,7 +1477,6 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
  */
 static WC_INLINE int sp_mod_word(sp_int_word *w, sp_int_digit d) {
     sp_int_word x;
-    int x_shift;
     if (*w == 0)
         return 0;
     if (d == 0)
@@ -1490,43 +1489,50 @@ static WC_INLINE int sp_mod_word(sp_int_word *w, sp_int_digit d) {
      * shifting so that x has one less leading zero, and then doing a
      * final comparison.
      *
-     * textbook logic:
-     *
-     * while (x <= w/2)
-     *   x <<= 1;
      */
-    x_shift = ((int)__builtin_clzll(d) + (SP_WORD_SIZE - 1));
-    if ((*w >> SP_WORD_SIZE) == 0)
-        x_shift -=
+#ifdef __GNUC__
+    {
+        int x_shift = ((int)__builtin_clzll(d) + (SP_WORD_SIZE - 1));
+        if ((*w >> SP_WORD_SIZE) == 0)
+            x_shift -=
 #if SP_WORD_SIZE == 64
-            (int)__builtin_clzll((uint64_t)*w)
+                (int)__builtin_clzll((uint64_t)*w)
 #elif SP_WORD_SIZE == 32
-            (int)__builtin_clz((uint32_t)*w)
+                (int)__builtin_clz((uint32_t)*w)
 #else
 #error unexpected SP_WORD_SIZE
 #endif
-            + SP_WORD_SIZE;
-    else
-        x_shift -=
+                + SP_WORD_SIZE;
+        else
+            x_shift -=
 #if SP_WORD_SIZE == 64
-            (int)__builtin_clzll((uint64_t)(*w >> SP_WORD_SIZE))
+                (int)__builtin_clzll((uint64_t)(*w >> SP_WORD_SIZE))
 #elif SP_WORD_SIZE == 32
-            (int)__builtin_clz((uint32_t)(*w >> SP_WORD_SIZE))
+                (int)__builtin_clz((uint32_t)(*w >> SP_WORD_SIZE))
 #else
 #error unexpected SP_WORD_SIZE
 #endif
-            ;
-    if (x_shift < 0)
-        x_shift = 0;
-    x = (sp_int_word)d << x_shift;
+                ;
+        if (x_shift < 0)
+            x_shift = 0;
+        x = (sp_int_word)d << x_shift;
+    }
     if (x <= (*w>>1))
         x <<= 1;
+#else /* ! __GNUC__ */
+    /* textbook logic */
+
+    x = (sp_int_word)d;
+    while (x <= (*w>>1))
+        x <<= 1;
+#endif /* __GNUC__ */
 
     while (*w >= (sp_int_word)d) {
         if (*w >= x)
             *w -= x;
         x >>= 1;
     }
+
     return MP_OKAY;
 }
 #endif /* WOLFSSL_SP_MOD_WORD_RP */
