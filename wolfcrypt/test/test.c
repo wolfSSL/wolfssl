@@ -1149,7 +1149,7 @@ initDefaultName();
         test_pass("mp       test passed!\n");
 #endif
 
-#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_LINUXKM)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
@@ -29117,88 +29117,130 @@ static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
 
 static int prime_test(void)
 {
-    mp_int n, p1, p2, p3;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *n = (mp_int *)XMALLOC(sizeof *n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
+        *p1 = (mp_int *)XMALLOC(sizeof *p1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
+        *p2 = (mp_int *)XMALLOC(sizeof *p2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER),
+        *p3 = (mp_int *)XMALLOC(sizeof *p3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    mp_int n_buf, *n = &n_buf,
+        p1_buf, *p1 = &p1_buf,
+        p2_buf, *p2 = &p2_buf,
+        p3_buf, *p3 = &p3_buf;
+#endif
     int ret, isPrime = 0;
     WC_RNG rng;
 
+#ifdef WOLFSSL_SMALL_STACK
+    if ((n == NULL) ||
+        (p1 == NULL) ||
+        (p2 == NULL) ||
+        (p3 == NULL))
+        ERROR_OUT(MEMORY_E, out);
+#endif
+
     ret = wc_InitRng(&rng);
     if (ret == 0)
-        ret = mp_init_multi(&n, &p1, &p2, &p3, NULL, NULL);
+        ret = mp_init_multi(n, p1, p2, p3, NULL, NULL);
     if (ret == 0)
-        ret = GenerateP(&p1, &p2, &p3,
+        ret = GenerateP(p1, p2, p3,
                 ecPairsA, sizeof(ecPairsA) / sizeof(ecPairsA[0]), kA);
     if (ret == 0)
-        ret = mp_mul(&p1, &p2, &n);
+        ret = mp_mul(p1, p2, n);
     if (ret == 0)
-        ret = mp_mul(&n, &p3, &n);
+        ret = mp_mul(n, p3, n);
     if (ret != 0)
-        return -12400;
+        ERROR_OUT(-12400, out);
 
     /* Check the old prime test using the number that false positives.
      * This test result should indicate as not prime. */
-    ret = mp_prime_is_prime(&n, 40, &isPrime);
+    ret = mp_prime_is_prime(n, 40, &isPrime);
     if (ret != 0)
-        return -12401;
+        ERROR_OUT(-12401, out);
     if (isPrime)
-        return -12402;
+        ERROR_OUT(-12402, out);
 
     /* This test result should fail. It should indicate the value as prime. */
-    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    ret = mp_prime_is_prime(n, 8, &isPrime);
     if (ret != 0)
-        return -12403;
+        ERROR_OUT(-12403, out);
     if (!isPrime)
-        return -12404;
+        ERROR_OUT(-12404, out);
 
     /* This test result should indicate the value as not prime. */
-    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    ret = mp_prime_is_prime_ex(n, 8, &isPrime, &rng);
     if (ret != 0)
-        return -12405;
+        ERROR_OUT(-12405, out);
     if (isPrime)
-        return -12406;
+        ERROR_OUT(-12406, out);
 
-    ret = mp_read_unsigned_bin(&n, controlPrime, sizeof(controlPrime));
+    ret = mp_read_unsigned_bin(n, controlPrime, sizeof(controlPrime));
     if (ret != 0)
-        return -12407;
+        ERROR_OUT(-12407, out);
 
     /* This test result should indicate the value as prime. */
-    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    ret = mp_prime_is_prime_ex(n, 8, &isPrime, &rng);
     if (ret != 0)
-        return -12408;
+        ERROR_OUT(-12408, out);
     if (!isPrime)
-        return -12409;
+        ERROR_OUT(-12409, out);
 
     /* This test result should indicate the value as prime. */
     isPrime = -1;
-    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    ret = mp_prime_is_prime(n, 8, &isPrime);
     if (ret != 0)
-        return -12410;
+        ERROR_OUT(-12410, out);
     if (!isPrime)
-        return -12411;
+        ERROR_OUT(-12411, out);
 
-    ret = mp_read_unsigned_bin(&n, testOne, sizeof(testOne));
+    ret = mp_read_unsigned_bin(n, testOne, sizeof(testOne));
     if (ret != 0)
-        return -12412;
+        ERROR_OUT(-12412, out);
 
     /* This test result should indicate the value as not prime. */
-    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    ret = mp_prime_is_prime_ex(n, 8, &isPrime, &rng);
     if (ret != 0)
-        return -12413;
+        ERROR_OUT(-12413, out);
     if (isPrime)
-        return -12414;
+        ERROR_OUT(-12414, out);
 
-    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    ret = mp_prime_is_prime(n, 8, &isPrime);
     if (ret != 0)
-        return -12415;
+        ERROR_OUT(-12415, out);
     if (isPrime)
-        return -12416;
+        ERROR_OUT(-12416, out);
 
-    mp_clear(&p3);
-    mp_clear(&p2);
-    mp_clear(&p1);
-    mp_clear(&n);
+    ret = 0;
+
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (n != NULL) {
+        mp_clear(n);
+        XFREE(n, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (p1 != NULL) {
+        mp_clear(p1);
+        XFREE(p1, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (p2 != NULL) {
+        mp_clear(p2);
+        XFREE(p2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (p3 != NULL) {
+        mp_clear(p3);
+        XFREE(p3, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    mp_clear(p3);
+    mp_clear(p2);
+    mp_clear(p1);
+    mp_clear(n);
+#endif
+
     wc_FreeRng(&rng);
 
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_PUBLIC_MP */
