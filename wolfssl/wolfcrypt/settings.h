@@ -2093,8 +2093,6 @@ extern void uITRON4_free(void *p) ;
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
-
-    /* tweak the autotools-detected feature set to accommodate switch from user to kernel space: */
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
@@ -2105,6 +2103,10 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_USER_IO
     #define USE_WOLF_STRTOK
     #define WOLFSSL_SP_DIV_64
+    #define WOLFSSL_SP_DIV_WORD_HALF
+    #define SP_HALF_SIZE        32
+    #define SP_HALF_MAX         4294967295U
+    #define WOLFSSL_SP_MOD_WORD_RP
     #define WOLFSSL_OLD_PRIME_CHECK
 #endif
 

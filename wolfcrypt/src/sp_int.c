@@ -808,11 +808,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     sp_int_digit r;
 
     w = ((sp_int_word)hi << SP_WORD_SIZE) | lo;
-#ifdef WOLFSSL_LINUXKM
-    do_div(w, d);
-#else
     w /= d;
-#endif
     r = (sp_int_digit)w;
 
     return r;
@@ -1471,9 +1467,73 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 }
 #endif
 
+#ifdef WOLFSSL_SP_MOD_WORD_RP
+/* Calculate the word w modulo the digit d into r: r = w mod d
+ *
+ * w  SP integer word, dividend and result.
+ * d  SP integer digit, modulus.
+ *
+ * returns MP_VAL when d is 0 and MP_OKAY otherwise.
+ */
+static WC_INLINE int sp_mod_word(sp_int_word *w, sp_int_digit d) {
+    sp_int_word x;
+    int x_shift;
+    if (*w == 0)
+        return 0;
+    if (d == 0)
+        return MP_VAL;
+
+    /* Russian Peasant algorithm for division, optimized:
+     *
+     * first, shift x leftward just enough to be greater than w/2.
+     * this can be done by counting the leading zeros of each,
+     * shifting so that x has one less leading zero, and then doing a
+     * final comparison.
+     *
+     * textbook logic:
+     *
+     * while (x <= w/2)
+     *   x <<= 1;
+     */
+    x_shift = ((int)__builtin_clzll(d) + (SP_WORD_SIZE - 1));
+    if ((*w >> SP_WORD_SIZE) == 0)
+        x_shift -=
+#if SP_WORD_SIZE == 64
+            (int)__builtin_clzll((uint64_t)*w)
+#elif SP_WORD_SIZE == 32
+            (int)__builtin_clz((uint32_t)*w)
+#else
+#error unexpected SP_WORD_SIZE
+#endif
+            + SP_WORD_SIZE;
+    else
+        x_shift -=
+#if SP_WORD_SIZE == 64
+            (int)__builtin_clzll((uint64_t)(*w >> SP_WORD_SIZE))
+#elif SP_WORD_SIZE == 32
+            (int)__builtin_clz((uint32_t)(*w >> SP_WORD_SIZE))
+#else
+#error unexpected SP_WORD_SIZE
+#endif
+            ;
+    if (x_shift < 0)
+        x_shift = 0;
+    x = (sp_int_word)d << x_shift;
+    if (x <= (*w>>1))
+        x <<= 1;
+
+    while (*w >= (sp_int_word)d) {
+        if (*w >= x)
+            *w -= x;
+        x >>= 1;
+    }
+    return MP_OKAY;
+}
+#endif /* WOLFSSL_SP_MOD_WORD_RP */
+
 /* Calculate a modulo the digit d into r: r = a mod d
  *
- * a  SP integer to square.
+ * a  SP integer, dividend.
  * d  SP integer digit, modulus.
  * r  SP integer digit, result.
  * returns MP_VAL when d is 0 and MP_OKAY otherwise.
@@ -1483,7 +1543,6 @@ static int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     int err = MP_OKAY;
     int i;
     sp_int_word w = 0;
-    sp_int_digit t;
 
     if (d == 0)
         err = MP_VAL;
@@ -1491,13 +1550,17 @@ static int sp_mod_d(sp_int* a, const sp_int_digit d, sp_int_digit* r)
     if (err == MP_OKAY) {
         for (i = a->used - 1; i >= 0; i--) {
             w = (w << SP_WORD_SIZE) | a->dp[i];
-#ifdef WOLFSSL_LINUXKM
-            t = (sp_int_digit)w;
-            do_div(t, d);
+#ifdef WOLFSSL_SP_MOD_WORD_RP
+            if (sp_mod_word(&w, d) == MP_VAL) {
+                err = MP_VAL;
+                break;
+            }
 #else
-            t = (sp_int_digit)(w / d);
+            {
+                sp_int_digit t = (sp_int_digit)(w / d);
+                w -= (sp_int_word)t * d;
+            }
 #endif
-            w -= (sp_int_word)t * d;
         }
 
         *r = (sp_int_digit)w;
