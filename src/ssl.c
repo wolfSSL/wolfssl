@@ -19730,6 +19730,7 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     if (session->peer) {
         wolfSSL_X509_free(session->peer);
+        session->peer = NULL;
     }
 #endif
 
