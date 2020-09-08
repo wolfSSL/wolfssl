@@ -2168,7 +2168,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
     free(myStack);
 #ifdef HAVE_STACK_SIZE_VERBOSE
-    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM);
+    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i) ? StackSizeCheck_stackSizeHWM : (stackSize - i));
 #else
     {
       size_t used = stackSize - i;
