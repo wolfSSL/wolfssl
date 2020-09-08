@@ -181,7 +181,7 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (ssl->biowr->method && ssl->biowr->method->writeCb) {
         WOLFSSL_MSG("Calling custom biowr");
         sent = ssl->biowr->method->writeCb(ssl->biowr, buf, sz);
-        if (sent < 0) {
+        if ((sent < 0) && (sent != WOLFSSL_CBIO_ERR_WANT_WRITE)) {
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
         return sent;
