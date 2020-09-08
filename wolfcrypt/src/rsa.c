@@ -3953,17 +3953,17 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int *p = (mp_int *)XMALLOC(sizeof *p, key->heap, DYNAMIC_TYPE_RSA),
-      *q = (mp_int *)XMALLOC(sizeof *q, key->heap, DYNAMIC_TYPE_RSA),
-      *tmp1 = (mp_int *)XMALLOC(sizeof *tmp1, key->heap, DYNAMIC_TYPE_RSA),
-      *tmp2 = (mp_int *)XMALLOC(sizeof *tmp2, key->heap, DYNAMIC_TYPE_RSA),
-      *tmp3 = (mp_int *)XMALLOC(sizeof *tmp3, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *p = (mp_int *)XMALLOC(sizeof *p, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *q = (mp_int *)XMALLOC(sizeof *q, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *tmp1 = (mp_int *)XMALLOC(sizeof *tmp1, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *tmp2 = (mp_int *)XMALLOC(sizeof *tmp2, key->heap, DYNAMIC_TYPE_RSA);
+    mp_int *tmp3 = (mp_int *)XMALLOC(sizeof *tmp3, key->heap, DYNAMIC_TYPE_RSA);
 #else
-    mp_int p_buf, *p = &p_buf,
-      q_buf, *q = &q_buf,
-      tmp1_buf, *tmp1 = &tmp1_buf,
-      tmp2_buf, *tmp2 = &tmp2_buf,
-      tmp3_buf, *tmp3 = &tmp3_buf;
+    mp_int p_buf, *p = &p_buf;
+    mp_int q_buf, *q = &q_buf;
+    mp_int tmp1_buf, *tmp1 = &tmp1_buf;
+    mp_int tmp2_buf, *tmp2 = &tmp2_buf;
+    mp_int tmp3_buf, *tmp3 = &tmp3_buf;
 #endif
     int err, i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;

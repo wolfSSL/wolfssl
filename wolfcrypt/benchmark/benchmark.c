@@ -4510,17 +4510,17 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
         if (out[0] == NULL) {
-            printf("malloc failed\n");
+            ret = MEMORY_E;
             goto exit;
         }
     #endif
     if (enc[0] == NULL) {
-        printf("malloc failed\n");
+        ret = MEMORY_E;
         goto exit;
     }
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
     if (message == NULL) {
-        printf("malloc failed\n");
+        ret = MEMORY_E;
         goto exit;
     }
 #endif
@@ -4871,7 +4871,7 @@ void bench_dh(int doAsync)
     DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
     if ((pub[0] == NULL) || (pub2 == NULL) || (agree[0] == NULL) || (priv[0] == NULL) || (priv2 == NULL)) {
-        printf("malloc failed\n");
+        ret = MEMORY_E;
         goto exit;
     }
 #endif
@@ -5315,13 +5315,13 @@ void bench_ecc(int doAsync)
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
 #ifdef HAVE_ECC_DHE
     if (shared[0] == NULL) {
-        printf("malloc failed\n");
+        ret = MEMORY_E;
         goto exit;
     }
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     if ((sig[0] == NULL) || (digest[0] == NULL)) {
-        printf("malloc failed\n");
+        ret = MEMORY_E;
         goto exit;
     }
 #endif
