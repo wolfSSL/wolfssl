@@ -1355,11 +1355,11 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
         return (word32)(ktime_get_real_ns() / (s64)1000000);
-        #else
+    #else
         return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
-        #endif
+    #endif
     }
 #else
     /* The time in milliseconds.

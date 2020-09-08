@@ -10672,18 +10672,15 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
     int8_t       aslide[GE448_WINDOW_BUF_SIZE];
     int8_t       bslide[GE448_WINDOW_BUF_SIZE];
     ge448_p2     pi[16]; /* p,3p,..,31p */
-    ge448_p2     p2;
+    ge448_p2     p2_data, *p2 = &p2_data;
     int          i;
 
-    #define PI_PTR(pi) (&(pi))
 #else
     int8_t       *aslide = NULL;
     int8_t       *bslide = NULL;
     ge448_p2     *pi = NULL; /* p,3p,..,31p */
     ge448_p2     *p2 = NULL;
     int          i, ret;
-
-    #define PI_PTR(pi) (pi)
 
     aslide = (int8_t *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (! aslide) {
@@ -10713,22 +10710,22 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
     fe448_copy(pi[0].X, p->X);
     fe448_copy(pi[0].Y, p->Y);
     fe448_copy(pi[0].Z, p->Z);
-    ge448_dbl(PI_PTR(p2), p);
-    ge448_add(&pi[1], PI_PTR(p2), &pi[0]);
-    ge448_add(&pi[2], PI_PTR(p2), &pi[1]);
-    ge448_add(&pi[3], PI_PTR(p2), &pi[2]);
-    ge448_add(&pi[4], PI_PTR(p2), &pi[3]);
-    ge448_add(&pi[5], PI_PTR(p2), &pi[4]);
-    ge448_add(&pi[6], PI_PTR(p2), &pi[5]);
-    ge448_add(&pi[7], PI_PTR(p2), &pi[6]);
-    ge448_add(&pi[8], PI_PTR(p2), &pi[7]);
-    ge448_add(&pi[9], PI_PTR(p2), &pi[8]);
-    ge448_add(&pi[10], PI_PTR(p2), &pi[9]);
-    ge448_add(&pi[11], PI_PTR(p2), &pi[10]);
-    ge448_add(&pi[12], PI_PTR(p2), &pi[11]);
-    ge448_add(&pi[13], PI_PTR(p2), &pi[12]);
-    ge448_add(&pi[14], PI_PTR(p2), &pi[13]);
-    ge448_add(&pi[15], PI_PTR(p2), &pi[14]);
+    ge448_dbl(p2, p);
+    ge448_add(&pi[1], p2, &pi[0]);
+    ge448_add(&pi[2], p2, &pi[1]);
+    ge448_add(&pi[3], p2, &pi[2]);
+    ge448_add(&pi[4], p2, &pi[3]);
+    ge448_add(&pi[5], p2, &pi[4]);
+    ge448_add(&pi[6], p2, &pi[5]);
+    ge448_add(&pi[7], p2, &pi[6]);
+    ge448_add(&pi[8], p2, &pi[7]);
+    ge448_add(&pi[9], p2, &pi[8]);
+    ge448_add(&pi[10], p2, &pi[9]);
+    ge448_add(&pi[11], p2, &pi[10]);
+    ge448_add(&pi[12], p2, &pi[11]);
+    ge448_add(&pi[13], p2, &pi[12]);
+    ge448_add(&pi[14], p2, &pi[13]);
+    ge448_add(&pi[15], p2, &pi[14]);
 
     ge448_0(r);
 
@@ -10772,7 +10769,6 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
     return 0;
 #endif
 
-#undef PI_PTR
 #undef GE448_WINDOW_BUF_SIZE
 }
 
