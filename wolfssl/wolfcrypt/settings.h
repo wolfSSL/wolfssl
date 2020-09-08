@@ -831,7 +831,9 @@ extern void uITRON4_free(void *p) ;
         #undef SIZEOF_LONG
         #define SIZEOF_LONG_LONG 8
     #else
-        #error settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
+        #if !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
+            #error settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
+        #endif
     #endif
 
     #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
@@ -841,7 +843,9 @@ extern void uITRON4_free(void *p) ;
     #if (WINMSP3)
         #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
     #else
-        #sslpro: settings.h - please implement XSTRNCASECMP - needed for HAVE_ECC
+        #ifndef XSTRNCASECMP
+            #error settings.h - please implement XSTRNCASECMP - needed for HAVE_ECC
+        #endif
     #endif
 
     #define WOLFSSL_HAVE_MAX
