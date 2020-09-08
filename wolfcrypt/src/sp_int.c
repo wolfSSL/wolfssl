@@ -950,7 +950,7 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
         for (i = sa->used - 1; i >= d->used; i--) {
             if (sa->dp[i] == dt) {
-                t = (sp_digit)-1;
+                t = SP_MASK; /* f's */
             }
             else {
                 t = sp_div_word(sa->dp[i], sa->dp[i-1], dt);
