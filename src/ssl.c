@@ -26189,7 +26189,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
             idx = ctx->certChain->length;
         }
         c32to24(derSz, chain + idx);
-        idx += OPAQUE24_LEN,
+        idx += OPAQUE24_LEN;
         XMEMCPY(chain + idx, der, derSz);
         idx += derSz;
 #ifdef WOLFSSL_TLS13
