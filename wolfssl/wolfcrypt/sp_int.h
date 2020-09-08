@@ -85,8 +85,6 @@ This library provides single precision (SP) integer math functions.
     #endif
     typedef uint128_t sp_int_word;
     typedef int128_t sp_int_sword;
-  #else
-    #error Word size not defined
   #endif
 #else
   #if SP_WORD_SIZE == 32
@@ -106,12 +104,16 @@ This library provides single precision (SP) integer math functions.
     #endif
     typedef uint128_t sp_int_word;
     typedef int128_t sp_int_sword;
-  #else
-    #error Word size not defined
   #endif
 #endif
 
-#define SP_MASK    (sp_digit)(-1)
+#if SP_WORD_SIZE == 32
+    #define SP_MASK ((sp_digit)0xffffffff)
+#elif SP_WORD_SIZE == 64
+    #define SP_MASK ((sp_digit)0xffffffffffffffff)
+#else
+    #error Word size not defined
+#endif
 
 
 #if defined(WOLFSSL_HAVE_SP_ECC) && defined(WOLFSSL_SP_NONBLOCK)
