@@ -13183,7 +13183,7 @@ static int rsa_test(void)
     /* initialize stack structures */
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(key, 0, sizeof *key);
-#ifdef WOLFSSL_CERT_EXT
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     XMEMSET(keypub, 0, sizeof *keypub);
 #endif
 #if defined(HAVE_NTRU)
