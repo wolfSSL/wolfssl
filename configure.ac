@@ -3359,27 +3359,36 @@ fi
 
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
-    [  --enable-linuxkm        Enable Linux Kernel Module (default: disabled)],
-    [ ENABLED_LINUXKM=$enableval ],
-    [ ENABLED_LINUXKM=no ]
+    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM=$enableval],
+    [ENABLED_LINUXKM=no]
     )
+
+AC_ARG_WITH([linux-source],
+    [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
+    [KERNEL_ROOT=$withval],
+    [KERNEL_ROOT=""])
+
+AC_ARG_WITH([linux-arch],
+    [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
+    [KERNEL_ARCH=$withval],
+    [KERNEL_ARCH=""])
 
 if test "x$ENABLED_LINUXKM" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+    ENABLED_NO_LIBRARY=yes
 
-    AC_PATH_DEFAULT_KERNEL_SOURCE
-    AC_ARG_WITH([linux-source],
-        [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
-        [KERNEL_ROOT=$withval],
-        [KERNEL_ROOT=$DEFAULT_KERNEL_ROOT])
+    if test "$KERNEL_ROOT" = ""; then
+        AC_PATH_DEFAULT_KERNEL_SOURCE
+        KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+    fi
     AC_SUBST([KERNEL_ROOT])
 
-    AC_DEFAULT_KERNEL_ARCH
-    AC_ARG_WITH([linux-arch],
-        [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
-        [KERNEL_ARCH=$withval],
-        [KERNEL_ARCH=$DEFAULT_KERNEL_ARCH])
+    if test "$KERNEL_ARCH" = ""; then
+        AC_DEFAULT_KERNEL_ARCH
+        KERNEL_ARCH="$DEFAULT_KERNEL_ARCH"
+    fi
     AC_SUBST([KERNEL_ARCH])
 
     if test "${KERNEL_ROOT}" = ""; then
@@ -3388,8 +3397,6 @@ then
     if test "${KERNEL_ARCH}" = ""; then
         AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
     fi
-
-    ENABLED_NO_LIBRARY=yes
 fi
 
 
