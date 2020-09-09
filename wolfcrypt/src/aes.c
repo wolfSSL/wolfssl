@@ -2818,11 +2818,36 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                             const byte* iv, int dir)
         {
             int ret;
-
         #ifdef WOLFSSL_IMX6_CAAM_BLOB
             byte   local[32];
             word32 localSz = 32;
+        #endif
+    
+        #ifdef WOLFSSL_AESNI
+            if (checkAESNI == 0) {
+                haveAESNI  = Check_CPU_support_AES();
+                checkAESNI = 1;
+            }
+            if (haveAESNI) {
+                #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+                    defined(WOLFSSL_AES_OFB)
+                    aes->left = 0;
+                #endif /* WOLFSSL_AES_COUNTER */
+                aes->use_aesni = 1;
+                if (iv)
+                    XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+                else
+                    XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
+                if (dir == AES_ENCRYPTION)
+                    return AES_set_encrypt_key(userKey, keylen * 8, aes);
+            #ifdef HAVE_AES_DECRYPT
+                else
+                    return AES_set_decrypt_key(userKey, keylen * 8, aes);
+            #endif
+            }
+        #endif /* WOLFSSL_AESNI */
 
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
             if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
              keylen == (24 + WC_CAAM_BLOB_SZ) ||
              keylen == (32 + WC_CAAM_BLOB_SZ)) {
@@ -2836,6 +2861,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 keylen = localSz;
             }
         #endif
+
             ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
 
         #ifdef WOLFSSL_IMX6_CAAM_BLOB
