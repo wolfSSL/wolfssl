@@ -4562,6 +4562,7 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
      if (w >= b) {
 #ifdef WOLFSSL_LINUXKM
         t = (mp_digit)w;
+	/* Linux kernel macro for in-place 64 bit integer division. */
         do_div(t, b);
 #else
         t = (mp_digit)(w / b);
