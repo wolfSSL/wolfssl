@@ -5357,6 +5357,10 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([CFLAGS_SIMD_ENABLE])
     AC_SUBST([CFLAGS_AUTO_VECTORIZE_DISABLE])
     AC_SUBST([CFLAGS_AUTO_VECTORIZE_ENABLE])
+    AC_SUBST([ASFLAGS_FPU_DISABLE_SIMD_ENABLE])
+    AC_SUBST([ASFLAGS_FPU_ENABLE_SIMD_DISABLE])
+    AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
+    AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
     if test "$ENABLED_AFALG" = "yes"; then
         AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
@@ -5673,7 +5677,11 @@ echo "   * fpu enable C flags:         $CFLAGS_FPU_ENABLE" && \
 echo "   * SIMD disable C flags:       $CFLAGS_SIMD_DISABLE" && \
 echo "   * SIMD enable C flags:        $CFLAGS_SIMD_ENABLE" && \
 echo "   * No-auto-vectorize C flags:  $CFLAGS_AUTO_VECTORIZE_DISABLE" && \
-echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE"
+echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
+echo "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
+echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
+echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
+echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"

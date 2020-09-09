@@ -96,5 +96,53 @@ AC_DEFUN([AX_SIMD_CC_COMPILER_FLAGS], [
         AX_APPEND_COMPILE_FLAGS([-ftree-slp-vectorize],[CFLAGS_AUTO_VECTORIZE_ENABLE])
     fi
 
+    case "$host_cpu" in
+    x86_64)
+        # note that gnu as accepts archs of the form -march=+no387, signifying the
+        # default target arch modified with no387.  by default, we use that here.
+        if test "$ASFLAGS_FPU_DISABLE_SIMD_ENABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+no87+no287+no387+no687+sse+sse2+sse3+ssse3+sse4.1+sse4.2+sse4+avx+avx2+avx512f"],[ASFLAGS_FPU_DISABLE_SIMD_ENABLE])
+        fi
+
+        if test "$ASFLAGS_FPU_ENABLE_SIMD_DISABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+387+687+nosse+nosse2+nosse3+nossse3+nosse4.1+nosse4.2+nosse4+noavx+noavx2+noavx512f"],[ASFLAGS_FPU_ENABLE_SIMD_DISABLE])
+        fi
+
+        if test "$ASFLAGS_FPUSIMD_DISABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+no387+no687+nosse+nosse2+nosse3+nossse3+nosse4.1+nosse4.2+nosse4+noavx+noavx2+noavx512f"],[ASFLAGS_FPUSIMD_DISABLE])
+        fi
+
+        if test "$ASFLAGS_FPUSIMD_ENABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+387+687+sse+sse2+sse3+ssse3+sse4.1+sse4.2+sse4+avx+avx2+avx512f"],[ASFLAGS_FPUSIMD_ENABLE])
+        fi
+
+        ;;
+    aarch64)
+        if test "$BASE_TARGET_ARCH" = ""; then
+            BASE_TARGET_ARCH=all
+        fi
+
+        if test "$ASFLAGS_FPU_DISABLE_SIMD_ENABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+nofpu+simd"],[ASFLAGS_FPU_DISABLE_SIMD_ENABLE])
+        fi
+
+        if test "$ASFLAGS_FPU_ENABLE_SIMD_DISABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+fpu+nosimd"],[ASFLAGS_FPU_ENABLE_SIMD_DISABLE])
+        fi
+
+        if test "$ASFLAGS_FPUSIMD_DISABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+nofpu+nosimd"],[ASFLAGS_FPUSIMD_DISABLE])
+        fi
+
+        if test "$ASFLAGS_FPUSIMD_ENABLE" = ""; then
+            AX_APPEND_COMPILE_FLAGS([-Wa,-march="${BASE_TARGET_ARCH}+fpu+simd"],[$ASFLAGS_FPUSIMD_ENABLE])
+        fi
+
+        ;;
+    *)
+        AC_MSG_ERROR(["Don\'t know how to construct assembler flags for target \"${host_cpu}\"."])
+        ;;
+    esac
+
     AC_LANG_POP
 ])
