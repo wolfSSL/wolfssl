@@ -108,9 +108,9 @@ This library provides single precision (SP) integer math functions.
 #endif
 
 #if SP_WORD_SIZE == 32
-    #define SP_MASK ((sp_digit)0xffffffff)
+    #define SP_MASK ((sp_int_digit)0xffffffffU)
 #elif SP_WORD_SIZE == 64
-    #define SP_MASK ((sp_digit)0xffffffffffffffff)
+    #define SP_MASK ((sp_int_digit)0xffffffffffffffffUL)
 #else
     #error Word size not defined
 #endif
