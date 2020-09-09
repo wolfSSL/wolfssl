@@ -12906,8 +12906,15 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     }
 #endif
     else if (curLT) {
-        word32 idx = diff / DTLS_WORD_BITS;
-        word32 newDiff = diff % DTLS_WORD_BITS;
+        word32 idx;
+        word32 newDiff;
+        if (diff == 0) {
+            WOLFSSL_MSG("DTLS sanity check failed");
+            return 0;
+        }
+        diff--;
+        idx = diff / DTLS_WORD_BITS;
+        newDiff = diff % DTLS_WORD_BITS;
 
         /* verify idx is valid for window array */
         if (idx >= WOLFSSL_DTLS_WINDOW_WORDS) {
