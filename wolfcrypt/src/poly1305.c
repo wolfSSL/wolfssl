@@ -267,7 +267,9 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 {
 #ifdef USE_INTEL_SPEEDUP
     /* AVX2 is handled in wc_Poly1305Update. */
+    SAVE_VECTOR_REGISTERS();
     poly1305_blocks_avx(ctx, m, bytes);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
     const word64 hibit = (ctx->finished) ? 0 : ((word64)1 << 40); /* 1 << 128 */
     word64 r0,r1,r2;
@@ -394,7 +396,9 @@ static void poly1305_block(Poly1305* ctx, const unsigned char *m)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* No call to poly1305_block when AVX2, AVX2 does 4 blocks at a time. */
+    SAVE_VECTOR_REGISTERS();
     poly1305_block_avx(ctx, m);
+    RESTORE_VECTOR_REGISTERS();
 #else
     poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
 #endif
@@ -430,12 +434,14 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         intel_flags = cpuid_get_flags();
         cpu_flags_set = 1;
     }
+    SAVE_VECTOR_REGISTERS();
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_setkey_avx2(ctx, key);
     else
     #endif
         poly1305_setkey_avx(ctx, key);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
 
     /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
@@ -510,12 +516,14 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
+    SAVE_VECTOR_REGISTERS();
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_final_avx2(ctx, mac);
     else
     #endif
         poly1305_final_avx(ctx, mac);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
 
     /* process the remaining block */
@@ -712,11 +720,13 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
             if (ctx->leftover < sizeof(ctx->buffer))
                 return 0;
 
+            SAVE_VECTOR_REGISTERS();
             if (!ctx->started)
                 poly1305_calc_powers_avx2(ctx);
             poly1305_blocks_avx2(ctx, ctx->buffer, sizeof(ctx->buffer));
             ctx->leftover = 0;
-        }
+        } else
+            SAVE_VECTOR_REGISTERS();
 
         /* process full blocks */
         if (bytes >= sizeof(ctx->buffer)) {
@@ -735,6 +745,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
                 ctx->buffer[ctx->leftover + i] = m[i];
             ctx->leftover += bytes;
         }
+        RESTORE_VECTOR_REGISTERS();
     }
     else
     #endif

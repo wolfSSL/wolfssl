@@ -309,9 +309,26 @@ static int InitSha256(wc_Sha256* sha256)
                                                                     /* = NULL */
     static int transform_check = 0;
     static word32 intel_flags;
+    static int Transform_Sha256_is_vectorized = 0;
 
-    #define XTRANSFORM(S, D)         (*Transform_Sha256_p)((S),(D))
-    #define XTRANSFORM_LEN(S, D, L)  (*Transform_Sha256_Len_p)((S),(D),(L))
+    #define XTRANSFORM(S, D) ({                        \
+        int _ret;                                      \
+        if (Transform_Sha256_is_vectorized)            \
+            SAVE_VECTOR_REGISTERS();                   \
+        _ret = (*Transform_Sha256_p)((S),(D));         \
+        if (Transform_Sha256_is_vectorized)            \
+            RESTORE_VECTOR_REGISTERS();                \
+        _ret;                                          \
+    })
+    #define XTRANSFORM_LEN(S, D, L) ({                 \
+        int _ret;                                      \
+        if (Transform_Sha256_is_vectorized)            \
+            SAVE_VECTOR_REGISTERS();                   \
+        _ret = (*Transform_Sha256_Len_p)((S),(D),(L)); \
+        if (Transform_Sha256_is_vectorized)            \
+            RESTORE_VECTOR_REGISTERS();                \
+        _ret;                                          \
+    })
 
     static void Sha256_SetTransform(void)
     {
@@ -327,6 +344,7 @@ static int InitSha256(wc_Sha256* sha256)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha256_p = Transform_Sha256_AVX2_RORX;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_RORX_Len;
+                Transform_Sha256_is_vectorized = 1;
             }
             else
         #endif
@@ -334,11 +352,13 @@ static int InitSha256(wc_Sha256* sha256)
             {
                 Transform_Sha256_p = Transform_Sha256_AVX2;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_Len;
+                Transform_Sha256_is_vectorized = 1;
             }
         #ifdef HAVE_INTEL_RORX
             else {
                 Transform_Sha256_p = Transform_Sha256_AVX1_RORX;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX1_RORX_Len;
+                Transform_Sha256_is_vectorized = 1;
             }
         #endif
         }
@@ -348,12 +368,14 @@ static int InitSha256(wc_Sha256* sha256)
         if (IS_INTEL_AVX1(intel_flags)) {
             Transform_Sha256_p = Transform_Sha256_AVX1;
             Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
+            Transform_Sha256_is_vectorized = 1;
         }
         else
     #endif
         {
             Transform_Sha256_p = Transform_Sha256;
             Transform_Sha256_Len_p = NULL;
+            Transform_Sha256_is_vectorized = 0;
         }
 
         transform_check = 1;

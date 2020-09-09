@@ -64,18 +64,38 @@ $(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
 
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
-asflags-y := $(WOLFSSL_ASFLAGS)
+asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
 
-# these two _asms are kernel-compatible (they don't reference the pic-related _GLOBAL_OFFSET_TABLE_)
-# but they still irritate objtool: "unannotated intra-function call" and "BP used as a scratch register"
+# after the C wrapper for a vectorized algorithm has been equipped with {SAVE,RESTORE}_VECTOR_REGISTERS(),
+# it can be safely included here:
+$(obj)/wolfcrypt/src/aes_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/aes_gcm_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/fe_x25519_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+
+# these _asms are kernel-compatible, but they still irritate objtool:
 $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/chacha_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sha256_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sha512_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/fe_x25519_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
 $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
 	@cp $< $@
-	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) | awk '/^ *[0-9]+: /{if ($$8 !~ /^(wc_|wolf)/){next;} if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) { print "EXPORT_SYMBOL(" $$8 ");"; }}' >> $@
+	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
+		awk '/^ *[0-9]+: / {							\
+		  if ($$8 !~ /^(wc_|wolf)/){next;}					\
+		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
+		    print "EXPORT_SYMBOL(" $$8 ");";	      	      		  	\
+		  }									\
+		}' >> $@
 	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL(wolfcrypt_test);\n#endif' >> $@
 
 clean-files := module_exports.c

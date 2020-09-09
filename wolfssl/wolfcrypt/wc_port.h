@@ -88,12 +88,21 @@
     #endif
     #include <linux/net.h>
     #include <linux/slab.h>
-    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-            #include <asm/i387.h>
-        #else
-            #include <asm/simd.h>
-        #endif
+    #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
+            #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+                #include <asm/i387.h>
+            #else
+                #include <asm/simd.h>
+            #endif
+            #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
+            #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
+    #elif defined(WOLFSSL_ARMASM)
+        #include <asm/fpsimd.h>
+#define SAVE_VECTOR_REGISTERS() ({ preempt_disable(); fpsimd_preserve_current_state(); })
+#define SAVE_VECTOR_REGISTERS() ({ fpsimd_restore_current_state(); preempt_enable(); })
+    #else
+        #define SAVE_VECTOR_REGISTERS() ({})
+        #define RESTORE_VECTOR_REGISTERS() ({})
     #endif
     _Pragma("GCC diagnostic pop");
 
@@ -122,13 +131,10 @@
     /* the rigmarole around kstrtol() here is to accommodate its warn-unused-result attribute. */
     #define XATOI(s) ({ long _xatoi_res = 0; int _xatoi_ret = kstrtol(s, 10, &_xatoi_res); if (_xatoi_ret != 0) { _xatoi_res = 0; } (int)_xatoi_res; })
 
-    #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
-    #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
-
 #else /* ! WOLFSSL_LINUXKM */
 
-    #define SAVE_VECTOR_REGISTERS()
-    #define RESTORE_VECTOR_REGISTERS()
+    #define SAVE_VECTOR_REGISTERS() ({})
+    #define RESTORE_VECTOR_REGISTERS() ({})
 
 #endif /* WOLFSSL_LINUXKM */
 
