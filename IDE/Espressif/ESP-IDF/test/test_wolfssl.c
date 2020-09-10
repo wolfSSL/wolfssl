@@ -335,7 +335,7 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -350,7 +350,7 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
         mp_radix_size(&y, 16, &radixY_size);
         radixX_size = max(radixX_size, radixY_size);
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
@@ -410,7 +410,7 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -427,7 +427,7 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
         mp_radix_size(&m, 16, &radixM_size);
         radixX_size = max(radixX_size, max(radixY_size, radixM_size));
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
@@ -491,7 +491,7 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -508,7 +508,7 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
         mp_radix_size(&m, 16, &radixM_size);
         radixX_size = max(radixX_size, max(radixY_size, radixM_size));
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
