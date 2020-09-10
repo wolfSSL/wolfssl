@@ -9041,12 +9041,14 @@ static int aesgcm_test(void)
 
   out:
 
+#if !defined(BENCH_EMBEDDED)
     if (large_input)
         XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (large_output)
         XFREE(large_output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (large_outdec)
         XFREE(large_outdec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
