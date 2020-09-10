@@ -37890,6 +37890,13 @@ static void test_wolfSSL_d2i_X509_REQ(void)
 {
     const char* csrFile = "./certs/csr.signed.der";
     const char* csrPopFile = "./certs/csr.attr.der";
+    /* ./certs/csr.dsa.pem is generated using
+     * openssl req -newkey dsa:certs/dsaparams.pem \
+     *     -keyout certs/csr.dsa.key.pem -keyform PEM -out certs/csr.dsa.pem \
+     *     -outform PEM
+     * with the passphrase "wolfSSL"
+     */
+    const char* csrDsaFile = "./certs/csr.dsa.pem";
     BIO* bio = NULL;
     X509* req = NULL;
     EVP_PKEY *pub_key = NULL;
@@ -37929,6 +37936,23 @@ static void test_wolfSSL_d2i_X509_REQ(void)
          * Obtain the challenge password from the CSR
          */
         AssertIntGE(X509_REQ_get_attr_by_NID(req, NID_pkcs9_challengePassword, -1), 0);
+
+        X509_free(req);
+        BIO_free(bio);
+    }
+    {
+        AssertNotNull(bio = BIO_new_file(csrDsaFile, "rb"));
+        AssertNotNull(PEM_read_bio_X509_REQ(bio, &req, NULL, NULL));
+
+        /*
+         * Extract the public key from the CSR
+         */
+        AssertNotNull(pub_key = X509_REQ_get_pubkey(req));
+
+        /*
+         * Verify the signature in the CSR
+         */
+        AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
 
         X509_free(req);
         BIO_free(bio);

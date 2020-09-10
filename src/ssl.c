@@ -39363,10 +39363,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             /* Extended Key Usage not supported. */
     #endif
     #ifdef WOLFSSL_CERT_REQ
-            if (XSTRLEN(cert->challengePw) > 0) {
-                XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
-                cert->challengePwPrintableString = 1;
-            }
+            XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
+            cert->challengePwPrintableString = req->challengePw[0] != 0;
     #endif
         }
 
@@ -40842,7 +40840,7 @@ err:
             else if (header) {
                 if (!headerEnd) {
                     headerEnd = XSTRNSTR(header + XSTR_SIZEOF("-----"),
-                            "-----", i - (header - pem));
+                            "-----", i - (header + XSTR_SIZEOF("-----") - pem));
                     if (headerEnd) {
                         headerEnd += XSTR_SIZEOF("-----");
                         /* Read in the newline */
@@ -40881,8 +40879,11 @@ err:
                 }
             }
         }
-        if (!footerEnd) /* Only check footerEnd since it is set last */
+        if (!footerEnd) {
+            /* Only check footerEnd since it is set last */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+            goto err;
+        }
         else {
             if (headerEnd - header ==
                     XSTR_SIZEOF("-----BEGIN CERTIFICATE-----") &&
@@ -42034,6 +42035,33 @@ err:
             a->objSz == b->objSz) {
             return XMEMCMP(a->obj, b->obj, a->objSz);
         }
+        else if (a != NULL && b != NULL && a->objSz != b->objSz &&
+                (a->type == EXT_KEY_USAGE_OID
+                        || b->type == EXT_KEY_USAGE_OID)) {
+            /* Special case for EXT_KEY_USAGE_OID so that
+             * cmp will be treated as a substring search */
+            /* Used in libest to check for id-kp-cmcRA in
+             * EXT_KEY_USAGE extension */
+            unsigned int idx;
+            const byte* s; /* shorter */
+            unsigned int sLen;
+            const byte* l; /* longer */
+            unsigned int lLen;
+            if (a->objSz > b->objSz) {
+                s = b->obj; sLen = b->objSz;
+                l = a->obj; lLen = a->objSz;
+            }
+            else {
+                s = a->obj; sLen = a->objSz;
+                l = b->obj; lLen = b->objSz;
+            }
+            for (idx = 0; idx <= lLen - sLen; idx++) {
+                if (XMEMCMP(l + idx, s, sLen) == 0) {
+                    /* Found substring */
+                    return 0;
+                }
+            }
+        }
 
         return WOLFSSL_FATAL_ERROR;
     }
@@ -42122,7 +42150,7 @@ err:
         int nid = NID_undef;
         unsigned int outSz = MAX_OID_SZ;
         unsigned char out[MAX_OID_SZ];
-        unsigned int sum = 0;
+        WOLFSSL_ASN1_OBJECT* obj;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_txt2obj");
 
@@ -42132,9 +42160,26 @@ err:
         /* If s is numerical value, try to sum oid */
         ret = EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0) {
-            for (i = 0; i < (int)outSz; i++) {
-                sum += out[i];
+            /* If numerical encode succeeded then just
+             * create object from that because sums are
+             * not unique and can cause confusion. */
+            obj = wolfSSL_ASN1_OBJECT_new();
+            if (obj == NULL) {
+                WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                return NULL;
             }
+            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
+            obj->obj = (byte*)XMALLOC(1 + MAX_LENGTH_SZ + outSz, NULL,
+                    DYNAMIC_TYPE_ASN1);
+            if (obj->obj == NULL) {
+                wolfSSL_ASN1_OBJECT_free(obj);
+                return NULL;
+            }
+            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA ;
+            i = SetObjectId(outSz, (byte*)obj->obj);
+            XMEMCPY((byte*)obj->obj + i, out, outSz);
+            obj->objSz = i + outSz;
+            return obj;
         }
 
         len = (int)XSTRLEN(s);
@@ -42144,11 +42189,7 @@ err:
         for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
             /* Short name, long name, and numerical value are interpreted */
             if (no_name == 0 && ((XSTRNCMP(s, wolfssl_object_info[i].sName, len) == 0) ||
-                                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0) ||
-                                 (wolfssl_object_info[i].id == (int)sum)))
-                    nid = wolfssl_object_info[i].nid;
-            /* Only numerical value is interpreted */
-            else if (no_name == 1 && wolfssl_object_info[i].id == (int)sum)
+                                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0)))
                     nid = wolfssl_object_info[i].nid;
         }
 
