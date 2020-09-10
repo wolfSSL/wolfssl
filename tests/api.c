@@ -13662,6 +13662,392 @@ static int test_wc_SetKeyUsage (void)
     return ret;
 
 } /* END  test_wc_SetKeyUsage */
+/*
+ * Testing wc_CheckProbablePrime()
+ */
+static int test_wc_CheckProbablePrime (void)
+{
+    int ret = 0;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey              key;
+    WC_RNG              rng;
+    byte                e[3];
+    word32              eSz = (word32)sizeof(e);
+    byte                n[512]; /* size of RSA_TEST_BYTES */
+    word32              nSz = (word32)sizeof(n);
+    byte                d[512];
+    word32              dSz = (word32)sizeof(d);
+    byte                p[512/2];
+    word32              pSz = (word32)sizeof(p);
+    byte                q[512/2];
+    word32              qSz = (word32)sizeof(q);
+    int                 nlen = 1024;
+    int*                isPrime;
+    int                 test[5];
+    isPrime = test;
+
+
+    printf(testingFmt, "wc_CheckProbablePrime()");
+
+
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    }
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
+                                p, &pSz, q, &qSz);
+    }
+    /* Bad cases */
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(NULL, pSz, q, qSz, e, eSz,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, 0, q, qSz, e, eSz,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, pSz, NULL, qSz, e, eSz,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, pSz, q, 0, e, eSz,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, pSz, q, qSz, NULL, eSz,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, pSz, q, qSz, e, 0,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(NULL, 0, NULL, 0, NULL, 0,
+                                     nlen, isPrime);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    
+    /* Good case */
+    if (ret == 0) {
+        ret = wc_CheckProbablePrime(p, pSz, q, qSz, e, eSz,
+                                     nlen, isPrime);
+    } 
+    
+    if (wc_FreeRsaKey(&key) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_FreeRng(&rng) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+
+    return ret;
+} /* END  test_wc_CheckProbablePrime */
+/*
+ * Testing wc_RsaPSS_Verify()
+ */
+static int test_wc_RsaPSS_Verify (void)
+{
+    int ret = 0;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey              key;
+    WC_RNG              rng;
+    int                 sz = 256;
+    byte*               pt;
+    const char*         szMessage = "This is the string to be signed";
+    unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
+    unsigned char       pDecrypted[2048/8];
+    word32              outLen = sizeof(pDecrypted);
+    pt = pDecrypted;
+
+    printf(testingFmt, "wc_RsaPSS_Verify()");
+
+    ret = wc_InitRsaKey(&key, NULL);
+
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    }
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+    }
+    
+    if (ret == 0) {
+        ret = wc_RsaPSS_Sign((byte*)szMessage, XSTRLEN(szMessage)+1,
+                pSignature, sizeof(pSignature),
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        if (ret > 0 ){
+            sz = ret;
+            ret = 0;
+        }
+    }
+    /* Bad cases */
+    if (ret == 0) {
+        ret = wc_RsaPSS_Verify(NULL, sz, pt, outLen,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_Verify(pSignature, 0, pt, outLen,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_Verify(pSignature, sz, NULL, outLen,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_Verify(NULL, 0, NULL, outLen,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    /* Good case */
+    if (ret == 0) {
+        ret = wc_RsaPSS_Verify(pSignature, sz, pt, outLen,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret > 0) {
+                ret = 0;
+            }
+    }
+    if (wc_FreeRsaKey(&key) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_FreeRng(&rng) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+
+    return ret;
+} /* END  test_wc_RsaPSS_Verify */
+/*
+ * Testing wc_RsaPSS_VerifyCheck()
+ */
+static int test_wc_RsaPSS_VerifyCheck (void)
+{
+    int ret = 0;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey              key;
+    WC_RNG              rng;
+    int                 sz = 256;
+    byte*               pt;
+    byte                digest[2048]; /* WC_MAX_DIGEST_SIZE */
+    word32              digestSz;
+    unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
+    unsigned char       pDecrypted[2048/8];
+    word32              outLen = sizeof(pDecrypted);
+    pt = pDecrypted; 
+
+    printf(testingFmt, "wc_RsaPSS_VerifyCheck()");
+
+    ret = wc_InitRsaKey(&key, NULL);
+
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    }
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+    }
+    if (ret == 0) {
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, sizeof(digest));
+        digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+    }
+    
+    if (ret == 0) {
+        ret = wc_RsaPSS_Sign(digest, digestSz,
+                pSignature, sizeof(pSignature),
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        if (ret > 0 ){
+            sz = ret;
+            ret = 0;
+        }
+    }
+    /* Bad cases */
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(NULL, sz, pt, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(pSignature, 0, pt, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(pSignature, sz, NULL, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(NULL, 0, NULL, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }   
+    
+    /* Good case */
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(pSignature, sz, pt, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret > 0) {
+                ret = 0;
+            }
+    }
+    if (wc_FreeRsaKey(&key) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_FreeRng(&rng) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+
+    return ret;
+} /* END  test_wc_RsaPSS_VerifyCheck */
+/*
+ * Testing wc_RsaPSS_VerifyCheckInline()
+ */
+static int test_wc_RsaPSS_VerifyCheckInline (void)
+{
+    int ret = 0;
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey              key;
+    WC_RNG              rng;
+    int                 sz = 256;
+    byte*               pt;
+    byte                digest[2048]; /* WC_MAX_DIGEST_SIZE */
+    word32              digestSz;
+    unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
+    unsigned char       pDecrypted[2048/8];
+    pt = pDecrypted; 
+    
+
+    printf(testingFmt, "wc_RsaPSS_VerifyCheckInline()");
+
+    ret = wc_InitRsaKey(&key, NULL);
+
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    }
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+    }
+    if (ret == 0) {
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, sizeof(digest));
+        digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+    }
+    
+    if (ret == 0) {
+        ret = wc_RsaPSS_Sign(digest, digestSz,
+                pSignature, sizeof(pSignature),
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        if (ret > 0 ){
+            sz = ret;
+            ret = 0;
+        }
+    }
+    /* Bad Cases */
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(NULL, sz, &pt,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(pSignature, 0, NULL,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(NULL, 0, &pt,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(pSignature, sz, &pt,
+                digest, digestSz, WC_HASH_TYPE_SHA, WC_MGF1SHA256, &key);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+    }
+    /* Good case */
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(pSignature, sz, &pt,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret > 0) {
+                ret = 0;
+            }
+    }
+    if (wc_FreeRsaKey(&key) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (wc_FreeRng(&rng) || ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+
+    return ret;
+} /* END  test_wc_RsaPSS_VerifyCheckInline */
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 static void sample_mutex_cb (int flag, int type, const char* file, int line)
 {
@@ -35895,6 +36281,12 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaPublicKeyDecodeRaw(), 0);
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
+
+    AssertIntEQ(test_wc_CheckProbablePrime (), 0);
+    //AssertIntEQ(test_wc_CheckProbablePrime_ex (), 0);
+    AssertIntEQ(test_wc_RsaPSS_Verify (), 0);
+    AssertIntEQ(test_wc_RsaPSS_VerifyCheck (), 0);
+    AssertIntEQ(test_wc_RsaPSS_VerifyCheckInline (), 0);
 
     AssertIntEQ(test_wc_SetMutexCb(), 0);
     AssertIntEQ(test_wc_LockMutex_ex(), 0);
