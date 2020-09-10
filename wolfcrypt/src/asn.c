@@ -524,6 +524,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
 static const char sigSha1wDsaName[] = "SHAwDSA";
+static const char sigSha256wDsaName[] = "SHA256wDSA";
 #endif /* NO_DSA */
 #ifndef NO_RSA
 #ifdef WOLFSSL_MD2
@@ -577,6 +578,8 @@ const char* GetSigName(int oid) {
     #if !defined(NO_DSA) && !defined(NO_SHA)
         case CTC_SHAwDSA:
             return sigSha1wDsaName;
+        case CTC_SHA256wDSA:
+            return sigSha256wDsaName;
     #endif /* NO_DSA && NO_SHA */
     #ifndef NO_RSA
         #ifdef WOLFSSL_MD2
@@ -1469,6 +1472,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 /* sigType */
 #if !defined(NO_DSA) && !defined(NO_SHA)
     static const byte sigSha1wDsaOid[] = {42, 134, 72, 206, 56, 4, 3};
+    static const byte sigSha256wDsaOid[] = {96, 134, 72, 1, 101, 3, 4, 3, 2};
 #endif /* NO_DSA */
 #ifndef NO_RSA
     #ifdef WOLFSSL_MD2
@@ -1758,6 +1762,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case CTC_SHAwDSA:
                     oid = sigSha1wDsaOid;
                     *oidSz = sizeof(sigSha1wDsaOid);
+                    break;
+                case CTC_SHA256wDSA:
+                    oid = sigSha256wDsaOid;
+                    *oidSz = sizeof(sigSha256wDsaOid);
                     break;
                 #endif /* NO_DSA */
                 #ifndef NO_RSA
@@ -7015,10 +7023,10 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_DIGEST);
         sigCtx->digest = NULL;
     }
-#ifndef NO_RSA
-    if (sigCtx->plain) {
-        XFREE(sigCtx->plain, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
-        sigCtx->plain = NULL;
+#if !defined(NO_RSA) && !defined(NO_DSA)
+    if (sigCtx->sigCpy) {
+        XFREE(sigCtx->sigCpy, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
+        sigCtx->sigCpy = NULL;
     }
 #endif
 #ifndef NO_ASN_CRYPT
@@ -7030,6 +7038,12 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 XFREE(sigCtx->key.ptr, sigCtx->heap, DYNAMIC_TYPE_RSA);
                 break;
         #endif /* !NO_RSA */
+        #ifndef NO_DSA
+            case DSAk:
+                wc_FreeDsaKey(sigCtx->key.dsa);
+                XFREE(sigCtx->key.dsa, sigCtx->heap, DYNAMIC_TYPE_DSA);
+                break;
+        #endif
         #ifdef HAVE_ECC
             case ECDSAk:
                 wc_ecc_free(sigCtx->key.ecc);
@@ -7110,6 +7124,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
     #ifndef NO_SHA256
         case CTC_SHA256wRSA:
         case CTC_SHA256wECDSA:
+        case CTC_SHA256wDSA:
             if ((ret = wc_Sha256Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHA256h;
                 *digestSz = WC_SHA256_DIGEST_SIZE;
@@ -7217,9 +7232,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
                     sigCtx->key.rsa = (RsaKey*)XMALLOC(sizeof(RsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_RSA);
-                    sigCtx->plain = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                    sigCtx->sigCpy = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
                                          sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
-                    if (sigCtx->key.rsa == NULL || sigCtx->plain == NULL) {
+                    if (sigCtx->key.rsa == NULL || sigCtx->sigCpy == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
                     if ((ret = wc_InitRsaKey_ex(sigCtx->key.rsa, sigCtx->heap,
@@ -7235,7 +7250,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key decode error RSA");
                         goto exit_cs;
                     }
-                    XMEMCPY(sigCtx->plain, sig, sigSz);
+                    XMEMCPY(sigCtx->sigCpy, sig, sigSz);
                     sigCtx->out = NULL;
 
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -7244,6 +7259,59 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* !NO_RSA */
+            #ifndef NO_DSA
+                case DSAk:
+                {
+                    word32 idx = 0;
+                    mp_int r, s;
+
+                    if (sigSz < DSA_SIG_SIZE) {
+                        WOLFSSL_MSG("Verify Signature is too small");
+                        ERROR_OUT(BUFFER_E, exit_cs);
+                    }
+                    sigCtx->key.dsa = (DsaKey*)XMALLOC(sizeof(DsaKey),
+                                                sigCtx->heap, DYNAMIC_TYPE_DSA);
+                    sigCtx->sigCpy = (byte*)XMALLOC(sigSz,
+                                         sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
+                    if (sigCtx->key.dsa == NULL || sigCtx->sigCpy == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_cs);
+                    }
+                    if ((ret = wc_InitDsaKey_h(sigCtx->key.dsa, sigCtx->heap)) != 0) {
+                        WOLFSSL_MSG("wc_InitDsaKey_h error");
+                        goto exit_cs;
+                    }
+                    if ((ret = wc_DsaPublicKeyDecode(key, &idx, sigCtx->key.dsa,
+                                                                 keySz)) != 0) {
+                        WOLFSSL_MSG("ASN Key decode error RSA");
+                        goto exit_cs;
+                    }
+                    if (sigSz != DSA_SIG_SIZE) {
+                        /* Try to parse it as the contents of a bitstring */
+                        idx = 0;
+                        if (DecodeECC_DSA_Sig(sig + idx, sigSz - idx,
+                                              &r, &s) != 0) {
+                            WOLFSSL_MSG("DSA Sig is in unrecognized or "
+                                        "incorrect format");
+                            ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
+                        }
+                        if (mp_to_unsigned_bin_len(&r, sigCtx->sigCpy,
+                                DSA_HALF_SIZE) != MP_OKAY ||
+                            mp_to_unsigned_bin_len(&s,
+                                    sigCtx->sigCpy + DSA_HALF_SIZE,
+                                    DSA_HALF_SIZE) != MP_OKAY) {
+                            WOLFSSL_MSG("DSA Sig is in unrecognized or "
+                                        "incorrect format");
+                            ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
+                        }
+                        mp_free(&r);
+                        mp_free(&s);
+                    }
+                    else {
+                        XMEMCPY(sigCtx->sigCpy, sig, DSA_SIG_SIZE);
+                    }
+                    break;
+                }
+            #endif /* !NO_DSA */
             #ifdef HAVE_ECC
                 case ECDSAk:
                 {
@@ -7351,7 +7419,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 #ifdef HAVE_PK_CALLBACKS
                     if (sigCtx->pkCbRsa) {
                         ret = sigCtx->pkCbRsa(
-                                sigCtx->plain, sigSz, &sigCtx->out,
+                                sigCtx->sigCpy, sigSz, &sigCtx->out,
                                 key, keySz,
                                 sigCtx->pkCtxRsa);
                     }
@@ -7361,7 +7429,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                      #ifdef WOLFSSL_RENESAS_TSIP_TLS
                         if (rsaKeyIdx != NULL)
                         {
-                            ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->plain,
+                            ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->sigCpy,
                                 sigSz,
                                 sigCtx->pubkey_n_start - sigCtx->certBegin,
                                 sigCtx->pubkey_n_len - 1,
@@ -7378,12 +7446,20 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                             }
                         } else
                     #endif
-                        ret = wc_RsaSSL_VerifyInline(sigCtx->plain, sigSz,
+                        ret = wc_RsaSSL_VerifyInline(sigCtx->sigCpy, sigSz,
                                                  &sigCtx->out, sigCtx->key.rsa);
                     }
                     break;
                 }
             #endif /* !NO_RSA */
+            #ifndef NO_DSA
+                case DSAk:
+                {
+                    ret = wc_DsaVerify(sigCtx->digest, sigCtx->sigCpy,
+                            sigCtx->key.dsa, &sigCtx->verify);
+                    break;
+                }
+            #endif /* !NO_DSA */
             #if defined(HAVE_ECC)
                 case ECDSAk:
                 {
@@ -7482,6 +7558,19 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* NO_RSA */
+            #ifndef NO_DSA
+                case DSAk:
+                {
+                    if (sigCtx->verify == 1) {
+                        ret = 0;
+                    }
+                    else {
+                        WOLFSSL_MSG("DSA Verify didn't match");
+                        ret = ASN_SIG_CONFIRM_E;
+                    }
+                    break;
+                }
+            #endif /* !NO_DSA */
             #ifdef HAVE_ECC
                 case ECDSAk:
                 {

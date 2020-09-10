@@ -29981,6 +29981,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifndef NO_DSA
         #ifndef NO_SHA
         { CTC_SHAwDSA, CTC_SHAwDSA, oidSigType, "DSA-SHA1", "dsaWithSHA1"},
+        { CTC_SHA256wDSA, CTC_SHA256wDSA, oidSigType, "dsa_with_SHA256",
+                                                        "dsa_with_SHA256"},
         #endif
     #endif /* NO_DSA */
     #ifndef NO_RSA
@@ -47527,6 +47529,8 @@ int oid2nid(word32 oid, int grp)
             #ifndef NO_DSA
                 case CTC_SHAwDSA:
                     return CTC_SHAwDSA;
+                case CTC_SHA256wDSA:
+                    return CTC_SHA256wDSA;
             #endif /* NO_DSA */
             #ifndef NO_RSA
                 case CTC_MD2wRSA:

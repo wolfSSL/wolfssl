@@ -677,7 +677,9 @@ struct SignatureCtx {
     byte* digest;
 #ifndef NO_RSA
     byte* out;
-    byte* plain;
+#endif
+#if !defined(NO_RSA) && !defined(NO_DSA)
+    byte* sigCpy;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int verify;
@@ -685,6 +687,9 @@ struct SignatureCtx {
     union {
     #ifndef NO_RSA
         struct RsaKey*      rsa;
+    #endif
+    #ifndef NO_DSA
+        struct DsaKey*      dsa;
     #endif
     #ifdef HAVE_ECC
         struct ecc_key*     ecc;
