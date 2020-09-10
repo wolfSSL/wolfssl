@@ -2125,7 +2125,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
     if (ret != 0 || myStack == NULL)
-        err_sys("posix_memalign failed\n");
+        err_sys_with_errno("posix_memalign failed\n");
 
     XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
 
