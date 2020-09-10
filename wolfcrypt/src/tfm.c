@@ -5451,7 +5451,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
     /* digs is the digit count */
-    digs = 0;
+    digs = 1;
 
     /* if it's negative add one for the sign */
     if (a->sign == FP_NEG) {
