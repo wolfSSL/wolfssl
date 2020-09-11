@@ -501,6 +501,34 @@ err_sys(const char* msg)
     }
 }
 
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys_with_errno(const char* msg)
+{
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
+    printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
+#else
+    printf("wolfSSL error: %s\n", msg);
+#endif
+
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+        XEXIT_T(EXIT_FAILURE);
+    }
+}
+
 
 extern int   myoptind;
 extern char* myoptarg;
@@ -948,7 +976,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_TCP);
 
     if(WOLFSSL_SOCKET_IS_INVALID(*sockfd)) {
-        err_sys("socket failed\n");
+        err_sys_with_errno("socket failed\n");
     }
 
 #ifndef USE_WINDOWS_API
@@ -958,7 +986,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         socklen_t len = sizeof(on);
         int       res = setsockopt(*sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_NOSIGPIPE failed\n");
+            err_sys_with_errno("setsockopt SO_NOSIGPIPE failed\n");
     }
 #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS) ||\
                         defined(WOLFSSL_KEIL_TCP_NET) || defined(WOLFSSL_ZEPHYR)
@@ -974,7 +1002,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         socklen_t len = sizeof(on);
         int       res = setsockopt(*sockfd, IPPROTO_TCP, TCP_NODELAY, &on, len);
         if (res < 0)
-            err_sys("setsockopt TCP_NODELAY failed\n");
+            err_sys_with_errno("setsockopt TCP_NODELAY failed\n");
     }
 #endif
 #endif  /* USE_WINDOWS_API */
@@ -992,7 +1020,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 
     if (!udp) {
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-            err_sys("tcp connect failed");
+            err_sys_with_errno("tcp connect failed");
     }
 }
 
@@ -1000,7 +1028,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 static WC_INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)
 {
     if (connect(*sockfd, (const struct sockaddr*)addr, addrSz) != 0)
-        err_sys("tcp connect failed");
+        err_sys_with_errno("tcp connect failed");
 }
 
 
@@ -1098,12 +1126,21 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         socklen_t len = sizeof(on);
         res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_REUSEADDR failed\n");
+            err_sys_with_errno("setsockopt SO_REUSEADDR failed\n");
     }
+#ifdef SO_REUSEPORT
+    {
+        int       res, on  = 1;
+        socklen_t len = sizeof(on);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &on, len);
+        if (res < 0)
+            err_sys_with_errno("setsockopt SO_REUSEPORT failed\n");
+    }
+#endif
 #endif
 
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys("tcp bind failed");
+        err_sys_with_errno("tcp bind failed");
     if (!udp) {
         #ifdef WOLFSSL_KEIL_TCP_NET
             #define SOCK_LISTEN_MAX_QUEUE 1
@@ -1111,7 +1148,7 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             #define SOCK_LISTEN_MAX_QUEUE 5
         #endif
         if (listen(*sockfd, SOCK_LISTEN_MAX_QUEUE) != 0)
-                err_sys("tcp listen failed");
+                err_sys_with_errno("tcp listen failed");
     }
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS) \
                                                      && !defined(WOLFSSL_ZEPHYR)
@@ -1168,12 +1205,21 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         socklen_t len = sizeof(on);
         res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_REUSEADDR failed\n");
+            err_sys_with_errno("setsockopt SO_REUSEADDR failed\n");
     }
+#ifdef SO_REUSEPORT
+    {
+        int       res, on  = 1;
+        socklen_t len = sizeof(on);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &on, len);
+        if (res < 0)
+            err_sys_with_errno("setsockopt SO_REUSEPORT failed\n");
+    }
+#endif
 #endif
 
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys("tcp bind failed");
+        err_sys_with_errno("tcp bind failed");
 
     #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
@@ -1275,7 +1321,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     *clientfd = accept(*sockfd, (struct sockaddr*)&client,
                       (ACCEPT_THIRD_T)&client_len);
     if(WOLFSSL_SOCKET_IS_INVALID(*clientfd)) {
-        err_sys("tcp accept failed");
+        err_sys_with_errno("tcp accept failed");
     }
 }
 
@@ -1286,7 +1332,7 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         unsigned long blocking = 1;
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
-            err_sys("ioctlsocket failed");
+            err_sys_with_errno("ioctlsocket failed");
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
         || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS) \
         || defined(WOLFSSL_ZEPHYR)
@@ -1294,10 +1340,10 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
-            err_sys("fcntl get failed");
+            err_sys_with_errno("fcntl get failed");
         flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
         if (flags < 0)
-            err_sys("fcntl set failed");
+            err_sys_with_errno("fcntl set failed");
     #endif
 }
 
@@ -1972,7 +2018,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
     if (ret != 0 || myStack == NULL)
-        err_sys("posix_memalign failed\n");
+        err_sys_with_errno("posix_memalign failed\n");
 
     XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
 
@@ -2029,13 +2075,11 @@ static WC_INLINE void StackTrap(void)
 {
     struct rlimit  rl;
     if (getrlimit(RLIMIT_STACK, &rl) != 0)
-        err_sys("getrlimit failed");
+        err_sys_with_errno("getrlimit failed");
     printf("rlim_cur = %llu\n", rl.rlim_cur);
     rl.rlim_cur = 1024*21;  /* adjust trap size here */
-    if (setrlimit(RLIMIT_STACK, &rl) != 0) {
-        perror("setrlimit");
-        err_sys("setrlimit failed");
-    }
+    if (setrlimit(RLIMIT_STACK, &rl) != 0)
+        err_sys_with_errno("setrlimit failed");
 }
 
 #else /* STACK_TRAP */
@@ -2398,13 +2442,13 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
     encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
     if (encCtx == NULL)
-        err_sys("AtomicEncCtx malloc failed");
+        err_sys_with_errno("AtomicEncCtx malloc failed");
     XMEMSET(encCtx, 0, sizeof(AtomicEncCtx));
 
     decCtx = (AtomicDecCtx*)malloc(sizeof(AtomicDecCtx));
     if (decCtx == NULL) {
         free(encCtx);
-        err_sys("AtomicDecCtx malloc failed");
+        err_sys_with_errno("AtomicDecCtx malloc failed");
     }
     XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
 

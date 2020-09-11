@@ -3,6 +3,10 @@
 # ocsp-stapling2.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
+if [[ -z "${RETRIES_REMAINING-}" ]]; then
+    export RETRIES_REMAINING=2
+fi
+
 ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -eq 0 ]; then
     echo "TLS 1.2 or lower required"
@@ -10,17 +14,28 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
-# create a unique ready file ending in PID for the script instance ($$) to take
-# advantage of port zero solution
-WORKSPACE=`pwd`
+PARENTDIR=`pwd`
+
+# create a unique workspace directory ending in PID for the script instance ($$)
+# to make this instance orthogonal to any others running, even on same repo.
+# TCP ports are also carefully formed below from the PID, to minimize conflicts.
+
+WORKSPACE="${PARENTDIR}/workspace.pid$$"
+
+mkdir "${WORKSPACE}" || exit $?
+cp -pR certs "${WORKSPACE}"/ || exit $?
+cd "$WORKSPACE" || exit $?
+ln -s ../examples
+
 CERT_DIR="certs/ocsp"
 
+
 resume_port=0
-ready_file1=`pwd`/wolf_ocsp_s2_readyF1$$
-ready_file2=`pwd`/wolf_ocsp_s2_readyF2$$
-ready_file3=`pwd`/wolf_ocsp_s2_readyF3$$
-ready_file4=`pwd`/wolf_ocsp_s2_readyF4$$
-ready_file5=`pwd`/wolf_ocsp_s2_readyF5$$
+ready_file1="$WORKSPACE"/wolf_ocsp_s2_readyF1$$
+ready_file2="$WORKSPACE"/wolf_ocsp_s2_readyF2$$
+ready_file3="$WORKSPACE"/wolf_ocsp_s2_readyF3$$
+ready_file4="$WORKSPACE"/wolf_ocsp_s2_readyF4$$
+ready_file5="$WORKSPACE"/wolf_ocsp_s2_readyF5$$
 printf '%s\n' "ready file 1:  $ready_file1"
 printf '%s\n' "ready file 2:  $ready_file2"
 printf '%s\n' "ready file 3:  $ready_file3"
@@ -29,40 +44,17 @@ printf '%s\n' "ready file 5:  $ready_file5"
 
 test_cnf="ocsp_s2.cnf"
 
-copy_originals() {
-    cd $CERT_DIR
-    cp intermediate1-ca-cert.pem bak-intermediate1-ca-cert.pem
-    cp intermediate2-ca-cert.pem bak-intermediate2-ca-cert.pem
-    cp intermediate3-ca-cert.pem bak-intermediate3-ca-cert.pem
-    cp ocsp-responder-cert.pem bak-ocsp-responder-cert.pem
-    cp root-ca-cert.pem bak-root-ca-cert.pem
-    cp server1-cert.pem bak-server1-cert.pem
-    cp server2-cert.pem bak-server2-cert.pem
-    cp server3-cert.pem bak-server3-cert.pem
-    cp server4-cert.pem bak-server4-cert.pem
-    cp server5-cert.pem bak-server5-cert.pem
-    cd $WORKSPACE
-}
-
-restore_originals() {
-    cd $CERT_DIR
-    mv bak-intermediate1-ca-cert.pem intermediate1-ca-cert.pem
-    mv bak-intermediate2-ca-cert.pem intermediate2-ca-cert.pem
-    mv bak-intermediate3-ca-cert.pem intermediate3-ca-cert.pem
-    mv bak-ocsp-responder-cert.pem ocsp-responder-cert.pem
-    mv bak-root-ca-cert.pem root-ca-cert.pem
-    mv bak-server1-cert.pem server1-cert.pem
-    mv bak-server2-cert.pem server2-cert.pem
-    mv bak-server3-cert.pem server3-cert.pem
-    mv bak-server4-cert.pem server4-cert.pem
-    mv bak-server5-cert.pem server5-cert.pem
-}
-
 wait_for_readyFile(){
 
     counter=0
 
     while [ ! -s $1 -a "$counter" -lt 20 ]; do
+	if [[ -n "${2-}" ]]; then
+	    if ! kill -0 $2 2>&-; then
+		echo "pid $2 for port ${3-} exited before creating ready file.  bailing..."
+		exit 1
+	    fi
+	fi
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
@@ -71,7 +63,7 @@ wait_for_readyFile(){
     if test -e $1; then
         echo -e "found ready file, starting client..."
     else
-        echo -e "NO ready file ending test..."
+        echo -e "NO ready file at $1 -- ending test..."
         exit 1
     fi
 
@@ -86,8 +78,6 @@ remove_single_rF(){
 
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
-    copy_originals
-
     printf '%s\n' "Random Port Selected: $RPORTSELECTED"
 
     printf '%s\n' "#" > $test_cnf
@@ -166,13 +156,21 @@ remove_ready_file(){
 
 cleanup()
 {
+    exit_status=$?
     for i in $(jobs -pr)
     do
         kill -s HUP "$i"
     done
     remove_ready_file
     rm $CERT_DIR/$test_cnf
-    restore_originals
+    cd "$PARENTDIR" || return 1
+    rm -r "$WORKSPACE" || return 1
+
+    if [[ ("$exit_status" == 1) && ($RETRIES_REMAINING -gt 0) ]]; then
+	echo "retrying..."
+	RETRIES_REMAINING=$((RETRIES_REMAINING - 1))
+	exec $0 "$@"
+    fi
 }
 trap cleanup EXIT INT TERM HUP
 
@@ -191,50 +189,81 @@ if [ ! -z "$size" ]; then
 fi
 
 #get four unique ports
+
+# choose consecutive ports based on the PID, skipping any that are
+# already bound, to avoid the birthday problem in case other
+# instances are sharing this host.
+
+get_first_free_port() {
+    local ret="$1"
+    while :; do
+	if [[ "$ret" -ge 65536 ]]; then
+	    ret=1024
+	fi
+	if ! nc -z 127.0.0.1 "$ret"; then
+	    break
+	fi
+	ret=$((ret+1))
+    done
+    echo "$ret"
+    return 0
+}
+
+base_port=$((((($$ + $RETRIES_REMAINING) * 4) % (65536 - 2048)) + 1024))
+port1=$(get_first_free_port $base_port)
+port2=$(get_first_free_port $((port1 + 1)))
+port3=$(get_first_free_port $((port2 + 1)))
+port4=$(get_first_free_port $((port3 + 1)))
+
 # 1:
-./examples/server/server -R $ready_file1 -p $resume_port &
-wait_for_readyFile $ready_file1
+./examples/server/server -R $ready_file1 -p $port1 &
+server_pid1=$!
+wait_for_readyFile $ready_file1 $server_pid1 $port1
 if [ ! -f $ready_file1 ]; then
     printf '%s\n' "Failed to create ready file1: \"$ready_file1\""
     exit 1
 fi
 # 2:
-./examples/server/server -R $ready_file2 -p $resume_port &
-wait_for_readyFile $ready_file2
+./examples/server/server -R $ready_file2 -p $port2 &
+server_pid2=$!
+wait_for_readyFile $ready_file2 $server_pid2 $port2
 if [ ! -f $ready_file2 ]; then
     printf '%s\n' "Failed to create ready file2: \"$ready_file2\""
     exit 1
 fi
 # 3:
-./examples/server/server -R $ready_file3 -p $resume_port &
-wait_for_readyFile $ready_file3
+./examples/server/server -R $ready_file3 -p $port3 &
+server_pid3=$!
+wait_for_readyFile $ready_file3 $server_pid3 $port3
 if [ ! -f $ready_file3 ]; then
     printf '%s\n' "Failed to create ready file3: \"$ready_file3\""
     exit 1
 fi
 # 4:
-./examples/server/server -R $ready_file4 -p $resume_port &
-wait_for_readyFile $ready_file4
+./examples/server/server -R $ready_file4 -p $port4 &
+server_pid4=$!
+wait_for_readyFile $ready_file4 $server_pid4 $port4
 if [ ! -f $ready_file4 ]; then
     printf '%s\n' "Failed to create ready file4: \"$ready_file4\""
     exit 1
-else
-    RPORTSELECTED1=`cat $ready_file1`
-    RPORTSELECTED2=`cat $ready_file2`
-    RPORTSELECTED3=`cat $ready_file3`
-    RPORTSELECTED4=`cat $ready_file4`
-    printf '%s\n' "------------- PORTS ---------------"
-    printf '%s' "Random ports selected: $RPORTSELECTED1 $RPORTSELECTED2"
-    printf '%s\n' " $RPORTSELECTED3 $RPORTSELECTED4"
-    printf '%s\n' "-----------------------------------"
-    # Use client connections to cleanly shutdown the servers
-    ./examples/client/client -p $RPORTSELECTED1
-    ./examples/client/client -p $RPORTSELECTED2
-    ./examples/client/client -p $RPORTSELECTED3
-    ./examples/client/client -p $RPORTSELECTED4
-    create_new_cnf $RPORTSELECTED1 $RPORTSELECTED2 $RPORTSELECTED3 \
-                   $RPORTSELECTED4
 fi
+
+RPORTSELECTED1=`cat $ready_file1`
+RPORTSELECTED2=`cat $ready_file2`
+RPORTSELECTED3=`cat $ready_file3`
+RPORTSELECTED4=`cat $ready_file4`
+printf '%s\n' "------------- PORTS ---------------"
+printf '%s' "Random ports selected: $RPORTSELECTED1 $RPORTSELECTED2"
+printf '%s\n' " $RPORTSELECTED3 $RPORTSELECTED4"
+printf '%s\n' "-----------------------------------"
+# Use client connections to cleanly shutdown the servers
+./examples/client/client -p $RPORTSELECTED1
+./examples/client/client -p $RPORTSELECTED2
+./examples/client/client -p $RPORTSELECTED3
+./examples/client/client -p $RPORTSELECTED4
+create_new_cnf $RPORTSELECTED1 $RPORTSELECTED2 $RPORTSELECTED3 \
+               $RPORTSELECTED4
+
 sleep 0.1
 
 # setup ocsp responders
