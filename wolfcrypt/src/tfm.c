@@ -5451,7 +5451,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
     /* digs is the digit count */
-    digs = 1;
+    digs = 0;
 
     /* if it's negative add one for the sign */
     if (a->sign == FP_NEG) {
@@ -5482,6 +5482,13 @@ int mp_radix_size (mp_int *a, int radix, int *size)
         ++digs;
     }
     fp_zero (t);
+
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+    /* For hexadecimal output, add zero padding when number of digits is odd */
+    if ((digs & 1) && (radix == 16)) {
+        ++digs;
+    }
+#endif
 
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
