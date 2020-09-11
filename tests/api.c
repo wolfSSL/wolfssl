@@ -13732,7 +13732,8 @@ static int test_wc_SetKeyUsage (void)
 static int test_wc_CheckProbablePrime (void)
 {
     int ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
     byte                e[3];
@@ -13842,7 +13843,8 @@ static int test_wc_CheckProbablePrime (void)
 static int test_wc_RsaPSS_Verify (void)
 {
     int ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
@@ -13868,7 +13870,7 @@ static int test_wc_RsaPSS_Verify (void)
     }
     
     if (ret == 0) {
-        ret = wc_RsaPSS_Sign((byte*)szMessage, XSTRLEN(szMessage)+1,
+        ret = wc_RsaPSS_Sign((byte*)szMessage, (word32)XSTRLEN(szMessage)+1,
                 pSignature, sizeof(pSignature),
                 WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
         if (ret > 0 ){
@@ -13930,7 +13932,8 @@ static int test_wc_RsaPSS_Verify (void)
 static int test_wc_RsaPSS_VerifyCheck (void)
 {
     int ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
@@ -14024,7 +14027,8 @@ static int test_wc_RsaPSS_VerifyCheck (void)
 static int test_wc_RsaPSS_VerifyCheckInline (void)
 {
     int ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
+ !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
     int                 sz = 256;
