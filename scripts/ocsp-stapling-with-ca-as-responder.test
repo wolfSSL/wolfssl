@@ -2,19 +2,13 @@
 
 # ocsp-stapling-with-ca-as-responder.test
 
-# if we can, isolate the network namespace to eliminate port collisions
+# if we can, isolate the network namespace to eliminate port collisions.
 if [[ "${AM_BWRAPPED-}" != "yes" ]]; then
     bwrap_path="$(command -v bwrap)"
-    if [[ -z "$bwrap_path" ]]; then
-	echo "couldn't find bwrap -- not isolating network namespace."
-    elif [[ ! -u "$bwrap_path" ]]; then
-	echo "$bwrap_path isn't setuid -- not isolating network namespace."
-    else
-	echo "isolating network namespace..."
-	export AM_BWRAPPED=yes
-	exec $bwrap_path --unshare-net --dev-bind / / "$0" "$@"
-	unset AM_BWRAPPED
-	echo "not isolating network namespace."
+    if [[ -n "$bwrap_path" ]]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+        unset AM_BWRAPPED
     fi
 fi
 

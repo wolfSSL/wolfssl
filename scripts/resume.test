@@ -1,6 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
 #resume.test
+
+# if we can, isolate the network namespace to eliminate port collisions.
+if [[ "${AM_BWRAPPED-}" != "yes" ]]; then
+    bwrap_path="$(command -v bwrap)"
+    if [[ -n "$bwrap_path" ]]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+        unset AM_BWRAPPED
+    fi
+fi
 
 # need a unique resume port since may run the same time as testsuite
 # use server port zero hack to get one
