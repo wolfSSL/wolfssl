@@ -224,6 +224,7 @@ port1=$(get_first_free_port $base_port)
 port2=$(get_first_free_port $((port1 + 1)))
 port3=$(get_first_free_port $((port2 + 1)))
 port4=$(get_first_free_port $((port3 + 1)))
+port5=$(get_first_free_port $((port4 + 1)))
 
 # 1:
 ./examples/server/server -R $ready_file1 -p $port1 &
@@ -319,7 +320,7 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERTS
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R $ready_file5 \
-                         -p $resume_port &
+                         -p $port5 &
 wait_for_readyFile $ready_file5
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
@@ -347,7 +348,7 @@ printf '%s\n\n' "------------- TEST CASE 3 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                         -p $resume_port &
+                         -p $port5 &
 wait_for_readyFile $ready_file5
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
@@ -360,7 +361,7 @@ printf '%s\n\n' "------------- TEST CASE 4 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                         -p $resume_port &
+                         -p $port5 &
 sleep 0.1
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
@@ -374,7 +375,7 @@ printf '%s\n\n' "------------- TEST CASE 5 SHOULD PASS ------------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                         -p $resume_port &
+                         -p $port5 &
 wait_for_readyFile $ready_file5
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
@@ -387,7 +388,7 @@ printf '%s\n\n' "------------- TEST CASE 6 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
-                         -p $resume_port &
+                         -p $port5 &
 wait_for_readyFile $ready_file5
 CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
@@ -399,7 +400,7 @@ printf '%s\n\n' "------------- TEST CASE 7 LOAD CERT IN SSL -------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file5 \
-                         -p $resume_port -H loadSSL &
+                         -p $port5 -H loadSSL &
 wolf_pid=$!
 wait_for_readyFile $ready_file5
 CLI_PORT=`cat $ready_file5`
@@ -416,7 +417,7 @@ printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
-                         -p $resume_port -H loadSSL &
+                         -p $port5 -H loadSSL &
 wolf_pid=$!
 sleep 0.1
 CLI_PORT=`cat $ready_file5`
