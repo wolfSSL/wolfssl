@@ -215,6 +215,7 @@ typedef enum ecc_curve_id {
 #ifdef WOLFSSL_CUSTOM_CURVES
     ECC_CURVE_CUSTOM,
 #endif
+    ECC_CURVE_MAX
 } ecc_curve_id;
 
 #ifdef HAVE_OID_ENCODING
