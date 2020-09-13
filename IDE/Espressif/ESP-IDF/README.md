@@ -16,8 +16,9 @@ Including the following examples:
 
     Note: This expects to use Linux version.
 
-## Setup
- 1. Run *setup.sh* to deploy files into ESP-IDF tree
+## Setup for Linux
+ 1. Run *setup.sh* at /path/to/wolfssl/IDE/Espressif/ESP-IDF/ to deploy files into ESP-IDF tree  
+    For Windows : Run *setup_win.bat* at \IDE\Espressif\ESP-IDF\
  2. Find Wolfssl files at /path/to/esp-idf/components/wolfssl/
  3. Find Example programs under /path/to/esp-idf/examples/protocols/wolfssl_xxx
  4. Uncomment out #define WOLFSSL_ESPIDF in /path/to/wolfssl/wolfssl/wolfcrypt/settings.h  
@@ -32,4 +33,8 @@ Including the following examples:
 ## Support
  For question please email [support@wolfssl.com]
 
- Note: This is tested with "Ubuntu 18.04.1 LTS" and ESP32-WROOM-32.
+ Note: This is tested with :  
+   - OS: Ubuntu 18.04.1 LTS and Microsoft Windows 10 Pro 10.0.19041  
+   - ESP-IDF: v4.1 and v4.0.1  
+   - Module : ESP32-WROOM-32
+
