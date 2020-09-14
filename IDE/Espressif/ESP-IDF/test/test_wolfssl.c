@@ -308,8 +308,8 @@ int mp_performance_check(int mul, int mulmod, int exptmod)
 int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int verbose)
 {
     int ret = 0;
-    char* buf;
-    char* bufZ;
+    char* buf = NULL;
+    char* bufZ = NULL;
     int radixX_size;
     int radixZ_size;
     int radixY_size;
@@ -338,7 +338,7 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
     bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
-        bufZ[radixZ_size] ='\0';
+        bufZ[radixZ_size-1] ='\0';
     }
 
     if(verbose) {
@@ -353,11 +353,11 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
         buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
-            buf[radixX_size] ='\0';
+            buf[radixX_size-1] ='\0';
             printf("X : %s ", buf);
 
             mp_toradix(&y, buf, 16);
-            buf[radixY_size] ='\0';
+            buf[radixY_size-1] ='\0';
             printf("Y : %s ", buf);
         }
         if(bufZ != NULL) {
@@ -413,7 +413,7 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
     bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
-        bufZ[radixZ_size] ='\0';
+        bufZ[radixZ_size-1] ='\0';
     }
 
     if(verbose) {
@@ -430,15 +430,15 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
         buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
-            buf[radixX_size] ='\0';
+            buf[radixX_size-1] ='\0';
             printf("X : %s ", buf);
 
             mp_toradix(&y, buf, 16);
-            buf[radixY_size] ='\0';
+            buf[radixY_size-1] ='\0';
             printf("Y : %s ", buf);
 
             mp_toradix(&m, buf, 16);
-            buf[radixM_size] ='\0';
+            buf[radixM_size-1] ='\0';
             printf("M : %s ", buf);
         }
         if(bufZ != NULL) {
@@ -459,8 +459,8 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
                const char* strM, int verbose)
 {
     int ret = 0;
-    char* buf;
-    char* bufZ;
+    char* buf = NULL;
+    char* bufZ = NULL;
     int radixX_size;
     int radixZ_size;
     int radixY_size;
@@ -494,7 +494,7 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
     bufZ = (char*)XMALLOC(radixZ_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
-        bufZ[radixZ_size] ='\0';
+        bufZ[radixZ_size-1] ='\0';
     }
 
     if(verbose) {
@@ -511,15 +511,15 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
         buf = (char*)XMALLOC(radixX_size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
-            buf[radixX_size] ='\0';
+            buf[radixX_size-1] ='\0';
             printf("X : %s ", buf);
 
             mp_toradix(&y, buf, 16);
-            buf[radixY_size] ='\0';
+            buf[radixY_size-1] ='\0';
             printf("Y : %s ", buf);
 
             mp_toradix(&m, buf, 16);
-            buf[radixM_size] ='\0';
+            buf[radixM_size-1] ='\0';
             printf("M : %s ", buf);
         }
         if(bufZ != NULL) {
@@ -562,7 +562,7 @@ TEST_CASE("wolfssl mp exptmod test"   , "[wolfssl]")
 TEST_CASE("wolfssl mp mulmod test"   , "[wolfssl]")
 {
     ESP_LOGI(TAG, "mp test");
-    int verbose = 0;
+    int verbose = 1;
     /*                                      Z    X    Y    M */
     TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("02", "5", "1", "3", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("01", "-5", "1", "3", verbose));
@@ -602,7 +602,7 @@ TEST_CASE("wolfssl mp mulmod test"   , "[wolfssl]")
 TEST_CASE("wolfssl mp mul test"   , "[wolfssl]")
 {
     ESP_LOGI(TAG, "mp test");
-    int verbose = 0;
+    int verbose = 1;
 
     TEST_ASSERT_EQUAL(0, mp_unitest_mul("0A", "5", "2", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_mul("-0A", "-5", "2", verbose));
