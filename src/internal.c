@@ -9568,6 +9568,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->subjectCN[0] = '\0';
 
 #ifdef WOLFSSL_CERT_REQ
+    x509->isCSR = dCert->isCSR;
     /* CSR attributes */
     if (dCert->cPwd) {
         if (dCert->cPwdLen < CTC_NAME_SIZE) {

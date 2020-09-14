@@ -14259,6 +14259,20 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     else
         der->caSz = 0;
 
+#ifdef WOLFSSL_ALT_NAMES
+    /* Alternative Name */
+    if (cert->altNamesSz) {
+        der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
+                                      cert->altNames, cert->altNamesSz);
+        if (der->altNamesSz <= 0)
+            return ALT_NAME_E;
+
+        der->extensionsSz += der->altNamesSz;
+    }
+    else
+        der->altNamesSz = 0;
+#endif
+
 #ifdef WOLFSSL_CERT_EXT
     /* SKID */
     if (cert->skidSz) {
@@ -14319,6 +14333,17 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
             if (ret <= 0)
                 return EXTENSIONS_E;
         }
+
+#ifdef WOLFSSL_ALT_NAMES
+        /* put Alternative Names */
+        if (der->altNamesSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->altNames, der->altNamesSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+#endif
 
 #ifdef WOLFSSL_CERT_EXT
         /* put SKID */
