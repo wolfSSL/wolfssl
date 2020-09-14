@@ -4,13 +4,13 @@
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
 # if we can, isolate the network namespace to eliminate port collisions.
-if [[ "${AM_BWRAPPED-}" != "yes" ]]; then
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"
-    if [[ -n "$bwrap_path" ]]; then
+    if [ -n "$bwrap_path" ]; then
         export AM_BWRAPPED=yes
         exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
-        unset AM_BWRAPPED
     fi
+    unset AM_BWRAPPED
 fi
 
 if [[ -z "${RETRIES_REMAINING-}" ]]; then
@@ -40,7 +40,6 @@ ln -s ../examples
 CERT_DIR="certs/ocsp"
 
 
-resume_port=0
 ready_file1="$WORKSPACE"/wolf_ocsp_s2_readyF1$$
 ready_file2="$WORKSPACE"/wolf_ocsp_s2_readyF2$$
 ready_file3="$WORKSPACE"/wolf_ocsp_s2_readyF3$$
@@ -219,7 +218,7 @@ get_first_free_port() {
     return 0
 }
 
-base_port=$((((($$ + $RETRIES_REMAINING) * 4) % (65536 - 2048)) + 1024))
+base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
 port1=$(get_first_free_port $base_port)
 port2=$(get_first_free_port $((port1 + 1)))
 port3=$(get_first_free_port $((port2 + 1)))
@@ -334,7 +333,7 @@ printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
 #remove_single_rF $ready_file5
 #./examples/server/server -c certs/ocsp/server3-cert.pem \
 #                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
-#                         -p $resume_port &
+#                         -p $port5 &
 #wait_for_readyFile $ready_file5
 #CLI_PORT=`cat $ready_file5`
 #./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
