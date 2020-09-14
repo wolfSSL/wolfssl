@@ -599,9 +599,10 @@ enum KeyIdType {
 #endif
 
 #ifdef WOLFSSL_CERT_REQ
-enum CsrAttyType {
+enum CsrAttrType {
     CHALLENGE_PASSWORD_OID = 659,
     SERIAL_NUMBER_OID = 94,
+    EXTENSION_REQUEST_OID = 666,
 };
 #endif
 
