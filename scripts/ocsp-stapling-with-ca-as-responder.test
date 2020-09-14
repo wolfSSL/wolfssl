@@ -3,13 +3,13 @@
 # ocsp-stapling-with-ca-as-responder.test
 
 # if we can, isolate the network namespace to eliminate port collisions.
-if [[ "${AM_BWRAPPED-}" != "yes" ]]; then
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"
-    if [[ -n "$bwrap_path" ]]; then
+    if [ -n "$bwrap_path" ]; then
         export AM_BWRAPPED=yes
         exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
-        unset AM_BWRAPPED
     fi
+    unset AM_BWRAPPED
 fi
 
 if [[ -z "${RETRIES_REMAINING-}" ]]; then
@@ -39,7 +39,6 @@ ln -s ../examples
 CERT_DIR="certs/ocsp"
 
 
-resume_port=0
 ready_file="${WORKSPACE}"/wolf_ocsp_s1_readyF$$
 ready_file2="${WORKSPACE}"/wolf_ocsp_s1_readyF2$$
 printf '%s\n' "ready files:  $ready_file $ready_file2"
@@ -190,8 +189,9 @@ get_first_free_port() {
     return 0
 }
 
-base_port=$((((($$ + $RETRIES_REMAINING) * 4) % (65536 - 2048)) + 1024))
+base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
 port1=$(get_first_free_port $base_port)
+port2=$(get_first_free_port $((port1 + 1)))
 
 
 # create a port to use with openssl ocsp responder
@@ -240,7 +240,7 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file2 \
-                         -p $resume_port &
+                         -p $port2 &
 wait_for_readyFile $ready_file2
 CLI_PORT=`cat $ready_file2`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
@@ -254,7 +254,7 @@ printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file2
 ./examples/server/server -c certs/ocsp/server2-cert.pem \
                          -k certs/ocsp/server2-key.pem -R $ready_file2 \
-                         -p $resume_port &
+                         -p $port2 &
 wait_for_readyFile $ready_file2
 CLI_PORT=`cat $ready_file2`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \

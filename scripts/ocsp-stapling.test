@@ -3,6 +3,8 @@
 # ocsp-stapling.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
 
+# Note, this script makes connection(s) to the public Internet.
+
 if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
@@ -29,7 +31,6 @@ cd "$WORKSPACE" || exit $?
 ln -s ../examples
 
 CERT_DIR="./certs/ocsp"
-resume_port=0
 ready_file="$WORKSPACE"/wolf_ocsp_s1_readyF$$
 ready_file2="$WORKSPACE"/wolf_ocsp_s1_readyF2$$
 printf '%s\n' "ready file:  $ready_file"
@@ -191,9 +192,10 @@ get_first_free_port() {
     return 0
 }
 
-base_port=$((((($$ + $RETRIES_REMAINING) * 4) % (65536 - 2048)) + 1024))
+base_port=$((((($$ + $RETRIES_REMAINING) * 5) % (65536 - 2048)) + 1024))
 port1=$(get_first_free_port $base_port)
 port2=$(get_first_free_port $((port1 + 1)))
+port3=$(get_first_free_port $((port2 + 1)))
 
 
 # test interop fail case
@@ -279,7 +281,7 @@ sleep 0.1
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
 ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file2 \
-                         -k certs/ocsp/server1-key.pem -p $resume_port &
+                         -k certs/ocsp/server1-key.pem -p $port3 &
 wait_for_readyFile $ready_file2
 CLI_PORT=`cat $ready_file2`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $CLI_PORT
@@ -291,7 +293,7 @@ printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
 remove_single_rF $ready_file2
 ./examples/server/server -c certs/ocsp/server2-cert.pem -R $ready_file2 \
-                         -k certs/ocsp/server2-key.pem -p $resume_port &
+                         -k certs/ocsp/server2-key.pem -p $port3 &
 wait_for_readyFile $ready_file2
 sleep 0.1
 CLI_PORT=`cat $ready_file2`
@@ -309,7 +311,7 @@ if [ $? -ne 0 ]; then
     remove_single_rF $ready_file2
     ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file2 \
                              -k certs/ocsp/server1-key.pem -v 4 \
-                             -p $resume_port &
+                             -p $port3 &
     wait_for_readyFile $ready_file2
     CLI_PORT=`cat $ready_file2`
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
@@ -323,7 +325,7 @@ if [ $? -ne 0 ]; then
     remove_single_rF $ready_file2
     ./examples/server/server -c certs/ocsp/server2-cert.pem -R $ready_file2 \
                              -k certs/ocsp/server2-key.pem -v 4 \
-                             -p $resume_port &
+                             -p $port3 &
     wait_for_readyFile $ready_file2
     CLI_PORT=`cat $ready_file2`
     ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1 \
