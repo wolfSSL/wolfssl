@@ -5485,7 +5485,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
 #ifndef WC_DISABLE_RADIX_ZERO_PAD
     /* For hexadecimal output, add zero padding when number of digits is odd */
-    if ((digs & 1) && (radix == 16)) {
+    if (((a->sign == FP_NEG) ? !(digs & 1) : (digs & 1)) && (radix == 16)) {
         ++digs;
     }
 #endif
