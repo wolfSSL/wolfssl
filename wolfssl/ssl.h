@@ -3596,7 +3596,7 @@ WOLFSSL_API int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 WOLFSSL_API int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
                                           WOLFSSL_EVP_MD_CTX* md_ctx);
 WOLFSSL_API int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
-        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext);
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext_sk);
 WOLFSSL_API int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                                   WOLFSSL_X509_NAME *name);
 WOLFSSL_API int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req,

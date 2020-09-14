@@ -51586,14 +51586,61 @@ int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
         return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
-        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext)
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext_sk)
 {
-    (void)req;
-    (void)ext;
-    return WOLFSSL_FAILURE;
+    if (!req || !ext_sk) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    while (ext_sk) {
+        WOLFSSL_X509_EXTENSION* ext = ext_sk->data.ext;
+
+        switch (ext->obj->type) {
+        case NID_subject_alt_name:
+        {
+            WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
+            while (gns) {
+                WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
+                if (!gn || !gn->d.ia5 ||
+                    wolfSSL_X509_add_altname_ex(req, gn->d.ia5->data,
+                        gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Subject alternative name missing extension");
+                    return WOLFSSL_FAILURE;
+                }
+                gns = gns->next;
+            }
+            req->subjAltNameSet = 1;
+            req->subjAltNameCrit = ext->crit;
+            break;
+        }
+        case NID_key_usage:
+            if (ext && ext->value.data &&
+                    ext->value.length == sizeof(word16)) {
+                req->keyUsage = *(word16*)ext->value.data;
+                req->keyUsageCrit = ext->crit;
+            }
+            break;
+        case NID_basic_constraints:
+            if (ext->obj) {
+                req->isCa = ext->obj->ca;
+                req->basicConstCrit = ext->crit;
+                if (ext->obj->pathlen)
+                    req->pathLength = ext->obj->pathlen->length;
+            }
+            break;
+        default:
+            WOLFSSL_MSG("Unsupported extension to add");
+            return WOLFSSL_FAILURE;
+        }
+
+        ext_sk = ext_sk->next;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
                               const char *attrname, int type,
                               const unsigned char *bytes, int len)

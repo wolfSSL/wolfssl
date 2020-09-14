@@ -8882,18 +8882,23 @@ static int DecodeCertExtensions(DecodedCert* cert)
     if (input == NULL || sz == 0)
         return BAD_FUNC_ARG;
 
-    if (GetASNTag(input, &idx, &tag, sz) < 0) {
-        return ASN_PARSE_E;
-    }
+#ifdef WOLFSSL_CERT_REQ
+    if (!cert->isCSR)
+#endif
+    { /* Not included in CSR */
+        if (GetASNTag(input, &idx, &tag, sz) < 0) {
+            return ASN_PARSE_E;
+        }
 
-    if (tag != ASN_EXTENSIONS) {
-        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        return ASN_PARSE_E;
-    }
+        if (tag != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+            return ASN_PARSE_E;
+        }
 
-    if (GetLength(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: invalid length");
-        return ASN_PARSE_E;
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+            return ASN_PARSE_E;
+        }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
@@ -9626,27 +9631,33 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         WOLFSSL_MSG("attr GetSet error");
                         return ASN_PARSE_E;
                     }
-                    /* For now all supported attributes have the type value
-                     * of ASN_PRINTABLE_STRING or ASN_UTF8STRING but as more
-                     * attributes are supported then this will have to be done
-                     * on a per attribute basis. */
-                    if (GetHeader(cert->source, &tag,
-                            &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
-                        WOLFSSL_MSG("attr GetHeader error");
-                        return ASN_PARSE_E;
-                    }
-                    if (tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
-                            tag != ASN_IA5_STRING) {
-                        WOLFSSL_MSG("Unsupported attribute value format");
-                        return ASN_PARSE_E;
-                    }
                     switch (oid) {
                     case CHALLENGE_PASSWORD_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        if (tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
+                                tag != ASN_IA5_STRING) {
+                            WOLFSSL_MSG("Unsupported attribute value format");
+                            return ASN_PARSE_E;
+                        }
                         cert->cPwd = (char*)cert->source + cert->srcIdx;
                         cert->cPwdLen = len;
                         cert->srcIdx += len;
                         break;
                     case SERIAL_NUMBER_OID:
+                        if (GetHeader(cert->source, &tag,
+                                &cert->srcIdx, &len, attrMaxIdx, 1) < 0) {
+                            WOLFSSL_MSG("attr GetHeader error");
+                            return ASN_PARSE_E;
+                        }
+                        if (tag != ASN_PRINTABLE_STRING && tag != ASN_UTF8STRING &&
+                                tag != ASN_IA5_STRING) {
+                            WOLFSSL_MSG("Unsupported attribute value format");
+                            return ASN_PARSE_E;
+                        }
                         cert->sNum = (char*)cert->source + cert->srcIdx;
                         cert->sNumLen = len;
                         cert->srcIdx += len;
@@ -9654,6 +9665,20 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                             XMEMCPY(cert->serial, cert->sNum, cert->sNumLen);
                             cert->serialSz = cert->sNumLen;
                         }
+                        break;
+                    case EXTENSION_REQUEST_OID:
+                        /* save extensions */
+                        cert->extensions    = &cert->source[cert->srcIdx];
+                        cert->extensionsSz  = len;
+                        cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
+
+                        if ((ret = DecodeCertExtensions(cert)) < 0) {
+                            if (ret == ASN_CRIT_EXT_E)
+                                cert->criticalExt = ret;
+                            else
+                                return ret;
+                        }
+                        cert->srcIdx += len;
                         break;
                     default:
                         WOLFSSL_MSG("Unsupported attribute type");
