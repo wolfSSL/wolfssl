@@ -1413,7 +1413,7 @@ int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, const byte* buf, word32 sz)
     idx += ret;
 
     WOLFSSL_LEAVE("wolfSSL_dtls_import_state_internal", ret);
-    return ret;
+    return idx;
 }
 
 
