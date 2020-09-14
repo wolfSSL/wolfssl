@@ -8065,7 +8065,8 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     }
     InitDecodedCert(&cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
+    if (ParseCert(&cert, passedCert->isCSR ? CERTREQ_TYPE : CA_TYPE,
+            NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
         return WOLFSSL_FAILURE;
     }
@@ -8079,16 +8080,18 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
         return WOLFSSL_FAILURE;
     }
 
-    if (input[idx++] != ASN_EXTENSIONS) {
-        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FAILURE;
-    }
+    if (!passedCert->isCSR) {
+        if (input[idx++] != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FAILURE;
+        }
 
-    if (GetLength(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: invalid length");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FAILURE;
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FAILURE;
+        }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
@@ -8295,6 +8298,17 @@ const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
     return x509->ext_sk_full;
 }
 
+/**
+ * Caller is responsible for freeing the returned stack.
+ */
+const WOLFSSL_STACK *wolfSSL_X509_REQ_get_extensions(const WOLFSSL_X509 *x)
+{
+    const WOLFSSL_STACK *ret = wolfSSL_X509_get0_extensions(x);
+    if (x)
+        ((WOLFSSL_X509*)x)->ext_sk_full = NULL;
+    return ret;
+}
+
 /* Gets the X509_EXTENSION* ext based on it's location in WOLFSSL_X509* x509.
  *
  * x509   : The X509 structure to look for the extension.
@@ -8389,7 +8403,8 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
     InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
+    if (ParseCert(&cert, x509->isCSR ? CERTREQ_TYPE : CA_TYPE,
+            NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
         wolfSSL_X509_EXTENSION_free(ext);
         return NULL;
@@ -8405,18 +8420,20 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
         return NULL;
     }
 
-    if (input[idx++] != ASN_EXTENSIONS) {
-        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        wolfSSL_X509_EXTENSION_free(ext);
-        FreeDecodedCert(&cert);
-        return NULL;
-    }
+    if (!x509->isCSR) {
+        if (input[idx++] != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+            wolfSSL_X509_EXTENSION_free(ext);
+            FreeDecodedCert(&cert);
+            return NULL;
+        }
 
-    if (GetLength(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: invalid length");
-        wolfSSL_X509_EXTENSION_free(ext);
-        FreeDecodedCert(&cert);
-        return NULL;
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+            wolfSSL_X509_EXTENSION_free(ext);
+            FreeDecodedCert(&cert);
+            return NULL;
+        }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
@@ -9299,7 +9316,8 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 
     InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
+    if (ParseCert(&cert, x509->isCSR ? CERTREQ_TYPE : CA_TYPE,
+            NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
         return WOLFSSL_FATAL_ERROR;
     }
@@ -9313,16 +9331,18 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if (input[idx++] != ASN_EXTENSIONS) {
-        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FATAL_ERROR;
-    }
+    if (!x509->isCSR) {
+        if (input[idx++] != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (GetLength(input, &idx, &length, sz) < 0) {
-        WOLFSSL_MSG("\tfail: invalid length");
-        FreeDecodedCert(&cert);
-        return WOLFSSL_FATAL_ERROR;
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
@@ -9892,16 +9912,59 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
 }
 
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
 {
-    WOLFSSL_STUB("wolfSSL_X509_add_ext");
-    (void)x509;
-    (void)ext;
-    (void)loc;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_X509_add_ext");
+
+    if (!x509 || !ext || !ext->obj || loc >= 0) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch (ext->obj->type) {
+    case NID_subject_alt_name:
+    {
+        WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
+        while (gns) {
+            WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
+            if (!gn || !gn->d.ia5 ||
+                wolfSSL_X509_add_altname_ex(x509, gn->d.ia5->data,
+                    gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("Subject alternative name missing extension");
+                return WOLFSSL_FAILURE;
+            }
+            gns = gns->next;
+        }
+        x509->subjAltNameSet = 1;
+        x509->subjAltNameCrit = ext->crit;
+        break;
+    }
+    case NID_key_usage:
+        if (ext && ext->value.data &&
+                ext->value.length == sizeof(word16)) {
+            x509->keyUsage = *(word16*)ext->value.data;
+            x509->keyUsageCrit = ext->crit;
+            x509->keyUsageSet = 1;
+        }
+        break;
+    case NID_basic_constraints:
+        if (ext->obj) {
+            x509->isCa = ext->obj->ca;
+            x509->basicConstCrit = ext->crit;
+            if (ext->obj->pathlen)
+                x509->pathLength = ext->obj->pathlen->length;
+            x509->basicConstSet = 1;
+        }
+        break;
+    default:
+        WOLFSSL_MSG("Unsupported extension to add");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
 
+#ifndef NO_WOLFSSL_STUB
 WOLFSSL_X509_EXTENSION *wolfSSL_X509_delete_ext(WOLFSSL_X509 *x509, int loc)
 {
     WOLFSSL_STUB("wolfSSL_X509_delete_ext");
@@ -39366,6 +39429,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             XMEMCPY(cert->challengePw, req->challengePw, CTC_NAME_SIZE);
             cert->challengePwPrintableString = req->challengePw[0] != 0;
     #endif
+    #ifdef WOLFSSL_ALT_NAMES
+            cert->altNamesSz = FlattenAltNames(cert->altNames,
+                    sizeof(cert->altNames), req->altNames);
+    #endif /* WOLFSSL_ALT_NAMES */
         }
 
         return ret;
@@ -51586,6 +51653,31 @@ int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
         return WOLFSSL_FAILURE;
 }
 
+static int wolfSSL_regen_X509_REQ_der_buffer(WOLFSSL_X509* x509)
+{
+    byte der[4096];
+    int  derSz = sizeof(der);
+
+    if (wolfSSL_X509_make_der(x509, 1, der, &derSz, 0) !=
+            WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Unable to make DER for X509 REQ");
+        return WOLFSSL_FAILURE;
+    }
+
+    FreeDer(&x509->derCert);
+
+    /* store cert for potential retrieval */
+    if (AllocDer(&x509->derCert, derSz, CERT_TYPE, x509->heap) == 0) {
+        XMEMCPY(x509->derCert->buffer, der, derSz);
+    }
+    else {
+        WOLFSSL_MSG("Failed to allocate DER buffer for X509");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
         WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext_sk)
 {
@@ -51597,48 +51689,15 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
     while (ext_sk) {
         WOLFSSL_X509_EXTENSION* ext = ext_sk->data.ext;
 
-        switch (ext->obj->type) {
-        case NID_subject_alt_name:
-        {
-            WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
-            while (gns) {
-                WOLFSSL_GENERAL_NAME* gn = gns->data.gn;
-                if (!gn || !gn->d.ia5 ||
-                    wolfSSL_X509_add_altname_ex(req, gn->d.ia5->data,
-                        gn->d.ia5->length, gn->type) != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("Subject alternative name missing extension");
-                    return WOLFSSL_FAILURE;
-                }
-                gns = gns->next;
-            }
-            req->subjAltNameSet = 1;
-            req->subjAltNameCrit = ext->crit;
-            break;
-        }
-        case NID_key_usage:
-            if (ext && ext->value.data &&
-                    ext->value.length == sizeof(word16)) {
-                req->keyUsage = *(word16*)ext->value.data;
-                req->keyUsageCrit = ext->crit;
-            }
-            break;
-        case NID_basic_constraints:
-            if (ext->obj) {
-                req->isCa = ext->obj->ca;
-                req->basicConstCrit = ext->crit;
-                if (ext->obj->pathlen)
-                    req->pathLength = ext->obj->pathlen->length;
-            }
-            break;
-        default:
-            WOLFSSL_MSG("Unsupported extension to add");
+        if (wolfSSL_X509_add_ext(req, ext, -1) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_X509_add_ext error");
             return WOLFSSL_FAILURE;
         }
 
         ext_sk = ext_sk->next;
     }
 
-    return WOLFSSL_SUCCESS;
+    return wolfSSL_regen_X509_REQ_der_buffer(req);
 }
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
