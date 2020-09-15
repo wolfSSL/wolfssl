@@ -1906,7 +1906,7 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
 /* returns 0 on success, -1 on error */
 static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 {
-    int    version = IP_V(iphdr);
+    int version = IP_V(iphdr);
 
     if (version == IPV6)
         return CheckIp6Hdr((Ip6Hdr*)iphdr, info, length, error);
@@ -3281,7 +3281,6 @@ static int KeyWatchCall(SnifferSession* session, const byte* data, int dataSz,
 static int ProcessCertificate(const byte* input, int* sslBytes,
         SnifferSession* session, char* error)
 {
-    int ret;
     const byte* certChain;
     word32 certChainSz;
     word32 certSz;
@@ -4058,6 +4057,9 @@ int TcpChecksum(IpInfo* ipInfo, TcpInfo* tcpInfo, int dataLen,
 static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
                   int length, const byte** sslFrame, int* sslBytes, char* error)
 {
+    IpHdr* iphdr = (IpHdr*)packet;
+    int version;
+
     TraceHeader();
     TracePacket();
 
@@ -4066,6 +4068,17 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
+
+    version = IP_V(iphdr);
+    if (version != IPV6 && version != IPV4) {
+        /* Is this VLAN IEEE 802.1Q Frame? TPID = 0x8100 */
+        if (packet[2] == 0x81 && packet[3] == 0x00) {
+            /* trim VLAN header and try again */
+            packet += 8;
+            length -= 8;
+        }
+    }
+
     if (CheckIpHdr((IpHdr*)packet, ipInfo, length, error) != 0)
         return -1;
 

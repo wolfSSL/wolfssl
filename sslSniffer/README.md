@@ -43,9 +43,9 @@ All options may be enabled with the following configure command line:
 
 ```sh
 ./configure --enable-sniffer \
-    CPPFLAGS=”-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
+    CPPFLAGS="-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
     -DWOLFSSL_SNIFFER_STORE_DATA_CB -DWOLFSSL_SNIFFER_CHAIN_INPUT \
-    -DSTARTTLS_ALLOWED”
+    -DSTARTTLS_ALLOWED"
 ```
 
 To add some other cipher support to the sniffer, you can add options like:
