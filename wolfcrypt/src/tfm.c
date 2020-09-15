@@ -5453,11 +5453,6 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     /* digs is the digit count */
     digs = 0;
 
-    /* if it's negative add one for the sign */
-    if (a->sign == FP_NEG) {
-        ++digs;
-    }
-
 #ifdef WOLFSSL_SMALL_STACK
     t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
     if (t == NULL)
@@ -5485,10 +5480,15 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
 #ifndef WC_DISABLE_RADIX_ZERO_PAD
     /* For hexadecimal output, add zero padding when number of digits is odd */
-    if (((a->sign == FP_NEG) ? !(digs & 1) : (digs & 1)) && (radix == 16)) {
+    if ((digs & 1) && (radix == 16)) {
         ++digs;
     }
 #endif
+
+    /* if it's negative add one for the sign */
+    if (a->sign == FP_NEG) {
+        ++digs;
+    }
 
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
