@@ -879,6 +879,18 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
+                                                         defined(WOLFSSL_SHA512)
+    /* add P-521 certificate cipher suite tests */
+    strcpy(argv0[1], "tests/test-p521.conf");
+    printf("starting P-521 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
