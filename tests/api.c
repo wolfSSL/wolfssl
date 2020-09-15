@@ -13760,14 +13760,10 @@ static int test_wc_CheckProbablePrime (void)
     if (ret == 0) {
         ret = wc_CheckProbablePrime(p, pSz, q, qSz, e, eSz,
                                      nlen, isPrime);
-    } 
-    
-    if (wc_FreeRsaKey(&key) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
     }
-    if (wc_FreeRng(&rng) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
 
@@ -13851,12 +13847,8 @@ static int test_wc_RsaPSS_Verify (void)
                 ret = 0;
             }
     }
-    if (wc_FreeRsaKey(&key) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
-    if (wc_FreeRng(&rng) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
 
@@ -13946,12 +13938,8 @@ static int test_wc_RsaPSS_VerifyCheck (void)
                 ret = 0;
             }
     }
-    if (wc_FreeRsaKey(&key) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
-    if (wc_FreeRng(&rng) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
 
@@ -14040,12 +14028,8 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
                 ret = 0;
             }
     }
-    if (wc_FreeRsaKey(&key) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
-    if (wc_FreeRng(&rng) || ret != 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
 
