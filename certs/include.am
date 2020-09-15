@@ -106,6 +106,7 @@ include certs/crl/include.am
 include certs/ecc/include.am
 include certs/ed25519/include.am
 include certs/ed448/include.am
+include certs/p521/include.am
 include certs/external/include.am
 include certs/ocsp/include.am
 include certs/statickeys/include.am

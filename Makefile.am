@@ -19,6 +19,7 @@ dist_doc_DATA=
 dist_noinst_SCRIPTS =
 noinst_SCRIPTS =
 check_SCRIPTS =
+noinst_DATA =
 
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
