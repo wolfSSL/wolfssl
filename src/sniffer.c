@@ -452,6 +452,11 @@ typedef struct SnifferSession {
     word32         srvReassemblyMemory; /* server packet memory used */
     struct SnifferSession* next;    /* for hash table list */
     byte*          ticketID;        /* mac ID of session ticket */
+#ifdef HAVE_MAX_FRAGMENT
+    byte*          tlsFragBuf;
+    word32         tlsFragOffset;
+    word32         tlsFragSize;
+#endif
 #ifdef HAVE_SNI
     const char*    sni;             /* server name indication */
 #endif
@@ -648,6 +653,12 @@ static void FreeSnifferSession(SnifferSession* session)
 #ifdef WOLFSSL_TLS13
         if (session->cliKeyShare)
             XFREE(session->cliKeyShare, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifdef HAVE_MAX_FRAGMENT
+        if (session->tlsFragBuf) {
+            XFREE(session->tlsFragBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            session->tlsFragBuf = NULL;
+        }
 #endif
     }
     XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
@@ -2744,6 +2755,24 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslClient->session.ticketNonce.data[0] = 0;
                 break;
         #endif
+        #ifdef HAVE_MAX_FRAGMENT
+            case EXT_MAX_FRAGMENT_LENGTH:
+            {
+                word16 max_fragment = MAX_RECORD_SIZE;
+                switch (input[0]) {
+                    case WOLFSSL_MFL_2_8 : max_fragment =  256; break;
+                    case WOLFSSL_MFL_2_9 : max_fragment =  512; break;
+                    case WOLFSSL_MFL_2_10: max_fragment = 1024; break;
+                    case WOLFSSL_MFL_2_11: max_fragment = 2048; break;
+                    case WOLFSSL_MFL_2_12: max_fragment = 4096; break;
+                    case WOLFSSL_MFL_2_13: max_fragment = 8192; break;
+                    default: break;
+                }
+                session->sslServer->max_fragment = max_fragment;
+                session->sslClient->max_fragment = max_fragment;
+                break;
+            }
+        #endif
             case EXT_SUPPORTED_VERSIONS:
                 session->sslServer->version.major = input[0];
                 session->sslServer->version.minor = input[1];
@@ -3407,13 +3436,29 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
 
 /* Process HandShake input */
 static int DoHandShake(const byte* input, int* sslBytes,
-                       SnifferSession* session, char* error)
+                       SnifferSession* session, char* error, word16 rhSize)
 {
     byte type;
     int  size;
     int  ret = 0;
-    int  startBytes;
     WOLFSSL* ssl;
+
+#ifdef HAVE_MAX_FRAGMENT
+    if (session->tlsFragBuf) {
+        XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
+        session->tlsFragOffset += rhSize;
+        *sslBytes -= rhSize;
+
+        if (session->tlsFragOffset < session->tlsFragSize) {
+            return 0;
+        }
+
+        /* reassembled complete fragment */
+        input = session->tlsFragBuf;
+        *sslBytes = session->tlsFragSize;
+        rhSize = session->tlsFragSize;
+    }
+#endif
 
     if (*sslBytes < HANDSHAKE_HEADER_SZ) {
         SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
@@ -3424,7 +3469,6 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
     input     += HANDSHAKE_HEADER_SZ;
     *sslBytes -= HANDSHAKE_HEADER_SZ;
-    startBytes = *sslBytes;
 
     if (*sslBytes < size) {
         Trace(SPLIT_HANDSHAKE_MSG_STR);
@@ -3449,6 +3493,30 @@ static int DoHandShake(const byte* input, int* sslBytes,
     }
 #endif
 
+#ifdef HAVE_MAX_FRAGMENT
+    if (rhSize < size) {
+        /* partial fragment, let's reassemble */
+        if (session->tlsFragBuf == NULL) {
+            session->tlsFragOffset = 0;
+            session->tlsFragSize = size + HANDSHAKE_HEADER_SZ;
+            session->tlsFragBuf = (byte*)XMALLOC(session->tlsFragSize, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (session->tlsFragBuf == NULL) {
+                SetError(MEMORY_STR, error, NULL, 0);
+                return 0;
+            }
+
+            /* include the handshake header */
+            input -= HANDSHAKE_HEADER_SZ;
+            *sslBytes += HANDSHAKE_HEADER_SZ;
+        }
+
+        XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
+        session->tlsFragOffset += rhSize;
+        *sslBytes -= rhSize;
+        return 0;
+    }
+#endif
+
 #ifdef WOLFSSL_TLS13
     if (type != client_hello) {
         /* For resumption the hash is before / after client_hello PSK binder */
@@ -3465,7 +3533,8 @@ static int DoHandShake(const byte* input, int* sslBytes,
         if (HashUpdate(session->hash, input, size) != 0) {
             SetError(EXTENDED_MASTER_HASH_STR, error,
                      session, FATAL_ERROR_STATE);
-            return -1;
+            ret = -1;
+            goto exit;
         }
     }
 #endif
@@ -3560,10 +3629,17 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         default:
             SetError(GOT_UNKNOWN_HANDSHAKE_STR, error, session, 0);
-            return -1;
+            ret = -1;
+            break;
     }
 
-    *sslBytes = startBytes - size;  /* actual bytes of full process */
+exit:
+#ifdef HAVE_MAX_FRAGMENT
+    if (session->tlsFragBuf) {
+        XFREE(session->tlsFragBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        session->tlsFragBuf = NULL;
+    }
+#endif
 
     return ret;
 }
@@ -4818,11 +4894,9 @@ doPart:
     switch ((enum ContentType)rh.type) {
         case handshake:
             {
-                int startIdx = sslBytes;
-                int used;
-
+                int inOutIdx = sslBytes;
                 Trace(GOT_HANDSHAKE_STR);
-                ret = DoHandShake(sslFrame, &sslBytes, session, error);
+                ret = DoHandShake(sslFrame, &inOutIdx, session, error, rhSize);
                 if (ret != 0) {
                     if (session->flags.fatalError == 0)
                         SetError(BAD_HANDSHAKE_STR, error, session,
@@ -4830,9 +4904,8 @@ doPart:
                     return -1;
                 }
 
-                /* DoHandShake now fully decrements sslBytes to remaining */
-                used = startIdx - sslBytes;
-                sslFrame += used;
+                sslFrame += rhSize;
+                sslBytes -= rhSize;
                 if (decrypted)
                     sslFrame += ssl->keys.padSz;
             }
