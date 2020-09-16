@@ -10806,104 +10806,33 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     !defined(WOLFSSL_CRYPTOCELL)
 
 #ifndef WOLFSSL_SP_MATH
-int do_mp_jacobi(mp_int* a, mp_int* n, int* c);
-
-int do_mp_jacobi(mp_int* a, mp_int* n, int* c)
-{
-  int      k, s, res;
-  int      r = 0; /* initialize to help static analysis out */
-  mp_digit residue;
-
-  /* if a < 0 return MP_VAL */
-  if (mp_isneg(a) == MP_YES) {
-     return MP_VAL;
-  }
-
-  /* if n <= 0 return MP_VAL */
-  if (mp_cmp_d(n, 0) != MP_GT) {
-     return MP_VAL;
-  }
-
-  /* step 1. handle case of a == 0 */
-  if (mp_iszero (a) == MP_YES) {
-     /* special case of a == 0 and n == 1 */
-     if (mp_cmp_d (n, 1) == MP_EQ) {
-       *c = 1;
-     } else {
-       *c = 0;
-     }
-     return MP_OKAY;
-  }
-
-  /* step 2.  if a == 1, return 1 */
-  if (mp_cmp_d (a, 1) == MP_EQ) {
-    *c = 1;
-    return MP_OKAY;
-  }
-
-  /* default */
-  s = 0;
-
-  /* divide out larger power of two */
-  k = mp_cnt_lsb(a);
-  res = mp_div_2d(a, k, a, NULL);
-
-  if (res == MP_OKAY) {
-    /* step 4.  if e is even set s=1 */
-    if ((k & 1) == 0) {
-      s = 1;
-    } else {
-      /* else set s=1 if p = 1/7 (mod 8) or s=-1 if p = 3/5 (mod 8) */
-      residue = n->dp[0] & 7;
-
-      if (residue == 1 || residue == 7) {
-        s = 1;
-      } else if (residue == 3 || residue == 5) {
-        s = -1;
-      }
-    }
-
-    /* step 5.  if p == 3 (mod 4) *and* a == 3 (mod 4) then s = -s */
-    if ( ((n->dp[0] & 3) == 3) && ((a->dp[0] & 3) == 3)) {
-      s = -s;
-    }
-  }
-
-  if (res == MP_OKAY) {
-    /* if a == 1 we're done */
-    if (mp_cmp_d(a, 1) == MP_EQ) {
-      *c = s;
-    } else {
-      /* n1 = n mod a */
-      res = mp_mod (n, a, n);
-      if (res == MP_OKAY)
-        res = do_mp_jacobi(n, a, &r);
-
-      if (res == MP_OKAY)
-        *c = s * r;
-    }
-  }
-
-  return res;
-}
-
-
 /* computes the jacobi c = (a | n) (or Legendre if n is prime)
- * HAC pp. 73 Algorithm 2.149
- * HAC is wrong here, as the special case of (0 | 1) is not
- * handled correctly.
  */
 int mp_jacobi(mp_int* a, mp_int* n, int* c)
 {
     mp_int   a1, n1;
     int      res;
+    int      s = 1;
+    int      k;
+    mp_int*  t[2];
+    mp_int*  ts;
+    mp_digit residue;
 
-    /* step 3.  write a = a1 * 2**k  */
+    if (mp_isneg(a) == MP_YES) {
+        return MP_VAL;
+    }
+    if (mp_isneg(n) == MP_YES) {
+        return MP_VAL;
+    }
+    if (mp_iseven(n) == MP_YES) {
+        return MP_VAL;
+    }
+
     if ((res = mp_init_multi(&a1, &n1, NULL, NULL, NULL, NULL)) != MP_OKAY) {
         return res;
     }
 
-    if ((res = mp_copy(a, &a1)) != MP_OKAY) {
+    if ((res = mp_mod(a, n, &a1)) != MP_OKAY) {
         goto done;
     }
 
@@ -10911,7 +10840,52 @@ int mp_jacobi(mp_int* a, mp_int* n, int* c)
         goto done;
     }
 
-    res = do_mp_jacobi(&a1, &n1, c);
+    t[0] = &a1;
+    t[1] = &n1;
+
+    /* Keep reducing until first number is 0. */
+    while (!mp_iszero(t[0])) {
+        /* Divide by 2 until odd. */
+        k = mp_cnt_lsb(t[0]);
+        if (k > 0) {
+            mp_rshb(t[0], k);
+
+            /* Negate s each time we divide by 2 if t[1] mod 8 == 3 or 5.
+             * Odd number of divides results in a negate.
+             */
+            residue = t[1]->dp[0] & 7;
+            if ((k & 1) && ((residue == 3) || (residue == 5))) {
+                s = -s;
+            }
+        }
+
+        /* Swap t[0] and t[1]. */
+        ts   = t[0];
+        t[0] = t[1];
+        t[1] = ts;
+
+        /* Negate s if both numbers == 3 mod 4. */
+        if (((t[0]->dp[0] & 3) == 3) && ((t[1]->dp[0] & 3) == 3)) {
+             s = -s;
+        }
+
+        /* Reduce first number modulo second. */
+        if ((k == 0) && (mp_count_bits(t[0]) == mp_count_bits(t[1]))) {
+            res = mp_sub(t[0], t[1], t[0]);
+        }
+        else {
+            res = mp_mod(t[0], t[1], t[0]);
+        }
+        if (res != MP_OKAY) {
+            goto done;
+        }
+    }
+
+    /* When the two numbers have divisors in common. */
+    if (!mp_isone(t[1])) {
+        s = 0;
+    }
+    *c = s;
 
 done:
   /* cleanup */
