@@ -1310,7 +1310,9 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* -L <str> */
 #endif
     printf("%s", msg[++msgid]); /* -B <num> */
+#ifndef NO_PSK
     printf("%s", msg[++msgid]); /* -s */
+#endif
     printf("%s", msg[++msgid]); /* -d */
     printf("%s", msg[++msgid]); /* -D */
     printf("%s", msg[++msgid]); /* -e */
