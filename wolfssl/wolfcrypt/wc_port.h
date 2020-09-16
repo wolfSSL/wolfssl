@@ -94,17 +94,17 @@
     #include <linux/net.h>
     #include <linux/slab.h>
     #if defined(WOLFSSL_AESNI) || defined(USE_INTEL_SPEEDUP)
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
-                #include <asm/i387.h>
-            #else
-                #include <asm/simd.h>
-            #endif
-            #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
-            #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
+        #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
+            #include <asm/i387.h>
+        #else
+            #include <asm/simd.h>
+        #endif
+        #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
+        #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
     #elif defined(WOLFSSL_ARMASM)
         #include <asm/fpsimd.h>
         #define SAVE_VECTOR_REGISTERS() ({ preempt_disable(); fpsimd_preserve_current_state(); })
-        #define SAVE_VECTOR_REGISTERS() ({ fpsimd_restore_current_state(); preempt_enable(); })
+        #define RESTORE_VECTOR_REGISTERS() ({ fpsimd_restore_current_state(); preempt_enable(); })
     #else
         #define SAVE_VECTOR_REGISTERS() ({})
         #define RESTORE_VECTOR_REGISTERS() ({})
