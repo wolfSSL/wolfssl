@@ -19272,6 +19272,26 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 
     return NULL;
 }
+
+WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx)
+{
+    if (ctx) {
+        if (ctx->ourCert == NULL) {
+            if (ctx->certificate == NULL) {
+                WOLFSSL_MSG("Ctx Certificate buffer not set!");
+                return NULL;
+            }
+            #ifndef WOLFSSL_X509_STORE_CERTS
+            ctx->ourCert = wolfSSL_X509_d2i(NULL,
+                                           ctx->certificate->buffer,
+                                           ctx->certificate->length);
+            #endif
+            ctx->ownOurCert = 1;
+        }
+        return ctx->ourCert;
+    }
+    return NULL;
+}
 #endif /* OPENSSL_EXTRA && KEEP_OUR_CERT */
 #endif /* NO_CERTS */
 

@@ -4895,6 +4895,7 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(tmp_ca);
     AssertIntEQ(sk_X509_num(tmp_ca), sk_X509_num(ca));
     /* Check that the main cert is also set */
+    AssertNotNull(SSL_CTX_get0_certificate(ctx));
     AssertNotNull(ssl = SSL_new(ctx));
     AssertNotNull(SSL_get_certificate(ssl));
     SSL_free(ssl);

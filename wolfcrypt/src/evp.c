@@ -1154,7 +1154,8 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            return WOLFSSL_EVP_CIPH_GCM_MODE;
+            return WOLFSSL_EVP_CIPH_GCM_MODE &
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
     #endif
     #if defined(WOLFSSL_AES_COUNTER)
         case AES_128_CTR_TYPE:
@@ -4344,7 +4345,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_128_GCM");
             ctx->cipherType = AES_128_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
@@ -4368,7 +4370,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_192_GCM");
             ctx->cipherType = AES_192_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
@@ -4392,7 +4395,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_256_GCM");
             ctx->cipherType = AES_256_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;

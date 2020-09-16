@@ -172,6 +172,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_get_verify_mode         wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth        wolfSSL_CTX_get_verify_depth
 #define SSL_get_certificate             wolfSSL_get_certificate
+#define SSL_CTX_get0_certificate        wolfSSL_CTX_get0_certificate
 #define SSL_use_certificate             wolfSSL_use_certificate
 #define SSL_use_certificate_ASN1        wolfSSL_use_certificate_ASN1
 #define d2i_PKCS8_PRIV_KEY_INFO_bio     wolfSSL_d2i_PKCS8_PKEY_bio
@@ -291,6 +292,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_security_level(...)
 /* wolfSSL does not support exporting keying material */
 #define SSL_export_keying_material(...) 0
+
+#define SSL_CTX_set1_groups             wolfSSL_CTX_set_groups
+#define SSL_set1_groups                 wolfSSL_set_groups
 
 #define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
 #define SSL_set1_groups_list            wolfSSL_set1_groups_list
@@ -1166,6 +1170,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define OPENSSL_memdup                  wolfSSL_OPENSSL_memdup
 #define SSL_CTX_get_timeout             wolfSSL_SSL_CTX_get_timeout
 #define SSL_CTX_set_tmp_ecdh            wolfSSL_SSL_CTX_set_tmp_ecdh
+#define SSL_CTX_set_ecdh_auto(...)
 #define SSL_CTX_remove_session          wolfSSL_SSL_CTX_remove_session
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
