@@ -54,6 +54,11 @@
 
     void cpuid_set_flags(void);
     word32 cpuid_get_flags(void);
+
+    /* Public APIs to modify flags. */
+    WOLFSSL_API void cpuid_select_flags(word32 flags);
+    WOLFSSL_API void cpuid_set_flag(word32 flag);
+    WOLFSSL_API void cpuid_clear_flag(word32 flag);
 #endif
 
 #ifdef __cplusplus

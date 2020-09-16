@@ -108,4 +108,19 @@
             cpuid_set_flags();
         return cpuid_flags;
     }
+
+    void cpuid_select_flags(word32 flags)
+    {
+        cpuid_flags = flags;
+    }
+
+    void cpuid_set_flag(word32 flag)
+    {
+        cpuid_flags |= flag;
+    }
+
+    void cpuid_clear_flag(word32 flag)
+    {
+        cpuid_flags &= ~flag;
+    }
 #endif
