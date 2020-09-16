@@ -27731,20 +27731,26 @@ static void test_wolfSSL_X509_sign(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
     int ret;
+    char *caSubject;
     X509_NAME *name;
-    X509 *x509;
+    X509 *x509, *ca;
+    DecodedCert dCert;
     EVP_PKEY *pub;
     EVP_PKEY *priv;
 #if defined(USE_CERT_BUFFERS_1024)
     const unsigned char* rsaPriv = client_key_der_1024;
     const unsigned char* rsaPub = client_keypub_der_1024;
+    const unsigned char* certIssuer = client_cert_der_1024;
     long clientKeySz = (long)sizeof_client_key_der_1024;
     long clientPubKeySz = (long)sizeof_client_keypub_der_1024;
+    long certIssuerSz = (long)sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     const unsigned char* rsaPriv = client_key_der_2048;
     const unsigned char* rsaPub = client_keypub_der_2048;
+    const unsigned char* certIssuer = client_cert_der_2048;
     long clientKeySz = (long)sizeof_client_key_der_2048;
     long clientPubKeySz = (long)sizeof_client_keypub_der_2048;
+    long certIssuerSz = (long)sizeof_client_cert_der_2048;
 #endif
     byte sn[16];
     int snSz = sizeof(sn);
@@ -27769,6 +27775,7 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntNE(X509_set_version(x509, 2L), 0);
     /* Set subject name, add pubkey, and sign certificate */
     AssertIntEQ(X509_set_subject_name(x509, name), SSL_SUCCESS);
+    X509_NAME_free(name);
     AssertIntEQ(X509_set_pubkey(x509, pub), SSL_SUCCESS);
 #ifdef WOLFSSL_ALT_NAMES
     /* Add some subject alt names */
@@ -27817,7 +27824,7 @@ static void test_wolfSSL_X509_sign(void)
     }
     XFCLOSE(tmpFile);
 #endif
-    
+
     /* Variation in size depends on ASN.1 encoding when MSB is set */
 #ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 798-797 with 16 byte serial number */
@@ -27829,6 +27836,35 @@ static void test_wolfSSL_X509_sign(void)
     /* Valid case - size should be 926-927 with 16 byte serial number */
     AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
 #endif
+    /* check that issuer name is as expected after signature */
+    InitDecodedCert(&dCert, certIssuer, (word32)certIssuerSz, 0);
+    AssertIntEQ(ParseCert(&dCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+
+    AssertNotNull(ca = wolfSSL_d2i_X509(NULL, &certIssuer, (int)certIssuerSz));
+    AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
+                                              X509_get_subject_name(ca), 0, 0));
+    AssertIntEQ(0, XSTRNCMP(caSubject, dCert.subject, XSTRLEN(caSubject)));
+    free(caSubject);
+
+#ifdef WOLFSSL_MULTI_ATTRIB
+    /* test adding multiple OU's to the signer */
+    AssertNotNull(name = X509_get_subject_name(ca));
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_UTF8,
+                                       (byte*)"OU1", 3, -1, 0), SSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_UTF8,
+                                       (byte*)"OU2", 3, -1, 0), SSL_SUCCESS);
+    AssertIntGT(X509_sign(ca, priv, EVP_sha256()), 0);
+#endif
+
+    AssertNotNull(name = X509_get_subject_name(ca));
+    AssertIntEQ(X509_set_issuer_name(x509, name), SSL_SUCCESS);
+
+    AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
+    AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
+                                             X509_get_issuer_name(x509), 0, 0));
+    free(caSubject);
+
+    FreeDecodedCert(&dCert);
 
     /* Test invalid parameters */
     AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
@@ -27844,10 +27880,11 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntEQ(X509_get_ext_count(x509), SSL_FAILURE);
 #endif
 
-    X509_NAME_free(name);
+
     EVP_PKEY_free(priv);
     EVP_PKEY_free(pub);
     X509_free(x509);
+    X509_free(ca);
 
     printf(resultFmt, passed);
 #endif
@@ -30653,6 +30690,8 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     BIGNUM* bn;
     X509*   x509;
     char *serialHex;
+    byte serial[3];
+    int  serialSz;
 
     printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
 
@@ -30662,6 +30701,40 @@ static void test_wolfSSL_X509_get_serialNumber(void)
 
     /* check on value of ASN1 Integer */
     AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+
+
+    /* test setting serial number and then retrieving it */
+    AssertNotNull(a = ASN1_INTEGER_new());
+    ASN1_INTEGER_set(a, 3);
+    AssertIntEQ(X509_set_serialNumber(x509, a), WOLFSSL_SUCCESS);
+    serialSz = sizeof(serial);
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, serial, &serialSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(serialSz, 1);
+    AssertIntEQ(serial[0], 3);
+    ASN1_INTEGER_free(a);
+
+    /* test setting serial number with 0's in it */
+    serial[0] = 0x01;
+    serial[1] = 0x00;
+    serial[2] = 0x02;
+
+    AssertNotNull(a = wolfSSL_ASN1_INTEGER_new());
+    a->data[0] = ASN_INTEGER;
+    a->data[1] = sizeof(serial);
+    XMEMCPY(&a->data[2], serial, sizeof(serial));
+    a->length = sizeof(serial) + 2;
+    AssertIntEQ(X509_set_serialNumber(x509, a), WOLFSSL_SUCCESS);
+
+    XMEMSET(serial, 0, sizeof(serial));
+    serialSz = sizeof(serial);
+    AssertIntEQ(wolfSSL_X509_get_serial_number(x509, serial, &serialSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(serialSz, 3);
+    AssertIntEQ(serial[0], 0x01);
+    AssertIntEQ(serial[1], 0x00);
+    AssertIntEQ(serial[2], 0x02);
+    ASN1_INTEGER_free(a);
 
     X509_free(x509); /* free's a */
 

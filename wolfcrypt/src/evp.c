@@ -6645,13 +6645,14 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
 #else
         ret = wc_InitRng(&pkey->rng);
 #endif
+        pkey->references = 1;
+        wc_InitMutex(&pkey->refMutex); /* init of mutex needs to come before
+                                        * wolfSSL_EVP_PKEY_free */
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
             WOLFSSL_MSG("memory failure");
             return NULL;
         }
-        pkey->references = 1;
-        wc_InitMutex(&pkey->refMutex);
     }
     else {
         WOLFSSL_MSG("memory failure");
