@@ -79,6 +79,9 @@ run_test() {
         counter=$((counter+ 1))
     done
 
+    # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+    sleep 0.1
+
     if test -e $ready_file; then
         echo -e "found ready file, starting client..."
     else
@@ -87,7 +90,7 @@ run_test() {
     fi
 
     # get created port 0 ephemeral port
-    crl_port=`cat $ready_file`
+    crl_port="$(cat $ready_file)"
 
     # starts client on crl_port and captures the output from client
     capture_out=$(./examples/client/client -p $crl_port 2>&1)

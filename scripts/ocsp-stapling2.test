@@ -330,10 +330,9 @@ printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
 #./examples/server/server -c certs/ocsp/server3-cert.pem \
 #                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
 #                         -p $port5 &
-#wait_for_readyFile $ready_file5
-#CLI_PORT=`cat $ready_file5`
+#wait_for_readyFile $ready_file5 $server_pid5 $port5
 #./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-#                         -p $CLI_PORT
+#                         -p $port5
 #RESULT=$?
 #[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
 #printf '%s\n\n' "Test PASSED!"

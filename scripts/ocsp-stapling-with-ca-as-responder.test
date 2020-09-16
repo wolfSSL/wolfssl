@@ -23,7 +23,7 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
-PARENTDIR=`pwd`
+PARENTDIR="$PWD"
 
 # create a unique workspace directory ending in PID for the script instance ($$)
 # to make this instance orthogonal to any others running, even on same repo.
@@ -126,7 +126,7 @@ create_new_cnf() {
 
     mv $test_cnf $CERT_DIR/$test_cnf
     cd $CERT_DIR
-    CURR_LOC=`pwd`
+    CURR_LOC="$PWD"
     printf '%s\n' "echo now in $CURR_LOC"
     ./renewcerts-for-test.sh $test_cnf
     cd $WORKSPACE
@@ -202,11 +202,10 @@ if [ ! -f $ready_file ]; then
     printf '%s\n' "Failed to create ready file: \"$ready_file\""
     exit 1
 else
-    RPORTSELECTED=`cat $ready_file`
-    printf '%s\n' "Random port selected: $RPORTSELECTED"
+    printf '%s\n' "Random port selected: $port1"
     # Use client connection to shutdown the server cleanly
-    ./examples/client/client -p $RPORTSELECTED
-    create_new_cnf $RPORTSELECTED
+    ./examples/client/client -p $port1
+    create_new_cnf $port1
 fi
 sleep 0.1
 
@@ -224,7 +223,7 @@ sleep 0.1
 # OLD: ./certs/ocsp/ocspd-intermediate1-ca-issued-certs-with-ca-as-responder.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $RPORTSELECTED -nmin 1                       \
+openssl ocsp -port $port1 -nmin 1                               \
     -index   certs/ocsp/index-intermediate1-ca-issued-certs.txt \
     -rsigner certs/ocsp/intermediate1-ca-cert.pem               \
     -rkey    certs/ocsp/intermediate1-ca-key.pem                \
@@ -241,10 +240,10 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file2 \
                          -p $port2 &
-wait_for_readyFile $ready_file2
-CLI_PORT=`cat $ready_file2`
+wolf_pid2=$!
+wait_for_readyFile $ready_file2 $wolf_pid2 $port2
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
-                         -p $CLI_PORT
+                         -p $port2
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
@@ -255,10 +254,10 @@ remove_single_rF $ready_file2
 ./examples/server/server -c certs/ocsp/server2-cert.pem \
                          -k certs/ocsp/server2-key.pem -R $ready_file2 \
                          -p $port2 &
-wait_for_readyFile $ready_file2
-CLI_PORT=`cat $ready_file2`
+wolf_pid2=$!
+wait_for_readyFile $ready_file2 $wolf_pid2 $port2
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
-                         -p $CLI_PORT
+                         -p $port2
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"

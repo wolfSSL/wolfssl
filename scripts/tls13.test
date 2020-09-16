@@ -45,6 +45,9 @@ create_port() {
     if [ -e $ready_file ]; then
         echo -e "found ready file, starting client..."
 
+        # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+        sleep 0.1
+
         # get created port 0 ephemeral port
         port=`cat $ready_file`
     else
