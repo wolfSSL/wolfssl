@@ -483,22 +483,35 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 16);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -512,7 +525,7 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -679,22 +692,35 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 16);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -708,7 +734,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -1090,22 +1116,35 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -1119,7 +1158,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -1288,22 +1327,35 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -1317,7 +1369,7 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -1936,18 +1988,31 @@ static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_2048_lshift_32(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -1960,12 +2025,12 @@ static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
@@ -2046,18 +2111,31 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_2048_lshift_32(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -2070,12 +2148,12 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
@@ -2679,22 +2757,35 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 24);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -2708,7 +2799,7 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -2875,22 +2966,35 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 24);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -2904,7 +3008,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -3286,22 +3390,35 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -3315,7 +3432,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -3484,22 +3601,35 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -3513,7 +3643,7 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -4132,18 +4262,31 @@ static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_3072_lshift_48(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -4156,12 +4299,12 @@ static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
@@ -4242,18 +4385,31 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_3072_lshift_48(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -4266,12 +4422,12 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
@@ -4930,22 +5086,35 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -4959,7 +5128,7 @@ static int sp_4096_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -5128,22 +5297,35 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 5. */
         if ((bits % 5) == 0) {
             c -= 5;
         }
         else {
             c -= bits % 5;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
         for (; i>=0 || c>=5; ) {
             if (c >= 5) {
-                y = (n >> 59) & 0x1f;
+                y = (int)((n >> 59) & 0x1f);
                 n <<= 5;
                 c -= 5;
             }
@@ -5157,7 +5339,7 @@ static int sp_4096_mod_exp_avx2_64(sp_digit* r, const sp_digit* a, const sp_digi
                 y = (int)(n >> 59);
                 n = e[i--];
                 c = 5 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
@@ -5776,18 +5958,31 @@ static int sp_4096_mod_exp_2_avx2_64(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_4096_lshift_64(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -5800,12 +5995,12 @@ static int sp_4096_mod_exp_2_avx2_64(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
@@ -5886,18 +6081,31 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
 
         i = (bits - 1) / 64;
         n = e[i--];
+        /* Number of bits available in top word. */
         c = bits & 63;
         if (c == 0) {
             c = 64;
         }
+        /* Minus the number of top bits to use so rest is a multiple of 6. */
         if ((bits % 6) == 0) {
             c -= 6;
         }
         else {
             c -= bits % 6;
         }
-        y = (int)(n >> c);
-        n <<= 64 - c;
+        if (c < 0) {
+            /* Number of bits in top word is less than number needed. */
+            c = -c;
+            y = (int)(n << c);
+            n = e[i--];
+            y |= (int)(n >> (64 - c));
+            n <<= c;
+            c = 64 - c;
+        }
+        else {
+            y = (int)(n >> c);
+            n <<= 64 - c;
+        }
         sp_4096_lshift_64(r, norm, y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
@@ -5910,12 +6118,12 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
                 y = (int)(n >> 58);
                 n = e[i--];
                 c = 6 - c;
-                y |= n >> (64 - c);
+                y |= (int)(n >> (64 - c));
                 n <<= c;
                 c = 64 - c;
             }
             else {
-                y = (n >> 58) & 0x3f;
+                y = (int)((n >> 58) & 0x3f);
                 n <<= 6;
                 c -= 6;
             }
