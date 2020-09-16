@@ -3442,6 +3442,8 @@ static int DoHandShake(const byte* input, int* sslBytes,
     int  ret = 0;
     WOLFSSL* ssl;
 
+    (void)rhSize;
+
 #ifdef HAVE_MAX_FRAGMENT
     if (session->tlsFragBuf) {
         XMEMCPY(session->tlsFragBuf + session->tlsFragOffset, input, rhSize);
