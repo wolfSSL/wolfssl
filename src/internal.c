@@ -17465,6 +17465,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             #else
                 DecodedCert  cert[1];
             #endif
+                DerBuffer* chain;
 
             #ifdef WOLFSSL_SMALL_STACK
                 cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
@@ -17481,14 +17482,20 @@ int SendCertificateStatus(WOLFSSL* ssl)
                     return MEMORY_E;
                 }
 
-                while (idx + OPAQUE24_LEN < ssl->buffers.certChain->length) {
-                    c24to32(ssl->buffers.certChain->buffer + idx, &der.length);
+                /* use certChain if available, otherwise use peer certificate */
+                chain = ssl->buffers.certChain;
+                if (chain == NULL) {
+                    chain = ssl->buffers.certificate;
+                }
+
+                while (chain && idx + OPAQUE24_LEN < chain->length) {
+                    c24to32(chain->buffer + idx, &der.length);
                     idx += OPAQUE24_LEN;
 
-                    der.buffer = ssl->buffers.certChain->buffer + idx;
+                    der.buffer = chain->buffer + idx;
                     idx += der.length;
 
-                    if (idx > ssl->buffers.certChain->length)
+                    if (idx > chain->length)
                         break;
 
                     ret = CreateOcspRequest(ssl, request, cert, der.buffer,
