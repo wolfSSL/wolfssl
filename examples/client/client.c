@@ -3097,7 +3097,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                             err == WOLFSSL_ERROR_WANT_WRITE) {
                         (void)ClientWrite(ssl,
                                 "msg sent during renegotiation",
-                         sizeof("msg sent during renegotiation"),
+                         sizeof("msg sent during renegotiation") - 1,
                                 "", 1);
                         do {
                             if (err == APP_DATA_READY) {
