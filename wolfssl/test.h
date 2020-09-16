@@ -509,7 +509,7 @@ WC_NORETURN void
 #endif
 err_sys_with_errno(const char* msg)
 {
-#ifdef DEBUG_TEST_ERR_SYS_WITH_ERRNO
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
     printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
 #else
     printf("wolfSSL error: %s\n", msg);
