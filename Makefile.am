@@ -201,6 +201,7 @@ TESTS += $(check_SCRIPTS)
 
 test: check
 tests/unit.log: testsuite/testsuite.log
+scripts/unit.log: testsuite/testsuite.log
 
 DISTCLEANFILES+= cyassl-config
 DISTCLEANFILES+= wolfssl-config
