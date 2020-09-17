@@ -448,12 +448,19 @@ void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
 
 /* wolfSSL */
-#ifndef TEST_IPV6
-    static const char* const wolfSSLIP   = "127.0.0.1";
-#else
-    static const char* const wolfSSLIP   = "::1";
+#ifndef WOLFSSL_DEFAULT_IP
+    #ifndef TEST_IPV6
+        #define WOLFSSL_DEFAULT_IP "127.0.0.1"
+    #else
+        #define WOLFSSL_DEFAULT_IP "::1"
+    #endif
 #endif
-static const word16      wolfSSLPort = 11111;
+#ifndef WOLFSSL_DEFAULT_PORT
+    #define WOLFSSL_DEFAULT_PORT 11111
+#endif
+
+static const char* const wolfSSLIP   = WOLFSSL_DEFAULT_IP;
+static const word16      wolfSSLPort = WOLFSSL_DEFAULT_PORT;
 
 
 
