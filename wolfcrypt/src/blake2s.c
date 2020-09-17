@@ -424,6 +424,24 @@ int wc_InitBlake2s(Blake2s* b2s, word32 digestSz)
 }
 
 
+/* Init Blake2s digest with key, track size in case final doesn't want to "remember" */
+int wc_InitBlake2s_WithKey(Blake2s* b2s, word32 digestSz, const byte *key, word32 keylen)
+{
+    if (b2s == NULL){
+        return -1;
+    }
+    b2s->digestSz = digestSz;
+
+    if (keylen >= 256)
+        return -1;
+
+    if (key)
+        return blake2s_init_key(b2s->S, (byte)digestSz, key, (byte)keylen);
+    else
+        return blake2s_init(b2s->S, (byte)digestSz);
+}
+
+
 /* Blake2s Update */
 int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz)
 {

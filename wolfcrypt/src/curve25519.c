@@ -100,7 +100,12 @@ int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
     return ret;
 }
 
-int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
+/* generate a new private key, as a bare vector.
+ *
+ * return value is propagated from wc_RNG_GenerateBlock(() (0 on success),
+ * or BAD_FUNC_ARG/ECC_BAD_ARG_E, and the byte vector is little endian.
+ */
+int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
 {
     int ret;
 
@@ -112,15 +117,29 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
         return ECC_BAD_ARG_E;
 
     /* random number for private key */
-    ret = wc_RNG_GenerateBlock(rng, key->k.point, keysize);
+    ret = wc_RNG_GenerateBlock(rng, key, keysize);
     if (ret != 0)
         return ret;
 
     /* Clamp the private key */
-    key->k.point[0] &= 248;
-    key->k.point[CURVE25519_KEYSIZE-1] &= 63; /* same &=127 because |=64 after */
-    key->k.point[CURVE25519_KEYSIZE-1] |= 64;
+    key[0] &= 248;
+    key[CURVE25519_KEYSIZE-1] &= 63; /* same &=127 because |=64 after */
+    key[CURVE25519_KEYSIZE-1] |= 64;
 
+    return 0;
+}
+
+/* generate a new keypair.
+ *
+ * return value is propagated from wc_curve25519_make_private() or
+ * wc_curve25519_make_pub() (0 on success).
+ */
+int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key) {
+    if (key == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+    int ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
+    if (ret < 0)
+        return ret;
     return wc_curve25519_make_pub((int)sizeof key->p.point, key->p.point, sizeof key->k.point, key->k.point);
 }
 
