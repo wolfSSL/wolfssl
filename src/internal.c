@@ -11193,6 +11193,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (args->fatal == 0) {
                     int copyRet = 0;
 
+                    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                        if (ssl->options.handShakeDone) {
+                            FreeX509(&ssl->peerCert);
+                            InitX509(&ssl->peerCert, 0, ssl->heap);
+                        }
+                        else
+                    #endif
                     #ifdef HAVE_SECURE_RENEGOTIATION
                         if (ssl->secure_renegotiation &&
                                            ssl->secure_renegotiation->enabled) {
@@ -11200,7 +11207,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             FreeX509(&ssl->peerCert);
                             InitX509(&ssl->peerCert, 0, ssl->heap);
                         }
+                        else
                     #endif
+                        {
+                        }
 
                     /* set X509 format for peer cert */
                     copyRet = CopyDecodedToX509(&ssl->peerCert, args->dCert);
@@ -11360,7 +11370,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif
                     #ifdef HAVE_PK_CALLBACKS
                         #ifndef NO_RSA
-                            #ifdef HAVE_SECURE_RENEGOTIATION
+                            #if defined(HAVE_SECURE_RENEGOTIATION) || \
+                                            defined(WOLFSSL_POST_HANDSHAKE_AUTH)
                             if (ssl->buffers.peerRsaKey.buffer) {
                                 XFREE(ssl->buffers.peerRsaKey.buffer,
                                         ssl->heap, DYNAMIC_TYPE_RSA);

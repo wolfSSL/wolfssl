@@ -739,13 +739,20 @@ static const byte resumeMasterLabel[RESUME_MASTER_LABEL_SZ + 1] =
  */
 int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
 {
+    byte* masterSecret;
+
     WOLFSSL_MSG("Derive Resumption Secret");
-    if (ssl == NULL || ssl->arrays == NULL) {
+    if (ssl == NULL) {
         return BAD_FUNC_ARG;
     }
-    return DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
-                     resumeMasterLabel, RESUME_MASTER_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    if (ssl->arrays != NULL) {
+        masterSecret = ssl->arrays->masterSecret;
+    }
+    else {
+        masterSecret = ssl->session.masterSecret;
+    }
+    return DeriveKey(ssl, key, -1, masterSecret, resumeMasterLabel,
+                     RESUME_MASTER_LABEL_SZ, ssl->specs.mac_algorithm, 1);
 }
 #endif
 
@@ -7031,7 +7038,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeState == HANDSHAKE_DONE &&
             type != session_ticket && type != certificate_request &&
-            type != certificate && type != key_update) {
+            type != certificate && type != key_update && type != finished) {
         WOLFSSL_MSG("HandShake message after handshake complete");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
