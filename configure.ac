@@ -648,6 +648,8 @@ fi
 if test "$ENABLED_WPAS" = "small"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
 fi
 if test "$ENABLED_WPAS" = "yes"
 then
@@ -3203,7 +3205,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" != "no" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
