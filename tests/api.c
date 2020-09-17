@@ -25379,7 +25379,7 @@ static void test_wolfSSL_EVP_PKEY_new_mac_key(void)
 }
 static void test_wolfSSL_EVP_Digest(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_PWDBASED)
 
 
     const char* in = "abc";
@@ -32749,7 +32749,7 @@ static void test_wolfSSL_PKEY_up_ref()
 
 static void test_wolfSSL_i2d_PrivateKey()
 {
-#if (!defined(NO_RSA) || defined(HAVE_ECC)) && defined(OPENSSL_EXTRA)
+#if (!defined(NO_RSA) || defined(HAVE_ECC)) && defined(OPENSSL_EXTRA) && !defined(NO_ASN) && !defined(NO_PWDBASED)
 
     printf(testingFmt, "wolfSSL_i2d_PrivateKey()");
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
