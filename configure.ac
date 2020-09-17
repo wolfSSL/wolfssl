@@ -4251,6 +4251,7 @@ AC_ARG_ENABLE([libest],
 if test "$ENABLED_LIBEST" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DHAVE_LIBEST -DWOLFSSL_ALT_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
 
     # Requires opensslextra and opensslall
     if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
