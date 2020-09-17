@@ -28,6 +28,13 @@
 #ifdef WOLFSSL_ARMASM
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -40,6 +47,12 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+                                        word32 len);
+
 #endif
 
 #ifdef WOLFSSL_SHA512
@@ -423,6 +436,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #ifdef WOLFSSL_SHA512
 
+#ifndef WOLFSSL_NO_HASH_RAW
 int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
 {
 #ifdef LITTLE_ENDIAN_ORDER
@@ -443,6 +457,7 @@ int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
 
     return 0;
 }
+#endif
 
 int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 {
@@ -520,7 +535,7 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     return Sha512Update((wc_Sha512*)sha384, data, len);
 }
 
-
+#ifndef WOLFSSL_NO_HASH_RAW
 int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
 {
 #ifdef LITTLE_ENDIAN_ORDER
@@ -541,6 +556,7 @@ int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
 
     return 0;
 }
+#endif
 
 int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
 {

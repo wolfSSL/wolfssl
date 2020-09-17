@@ -29,6 +29,13 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

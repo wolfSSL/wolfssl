@@ -34,6 +34,13 @@
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+#endif
+
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -47,6 +54,18 @@
 #ifdef _MSC_VER
     /* 4127 warning constant while(1)  */
     #pragma warning(disable: 4127)
+#endif
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+enum {
+    GCM_NONCE_MAX_SZ = 16, /* wolfCrypt's maximum nonce size allowed. */
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+    GCM_NONCE_MIN_SZ = 8,  /* wolfCrypt's minimum nonce size allowed. */
+    CCM_NONCE_MIN_SZ = 7,
+    CCM_NONCE_MAX_SZ = 13,
+    CTR_SZ   = 4,
+    AES_IV_FIXED_SZ = 4
+};
 #endif
 
 
@@ -4413,6 +4432,17 @@ static WC_INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
     }
 }
 
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+static int wc_AesCcmCheckTagSize(int sz)
+{
+    /* values here are from RFC 3610 section 2 */
+    if (sz != 4 && sz != 6 && sz != 8 && sz != 10 && sz != 12 && 
+        sz != 14 && sz != 16) {
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+#endif
 
 /* return 0 on success */
 int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,

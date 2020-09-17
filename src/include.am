@@ -68,8 +68,7 @@ src_libwolfssl_la_SOURCES += \
 
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
-               wolfcrypt/src/random.c \
-               wolfcrypt/src/sha256.c
+               wolfcrypt/src/random.c
 
 if BUILD_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
@@ -80,13 +79,16 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
 
 if BUILD_AES
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
-endif
-
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
+endif
+endif
 endif
 endif
 
@@ -96,15 +98,27 @@ endif
 
 if BUILD_SHA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha.c
+endif
+
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
+else
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_asm.S
 endif
 endif
 
 if BUILD_SHA512
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm.S
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif
 endif
 endif
 
