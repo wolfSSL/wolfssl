@@ -2851,7 +2851,14 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         ret = wc_AesSetIV(aes, iv);
 
-        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+    #if defined(WOLFSSL_DEVCRYPTO) && \
+        (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+        aes->ctx.cfd = -1;
+    #endif
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        ForceZero(local, sizeof(local));
+    #endif
+        return ret;
     }
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
