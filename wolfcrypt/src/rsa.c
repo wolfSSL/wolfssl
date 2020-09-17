@@ -1252,6 +1252,11 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     m += inputLen;
     o = 0;
     if (saltLen > 0) {
+        if (pkcsBlockLen < RSA_PSS_PAD_SZ + inputLen + saltLen) {
+            WOLFSSL_MSG("RSA-PSS Output buffer too short. "
+                        "Recommend using WOLFSSL_PSS_SALT_LEN_DISCOVER");
+            return PSS_SALTLEN_E;
+        }
         ret = wc_RNG_GenerateBlock(rng, salt, saltLen);
         if (ret == 0) {
             XMEMCPY(m, salt, saltLen);
