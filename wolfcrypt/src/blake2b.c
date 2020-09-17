@@ -441,9 +441,9 @@ int wc_InitBlake2b_WithKey(Blake2b* b2b, word32 digestSz, const byte *key, word3
         return -1;
 
     if (key)
-        return blake2s_init_key(b2b->S, (byte)digestSz, key, (byte)keylen);
+        return blake2b_init_key(b2b->S, (byte)digestSz, key, (byte)keylen);
     else
-        return blake2s_init(b2b->S, (byte)digestSz);
+        return blake2b_init(b2b->S, (byte)digestSz);
 }
 
 /* Blake2b Update */
