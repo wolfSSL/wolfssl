@@ -28374,7 +28374,7 @@ static void test_wolfSSL_ERR_put_error(void)
 static void test_wolfSSL_ERR_print_errors(void)
 {
     #if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
-        defined(DEBUG_WOLFSSL)
+        defined(DEBUG_WOLFSSL) && !defined(NO_ERROR_STRINGS)
     BIO* bio;
     char buf[1024];
 
