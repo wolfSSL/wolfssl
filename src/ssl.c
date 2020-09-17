@@ -17782,6 +17782,11 @@ int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509)
     return x509->pubKeyOID;
 }
 
+#endif /* OPENSSL_EXTRA || KEEP_OUR_CERT || KEEP_PEER_CERT || SESSION_CERTS */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+
 /* write X509 serial number in unsigned binary to buffer
     buffer needs to be at least EXTERNAL_SERIAL_SIZE (32) for all cases
     return WOLFSSL_SUCCESS on success */
@@ -17805,12 +17810,6 @@ int wolfSSL_X509_get_serial_number(WOLFSSL_X509* x509,
 
     return WOLFSSL_SUCCESS;
 }
-
-#endif /* OPENSSL_EXTRA || KEEP_OUR_CERT || KEEP_PEER_CERT || SESSION_CERTS */
-
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
-    defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 
 /* not an openssl compatibility function - getting for derCert */
 const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
@@ -37165,7 +37164,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return copy;
     }
 
-#if defined(WOLFSSL_CERT_GEN)
+#ifdef WOLFSSL_CERT_GEN
+
+#if defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
     /* Helper function to copy cert name from a WOLFSSL_X509_NAME structure to
     * a Cert structure.
     *
@@ -37197,7 +37198,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return length;
     }
-
+#endif
 
 #ifdef WOLFSSL_CERT_REQ
     static int ReqCertFromX509(Cert* cert, WOLFSSL_X509* req)
@@ -37208,7 +37209,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
 
 
-        ret = CopyX509NameToCert(&(req->subject), cert->sbjRaw);
+        ret = CopyX509NameToCert(&req->subject, cert->sbjRaw);
         if (ret < 0) {
             WOLFSSL_MSG("REQ subject conversion error");
             ret = MEMORY_E;
@@ -37220,7 +37221,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (ret == WOLFSSL_SUCCESS) {
             cert->version = req->version;
             cert->isCA = req->isCa;
-#ifdef WOLFSSL_CERT_EXT
+    #ifdef WOLFSSL_CERT_EXT
             if (req->subjKeyIdSz != 0) {
                 XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
                 cert->skidSz = req->subjKeyIdSz;
@@ -37228,12 +37229,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             if (req->keyUsageSet)
                 cert->keyUsage = req->keyUsage;
             /* Extended Key Usage not supported. */
-#endif
+    #endif
         }
 
         return ret;
     }
-#endif
+#endif /* WOLFSSL_CERT_REQ */
+
 #ifdef WOLFSSL_ALT_NAMES
     /* converts WOLFSSL_AN1_TIME to Cert form, returns positive size on
      * success */
@@ -37252,8 +37254,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
         return t->length - 1 + sz;
     }
-#endif
-
+#endif /* WOLFSSL_ALT_NAMES */
 
     /* convert a WOLFSSL_X509 to a Cert structure for writing out */
     static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
@@ -37300,7 +37301,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         cert->altNamesSz = FlattenAltNames(cert->altNames,
                 sizeof(cert->altNames), x509->altNames);
-
     #endif /* WOLFSSL_ALT_NAMES */
 
         cert->sigType = wolfSSL_X509_get_signature_type(x509);
@@ -37365,23 +37365,23 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (x509->issuerSet)
             cert->selfSigned = 0;
 
-        ret = CopyX509NameToCert(&(x509->subject), cert->sbjRaw);
+    #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
+        ret = CopyX509NameToCert(&x509->subject, cert->sbjRaw);
         if (ret < 0) {
             WOLFSSL_MSG("Subject conversion error");
             return MEMORY_E;
         }
-
         if (cert->selfSigned) {
             XMEMCPY(cert->issRaw, cert->sbjRaw, sizeof(CertName));
         }
         else {
-            ret = CopyX509NameToCert(&(x509->issuer), cert->issRaw);
+            ret = CopyX509NameToCert(&x509->issuer, cert->issRaw);
             if (ret < 0) {
                 WOLFSSL_MSG("Issuer conversion error");
                 return MEMORY_E;
             }
         }
-
+    #endif
 
         cert->heap = x509->heap;
 
@@ -37397,7 +37397,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         int hashType;
         int sigType = WOLFSSL_FAILURE;
 
-    #if !defined(NO_PWDBASED)
+    #if !defined(NO_PWDBASED) && defined(OPENSSL_EXTRA)
         /* Convert key type and hash algorithm to a signature algorithm */
         if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE) {
             return WOLFSSL_FAILURE;
@@ -37693,6 +37693,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return ret;
     }
 #endif /* WOLFSSL_CERT_GEN */
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
     WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
