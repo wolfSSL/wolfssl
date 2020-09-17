@@ -5339,6 +5339,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    if (wolfSSL_set_options(ssl, ctx->mask) == 0) {
+        WOLFSSL_MSG("wolfSSL_set_options error");
+        return BAD_FUNC_ARG;
+    }
+#endif
 #ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
 #endif
