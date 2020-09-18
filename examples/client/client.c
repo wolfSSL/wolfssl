@@ -928,10 +928,11 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /* when adding new option, please follow the steps below: */
 /*  1. add new option message in English section          */
 /*  2. increase the number of the second column           */
-/*  3. add the same message into Japanese section         */
+/*  3. increase the array dimension                       */
+/*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
-/*  4. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][59] = {
+/*  5. add printf() into suitable position of Usage()     */
+static const char* client_usage_msg[][66] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
