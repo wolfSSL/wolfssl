@@ -50697,7 +50697,7 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
 
 int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 {
-    byte output[4096];
+    byte* output;
     int len;
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
 
@@ -50706,16 +50706,30 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
         return WOLFSSL_FAILURE;
     }
 
-    if ((len = wc_PKCS7_EncodeSignedData(p7, output, sizeof(output))) < 0) {
+    if ((len = wc_PKCS7_EncodeSignedData(p7, NULL, 0)) < 0) {
         WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
+        return WOLFSSL_FAILURE;
+    }
+
+    output = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (!output) {
+        WOLFSSL_MSG("malloc error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((len = wc_PKCS7_EncodeSignedData(p7, output, len)) < 0) {
+        WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
+        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 
     if (wolfSSL_BIO_write(bio, output, len) <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_write error");
+        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 
+    XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
 }
 
