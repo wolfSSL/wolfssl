@@ -179,7 +179,7 @@ where 0 <= L < 2^64.
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO)
+    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP)
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -685,6 +685,10 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
+
+#elif defined(WOLFSSL_IMXRT_DCP)
+    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
+    /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1582,6 +1586,8 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
+    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
+#elif defined(WOLFSSL_IMXRT_DCP)
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #else
 
