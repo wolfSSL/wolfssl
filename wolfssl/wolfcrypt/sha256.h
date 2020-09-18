@@ -128,6 +128,8 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
     #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
+#elif defined(WOLFSSL_IMXRT_DCP)
+    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #else
 
 /* wc_Sha256 digest */

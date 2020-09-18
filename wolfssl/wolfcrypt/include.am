@@ -74,6 +74,7 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
+                         wolfssl/wolfcrypt/port/nxp/dcp_port.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam.h \
