@@ -916,8 +916,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
 fi
 
-# leanpsk and leantls don't need gcm
-
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
     [AS_HELP_STRING([--enable-aesgcm],[Enable wolfSSL AES-GCM support (default: enabled)])],
@@ -926,8 +924,10 @@ AC_ARG_ENABLE([aesgcm],
     )
 
 # leanpsk and leantls don't need gcm
-if test "$ENABLED_LEANPSK" = "yes" || ( test "$ENABLED_LEANTLS" = "yes" &&
-                                        test "$ENABLED_TLS13" = "no")
+# FIPSv2 and ARMASM does not support AES GCM
+if test "$ENABLED_LEANPSK" = "yes" || 
+    (test "$ENABLED_LEANTLS" = "yes" && test "$ENABLED_TLS13" = "no") || 
+    (test "x$FIPS_VERSION" = "xv2" && test "x$ENABLED_ARMASM" = "xyes")
 then
     ENABLED_AESGCM=no
 fi
@@ -2492,14 +2492,23 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$FIPS_READY" = "xyes"],
             [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=3"],
             [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2"])
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+
+        if test "x$ENABLED_ARMASM" = "xno"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_ECB"
+        fi
+
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
-        AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
-              [ENABLED_AESCCM="yes"
-               AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+        if test "x$ENABLED_ARMASM" = "xno"
+        then
+            AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+                [ENABLED_AESCCM="yes"
+                AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+        fi
         AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
               [ENABLED_RSAPSS="yes"
                AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
@@ -2536,8 +2545,11 @@ AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" != "xrand"],
     # Force enable the prerequisites.
     AS_IF([test "x$ENABLED_SHA512" = "xno"],
         [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
-    AS_IF([test "x$ENABLED_AESGCM" = "xno"],
-        [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
+    if test "x$ENABLED_ARMASM" = "xno" && test "x$ENABLED_AESGCM" = "xno"
+    then
+        ENABLED_AESGCM="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+    fi
     AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])
 ],
 [

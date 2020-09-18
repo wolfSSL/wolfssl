@@ -66,7 +66,24 @@ enum {
     CTR_SZ   = 4,
     AES_IV_FIXED_SZ = 4
 };
-#endif
+
+int wc_AesInit(Aes* aes, void* heap, int devId)
+{
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(aes, 0, sizeof(Aes));
+    aes->heap = heap;
+    (void)devId;
+    return 0;
+}
+
+void wc_AesFree(Aes* aes)
+{
+    if (aes == NULL)
+        return;
+}
+#endif /* FIPS V2 */
 
 
 static const byte rcon[] = {
@@ -1549,7 +1566,7 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* iCtr = initialCounter;
     byte* xPt  = x;
     byte* sPt  = scratch;
-    byte* keyPt; /* pointer to handle pointer advencment */
+    byte* keyPt; /* pointer to handle pointer advancement */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -1867,7 +1884,7 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* iCtr = initialCounter;
     byte* xPt  = x;
     byte* sPt  = scratch;
-    byte* keyPt; /* pointer to handle pointer advencment */
+    byte* keyPt; /* pointer to handle pointer advancement */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -2200,7 +2217,7 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* iCtr = initialCounter;
     byte* xPt  = x;
     byte* sPt  = scratch;
-    byte* keyPt; /* pointer to handle pointer advencment */
+    byte* keyPt; /* pointer to handle pointer advancement */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
