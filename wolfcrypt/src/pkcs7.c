@@ -2235,6 +2235,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
 
 
 /* build PKCS#7 signedData content type */
+/* To get the output size then set output = 0 and *outputSz = 0 */
 static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
@@ -2270,7 +2271,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     byte signingTime[MAX_TIME_STRING_SZ];
 
     if (pkcs7 == NULL || pkcs7->hashOID == 0 ||
-        output == NULL || outputSz == NULL || *outputSz == 0 || hashSz == 0 ||
+        outputSz == NULL || hashSz == 0 ||
         hashBuf == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -2511,6 +2512,11 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
+            if (*outputSz == 0 && *output2Sz == 0) {
+                *outputSz = totalSz;
+                *output2Sz = total2Sz;
+                return 0;
+            }
             return BUFFER_E;
         }
 
@@ -2524,6 +2530,19 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     if (totalSz > *outputSz) {
+        if (pkcs7->signedAttribsSz != 0)
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        if (*outputSz == 0) {
+            *outputSz = totalSz;
+            return totalSz;
+        }
+        return BUFFER_E;
+    }
+
+    if (output == NULL) {
         if (pkcs7->signedAttribsSz != 0)
             XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     #ifdef WOLFSSL_SMALL_STACK
