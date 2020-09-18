@@ -141,6 +141,51 @@ then
 fi
 
 
+# Linux Kernel Module
+AC_ARG_ENABLE([linuxkm],
+    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM=$enableval],
+    [ENABLED_LINUXKM=no]
+    )
+
+AC_ARG_WITH([linux-source],
+    [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
+    [KERNEL_ROOT=$withval],
+    [KERNEL_ROOT=""])
+
+AC_ARG_WITH([linux-arch],
+    [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
+    [KERNEL_ARCH=$withval],
+    [KERNEL_ARCH=""])
+
+if test "x$ENABLED_LINUXKM" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+    ENABLED_NO_LIBRARY=yes
+
+    if test "$KERNEL_ROOT" = ""; then
+        AC_PATH_DEFAULT_KERNEL_SOURCE
+        KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+    fi
+    AC_SUBST([KERNEL_ROOT])
+
+    if test "$KERNEL_ARCH" = ""; then
+        AC_DEFAULT_KERNEL_ARCH
+        KERNEL_ARCH="$DEFAULT_KERNEL_ARCH"
+    fi
+    AC_SUBST([KERNEL_ARCH])
+
+    if test "${KERNEL_ROOT}" = ""; then
+        AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
+    fi
+    if test "${KERNEL_ARCH}" = ""; then
+        AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
+fi
+
+
 # ALL FEATURES
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
@@ -2752,10 +2797,16 @@ fi
 
 
 # Filesystem Build
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_FILESYSTEM_DEFAULT=no
+else
+    ENABLED_FILESYSTEM_DEFAULT=yes
+fi
 AC_ARG_ENABLE([filesystem],
     [AS_HELP_STRING([--enable-filesystem],[Enable Filesystem support (default: enabled)])],
     [ ENABLED_FILESYSTEM=$enableval ],
-    [ ENABLED_FILESYSTEM=yes ]
+    [ ENABLED_FILESYSTEM=$ENABLED_FILESYSTEM_DEFAULT ]
     )
 
 if test "$ENABLED_FILESYSTEM" = "no"
@@ -2763,7 +2814,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
 else
     # turn off filesystem if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LINUXKM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
         ENABLED_FILESYSTEM=no
@@ -3354,49 +3405,6 @@ AC_ARG_ENABLE([indef],
 if test "x$ENABLED_BER_INDEF" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DASN_BER_TO_DER"
-fi
-
-
-# Linux Kernel Module
-AC_ARG_ENABLE([linuxkm],
-    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
-    [ENABLED_LINUXKM=$enableval],
-    [ENABLED_LINUXKM=no]
-    )
-
-AC_ARG_WITH([linux-source],
-    [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
-    [KERNEL_ROOT=$withval],
-    [KERNEL_ROOT=""])
-
-AC_ARG_WITH([linux-arch],
-    [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
-    [KERNEL_ARCH=$withval],
-    [KERNEL_ARCH=""])
-
-if test "x$ENABLED_LINUXKM" = "xyes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
-    ENABLED_NO_LIBRARY=yes
-
-    if test "$KERNEL_ROOT" = ""; then
-        AC_PATH_DEFAULT_KERNEL_SOURCE
-        KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
-    fi
-    AC_SUBST([KERNEL_ROOT])
-
-    if test "$KERNEL_ARCH" = ""; then
-        AC_DEFAULT_KERNEL_ARCH
-        KERNEL_ARCH="$DEFAULT_KERNEL_ARCH"
-    fi
-    AC_SUBST([KERNEL_ARCH])
-
-    if test "${KERNEL_ROOT}" = ""; then
-        AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
-    fi
-    if test "${KERNEL_ARCH}" = ""; then
-        AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
-    fi
 fi
 
 
@@ -5369,6 +5377,9 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
     AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
+    if test "$ENABLED_FILESYSTEM" = "yes"; then
+        AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])
+    fi
     if test "$ENABLED_AFALG" = "yes"; then
         AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
     fi
