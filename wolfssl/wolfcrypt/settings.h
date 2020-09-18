@@ -2086,28 +2086,48 @@ extern void uITRON4_free(void *p) ;
 
 
 #ifdef WOLFSSL_LINUXKM
-    #define NO_DEV_RANDOM
-    #define NO_WRITEV
-    #define NO_FILESYSTEM
-    #define NO_STDIO_FILESYSTEM
-    #define SIZEOF_LONG         8
-    #define SIZEOF_LONG_LONG    8
-    #define CHAR_BIT            8
+    #ifndef NO_DEV_RANDOM
+        #define NO_DEV_RANDOM
+    #endif
+    #ifndef NO_WRITEV
+        #define NO_WRITEV
+    #endif
+    #ifndef NO_FILESYSTEM
+        #define NO_FILESYSTEM
+    #endif
+    #ifndef NO_STDIO_FILESYSTEM
+        #define NO_STDIO_FILESYSTEM
+    #endif
+    #ifndef WOLFSSL_NO_SOCK
+        #define WOLFSSL_NO_SOCK
+    #endif
+    #ifndef WOLFSSL_DH_CONST
+        #define WOLFSSL_DH_CONST
+    #endif
+    #ifndef WOLFSSL_USER_IO
+        #define WOLFSSL_USER_IO
+    #endif
+    #ifndef USE_WOLF_STRTOK
+        #define USE_WOLF_STRTOK
+    #endif
+    #ifndef WOLFSSL_SP_MOD_WORD_RP
+        #define WOLFSSL_SP_MOD_WORD_RP
+    #endif
+    #ifndef WOLFSSL_OLD_PRIME_CHECK
+        #define WOLFSSL_OLD_PRIME_CHECK
+    #endif
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
-    #define WOLFSSL_DH_CONST
-    #define WOLFSSL_NO_SOCK
-    #define WOLFSSL_USER_IO
-    #define USE_WOLF_STRTOK
+    #define SIZEOF_LONG         8
+    #define SIZEOF_LONG_LONG    8
+    #define CHAR_BIT            8
     #define WOLFSSL_SP_DIV_64
     #define WOLFSSL_SP_DIV_WORD_HALF
     #define SP_HALF_SIZE        32
     #define SP_HALF_MAX         4294967295U
-    #define WOLFSSL_SP_MOD_WORD_RP
-    #define WOLFSSL_OLD_PRIME_CHECK
 #endif
 
 
