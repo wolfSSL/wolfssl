@@ -4815,6 +4815,14 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad Init Mutex count");
             return BAD_MUTEX_E;
         }
+
+#if defined(OPENSSL_EXTRA) || \
+    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+        if (wc_InitMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex rng");
+            return BAD_MUTEX_E;
+        }
+#endif
     }
 
     if (wc_LockMutex(&count_mutex) != 0) {
@@ -17828,42 +17836,39 @@ const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
 #ifdef OPENSSL_EXTRA
 
 /* used by JSSE (not a standard compatibility function) */
-/* this is not thread safe */
 WOLFSSL_ABI
 const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
 {
-    static byte notBeforeData[CTC_DATE_SIZE]; /* temp buffer for date */
     WOLFSSL_ENTER("wolfSSL_X509_notBefore");
 
     if (x509 == NULL)
         return NULL;
 
-    XMEMSET(notBeforeData, 0, sizeof(notBeforeData));
-    notBeforeData[0] = (byte)x509->notBefore.type;
-    notBeforeData[1] = (byte)x509->notBefore.length;
-    XMEMCPY(&notBeforeData[2], x509->notBefore.data, x509->notBefore.length);
+    XMEMSET(x509->notBeforeData, 0, sizeof(x509->notBeforeData));
+    x509->notBeforeData[0] = (byte)x509->notBefore.type;
+    x509->notBeforeData[1] = (byte)x509->notBefore.length;
+    XMEMCPY(&x509->notBeforeData[2], x509->notBefore.data, x509->notBefore.length);
 
-    return notBeforeData;
+    return x509->notBeforeData;
 }
 
 /* used by JSSE (not a standard compatibility function) */
-/* this is not thread safe */
 WOLFSSL_ABI
 const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
 {
-    static byte notAfterData[CTC_DATE_SIZE]; /* temp buffer for date */
     WOLFSSL_ENTER("wolfSSL_X509_notAfter");
 
     if (x509 == NULL)
         return NULL;
 
-    XMEMSET(notAfterData, 0, sizeof(notAfterData));
-    notAfterData[0] = (byte)x509->notAfter.type;
-    notAfterData[1] = (byte)x509->notAfter.length;
-    XMEMCPY(&notAfterData[2], x509->notAfter.data, x509->notAfter.length);
+    XMEMSET(x509->notAfterData, 0, sizeof(x509->notAfterData));
+    x509->notAfterData[0] = (byte)x509->notAfter.type;
+    x509->notAfterData[1] = (byte)x509->notAfter.length;
+    XMEMCPY(&x509->notAfterData[2], x509->notAfter.data, x509->notAfter.length);
 
-    return notAfterData;
+    return x509->notAfterData;
 }
+
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
 WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME *s, long adj)
@@ -28328,8 +28333,9 @@ const size_t wolfssl_object_info_sz = WOLFSSL_OBJECT_INFO_SZ;
 #endif
 #if defined(OPENSSL_EXTRA) || \
     (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-static WC_RNG globalRNG;
-static int initGlobalRNG = 0;
+WC_RNG globalRNG;
+int initGlobalRNG = 0;
+wolfSSL_Mutex globalRNGMutex;
 #endif
 #if defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
@@ -28382,21 +28388,26 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
 
 #ifdef OPENSSL_EXTRA
 
-/* Not thread safe! Can be called multiple times.
- * Checks if the global RNG has been created. If not then one is created.
+/* Checks if the global RNG has been created. If not then one is created.
  *
  * Returns SSL_SUCCESS when no error is encountered.
  */
 static int wolfSSL_RAND_Init(void)
 {
+    if (wc_LockMutex(&globalRNGMutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        return 0;
+    }
     if (initGlobalRNG == 0) {
         if (wc_InitRng(&globalRNG) < 0) {
             WOLFSSL_MSG("wolfSSL Init Global RNG failed");
+            wc_UnLockMutex(&globalRNGMutex);
             return 0;
         }
         initGlobalRNG = 1;
     }
 
+    wc_UnLockMutex(&globalRNGMutex);
     return SSL_SUCCESS;
 }
 
@@ -28554,7 +28565,6 @@ int wolfSSL_RAND_write_file(const char* fname)
 #endif
 
 /* This collects entropy from the path nm and seeds the global PRNG with it.
- * Makes a call to wolfSSL_RAND_Init which is not thread safe.
  *
  * nm is the file path to the egd server
  *
@@ -28667,14 +28677,18 @@ int wolfSSL_RAND_egd(const char* nm)
     }
 
     if (bytes > 0 && ret == WOLFSSL_SUCCESS) {
-        wolfSSL_RAND_Init(); /* call to check global RNG is created */
-        if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
+        /* call to check global RNG is created */
+        if (wolfSSL_RAND_Init() != SSL_SUCCESS) {
+            WOLFSSL_MSG("Error with initializing global RNG structure");
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        else if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
                 != 0) {
             WOLFSSL_MSG("Error with reseeding DRBG structure");
             ret = WOLFSSL_FATAL_ERROR;
         }
         #ifdef SHOW_SECRETS
-        { /* print out entropy found */
+        else { /* print out entropy found only when no error occured */
             word32 i;
             printf("EGD Entropy = ");
             for (i = 0; i < bytes; i++) {
@@ -28712,10 +28726,15 @@ void wolfSSL_RAND_Cleanup(void)
 {
     WOLFSSL_ENTER("wolfSSL_RAND_Cleanup()");
 
+    if (wc_LockMutex(&globalRNGMutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        return;
+    }
     if (initGlobalRNG != 0) {
         wc_FreeRng(&globalRNG);
         initGlobalRNG = 0;
     }
+    wc_UnLockMutex(&globalRNGMutex);
 }
 
 
@@ -39100,6 +39119,7 @@ err:
             unsigned char *md)
     {
         static byte dig[WC_SHA_DIGEST_SIZE];
+        byte* ret = md;
         wc_Sha sha;
 
         WOLFSSL_ENTER("wolfSSL_SHA1");
@@ -39114,20 +39134,19 @@ err:
             return NULL;
         }
 
-        if (wc_ShaFinal(&sha, dig) != 0) {
+        if (md == NULL) {
+            WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA1 IS NOT "
+                        "THREAD SAFE WHEN md == NULL");
+            ret = dig;
+        }
+        if (wc_ShaFinal(&sha, ret) != 0) {
             WOLFSSL_MSG("SHA1 Final failed");
+            wc_ShaFree(&sha);
             return NULL;
         }
-
         wc_ShaFree(&sha);
 
-        if (md != NULL) {
-            XMEMCPY(md, dig, WC_SHA_DIGEST_SIZE);
-            return md;
-        }
-        else {
-            return (unsigned char*)dig;
-        }
+        return ret;
     }
 #endif /* ! NO_SHA */
 
@@ -39147,6 +39166,7 @@ err:
             unsigned char *md)
     {
         static byte dig[WC_SHA256_DIGEST_SIZE];
+        byte* ret = md;
         wc_Sha256 sha;
 
         WOLFSSL_ENTER("wolfSSL_SHA256");
@@ -39161,20 +39181,19 @@ err:
             return NULL;
         }
 
-        if (wc_Sha256Final(&sha, dig) != 0) {
+        if (md == NULL) {
+            WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA256 IS NOT "
+                        "THREAD SAFE WHEN md == NULL");
+            ret = dig;
+        }
+        if (wc_Sha256Final(&sha, ret) != 0) {
             WOLFSSL_MSG("SHA256 Final failed");
+            wc_Sha256Free(&sha);
             return NULL;
         }
-
         wc_Sha256Free(&sha);
 
-        if (md != NULL) {
-            XMEMCPY(md, dig, WC_SHA256_DIGEST_SIZE);
-            return md;
-        }
-        else {
-            return (unsigned char*)dig;
-        }
+        return ret;
     }
 #endif /* ! NO_SHA256 */
 
@@ -39194,6 +39213,7 @@ err:
              unsigned char *md)
      {
          static byte dig[WC_SHA384_DIGEST_SIZE];
+         byte* ret = md;
          wc_Sha384 sha;
 
          WOLFSSL_ENTER("wolfSSL_SHA384");
@@ -39208,20 +39228,19 @@ err:
              return NULL;
          }
 
-         if (wc_Sha384Final(&sha, dig) != 0) {
+         if (md == NULL) {
+             WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA384 IS NOT "
+                         "THREAD SAFE WHEN md == NULL");
+             ret = dig;
+         }
+         if (wc_Sha384Final(&sha, ret) != 0) {
              WOLFSSL_MSG("SHA384 Final failed");
+             wc_Sha384Free(&sha);
              return NULL;
          }
-
          wc_Sha384Free(&sha);
 
-         if (md != NULL) {
-             XMEMCPY(md, dig, WC_SHA384_DIGEST_SIZE);
-             return md;
-         }
-         else {
-             return (unsigned char*)dig;
-         }
+         return ret;
      }
 #endif /* WOLFSSL_SHA384  */
 
@@ -39242,6 +39261,7 @@ err:
              unsigned char *md)
      {
          static byte dig[WC_SHA512_DIGEST_SIZE];
+         byte* ret = md;
          wc_Sha512 sha;
 
          WOLFSSL_ENTER("wolfSSL_SHA512");
@@ -39256,20 +39276,19 @@ err:
              return NULL;
          }
 
-         if (wc_Sha512Final(&sha, dig) != 0) {
+         if (md == NULL) {
+             WOLFSSL_MSG("STATIC BUFFER BEING USED. wolfSSL_SHA512 IS NOT "
+                         "THREAD SAFE WHEN md == NULL");
+             ret = dig;
+         }
+         if (wc_Sha512Final(&sha, ret) != 0) {
              WOLFSSL_MSG("SHA512 Final failed");
+             wc_Sha512Free(&sha);
              return NULL;
          }
-
          wc_Sha512Free(&sha);
 
-         if (md != NULL) {
-             XMEMCPY(md, dig, WC_SHA512_DIGEST_SIZE);
-             return md;
-         }
-         else {
-             return (unsigned char*)dig;
-         }
+         return ret;
      }
 #endif /* WOLFSSL_SHA512 */
 #endif /* OPENSSL_EXTRA */
