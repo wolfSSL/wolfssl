@@ -84,6 +84,8 @@ if BUILD_OCSP
 dist_noinst_SCRIPTS+= scripts/ocsp.test
 endif
 
+dist_noinst_SCRIPTS+= scripts/unit.test
+
 endif
 endif
 

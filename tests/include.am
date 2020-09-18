@@ -4,7 +4,6 @@
 
 
 if BUILD_TESTS
-check_PROGRAMS += tests/unit.test
 noinst_PROGRAMS += tests/unit.test
 tests_unit_test_SOURCES = \
                   tests/unit.c \

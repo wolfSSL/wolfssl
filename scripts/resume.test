@@ -86,6 +86,9 @@ do_test() {
         exit 1
     fi
 
+    # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+    sleep 0.1
+
     # get created port 0 ephemeral port
     resume_port=`cat $ready_file`
 

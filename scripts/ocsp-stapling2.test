@@ -24,7 +24,7 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
-PARENTDIR=`pwd`
+PARENTDIR="$PWD"
 
 # create a unique workspace directory ending in PID for the script instance ($$)
 # to make this instance orthogonal to any others running, even on same repo.
@@ -134,7 +134,7 @@ create_new_cnf() {
 
     mv $test_cnf $CERT_DIR/$test_cnf
     cd $CERT_DIR
-    CURR_LOC=`pwd`
+    CURR_LOC="$PWD"
     printf '%s\n' "echo now in $CURR_LOC"
     ./renewcerts-for-test.sh $test_cnf
     cd $WORKSPACE
@@ -186,8 +186,8 @@ trap cleanup EXIT INT TERM HUP
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # check if supported key size is large enough to handle 4096 bit RSA
-size=`./examples/client/client '-?' | grep "Max RSA key"`
-size=`echo ${size//[^0-9]/}`
+size="$(./examples/client/client '-?' | grep "Max RSA key")"
+size="${size//[^0-9]/}"
 if [ ! -z "$size" ]; then
     printf 'check on max key size of %d ...' $size
     if [ $size -lt 4096 ]; then
@@ -258,21 +258,17 @@ if [ ! -f $ready_file4 ]; then
     exit 1
 fi
 
-RPORTSELECTED1=`cat $ready_file1`
-RPORTSELECTED2=`cat $ready_file2`
-RPORTSELECTED3=`cat $ready_file3`
-RPORTSELECTED4=`cat $ready_file4`
 printf '%s\n' "------------- PORTS ---------------"
-printf '%s' "Random ports selected: $RPORTSELECTED1 $RPORTSELECTED2"
-printf '%s\n' " $RPORTSELECTED3 $RPORTSELECTED4"
+printf '%s' "Random ports selected: $port1 $port2"
+printf '%s\n' " $port3 $port4"
 printf '%s\n' "-----------------------------------"
 # Use client connections to cleanly shutdown the servers
-./examples/client/client -p $RPORTSELECTED1
-./examples/client/client -p $RPORTSELECTED2
-./examples/client/client -p $RPORTSELECTED3
-./examples/client/client -p $RPORTSELECTED4
-create_new_cnf $RPORTSELECTED1 $RPORTSELECTED2 $RPORTSELECTED3 \
-               $RPORTSELECTED4
+./examples/client/client -p $port1
+./examples/client/client -p $port2
+./examples/client/client -p $port3
+./examples/client/client -p $port4
+create_new_cnf $port1 $port2 $port3 \
+               $port4
 
 sleep 0.1
 
@@ -280,7 +276,7 @@ sleep 0.1
 # OLD: ./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $RPORTSELECTED1 -nmin 1                \
+openssl ocsp -port $port1 -nmin 1                \
     -index   certs/ocsp/index-ca-and-intermediate-cas.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem           \
     -rkey    certs/ocsp/ocsp-responder-key.pem            \
@@ -291,7 +287,7 @@ openssl ocsp -port $RPORTSELECTED1 -nmin 1                \
 # OLD: ./certs/ocsp/ocspd-intermediate2-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $RPORTSELECTED2 -nmin 1                      \
+openssl ocsp -port $port2 -nmin 1                      \
     -index   certs/ocsp/index-intermediate2-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
     -rkey    certs/ocsp/ocsp-responder-key.pem                  \
@@ -302,7 +298,7 @@ openssl ocsp -port $RPORTSELECTED2 -nmin 1                      \
 # OLD: ./certs/ocsp/ocspd-intermediate3-ca-issued-certs.sh &
 # NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
 # purposes!
-openssl ocsp -port $RPORTSELECTED3 -nmin 1                      \
+openssl ocsp -port $port3 -nmin 1                      \
     -index   certs/ocsp/index-intermediate3-ca-issued-certs.txt \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
     -rkey    certs/ocsp/ocsp-responder-key.pem                  \
@@ -320,10 +316,10 @@ printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 ./examples/server/server -c certs/ocsp/server3-cert.pem \
                          -k certs/ocsp/server3-key.pem -R $ready_file5 \
                          -p $port5 &
-wait_for_readyFile $ready_file5
-CLI_PORT=`cat $ready_file5`
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
@@ -334,10 +330,9 @@ printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
 #./examples/server/server -c certs/ocsp/server3-cert.pem \
 #                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
 #                         -p $port5 &
-#wait_for_readyFile $ready_file5
-#CLI_PORT=`cat $ready_file5`
+#wait_for_readyFile $ready_file5 $server_pid5 $port5
 #./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-#                         -p $CLI_PORT
+#                         -p $port5
 #RESULT=$?
 #[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
 #printf '%s\n\n' "Test PASSED!"
@@ -348,10 +343,10 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 &
-wait_for_readyFile $ready_file5
-CLI_PORT=`cat $ready_file5`
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
@@ -362,9 +357,8 @@ remove_single_rF $ready_file5
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 &
 sleep 0.1
-CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
@@ -375,10 +369,10 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
                          -p $port5 &
-wait_for_readyFile $ready_file5
-CLI_PORT=`cat $ready_file5`
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed $RESULT" && exit 1
 printf '%s\n\n' "Test PASSED!"
@@ -388,10 +382,10 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server5-cert.pem \
                          -k certs/ocsp/server5-key.pem -R $ready_file5 \
                          -p $port5 &
-wait_for_readyFile $ready_file5
-CLI_PORT=`cat $ready_file5`
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
@@ -400,13 +394,12 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server1-cert.pem \
                          -k certs/ocsp/server1-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
-wolf_pid=$!
-wait_for_readyFile $ready_file5
-CLI_PORT=`cat $ready_file5`
-echo "test connection" | openssl s_client -status -connect 127.0.0.1:$CLI_PORT -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
+echo "test connection" | openssl s_client -status -connect 127.0.0.1:$port5 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed $RESULT" && exit 1
-wait $wolf_pid
+wait $server_pid5
 if [ $? -ne 0 ]; then
     printf '%s\n' "Unexpected server result"
     exit 1
@@ -417,14 +410,13 @@ remove_single_rF $ready_file5
 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
-wolf_pid=$!
+server_pid5=$!
 sleep 0.1
-CLI_PORT=`cat $ready_file5`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-                         -p $CLI_PORT
+                         -p $port5
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
-wait $wolf_pid
+wait $server_pid5
 if [ $? -ne 1 ]; then
     printf '%s\n' "Unexpected server result"
     exit 1
