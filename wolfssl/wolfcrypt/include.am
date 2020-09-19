@@ -43,6 +43,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/random.h \
                          wolfssl/wolfcrypt/ripemd.h \
                          wolfssl/wolfcrypt/rsa.h \
+                         wolfssl/wolfcrypt/rc2.h \
                          wolfssl/wolfcrypt/settings.h \
                          wolfssl/wolfcrypt/sha256.h \
                          wolfssl/wolfcrypt/sha512.h \

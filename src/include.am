@@ -208,6 +208,10 @@ endif
 endif
 endif
 
+if BUILD_RC2
+src_libwolfssl_la_SOURCES += wolfcrypt/src/rc2.c
+endif
+
 if BUILD_SP
 if BUILD_SP_C
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_c32.c
