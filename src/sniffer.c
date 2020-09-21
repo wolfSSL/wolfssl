@@ -3000,6 +3000,10 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             }
             wc_UnLockMutex(&session->context->namedKeysMutex);
         }
+        if (ret > 0) {
+            /* make sure WOLFSSL_SUCCESS is converted to zero error code */
+            ret = 0;
+        }
     }
 #endif
 
