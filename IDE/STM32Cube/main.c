@@ -25,6 +25,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "wolfssl_example.h"
+#include "wolfssl/wolfcrypt/settings.h"
 
 /* Private variables ---------------------------------------------------------*/
 CRYP_HandleTypeDef hcryp;
@@ -66,7 +67,7 @@ int __io_putchar(int ch)
 int fputc(int ch, FILE *f)
 #endif
 {
-    HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, 0xFFFF);
+    HAL_UART_Transmit(&HAL_CONSOLE_UART, (uint8_t *)&ch, 1, 0xFFFF);
 
     return ch;
 }

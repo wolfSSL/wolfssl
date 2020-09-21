@@ -1,119 +1,63 @@
-/* wolfSSL.wolfSSL_conf.h
- *
- * Copyright (C) 2006-2020 wolfSSL Inc.
- *
- * This file is part of wolfSSL.
- *
- * wolfSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * wolfSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
- */
-
-/* STM32 Cube Configuration File 
- * Included automatically when USE_HAL_DRIVER is defined 
- * (and not WOLFSSL_USER_SETTINGS or HAVE_CONF_H).
- * 
- * Generated automatically using `default_conf.ftl` template
- */
-
-#ifndef __WOLFSSL_WOLFSSL_CONF_H__
-#define __WOLFSSL_WOLFSSL_CONF_H__
+[#ftl]
+/**
+  ******************************************************************************
+  * File Name          : ${name}
+  * Description        : This file provides code for the configuration
+  *                      of the ${name} instances.
+  ******************************************************************************
+[@common.optinclude name=mxTmpFolder+"/license.tmp"/][#--include License text --]
+  ******************************************************************************
+  */
+[#assign s = name]
+[#assign toto = s?replace(".","_")]
+[#assign toto = toto?replace("/","")]
+[#assign inclusion_protection = toto?upper_case]
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __${inclusion_protection}__
+#define __${inclusion_protection}__
 
 #ifdef __cplusplus
-extern "C" {
+ extern "C" {
 #endif
 
-/*---------- Debug Support -----------*/
-#define WOLF_CONF_DEBUG      0 
- 
-/*---------- wolfCrypt Only -----------*/
-#define WOLF_CONF_WOLFCRYPT_ONLY      0 
- 
-/*---------- TLS v1.3 -----------*/
-#define WOLF_CONF_TLS13      1 
- 
-/*---------- TLS v1.2 -----------*/
-#define WOLF_CONF_TLS12      1 
- 
-/*---------- DTLS Support -----------*/
-#define WOLF_CONF_DTLS      0 
- 
-/*---------- Math Configuration -----------*/
-#define WOLF_CONF_MATH      4 
- 
-/*---------- RTOS -----------*/
-#define WOLF_CONF_RTOS      2 
- 
-/*---------- RSA Support -----------*/
-#define WOLF_CONF_RSA      1 
- 
-/*---------- ECC Support -----------*/
-#define WOLF_CONF_ECC      1 
- 
-/*---------- DH (Diffie–Hellman) Support -----------*/
-#define WOLF_CONF_DH      1 
- 
-/*---------- AES GCM Support -----------*/
-#define WOLF_CONF_AESGCM      1 
- 
-/*---------- AES CBC Support -----------*/
-#define WOLF_CONF_AESCBC      0 
- 
-/*---------- ChaCha20 / Poly1305 Support -----------*/
-#define WOLF_CONF_CHAPOLY      1 
- 
-/*---------- Ed25519 / Curve25519 Support -----------*/
-#define WOLF_CONF_EDCURVE25519      0 
- 
-/*---------- MD5 Support -----------*/
-#define WOLF_CONF_MD5      0 
- 
-/*---------- SHA1 Support -----------*/
-#define WOLF_CONF_SHA1      0 
- 
-/*---------- SHA2-224 Support -----------*/
-#define WOLF_CONF_SHA2_224      0 
- 
-/*---------- SHA2-256 Support -----------*/
-#define WOLF_CONF_SHA2_256      1 
- 
-/*---------- SHA2-384 Support -----------*/
-#define WOLF_CONF_SHA2_384      0 
- 
-/*---------- SHA2-512 Support -----------*/
-#define WOLF_CONF_SHA2_512      0 
- 
-/*---------- SHA3 Support -----------*/
-#define WOLF_CONF_SHA3      0 
- 
-/*---------- Pre-Shared-Key Support -----------*/
-#define WOLF_CONF_PSK      0 
- 
-/*---------- Pwd Based Key Derivation Support -----------*/
-#define WOLF_CONF_PWDBASED      0 
- 
-/*---------- Keep Peer Cert Support -----------*/
-#define WOLF_CONF_KEEP_PEER_CERT      0 
- 
-/*---------- Base64 Encode Support -----------*/
-#define WOLF_CONF_BASE64_ENCODE      0 
- 
-/*---------- OpenSSL Extra Support -----------*/
-#define WOLF_CONF_OPENSSL_EXTRA      0 
- 
-/*---------- wolfCrypt test/benchmark -----------*/
-#define WOLF_CONF_TEST      1 
- 
+/* Includes ------------------------------------------------------------------*/
+[#if includes??]
+[#list includes as include]
+#include "${include}"
+[/#list]
+[/#if]
+
+[#-- SWIPdatas is a list of SWIPconfigModel --]  
+[#list SWIPdatas as SWIP]  
+[#-- Global variables --]
+[#if SWIP.variables??]
+	[#list SWIP.variables as variable]
+extern ${variable.value} ${variable.name};
+	[/#list]
+[/#if]
+
+[#-- Global variables --]
+
+[#assign instName = SWIP.ipName]   
+[#assign fileName = SWIP.fileName]   
+[#assign version = SWIP.version]   
+
+/**
+	MiddleWare name : ${instName}
+	MiddleWare fileName : ${fileName}
+	MiddleWare version : ${version}
+*/
+[#if SWIP.defines??]
+	[#list SWIP.defines as definition]	
+/*---------- [#if definition.comments??]${definition.comments}[/#if] -----------*/
+#define ${definition.name} #t#t ${definition.value} 
+[#if definition.description??]${definition.description} [/#if]
+	[/#list]
+[/#if]
+
+
+
+[/#list]
 
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
@@ -182,6 +126,7 @@ extern "C" {
     #define HAL_CONSOLE_UART huart4
 #endif
 
+
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
@@ -193,6 +138,7 @@ extern "C" {
 #define WOLFSSL_NO_SOCK
 #define WOLFSSL_IGNORE_FILE_WARN
 
+
 /* ------------------------------------------------------------------------- */
 /* Operating System */
 /* ------------------------------------------------------------------------- */
@@ -201,6 +147,7 @@ extern "C" {
 #else
     #define SINGLE_THREADED
 #endif
+
 
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
@@ -235,6 +182,7 @@ extern "C" {
     #endif
 #endif
 
+
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
@@ -257,7 +205,7 @@ extern "C" {
 #if defined(WOLF_CONF_PWDBASED) && WOLF_CONF_PWDBASED == 0
     #define NO_PWDBASED
 #endif
-#if defined(WOLF_CONF_KEEPPEERCERT) && WOLF_CONF_KEEPPEERCERT == 1
+#if defined(WOLF_CONF_KEEP_PEER_CERT) && WOLF_CONF_KEEP_PEER_CERT == 1
     #define KEEP_PEER_CERT
 #endif
 #if defined(WOLF_CONF_BASE64_ENCODE) && WOLF_CONF_BASE64_ENCODE == 1
@@ -273,6 +221,7 @@ extern "C" {
 #else
     #define NO_SESSION_CACHE
 #endif
+
 
 /* ------------------------------------------------------------------------- */
 /* Crypto */
@@ -412,6 +361,7 @@ extern "C" {
     #define CURVED25519_SMALL
 #endif
 
+
 /* ------------------------------------------------------------------------- */
 /* Hashing */
 /* ------------------------------------------------------------------------- */
@@ -469,6 +419,7 @@ extern "C" {
     #define NO_MD5
 #endif
 
+
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */
 /* ------------------------------------------------------------------------- */
@@ -476,6 +427,7 @@ extern "C" {
 #define BENCH_EMBEDDED
 #define USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_256
+
 
 /* ------------------------------------------------------------------------- */
 /* Debugging */
@@ -495,6 +447,7 @@ extern "C" {
     //#define NO_ERROR_STRINGS
 #endif
 
+
 /* ------------------------------------------------------------------------- */
 /* Port */
 /* ------------------------------------------------------------------------- */
@@ -503,11 +456,13 @@ extern "C" {
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
 
+
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* ------------------------------------------------------------------------- */
 #define NO_OLD_RNGNAME /* conflicts with STM RNG macro */
 #define HAVE_HASHDRBG
+
 
 /* ------------------------------------------------------------------------- */
 /* Disable Features */
@@ -557,5 +512,10 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+#endif /*__ ${inclusion_protection}_H */
 
-#endif /*__WOLFSSL_WOLFSSL_CONF_H__ */
+/**
+  * @}
+  */
+
+/*****END OF FILE****/

@@ -64,7 +64,7 @@
 	#undef  MEM_BUFFER_SZ
 	#define MEM_BUFFER_SZ 2048
 #endif
-#define SHOW_VERBOSE         0 /* Default output is tab delimited format */
+#define SHOW_VERBOSE         0 /* 0=tab del (minimal), 1=info, 2=debug, 3=debug w/wolf logs */
 #ifndef WOLFSSL_CIPHER_LIST_MAX_SIZE
 #define WOLFSSL_CIPHER_LIST_MAX_SIZE 2048
 #endif
@@ -77,7 +77,7 @@
     #define BENCH_USE_NONBLOCK
 #endif
 #ifndef RECV_WAIT_TIMEOUT
-    #define RECV_WAIT_TIMEOUT 4000
+    #define RECV_WAIT_TIMEOUT 10000
 #endif
 
 /*****************************************************************************
@@ -513,6 +513,8 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
     XMEMCPY(&info->to_client.buf[info->to_client.write_idx], buf, sz);
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
+    if (info->showVerbose >= 3)
+        printf("Server Send: %d\n", sz);
 
 #ifdef CMSIS_OS2_H_
     osThreadFlagsSet(info->client.threadId, 1);
@@ -543,11 +545,13 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
         osSemaphoreRelease(info->server.mutex);
 #ifdef CMSIS_OS2_H_
         if (osThreadFlagsWait(1, osFlagsWaitAny, RECV_WAIT_TIMEOUT) == osFlagsErrorTimeout) {
+        	printf("Server Recv: Timeout!\n");
         	return WOLFSSL_CBIO_ERR_TIMEOUT;
         }
         osSemaphoreAcquire(info->server.mutex, osWaitForever);
 #else
         if (osSignalWait(1, RECV_WAIT_TIMEOUT) == osEventTimeout) {
+        	printf("Server Recv: Timeout!\n");
             return WOLFSSL_CBIO_ERR_TIMEOUT;
         }
         osSemaphoreWait(info->server.mutex, osWaitForever);
@@ -561,6 +565,8 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
     XMEMCPY(buf, &info->to_server.buf[info->to_server.read_idx], sz);
     info->to_server.read_idx += sz;
     info->to_server.read_bytes += sz;
+    if (info->showVerbose >= 2)    
+        printf("Server Recv: %d\n", sz);
 
     /* if the rx has caught up with pending then reset buffer positions */
     if (info->to_server.read_bytes == info->to_server.write_bytes) {
@@ -599,6 +605,8 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
         sz = MEM_BUFFER_SZ - info->to_server.write_idx;
 #endif
 
+    if (info->showVerbose >= 2)
+        printf("Client Send: %d\n", sz);
     XMEMCPY(&info->to_server.buf[info->to_server.write_idx], buf, sz);
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
@@ -632,11 +640,13 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
         osSemaphoreRelease(info->client.mutex);
 #ifdef CMSIS_OS2_H_
         if (osThreadFlagsWait(1, osFlagsWaitAny, RECV_WAIT_TIMEOUT) == osFlagsErrorTimeout) {
+        	printf("Client Recv: Timeout!\n");
         	return WOLFSSL_CBIO_ERR_TIMEOUT;
         }
         osSemaphoreAcquire(info->client.mutex, osWaitForever);
 #else
         if (osSignalWait(1, RECV_WAIT_TIMEOUT) == osEventTimeout) {
+        	printf("Client Recv: Timeout!\n");
         	return WOLFSSL_CBIO_ERR_TIMEOUT;
         }
         osSemaphoreWait(info->client.mutex, osWaitForever);
@@ -650,6 +660,8 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
     XMEMCPY(buf, &info->to_client.buf[info->to_client.read_idx], sz);
     info->to_client.read_idx += sz;
     info->to_client.read_bytes += sz;
+    if (info->showVerbose >= 2)
+        printf("Client Recv: %d\n", sz);
 
     /* if the rx has caught up with pending then reset buffer positions */
     if (info->to_client.read_bytes == info->to_client.write_bytes) {
@@ -1277,7 +1289,7 @@ int bench_tls(void* args)
     int argShowPeerInfo = BENCH_SHOW_PEER_INFO;
 
 #ifdef DEBUG_WOLFSSL
-    if (argShowVerbose) {
+    if (argShowVerbose >= 3) {
         wolfSSL_Debugging_ON();
     }
     else {
