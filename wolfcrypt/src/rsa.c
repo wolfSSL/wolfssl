@@ -3968,6 +3968,17 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     int err, i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;
 
+#ifdef WOLFSSL_SMALL_STACK
+    if ((p == NULL) ||
+	(q == NULL) ||
+	(tmp1 == NULL) ||
+	(tmp2 == NULL) ||
+	(tmp3 == NULL)) {
+      err = MEMORY_E;
+      goto out;
+    }
+#endif
+
     if (key == NULL || rng == NULL) {
         err = BAD_FUNC_ARG;
         goto out;
