@@ -24,6 +24,7 @@ extern "C" {
 #undef  WOLFSSL_SMALL_STACK_CACHE
 //#define WOLFSSL_SMALL_STACK_CACHE
 
+#define WOLFSSL_IGNORE_FILE_WARN
 
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
@@ -43,6 +44,25 @@ extern "C" {
 /* Math debugging (adds support for mp_dump) */
 #undef  WOLFSSL_DEBUG_MATH
 //#define WOLFSSL_DEBUG_MATH
+
+/* Wolf Single Precision Math */
+#undef WOLFSSL_SP
+#if 0
+    #define WOLFSSL_SP
+    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+
+    /* SP Assembly Speedups */
+    #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
+    //#define WOLFSSL_SP_ARM32_ASM
+    //#define WOLFSSL_SP_ARM64_ASM
+    //#define WOLFSSL_SP_ARM_THUMB_ASM
+    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+#endif
 
 
 /* ------------------------------------------------------------------------- */

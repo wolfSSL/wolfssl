@@ -70,13 +70,15 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
-    /* 64 or 32 bit version */
-    //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
+    /* SP Assembly Speedups */
+    #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
     //#define WOLFSSL_SP_ARM32_ASM
     //#define WOLFSSL_SP_ARM64_ASM
+    //#define WOLFSSL_SP_ARM_THUMB_ASM
+    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
 #endif
 
 /* ------------------------------------------------------------------------- */

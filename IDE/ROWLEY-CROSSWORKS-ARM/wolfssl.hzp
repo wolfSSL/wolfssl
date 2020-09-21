@@ -104,6 +104,9 @@
           <file file_name="../../wolfcrypt/src/wc_port.c" />
           <file file_name="../../wolfcrypt/src/wolfmath.c" />
           <file file_name="../../wolfcrypt/src/wolfevent.c" />
+          <file file_name="../../wolfcrypt/src/sp_c32.c" />
+          <file file_name="../../wolfcrypt/src/sp_cortexm.c" />
+          <file file_name="../../wolfcrypt/src/sp_int.c" />
         </folder>
         <folder Name="test">
           <file file_name="../../wolfcrypt/test/include.am" />
