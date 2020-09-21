@@ -48,7 +48,7 @@
 
 /* Max number of certificates that PKCS7 structure can parse */
 #ifndef MAX_PKCS7_CERTS
-    #define MAX_PKCS7_CERTS 4
+    #define MAX_PKCS7_CERTS 15
 #endif
 
 #ifndef MAX_ORI_TYPE_SZ

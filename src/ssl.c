@@ -25188,7 +25188,12 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->store->verify_cb(0, ctx);
         #endif
         }
-        return ret;
+
+        /* OpenSSL returns 0 when a chain can't be built */
+        if (ret == ASN_NO_SIGNER_E)
+            return WOLFSSL_FAILURE;
+        else
+            return ret;
     }
     return WOLFSSL_FATAL_ERROR;
 }
