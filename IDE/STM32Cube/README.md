@@ -87,6 +87,47 @@ Please select one of the above options:
 
 See [STM32_Benchmarks.md](STM32_Benchmarks.md).
 
+## STM32 Printf
+
+In main.c make the following changes:
+
+```
+/* Retargets the C library printf function to the USART. */
+#include <stdio.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#ifdef __GNUC__
+int __io_putchar(int ch)
+#else
+int fputc(int ch, FILE *f)
+#endif
+{
+    HAL_UART_Transmit(&HAL_CONSOLE_UART, (uint8_t *)&ch, 1, 0xFFFF);
+
+    return ch;
+}
+#ifdef __GNUC__
+int _write(int file,char *ptr, int len)
+{
+    int DataIdx;
+    for (DataIdx= 0; DataIdx< len; DataIdx++) {
+        __io_putchar(*ptr++);
+    }
+    return len;
+}
+#endif
+
+int main(void)
+{
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
+
+    /* Turn off buffers, so I/O occurs immediately */
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+```
+
 ## Support
 
 For questions please email [support@wolfssl.com](mailto:support@wolfssl.com)
