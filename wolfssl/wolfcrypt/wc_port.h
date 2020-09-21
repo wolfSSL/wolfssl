@@ -418,6 +418,23 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE                 -1
     #define XFGETS(b,s,f)            -2 /* Not ported yet */
 
+#elif defined (WOLFSSL_XILINX)
+    #include "xsdps.h"
+    #include "ff.h"
+
+    /* workaround to declare variable and provide type */
+    #define XFILE                    FIL curFile; FIL*
+    #define XFOPEN(NAME, MODE)       ({ FRESULT res; res = f_open(&curFile, (NAME), (FA_OPEN_ALWAYS | FA_WRITE | FA_READ)); (res == FR_OK) ? &curFile : NULL; })
+    #define XFSEEK(F, O, W)          f_lseek((F), (O))
+    #define XFTELL(F)                f_tell((F))
+    #define XREWIND(F)               f_rewind((F))
+    #define XFREAD(BUF, SZ, AMT, F)  ({ FRESULT res; UINT br; res = f_read((F), (BUF), (SZ)*(AMT), &br); (void)br; res; })
+    #define XFWRITE(BUF, SZ, AMT, F) ({ FRESULT res; UINT written; res = f_write((F), (BUF), (SZ)*(AMT), &written); (void)written; res; })
+    #define XFCLOSE(F)               f_close((F))
+    #define XSEEK_END                0
+    #define XBADFILE                 NULL
+    #define XFGETS(b,s,f)            f_gets((b), (s), (f))
+
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
 #else
@@ -535,7 +552,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define NEED_TMP_TIME
 
 #elif defined(WOLFSSL_XILINX)
-    #define USER_TIME
+    #ifndef XTIME
+        #define XTIME(t1)       xilinx_time((t1))
+    #endif
     #include <time.h>
 
 #elif defined(HAVE_RTP_SYS)
@@ -750,7 +769,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #ifndef FILE_BUFFER_SIZE
-    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input,
+    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input, \
                                     will use dynamic buffer if not big enough */
 #endif
 
