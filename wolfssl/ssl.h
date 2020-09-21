@@ -191,7 +191,7 @@ typedef struct WOLFSSL_AUTHORITY_KEYID  WOLFSSL_AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION WOLFSSL_ACCESS_DESCRIPTION;
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
@@ -3319,6 +3319,11 @@ WOLFSSL_API int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME*, WOLFSSL_X509_NAME*);
 WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
 #endif /* !NO_CERTS */
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#ifdef WOLFSSL_WPAS_SMALL
+    /* WPA Supplicant requires GEN_ values */
+    #include <wolfssl/openssl/x509v3.h>
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,

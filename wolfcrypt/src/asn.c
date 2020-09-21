@@ -12732,7 +12732,7 @@ static int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 }
 
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Converts from NID_* value to wolfSSL value if needed */
 static int ConvertNIDToWolfSSL(int nid)
 {
@@ -12871,7 +12871,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
     }
     return totalBytes;
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 
 /* encode CertName into output, return total bytes written */

@@ -645,26 +645,30 @@ then
     AM_CFLAGS="$AM_CFLAGS -DTEST_IPV6 -DWOLFSSL_IPV6"
 fi
 
-
+if test "$ENABLED_WPAS" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_PEER_CERT"
+fi
 if test "$ENABLED_WPAS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_SECRET_CALLBACK -DWOLFSSL_STATIC_RSA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP -DWOLFSSL_PUBLIC_ECC_ADD_DBL"
-    AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER -DHAVE_EX_DATA -DWOLFSSL_KEEP_PEER_CERT"
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DWOLFSSL_DER_LOAD"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN -DWOLFSSL_DES_ECB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
 fi
-
-if test "$ENABLED_WPAS" = "small"
+if test "$ENABLED_WPAS" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EITHER_SIDE"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
+    
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD"
+    AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
 if test "$ENABLED_FORTRESS" = "yes"
@@ -2323,7 +2327,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "x$ENABLED_WPAS" != "xno"
 then
     ENABLED_DES3="yes"
 fi
@@ -2411,7 +2415,7 @@ AC_ARG_ENABLE([cmac],
     [ ENABLED_CMAC=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes"
+if test "$ENABLED_WPAS" != "no"
 then
     ENABLED_CMAC=yes
 fi
@@ -2848,7 +2852,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno"
 then
     ENABLED_CRL=yes
 fi
@@ -3201,7 +3205,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" != "no" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -3871,7 +3875,7 @@ AC_ARG_ENABLE([md4],
 if test "$ENABLED_MD4" = "no"
 then
     #turn on MD4 if using stunnel
-    if test "x$ENABLED_STUNNEL" = "xyes"
+    if test "x$ENABLED_STUNNEL" = "xyes" || test "x$ENABLED_WPAS" != "xno"
     then
         ENABLED_MD4="yes"
     else
@@ -4884,7 +4888,7 @@ AC_ARG_ENABLE([aeskeywrap],
     [ ENABLED_AESKEYWRAP=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes" && test "$ENABLED_FIPS" = "no"
+if test "$ENABLED_WPAS" != "no" && test "$ENABLED_FIPS" = "no"
 then
     ENABLED_AESKEYWRAP="yes"
 fi
