@@ -19471,7 +19471,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
     #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
         if (IsAtLeastTLSv1_3(ssl->version) && sigAlgo == ssl->suites->sigAlgo &&
                                                    sigAlgo == ecc_dsa_sa_algo) {
-
+            int curveSz = ssl->buffers.keySz & (~0x3);
             int digestSz = GetMacDigestSize(hashAlgo);
             if (digestSz <= 0)
                 continue;
@@ -19479,7 +19479,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             /* TLS 1.3 signature algorithms for ECDSA match hash length with
              * key size.
              */
-            if (digestSz != ssl->buffers.keySz)
+            if (digestSz != curveSz)
                 continue;
 
             ssl->suites->hashAlgo = hashAlgo;
