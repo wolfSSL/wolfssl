@@ -3876,7 +3876,10 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             return MEMORY_E;
         }
 
-#ifdef ECC_TIMING_RESISTANT
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) && \
+    !defined(HAVE_SELFTEST)
+
         if (private_key->rng == NULL) {
             err = MISSING_RNG_E;
         }
