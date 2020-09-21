@@ -217,8 +217,9 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case AES_256_OFB_TYPE: return 32;
   #endif
   #if defined(WOLFSSL_AES_XTS)
-      case AES_128_XTS_TYPE: return 16;
-      case AES_256_XTS_TYPE: return 32;
+      /* Two keys for XTS. */
+      case AES_128_XTS_TYPE: return 16 * 2;
+      case AES_256_XTS_TYPE: return 32 * 2;
   #endif
   #if defined(HAVE_AESGCM)
       case AES_128_GCM_TYPE: return 16;
