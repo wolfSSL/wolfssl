@@ -13864,16 +13864,20 @@ static int test_wc_RsaPSS_VerifyCheck (void)
  !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
-    int                 sz = 256;
+    int                 sz = 128; /* 1024/8 */
     byte*               pt;
-    byte                digest[2048]; /* WC_MAX_DIGEST_SIZE */
+    byte                digest[32];
     word32              digestSz;
-    unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
-    unsigned char       pDecrypted[2048/8];
+    unsigned char       pSignature[1024/8]; /* 2048 is RSA_KEY_SIZE */
+    word32              pSignatureSz = sizeof(pSignature);
+    unsigned char       pDecrypted[1024/8];
     word32              outLen = sizeof(pDecrypted);
-    pt = pDecrypted; 
+    pt = pDecrypted;
 
     printf(testingFmt, "wc_RsaPSS_VerifyCheck()");
+
+    XMEMSET(digest, 0, sizeof(digest));
+    XMEMSET(pSignature, 0, sizeof(pSignature));
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -13887,13 +13891,13 @@ static int test_wc_RsaPSS_VerifyCheck (void)
             ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
-        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, sizeof(digest));
         digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, digestSz);
+
     }
     
     if (ret == 0) {
-        ret = wc_RsaPSS_Sign(digest, digestSz,
-                pSignature, sizeof(pSignature),
+        ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, pSignatureSz,
                 WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
         if (ret > 0 ){
             sz = ret;
@@ -13957,7 +13961,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
     WC_RNG              rng;
     int                 sz = 256;
     byte*               pt;
-    byte                digest[2048]; /* WC_MAX_DIGEST_SIZE */
+    byte                digest[32];
     word32              digestSz;
     unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
     unsigned char       pDecrypted[2048/8];
@@ -13967,6 +13971,9 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
     printf(testingFmt, "wc_RsaPSS_VerifyCheckInline()");
 
     ret = wc_InitRsaKey(&key, NULL);
+
+    XMEMSET(digest, 0, sizeof(digest));
+    XMEMSET(pSignature, 0, sizeof(pSignature));
 
     if (ret == 0) {
         ret = wc_InitRng(&rng);
@@ -13978,13 +13985,13 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
             ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
-        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, sizeof(digest));
         digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, digestSz);
+
     }
     
     if (ret == 0) {
-        ret = wc_RsaPSS_Sign(digest, digestSz,
-                pSignature, sizeof(pSignature),
+        ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, sizeof(pSignature),
                 WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
         if (ret > 0 ){
             sz = ret;
