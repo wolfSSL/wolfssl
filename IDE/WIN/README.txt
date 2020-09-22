@@ -3,6 +3,8 @@
 First, if you did not get the FIPS files with your archive, you must contact
 wolfSSL to obtain them.
 
+The IDE/WIN/wolfssl-fips.sln solution is for the original FIPS #2425 certificate. 
+See IDE/WIN10/wolfssl-fips.sln for the FIPS v2 #3389 or later Visual Studio solution.
 
 # Building the wolfssl-fips project
 
