@@ -7543,6 +7543,11 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
     XMEMSET(&aes->ctx, 0, sizeof(aes->ctx));
 #endif
+#if defined(WOLFSSL_IMXRT_DCP)
+    DCPAesInit(aes);
+#endif
+
+
 #ifdef HAVE_AESGCM
 #ifdef OPENSSL_EXTRA
     XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
