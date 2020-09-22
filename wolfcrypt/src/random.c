@@ -184,7 +184,32 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #endif
 
 #ifdef USE_WINDOWS_API
+    #define USE_INTEL_INTRINSICS
+#elif !defined __GNUC__ || defined __clang__ || __GNUC__ > 4
+    #define USE_INTEL_INTRINSICS
+#else
+    #undef USE_INTEL_INTRINSICS
+#endif
+
+#ifdef USE_INTEL_INTRINSICS
     #include <immintrin.h>
+    /* Before clang 7 or GCC 9, immintrin.h did not define _rdseed64_step() */
+    #ifndef HAVE_INTEL_RDSEED
+    #elif defined __clang__ && __clang_major__ > 6
+    #elif !defined __GNUC__
+    #elif __GNUC__ > 8
+    #else
+        #ifndef __clang__
+            #pragma GCC push_options
+            #pragma GCC target("rdseed")
+        #else
+            #define __RDSEED__
+        #endif
+        #include <x86intrin.h>
+        #ifndef __clang__
+            #pragma GCC pop_options
+        #endif
+    #endif
 #endif /* USE_WINDOWS_API */
 #endif
 
@@ -1392,7 +1417,7 @@ int wc_FreeNetRandom(void)
 
 #ifdef HAVE_INTEL_RDSEED
 
-#ifndef USE_WINDOWS_API
+#ifndef USE_INTEL_INTRINSICS
 
     /* return 0 on success */
     static WC_INLINE int IntelRDseed64(word64* seed)
@@ -1403,20 +1428,23 @@ int wc_FreeNetRandom(void)
         return (ok) ? 0 : -1;
     }
 
-#else /* USE_WINDOWS_API */
+#else /* USE_INTEL_INTRINSICS */
     /* The compiler Visual Studio uses does not allow inline assembly.
      * It does allow for Intel intrinsic functions. */
 
     /* return 0 on success */
+# ifdef __GNUC__
+    __attribute__((target("rdseed")))
+# endif
     static WC_INLINE int IntelRDseed64(word64* seed)
     {
         int ok;
 
-        ok = _rdseed64_step(seed);
+        ok = _rdseed64_step((unsigned long long*) seed);
         return (ok) ? 0 : -1;
     }
 
-#endif /* USE_WINDOWS_API */
+#endif /* USE_INTEL_INTRINSICS */
 
 /* return 0 on success */
 static WC_INLINE int IntelRDseed64_r(word64* rnd)
@@ -1464,7 +1492,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
 #ifdef HAVE_INTEL_RDRAND
 
-#ifndef USE_WINDOWS_API
+#ifndef USE_INTEL_INTRINSICS
 
 /* return 0 on success */
 static WC_INLINE int IntelRDrand64(word64 *rnd)
@@ -1476,21 +1504,24 @@ static WC_INLINE int IntelRDrand64(word64 *rnd)
     return (ok) ? 0 : -1;
 }
 
-#else /* USE_WINDOWS_API */
+#else /* USE_INTEL_INTRINSICS */
     /* The compiler Visual Studio uses does not allow inline assembly.
      * It does allow for Intel intrinsic functions. */
 
 /* return 0 on success */
+# ifdef __GNUC__
+__attribute__((target("rdrnd")))
+# endif
 static WC_INLINE int IntelRDrand64(word64 *rnd)
 {
     int ok;
 
-    ok = _rdrand64_step(rnd);
+    ok = _rdrand64_step((unsigned long long*) rnd);
 
     return (ok) ? 0 : -1;
 }
 
-#endif /* USE_WINDOWS_API */
+#endif /* USE_INTEL_INTRINSICS */
 
 /* return 0 on success */
 static WC_INLINE int IntelRDrand64_r(word64 *rnd)
