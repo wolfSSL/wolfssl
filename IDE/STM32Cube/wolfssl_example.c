@@ -510,11 +510,11 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
         sz = MEM_BUFFER_SZ - info->to_client.write_idx;
 #endif
 
+    if (info->showVerbose >= 2)
+        printf("Server Send: %d\n", sz);
     XMEMCPY(&info->to_client.buf[info->to_client.write_idx], buf, sz);
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
-    if (info->showVerbose >= 3)
-        printf("Server Send: %d\n", sz);
 
 #ifdef CMSIS_OS2_H_
     osThreadFlagsSet(info->client.threadId, 1);
@@ -565,16 +565,17 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
     XMEMCPY(buf, &info->to_server.buf[info->to_server.read_idx], sz);
     info->to_server.read_idx += sz;
     info->to_server.read_bytes += sz;
-    if (info->showVerbose >= 2)    
-        printf("Server Recv: %d\n", sz);
 
     /* if the rx has caught up with pending then reset buffer positions */
     if (info->to_server.read_bytes == info->to_server.write_bytes) {
         info->to_server.read_bytes = info->to_server.read_idx = 0;
         info->to_server.write_bytes = info->to_server.write_idx = 0;
     }
+    if (info->showVerbose >= 2)
+        printf("Server Recv: %d\n", sz);
 
     osSemaphoreRelease(info->server.mutex);
+
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
@@ -660,14 +661,14 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
     XMEMCPY(buf, &info->to_client.buf[info->to_client.read_idx], sz);
     info->to_client.read_idx += sz;
     info->to_client.read_bytes += sz;
-    if (info->showVerbose >= 2)
-        printf("Client Recv: %d\n", sz);
 
     /* if the rx has caught up with pending then reset buffer positions */
     if (info->to_client.read_bytes == info->to_client.write_bytes) {
         info->to_client.read_bytes = info->to_client.read_idx = 0;
         info->to_client.write_bytes = info->to_client.write_idx = 0;
     }
+    if (info->showVerbose >= 2)
+        printf("Client Recv: %d\n", sz);
 
     osSemaphoreRelease(info->client.mutex);
 
