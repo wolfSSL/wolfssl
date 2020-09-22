@@ -797,6 +797,9 @@ void wc_ShaFree(wc_Sha* sha)
         sha->msg = NULL;
     }
 #endif
+#ifdef WOLFSSL_IMXRT_DCP
+    DCPShaFree(sha);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */

@@ -30,13 +30,16 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-    
+
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_IMXRT_DCP
+#if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
+#error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
+#endif
 
 #ifndef DCP_USE_OTP_KEY
 #define DCP_USE_OTP_KEY 0 /* Set to 1 to select OTP key for AES encryption/decryption. */
@@ -46,8 +49,27 @@
 #include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
+static int dcp_is_initialized = 0;
 
-static dcp_config_t dcpConfig;
+#ifndef SINGLE_THREADED
+static wolfSSL_Mutex dcp_mutex;
+static void dcp_lock(void)
+{
+    if (!dcp_is_initialized)
+        return;
+    wc_LockMutex(&dcp_mutex);
+}
+
+static void dcp_unlock(void)
+{
+    if (!dcp_is_initialized)
+        return;
+    wc_UnLockMutex(&dcp_mutex);
+}
+#else
+#define dcp_lock() do{}while(0)
+#define dcp_unlock() do{}while(0)
+#endif
 
 #if DCP_USE_OTP_KEY
 typedef enum _dcp_otp_key_select
@@ -62,6 +84,8 @@ typedef enum _dcp_otp_key_select
 #if DCP_USE_OTP_KEY
 static status_t DCP_OTPKeySelect(dcp_otp_key_select keySelect)
 {
+    status_t retval = kStatus_Success;
+    dcp_lock();
     if (keySelect == kDCP_OTPMKKeyLow)
     {
         IOMUXC_GPR->GPR3 &= ~(1 << IOMUXC_GPR_GPR3_DCP_KEY_SEL_SHIFT);
@@ -88,34 +112,96 @@ static status_t DCP_OTPKeySelect(dcp_otp_key_select keySelect)
 
     else
     {
-        return kStatus_InvalidArgument;
+        retval = kStatus_InvalidArgument;
     }
-
-    return kStatus_Success;
+    dcp_unlock();
+    return retval;
 }
 #endif
 
-static void dcp_init(void)
-{
-    static int dcp_is_initialized = 0;
-    if (!dcp_is_initialized) {
-        /* Initialize DCP */
-        DCP_GetDefaultConfig(&dcpConfig);
+static const int dcp_channels[4] = {
+    kDCP_Channel0,
+    kDCP_Channel1,
+    kDCP_Channel2,
+    kDCP_Channel3
+};
+static int dcp_status[4] = {0, 0, 0, 0};
 
+static int dcp_get_channel(void)
+{
+#ifdef SINGLE_THREADED
+    return dcp_channels[0];
+#else
+    int i;
+    for (i = 0; i < 4; i++) {
+        if (dcp_status[i] == 0) {
+            dcp_status[i]++;
+            return dcp_channels[i];
+        }
+    }
+    return 0;
+#endif
+}
+
+
+static int dcp_init(void)
+{
+    int ch = dcp_get_channel();
+    if (!ch) {
+        return 0;
+    }
+    if (!dcp_is_initialized) {
+        dcp_config_t dcpConfig;
+#ifndef SINGLE_THREADED
+        /* Initialize and lock mutex */
+        wc_InitMutex(&dcp_mutex);
+        dcp_lock();
+#endif
+        DCP_GetDefaultConfig(&dcpConfig);
+        /* Initialize DCP */
+        /* Reset and initialize DCP */
+        DCP_Init(DCP, &dcpConfig);
 #if DCP_USE_OTP_KEY
         /* Set OTP key type in IOMUX registers before initializing DCP. */
         /* Software reset of DCP must be issued after changing the OTP key type. */
         DCP_OTPKeySelect(kDCP_OTPMKKeyLow);
 #endif
-
-        /* Reset and initialize DCP */
-        DCP_Init(DCP, &dcpConfig);
         dcp_is_initialized++;
+        /* Release mutex */
+        dcp_unlock();
     }
+    return ch;
+}
+
+static void dcp_fini(int ch)
+{
+#ifdef SINGLE_THREADED
+    int i;
+    for (i = 0; i < 4; i++) {
+        if (ch == dcp_channels[i])
+            dcp_status[i] = 0;
+    }
+#endif
 }
 
 
 #ifndef NO_AES
+int DCPAesInit(Aes *aes)
+{
+    int ch;
+    if (!aes)
+        return BAD_FUNC_ARG;
+    ch = dcp_init();
+    if (ch == 0)
+        return WC_PENDING_E;
+    dcp_lock();
+    XMEMSET(&aes->handle, 0, sizeof(aes->handle));
+    aes->handle.channel    = ch;
+    aes->handle.swapConfig = kDCP_NoSwap;
+    dcp_unlock();
+    return 0;
+}
+
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir)
 {
@@ -128,12 +214,12 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
         return BAD_FUNC_ARG;
 
     if (len != 16)
-        return BAD_FUNC_ARG; 
+        return BAD_FUNC_ARG;
 
-    dcp_init();
-    XMEMSET(&aes->handle, 0, sizeof(aes->handle));
-    aes->handle.channel    = kDCP_Channel0;
-    aes->handle.swapConfig = kDCP_NoSwap;
+    if (aes->handle.channel == 0)
+        return BAD_FUNC_ARG;
+
+    dcp_lock();
 #if DCP_USE_OTP_KEY
     aes->handle.keySlot = kDCP_OtpKey;
 #else
@@ -141,12 +227,15 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
 #endif
     status = DCP_AES_SetKey(DCP, &aes->handle, key, 16);
     if (status != kStatus_Success)
-        return WC_HW_E;
-    if (iv)
-        XMEMCPY(aes->reg, iv, 16);
-    else
-        XMEMSET(aes->reg, 0, 16);
-    return 0;
+        status = WC_HW_E;
+    else {
+        if (iv)
+            XMEMCPY(aes->reg, iv, 16);
+        else
+            XMEMSET(aes->reg, 0, 16);
+    }
+    dcp_unlock();
+    return status;
 }
 
 int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -154,10 +243,13 @@ int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     if (sz % 16)
         return BAD_FUNC_ARG;
+    dcp_lock();
     ret = DCP_AES_EncryptCbc(DCP, &aes->handle, in, out, sz, (const byte *)aes->reg);
     if (ret)
-        return WC_HW_E; 
-    XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        ret = WC_HW_E;
+    else
+        XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+    dcp_unlock();
     return ret;
 }
 
@@ -166,10 +258,13 @@ int  DCPAesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     if (sz % 16)
         return BAD_FUNC_ARG;
+    dcp_lock();
     ret = DCP_AES_DecryptCbc(DCP, &aes->handle, in, out, sz, (const byte *)aes->reg);
     if (ret)
-        return WC_HW_E; 
-    XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+        ret = WC_HW_E;
+    else
+        XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+    dcp_unlock();
     return ret;
 }
 
@@ -189,17 +284,22 @@ int  DCPAesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
     int ret;
+    int ch;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
-    dcp_init();
+    ch = dcp_init();
+    if (ch == 0)
+        return WC_PENDING_E;
+    dcp_lock();
     (void)devId;
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
-    sha256->handle.channel    = kDCP_Channel0;
+    sha256->handle.channel    = ch;
     sha256->handle.keySlot    = kDCP_KeySlot0;
     sha256->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
     if (ret != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    dcp_unlock();
     return ret;
 }
 
@@ -208,9 +308,10 @@ int wc_InitSha256(wc_Sha256* sha256)
     return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
 
-void wc_Sha256Free(wc_Sha256* sha256)
+void DCPSha256Free(wc_Sha256* sha256)
 {
-    (void)sha256;
+    if (sha256)
+        dcp_fini(sha256->handle.channel);
 }
 
 int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
@@ -219,9 +320,11 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     if (sha256 == NULL || (data == NULL && len != 0)) {
         return BAD_FUNC_ARG;
     }
+    dcp_lock();
     ret = DCP_HASH_Update(DCP, &sha256->ctx, data, len);
     if (ret != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    dcp_unlock();
     return ret;
 }
 
@@ -233,13 +336,15 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     dcp_hash_ctx_t saved_ctx;
     if (sha256 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
+    dcp_lock();
     XMEMCPY(&saved_ctx, &sha256->ctx, sizeof(dcp_hash_ctx_t));
     XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
     ret = DCP_HASH_Finish(DCP, &sha256->ctx, hash, &outlen);
-    if ((ret != kStatus_Success) || (outlen != SHA256_DIGEST_SIZE)) {
-        return WC_HW_E;
-    }
-    XMEMCPY(&sha256->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
+    if ((ret != kStatus_Success) || (outlen != SHA256_DIGEST_SIZE))
+        ret = WC_HW_E;
+    else
+        XMEMCPY(&sha256->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
+    dcp_unlock();
     return 0;
 }
 
@@ -247,15 +352,19 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
 {
     int ret;
     size_t outlen = WC_SHA256_DIGEST_SIZE;
+    dcp_lock();
     ret = DCP_HASH_Finish(DCP, &sha256->ctx, hash, &outlen);
     if ((ret != kStatus_Success) || (outlen != SHA256_DIGEST_SIZE))
-        return WC_HW_E;
-    sha256->handle.channel    = kDCP_Channel0;
-    sha256->handle.keySlot    = kDCP_KeySlot0;
-    sha256->handle.swapConfig = kDCP_NoSwap;
-    ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
-    if (ret < 0)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    else {
+        sha256->handle.channel    = kDCP_Channel1;
+        sha256->handle.keySlot    = kDCP_KeySlot0;
+        sha256->handle.swapConfig = kDCP_NoSwap;
+        ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
+        if (ret < 0)
+            ret = WC_HW_E;
+    }
+    dcp_unlock();
     return ret;
 }
 
@@ -280,7 +389,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
+    dcp_lock();
     XMEMCPY(&dst->ctx, &src->ctx, sizeof(dcp_hash_ctx_t));
+    dcp_unlock();
     return 0;
 }
 #endif /* !NO_SHA256 */
@@ -291,17 +402,20 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 {
     int ret;
+    int ch;
     if (sha == NULL)
         return BAD_FUNC_ARG;
-    dcp_init();
+    ch = dcp_init();
+    dcp_lock();
     (void)devId;
     XMEMSET(sha, 0, sizeof(wc_Sha));
-    sha->handle.channel    = kDCP_Channel0;
+    sha->handle.channel    = ch;
     sha->handle.keySlot    = kDCP_KeySlot0;
     sha->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
     if (ret != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    dcp_unlock();
     return ret;
 }
 
@@ -310,9 +424,10 @@ int wc_InitSha(wc_Sha* sha)
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 
-void wc_ShaFree(wc_Sha* sha)
+void DCPShaFree(wc_Sha* sha)
 {
-    (void)sha;
+    if (sha)
+        dcp_fini(sha->handle.channel);
 }
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
@@ -321,9 +436,11 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     if (sha == NULL || (data == NULL && len != 0)) {
         return BAD_FUNC_ARG;
     }
+    dcp_lock();
     ret = DCP_HASH_Update(DCP, &sha->ctx, data, len);
     if (ret != kStatus_Success)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    dcp_unlock();
     return ret;
 }
 
@@ -335,13 +452,15 @@ int wc_ShaGetHash(wc_Sha* sha, byte* hash)
     dcp_hash_ctx_t saved_ctx;
     if (sha == NULL || hash == NULL)
         return BAD_FUNC_ARG;
+    dcp_lock();
     XMEMCPY(&saved_ctx, &sha->ctx, sizeof(dcp_hash_ctx_t));
     XMEMSET(hash, 0, WC_SHA_DIGEST_SIZE);
     ret = DCP_HASH_Finish(DCP, &sha->ctx, hash, &outlen);
-    if ((ret != kStatus_Success) || (outlen != WC_SHA_DIGEST_SIZE)) {
-        return WC_HW_E;
-    }
-    XMEMCPY(&sha->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
+    if ((ret != kStatus_Success) || (outlen != WC_SHA_DIGEST_SIZE))
+        ret = WC_HW_E;
+    else
+        XMEMCPY(&sha->ctx, &saved_ctx, sizeof(dcp_hash_ctx_t));
+    dcp_unlock();
     return 0;
 }
 
@@ -349,15 +468,19 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 {
     int ret;
     size_t outlen = WC_SHA_DIGEST_SIZE;
+    dcp_lock();
     ret = DCP_HASH_Finish(DCP, &sha->ctx, hash, &outlen);
     if ((ret != kStatus_Success) || (outlen != SHA_DIGEST_SIZE))
-        return WC_HW_E;
-    sha->handle.channel    = kDCP_Channel0;
-    sha->handle.keySlot    = kDCP_KeySlot0;
-    sha->handle.swapConfig = kDCP_NoSwap;
-    ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
-    if (ret < 0)
-        return WC_HW_E;
+        ret = WC_HW_E;
+    else {
+        sha->handle.channel    = kDCP_Channel1;
+        sha->handle.keySlot    = kDCP_KeySlot0;
+        sha->handle.swapConfig = kDCP_NoSwap;
+        ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
+        if (ret < 0)
+            ret = WC_HW_E;
+    }
+    dcp_unlock();
     return ret;
 }
 
@@ -382,7 +505,9 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 {
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
+    dcp_lock();
     XMEMCPY(&dst->ctx, &src->ctx, sizeof(dcp_hash_ctx_t));
+    dcp_unlock();
     return 0;
 }
 #endif /* !NO_SHA */
