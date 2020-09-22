@@ -132,6 +132,8 @@ enum {
             static const char EVP_AES_256_GCM[] = "AES-256-GCM";
         #endif
     #endif /* HAVE_AESGCM */
+
+    #ifdef HAVE_AES_COUNTER
     #ifdef WOLFSSL_AES_128
         static const char EVP_AES_128_CTR[] = "AES-128-CTR";
     #endif
@@ -141,7 +143,9 @@ enum {
     #ifdef WOLFSSL_AES_256
         static const char EVP_AES_256_CTR[] = "AES-256-CTR";
     #endif
+    #endif
 
+    #ifdef HAVE_AES_ECB
     #ifdef WOLFSSL_AES_128
         static const char EVP_AES_128_ECB[] = "AES-128-ECB";
     #endif
@@ -150,6 +154,7 @@ enum {
     #endif
     #ifdef WOLFSSL_AES_256
         static const char EVP_AES_256_ECB[] = "AES-256-ECB";
+    #endif
     #endif
         #define      EVP_AES_SIZE 11
     #ifdef WOLFSSL_AES_CFB
@@ -2658,6 +2663,7 @@ static const struct cipher{
 } cipher_tbl[] = {
 
 #ifndef NO_AES
+    #ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
     {AES_128_CBC_TYPE, EVP_AES_128_CBC, NID_aes_128_cbc},
     #endif
@@ -2667,7 +2673,9 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_CBC_TYPE, "AES-256-CBC", NID_aes_256_cbc},
     #endif
+    #endif
 
+    #ifdef WOLFSSL_AES_CFB
     #ifdef WOLFSSL_AES_128
     {AES_128_CFB1_TYPE, "AES-128-CFB1", NID_aes_128_cfb1},
     #endif
@@ -2697,7 +2705,9 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_CFB128_TYPE, "AES-256-CFB128", NID_aes_256_cfb128},
     #endif
+    #endif
 
+    #ifdef HAVE_AES_OFB
     #ifdef WOLFSSL_AES_128
     {AES_128_OFB_TYPE, "AES-128-OFB", NID_aes_128_ofb},
     #endif
@@ -2707,14 +2717,18 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_OFB_TYPE, "AES-256-OFB", NID_aes_256_ofb},
     #endif
+    #endif
 
+    #ifdef HAVE_AES_XTS
     #ifdef WOLFSSL_AES_128
     {AES_128_XTS_TYPE, "AES-128-XTS", NID_aes_128_xts},
     #endif
     #ifdef WOLFSSL_AES_256
     {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
     #endif
+    #endif
 
+    #ifdef HAVE_AES_GCM
     #ifdef WOLFSSL_AES_128
     {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
     #endif
@@ -2724,6 +2738,9 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_GCM_TYPE, "AES-256-GCM", NID_aes_256_gcm},
     #endif
+    #endif
+
+    #ifdef HAVE_AES_COUNTER
     #ifdef WOLFSSL_AES_128
         {AES_128_CTR_TYPE, "AES-128-CTR", NID_aes_128_ctr},
     #endif
@@ -2733,7 +2750,9 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
         {AES_256_CTR_TYPE, "AES-256-CTR", NID_aes_256_ctr},
     #endif
+    #endif
 
+    #ifdef HAVE_AES_ECB
     #ifdef WOLFSSL_AES_128
         {AES_128_ECB_TYPE, "AES-128-ECB", NID_aes_128_ecb},
     #endif
@@ -2742,6 +2761,7 @@ static const struct cipher{
     #endif
     #ifdef WOLFSSL_AES_256
         {AES_256_ECB_TYPE, "AES-256-ECB", NID_aes_256_ecb},
+    #endif
     #endif
 
 #endif
@@ -3626,6 +3646,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
 
+    #ifdef HAVE_AES_CTR
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void)
     {
@@ -3651,7 +3672,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CTR;
     }
     #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_CTR */
 
+    #ifdef HAVE_AES_ECB
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ecb(void)
     {
@@ -3677,6 +3700,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_ECB;
     }
     #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_ECB */
     #endif /* NO_AES */
 
 #ifndef NO_DES3
@@ -4021,7 +4045,20 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
+
 #ifndef NO_AES
+#if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+    defined(WOLFSSL_AES_256)
+    #define AES_SIZE_ANY
+#endif
+
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || \
+    defined(HAVE_AES_ECB) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSSL_AES_OFB)
+    #define AES_SET_KEY
+#endif
+
+#if defined(AES_SIZE_ANY) && defined(AES_SET_KEY)
     static int   AesSetKey_ex(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir, int direct)
     {
@@ -4044,7 +4081,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             XMEMCPY((byte *)aes->reg, (byte *)aes->tmp, AES_BLOCK_SIZE);
         return ret;
     }
-#endif
+#endif /* AES_ANY_SIZE && AES_SET_KEY */
+#endif /* NO_AES */
 
     /* return WOLFSSL_SUCCESS on ok, 0 on failure to match API compatibility */
     int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -4326,6 +4364,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         #endif /* WOLFSSL_AES_256 */
 #endif /* WOLFSSL_AES_COUNTER */
+    #ifdef HAVE_AES_ECB
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_ECB_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_ECB, EVP_AES_SIZE) == 0)) {
@@ -4383,6 +4422,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 return WOLFSSL_FAILURE;
         }
         #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_ECB */
     #ifdef WOLFSSL_AES_CFB
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CFB1_TYPE ||
@@ -4612,7 +4652,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
         }
         #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CFB */
+    #endif /* WOLFSSL_AES_CFB */
     #ifdef WOLFSSL_AES_OFB
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_OFB_TYPE ||
