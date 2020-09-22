@@ -133,7 +133,7 @@ enum {
         #endif
     #endif /* HAVE_AESGCM */
 
-    #ifdef HAVE_AES_COUNTER
+    #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
         static const char EVP_AES_128_CTR[] = "AES-128-CTR";
     #endif
@@ -2740,7 +2740,7 @@ static const struct cipher{
     #endif
     #endif
 
-    #ifdef HAVE_AES_COUNTER
+    #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
         {AES_128_CTR_TYPE, "AES-128-CTR", NID_aes_128_ctr},
     #endif
@@ -3646,7 +3646,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
 
-    #ifdef HAVE_AES_CTR
+    #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void)
     {
@@ -3672,7 +3672,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CTR;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CTR */
+    #endif /* WOLFSSL_AES_COUNTER */
 
     #ifdef HAVE_AES_ECB
     #ifdef WOLFSSL_AES_128
