@@ -1743,6 +1743,13 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     return;
 #endif
 
+#if defined(WOLFSSL_IMXRT_DCP)
+    if (aes->keylen == 16) {
+        DCPAesEcbEncrypt(aes, outBlock, inBlock, AES_BLOCK_SIZE);
+        return;
+    }
+#endif
+
     /*
      * map byte array block to cipher state
      * and add initial round key:
@@ -2026,6 +2033,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #endif /* WOLFSSL_AESNI */
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
     return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
+#endif
+#if defined(WOLFSSL_IMXRT_DCP)
+    if (aes->keylen == 16) {
+        DCPAesEcbDecrypt(aes, outBlock, inBlock, AES_BLOCK_SIZE);
+        return;
+    }
 #endif
 
     /*
@@ -2584,7 +2597,6 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
-
 
 #else
 
@@ -4182,6 +4194,14 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     ForceZero(local, sizeof(local));
+#endif
+
+#ifdef WOLFSSL_IMXRT_DCP
+    ret = 0;
+    if (len == 16)
+        ret = DCPAesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+    if (ret != 0)
+        return WC_HW_E;
 #endif
 
     return ret;
