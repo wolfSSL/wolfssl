@@ -6096,7 +6096,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
             ret = wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, (WOLFSSL_EC_KEY*)key);
             break;
     #endif
-    #ifdef NO_DH
+    #ifndef NO_DH
          case EVP_PKEY_DH:
             ret = wolfSSL_EVP_PKEY_assign_DH(pkey, (WOLFSSL_DH*)key);
             break;

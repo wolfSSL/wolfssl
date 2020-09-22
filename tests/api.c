@@ -32844,7 +32844,7 @@ static void test_wolfSSL_OCSP_get0_info()
 
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_DH)
     printf(testingFmt, "wolfSSL_EVP_PKEY_derive()");
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EVP_PKEY_CTX *ctx;
