@@ -2778,6 +2778,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 session->sslServer->version.minor = input[1];
                 session->sslClient->version.major = input[0];
                 session->sslClient->version.minor = input[1];
+                if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+                    /* The server side handshake encryption is on for future packets */
+                    session->flags.serverCipherOn = 1;
+                }
                 break;
             case EXT_MASTER_SECRET:
             #ifdef HAVE_EXTENDED_MASTER
@@ -3131,9 +3135,6 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                 break;
             }
             XMEMCPY(session->cliKeyShare, &input[2], ksLen);
-
-            /* The server side handshake encryption is on for future packets */
-            session->flags.serverCipherOn = 1;
             break;
         }
         #ifdef HAVE_SESSION_TICKET
