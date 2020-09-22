@@ -2671,115 +2671,115 @@ static const struct cipher{
     {AES_192_CBC_TYPE, EVP_AES_192_CBC, NID_aes_192_cbc},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_CBC_TYPE, "AES-256-CBC", NID_aes_256_cbc},
+    {AES_256_CBC_TYPE, EVP_AES_256_CBC, NID_aes_256_cbc},
     #endif
     #endif
 
     #ifdef WOLFSSL_AES_CFB
     #ifdef WOLFSSL_AES_128
-    {AES_128_CFB1_TYPE, "AES-128-CFB1", NID_aes_128_cfb1},
+    {AES_128_CFB1_TYPE, EVP_AES_128_CFB1, NID_aes_128_cfb1},
     #endif
     #ifdef WOLFSSL_AES_192
-    {AES_192_CFB1_TYPE, "AES-192-CFB1", NID_aes_192_cfb1},
+    {AES_192_CFB1_TYPE, EVP_AES_192_CFB1, NID_aes_192_cfb1},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_CFB1_TYPE, "AES-256-CFB1", NID_aes_256_cfb1},
+    {AES_256_CFB1_TYPE, EVP_AES_256_CFB1, NID_aes_256_cfb1},
     #endif
 
     #ifdef WOLFSSL_AES_128
-    {AES_128_CFB8_TYPE, "AES-128-CFB8", NID_aes_128_cfb8},
+    {AES_128_CFB8_TYPE, EVP_AES_128_CFB8, NID_aes_128_cfb8},
     #endif
     #ifdef WOLFSSL_AES_192
-    {AES_192_CFB8_TYPE, "AES-192-CFB8", NID_aes_192_cfb8},
+    {AES_192_CFB8_TYPE, EVP_AES_192_CFB8, NID_aes_192_cfb8},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_CFB8_TYPE, "AES-256-CFB8", NID_aes_256_cfb8},
+    {AES_256_CFB8_TYPE, EVP_AES_256_CFB8, NID_aes_256_cfb8},
     #endif
 
     #ifdef WOLFSSL_AES_128
-    {AES_128_CFB128_TYPE, "AES-128-CFB128", NID_aes_128_cfb128},
+    {AES_128_CFB128_TYPE, EVP_AES_128_CFB128, NID_aes_128_cfb128},
     #endif
     #ifdef WOLFSSL_AES_192
-    {AES_192_CFB128_TYPE, "AES-192-CFB128", NID_aes_192_cfb128},
+    {AES_192_CFB128_TYPE, EVP_AES_192_CFB128, NID_aes_192_cfb128},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_CFB128_TYPE, "AES-256-CFB128", NID_aes_256_cfb128},
+    {AES_256_CFB128_TYPE, EVP_AES_256_CFB128, NID_aes_256_cfb128},
     #endif
     #endif
 
     #ifdef HAVE_AES_OFB
     #ifdef WOLFSSL_AES_128
-    {AES_128_OFB_TYPE, "AES-128-OFB", NID_aes_128_ofb},
+    {AES_128_OFB_TYPE, EVP_AES_128_OFB, NID_aes_128_ofb},
     #endif
     #ifdef WOLFSSL_AES_192
-    {AES_192_OFB_TYPE, "AES-192-OFB", NID_aes_192_ofb},
+    {AES_192_OFB_TYPE, EVP_AES_192_OFB, NID_aes_192_ofb},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_OFB_TYPE, "AES-256-OFB", NID_aes_256_ofb},
+    {AES_256_OFB_TYPE, EVP_AES_256_OFB, NID_aes_256_ofb},
     #endif
     #endif
 
     #ifdef HAVE_AES_XTS
     #ifdef WOLFSSL_AES_128
-    {AES_128_XTS_TYPE, "AES-128-XTS", NID_aes_128_xts},
+    {AES_128_XTS_TYPE, EVP_AES_128_XTS, NID_aes_128_xts},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
+    {AES_256_XTS_TYPE, EVP_AES_256_XTS, NID_aes_256_xts},
     #endif
     #endif
 
     #ifdef HAVE_AES_GCM
     #ifdef WOLFSSL_AES_128
-    {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
+    {AES_128_GCM_TYPE, EVP_AES_128_GCM, NID_aes_128_gcm},
     #endif
     #ifdef WOLFSSL_AES_192
-    {AES_192_GCM_TYPE, "AES-192-GCM", NID_aes_192_gcm},
+    {AES_192_GCM_TYPE, EVP_AES_192_GCM, NID_aes_192_gcm},
     #endif
     #ifdef WOLFSSL_AES_256
-    {AES_256_GCM_TYPE, "AES-256-GCM", NID_aes_256_gcm},
+    {AES_256_GCM_TYPE, EVP_AES_256_GCM, NID_aes_256_gcm},
     #endif
     #endif
 
     #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
-        {AES_128_CTR_TYPE, "AES-128-CTR", NID_aes_128_ctr},
+        {AES_128_CTR_TYPE, EVP_AES_128_CTR, NID_aes_128_ctr},
     #endif
     #ifdef WOLFSSL_AES_192
-        {AES_192_CTR_TYPE, "AES-192-CTR", NID_aes_192_ctr},
+        {AES_192_CTR_TYPE, EVP_AES_192_CTR, NID_aes_192_ctr},
     #endif
     #ifdef WOLFSSL_AES_256
-        {AES_256_CTR_TYPE, "AES-256-CTR", NID_aes_256_ctr},
+        {AES_256_CTR_TYPE, EVP_AES_256_CTR, NID_aes_256_ctr},
     #endif
     #endif
 
     #ifdef HAVE_AES_ECB
     #ifdef WOLFSSL_AES_128
-        {AES_128_ECB_TYPE, "AES-128-ECB", NID_aes_128_ecb},
+        {AES_128_ECB_TYPE, EVP_AES_128_ECB, NID_aes_128_ecb},
     #endif
     #ifdef WOLFSSL_AES_192
-        {AES_192_ECB_TYPE, "AES-192-ECB", NID_aes_192_ecb},
+        {AES_192_ECB_TYPE, EVP_AES_192_ECB, NID_aes_192_ecb},
     #endif
     #ifdef WOLFSSL_AES_256
-        {AES_256_ECB_TYPE, "AES-256-ECB", NID_aes_256_ecb},
+        {AES_256_ECB_TYPE, EVP_AES_256_ECB, NID_aes_256_ecb},
     #endif
     #endif
 
 #endif
 
 #ifndef NO_DES3
-    {DES_CBC_TYPE, "DES-CBC", NID_des_cbc},
-    {DES_ECB_TYPE, "DES-ECB", NID_des_ecb},
+    {DES_CBC_TYPE, EVP_DES_CBC, NID_des_cbc},
+    {DES_ECB_TYPE, EVP_DES_ECB, NID_des_ecb},
 
-    {DES_EDE3_CBC_TYPE, "DES-EDE3-CBC", NID_des_ede3_cbc},
-    {DES_EDE3_ECB_TYPE, "DES-EDE3-ECB", NID_des_ede3_ecb},
+    {DES_EDE3_CBC_TYPE, EVP_DES_EDE3_CBC, NID_des_ede3_cbc},
+    {DES_EDE3_ECB_TYPE, EVP_DES_EDE3_ECB, NID_des_ede3_ecb},
 #endif
 
 #ifndef NO_RC4
-    {ARC4_TYPE, "ARC4", NID_undef},
+    {ARC4_TYPE, EVP_ARC4, NID_undef},
 #endif
 
 #ifdef HAVE_IDEA
-    {IDEA_CBC_TYPE, "IDEA-CBC", NID_idea_cbc},
+    {IDEA_CBC_TYPE, EVP_IDEA_CBC, NID_idea_cbc},
 #endif
     { 0, NULL, 0}
 };
@@ -2829,63 +2829,65 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
     } alias_tbl[] =
     {
 #ifndef NO_DES3
-        {"DES-CBC", "DES"},
-        {"DES-CBC", "des"},
-        {"DES-ECB", "DES-ECB"},
-        {"DES-ECB", "des-ecb"},
-        {"DES-EDE3-CBC", "DES3"},
-        {"DES-EDE3-CBC", "des3"},
-        {"DES-EDE3-ECB", "DES-EDE3"},
-        {"DES-EDE3-ECB", "des-ede3"},
-        {"DES-EDE3-ECB", "des-ede3-ecb"},
+        {EVP_DES_CBC, "DES"},
+        {EVP_DES_CBC, "des"},
+        {EVP_DES_ECB, "DES-ECB"},
+        {EVP_DES_ECB, "des-ecb"},
+        {EVP_DES_EDE3_CBC, "DES3"},
+        {EVP_DES_EDE3_CBC, "des3"},
+        {EVP_DES_EDE3_ECB, "DES-EDE3"},
+        {EVP_DES_EDE3_ECB, "des-ede3"},
+        {EVP_DES_EDE3_ECB, "des-ede3-ecb"},
 #endif
 #ifdef HAVE_IDEA
-        {"IDEA-CBC", "IDEA"},
-        {"IDEA-CBC", "idea"},
+        {EVP_IDEA_CBC, "IDEA"},
+        {EVP_IDEA_CBC, "idea"},
 #endif
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
-        {EVP_AES_128_CBC, "AES128-CBC"},
-        {EVP_AES_128_CBC, "aes128-cbc"},
+            {EVP_AES_128_CBC, "AES128-CBC"},
+            {EVP_AES_128_CBC, "aes128-cbc"},
         #endif
         #ifdef WOLFSSL_AES_192
-        {EVP_AES_192_CBC, "AES192-CBC"},
-        {EVP_AES_192_CBC, "aes192-cbc"},
+            {EVP_AES_192_CBC, "AES192-CBC"},
+            {EVP_AES_192_CBC, "aes192-cbc"},
         #endif
         #ifdef WOLFSSL_AES_256
-        {EVP_AES_256_CBC, "AES256-CBC"},
-        {EVP_AES_256_CBC, "aes256-cbc"},
+            {EVP_AES_256_CBC, "AES256-CBC"},
+            {EVP_AES_256_CBC, "aes256-cbc"},
         #endif
     #endif
-    #ifdef WOLFSSL_AES_128
-        {"AES-128-ECB", "AES128-ECB"},
-        {"AES-128-ECB", "aes128-ecb"},
-    #endif
-    #ifdef WOLFSSL_AES_192
-        {"AES-192-ECB", "AES192-ECB"},
-        {"AES-192-ECB", "aes192-ecb"},
-    #endif
-    #ifdef WOLFSSL_AES_256
-        {"AES-256-ECB", "AES256-ECB"},
+    #ifdef HAVE_AES_ECB
+        #ifdef WOLFSSL_AES_128
+            {EVP_AES_128_ECB, "AES128-ECB"},
+            {EVP_AES_128_ECB, "aes128-ecb"},
+        #endif
+        #ifdef WOLFSSL_AES_192
+            {EVP_AES_192_ECB, "AES192-ECB"},
+            {EVP_AES_192_ECB, "aes192-ecb"},
+        #endif
+        #ifdef WOLFSSL_AES_256
+            {EVP_AES_256_ECB, "AES256-ECB"},
+        #endif
     #endif
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
-        {"AES-128-GCM", "aes-128-gcm"},
-        {"AES-128-GCM", "id-aes128-GCM"},
+            {EVP_AES_128_GCM, "aes-128-gcm"},
+            {EVP_AES_128_GCM, "id-aes128-GCM"},
         #endif
         #ifdef WOLFSSL_AES_192
-        {"AES-192-GCM", "aes-192-gcm"},
-        {"AES-192-GCM", "id-aes192-GCM"},
+            {EVP_AES_192_GCM, "aes-192-gcm"},
+            {EVP_AES_192_GCM, "id-aes192-GCM"},
         #endif
         #ifdef WOLFSSL_AES_256
-        {"AES-256-GCM", "aes-256-gcm"},
-        {"AES-256-GCM", "id-aes256-GCM"},
+            {EVP_AES_256_GCM, "aes-256-gcm"},
+            {EVP_AES_256_GCM, "id-aes256-GCM"},
         #endif
     #endif
 #endif
 #ifndef NO_RC4
-        {"ARC4", "RC4"},
+        {EVP_ARC4, "RC4"},
 #endif
         { NULL, NULL}
     };
