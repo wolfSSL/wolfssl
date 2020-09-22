@@ -1533,6 +1533,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
         sha256->msg = NULL;
     }
 #endif
+#ifdef WOLFSSL_IMXRT_DCP
+    DCPSha256Free(sha256);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */

@@ -36,6 +36,7 @@
 #include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
+int  DCPAesInit(Aes* aes);
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir);
 int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
@@ -52,6 +53,9 @@ typedef struct wc_Sha256_DCP {
     dcp_hash_ctx_t ctx;
 } wc_Sha256;
 #define WC_SHA256_TYPE_DEFINED
+
+void DCPSha256Free(wc_Sha256 *sha256);
+
 #endif
 
 #ifndef NO_SHA
@@ -60,6 +64,8 @@ typedef struct wc_Sha_DCP {
     dcp_hash_ctx_t ctx;
 } wc_Sha;
 #define WC_SHA_TYPE_DEFINED
+
+void DCPShaFree(wc_Sha *sha);
 #endif
 
 #endif
