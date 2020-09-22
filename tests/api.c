@@ -23253,7 +23253,91 @@ static void test_PKCS7_signed_enveloped(void)
 
 #endif
 }
+static int test_wc_PKCS7_NoDefaultSignedAttribs (void)
+{
+    int ret = 0;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES)
+    PKCS7*      pkcs7;
+    void*       heap = NULL;
 
+    printf(testingFmt, "wc_PKCS7_NoDefaultSignedAttribs()");
+
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+
+    ret = wc_PKCS7_NoDefaultSignedAttribs(NULL);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_PKCS7_NoDefaultSignedAttribs(pkcs7);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}
+static int test_wc_PKCS7_SetOriEncryptCtx (void)
+{
+    int ret = 0;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES)
+    PKCS7*      pkcs7;
+    void*       heap = NULL;
+    WOLFSSL_CTX* ctx;
+    ctx = NULL;
+
+    printf(testingFmt, "wc_PKCS7_SetOriEncryptCtx()");
+
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+
+    ret = wc_PKCS7_SetOriEncryptCtx(NULL, ctx);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_PKCS7_SetOriEncryptCtx(pkcs7, ctx);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}
+static int test_wc_PKCS7_SetOriDecryptCtx (void)
+{
+    int ret = 0;
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES)
+    PKCS7*      pkcs7;
+    void*       heap = NULL;
+    WOLFSSL_CTX* ctx;
+    ctx = NULL;
+
+    printf(testingFmt, "wc_PKCS7_SetOriDecryptCtx()");
+
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
+
+    ret = wc_PKCS7_SetOriDecryptCtx(NULL, ctx);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_PKCS7_SetOriDecryptCtx(pkcs7, ctx);
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+}
 static void test_wc_i2d_PKCS12(void)
 {
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
@@ -36922,6 +37006,10 @@ void ApiTest(void)
     test_wc_PKCS7_Degenerate();
     test_wc_PKCS7_BER();
     test_PKCS7_signed_enveloped();
+    AssertIntEQ(test_wc_PKCS7_NoDefaultSignedAttribs(), 0);
+    AssertIntEQ(test_wc_PKCS7_SetOriDecryptCtx(), 0);
+    AssertIntEQ(test_wc_PKCS7_SetOriEncryptCtx(), 0);
+
 
     test_wc_i2d_PKCS12();
 
