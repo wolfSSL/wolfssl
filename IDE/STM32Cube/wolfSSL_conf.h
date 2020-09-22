@@ -1,4 +1,4 @@
-/* wolfSSL.wolfSSL_conf.h
+/* wolfSSL_conf.h (example of generated wolfSSL.wolfSSL_conf.h)
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *
@@ -19,11 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* STM32 Cube Configuration File 
+/* STM32 Cube Sample Configuration File 
+ * Generated automatically using `default_conf.ftl` template
+ *
  * Included automatically when USE_HAL_DRIVER is defined 
  * (and not WOLFSSL_USER_SETTINGS or HAVE_CONF_H).
- * 
- * Generated automatically using `default_conf.ftl` template
  */
 
 #ifndef __WOLFSSL_WOLFSSL_CONF_H__
