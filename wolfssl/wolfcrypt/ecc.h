@@ -352,10 +352,11 @@ typedef struct {
 
 /* ECC Flags */
 enum {
-    WC_ECC_FLAG_NONE = 0x00,
+    WC_ECC_FLAG_NONE     = 0x00,
 #ifdef HAVE_ECC_CDH
     WC_ECC_FLAG_COFACTOR = 0x01,
 #endif
+    WC_ECC_FLAG_DEC_SIGN = 0x02,
 };
 
 /* ECC non-blocking */
@@ -476,6 +477,9 @@ WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
+WOLFSSL_API
+int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
+                        int flags);
 WOLFSSL_API
 int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
 WOLFSSL_API
