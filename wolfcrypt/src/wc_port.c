@@ -75,6 +75,10 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#ifdef WOLFSSL_IMXRT_DCP
+    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -109,7 +113,6 @@ static volatile int initRefCount = 0;
 int wolfCrypt_Init(void)
 {
     int ret = 0;
-
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
 
@@ -260,6 +263,12 @@ int wolfCrypt_Init(void)
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6_CAAM_BLOB)
         if ((ret = wc_caamInit()) != 0) {
+            return ret;
+        }
+#endif
+
+#ifdef WOLFSSL_IMXRT_DCP
+        if ((ret = wc_dcp_init()) != 0) {
             return ret;
         }
 #endif

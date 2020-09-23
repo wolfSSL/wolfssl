@@ -49,23 +49,9 @@
 #include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
-static int dcp_is_initialized = 0;
-
 #ifndef SINGLE_THREADED
-static wolfSSL_Mutex dcp_mutex;
-static void dcp_lock(void)
-{
-    if (!dcp_is_initialized)
-        return;
-    wc_LockMutex(&dcp_mutex);
-}
-
-static void dcp_unlock(void)
-{
-    if (!dcp_is_initialized)
-        return;
-    wc_UnLockMutex(&dcp_mutex);
-}
+#define dcp_lock() wolfSSL_CryptHwMutexLock()
+#define dcp_unlock() wolfSSL_CryptHwMutexLock()
 #else
 #define dcp_lock() do{}while(0)
 #define dcp_unlock() do{}while(0)
@@ -85,7 +71,6 @@ typedef enum _dcp_otp_key_select
 static status_t DCP_OTPKeySelect(dcp_otp_key_select keySelect)
 {
     status_t retval = kStatus_Success;
-    dcp_lock();
     if (keySelect == kDCP_OTPMKKeyLow)
     {
         IOMUXC_GPR->GPR3 &= ~(1 << IOMUXC_GPR_GPR3_DCP_KEY_SEL_SHIFT);
@@ -114,7 +99,6 @@ static status_t DCP_OTPKeySelect(dcp_otp_key_select keySelect)
     {
         retval = kStatus_InvalidArgument;
     }
-    dcp_unlock();
     return retval;
 }
 #endif
@@ -125,7 +109,10 @@ static const int dcp_channels[4] = {
     kDCP_Channel2,
     kDCP_Channel3
 };
+
+#ifndef SINGLE_THREADED
 static int dcp_status[4] = {0, 0, 0, 0};
+#endif
 
 static int dcp_get_channel(void)
 {
@@ -133,54 +120,74 @@ static int dcp_get_channel(void)
     return dcp_channels[0];
 #else
     int i;
+    int ret = 0;
+    dcp_lock();
     for (i = 0; i < 4; i++) {
         if (dcp_status[i] == 0) {
             dcp_status[i]++;
-            return dcp_channels[i];
+            ret = dcp_channels[i];
         }
     }
-    return 0;
+    dcp_unlock();
+    return ret;
 #endif
 }
 
-
-static int dcp_init(void)
+static int dcp_key_slot(int ch)
 {
-    int ch = dcp_get_channel();
-    if (!ch) {
-        return 0;
-    }
-    if (!dcp_is_initialized) {
-        dcp_config_t dcpConfig;
-#ifndef SINGLE_THREADED
-        /* Initialize and lock mutex */
-        wc_InitMutex(&dcp_mutex);
-        dcp_lock();
-#endif
-        DCP_GetDefaultConfig(&dcpConfig);
-        /* Initialize DCP */
-        /* Reset and initialize DCP */
-        DCP_Init(DCP, &dcpConfig);
+    int ret = -1;
+
 #if DCP_USE_OTP_KEY
-        /* Set OTP key type in IOMUX registers before initializing DCP. */
-        /* Software reset of DCP must be issued after changing the OTP key type. */
-        DCP_OTPKeySelect(kDCP_OTPMKKeyLow);
+    return kDCP_OtpKey;
 #endif
-        dcp_is_initialized++;
-        /* Release mutex */
-        dcp_unlock();
+
+#ifndef SINGLE_THREADED
+    int i;
+    dcp_lock();
+    for (i = 0; i < 4; i++) {
+        if (ch == dcp_channels[i]) {
+            ret = i;
+            break;
+        }
     }
-    return ch;
+    dcp_unlock();
+#else
+    ret = 0;
+#endif
+    return ret;
 }
 
-static void dcp_fini(int ch)
+
+int wc_dcp_init(void)
 {
-#ifdef SINGLE_THREADED
+    dcp_config_t dcpConfig;
+    dcp_lock();
+    DCP_GetDefaultConfig(&dcpConfig);
+
+    /* Reset and initialize DCP */
+    DCP_Init(DCP, &dcpConfig);
+#if DCP_USE_OTP_KEY
+    /* Set OTP key type in IOMUX registers before initializing DCP. */
+    /* Software reset of DCP must be issued after changing the OTP key type. */
+    DCP_OTPKeySelect(kDCP_OTPMKKeyLow);
+#endif
+    /* Release mutex */
+    dcp_unlock();
+    return 0;
+}
+
+static void dcp_free(int ch)
+{
+#ifndef SINGLE_THREADED
     int i;
+    dcp_lock();
     for (i = 0; i < 4; i++) {
-        if (ch == dcp_channels[i])
+        if (ch == dcp_channels[i]) {
             dcp_status[i] = 0;
+            break;
+        }
     }
+    dcp_unlock();
 #endif
 }
 
@@ -191,15 +198,19 @@ int DCPAesInit(Aes *aes)
     int ch;
     if (!aes)
         return BAD_FUNC_ARG;
-    ch = dcp_init();
+    ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
-    dcp_lock();
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
-    aes->handle.channel    = ch;
+    aes->handle.channel = ch;
+    aes->handle.keySlot = dcp_key_slot(aes->handle.channel);
     aes->handle.swapConfig = kDCP_NoSwap;
-    dcp_unlock();
     return 0;
+}
+
+void DCPAesFree(Aes *aes)
+{
+    dcp_free(aes->handle.channel);
 }
 
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
@@ -215,16 +226,10 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
 
     if (len != 16)
         return BAD_FUNC_ARG;
-
-    if (aes->handle.channel == 0)
+    if (aes->handle.channel == 0) {
         return BAD_FUNC_ARG;
-
+    }
     dcp_lock();
-#if DCP_USE_OTP_KEY
-    aes->handle.keySlot = kDCP_OtpKey;
-#else
-    aes->handle.keySlot = kDCP_KeySlot0;
-#endif
     status = DCP_AES_SetKey(DCP, &aes->handle, key, 16);
     if (status != kStatus_Success)
         status = WC_HW_E;
@@ -270,12 +275,28 @@ int  DCPAesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
 int  DCPAesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return DCP_AES_EncryptEcb(DCP, &aes->handle, in, out, sz);
+    int ret;
+    if (sz % 16)
+        return BAD_FUNC_ARG;
+    dcp_lock();
+    ret = DCP_AES_EncryptEcb(DCP, &aes->handle, in, out, sz);
+    if (ret)
+        ret = WC_HW_E;
+    dcp_unlock();
+    return ret;
 }
 
 int  DCPAesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    return DCP_AES_DecryptEcb(DCP, &aes->handle, in, out, sz);
+    int ret;
+    if (sz % 16)
+        return BAD_FUNC_ARG;
+    dcp_lock();
+    ret = DCP_AES_DecryptEcb(DCP, &aes->handle, in, out, sz);
+    if (ret)
+        ret = WC_HW_E;
+    dcp_unlock();
+    return ret;
 }
 
 #endif
@@ -285,21 +306,25 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
     int ret;
     int ch;
+    int keyslot;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
-    ch = dcp_init();
+    ch = dcp_get_channel();
     if (ch == 0)
         return WC_PENDING_E;
+    keyslot = dcp_key_slot(ch);
+
     dcp_lock();
     (void)devId;
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
     sha256->handle.channel    = ch;
-    sha256->handle.keySlot    = kDCP_KeySlot0;
+    sha256->handle.keySlot    = keyslot;
     sha256->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
     if (ret != kStatus_Success)
         ret = WC_HW_E;
     dcp_unlock();
+
     return ret;
 }
 
@@ -311,7 +336,7 @@ int wc_InitSha256(wc_Sha256* sha256)
 void DCPSha256Free(wc_Sha256* sha256)
 {
     if (sha256)
-        dcp_fini(sha256->handle.channel);
+        dcp_free(sha256->handle.channel);
 }
 
 int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
@@ -327,7 +352,6 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     dcp_unlock();
     return ret;
 }
-
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 {
@@ -357,9 +381,6 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     if ((ret != kStatus_Success) || (outlen != SHA256_DIGEST_SIZE))
         ret = WC_HW_E;
     else {
-        sha256->handle.channel    = kDCP_Channel1;
-        sha256->handle.keySlot    = kDCP_KeySlot0;
-        sha256->handle.swapConfig = kDCP_NoSwap;
         ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
         if (ret < 0)
             ret = WC_HW_E;
@@ -403,14 +424,18 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 {
     int ret;
     int ch;
+    int keyslot;
     if (sha == NULL)
         return BAD_FUNC_ARG;
-    ch = dcp_init();
+    ch = dcp_get_channel();
+    if (ch == 0)
+        return WC_PENDING_E;
+    keyslot = dcp_key_slot(ch);
     dcp_lock();
     (void)devId;
     XMEMSET(sha, 0, sizeof(wc_Sha));
     sha->handle.channel    = ch;
-    sha->handle.keySlot    = kDCP_KeySlot0;
+    sha->handle.keySlot    = keyslot;
     sha->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
     if (ret != kStatus_Success)
@@ -427,7 +452,7 @@ int wc_InitSha(wc_Sha* sha)
 void DCPShaFree(wc_Sha* sha)
 {
     if (sha)
-        dcp_fini(sha->handle.channel);
+        dcp_free(sha->handle.channel);
 }
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
@@ -470,12 +495,9 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     size_t outlen = WC_SHA_DIGEST_SIZE;
     dcp_lock();
     ret = DCP_HASH_Finish(DCP, &sha->ctx, hash, &outlen);
-    if ((ret != kStatus_Success) || (outlen != SHA_DIGEST_SIZE))
+    if ((ret != kStatus_Success) || (outlen != SHA_DIGEST_SIZE)) {
         ret = WC_HW_E;
-    else {
-        sha->handle.channel    = kDCP_Channel1;
-        sha->handle.keySlot    = kDCP_KeySlot0;
-        sha->handle.swapConfig = kDCP_NoSwap;
+    } else {
         ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
         if (ret < 0)
             ret = WC_HW_E;
