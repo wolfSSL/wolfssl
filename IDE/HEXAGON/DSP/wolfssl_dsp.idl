@@ -7,7 +7,8 @@
 interface wolfSSL: remote_handle64{
 
 	/* ecc operations */
-	long DSP_ECC_Verify_256(inrout sequence<int32>  hash, inrout sequence<int32> pX, inrout sequence<int32> pY,
-		inrout sequence<int32> pZ, inrout sequence<int32> r, inrout sequence<int32> sm, inrout long res);
+    long DSP_ECC_Verify(in sequence<uint8>  hash, inrout sequence<uint8> x963,
+            inrout sequence<uint8> rdsp, inrout sequence<uint8> sdsp,
+            in long curveId, inrout long res, inrout sequence<uint8> cache);
 };
 #endif

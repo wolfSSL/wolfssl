@@ -23382,7 +23382,15 @@ static int sp_256_ecc_mulmod_stripe_9(sp_point_256* r, const sp_point_256* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_256 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_256_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[9];
@@ -23397,37 +23405,130 @@ typedef struct sp_cache_256_t {
 } sp_cache_256_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_256_t sp_cache_256[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_256_last = -1;
+static THREAD_LS_T sp_cache_256_t sp_cache_256[SP_ENTRIES];
+#else
+struct sp_cache_256_t {
+    sp_digit x[9];
+    sp_digit y[9];
+    sp_table_entry_256 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_256_t *sp_cache_256 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_256()
+{
+    return sizeof(sp_cache_256_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_256(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_256() * sp_cache_entries_256) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_256 = (sp_cache_256_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_256(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_256 = 0;
+    }
+    else {
+        sp_cache_entries_256 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_256_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_256 = 0;
     static wolfSSL_Mutex sp_cache_256_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_256_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+static int sp_ecc_get_cache_256_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_256_last + 1) % sp_cache_entries_256;
+    for (; i != sp_cache_256_last; i=(i+1)%sp_cache_entries_256) {
+        if (!sp_cache_256[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_256_last) {
+        least = sp_cache_256[0].cnt;
+        for (j=1; j<sp_cache_entries_256; j++) {
+            if (sp_cache_256[j].cnt < least) {
+                i = j;
+                least = sp_cache_256[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_256) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_256 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_256_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_256; i++) {
             sp_cache_256[i].set = 0;
         }
         sp_cache_256_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_256; i++) {
         if (!sp_cache_256[i].set)
             continue;
 
@@ -23439,37 +23540,45 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_256_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_256_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_256[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_256) {
+        i = sp_ecc_get_cache_256_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
+            XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
+            sp_cache_256[i].set = 1;
+            sp_cache_256[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_256_last) {
-            least = sp_cache_256[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_256[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_256[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
-        XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
-        sp_cache_256[i].set = 1;
-        sp_cache_256[i].cnt = 1;
     }
 
-    *cache = &sp_cache_256[i];
-    sp_cache_256_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_256[i];
+        sp_cache_256_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
+#ifdef FP_ECC_CONTROL
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * cache cache entry to use
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, sp_cache_256_t* cache, void* heap)
+{
+    if (cache == NULL)
+        return sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+    return sp_256_ecc_mulmod_stripe_9(r, g, cache->table, k, map, ct, heap);
+}
+#else
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -23487,40 +23596,47 @@ static int sp_256_ecc_mulmod_9(sp_point_256* r, const sp_point_256* g, const sp_
 #ifndef FP_ECC
     return sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 9 * 5];
-    sp_cache_256_t* cache;
     int err = MP_OKAY;
 
-#ifndef HAVE_THREAD_LS
+    sp_digit tmp[2 * 9 * 5];
+    sp_cache_256_t* cache = NULL;
+
+    #ifndef HAVE_THREAD_LS
     if (initCacheMutex_256 == 0) {
          wc_InitMutex(&sp_cache_256_lock);
          initCacheMutex_256 = 1;
     }
     if (wc_LockMutex(&sp_cache_256_lock) != 0)
        err = BAD_MUTEX_E;
-#endif /* HAVE_THREAD_LS */
+    #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
-            sp_256_gen_stripe_table_9(g, cache->table, tmp, heap);
-
-#ifndef HAVE_THREAD_LS
-        wc_UnLockMutex(&sp_cache_256_lock);
-#endif /* HAVE_THREAD_LS */
-
-        if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
         }
-        else {
-            err = sp_256_ecc_mulmod_stripe_9(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL && cache->cnt == 2)
+            sp_256_gen_stripe_table_9(g, cache->table, tmp, heap);
+    #ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_256_lock);
+    #endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_win_add_sub_9(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_9(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
     return err;
 #endif
 }
+#endif
 
 #endif
 /* Multiply the point by the scalar and return the result.
@@ -23562,7 +23678,11 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_256_from_mp(k, 9, km);
         sp_256_point_from_ecc_point_9(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_9(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_9(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_256_point_to_ecc_point_9(point, r);
@@ -23594,7 +23714,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256* point = NULL;    
+    sp_point_256* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_256 point[2];
@@ -23636,7 +23756,11 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
         err = sp_256_mod_mul_norm_9(addP->z, addP->z, p256_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_9(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_256_ecc_mulmod_9(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_256_ecc_mulmod_9(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_256_proj_point_add_9(point, point, addP, tmp);
@@ -25229,7 +25353,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_256* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -25237,7 +25361,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -25262,7 +25386,11 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_9(infinity, point, p256_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_9(infinity, point, p256_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_9(infinity, point, p256_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_256_iszero_9(point->x) || sp_256_iszero_9(point->y)) {
@@ -25381,7 +25509,11 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 9, priv);
         sp_256_point_from_ecc_point_9(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_9(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_9(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_256_to_bin_9(point->x, out);
@@ -25399,6 +25531,10 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
 }
 #endif /* HAVE_ECC_DHE */
 
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
@@ -26359,7 +26495,7 @@ static void sp_256_add_points_9(sp_point_256* p1, const sp_point_256* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_calc_vfy_point_9(sp_point_256* p1, sp_point_256* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_256_t* cache, void* heap)
 {
     int err;
 
@@ -26384,7 +26520,7 @@ static int sp_256_calc_vfy_point_9(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_9(u1, u1, s);
             sp_256_mont_mul_order_9(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_256_ecc_mulmod_base_9(p1, u1, 0, 0, heap);
         }
@@ -26393,7 +26529,11 @@ static int sp_256_calc_vfy_point_9(sp_point_256* p1, sp_point_256* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_9(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_256_ecc_mulmod_9(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_256_iszero_9(p2->z)) {
         p2->infinity = 1;
@@ -26403,6 +26543,7 @@ static int sp_256_calc_vfy_point_9(sp_point_256* p1, sp_point_256* p2,
         sp_256_add_points_9(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -26576,9 +26717,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_256_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_256_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -26627,7 +26768,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_256_from_mp(p2->y, 9, pY);
         sp_256_from_mp(p2->z, 9, pZ);
 
-        err = sp_256_calc_vfy_point_9(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_256_calc_vfy_point_9(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -26639,7 +26780,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_256_mont_sqr_9(p1->z, p1->z, p256_mod, p256_mp_mod);
-            sp_256_mont_mul_9(u1, u2, p1->z, p256_mod, p256_mp_mod);
+        sp_256_mont_mul_9(u1, u2, p1->z, p256_mod, p256_mp_mod);
         *res = (int)(sp_256_cmp_9(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -26675,6 +26816,25 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+    return sp_ecc_verify_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -26706,15 +26866,16 @@ static int sp_256_ecc_is_point_9(const sp_point_256* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 9;
 
+        /* y^2 - x^3 - a.x = b */
         sp_256_sqr_9(t1, point->y);
         (void)sp_256_mod_9(t1, t1, p256_mod);
         sp_256_sqr_9(t2, point->x);
         (void)sp_256_mod_9(t2, t2, p256_mod);
         sp_256_mul_9(t2, t2, point->x);
         (void)sp_256_mod_9(t2, t2, p256_mod);
-        (void)sp_256_sub_9(t2, p256_mod, t2);
-        sp_256_mont_add_9(t1, t1, t2, p256_mod);
+        sp_256_mont_sub_9(t1, t1, t2, p256_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
         sp_256_mont_add_9(t1, t1, point->x, p256_mod);
@@ -26852,7 +27013,11 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_9(p, pub, p256_order, 1, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_9(p, pub, p256_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_256_iszero_9(p->x) == 0) ||
@@ -27047,7 +27212,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_256* p = NULL;
 #else
-    sp_digit tmp[2 * 9 * 4];
+    sp_digit tmp[2 * 9 * 5];
     sp_point_256 p[1];
 #endif
     int err = MP_OKAY;
@@ -27061,7 +27226,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 4, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -29333,24 +29498,24 @@ static void sp_384_proj_point_add_15(sp_point_384* r,
 static int sp_384_mod_mul_norm_15(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    int64_t* t = NULL;
+int64_t* t = NULL;
 #else
-    int64_t t[2 * 12];
+int64_t t[2 * 12];
 #endif
-    int64_t* a32 = NULL;
-    int64_t o;
-    int err = MP_OKAY;
+int64_t* a32 = NULL;
+int64_t o;
+int err = MP_OKAY;
 
-    (void)m;
+(void)m;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (int64_t*)XMALLOC(sizeof(int64_t) * 2 * 12, NULL, DYNAMIC_TYPE_ECC);
-    if (t == NULL)
-        err = MEMORY_E;
+t = (int64_t*)XMALLOC(sizeof(int64_t) * 2 * 12, NULL, DYNAMIC_TYPE_ECC);
+if (t == NULL)
+    err = MEMORY_E;
 #endif
 
-    if (err == MP_OKAY) {
-        a32 = t + 12;
+if (err == MP_OKAY) {
+    a32 = t + 12;
 
         a32[0] = a[0];
         a32[0] |= a[1] << 26U;
@@ -29481,14 +29646,14 @@ static int sp_384_mod_mul_norm_15(sp_digit* r, const sp_digit* a, const sp_digit
         r[13] |= (sp_digit)(t[11] << 14U);
         r[13] &= 0x3ffffffL;
         r[14] = (sp_digit)(t[11] >> 12U);
-    }
+}
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL)
-        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+if (t != NULL)
+    XFREE(t, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
-    return err;
+return err;
 }
 
 #ifdef WOLFSSL_SP_SMALL
@@ -29516,7 +29681,7 @@ typedef struct sp_384_ecc_mulmod_15_ctx {
         sp_384_proj_point_add_15_ctx add_ctx;
     };
     sp_point_384 t[3];
-    sp_digit tmp[2 * 15 * 6];
+    sp_digit tmp[2 * 15 * 7];
     sp_digit n;
     int i;
     int c;
@@ -29630,7 +29795,7 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
     sp_digit* tmp = NULL;
 #else
     sp_point_384 t[3];
-    sp_digit tmp[2 * 15 * 6];
+    sp_digit tmp[2 * 15 * 7];
 #endif
     sp_digit n;
     int i;
@@ -29648,7 +29813,7 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
     if (t == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 6, heap,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 7, heap,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -29707,7 +29872,7 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g,
     if (tmp != NULL)
 #endif
     {
-        ForceZero(tmp, sizeof(sp_digit) * 2 * 15 * 6);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 15 * 7);
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     #endif
@@ -30231,7 +30396,7 @@ static int sp_384_ecc_mulmod_win_add_sub_15(sp_point_384* r, const sp_point_384*
     sp_digit* tmp = NULL;
 #else
     sp_point_384 t[33+2];
-    sp_digit tmp[2 * 15 * 6];
+    sp_digit tmp[2 * 15 * 7];
 #endif
     sp_point_384* rt = NULL;
     sp_point_384* p = NULL;
@@ -30250,7 +30415,7 @@ static int sp_384_ecc_mulmod_win_add_sub_15(sp_point_384* r, const sp_point_384*
     if (t == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 6,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 7,
                                  heap, DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -30651,7 +30816,7 @@ static int sp_384_ecc_mulmod_stripe_15(sp_point_384* r, const sp_point_384* g,
     sp_digit* t = NULL;
 #else
     sp_point_384 rt[2];
-    sp_digit t[2 * 15 * 6];
+    sp_digit t[2 * 15 * 7];
 #endif
     sp_point_384* p = NULL;
     int i;
@@ -30672,7 +30837,7 @@ static int sp_384_ecc_mulmod_stripe_15(sp_point_384* r, const sp_point_384* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 6, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 7, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -30747,7 +30912,15 @@ static int sp_384_ecc_mulmod_stripe_15(sp_point_384* r, const sp_point_384* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_384 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_384_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[15];
@@ -30762,37 +30935,130 @@ typedef struct sp_cache_384_t {
 } sp_cache_384_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_384_t sp_cache_384[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_384_last = -1;
+static THREAD_LS_T sp_cache_384_t sp_cache_384[SP_ENTRIES];
+#else
+struct sp_cache_384_t {
+    sp_digit x[15];
+    sp_digit y[15];
+    sp_table_entry_384 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_384_t *sp_cache_384 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_384()
+{
+    return sizeof(sp_cache_384_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_384(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_384() * sp_cache_entries_384) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_384 = (sp_cache_384_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_384(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_384 = 0;
+    }
+    else {
+        sp_cache_entries_384 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_384_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_384 = 0;
     static wolfSSL_Mutex sp_cache_384_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_384_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+static int sp_ecc_get_cache_384_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_384_last + 1) % sp_cache_entries_384;
+    for (; i != sp_cache_384_last; i=(i+1)%sp_cache_entries_384) {
+        if (!sp_cache_384[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_384_last) {
+        least = sp_cache_384[0].cnt;
+        for (j=1; j<sp_cache_entries_384; j++) {
+            if (sp_cache_384[j].cnt < least) {
+                i = j;
+                least = sp_cache_384[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_384) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_384 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_384_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_384; i++) {
             sp_cache_384[i].set = 0;
         }
         sp_cache_384_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_384; i++) {
         if (!sp_cache_384[i].set)
             continue;
 
@@ -30804,37 +31070,45 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_384_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_384_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_384[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_384) {
+        i = sp_ecc_get_cache_384_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
+            XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
+            sp_cache_384[i].set = 1;
+            sp_cache_384[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_384_last) {
-            least = sp_cache_384[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_384[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_384[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
-        XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
-        sp_cache_384[i].set = 1;
-        sp_cache_384[i].cnt = 1;
     }
 
-    *cache = &sp_cache_384[i];
-    sp_cache_384_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_384[i];
+        sp_cache_384_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
+#ifdef FP_ECC_CONTROL
+/* Multiply the base point of P384 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * cache cache entry to use
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
+        int map, int ct, sp_cache_384_t* cache, void* heap)
+{
+    if (cache == NULL)
+        return sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
+    return sp_384_ecc_mulmod_stripe_15(r, g, cache->table, k, map, ct, heap);
+}
+#else
 /* Multiply the base point of P384 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -30852,40 +31126,47 @@ static int sp_384_ecc_mulmod_15(sp_point_384* r, const sp_point_384* g, const sp
 #ifndef FP_ECC
     return sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 15 * 7];
-    sp_cache_384_t* cache;
     int err = MP_OKAY;
 
-#ifndef HAVE_THREAD_LS
+    sp_digit tmp[2 * 15 * 7];
+    sp_cache_384_t* cache = NULL;
+
+    #ifndef HAVE_THREAD_LS
     if (initCacheMutex_384 == 0) {
          wc_InitMutex(&sp_cache_384_lock);
          initCacheMutex_384 = 1;
     }
     if (wc_LockMutex(&sp_cache_384_lock) != 0)
        err = BAD_MUTEX_E;
-#endif /* HAVE_THREAD_LS */
+    #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
-            sp_384_gen_stripe_table_15(g, cache->table, tmp, heap);
-
-#ifndef HAVE_THREAD_LS
-        wc_UnLockMutex(&sp_cache_384_lock);
-#endif /* HAVE_THREAD_LS */
-
-        if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
+        if (cache == NULL) {
+            sp_ecc_get_cache_384(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
         }
-        else {
-            err = sp_384_ecc_mulmod_stripe_15(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL && cache->cnt == 2)
+            sp_384_gen_stripe_table_15(g, cache->table, tmp, heap);
+    #ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_384_lock);
+    #endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_384_ecc_mulmod_win_add_sub_15(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_384_ecc_mulmod_stripe_15(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
     return err;
 #endif
 }
+#endif
 
 #endif
 /* Multiply the point by the scalar and return the result.
@@ -30927,7 +31208,11 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_384_from_mp(k, 15, km);
         sp_384_point_from_ecc_point_15(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_15(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_15(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_384_point_to_ecc_point_15(point, r);
@@ -30959,11 +31244,11 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384* point = NULL;    
+    sp_point_384* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_384 point[2];
-    sp_digit k[15 + 15 * 2 * 6];
+    sp_digit k[15 + 15 * 2 * 7];
 #endif
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
@@ -30976,7 +31261,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (15 + 15 * 2 * 6), heap,
+            sizeof(sp_digit) * (15 + 15 * 2 * 7), heap,
             DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -31001,7 +31286,11 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = sp_384_mod_mul_norm_15(addP->z, addP->z, p384_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_15(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_384_ecc_mulmod_15(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_384_ecc_mulmod_15(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_384_proj_point_add_15(point, point, addP, tmp);
@@ -32933,7 +33222,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
     sp_digit* k = NULL;
 #else
     sp_point_384 point[2];
-    sp_digit k[15 + 15 * 2 * 6];
+    sp_digit k[15 + 15 * 2 * 7];
 #endif
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
@@ -32946,7 +33235,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (15 + 15 * 2 * 6),
+            sizeof(sp_digit) * (15 + 15 * 2 * 7),
             heap, DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -33106,7 +33395,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_384* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -33114,7 +33403,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -33139,7 +33428,11 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_15(infinity, point, p384_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_15(infinity, point, p384_order, 1, 1, NULL, heap);
+#else
+            err = sp_384_ecc_mulmod_15(infinity, point, p384_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_384_iszero_15(point->x) || sp_384_iszero_15(point->y)) {
@@ -33258,7 +33551,11 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 15, priv);
         sp_384_point_from_ecc_point_15(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_15(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_15(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_384_to_bin_15(point->x, out);
@@ -33276,6 +33573,10 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
 }
 #endif /* HAVE_ECC_DHE */
 
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
@@ -33630,7 +33931,6 @@ static int sp_384_mont_inv_order_15_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const 
     return err;
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
-
 static void sp_384_mont_inv_order_15(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -33694,7 +33994,6 @@ static void sp_384_mont_inv_order_15(sp_digit* r, const sp_digit* a,
     sp_384_mont_mul_order_15(r, t2, a);
 #endif /* WOLFSSL_SP_SMALL */
 }
-
 #endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
@@ -34255,7 +34554,7 @@ static void sp_384_add_points_15(sp_point_384* p1, const sp_point_384* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_calc_vfy_point_15(sp_point_384* p1, sp_point_384* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_384_t* cache, void* heap)
 {
     int err;
 
@@ -34280,7 +34579,7 @@ static int sp_384_calc_vfy_point_15(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_15(u1, u1, s);
             sp_384_mont_mul_order_15(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_384_ecc_mulmod_base_15(p1, u1, 0, 0, heap);
         }
@@ -34289,7 +34588,11 @@ static int sp_384_calc_vfy_point_15(sp_point_384* p1, sp_point_384* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_15(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_384_ecc_mulmod_15(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_384_iszero_15(p2->z)) {
         p2->infinity = 1;
@@ -34299,6 +34602,7 @@ static int sp_384_calc_vfy_point_15(sp_point_384* p1, sp_point_384* p2,
         sp_384_add_points_15(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -34472,9 +34776,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_384_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_384_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -34523,7 +34827,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_384_from_mp(p2->y, 15, pY);
         sp_384_from_mp(p2->z, 15, pZ);
 
-        err = sp_384_calc_vfy_point_15(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_384_calc_vfy_point_15(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -34535,7 +34839,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_384_mont_sqr_15(p1->z, p1->z, p384_mod, p384_mp_mod);
-            sp_384_mont_mul_15(u1, u2, p1->z, p384_mod, p384_mp_mod);
+        sp_384_mont_mul_15(u1, u2, p1->z, p384_mod, p384_mp_mod);
         *res = (int)(sp_384_cmp_15(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -34571,6 +34875,25 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_384_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_384_t* cache, void* heap)
+{
+    return sp_ecc_verify_384_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -34602,15 +34925,16 @@ static int sp_384_ecc_is_point_15(const sp_point_384* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 15;
 
+        /* y^2 - x^3 - a.x = b */
         sp_384_sqr_15(t1, point->y);
         (void)sp_384_mod_15(t1, t1, p384_mod);
         sp_384_sqr_15(t2, point->x);
         (void)sp_384_mod_15(t2, t2, p384_mod);
         sp_384_mul_15(t2, t2, point->x);
         (void)sp_384_mod_15(t2, t2, p384_mod);
-        (void)sp_384_sub_15(t2, p384_mod, t2);
-        sp_384_mont_add_15(t1, t1, t2, p384_mod);
+        sp_384_mont_sub_15(t1, t1, t2, p384_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
         sp_384_mont_add_15(t1, t1, point->x, p384_mod);
@@ -34748,7 +35072,11 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_15(p, pub, p384_order, 1, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_15(p, pub, p384_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_384_iszero_15(p->x) == 0) ||
@@ -34943,7 +35271,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_384* p = NULL;
 #else
-    sp_digit tmp[2 * 15 * 6];
+    sp_digit tmp[2 * 15 * 7];
     sp_point_384 p[1];
 #endif
     int err = MP_OKAY;
@@ -34957,7 +35285,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 6, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 15 * 7, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -36869,7 +37197,7 @@ typedef struct sp_521_ecc_mulmod_21_ctx {
         sp_521_proj_point_add_21_ctx add_ctx;
     };
     sp_point_521 t[3];
-    sp_digit tmp[2 * 21 * 5];
+    sp_digit tmp[2 * 21 * 6];
     sp_digit n;
     int i;
     int c;
@@ -36983,7 +37311,7 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
     sp_digit* tmp = NULL;
 #else
     sp_point_521 t[3];
-    sp_digit tmp[2 * 21 * 5];
+    sp_digit tmp[2 * 21 * 6];
 #endif
     sp_digit n;
     int i;
@@ -37001,7 +37329,7 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
     if (t == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 5, heap,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 6, heap,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -37060,7 +37388,7 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g,
     if (tmp != NULL)
 #endif
     {
-        ForceZero(tmp, sizeof(sp_digit) * 2 * 21 * 5);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 21 * 6);
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     #endif
@@ -38076,7 +38404,7 @@ static int sp_521_ecc_mulmod_stripe_21(sp_point_521* r, const sp_point_521* g,
     sp_digit* t = NULL;
 #else
     sp_point_521 rt[2];
-    sp_digit t[2 * 21 * 5];
+    sp_digit t[2 * 21 * 6];
 #endif
     sp_point_521* p = NULL;
     int i;
@@ -38097,7 +38425,7 @@ static int sp_521_ecc_mulmod_stripe_21(sp_point_521* r, const sp_point_521* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 5, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 6, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -38172,7 +38500,15 @@ static int sp_521_ecc_mulmod_stripe_21(sp_point_521* r, const sp_point_521* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_521 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_521_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[21];
@@ -38187,37 +38523,130 @@ typedef struct sp_cache_521_t {
 } sp_cache_521_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_521_t sp_cache_521[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_521_last = -1;
+static THREAD_LS_T sp_cache_521_t sp_cache_521[SP_ENTRIES];
+#else
+struct sp_cache_521_t {
+    sp_digit x[21];
+    sp_digit y[21];
+    sp_table_entry_521 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_521_t *sp_cache_521 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_521()
+{
+    return sizeof(sp_cache_521_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_521(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_521() * sp_cache_entries_521) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_521 = (sp_cache_521_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_521(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_521 = 0;
+    }
+    else {
+        sp_cache_entries_521 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_521_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_521 = 0;
     static wolfSSL_Mutex sp_cache_521_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_521_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+static int sp_ecc_get_cache_521_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_521_last + 1) % sp_cache_entries_521;
+    for (; i != sp_cache_521_last; i=(i+1)%sp_cache_entries_521) {
+        if (!sp_cache_521[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_521_last) {
+        least = sp_cache_521[0].cnt;
+        for (j=1; j<sp_cache_entries_521; j++) {
+            if (sp_cache_521[j].cnt < least) {
+                i = j;
+                least = sp_cache_521[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_521) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_521 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_521_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_521; i++) {
             sp_cache_521[i].set = 0;
         }
         sp_cache_521_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_521; i++) {
         if (!sp_cache_521[i].set)
             continue;
 
@@ -38229,37 +38658,45 @@ static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_521_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_521_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_521[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_521) {
+        i = sp_ecc_get_cache_521_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
+            XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
+            sp_cache_521[i].set = 1;
+            sp_cache_521[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_521_last) {
-            least = sp_cache_521[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_521[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_521[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
-        XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
-        sp_cache_521[i].set = 1;
-        sp_cache_521[i].cnt = 1;
     }
 
-    *cache = &sp_cache_521[i];
-    sp_cache_521_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_521[i];
+        sp_cache_521_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
+#ifdef FP_ECC_CONTROL
+/* Multiply the base point of P521 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * cache cache entry to use
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g, const sp_digit* k,
+        int map, int ct, sp_cache_521_t* cache, void* heap)
+{
+    if (cache == NULL)
+        return sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
+    return sp_521_ecc_mulmod_stripe_21(r, g, cache->table, k, map, ct, heap);
+}
+#else
 /* Multiply the base point of P521 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -38277,40 +38714,47 @@ static int sp_521_ecc_mulmod_21(sp_point_521* r, const sp_point_521* g, const sp
 #ifndef FP_ECC
     return sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 21 * 6];
-    sp_cache_521_t* cache;
     int err = MP_OKAY;
 
-#ifndef HAVE_THREAD_LS
+    sp_digit tmp[2 * 21 * 6];
+    sp_cache_521_t* cache = NULL;
+
+    #ifndef HAVE_THREAD_LS
     if (initCacheMutex_521 == 0) {
          wc_InitMutex(&sp_cache_521_lock);
          initCacheMutex_521 = 1;
     }
     if (wc_LockMutex(&sp_cache_521_lock) != 0)
        err = BAD_MUTEX_E;
-#endif /* HAVE_THREAD_LS */
+    #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
-            sp_521_gen_stripe_table_21(g, cache->table, tmp, heap);
-
-#ifndef HAVE_THREAD_LS
-        wc_UnLockMutex(&sp_cache_521_lock);
-#endif /* HAVE_THREAD_LS */
-
-        if (cache->cnt < 2) {
-            err = sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
+        if (cache == NULL) {
+            sp_ecc_get_cache_521(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
         }
-        else {
-            err = sp_521_ecc_mulmod_stripe_21(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL && cache->cnt == 2)
+            sp_521_gen_stripe_table_21(g, cache->table, tmp, heap);
+    #ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_521_lock);
+    #endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_521_ecc_mulmod_win_add_sub_21(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_521_ecc_mulmod_stripe_21(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
     return err;
 #endif
 }
+#endif
 
 #endif
 /* Multiply the point by the scalar and return the result.
@@ -38352,7 +38796,11 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_521_from_mp(k, 21, km);
         sp_521_point_from_ecc_point_21(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_21(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_21(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_521_point_to_ecc_point_21(point, r);
@@ -38384,11 +38832,11 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_521* point = NULL;    
+    sp_point_521* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_521 point[2];
-    sp_digit k[21 + 21 * 2 * 5];
+    sp_digit k[21 + 21 * 2 * 6];
 #endif
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
@@ -38401,7 +38849,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (21 + 21 * 2 * 5), heap,
+            sizeof(sp_digit) * (21 + 21 * 2 * 6), heap,
             DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -38426,7 +38874,11 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         err = sp_521_mod_mul_norm_21(addP->z, addP->z, p521_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_21(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_521_ecc_mulmod_21(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_521_ecc_mulmod_21(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_521_proj_point_add_21(point, point, addP, tmp);
@@ -40868,7 +41320,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
     sp_digit* k = NULL;
 #else
     sp_point_521 point[2];
-    sp_digit k[21 + 21 * 2 * 5];
+    sp_digit k[21 + 21 * 2 * 6];
 #endif
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
@@ -40881,7 +41333,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (21 + 21 * 2 * 5),
+            sizeof(sp_digit) * (21 + 21 * 2 * 6),
             heap, DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -41043,7 +41495,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_521* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -41051,7 +41503,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -41076,7 +41528,11 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_21(infinity, point, p521_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_21(infinity, point, p521_order, 1, 1, NULL, heap);
+#else
+            err = sp_521_ecc_mulmod_21(infinity, point, p521_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_521_iszero_21(point->x) || sp_521_iszero_21(point->y)) {
@@ -41195,7 +41651,11 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_521_from_mp(k, 21, priv);
         sp_521_point_from_ecc_point_21(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_21(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_21(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_521_to_bin_21(point->x, out);
@@ -41242,6 +41702,10 @@ SP_NOINLINE static void sp_521_rshift_21(sp_digit* r, const sp_digit* a,
     r[20] = a[20] >> n;
 }
 
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* Multiply a by scalar b into r. (r = a * b)
@@ -42217,7 +42681,7 @@ static void sp_521_add_points_21(sp_point_521* p1, const sp_point_521* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_521_calc_vfy_point_21(sp_point_521* p1, sp_point_521* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_521_t* cache, void* heap)
 {
     int err;
 
@@ -42242,7 +42706,7 @@ static int sp_521_calc_vfy_point_21(sp_point_521* p1, sp_point_521* p2,
             sp_521_mont_mul_order_21(u1, u1, s);
             sp_521_mont_mul_order_21(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_521_ecc_mulmod_base_21(p1, u1, 0, 0, heap);
         }
@@ -42251,7 +42715,11 @@ static int sp_521_calc_vfy_point_21(sp_point_521* p1, sp_point_521* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_21(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_521_ecc_mulmod_21(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_521_iszero_21(p2->z)) {
         p2->infinity = 1;
@@ -42261,6 +42729,7 @@ static int sp_521_calc_vfy_point_21(sp_point_521* p1, sp_point_521* p2,
         sp_521_add_points_21(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -42438,9 +42907,9 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_521_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_521_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -42494,7 +42963,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
             u1[20] |= ((sp_digit)hash[0]) << 13;
         }
 
-        err = sp_521_calc_vfy_point_21(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_521_calc_vfy_point_21(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -42506,7 +42975,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_521_mont_sqr_21(p1->z, p1->z, p521_mod, p521_mp_mod);
-            sp_521_mont_mul_21(u1, u2, p1->z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_21(u1, u2, p1->z, p521_mod, p521_mp_mod);
         *res = (int)(sp_521_cmp_21(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -42542,6 +43011,25 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_521_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_521_t* cache, void* heap)
+{
+    return sp_ecc_verify_521_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -42573,15 +43061,16 @@ static int sp_521_ecc_is_point_21(const sp_point_521* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 21;
 
+        /* y^2 - x^3 - a.x = b */
         sp_521_sqr_21(t1, point->y);
         (void)sp_521_mod_21(t1, t1, p521_mod);
         sp_521_sqr_21(t2, point->x);
         (void)sp_521_mod_21(t2, t2, p521_mod);
         sp_521_mul_21(t2, t2, point->x);
         (void)sp_521_mod_21(t2, t2, p521_mod);
-        (void)sp_521_sub_21(t2, p521_mod, t2);
-        sp_521_mont_add_21(t1, t1, t2, p521_mod);
+        sp_521_mont_sub_21(t1, t1, t2, p521_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
         sp_521_mont_add_21(t1, t1, point->x, p521_mod);
@@ -42719,7 +43208,11 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_21(p, pub, p521_order, 1, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_21(p, pub, p521_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_521_iszero_21(p->x) == 0) ||
@@ -42914,7 +43407,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_521* p = NULL;
 #else
-    sp_digit tmp[2 * 21 * 5];
+    sp_digit tmp[2 * 21 * 6];
     sp_point_521 p[1];
 #endif
     int err = MP_OKAY;
@@ -42928,7 +43421,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 5, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 21 * 6, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -43000,7 +43493,7 @@ static int sp_521_mont_sqrt_21(sp_digit* y)
             XMEMCPY(t, y, sizeof(sp_digit) * 21);
             for (i=518; i>=0; i--) {
                 sp_521_mont_sqr_21(t, t, p521_mod, p521_mp_mod);
-                if (p521_sqrt_power[i / 32] & ((sp_digit)1 << (i % 32)))
+                if (p521_sqrt_power[i / 25] & ((sp_digit)1 << (i % 25)))
                     sp_521_mont_mul_21(t, t, y, p521_mod, p521_mp_mod);
             }
             XMEMCPY(y, t, sizeof(sp_digit) * 21);
@@ -46519,7 +47012,15 @@ static int sp_1024_ecc_mulmod_stripe_42(sp_point_1024* r, const sp_point_1024* g
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_1024 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_1024_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[42];
@@ -46534,37 +47035,130 @@ typedef struct sp_cache_1024_t {
 } sp_cache_1024_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_1024_t sp_cache_1024[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_1024_last = -1;
+static THREAD_LS_T sp_cache_1024_t sp_cache_1024[SP_ENTRIES];
+#else
+struct sp_cache_1024_t {
+    sp_digit x[42];
+    sp_digit y[42];
+    sp_table_entry_1024 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_1024_t *sp_cache_1024 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_1024()
+{
+    return sizeof(sp_cache_1024_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_1024(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_1024() * sp_cache_entries_1024) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_1024 = (sp_cache_1024_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_1024(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_1024 = 0;
+    }
+    else {
+        sp_cache_entries_1024 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_1024_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_1024 = 0;
     static wolfSSL_Mutex sp_cache_1024_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_1024_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+static int sp_ecc_get_cache_1024_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_1024_last + 1) % sp_cache_entries_1024;
+    for (; i != sp_cache_1024_last; i=(i+1)%sp_cache_entries_1024) {
+        if (!sp_cache_1024[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_1024_last) {
+        least = sp_cache_1024[0].cnt;
+        for (j=1; j<sp_cache_entries_1024; j++) {
+            if (sp_cache_1024[j].cnt < least) {
+                i = j;
+                least = sp_cache_1024[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_1024) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_1024 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_1024_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_1024; i++) {
             sp_cache_1024[i].set = 0;
         }
         sp_cache_1024_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_1024; i++) {
         if (!sp_cache_1024[i].set)
             continue;
 
@@ -46576,37 +47170,45 @@ static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cach
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_1024_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_1024_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_1024[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_1024) {
+        i = sp_ecc_get_cache_1024_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
+            XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
+            sp_cache_1024[i].set = 1;
+            sp_cache_1024[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_1024_last) {
-            least = sp_cache_1024[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_1024[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_1024[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
-        XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
-        sp_cache_1024[i].set = 1;
-        sp_cache_1024[i].cnt = 1;
     }
 
-    *cache = &sp_cache_1024[i];
-    sp_cache_1024_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_1024[i];
+        sp_cache_1024_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
+#ifdef FP_ECC_CONTROL
+/* Multiply the base point of P1024 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * cache cache entry to use
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
+        int map, int ct, sp_cache_1024_t* cache, void* heap)
+{
+    if (cache == NULL)
+        return sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
+    return sp_1024_ecc_mulmod_stripe_42(r, g, cache->table, k, map, ct, heap);
+}
+#else
 /* Multiply the base point of P1024 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -46624,40 +47226,47 @@ static int sp_1024_ecc_mulmod_42(sp_point_1024* r, const sp_point_1024* g, const
 #ifndef FP_ECC
     return sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 42 * 5];
-    sp_cache_1024_t* cache;
     int err = MP_OKAY;
 
-#ifndef HAVE_THREAD_LS
+    sp_digit tmp[2 * 42 * 5];
+    sp_cache_1024_t* cache = NULL;
+
+    #ifndef HAVE_THREAD_LS
     if (initCacheMutex_1024 == 0) {
          wc_InitMutex(&sp_cache_1024_lock);
          initCacheMutex_1024 = 1;
     }
     if (wc_LockMutex(&sp_cache_1024_lock) != 0)
        err = BAD_MUTEX_E;
-#endif /* HAVE_THREAD_LS */
+    #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
-            sp_1024_gen_stripe_table_42(g, cache->table, tmp, heap);
-
-#ifndef HAVE_THREAD_LS
-        wc_UnLockMutex(&sp_cache_1024_lock);
-#endif /* HAVE_THREAD_LS */
-
-        if (cache->cnt < 2) {
-            err = sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
+        if (cache == NULL) {
+            sp_ecc_get_cache_1024(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
         }
-        else {
-            err = sp_1024_ecc_mulmod_stripe_42(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL && cache->cnt == 2)
+            sp_1024_gen_stripe_table_42(g, cache->table, tmp, heap);
+    #ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_1024_lock);
+    #endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_1024_ecc_mulmod_win_add_sub_42(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_1024_ecc_mulmod_stripe_42(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
     return err;
 #endif
 }
+#endif
 
 #endif
 /* Multiply the point by the scalar and return the result.
@@ -46699,7 +47308,11 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_1024_from_mp(k, 42, km);
         sp_1024_point_from_ecc_point_42(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_1024_ecc_mulmod_42(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_1024_ecc_mulmod_42(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_1024_point_to_ecc_point_42(point, r);
@@ -54383,15 +54996,16 @@ static int sp_1024_ecc_is_point_42(const sp_point_1024* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 42;
 
+        /* y^2 - x^3 - a.x = b */
         sp_1024_sqr_42(t1, point->y);
         (void)sp_1024_mod_42(t1, t1, p1024_mod);
         sp_1024_sqr_42(t2, point->x);
         (void)sp_1024_mod_42(t2, t2, p1024_mod);
         sp_1024_mul_42(t2, t2, point->x);
         (void)sp_1024_mod_42(t2, t2, p1024_mod);
-        (void)sp_1024_sub_42(t2, p1024_mod, t2);
-        sp_1024_mont_add_42(t1, t1, t2, p1024_mod);
+        sp_1024_mont_sub_42(t1, t1, t2, p1024_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_42(t1, t1, point->x, p1024_mod);
@@ -54533,7 +55147,11 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_1024_ecc_mulmod_42(p, pub, p1024_order, 1, 1, NULL, heap);
+#else
             err = sp_1024_ecc_mulmod_42(p, pub, p1024_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_1024_iszero_42(p->x) == 0) ||
@@ -54565,6 +55183,5229 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 }
 #endif
 #endif /* WOLFSSL_SP_1024 */
+#ifdef HAVE_ECC_BRAINPOOL
+#ifndef WOLFSSL_SP_NO_256
+
+/* The modulus (prime) of the curve Brainpool P256. */
+static const sp_digit p256_brainpool_mod[9] = {
+    0x1f6e5377,0x009a40e8,0x09880a08,0x17ec47aa,0x18d726e3,0x05484ec1,
+    0x06f0f998,0x1b743dd5,0x00a9fb57
+};
+/* The Montgomery normalizer for modulus of the curve P256. */
+static const sp_digit p256_brainpool_norm_mod[9] = {
+    0x0091ac89,0x1f65bf17,0x1677f5f7,0x0813b855,0x0728d91c,0x1ab7b13e,
+    0x190f0667,0x048bc22a,0x005604a8
+};
+/* The Montgomery multiplier for modulus of the curve P256. */
+static const sp_digit p256_brainpool_mp_mod = 0xefd89b9;
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                            defined(HAVE_ECC_VERIFY)
+/* The order of the curve P256. */
+static const sp_digit p256_brainpool_order[9] = {
+    0x174856a7,0x00f07414,0x1869bde4,0x12f5476a,0x18d718c3,0x05484ec1,
+    0x06f0f998,0x1b743dd5,0x00a9fb57
+};
+#endif
+/* The order of the curve P256 minus 2. */
+static const sp_digit p256_brainpool_order2[9] = {
+    0x174856a5,0x00f07414,0x1869bde4,0x12f5476a,0x18d718c3,0x05484ec1,
+    0x06f0f998,0x1b743dd5,0x00a9fb57
+};
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery normalizer for order of the curve P256. */
+static const sp_digit p256_brainpool_norm_order[9] = {
+    0x08b7a959,0x1f0f8beb,0x0796421b,0x0d0ab895,0x0728e73c,0x1ab7b13e,
+    0x190f0667,0x048bc22a,0x005604a8
+};
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery multiplier for order of the curve P256. */
+static const sp_digit p256_brainpool_mp_order = 0xbb40ee9;
+#endif
+/* The base point of curve P256. */
+static const sp_point_256 p256_brainpool_base = {
+    /* X ordinate */
+    {
+        0x1ace3262,0x12229dec,0x0f48f08e,0x1c4fc3c7,0x1b7afb9d,0x0417fe40,
+        0x1f2cb12d,0x17396fca,0x008bd2ae,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Y ordinate */
+    {
+        0x0f046997,0x00eaa639,0x1b639517,0x0e8a265b,0x11dc9c27,0x030d0a30,
+        0x13f65fe1,0x06b87b58,0x00547ef8,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Z ordinate */
+    {
+        0x00000001,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,0x00000000,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* infinity */
+    0
+};
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static const sp_digit p256_brainpool_b[9] = {
+    0x1f8c07b6,0x1e66e0c7,0x1df8739a,0x082c52b9,0x17cbf958,0x1aecddeb,
+    0x0d13ccc2,0x0d9d2949,0x0026dc5c
+};
+#endif
+#ifdef HAVE_ECC_CHECK_KEY
+static const sp_digit p256_brainpool_a[9] = {
+    0x1330b5d9,0x0a525a27,0x17171b3a,0x00ab824d,0x0ffe7fb8,0x1a9820bd,
+    0x015fbbd9,0x0ebf8586,0x007d5a09
+};
+#endif /* HAVE_ECC_CHECK_KEY */
+#ifndef WOLFSSL_SP_SMALL
+static const sp_digit p256_brainpool_a_mont[9] = {
+    0x09696261,0x0e8c76fb,0x14831935,0x0247e383,0x0556ea68,0x0f2f31cc,
+    0x105e57b0,0x157accd7,0x001e4676
+};
+#endif /* !WOLFSSL_SP_SMALL */
+static const sp_digit p256_brainpool_a_neg_div_3_sqrt[9] = {
+    0x0e68ff1b,0x1871deee,0x1bb0a2d4,0x024bce3f,0x07f13f02,0x18d75ed0,
+    0x1642a662,0x0dbaaeff,0x0072ac98
+};
+
+#define sp_256_mont_reduce_order_brainpool_9         sp_256_mont_reduce_brainpool_9
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+static void sp_256_mont_reduce_brainpool_9(sp_digit* a, const sp_digit* m, sp_digit mp)
+{
+    int i;
+    sp_digit mu;
+
+    sp_256_norm_9(a + 9);
+
+    for (i=0; i<8; i++) {
+        mu = (a[i] * mp) & 0x1fffffff;
+        sp_256_mul_add_9(a+i, m, mu);
+        a[i+1] += a[i] >> 29;
+        /* a[i] not used from here on. */
+    }
+    mu = (a[i] * mp) & 0xffffffL;
+    sp_256_mul_add_9(a+i, m, mu);
+    a[i+1] += a[i] >> 29;
+    a[i] &= 0x1fffffff;
+
+    sp_256_mont_shift_9(a, a);
+    sp_256_cond_sub_9(a, a, m, 0 - ((a[8] > m[8]) ?
+            (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(a);
+}
+
+/* Multiply two Montgomery form numbers mod the modulus (prime).
+ * (r = a * b mod m)
+ *
+ * r   Result of multiplication.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_256_mont_mul_brainpool_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
+{
+    sp_256_mul_9(r, a, b);
+    sp_256_mont_reduce_brainpool_9(r, m, mp);
+}
+
+/* Square the Montgomery form number. (r = a * a mod m)
+ *
+ * r   Result of squaring.
+ * a   Number to square in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_256_mont_sqr_brainpool_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
+{
+    sp_256_sqr_9(r, a);
+    sp_256_mont_reduce_brainpool_9(r, m, mp);
+}
+
+/* Mod-2 for the P256 curve. */
+static const uint32_t p256_brainpool_mod_minus_2[8] = {
+    0x1f6e5375,0x2013481d,0xd5262028,0x6e3bf623,0x9d838d72,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+
+/* Invert the number, in Montgomery form, modulo the modulus (prime) of the
+ * P256 curve. (r = 1 / a mod m)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_256_mont_inv_brainpool_9(sp_digit* r, const sp_digit* a, sp_digit* td)
+{
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 9);
+    for (i=254; i>=0; i--) {
+        sp_256_mont_sqr_brainpool_9(t, t, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if (p256_brainpool_mod_minus_2[i / 32] & ((sp_digit)1 << (i % 32)))
+            sp_256_mont_mul_brainpool_9(t, t, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 9);
+}
+
+/* Map the Montgomery form projective coordinate point to an affine point.
+ *
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
+ * t  Temporary ordinate data.
+ */
+static void sp_256_map_brainpool_9(sp_point_256* r, const sp_point_256* p,
+    sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_int32 n;
+
+    sp_256_mont_inv_brainpool_9(t1, p->z, t + 2*9);
+
+    sp_256_mont_sqr_brainpool_9(t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t1, t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    /* x /= z^2 */
+    sp_256_mont_mul_brainpool_9(r->x, p->x, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMSET(r->x + 9, 0, sizeof(r->x) / 2U);
+    sp_256_mont_reduce_brainpool_9(r->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Reduce x to less than modulus */
+    n = sp_256_cmp_9(r->x, p256_brainpool_mod);
+    sp_256_cond_sub_9(r->x, r->x, p256_brainpool_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r->x);
+
+    /* y /= z^3 */
+    sp_256_mont_mul_brainpool_9(r->y, p->y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMSET(r->y + 9, 0, sizeof(r->y) / 2U);
+    sp_256_mont_reduce_brainpool_9(r->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Reduce y to less than modulus */
+    n = sp_256_cmp_9(r->y, p256_brainpool_mod);
+    sp_256_cond_sub_9(r->y, r->y, p256_brainpool_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r->y);
+
+    XMEMSET(r->z, 0, sizeof(r->z));
+    r->z[0] = 1;
+
+}
+
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_256_mont_add_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)sp_256_add_9(r, a, b);
+    sp_256_norm_9(r);
+    sp_256_cond_sub_9(r, r, m, 0 - (((r[8] - m[8]) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r);
+}
+
+/* Double a Montgomery form number (r = a + a % m).
+ *
+ * r   Result of doubling.
+ * a   Number to double in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_256_mont_dbl_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)sp_256_add_9(r, a, a);
+    sp_256_norm_9(r);
+    sp_256_cond_sub_9(r, r, m, 0 - (((r[8] - m[8]) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r);
+}
+
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_256_mont_tpl_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)sp_256_add_9(r, a, a);
+    sp_256_norm_9(r);
+    sp_256_cond_sub_9(r, r, m, 0 - (((r[8] - m[8]) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r);
+    (void)sp_256_add_9(r, r, a);
+    sp_256_norm_9(r);
+    sp_256_cond_sub_9(r, r, m, 0 - (((r[8] - m[8]) > 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_9(r);
+}
+
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
+ * m   Modulus (prime).
+ */
+static void sp_256_mont_sub_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)sp_256_sub_9(r, a, b);
+    sp_256_norm_9(r);
+    sp_256_cond_add_9(r, r, m, r[8] >> 24);
+    sp_256_norm_9(r);
+}
+
+/* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus (prime).
+ */
+static void sp_256_div2_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_256_cond_add_9(r, a, m, 0 - (a[0] & 1));
+    sp_256_norm_9(r);
+    sp_256_rshift1_9(r, r);
+}
+
+/* Double the Montgomery form projective point p.
+ *
+ * r  Result of doubling point.
+ * p  Point to double.
+ * t  Temporary ordinate data.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_dbl_9_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_dbl_9_ctx;
+
+static int sp_256_proj_point_dbl_brainpool_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, const sp_point_256* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_dbl_9_ctx* ctx = (sp_256_proj_point_dbl_brainpool_9_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_dbl_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*9;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_256_mont_sqr_brainpool_9(ctx->t1, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_256_mont_mul_brainpool_9(ctx->z, p->y, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_256_mont_dbl_brainpool_9(ctx->z, ctx->z, p256_brainpool_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_256_mont_sub_brainpool_9(ctx->t2, p->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_256_mont_add_brainpool_9(ctx->t1, p->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_256_mont_mul_brainpool_9(ctx->t2, ctx->t1, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_256_mont_tpl_brainpool_9(ctx->t1, ctx->t2, p256_brainpool_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_256_mont_dbl_brainpool_9(ctx->y, p->y, p256_brainpool_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_256_mont_sqr_brainpool_9(ctx->y, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_256_mont_sqr_brainpool_9(ctx->t2, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_256_div2_brainpool_9(ctx->t2, ctx->t2, p256_brainpool_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_256_mont_mul_brainpool_9(ctx->y, ctx->y, p->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_256_mont_sqr_brainpool_9(ctx->x, ctx->t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_256_mont_sub_brainpool_9(ctx->x, ctx->x, ctx->y, p256_brainpool_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_256_mont_sub_brainpool_9(ctx->x, ctx->x, ctx->y, p256_brainpool_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_256_mont_sub_brainpool_9(ctx->y, ctx->y, ctx->x, p256_brainpool_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_256_mont_mul_brainpool_9(ctx->y, ctx->y, ctx->t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_256_mont_sub_brainpool_9(ctx->y, ctx->y, ctx->t2, p256_brainpool_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_256_proj_point_dbl_brainpool_9(sp_point_256* r, const sp_point_256* p, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
+    if (r != p) {
+        r->infinity = p->infinity;
+    }
+
+    /* T1 = Z * Z */
+    sp_256_mont_sqr_brainpool_9(t1, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Z = Y * Z */
+    sp_256_mont_mul_brainpool_9(z, p->y, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Z = 2Z */
+    sp_256_mont_dbl_brainpool_9(z, z, p256_brainpool_mod);
+    /* T1 = T1 * sqrt(-a / 3) */
+    sp_256_mont_mul_brainpool_9(t1, t1, p256_brainpool_a_neg_div_3_sqrt, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = X - T1 */
+    sp_256_mont_sub_brainpool_9(t2, p->x, t1, p256_brainpool_mod);
+    /* T1 = X + T1 */
+    sp_256_mont_add_brainpool_9(t1, p->x, t1, p256_brainpool_mod);
+    /* T2 = T1 * T2 */
+    sp_256_mont_mul_brainpool_9(t2, t1, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T1 = 3T2 */
+    sp_256_mont_tpl_brainpool_9(t1, t2, p256_brainpool_mod);
+    /* Y = 2Y */
+    sp_256_mont_dbl_brainpool_9(y, p->y, p256_brainpool_mod);
+    /* Y = Y * Y */
+    sp_256_mont_sqr_brainpool_9(y, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = Y * Y */
+    sp_256_mont_sqr_brainpool_9(t2, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = T2/2 */
+    sp_256_div2_brainpool_9(t2, t2, p256_brainpool_mod);
+    /* Y = Y * X */
+    sp_256_mont_mul_brainpool_9(y, y, p->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* X = T1 * T1 */
+    sp_256_mont_sqr_brainpool_9(x, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* X = X - Y */
+    sp_256_mont_sub_brainpool_9(x, x, y, p256_brainpool_mod);
+    /* X = X - Y */
+    sp_256_mont_sub_brainpool_9(x, x, y, p256_brainpool_mod);
+    /* Y = Y - X */
+    sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+    /* Y = Y * T1 */
+    sp_256_mont_mul_brainpool_9(y, y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Y = Y - T2 */
+    sp_256_mont_sub_brainpool_9(y, y, t2, p256_brainpool_mod);
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_add_9_ctx {
+    int state;
+    sp_256_proj_point_dbl_9_ctx dbl_ctx;
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_add_9_ctx;
+
+static int sp_256_proj_point_add_brainpool_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+    const sp_point_256* p, const sp_point_256* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_add_brainpool_9_ctx* ctx = (sp_256_proj_point_add_9_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_256* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*9;
+        ctx->t3 = t + 4*9;
+        ctx->t4 = t + 6*9;
+        ctx->t5 = t + 8*9;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_256_sub_9(ctx->t1, p256_brainpool_mod, q->y);
+        sp_256_norm_9(ctx->t1);
+        if ((sp_256_cmp_equal_9(p->x, q->x) & sp_256_cmp_equal_9(p->z, q->z) &
+            (sp_256_cmp_equal_9(p->y, q->y) | sp_256_cmp_equal_9(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_256_proj_point_dbl_brainpool_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_256));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_256_mont_sqr_brainpool_9(ctx->t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_256_mont_mul_brainpool_9(ctx->t3, ctx->t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_256_mont_mul_brainpool_9(ctx->t1, ctx->t1, ctx->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_9(ctx->t2, ctx->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_256_mont_mul_brainpool_9(ctx->t4, ctx->t2, ctx->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_256_mont_mul_brainpool_9(ctx->t2, ctx->t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_256_mont_mul_brainpool_9(ctx->t3, ctx->t3, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_9(ctx->t4, ctx->t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_256_mont_sub_brainpool_9(ctx->t2, ctx->t2, ctx->t1, p256_brainpool_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_256_mont_sub_brainpool_9(ctx->t4, ctx->t4, ctx->t3, p256_brainpool_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_256_mont_mul_brainpool_9(ctx->z, ctx->z, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_256_mont_mul_brainpool_9(ctx->z, ctx->z, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_256_mont_sqr_brainpool_9(ctx->x, ctx->t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_256_mont_sqr_brainpool_9(ctx->t5, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_256_mont_mul_brainpool_9(ctx->y, ctx->t1, ctx->t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_256_mont_mul_brainpool_9(ctx->t5, ctx->t5, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_256_mont_sub_brainpool_9(ctx->x, ctx->x, ctx->t5, p256_brainpool_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_256_mont_dbl_brainpool_9(ctx->t1, ctx->y, p256_brainpool_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_256_mont_sub_brainpool_9(ctx->x, ctx->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_256_mont_sub_brainpool_9(ctx->y, ctx->y, ctx->x, p256_brainpool_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_256_mont_mul_brainpool_9(ctx->y, ctx->y, ctx->t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_256_mont_mul_brainpool_9(ctx->t5, ctx->t5, ctx->t3, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_256_mont_sub_brainpool_9(ctx->y, ctx->y, ctx->t5, p256_brainpool_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_256_proj_point_add_brainpool_9(sp_point_256* r,
+        const sp_point_256* p, const sp_point_256* q, sp_digit* t)
+{
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_256* a = p;
+        p = q;
+        q = a;
+    }
+
+    /* Check double */
+    (void)sp_256_sub_9(t1, p256_brainpool_mod, q->y);
+    sp_256_norm_9(t1);
+    if ((sp_256_cmp_equal_9(p->x, q->x) & sp_256_cmp_equal_9(p->z, q->z) &
+        (sp_256_cmp_equal_9(p->y, q->y) | sp_256_cmp_equal_9(p->y, t1))) != 0) {
+        sp_256_proj_point_dbl_brainpool_9(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_256));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U1 = X1*Z2^2 */
+        sp_256_mont_sqr_brainpool_9(t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t3, t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t1, t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_9(t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t4, t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t2, t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S1 = Y1*Z2^3 */
+        sp_256_mont_mul_brainpool_9(t3, t3, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_9(t4, t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* H = U2 - U1 */
+        sp_256_mont_sub_brainpool_9(t2, t2, t1, p256_brainpool_mod);
+        /* R = S2 - S1 */
+        sp_256_mont_sub_brainpool_9(t4, t4, t3, p256_brainpool_mod);
+        /* Z3 = H*Z1*Z2 */
+        sp_256_mont_mul_brainpool_9(z, z, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(z, z, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_256_mont_sqr_brainpool_9(x, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sqr_brainpool_9(t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(y, t1, t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t5, t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_9(x, x, t5, p256_brainpool_mod);
+        sp_256_mont_dbl_brainpool_9(t1, y, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(x, x, t1, p256_brainpool_mod);
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_9(y, y, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t5, t5, t3, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_9(y, y, t5, p256_brainpool_mod);
+    }
+}
+
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_256_mul_d_18(sp_digit* r, const sp_digit* a,
+    sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    sp_int64 tb = b;
+    sp_int64 t = 0;
+    int i;
+
+    for (i = 0; i < 18; i++) {
+        t += tb * a[i];
+        r[i] = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
+    }
+    r[18] = (sp_digit)t;
+#else
+    sp_int64 tb = b;
+    sp_int64 t = 0;
+    sp_digit t2;
+    sp_int64 p[4];
+    int i;
+
+    for (i = 0; i < 16; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
+        r[i + 0] = (sp_digit)t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
+        r[i + 1] = (sp_digit)t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
+        r[i + 2] = (sp_digit)t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x1fffffff);
+        t >>= 29;
+        r[i + 3] = (sp_digit)t2;
+    }
+    t += tb * a[16];
+    r[16] = (sp_digit)(t & 0x1fffffff);
+    t >>= 29;
+    t += tb * a[17];
+    r[17] = (sp_digit)(t & 0x1fffffff);
+    t >>= 29;
+    r[18] = (sp_digit)(t & 0x1fffffff);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#ifdef WOLFSSL_SP_DIV_32
+static WC_INLINE sp_digit sp_256_div_word_9(sp_digit d1, sp_digit d0,
+    sp_digit dv)
+{
+    sp_digit d;
+    sp_digit r;
+    sp_digit t;
+
+    /* All 29 bits from d1 and top 2 bits from d0. */
+    d = (d1 << 2) + (d0 >> 27);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 3 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 25) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 5 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 23) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 7 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 21) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 9 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 19) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 11 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 17) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 13 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 15) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 15 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 13) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 17 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 11) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 19 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 9) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 21 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 7) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 23 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 5) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 25 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 3) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 27 bits in r */
+    /* Next 2 bits from d0. */
+    r <<= 2;
+    d <<= 2;
+    d += (d0 >> 1) & ((1 << 2) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 29 bits in r */
+    /* Remaining 1 bits from d0. */
+    r <<= 1;
+    d <<= 1;
+    d += d0 & ((1 << 1) - 1);
+    t = d / dv;
+    r += t;
+
+    /* All 29 bits from d1 and top 2 bits from d0. */
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_32 */
+
+/* Divide d in a and put remainder into r (m*d + r = a)
+ * m is not calculated as it is not needed at this time.
+ *
+ * Full implementation.
+ *
+ * a  Number to be divided.
+ * d  Number to divide with.
+ * m  Multiplier result.
+ * r  Remainder from the division.
+ * returns MEMORY_E when unable to allocate memory and MP_OKAY otherwise.
+ */
+static int sp_256_div_brainpool_9(const sp_digit* a, const sp_digit* d,
+        const sp_digit* m, sp_digit* r)
+{
+    int i;
+#ifndef WOLFSSL_SP_DIV_32
+    sp_int64 d1;
+#endif
+    sp_digit dv;
+    sp_digit r1;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
+#else
+    sp_digit t1[4 * 9 + 3];
+#endif
+    sp_digit* t2 = NULL;
+    sp_digit* sd = NULL;
+    int err = MP_OKAY;
+
+    (void)m;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * (4 * 9 + 3), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (t1 == NULL)
+        err = MEMORY_E;
+#endif
+
+    (void)m;
+
+    if (err == MP_OKAY) {
+        t2 = t1 + 18 + 1;
+        sd = t2 + 9 + 1;
+
+        sp_256_mul_d_9(sd, d, (sp_digit)1 << 5);
+        sp_256_mul_d_18(t1, a, (sp_digit)1 << 5);
+        dv = sd[8];
+        t1[9 + 9] += t1[9 + 9 - 1] >> 29;
+        t1[9 + 9 - 1] &= 0x1fffffff;
+        for (i=9; i>=0; i--) {
+#ifndef WOLFSSL_SP_DIV_32
+            d1 = t1[9 + i];
+            d1 <<= 29;
+            d1 += t1[9 + i - 1];
+            r1 = (sp_digit)(d1 / dv);
+#else
+            r1 = sp_256_div_word_9(t1[9 + i], t1[9 + i - 1], dv);
+#endif
+
+            sp_256_mul_d_9(t2, sd, r1);
+            (void)sp_256_sub_9(&t1[i], &t1[i], t2);
+            sp_256_norm_9(&t1[i]);
+            t1[9 + i] -= t2[9];
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
+#ifndef WOLFSSL_SP_DIV_32
+            d1 = -t1[9 + i];
+            d1 <<= 29;
+            d1 -= t1[9 + i - 1];
+            r1 = (sp_digit)(d1 / dv);
+#else
+            r1 = sp_256_div_word_9(-t1[9 + i], -t1[9 + i - 1], dv);
+#endif
+            r1 -= t1[9 + i];
+            sp_256_mul_d_9(t2, sd, r1);
+            (void)sp_256_add_9(&t1[i], &t1[i], t2);
+            t1[9 + i] += t1[9 + i - 1] >> 29;
+            t1[9 + i - 1] &= 0x1fffffff;
+        }
+        t1[9 - 1] += t1[9 - 2] >> 29;
+        t1[9 - 2] &= 0x1fffffff;
+        r1 = t1[9 - 1] / dv;
+
+        sp_256_mul_d_9(t2, sd, r1);
+        sp_256_sub_9(t1, t1, t2);
+        XMEMCPY(r, t1, sizeof(*r) * 18U);
+        for (i=0; i<8; i++) {
+            r[i+1] += r[i] >> 29;
+            r[i] &= 0x1fffffff;
+        }
+        sp_256_cond_add_9(r, r, sd, 0 - ((r[8] < 0) ?
+                    (sp_digit)1 : (sp_digit)0));
+
+        sp_256_norm_9(r);
+        sp_256_rshift_9(r, r, 5);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+/* Reduce a modulo m into r. (r = a mod m)
+ *
+ * r  A single precision number that is the reduced result.
+ * a  A single precision number that is to be reduced.
+ * m  A single precision number that is the modulus to reduce with.
+ * returns MEMORY_E when unable to allocate memory and MP_OKAY otherwise.
+ */
+static int sp_256_mod_brainpool_9(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    return sp_256_div_brainpool_9(a, m, NULL, r);
+}
+
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
+ *
+ * r  The resulting Montgomery form number.
+ * a  The number to convert.
+ * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mod_mul_norm_brainpool_9(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    sp_256_mul_9(r, a, p256_brainpool_norm_mod);
+    return sp_256_mod_brainpool_9(r, r, m);
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Small implementation using add and double that is cache attack resistant but
+ * allocates memory rather than use large stacks.
+ * 256 adds and doubles.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_ecc_mulmod_9_ctx {
+    int state;
+    union {
+        sp_256_proj_point_dbl_9_ctx dbl_ctx;
+        sp_256_proj_point_add_9_ctx add_ctx;
+    };
+    sp_point_256 t[3];
+    sp_digit tmp[2 * 9 * 5];
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+} sp_256_ecc_mulmod_9_ctx;
+
+static int sp_256_ecc_mulmod_brainpool_9_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+    const sp_point_256* g, const sp_digit* k, int map, int ct, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_ecc_mulmod_brainpool_9_ctx* ctx = (sp_256_ecc_mulmod_9_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_256_ecc_mulmod_9_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    /* Implementation is constant time. */
+    (void)ct;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        XMEMSET(ctx->t, 0, sizeof(sp_point_256) * 3);
+        ctx->i = 8;
+        ctx->c = 24;
+        ctx->n = k[ctx->i--] << (29 - ctx->c);
+
+        /* t[0] = {0, 0, 1} * norm */
+        ctx->t[0].infinity = 1;
+        ctx->state = 1;
+        break;
+    case 1: /* T1X */
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_256_mod_mul_norm_brainpool_9(ctx->t[1].x, g->x, p256_brainpool_mod);
+        ctx->state = 2;
+        break;
+    case 2: /* T1Y */
+        err = sp_256_mod_mul_norm_brainpool_9(ctx->t[1].y, g->y, p256_brainpool_mod);
+        ctx->state = 3;
+        break;
+    case 3: /* T1Z */
+        err = sp_256_mod_mul_norm_brainpool_9(ctx->t[1].z, g->z, p256_brainpool_mod);
+        ctx->state = 4;
+        break;
+    case 4: /* ADDPREP */
+        if (ctx->c == 0) {
+            if (ctx->i == -1) {
+                ctx->state = 7;
+                break;
+            }
+
+            ctx->n = k[ctx->i--];
+            ctx->c = 29;
+        }
+        ctx->y = (ctx->n >> 28) & 1;
+        ctx->n <<= 1;
+        XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+        ctx->state = 5;
+        break;
+    case 5: /* ADD */
+        err = sp_256_proj_point_add_brainpool_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx,
+            &ctx->t[ctx->y^1], &ctx->t[0], &ctx->t[1], ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMCPY(&ctx->t[2], (void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
+                                        ((size_t)&ctx->t[1] & addr_mask[ctx->y])),
+                    sizeof(sp_point_256));
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* DBL */
+        err = sp_256_proj_point_dbl_brainpool_9_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->t[2],
+            &ctx->t[2], ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMCPY((void*)(((size_t)&ctx->t[0] & addr_mask[ctx->y^1]) +
+                            ((size_t)&ctx->t[1] & addr_mask[ctx->y])), &ctx->t[2],
+                    sizeof(sp_point_256));
+            ctx->state = 4;
+            ctx->c--;
+        }
+        break;
+    case 7: /* MAP */
+        if (map != 0) {
+            sp_256_map_brainpool_9(r, &ctx->t[0], ctx->tmp);
+        }
+        else {
+            XMEMCPY(r, &ctx->t[0], sizeof(sp_point_256));
+        }
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 7) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        ForceZero(ctx->tmp, sizeof(ctx->tmp));
+        ForceZero(ctx->t, sizeof(ctx->t));
+    }
+
+    (void)heap;
+
+    return err;
+}
+
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static int sp_256_ecc_mulmod_brainpool_9(sp_point_256* r, const sp_point_256* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_256 t[3];
+    sp_digit tmp[2 * 9 * 5];
+#endif
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+    int err = MP_OKAY;
+
+    /* Implementation is constant time. */
+    (void)ct;
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, heap,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMSET(t, 0, sizeof(sp_point_256) * 3);
+
+        /* t[0] = {0, 0, 1} * norm */
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].x, g->x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY)
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].y, g->y, p256_brainpool_mod);
+    if (err == MP_OKAY)
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].z, g->z, p256_brainpool_mod);
+
+    if (err == MP_OKAY) {
+        i = 8;
+        c = 24;
+        n = k[i--] << (29 - c);
+        for (; ; c--) {
+            if (c == 0) {
+                if (i == -1)
+                    break;
+
+                n = k[i--];
+                c = 29;
+            }
+
+            y = (n >> 28) & 1;
+            n <<= 1;
+
+            sp_256_proj_point_add_brainpool_9(&t[y^1], &t[0], &t[1], tmp);
+
+            XMEMCPY(&t[2], (void*)(((size_t)&t[0] & addr_mask[y^1]) +
+                                   ((size_t)&t[1] & addr_mask[y])),
+                    sizeof(sp_point_256));
+            sp_256_proj_point_dbl_brainpool_9(&t[2], &t[2], tmp);
+            XMEMCPY((void*)(((size_t)&t[0] & addr_mask[y^1]) +
+                            ((size_t)&t[1] & addr_mask[y])), &t[2],
+                    sizeof(sp_point_256));
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_9(r, &t[0], tmp);
+        }
+        else {
+            XMEMCPY(r, &t[0], sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+#endif
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 9 * 5);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_256) * 3);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+
+#else
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_256_proj_point_dbl_n_brainpool_9(sp_point_256* p, int n,
+    sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*9;
+    sp_digit* b = t + 4*9;
+    sp_digit* t1 = t + 6*9;
+    sp_digit* t2 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = p->x;
+    y = p->y;
+    z = p->z;
+
+    /* Y = 2*Y */
+    sp_256_mont_dbl_brainpool_9(y, y, p256_brainpool_mod);
+    /* W = Z^4 */
+    sp_256_mont_sqr_brainpool_9(w, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sqr_brainpool_9(w, w, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    while (n-- > 0) {
+        /* A = 3*X^2 + a*W */
+        sp_256_mont_sqr_brainpool_9(t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t2, w, p256_brainpool_a_mont, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_tpl_brainpool_9(a, t1, p256_brainpool_mod);
+        sp_256_mont_add_brainpool_9(a, t2, a, p256_brainpool_mod);
+        /* B = X*Y^2 */
+        sp_256_mont_sqr_brainpool_9(t2, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(b, t2, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X = A^2 - 2B */
+        sp_256_mont_sqr_brainpool_9(x, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_9(t1, b, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(x, x, t1, p256_brainpool_mod);
+        /* Z = Z*Y */
+        sp_256_mont_mul_brainpool_9(z, z, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* t2 = Y^4 */
+        sp_256_mont_sqr_brainpool_9(t2, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if (n != 0) {
+            /* W = W*Y^4 */
+            sp_256_mont_mul_brainpool_9(w, w, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        }
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_256_mont_sub_brainpool_9(y, b, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_9(y, y, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_9(y, y, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(y, y, t2, p256_brainpool_mod);
+    }
+    /* Y = Y/2 */
+    sp_256_div2_brainpool_9(y, y, p256_brainpool_mod);
+}
+
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_256_proj_point_dbl_n_store_brainpool_9(sp_point_256* r,
+        const sp_point_256* p, int n, int m, sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*9;
+    sp_digit* b = t + 4*9;
+    sp_digit* t1 = t + 6*9;
+    sp_digit* t2 = t + 8*9;
+    sp_digit* x = r[2*m].x;
+    sp_digit* y = r[(1<<n)*m].y;
+    sp_digit* z = r[2*m].z;
+    int i;
+    int j;
+
+    for (i=0; i<9; i++) {
+        x[i] = p->x[i];
+    }
+    for (i=0; i<9; i++) {
+        y[i] = p->y[i];
+    }
+    for (i=0; i<9; i++) {
+        z[i] = p->z[i];
+    }
+
+    /* Y = 2*Y */
+    sp_256_mont_dbl_brainpool_9(y, y, p256_brainpool_mod);
+    /* W = Z^4 */
+    sp_256_mont_sqr_brainpool_9(w, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sqr_brainpool_9(w, w, p256_brainpool_mod, p256_brainpool_mp_mod);
+    j = m;
+    for (i=1; i<=n; i++) {
+        j *= 2;
+
+        /* A = 3*X^2 + a*W */
+        sp_256_mont_sqr_brainpool_9(t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t2, w, p256_brainpool_a_mont, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_tpl_brainpool_9(a, t1, p256_brainpool_mod);
+        sp_256_mont_add_brainpool_9(a, t2, a, p256_brainpool_mod);
+        /* B = X*Y^2 */
+        sp_256_mont_sqr_brainpool_9(t2, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(b, t2, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        x = r[j].x;
+        /* X = A^2 - 2B */
+        sp_256_mont_sqr_brainpool_9(x, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_9(t1, b, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(x, x, t1, p256_brainpool_mod);
+        /* Z = Z*Y */
+        sp_256_mont_mul_brainpool_9(r[j].z, z, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        z = r[j].z;
+        /* t2 = Y^4 */
+        sp_256_mont_sqr_brainpool_9(t2, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if (i != n) {
+            /* W = W*Y^4 */
+            sp_256_mont_mul_brainpool_9(w, w, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        }
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_256_mont_sub_brainpool_9(y, b, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_9(y, y, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_9(y, y, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(y, y, t2, p256_brainpool_mod);
+
+        /* Y = Y/2 */
+        sp_256_div2_brainpool_9(r[j].y, y, p256_brainpool_mod);
+        r[j].infinity = 0;
+    }
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * ra  Result of addition.
+ * rs  Result of subtraction.
+ * p   First point to add.
+ * q   Second point to add.
+ * t   Temporary ordinate data.
+ */
+static void sp_256_proj_point_add_sub_brainpool_9(sp_point_256* ra,
+        sp_point_256* rs, const sp_point_256* p, const sp_point_256* q,
+        sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* t6 = t + 10*9;
+    sp_digit* x = ra->x;
+    sp_digit* y = ra->y;
+    sp_digit* z = ra->z;
+    sp_digit* xs = rs->x;
+    sp_digit* ys = rs->y;
+    sp_digit* zs = rs->z;
+
+
+    XMEMCPY(x, p->x, sizeof(p->x) / 2);
+    XMEMCPY(y, p->y, sizeof(p->y) / 2);
+    XMEMCPY(z, p->z, sizeof(p->z) / 2);
+    ra->infinity = 0;
+    rs->infinity = 0;
+
+    /* U1 = X1*Z2^2 */
+    sp_256_mont_sqr_brainpool_9(t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t3, t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t1, t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* U2 = X2*Z1^2 */
+    sp_256_mont_sqr_brainpool_9(t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t4, t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t2, t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* S1 = Y1*Z2^3 */
+    sp_256_mont_mul_brainpool_9(t3, t3, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* S2 = Y2*Z1^3 */
+    sp_256_mont_mul_brainpool_9(t4, t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* H = U2 - U1 */
+    sp_256_mont_sub_brainpool_9(t2, t2, t1, p256_brainpool_mod);
+    /* RS = S2 + S1 */
+    sp_256_mont_add_brainpool_9(t6, t4, t3, p256_brainpool_mod);
+    /* R = S2 - S1 */
+    sp_256_mont_sub_brainpool_9(t4, t4, t3, p256_brainpool_mod);
+    /* Z3 = H*Z1*Z2 */
+    /* ZS = H*Z1*Z2 */
+    sp_256_mont_mul_brainpool_9(z, z, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(z, z, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMCPY(zs, z, sizeof(p->z)/2);
+    /* X3 = R^2 - H^3 - 2*U1*H^2 */
+    /* XS = RS^2 - H^3 - 2*U1*H^2 */
+    sp_256_mont_sqr_brainpool_9(x, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sqr_brainpool_9(xs, t6, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sqr_brainpool_9(t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(y, t1, t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t5, t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sub_brainpool_9(x, x, t5, p256_brainpool_mod);
+    sp_256_mont_sub_brainpool_9(xs, xs, t5, p256_brainpool_mod);
+    sp_256_mont_dbl_brainpool_9(t1, y, p256_brainpool_mod);
+    sp_256_mont_sub_brainpool_9(x, x, t1, p256_brainpool_mod);
+    sp_256_mont_sub_brainpool_9(xs, xs, t1, p256_brainpool_mod);
+    /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+    /* YS = -RS*(U1*H^2 - XS) - S1*H^3 */
+    sp_256_mont_sub_brainpool_9(ys, y, xs, p256_brainpool_mod);
+    sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+    sp_256_mont_mul_brainpool_9(y, y, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_sub_9(t6, p256_brainpool_mod, t6);
+    sp_256_mont_mul_brainpool_9(ys, ys, t6, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t5, t5, t3, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sub_brainpool_9(y, y, t5, p256_brainpool_mod);
+    sp_256_mont_sub_brainpool_9(ys, ys, t5, p256_brainpool_mod);
+}
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Window technique of 6 bits. (Add-Sub variation.)
+ * Calculate 0..32 times the point. Use function that adds and
+ * subtracts the same two points.
+ * Recode to add or subtract one of the computed points.
+ * Double to push up.
+ * NOT a sliding window.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_win_add_sub_brainpool_9(sp_point_256* r, const sp_point_256* g,
+        const sp_digit* k, int map, int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_256 t[33+2];
+    sp_digit tmp[2 * 9 * 6];
+#endif
+    sp_point_256* rt = NULL;
+    sp_point_256* p = NULL;
+    sp_digit* negy;
+    int i;
+    ecc_recode_256 v[43];
+    int err = MP_OKAY;
+
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 
+        (33+2), heap, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 6,
+                                 heap, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        rt = t + 33;
+        p  = t + 33+1;
+
+        /* t[0] = {0, 0, 1} * norm */
+        XMEMSET(&t[0], 0, sizeof(t[0]));
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].x, g->x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].y, g->y, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_9(t[1].z, g->z, p256_brainpool_mod);
+    }
+
+    if (err == MP_OKAY) {
+        t[1].infinity = 0;
+        /* t[2] ... t[32]  */
+        sp_256_proj_point_dbl_n_store_brainpool_9(t, &t[ 1], 5, 1, tmp);
+        sp_256_proj_point_add_brainpool_9(&t[ 3], &t[ 2], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[ 6], &t[ 3], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[ 7], &t[ 5], &t[ 6], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[10], &t[ 5], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[11], &t[ 9], &t[10], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[12], &t[ 6], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[14], &t[ 7], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[15], &t[13], &t[14], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[18], &t[ 9], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[19], &t[17], &t[18], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[20], &t[10], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[22], &t[11], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[23], &t[21], &t[22], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[24], &t[12], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[26], &t[13], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[27], &t[25], &t[26], &t[ 1], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[28], &t[14], tmp);
+        sp_256_proj_point_dbl_brainpool_9(&t[30], &t[15], tmp);
+        sp_256_proj_point_add_sub_brainpool_9(&t[31], &t[29], &t[30], &t[ 1], tmp);
+
+        negy = t[0].y;
+
+        sp_256_ecc_recode_6_9(k, v);
+
+        i = 42;
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_point_33_9(rt, t, v[i].i);
+            rt->infinity = !v[i].i;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[v[i].i], sizeof(sp_point_256));
+        }
+        for (--i; i>=0; i--) {
+            sp_256_proj_point_dbl_n_brainpool_9(rt, 6, tmp);
+
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_point_33_9(p, t, v[i].i);
+                p->infinity = !v[i].i;
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p, &t[v[i].i], sizeof(sp_point_256));
+            }
+            sp_256_sub_9(negy, p256_brainpool_mod, p->y);
+            sp_256_norm_9(negy);
+            sp_256_cond_copy_9(p->y, negy, (sp_digit)0 - v[i].neg);
+            sp_256_proj_point_add_brainpool_9(rt, rt, p, tmp);
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_9(r, rt, tmp);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (tmp != NULL)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef FP_ECC
+#endif /* FP_ECC */
+/* Add two Montgomery form projective points. The second point has a q value of
+ * one.
+ * Only the first point can be the same pointer as the result point.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+static void sp_256_proj_point_add_qz1_brainpool_9(sp_point_256* r, const sp_point_256* p,
+        const sp_point_256* q, sp_digit* t)
+{
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*9;
+    sp_digit* t3 = t + 4*9;
+    sp_digit* t4 = t + 6*9;
+    sp_digit* t5 = t + 8*9;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Check double */
+    (void)sp_256_sub_9(t1, p256_brainpool_mod, q->y);
+    sp_256_norm_9(t1);
+    if ((sp_256_cmp_equal_9(p->x, q->x) & sp_256_cmp_equal_9(p->z, q->z) &
+        (sp_256_cmp_equal_9(p->y, q->y) | sp_256_cmp_equal_9(p->y, t1))) != 0) {
+        sp_256_proj_point_dbl_brainpool_9(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_256));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<9; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<9; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<9; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_9(t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t4, t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t2, t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_9(t4, t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* H = U2 - X1 */
+        sp_256_mont_sub_brainpool_9(t2, t2, x, p256_brainpool_mod);
+        /* R = S2 - Y1 */
+        sp_256_mont_sub_brainpool_9(t4, t4, y, p256_brainpool_mod);
+        /* Z3 = H*Z1 */
+        sp_256_mont_mul_brainpool_9(z, z, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X3 = R^2 - H^3 - 2*X1*H^2 */
+        sp_256_mont_sqr_brainpool_9(t1, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sqr_brainpool_9(t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t3, x, t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t5, t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_9(x, t1, t5, p256_brainpool_mod);
+        sp_256_mont_dbl_brainpool_9(t1, t3, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(x, x, t1, p256_brainpool_mod);
+        /* Y3 = R*(X1*H^2 - X3) - Y1*H^3 */
+        sp_256_mont_sub_brainpool_9(t3, t3, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_9(t3, t3, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(t5, t5, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_9(y, t3, t5, p256_brainpool_mod);
+    }
+}
+
+#ifdef FP_ECC
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_256_proj_to_affine_brainpool_9(sp_point_256* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 9;
+    sp_digit* tmp = t + 4 * 9;
+
+    sp_256_mont_inv_brainpool_9(t1, a->z, tmp);
+
+    sp_256_mont_sqr_brainpool_9(t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(t1, t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    sp_256_mont_mul_brainpool_9(a->x, a->x, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_9(a->y, a->y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMCPY(a->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+}
+
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 8
+ * 256 entries
+ * 32 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_256_gen_stripe_table_brainpool_9(const sp_point_256* a,
+        sp_table_entry_256* table, sp_digit* tmp, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+#else
+    sp_point_256 t[3];
+#endif
+    sp_point_256* s1 = NULL;
+    sp_point_256* s2 = NULL;
+    int i;
+    int j;
+    int err = MP_OKAY;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
+        err = sp_256_mod_mul_norm_brainpool_9(t->x, a->x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_9(t->y, a->y, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_9(t->z, a->z, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_256_proj_to_affine_brainpool_9(t, tmp);
+
+        XMEMCPY(s1->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_256));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<8; i++) {
+            sp_256_proj_point_dbl_n_brainpool_9(t, 32, tmp);
+            sp_256_proj_to_affine_brainpool_9(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<8; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_256_proj_point_add_qz1_brainpool_9(t, s1, s2, tmp);
+                sp_256_proj_to_affine_brainpool_9(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#endif /* FP_ECC */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_stripe_brainpool_9(sp_point_256* r, const sp_point_256* g,
+        const sp_table_entry_256* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_256 rt[2];
+    sp_digit t[2 * 9 * 5];
+#endif
+    sp_point_256* p = NULL;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err = MP_OKAY;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = rt + 1;
+
+        XMEMCPY(p->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        XMEMCPY(rt->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+
+        y = 0;
+        x = 31;
+        for (j=0; j<8; j++) {
+            y |= (int)(((k[x / 29] >> (x % 29)) & 1) << j);
+            x += 32;
+        }
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_entry_256_9(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
+        rt->infinity = !y;
+        for (i=30; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j=0; j<8; j++) {
+                y |= (int)(((k[x / 29] >> (x % 29)) & 1) << j);
+                x += 32;
+            }
+
+            sp_256_proj_point_dbl_brainpool_9(rt, rt, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_entry_256_9(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
+            p->infinity = !y;
+            sp_256_proj_point_add_qz1_brainpool_9(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_9(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef FP_ECC_CONTROL
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * cache cache entry to use
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_brainpool_9(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, sp_cache_256_t* cache, void* heap)
+{
+    if (cache == NULL)
+        return sp_256_ecc_mulmod_win_add_sub_brainpool_9(r, g, k, map, ct, heap);
+    return sp_256_ecc_mulmod_stripe_brainpool_9(r, g, cache->table, k, map, ct, heap);
+}
+#else
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_brainpool_9(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_256_ecc_mulmod_win_add_sub_brainpool_9(r, g, k, map, ct, heap);
+#else
+    int err = MP_OKAY;
+
+    sp_digit tmp[2 * 9 * 5];
+    sp_cache_256_t* cache = NULL;
+
+    #ifndef HAVE_THREAD_LS
+    if (initCacheMutex_256 == 0) {
+         wc_InitMutex(&sp_cache_256_lock);
+         initCacheMutex_256 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_256_lock) != 0)
+       err = BAD_MUTEX_E;
+    #endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_win_add_sub_brainpool_9(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
+            sp_256_gen_stripe_table_brainpool_9(g, cache->table, tmp, heap);
+    #ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_256_lock);
+    #endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_win_add_sub_brainpool_9(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_brainpool_9(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+        }
+    }
+
+    return err;
+#endif
+}
+#endif
+
+#endif
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * p     Point to multiply.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_brainpool_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 9, km);
+        sp_256_point_from_ecc_point_9(point, gm);
+
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_9(point, point, k, map, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_9(point, point, k, map, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_base_brainpool_9(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_256_ecc_mulmod_brainpool_9(r, &p256_brainpool_base, k, map, ct, heap);
+}
+
+#else
+/* Stripe table
+ * Gap = 32
+ * Width = 8
+ */
+static const sp_table_entry_256 p256_brainpool_table[256] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0x151fd10c,0x1e06c969,0x1f3cc289,0x1c9b3572,0x12ad380d,0x188eb5c4,
+        0x0f7dc130,0x0f53c233,0x008e1f76 },
+      { 0x00917a17,0x127f4a45,0x054058a6,0x11e4b39b,0x18b03a61,0x1b746fde,
+        0x02885bf7,0x18c04dd6,0x0014eb78 } },
+    /* 2 */
+    { { 0x08f5c1a7,0x1f2629a6,0x1e27c85c,0x12f9f0c4,0x137f1be0,0x141bd4e1,
+        0x1f0349fc,0x02a9caa0,0x0024a448 },
+      { 0x1909be57,0x09d6f5eb,0x1b2f237b,0x01f3424e,0x131719ca,0x020ed84a,
+        0x13b9894e,0x092e4ed8,0x004633cb } },
+    /* 3 */
+    { { 0x08fe9c55,0x1217ccbc,0x0f46af31,0x159a2334,0x170e08e5,0x13d4eff8,
+        0x13b71f66,0x0ad2f10b,0x0019e525 },
+      { 0x138dfd28,0x1ae6ab81,0x03819f40,0x1d76112d,0x18eebef4,0x01f1245a,
+        0x1acc158a,0x18dafbda,0x004f39ea } },
+    /* 4 */
+    { { 0x11296a6b,0x0518db8f,0x1c95b409,0x1c8605c6,0x19cb1373,0x1f75fbe6,
+        0x174b7826,0x0ac90127,0x005c8929 },
+      { 0x16258802,0x1c386497,0x0f616430,0x1df585c6,0x121966ec,0x02ba671e,
+        0x1af58b7c,0x0b6e50b7,0x00576001 } },
+    /* 5 */
+    { { 0x06ecb543,0x062b40b0,0x155811f9,0x0cd87120,0x08a4e276,0x08903b84,
+        0x07258d9b,0x04110ae1,0x00142d8c },
+      { 0x1655779e,0x07029016,0x190306e5,0x1719450f,0x1aaab042,0x1b5baeb6,
+        0x17def8a0,0x1c067945,0x00299705 } },
+    /* 6 */
+    { { 0x0b85b709,0x0018b230,0x1a3e8f84,0x03c7cdc6,0x0d06ddc2,0x12ebbf6c,
+        0x105e6dda,0x14dc2f40,0x009904a9 },
+      { 0x10acb164,0x0be11553,0x163cd40f,0x02433786,0x1cff636a,0x1640ba04,
+        0x15ccda93,0x15be7573,0x0071ce46 } },
+    /* 7 */
+    { { 0x119f840a,0x1d757e08,0x1b1083f9,0x199eda52,0x19204d99,0x0397ab52,
+        0x076c0e93,0x1e3f1029,0x003a8562 },
+      { 0x024c53ea,0x105ca0d9,0x145c13b0,0x0cadb961,0x1d06052f,0x0c3291dc,
+        0x14860960,0x0a379dea,0x004f55fe } },
+    /* 8 */
+    { { 0x075bb3f6,0x03a93869,0x038cf50f,0x0168f49f,0x048a76c1,0x03528fbe,
+        0x0bcd1ae1,0x0be2c50d,0x00639f1f },
+      { 0x1e8566d2,0x047245c9,0x0470c031,0x06ac5dea,0x0e96b3c0,0x06f03be0,
+        0x02ebedbf,0x0bc57203,0x00636b2d } },
+    /* 9 */
+    { { 0x05d1513e,0x0aa8f958,0x0aaff3f5,0x04706a15,0x081c817d,0x0f6d1af3,
+        0x119727d4,0x1e026c6d,0x00533713 },
+      { 0x0f285164,0x152c2609,0x0a1a116d,0x0ec1a27e,0x0a1fff7b,0x00f4d9e3,
+        0x141adb3d,0x11b4f5b2,0x002ef277 } },
+    /* 10 */
+    { { 0x00eea3e0,0x08681fa9,0x0a49d71e,0x1f82e48b,0x093f93fc,0x12743f7b,
+        0x0505ef46,0x13182e01,0x00229b1c },
+      { 0x1eaf43eb,0x176bda76,0x1be56a09,0x127aff8c,0x02e24a9d,0x08fb92d2,
+        0x00d5bf3a,0x0e5b6744,0x004582a4 } },
+    /* 11 */
+    { { 0x01055852,0x18187d1e,0x084002eb,0x10b1ed44,0x065865db,0x06df104d,
+        0x059692c2,0x1cd1f5ac,0x0063e9e7 },
+      { 0x017f5cff,0x0f42d549,0x0540c63f,0x1e0cd4be,0x1c6bd745,0x074e4649,
+        0x1c214cb4,0x1459a32e,0x0012c4d5 } },
+    /* 12 */
+    { { 0x045fddf3,0x183d2284,0x06fa3b15,0x1d35e1b5,0x0e127164,0x0c98bb37,
+        0x0e57de05,0x0ae3a30b,0x00284b1f },
+      { 0x1d970206,0x15da38c9,0x095017a4,0x1995ddf4,0x19c9b14e,0x0008430c,
+        0x0ed6d1d2,0x058f3b86,0x00460169 } },
+    /* 13 */
+    { { 0x10a105b4,0x02c83844,0x0093ffc8,0x095c3985,0x12e4aa0d,0x16e282c2,
+        0x1127c964,0x0f28b34f,0x00442b41 },
+      { 0x1e46ab9f,0x05a2ab68,0x0efb13ac,0x01232a3c,0x18f19fe4,0x06e043f6,
+        0x1f42c306,0x1c899c10,0x004a8b18 } },
+    /* 14 */
+    { { 0x199302e2,0x19c651dd,0x028ee2c3,0x1f0ed85f,0x14d63cbe,0x03128d2d,
+        0x01796cf3,0x07b9ef52,0x009519ce },
+      { 0x150876fc,0x161edf5b,0x0ddc71df,0x01526d53,0x1f723e44,0x0db70ffe,
+        0x1124c7c9,0x05731168,0x0058b08c } },
+    /* 15 */
+    { { 0x198fcd83,0x118be5be,0x047ab416,0x0e9445c7,0x0d7d0b8e,0x16d0be09,
+        0x06d74aeb,0x1efeca4d,0x0072f848 },
+      { 0x15bb1580,0x02e42672,0x196b070d,0x1b161973,0x073172a3,0x12cdaa8b,
+        0x193d5cf1,0x02bd804d,0x0044d5a0 } },
+    /* 16 */
+    { { 0x19140263,0x047d294f,0x01be9774,0x11e7ec4d,0x1ed45744,0x13a07e71,
+        0x1ffbe4c0,0x0bcdaccc,0x0084d506 },
+      { 0x1511b1b6,0x0708298f,0x0d55a270,0x14b1791d,0x1968843e,0x0abfb136,
+        0x1f275f76,0x1684d452,0x000b7185 } },
+    /* 17 */
+    { { 0x0e1d1e5c,0x0733e60d,0x17460554,0x16ea202d,0x0868a895,0x1df1ce89,
+        0x0278e4b1,0x12839d8f,0x00010e0d },
+      { 0x1e41036c,0x0a01047f,0x16016169,0x11a54407,0x1252308e,0x1819a7b8,
+        0x1962f202,0x1d409062,0x005d5068 } },
+    /* 18 */
+    { { 0x1ccb86e9,0x0b3ce5d3,0x1dfee84b,0x0cbbe223,0x17410faa,0x013a5823,
+        0x0a3ed8ba,0x187162c4,0x001ed9df },
+      { 0x191afde4,0x0a406a6b,0x025c9387,0x1a0cd69a,0x17f29942,0x03354e3a,
+        0x1ef52ca7,0x04c05412,0x000eb812 } },
+    /* 19 */
+    { { 0x02355ce7,0x1e21a8a2,0x006231dd,0x010fb2e1,0x08cdd321,0x03d0e43a,
+        0x10920fd7,0x1207ace7,0x006c239a },
+      { 0x0c36c837,0x1ebe7767,0x0c3effaa,0x1e4df030,0x14d19bac,0x03bb464f,
+        0x009f6cba,0x0e2648f9,0x0091a19c } },
+    /* 20 */
+    { { 0x1da2d579,0x1013942a,0x18a76778,0x1c5d4170,0x0c21a6ad,0x08512b9d,
+        0x0d338b43,0x00706d5a,0x0016b887 },
+      { 0x0879517c,0x06481ff4,0x165da343,0x1708664f,0x0564e7ee,0x081d96fb,
+        0x030a8763,0x1e113dc8,0x0077d73e } },
+    /* 21 */
+    { { 0x0d6e8a0d,0x01df2b3e,0x1df9469a,0x1c0e38b7,0x10085927,0x04181cf2,
+        0x110df8fe,0x1ec45a37,0x0091326b },
+      { 0x0b109cd9,0x1ef17d82,0x0017eed4,0x18d1a4c3,0x1ee76acc,0x0395c031,
+        0x1ce48381,0x1ce816cb,0x00281c9b } },
+    /* 22 */
+    { { 0x0c6fabfc,0x18428edc,0x0e0e3be6,0x1328fcdf,0x19b65c3d,0x16ea6a10,
+        0x12717736,0x0d0fcc05,0x003f53dc },
+      { 0x029e490c,0x0f882474,0x1847b1af,0x1fc901e4,0x0884a75f,0x1a15d173,
+        0x1a820c85,0x181a5241,0x00014b02 } },
+    /* 23 */
+    { { 0x12a96682,0x133904b2,0x1397bae1,0x14471ae5,0x169362e8,0x11863923,
+        0x1814c529,0x0b6fd891,0x005e5d98 },
+      { 0x1e932fad,0x1954cd6b,0x14084958,0x02b717cd,0x16f09a7a,0x0aa6d56d,
+        0x0538a28b,0x0c0c1371,0x004b4f6c } },
+    /* 24 */
+    { { 0x02d9d2d2,0x16b43b9a,0x18a21ee9,0x054dc25a,0x05e38bd8,0x07ece7bc,
+        0x00a63459,0x0d08564f,0x00381044 },
+      { 0x1a80de6c,0x1b9ed8b9,0x1fc8feca,0x12e562c9,0x1b8a5df6,0x1c1d6837,
+        0x0ea7808c,0x047c5c49,0x005b06e6 } },
+    /* 25 */
+    { { 0x114d091c,0x1c641523,0x1b109720,0x1e4dbc9f,0x1dc89146,0x017af187,
+        0x0879d5ed,0x1df3f48d,0x001eae2b },
+      { 0x1977e1fd,0x11bcfa57,0x06359f80,0x00022ba9,0x11a4ef00,0x01e15356,
+        0x161c0cf0,0x0fa89d40,0x009d3b4f } },
+    /* 26 */
+    { { 0x10c72d8d,0x1a666bf1,0x1171eb53,0x1fa7a7f1,0x01a770f5,0x09992019,
+        0x17a37ff4,0x0507d9fb,0x004f198c },
+      { 0x0cfff945,0x1dcbd829,0x1be4d6d5,0x094c2012,0x01f93fcd,0x13c9d93b,
+        0x0da62fa6,0x1ef62911,0x000ee2d1 } },
+    /* 27 */
+    { { 0x12a8316e,0x1af28fcc,0x1c76a2f0,0x0e9af830,0x06ca8f54,0x1b5ff153,
+        0x15ba202d,0x0d687d91,0x00475d6f },
+      { 0x0f96dbb3,0x1bea8ac6,0x0e07020d,0x1a4bbe2a,0x16379180,0x0aea2879,
+        0x067eefe6,0x0a7e5de5,0x004ef543 } },
+    /* 28 */
+    { { 0x04643453,0x0553de71,0x02a58395,0x06499842,0x0b74c09b,0x0fbc316e,
+        0x0c6d2fb4,0x0b47fdc2,0x0064a54a },
+      { 0x0c66fd17,0x1cabd62e,0x10c86666,0x026e3063,0x16e3e34c,0x01311aaa,
+        0x0df4f725,0x15f68238,0x009a05bc } },
+    /* 29 */
+    { { 0x1e068869,0x029c5d1e,0x0988c03b,0x0ed4a648,0x10593f76,0x06be87e3,
+        0x040e2eba,0x1c5329f7,0x0080e6d6 },
+      { 0x1d7cd055,0x1db3857f,0x1824ad7d,0x08b78740,0x12335545,0x0fd1273c,
+        0x1b86fb66,0x0e77e8f5,0x00a274e4 } },
+    /* 30 */
+    { { 0x18b8af1b,0x07beb24f,0x17db8690,0x1eccb359,0x1d6d0a82,0x09d50e73,
+        0x0ae4635b,0x0bf49f55,0x0010ce7b },
+      { 0x06b15ff1,0x0de8ed9e,0x145339e6,0x0335f830,0x07d8409d,0x090dcdec,
+        0x0d734a07,0x1c3e7ac1,0x00671d25 } },
+    /* 31 */
+    { { 0x1d94ef67,0x032a35dc,0x09f81821,0x1e30764b,0x1fe818e0,0x1a933631,
+        0x13f19139,0x05cbad8b,0x003e50ed },
+      { 0x03fc9769,0x178f66e2,0x063635c1,0x0cdb5d5c,0x00e48d2d,0x12b9d0b2,
+        0x1392654a,0x0049e30a,0x00051789 } },
+    /* 32 */
+    { { 0x1db41b11,0x069fd66b,0x02bc56c8,0x0398dc45,0x005c241b,0x09f29f78,
+        0x0a5b4890,0x01d3eb3c,0x00233ccf },
+      { 0x1e88b905,0x0f27b268,0x09f5314f,0x1237ed77,0x1b840238,0x1fcaf77b,
+        0x018be598,0x0ebf25ae,0x00912b0b } },
+    /* 33 */
+    { { 0x1f425cab,0x196d6793,0x046dd2c8,0x0628c78e,0x1f73cf62,0x1946b18f,
+        0x1eb383a5,0x1baea331,0x009e36d3 },
+      { 0x1912ba71,0x1beb9c88,0x123fff1b,0x1ec1f26b,0x0648e714,0x0d0394a4,
+        0x07b95782,0x08694f3f,0x008ee322 } },
+    /* 34 */
+    { { 0x07e40fc4,0x19ae0979,0x1f897a66,0x147be682,0x0b7166ff,0x1bb9c5c7,
+        0x16d9076b,0x10cfecb5,0x00a75b95 },
+      { 0x0b69f058,0x02ccd059,0x11e77f9b,0x0cdeee41,0x1b13d7ba,0x0c170531,
+        0x010685fe,0x1bed330e,0x005415ea } },
+    /* 35 */
+    { { 0x0a310aa3,0x061f8caa,0x0233d0ca,0x1a38db22,0x0b5c173f,0x0ebe78b5,
+        0x1f5d786f,0x0f41279d,0x0090c535 },
+      { 0x05b0d6dc,0x12c8d50e,0x1bfe64f6,0x1b916667,0x1f18ca9e,0x160c3552,
+        0x1f49ea5a,0x181c2893,0x009855f5 } },
+    /* 36 */
+    { { 0x1cca194a,0x15a5fcb1,0x09c3eda1,0x0febcb03,0x0d3a22a1,0x0b3f7a9e,
+        0x1f3af6fb,0x1173a243,0x005bf001 },
+      { 0x196fbd37,0x0cbe78af,0x0f408c4d,0x17cf32a6,0x1f2fdeec,0x0f982c2b,
+        0x0a66c78c,0x173cec5c,0x0026e668 } },
+    /* 37 */
+    { { 0x1bee894e,0x13b5fdb2,0x0072ff25,0x0a11862c,0x00bbeb03,0x00807ff7,
+        0x1166b036,0x1d0eddb2,0x0065f1fb },
+      { 0x0ab085fc,0x137dca42,0x10d74b3b,0x1082d8e2,0x005072e9,0x0b115f83,
+        0x0eaae33f,0x071aac8f,0x007bdd64 } },
+    /* 38 */
+    { { 0x00986f2c,0x0cf0b9a4,0x17b7c3fb,0x1d9d44d4,0x09b88691,0x0e4dd90b,
+        0x1bccf9fb,0x1d6f5358,0x005464e0 },
+      { 0x1c6c188c,0x17d4a226,0x12d03d50,0x084250c4,0x03e0dd97,0x036b2f82,
+        0x0250e24a,0x0ed8a52b,0x007f5812 } },
+    /* 39 */
+    { { 0x1aaabd57,0x09520385,0x1616ee37,0x047d8582,0x17e51ed7,0x1d3ab49a,
+        0x1b5fd918,0x071a7c5f,0x00083d7c },
+      { 0x1f151146,0x03b00da9,0x1ee6b9b8,0x17050bdb,0x12a68948,0x041704e1,
+        0x15235579,0x0da30c85,0x008e42fc } },
+    /* 40 */
+    { { 0x12cebfe5,0x160af980,0x12f2ffc8,0x08a26e0e,0x0501586c,0x1aafeab6,
+        0x1c163001,0x0ebbff3c,0x0048e547 },
+      { 0x060a794a,0x1f92e9ca,0x04dc306d,0x1b590970,0x1cd8a5ac,0x13c14cde,
+        0x1c3bcbbf,0x0da60241,0x009a476a } },
+    /* 41 */
+    { { 0x1182f136,0x1503cec2,0x1d877e27,0x17abeecd,0x1c5bef62,0x06f08b5f,
+        0x0f063b85,0x14113883,0x00a6db7b },
+      { 0x0c458e03,0x1486228f,0x00903951,0x1590ba7c,0x0f1f159a,0x1c1abc76,
+        0x1306716e,0x118e5fa4,0x006923d2 } },
+    /* 42 */
+    { { 0x10578ad3,0x17736fcd,0x0b316926,0x0b8ba20a,0x0a7c6b36,0x06c1188f,
+        0x1423ee44,0x07b0406a,0x0002abf7 },
+      { 0x1714bba1,0x1a35d4b9,0x0b46baf3,0x13d67efc,0x129c4082,0x18a09db7,
+        0x09b76829,0x1e62c90e,0x005a0e64 } },
+    /* 43 */
+    { { 0x0bede6a4,0x1ec44fb1,0x0e2afd2b,0x15f2f915,0x1eb8c8e1,0x0491f92c,
+        0x1fd124fe,0x005f4f5a,0x00a8505d },
+      { 0x1c3bdaee,0x17e24bd5,0x119d8654,0x1e559482,0x01fd7a50,0x11742136,
+        0x1614ba6b,0x03470e07,0x00270789 } },
+    /* 44 */
+    { { 0x0158d90c,0x10814da0,0x111d746f,0x030d3dbf,0x1be54eca,0x0e3f0ded,
+        0x0ea2e358,0x01e2a8e1,0x000ed8d1 },
+      { 0x018dc0c2,0x1335044a,0x1869969c,0x135142fb,0x1e05c095,0x1dd60ace,
+        0x04834d2a,0x1eb14722,0x00477f0b } },
+    /* 45 */
+    { { 0x1eb60f0f,0x16568e3f,0x1843842d,0x198466ec,0x1d62b097,0x030e0ab6,
+        0x12c93efa,0x19dcbbcd,0x004b9b99 },
+      { 0x19968d1a,0x03d05999,0x02b1ecea,0x0c24fba3,0x0068e5d5,0x1558fcb0,
+        0x1a6a0530,0x1785a296,0x00435873 } },
+    /* 46 */
+    { { 0x0ee278fd,0x14e42352,0x1a7b3dca,0x0c5673be,0x016b3901,0x1290e36f,
+        0x0a9a7b86,0x0c2d503c,0x000370bf },
+      { 0x0522e916,0x109b59b6,0x040d3e60,0x05a3ca3b,0x17c64941,0x1d61a99e,
+        0x0ea9cfe5,0x15b9bd18,0x0065a540 } },
+    /* 47 */
+    { { 0x133e19f6,0x0b047280,0x0767e9ed,0x191863f6,0x0195ce66,0x06e43f07,
+        0x075e3790,0x0b1b2a81,0x00950db1 },
+      { 0x1a2450f5,0x1df1d0d8,0x005d19dd,0x18474482,0x108da055,0x1bd0bee1,
+        0x171203f4,0x18352bfe,0x009e5e1f } },
+    /* 48 */
+    { { 0x15e58ac1,0x150f3985,0x0ec018ea,0x0bd8a779,0x11c18dd9,0x00138040,
+        0x002241d8,0x1f933440,0x0012ec14 },
+      { 0x09baed47,0x0ec4e1a8,0x0adb47c7,0x15c3f683,0x07949542,0x06e40008,
+        0x1c23b916,0x1851d6eb,0x001c7a50 } },
+    /* 49 */
+    { { 0x1e185805,0x05256d2b,0x0bdaad76,0x1d4938ec,0x06ded4db,0x190da48b,
+        0x01cf9a90,0x10d8fa09,0x00951ce4 },
+      { 0x1daf05fd,0x0cd9f917,0x0b968d63,0x0959365d,0x153a0654,0x1ff3c7e8,
+        0x063dd382,0x15e68f78,0x0061af6b } },
+    /* 50 */
+    { { 0x1ae1154c,0x0e0dd3c4,0x06d8f382,0x0e8d584f,0x183c5e6a,0x0a58ec22,
+        0x04ea33fe,0x08e48cb6,0x0006e594 },
+      { 0x15fed623,0x0fb2f23e,0x0ae30bbd,0x123de618,0x1351ec7b,0x03089e56,
+        0x0d18e73e,0x115cf77a,0x004f3ef4 } },
+    /* 51 */
+    { { 0x1d7dbd82,0x1925f68e,0x0fb18fc9,0x119a8f87,0x15e018dc,0x148b1f4b,
+        0x17693342,0x19765c06,0x004f6e7c },
+      { 0x18f4f427,0x172a37dc,0x03c426df,0x1f8bf831,0x00705fad,0x06436c9c,
+        0x187b38e1,0x09f38959,0x0085bdb5 } },
+    /* 52 */
+    { { 0x014d891a,0x0a555854,0x1f6cb89d,0x04c189dd,0x12d806fa,0x042fc7a6,
+        0x09120190,0x1778b0ce,0x004379b7 },
+      { 0x0f9f4662,0x05c8b753,0x1550cb15,0x099c2482,0x0920c63b,0x1fc68a58,
+        0x1bc04a95,0x05bd5c6e,0x00269a35 } },
+    /* 53 */
+    { { 0x0fddb93b,0x05e0bfe6,0x06800d34,0x07f126dd,0x02f0d4be,0x0d7a5b8c,
+        0x094faf82,0x009da66d,0x000f158d },
+      { 0x010cd255,0x08d2fc3c,0x0d67a45e,0x0da2a9ad,0x0a56c970,0x0d9cf944,
+        0x0c099f58,0x10b7c4b6,0x009c2b3b } },
+    /* 54 */
+    { { 0x155089e5,0x133a6ce0,0x09564bea,0x08612b1c,0x11fd13ee,0x11dc9783,
+        0x1445ee40,0x0e8594ae,0x00849f33 },
+      { 0x1529f58e,0x0a36e0fc,0x1eaa309d,0x1eb66b9a,0x03e17c59,0x13181d2c,
+        0x1f14e517,0x02404240,0x0070aaa8 } },
+    /* 55 */
+    { { 0x0511e250,0x01148a28,0x196af353,0x0bf52216,0x04222d07,0x1f47c3b6,
+        0x157a7629,0x17edb603,0x005ca221 },
+      { 0x1fcfaa5e,0x158efffe,0x0eca699d,0x1aafb101,0x1dd48a12,0x08008a04,
+        0x03add338,0x1797d8e6,0x00a78812 } },
+    /* 56 */
+    { { 0x0149795a,0x1a172f9a,0x08bc9cae,0x05e7200d,0x187020a1,0x0cd68010,
+        0x13670062,0x0047db19,0x00313057 },
+      { 0x1c5d2e15,0x178e6791,0x037f0e84,0x1c8f4292,0x1bd2abad,0x1ffa96b5,
+        0x0236ff63,0x0ac174ac,0x0011bda8 } },
+    /* 57 */
+    { { 0x1ef18309,0x0df7da16,0x05773338,0x1ab91cfa,0x1fc519f1,0x191f9100,
+        0x08c56a46,0x195c9ef0,0x0073d9ec },
+      { 0x1e136f2f,0x05c755e2,0x16886869,0x0fbe6429,0x07a80801,0x1036a96e,
+        0x12d11814,0x051b2341,0x006f6970 } },
+    /* 58 */
+    { { 0x0be0a122,0x099a0ae2,0x04243a85,0x0871958b,0x18613adc,0x17b5d353,
+        0x09b6b6b3,0x05ae6546,0x009c1b64 },
+      { 0x05214e91,0x064c029b,0x03bd669e,0x11abab2a,0x0043680a,0x19ca4a15,
+        0x1e5575d8,0x16b69f8f,0x009801d2 } },
+    /* 59 */
+    { { 0x010f177c,0x0b3baa32,0x0179e0d0,0x05bb552c,0x1321a6c7,0x0461f366,
+        0x06b496b4,0x0f37c88b,0x00939884 },
+      { 0x01f4f16d,0x0edbb05e,0x1d8fe1a1,0x1b96d53f,0x1f83e89d,0x04ec06fc,
+        0x10c9fa46,0x063a8676,0x009f7bb1 } },
+    /* 60 */
+    { { 0x01553955,0x027d5f4a,0x07fa57d1,0x04d6ef6c,0x0a6e4148,0x03ea9e72,
+        0x17319c3b,0x12c57471,0x0088947f },
+      { 0x047d2b1a,0x180ee280,0x13ea4e0d,0x0bd49b28,0x1b57219c,0x1f849bb1,
+        0x059cf87e,0x174eef3c,0x00158b22 } },
+    /* 61 */
+    { { 0x1c236b22,0x1d27afc7,0x0a12c0c7,0x1d62b309,0x15780067,0x17b83f63,
+        0x09155214,0x03b5c42c,0x00869205 },
+      { 0x0b4968d2,0x1cac52ae,0x196ad1b7,0x1dc6535e,0x07cad342,0x14c209a6,
+        0x0bfd0e65,0x059065d9,0x004870f7 } },
+    /* 62 */
+    { { 0x1dac3133,0x1764b1eb,0x0eed5f30,0x082cab60,0x0c73fbb1,0x0711af9b,
+        0x1b5f0fd6,0x1d445124,0x0016aeed },
+      { 0x18af163e,0x1f5b8ceb,0x06ec2545,0x1055d07f,0x0274a017,0x01aa54f8,
+        0x181f27e3,0x0f4e64a1,0x0022e651 } },
+    /* 63 */
+    { { 0x15f67dfa,0x08c0eb74,0x10f46a0b,0x183a4d04,0x12fc1e28,0x17f5c6e1,
+        0x011a9f0d,0x08ba710b,0x009f20d9 },
+      { 0x025d20f4,0x07f9b6ae,0x0e216236,0x06d45cbe,0x1c2402c0,0x15a6c1a8,
+        0x085b8d1e,0x09fd3826,0x00a24f5a } },
+    /* 64 */
+    { { 0x0e5c5ec8,0x05082993,0x1817d5fc,0x11908f02,0x0a4b87db,0x073764b0,
+        0x19df1d5a,0x09f5ffce,0x008e9989 },
+      { 0x174d6f0f,0x12bf2261,0x10b74b38,0x0f76a4ba,0x1ac93450,0x0e239b94,
+        0x158d876a,0x17806ddd,0x005c266a } },
+    /* 65 */
+    { { 0x034dc1e7,0x19444c7f,0x0c55cd02,0x031aee88,0x0dcbadda,0x07ca3f2a,
+        0x14267dee,0x1f048eb7,0x000daaea },
+      { 0x08e65f4e,0x1f302cae,0x1cac7acc,0x1ca4d26f,0x16fde63e,0x147794e3,
+        0x01203cb3,0x0a972ad5,0x001c2e38 } },
+    /* 66 */
+    { { 0x1cba52c6,0x1f249de3,0x162cce6b,0x042f10cf,0x08244817,0x1e835131,
+        0x1a23ae0c,0x0d82ebe9,0x0031cfcd },
+      { 0x03072b67,0x06674e68,0x06c98498,0x1a1c7532,0x143a856a,0x191ee1f7,
+        0x06419702,0x0ec9685a,0x004fffba } },
+    /* 67 */
+    { { 0x13d31ff3,0x160cf69f,0x0b38bdab,0x1a03c468,0x0a1f5dd4,0x1023812c,
+        0x03e065ad,0x0d5047a6,0x0024da2a },
+      { 0x07465c8b,0x1a0917f8,0x0ec849c0,0x054599e8,0x194211ca,0x0d82b555,
+        0x14ab2bf3,0x1c237237,0x006556bf } },
+    /* 68 */
+    { { 0x0f00e05e,0x00041c2a,0x16e3fba6,0x02b99443,0x1f685396,0x0b239a7f,
+        0x15893c5a,0x0fc7494b,0x001bee1c },
+      { 0x05f08613,0x0c3ed2ac,0x17fd6607,0x00d79d91,0x1952e76a,0x01c5b9c8,
+        0x07b6bddc,0x1a3fb739,0x008830cc } },
+    /* 69 */
+    { { 0x0aff481a,0x10c029c1,0x1358e5d7,0x14ab118a,0x16f05aaa,0x19c4d9a3,
+        0x16575e65,0x03481761,0x00226e25 },
+      { 0x014fcf24,0x10c85047,0x088ca375,0x151311e3,0x0f8b6377,0x0987c622,
+        0x118df49f,0x0e89587a,0x00293c76 } },
+    /* 70 */
+    { { 0x15e9b7e0,0x0a06a4f3,0x0c6892b2,0x0319bfe0,0x10fe7d0d,0x0d1daf9b,
+        0x0562e1aa,0x0b89f5df,0x0007b792 },
+      { 0x17afe031,0x06f60bb7,0x00792f54,0x1d5b4e9b,0x09a757b8,0x16463160,
+        0x1ceabbb1,0x00b7959b,0x00151f0e } },
+    /* 71 */
+    { { 0x04c8ccad,0x090b840a,0x0c8a6174,0x0ece0219,0x0c9b3107,0x00df015b,
+        0x1c9b9076,0x074e7321,0x00818ba1 },
+      { 0x18ac308c,0x1ec7b04b,0x1a13c615,0x037420b2,0x15f385a1,0x178b7957,
+        0x15f8925e,0x17469ca9,0x008afb40 } },
+    /* 72 */
+    { { 0x02a876da,0x18e7c61e,0x149b16ad,0x05904695,0x039e8a93,0x0ff6cf24,
+        0x1148bd4a,0x0f0d835b,0x000c2964 },
+      { 0x13770d9e,0x1c058025,0x05442411,0x0ed78062,0x01f2d38f,0x06605cc5,
+        0x19991e86,0x0a676d03,0x004fa348 } },
+    /* 73 */
+    { { 0x023a10c2,0x1b46698d,0x1d8c22e9,0x0a8f183e,0x121c0a87,0x0badf34d,
+        0x0d142ae7,0x10c1c51b,0x000a604e },
+      { 0x183aed71,0x1cb490cf,0x0641b245,0x012fa01a,0x11fa99df,0x0bddae4f,
+        0x17622144,0x0e767d62,0x00098aa0 } },
+    /* 74 */
+    { { 0x02b2080a,0x04a8ff70,0x08d6da8e,0x04fa0332,0x10ef93ef,0x0fac9eb7,
+        0x02a7dadf,0x1f877403,0x003137da },
+      { 0x13f8e979,0x1657ab95,0x1a1e7b1b,0x15bfd7c2,0x145f2c30,0x12569406,
+        0x122d229b,0x0ee412bc,0x000008a1 } },
+    /* 75 */
+    { { 0x1d632a78,0x19e6f814,0x11a8bd57,0x16dbec3a,0x1e43fb97,0x150acd4a,
+        0x0226e4c2,0x0c8e5f44,0x00751b88 },
+      { 0x0e531c0d,0x030d3a78,0x0c2da578,0x196669e2,0x03db9712,0x1d3bb16a,
+        0x06b762b2,0x0e973bc7,0x00735188 } },
+    /* 76 */
+    { { 0x0fd38250,0x1e1496db,0x1ec8f5d4,0x020e1f4e,0x0c2ac05c,0x0ed622dd,
+        0x00956684,0x041570cc,0x005ba8af },
+      { 0x173b5ee8,0x15ec70f0,0x1d261bf5,0x17dbab31,0x05c2cead,0x19250bca,
+        0x19bb999f,0x127d3784,0x005e62eb } },
+    /* 77 */
+    { { 0x1cf8e309,0x0b5903e4,0x0e4b5143,0x02149324,0x108ebda3,0x0a0793db,
+        0x0e76f731,0x0cd1726d,0x006f75d5 },
+      { 0x1b73778c,0x19dd226d,0x08526dfc,0x12815152,0x1105e813,0x1dcc5a6d,
+        0x14654eba,0x0726172a,0x00876db4 } },
+    /* 78 */
+    { { 0x09402714,0x0f539f77,0x0a42de89,0x18cc089a,0x0c045dec,0x0c1f5c5c,
+        0x1f7ebac4,0x0699e3b7,0x00841d39 },
+      { 0x038f5dfd,0x1618a90c,0x18ea4fe6,0x0aa7cf9f,0x180b3f01,0x1000b332,
+        0x085f0b86,0x1919cbe1,0x007b5ae3 } },
+    /* 79 */
+    { { 0x15454e99,0x0561e0ca,0x079af347,0x17528f08,0x0276e907,0x00bbe655,
+        0x1f16b5c0,0x1de137d1,0x0014dcda },
+      { 0x10da845e,0x0db758e9,0x08fd2e6e,0x0a23eae6,0x03096068,0x18ff91d3,
+        0x0c0f365c,0x0626ffae,0x0015bb09 } },
+    /* 80 */
+    { { 0x1f5588a1,0x086d9a45,0x1aad0b6f,0x1ad86072,0x078e7a92,0x06735d3f,
+        0x01037849,0x11e8607f,0x00279a24 },
+      { 0x1ac08331,0x1880c50b,0x0517f02f,0x0c93a508,0x1020f3c6,0x126dc704,
+        0x01ec5e2c,0x02c2f843,0x0082075e } },
+    /* 81 */
+    { { 0x0a2f8e2d,0x03f2314d,0x1d53f41b,0x0acc466a,0x1865fb07,0x18e06606,
+        0x16a4d05a,0x08aea02c,0x009cfff3 },
+      { 0x1e77453e,0x1960d5e2,0x19f51f0f,0x048bb51b,0x0bf42d4d,0x017175d2,
+        0x0f9130b5,0x159110a9,0x00961f73 } },
+    /* 82 */
+    { { 0x1657902e,0x1f10a087,0x1629f140,0x127ba391,0x1c5024fa,0x19ce0146,
+        0x0a4f9587,0x16f59f2b,0x006de218 },
+      { 0x10cdf0b4,0x0bd7b5f7,0x1aa852f3,0x1a7bf371,0x1817fbef,0x02569465,
+        0x0e8b15fa,0x15fdd956,0x006fa3b7 } },
+    /* 83 */
+    { { 0x03207aa3,0x079fbdef,0x12b4ab5e,0x101217da,0x040743ef,0x184e4cef,
+        0x018377be,0x1f9e00e8,0x006a8056 },
+      { 0x032c2187,0x0a3aae95,0x00809c5f,0x18857ecd,0x11b92bea,0x116e799e,
+        0x140db330,0x03096063,0x004d0081 } },
+    /* 84 */
+    { { 0x0125847c,0x13116743,0x01cd4ccb,0x120df597,0x07fa2112,0x0b488244,
+        0x0451052b,0x06236dcd,0x0056a284 },
+      { 0x10529422,0x189bd6fd,0x1716cc9a,0x00d562b0,0x0b233a46,0x1bcb6068,
+        0x0eb86596,0x112ec517,0x000a310e } },
+    /* 85 */
+    { { 0x1c0f6a5a,0x1651552a,0x1dd7069c,0x14d5d921,0x1ca5efc5,0x1fde2646,
+        0x0e2c09ff,0x0c4a379a,0x004be8a9 },
+      { 0x0885241d,0x0c78300e,0x0717f35c,0x1e75ef65,0x13ae4929,0x198e978a,
+        0x1b12e6e7,0x10468770,0x00404f89 } },
+    /* 86 */
+    { { 0x0123022f,0x0ec0584a,0x1d23fc77,0x0bc429a9,0x015f5d8b,0x19d525aa,
+        0x09ba0bea,0x028bdc57,0x00978c1c },
+      { 0x127140b2,0x142accb2,0x05fa63ac,0x0e838080,0x05fa18bf,0x11bb607a,
+        0x02c583c7,0x19e1b2eb,0x005940eb } },
+    /* 87 */
+    { { 0x1ae5b390,0x0edfbfda,0x12289ebb,0x1ab78018,0x056ec5cc,0x10708a78,
+        0x1e53a63a,0x0c2a0663,0x008ad021 },
+      { 0x18f48329,0x1bb139b5,0x1bf0b1ef,0x1d9cc903,0x081cf8a8,0x1a85d6e0,
+        0x089533e2,0x19651e4f,0x00299ec7 } },
+    /* 88 */
+    { { 0x13998367,0x0908401c,0x16f00022,0x02cb96af,0x0eef49c0,0x0c483a7b,
+        0x01d4662d,0x1fbd5114,0x007b1570 },
+      { 0x0f1a1c7e,0x0426fd99,0x18d1b3ef,0x09b7a448,0x02ff819d,0x15bcf43e,
+        0x184238c9,0x1f2d3228,0x000d06ef } },
+    /* 89 */
+    { { 0x17f33e7b,0x13c1463c,0x0efee072,0x15f6dceb,0x160540fe,0x1c03553d,
+        0x0d106b76,0x075b96c9,0x007cb88f },
+      { 0x1df86b21,0x1129b590,0x056e666c,0x0a297358,0x19af6006,0x16ae5346,
+        0x0ecfb467,0x125b9e21,0x000224d7 } },
+    /* 90 */
+    { { 0x14b77059,0x09f56d9a,0x0ac773f3,0x07279b27,0x14846ec2,0x17d8da3a,
+        0x0b6cb9d7,0x0a5c539a,0x003238d3 },
+      { 0x1fb0c382,0x13b57d9a,0x10b69937,0x175400f2,0x148150e9,0x0bdee0d8,
+        0x0eff2e1f,0x01d32056,0x00a48ad5 } },
+    /* 91 */
+    { { 0x17583d46,0x1f25203c,0x1d5d4206,0x0e131fcc,0x1bcf6f39,0x05f3fc93,
+        0x1b31c9f9,0x074984dd,0x005d2641 },
+      { 0x115381e7,0x14f8799b,0x1d5ad59d,0x0d113e05,0x16b7db68,0x022d113f,
+        0x09c91d24,0x128e018e,0x0006e069 } },
+    /* 92 */
+    { { 0x1341e062,0x0ea20e77,0x1e5bfd93,0x0d32fdec,0x1b6636cf,0x19c14cd9,
+        0x144bc3b4,0x07562585,0x009f3234 },
+      { 0x1e4923c3,0x0cea4507,0x0f2e3ce7,0x1d25cd1c,0x1791761c,0x1d48d125,
+        0x19e830ac,0x1ff84442,0x0078873b } },
+    /* 93 */
+    { { 0x191b40ed,0x04ef7bea,0x1f0d878e,0x0e62c992,0x0542770e,0x1e96fe21,
+        0x1c41aac1,0x1adb992c,0x0017c38e },
+      { 0x1f4cd15e,0x1681bc79,0x0eadba69,0x1598d186,0x1602d088,0x1ecaa787,
+        0x12c44b3d,0x01982673,0x004ff8c6 } },
+    /* 94 */
+    { { 0x0366bbbf,0x0b549a44,0x0946a957,0x1209a67d,0x1bca2567,0x016ee4ae,
+        0x1591219e,0x18c6741a,0x005b27c0 },
+      { 0x1d5b7c9d,0x0416f6b5,0x0b0415e2,0x06e7e79b,0x0b917fc0,0x0feac6e1,
+        0x0f610308,0x10d167d6,0x0066428f } },
+    /* 95 */
+    { { 0x125887b3,0x0968a785,0x114af797,0x101fee99,0x1ed1a7cd,0x1244f749,
+        0x1e6bea5a,0x01b7733c,0x005b862f },
+      { 0x12cc9c2b,0x0e159b50,0x12400455,0x18c41105,0x117281f4,0x111a3943,
+        0x17a91736,0x06db12ab,0x00165809 } },
+    /* 96 */
+    { { 0x129a382c,0x06a83f9c,0x079060bc,0x1f31b371,0x0f4b3f33,0x021645b0,
+        0x1d445e06,0x07ff8c67,0x005ff000 },
+      { 0x1a92ffe1,0x087a6410,0x1fdee811,0x03dc7dc8,0x01d1863b,0x17f9f6b6,
+        0x1811d970,0x0dd8525a,0x00160e0d } },
+    /* 97 */
+    { { 0x0d4f77ca,0x03189a3e,0x188900ad,0x0c7e58cd,0x00ba7752,0x1fb61732,
+        0x198cce06,0x1c313279,0x0087f3f6 },
+      { 0x01ef773a,0x0a35ee9f,0x1aa6fbbf,0x044d200a,0x1c255678,0x0f6a0f4a,
+        0x09100be3,0x1d8ecf5d,0x00a50290 } },
+    /* 98 */
+    { { 0x03c0f718,0x0533a402,0x17ddef0f,0x0ed57094,0x056d9f5a,0x097e2dd4,
+        0x0a75fa28,0x18621580,0x004509c8 },
+      { 0x118e951a,0x1856d855,0x0a57ee07,0x19544421,0x18369800,0x07a89130,
+        0x1d234943,0x00fd3a8a,0x001e1ea8 } },
+    /* 99 */
+    { { 0x0ccb454e,0x03f23059,0x10608152,0x15485c00,0x0c7244d1,0x03ed01d1,
+        0x124caf04,0x0359f15a,0x000559e8 },
+      { 0x1dd591b7,0x0d7342d1,0x1318ad0e,0x04e50177,0x1c9ec193,0x0848b57f,
+        0x0915512e,0x11ed3215,0x0005c8df } },
+    /* 100 */
+    { { 0x1b3b21b1,0x13f93cc8,0x0db5280e,0x15dc6ed4,0x1bcf92e9,0x1ceb0b9f,
+        0x1631504f,0x1b764379,0x0018aad2 },
+      { 0x16cb753d,0x1646a50b,0x0a1f9dee,0x0d50dfb9,0x19661e66,0x117369e3,
+        0x042038b7,0x14d1f7a7,0x00a68c3c } },
+    /* 101 */
+    { { 0x0e5f5306,0x17e574f7,0x02474f59,0x00a83c41,0x13dc0c0d,0x19f377e5,
+        0x03d72b64,0x07388f63,0x00072b09 },
+      { 0x06613832,0x0bc8bcb2,0x0e1c1e47,0x096acaf2,0x16cfcc04,0x099cc019,
+        0x0295667e,0x1accc43f,0x00277e6f } },
+    /* 102 */
+    { { 0x0e02698e,0x107408aa,0x16918230,0x01dfc9f2,0x0ced564e,0x11243a95,
+        0x0daae59f,0x01741207,0x0060fb77 },
+      { 0x17c9ce93,0x0977ed51,0x06bd7eec,0x0b458627,0x12abc9a7,0x1ee38c82,
+        0x1b24ef73,0x0301357e,0x000e6a98 } },
+    /* 103 */
+    { { 0x0b29b33f,0x15d0b070,0x1ea6bfae,0x104abd74,0x0efc7673,0x00a8ea2b,
+        0x0286ace5,0x14a7e513,0x00828071 },
+      { 0x13a9cecf,0x11157ba1,0x14ff01e0,0x1fea0f93,0x001731ae,0x09fb8117,
+        0x1d7179cc,0x1cfdd41d,0x005f3fd2 } },
+    /* 104 */
+    { { 0x1c5f9659,0x1cbb5856,0x1b907945,0x061f8b3d,0x105977c6,0x0afd9577,
+        0x0444a0dc,0x09c8bb52,0x005d1bd1 },
+      { 0x131d050b,0x15374ae3,0x16df15ac,0x05581fa2,0x06041e68,0x1da6dd7e,
+        0x019d4fef,0x05637b0b,0x004b7097 } },
+    /* 105 */
+    { { 0x158b4546,0x19a55831,0x1c6adec8,0x100854d3,0x079bcf95,0x0678d0f6,
+        0x0da93f3f,0x0c2862f6,0x00497c89 },
+      { 0x1ad19134,0x1a23b2c1,0x1e009e97,0x04837ca9,0x0a4319d9,0x19adca0b,
+        0x16f51888,0x1a2512a0,0x0065d2c5 } },
+    /* 106 */
+    { { 0x19117375,0x0ab7571e,0x06507757,0x1ef33e3e,0x01f23e0c,0x0250cfe4,
+        0x1894012a,0x1bcbf932,0x0001a424 },
+      { 0x0c1d98c2,0x12a2090b,0x1eab7d9a,0x1e8cde70,0x1c1ac75e,0x08fbfd2d,
+        0x035dd5e1,0x09e1ee4d,0x000f3df4 } },
+    /* 107 */
+    { { 0x11d98bdc,0x1dfca526,0x0cb532a2,0x071ee2f6,0x00ef962d,0x13776ee7,
+        0x03176179,0x0e26ad2b,0x0086ba5f },
+      { 0x0ee6f5cc,0x00f2f0a1,0x1db4f9a2,0x18ac98b3,0x023b8dc6,0x13448ac5,
+        0x1e8092ed,0x1212eada,0x0014017d } },
+    /* 108 */
+    { { 0x1980847d,0x14f44fa6,0x01990821,0x02408675,0x08b9b8a7,0x184fb547,
+        0x03c203fc,0x17f42bd1,0x0025c31a },
+      { 0x0d177a92,0x19dfaf21,0x004e978e,0x1825c9ab,0x1897f96c,0x15259aa7,
+        0x178cd46e,0x081565b6,0x00a6b37f } },
+    /* 109 */
+    { { 0x09500f91,0x10a47347,0x0e6f5514,0x044b9bc7,0x0c782ee2,0x185b146f,
+        0x0f460ff4,0x029bc5fb,0x00a79c5d },
+      { 0x19ece05d,0x063b7ade,0x1a051cea,0x0102a270,0x110c1389,0x0cd309da,
+        0x1b4084e9,0x09a1994a,0x00670748 } },
+    /* 110 */
+    { { 0x0f3e03c3,0x192db4f1,0x0bdd93be,0x0aa22ce8,0x0f76902d,0x143dc057,
+        0x00d45232,0x092afeaf,0x00267c59 },
+      { 0x07e85de5,0x13d7a24a,0x1d482073,0x01b48c31,0x1a0dcadd,0x02271bfc,
+        0x0a65f090,0x162fa29d,0x00418119 } },
+    /* 111 */
+    { { 0x0dc07168,0x1969534b,0x0d00152e,0x1e4a1115,0x1ae3643b,0x1921c48a,
+        0x1429fe84,0x12674d57,0x008d719d },
+      { 0x0271dd87,0x04513940,0x020846b3,0x0c4d3e68,0x15831fd8,0x19b15620,
+        0x0c474788,0x0fde4023,0x002ac36c } },
+    /* 112 */
+    { { 0x03aeade7,0x1ac47710,0x08a22976,0x0c513653,0x1e29441d,0x136b3997,
+        0x16cdf75e,0x07320735,0x00a1c930 },
+      { 0x0e897b29,0x016b58e6,0x04d848af,0x1a3fd141,0x12f4f6c8,0x0b22dfba,
+        0x05b4a1c8,0x18429181,0x0030c31c } },
+    /* 113 */
+    { { 0x0eeb277f,0x01907b10,0x1bfb3f65,0x133592f5,0x19b7d710,0x13c83bff,
+        0x1da6ecce,0x04540118,0x003cd7e6 },
+      { 0x0a64af0f,0x098fdd83,0x0f4c7c59,0x03ffbf8f,0x069f874d,0x1160ea27,
+        0x06dd156b,0x0b949859,0x0002a08f } },
+    /* 114 */
+    { { 0x0b02946b,0x0bdbd905,0x11cff445,0x015970b4,0x1e01d1b6,0x104226db,
+        0x08dbf35a,0x1b625dd1,0x0089a2a3 },
+      { 0x109d8e1e,0x11b5b5ad,0x0a54ec6a,0x028a0789,0x104eeab8,0x0c4dbd30,
+        0x1b04b5fa,0x1d79c5bd,0x000b5415 } },
+    /* 115 */
+    { { 0x01ef1976,0x16f214b3,0x1f65c3ca,0x16affee4,0x17182a2b,0x129b3caa,
+        0x0f4130cf,0x10ba45a6,0x002c59ac },
+      { 0x05ca50a4,0x0c923302,0x10c38d0a,0x1d82988d,0x194a8c18,0x0a86b8b5,
+        0x1b151923,0x13479a54,0x003124c4 } },
+    /* 116 */
+    { { 0x133a2932,0x03297a7c,0x1a6f3ad3,0x1becbef1,0x17d2a399,0x0f3750e7,
+        0x0ea98aab,0x1c36b7e0,0x00757c99 },
+      { 0x0922a106,0x184d50b6,0x1f8e0efd,0x19a279e3,0x0871a024,0x0f57d3a4,
+        0x119a01d7,0x07e4c645,0x002683de } },
+    /* 117 */
+    { { 0x1e1ee500,0x1241a0a5,0x0b08fea8,0x051c7270,0x1ab7fe40,0x05441d9e,
+        0x03c8be47,0x03c7ed4a,0x0042e9dd },
+      { 0x1e0a609d,0x0430c3b2,0x00d29658,0x1f592228,0x15e2f04b,0x04b2aabd,
+        0x065311de,0x157150ba,0x00734f39 } },
+    /* 118 */
+    { { 0x016b5beb,0x06d1b2d9,0x0fa8b3b8,0x186f2f7e,0x06f22b38,0x0e536d56,
+        0x19f4fe83,0x0f93590c,0x005d14b5 },
+      { 0x12db7ed8,0x09f4bdce,0x08e49699,0x1a5d1bfd,0x16059d56,0x1475d1bf,
+        0x1ce88d26,0x05bb61f6,0x007d443b } },
+    /* 119 */
+    { { 0x0516b1cc,0x0199e82b,0x1933f1ab,0x09f51feb,0x0408bd83,0x1a068f79,
+        0x1de07cf9,0x00b2d8fe,0x0039f7fc },
+      { 0x07eb3827,0x1dbd096a,0x0a6cb2c8,0x1eadd6a8,0x1f7a1891,0x07f8e18f,
+        0x1f219f1d,0x0297e681,0x006199ee } },
+    /* 120 */
+    { { 0x0f7a1f56,0x0a26ea0a,0x1faa5613,0x179149b8,0x0f399b21,0x0d8dcca9,
+        0x07626c5e,0x14da6f30,0x00394521 },
+      { 0x03578a21,0x16b8a359,0x00108955,0x17113973,0x1c918b94,0x0094b16c,
+        0x0939fbee,0x0c7948a4,0x00535950 } },
+    /* 121 */
+    { { 0x0c3e2534,0x15533aa6,0x0e2e29cf,0x100cc722,0x1c71ac32,0x1405c97b,
+        0x108f1753,0x1f967410,0x009c0843 },
+      { 0x0f03a495,0x076c1da3,0x0a2c1592,0x0e759b22,0x05d5b61a,0x018df594,
+        0x0c284947,0x13910bd0,0x003571dd } },
+    /* 122 */
+    { { 0x1d52cf11,0x18876b83,0x13a90fde,0x0ce9870d,0x041678e7,0x0cd131ff,
+        0x10673579,0x06398540,0x00771d0e },
+      { 0x082a29d9,0x036ecb46,0x08c8ff23,0x054c7148,0x05d74ace,0x1df9e69d,
+        0x09f67a89,0x0320cdbc,0x000281d2 } },
+    /* 123 */
+    { { 0x00402dae,0x0f1e0bc1,0x004eba82,0x1dd38fbb,0x040387ce,0x1e02545f,
+        0x1e27c6c1,0x11b4153a,0x0017c8a1 },
+      { 0x193dad0d,0x0a1937e5,0x1fe74fc2,0x0c0a0c70,0x05b102f3,0x15bb1ea1,
+        0x197ed1fa,0x1149afe3,0x009b8880 } },
+    /* 124 */
+    { { 0x196e24ee,0x1a129146,0x10813eb9,0x1dd1579e,0x03267417,0x1a092a8a,
+        0x0596f8c4,0x09a6fa18,0x00885b8d },
+      { 0x119a6410,0x173acf38,0x0e9fe3d1,0x1cc99735,0x10c4131e,0x110c1c89,
+        0x05cc15d7,0x06995227,0x003948d7 } },
+    /* 125 */
+    { { 0x0fef1c86,0x07091371,0x18e8f487,0x01b40add,0x13a059c1,0x0b6d6e8b,
+        0x030d7483,0x137bbcba,0x004b443c },
+      { 0x11a72250,0x1157f8a9,0x184119ea,0x1a82c2af,0x1e044d57,0x11ee8ebe,
+        0x062da054,0x05e868e8,0x0000c3c0 } },
+    /* 126 */
+    { { 0x08bf7ca7,0x0a0e444b,0x14e165c3,0x1a054f88,0x1a9a6fc4,0x14c6f020,
+        0x137622eb,0x07495cc7,0x0016a7a2 },
+      { 0x03ae16c4,0x0f287b77,0x092f7f95,0x1b98f7e7,0x01f64b1a,0x01590276,
+        0x19420217,0x11efea83,0x004184dc } },
+    /* 127 */
+    { { 0x14afec53,0x0d460c60,0x0e0c28ee,0x1006d0a4,0x0699d18b,0x00aa83e8,
+        0x0b319d3a,0x09595c1f,0x0045449d },
+      { 0x00cac59c,0x0aefd30a,0x0b76a36f,0x1d09d5f8,0x00a49b96,0x1d97379a,
+        0x0d297425,0x0dff12b6,0x0095ab2b } },
+    /* 128 */
+    { { 0x17a75c0c,0x050aa69c,0x17e0ea4b,0x0db203be,0x10a9c066,0x1fe25ac3,
+        0x00945e37,0x0c1bb5ac,0x000ccef8 },
+      { 0x1e68d171,0x01ba83b1,0x007df3be,0x09c718bb,0x0c721d2a,0x102aacd7,
+        0x17160c36,0x1cee883f,0x007355f2 } },
+    /* 129 */
+    { { 0x0a2683a6,0x16042c0e,0x1875bd5b,0x04bfd84c,0x018c8176,0x15b07a39,
+        0x16eef5d8,0x18edcc2e,0x007f971a },
+      { 0x11275262,0x081ec2dc,0x14bc6883,0x04433dcc,0x1f08ca51,0x00cea596,
+        0x1d529a74,0x1b9dcb71,0x008168f3 } },
+    /* 130 */
+    { { 0x00718e77,0x13befdfa,0x05e4d38d,0x03c677cd,0x08072192,0x0b4d59e3,
+        0x1fb93563,0x1c74f7b3,0x0020ffbf },
+      { 0x09d8f6b2,0x0232689d,0x0c09cf32,0x1606e5c0,0x00b04745,0x0c5cd5e6,
+        0x096d0728,0x0972075a,0x002feec3 } },
+    /* 131 */
+    { { 0x04479936,0x026a27bf,0x15e2604f,0x0aff6806,0x0645e2c3,0x1cd8e622,
+        0x16436bec,0x0a18fa47,0x00a31101 },
+      { 0x11548f9f,0x1d9e3018,0x092845e1,0x0becc471,0x19730bcc,0x03fd938a,
+        0x0e50cb79,0x016e85f1,0x001645f1 } },
+    /* 132 */
+    { { 0x0e83a049,0x022b0a00,0x08ffce8b,0x04891866,0x138e815f,0x15aad6fb,
+        0x0349866b,0x1ae700be,0x00730885 },
+      { 0x027595b4,0x14215852,0x18cea022,0x0939fa35,0x02d74bc6,0x129c77ae,
+        0x1de5b3b5,0x0375fc92,0x0069b0aa } },
+    /* 133 */
+    { { 0x1a95ef73,0x17090f84,0x1632f8ee,0x17a343d8,0x08de88a3,0x168dc023,
+        0x0ae19889,0x073d6a0e,0x00936664 },
+      { 0x059c9a8c,0x0cbe5561,0x1dd31479,0x0c1216c0,0x08228862,0x0dfb53a4,
+        0x19469e2f,0x13e8ff2b,0x00154c9c } },
+    /* 134 */
+    { { 0x191d9ce2,0x0f5311d9,0x0fe72cc0,0x1e685fad,0x04e015cd,0x16d90531,
+        0x1da8dec0,0x03bbb437,0x00852ce7 },
+      { 0x19743a52,0x07c3437b,0x144496d9,0x100ee6f2,0x06b2edef,0x10453dbc,
+        0x18d2e12d,0x1e35f415,0x001908d0 } },
+    /* 135 */
+    { { 0x0834e4a8,0x06b0ab3e,0x1cd76a59,0x19a82c56,0x07641ceb,0x11a5260b,
+        0x18cd2579,0x12d655c8,0x00308caa },
+      { 0x14e9dc39,0x15ae7db2,0x005bc25f,0x1cbc8573,0x19c2dcf6,0x1ba9d764,
+        0x16f11f89,0x0eac10cb,0x00821b1e } },
+    /* 136 */
+    { { 0x1c15666d,0x08ae37b0,0x13d21026,0x0eb71b4d,0x02fe5c3a,0x1a9407d1,
+        0x10111582,0x1a6613ec,0x007455fb },
+      { 0x00a77116,0x0c79fa25,0x068d8f43,0x16f6dd5a,0x0bfdc042,0x1754b8ee,
+        0x181e2dc5,0x0e2c8d44,0x00098bec } },
+    /* 137 */
+    { { 0x00c2180e,0x1e39a5bc,0x174d918a,0x18489260,0x03ef8cd1,0x0b0de67c,
+        0x15298cae,0x1720c4f6,0x004f4bb2 },
+      { 0x027eaae8,0x025beef1,0x1a276b02,0x0a68b086,0x04da595f,0x0d4c718e,
+        0x0f179143,0x01dfa05a,0x002d810a } },
+    /* 138 */
+    { { 0x128ce8b1,0x099a09c9,0x07b348a3,0x1fa86716,0x1634427a,0x198593c0,
+        0x057038a3,0x0a29a282,0x009230c9 },
+      { 0x00701e1a,0x1d1ad6b6,0x1a288abf,0x0bd836aa,0x0c3098d8,0x0cec67b5,
+        0x04656d67,0x17f546f7,0x004641ac } },
+    /* 139 */
+    { { 0x10d905af,0x1f2e6f5b,0x12070062,0x006c9701,0x1f200fa2,0x1d4001c2,
+        0x18a264df,0x11bdbeef,0x000231c0 },
+      { 0x15286b2f,0x1156cd59,0x0a880349,0x06455013,0x1c0e0990,0x0dcc0420,
+        0x0044b457,0x0a604a74,0x006dcd5a } },
+    /* 140 */
+    { { 0x148482c2,0x0711369c,0x1ac014cc,0x02e6d056,0x0093af90,0x142896d6,
+        0x0323ab06,0x08faea10,0x00986b0e },
+      { 0x14c4318b,0x0dee77c4,0x117ed711,0x15897df0,0x1586b7a5,0x1e746bfd,
+        0x07a6ecad,0x0fa2c889,0x0042901f } },
+    /* 141 */
+    { { 0x03d63f16,0x0df711bc,0x13a43ec3,0x197617ca,0x04a482b6,0x11a6ced3,
+        0x05acf948,0x177c951b,0x001d1027 },
+      { 0x13039658,0x12bbf9b2,0x08f15b8e,0x060c981d,0x13bfd533,0x0f9eba39,
+        0x0ce6edc1,0x026f632e,0x002d0337 } },
+    /* 142 */
+    { { 0x15b08641,0x100a1783,0x192d05df,0x084869f2,0x0e8ea611,0x10e90d14,
+        0x130b86b5,0x0a53e03c,0x006c5a0a },
+      { 0x09482489,0x1dee1e5a,0x1dd13ab3,0x08c9bcc2,0x14f854e0,0x1ef655d5,
+        0x114b626c,0x11bf85ee,0x008308fd } },
+    /* 143 */
+    { { 0x09a9cb4a,0x0569126a,0x0e699d30,0x03687735,0x052e78d8,0x194c93f9,
+        0x0dca83dd,0x1c9d1e2e,0x001202c0 },
+      { 0x0472d361,0x1433c8aa,0x0525915f,0x06709fd0,0x047fa8ce,0x0d09e482,
+        0x1008a037,0x0b455621,0x0033e0bb } },
+    /* 144 */
+    { { 0x093e705f,0x0fa638b8,0x18d35001,0x12c0fc62,0x12aaf9e6,0x024a3e32,
+        0x02339c84,0x086d5c27,0x00467c6c },
+      { 0x0bdbaed7,0x1ce255e4,0x1112cd4c,0x1c74f656,0x0447ecba,0x0f2d3feb,
+        0x14a96fb8,0x169bebc1,0x009bae5c } },
+    /* 145 */
+    { { 0x1e0d6c3a,0x08011822,0x1028e6c1,0x11bc6302,0x1295bcca,0x1c2670ab,
+        0x008d8b25,0x1f5a0dc7,0x0044cdda },
+      { 0x15c879f7,0x1c8176ea,0x0264f2f8,0x19e47fbe,0x0c616778,0x1d2498e0,
+        0x1e4b6998,0x1364a402,0x00148f62 } },
+    /* 146 */
+    { { 0x08ee71cd,0x02ddffd9,0x08f4c78a,0x1ec0ab04,0x005ac13f,0x130ffec0,
+        0x0fe4fc1e,0x19642b47,0x0067c3a7 },
+      { 0x162ce897,0x02ad3375,0x0fbc8b09,0x0f785319,0x19573c0c,0x0f3ab83e,
+        0x094391de,0x1637bf87,0x008ca213 } },
+    /* 147 */
+    { { 0x162fad1e,0x17f89422,0x0ffad04e,0x1fcbfedd,0x03c7a58e,0x1e0a8619,
+        0x19418d3c,0x1bbc354f,0x000554b9 },
+      { 0x02254afb,0x1426e7ae,0x008c02ae,0x16dfa47e,0x09e65aad,0x135d1a85,
+        0x17e8482e,0x0cf96506,0x00a95cb6 } },
+    /* 148 */
+    { { 0x178be06f,0x1a00c042,0x1d4be4ad,0x11ec8f25,0x12aec38d,0x1ab04da4,
+        0x0d09dd49,0x16a72748,0x0033523e },
+      { 0x07a99c72,0x039b03eb,0x155230d0,0x186bbcc7,0x01908782,0x05ca476f,
+        0x1eb91fc1,0x1a1daa2a,0x000fdd6a } },
+    /* 149 */
+    { { 0x17ac8c8a,0x08d25355,0x0eaf97e4,0x0994873f,0x1fa74748,0x00490593,
+        0x0438e4cb,0x1476839a,0x009806de },
+      { 0x0522cb90,0x183f9ae6,0x1f6a5cf6,0x10e81e6d,0x12a574d6,0x0a1cca96,
+        0x1e1c2dbe,0x1911cc66,0x009eb5e2 } },
+    /* 150 */
+    { { 0x1b939ebf,0x1348dce9,0x0f35650b,0x17966308,0x15ff7f52,0x0f17a015,
+        0x0a37fff4,0x14444d1d,0x003d58a2 },
+      { 0x189422d9,0x0fad14b8,0x1ee673ca,0x11ab3551,0x0eebd190,0x16b384d7,
+        0x0370d9a2,0x0d95a232,0x004aa43d } },
+    /* 151 */
+    { { 0x08327bf8,0x14feb8ec,0x1b16b7d7,0x0c866cb2,0x0cfe6a22,0x0bdb04a8,
+        0x031c3141,0x136668a4,0x006910a7 },
+      { 0x190ab023,0x024c5ee3,0x15c28137,0x1f8bcaf2,0x123765a3,0x0a93191c,
+        0x0c95be71,0x1a6536bb,0x004c15a7 } },
+    /* 152 */
+    { { 0x08b74590,0x11b7ff9f,0x01e62de8,0x1a855168,0x01252018,0x180ef08b,
+        0x1070d683,0x18436b42,0x00840233 },
+      { 0x01e6d689,0x16292e71,0x04c06736,0x0c689121,0x05614a6c,0x0e9f433e,
+        0x1edd6795,0x1c48684d,0x006eca37 } },
+    /* 153 */
+    { { 0x05338921,0x0539b029,0x0f253207,0x1681ea94,0x02bd91ce,0x0c6b711e,
+        0x19c93946,0x081c03d0,0x00729858 },
+      { 0x1af9a992,0x09aac37e,0x072b3e89,0x0ae6cbe3,0x1b3387a0,0x1a1e6865,
+        0x120ab738,0x1c1c8a86,0x00270a6d } },
+    /* 154 */
+    { { 0x0e2bb6e9,0x0ffd9956,0x0b42009c,0x1a6a4fc9,0x168a935f,0x07fe2b08,
+        0x09724df8,0x1a82470c,0x001af91a },
+      { 0x1e739e62,0x1a9452c1,0x07c3c4c9,0x176b3263,0x021e48a5,0x0988de77,
+        0x00baceb1,0x1658fedf,0x008a5574 } },
+    /* 155 */
+    { { 0x196a7abc,0x1209cc37,0x01bfb56c,0x1ff06877,0x0f57b087,0x0c3ce520,
+        0x17a03bb4,0x16d03d35,0x00292d16 },
+      { 0x05ca7111,0x02b882fb,0x02d257be,0x07803a65,0x1cab7f94,0x12dddf60,
+        0x0b8bdc3a,0x18309da8,0x0080238d } },
+    /* 156 */
+    { { 0x06a18b50,0x02d03865,0x0cf7efac,0x14633708,0x1c24a502,0x0cfc6d5d,
+        0x00d6de9f,0x03265464,0x008aac45 },
+      { 0x125b2b55,0x113c846b,0x06ad27cb,0x01685ee5,0x185b0dfb,0x08682147,
+        0x1723ce9a,0x0024710a,0x003173eb } },
+    /* 157 */
+    { { 0x1fd13b10,0x1795bd98,0x132cfd77,0x18f865cb,0x136f03d6,0x157fc5a6,
+        0x0f248b95,0x11290ba4,0x004db43b },
+      { 0x1bd08499,0x0f660f9a,0x1356e60d,0x104813f2,0x109b3e17,0x0175cc6a,
+        0x1d4d1ea5,0x0d225b3a,0x0050d120 } },
+    /* 158 */
+    { { 0x01f1ef75,0x0d427798,0x0cbea10f,0x1621cbf5,0x0b1ac560,0x1ca342ac,
+        0x0da86ee0,0x0eb89a3f,0x006d711f },
+      { 0x12736291,0x06d3a731,0x1e1c1dcd,0x0aa2a89d,0x1e847b73,0x16a05135,
+        0x08142534,0x0a71bad2,0x009a35fb } },
+    /* 159 */
+    { { 0x14c7e2db,0x1562a7ad,0x05e6b02f,0x0b0ad383,0x168b0456,0x0590821f,
+        0x1d5efc52,0x15135975,0x005102eb },
+      { 0x07ef22ec,0x04ac10f2,0x0cdc2b8d,0x1274827d,0x1361de8a,0x0712e45b,
+        0x1a1f866f,0x0b742853,0x004b0085 } },
+    /* 160 */
+    { { 0x0122fe82,0x04c8f483,0x00b76c7c,0x13b29919,0x0b9d3798,0x13e6a163,
+        0x1f686ba9,0x0ff690d2,0x0077014c },
+      { 0x16f6ef60,0x19b7d409,0x0795f1fc,0x129b9f38,0x181631de,0x0b216646,
+        0x0aa780ba,0x1c3c77c5,0x00176e1c } },
+    /* 161 */
+    { { 0x03378656,0x0cc87a89,0x14f81e0a,0x15510847,0x1821d0f8,0x0667096b,
+        0x0331465d,0x0685cfd2,0x00137ba6 },
+      { 0x008a0a27,0x01bcf282,0x0981ca48,0x06564248,0x0a6f71be,0x166493da,
+        0x03946487,0x1c969c1a,0x00923e11 } },
+    /* 162 */
+    { { 0x011e1308,0x152182e5,0x09e71523,0x01416b4d,0x0a6e084d,0x03ef5801,
+        0x185d1073,0x08b3e411,0x00765f6a },
+      { 0x089a0b1d,0x03958961,0x1da6ce64,0x0a8b89da,0x146f6578,0x001f064b,
+        0x1a724d42,0x0e2ae469,0x0015b0f8 } },
+    /* 163 */
+    { { 0x19492f48,0x0fc55f8e,0x02bfab91,0x1978cf8c,0x0a27fb43,0x07a82169,
+        0x0008762e,0x122a5084,0x008d7983 },
+      { 0x01bf2192,0x1eaba4c2,0x06828098,0x074c5037,0x161b7e90,0x1463e0df,
+        0x1bfe604c,0x06cbab4a,0x0086d7db } },
+    /* 164 */
+    { { 0x1cf79d95,0x0b79cb88,0x1e42e119,0x00b7a4d9,0x0df7656b,0x1ec1730b,
+        0x0fd5da87,0x167c68eb,0x0089efbc },
+      { 0x1f60ac26,0x06e39594,0x0bdef9ad,0x0299cf90,0x000a15bd,0x1f30d93b,
+        0x11f7c172,0x153bdc1c,0x0069ca67 } },
+    /* 165 */
+    { { 0x1f0d14ef,0x1b2d54a7,0x16967ff1,0x18adb81c,0x181867ac,0x06a214ce,
+        0x0446c40c,0x0b6aa7dd,0x001c5922 },
+      { 0x0bc5b361,0x0a558674,0x0b56ed4b,0x1a226b71,0x01c99ac8,0x0cb3d03d,
+        0x1e2434f3,0x147c459e,0x00463595 } },
+    /* 166 */
+    { { 0x1e5fcf16,0x1733f283,0x07b412a7,0x14276b87,0x0efc758e,0x16c318f5,
+        0x033efe74,0x04b61651,0x003ca68e },
+      { 0x1cb37349,0x06b4150b,0x1f92eadc,0x065013d2,0x182642c5,0x17754bb6,
+        0x05fc839d,0x12db0096,0x002ac8cb } },
+    /* 167 */
+    { { 0x0ebfa52f,0x109a29bf,0x08f5cb3e,0x0733071a,0x1fedcee0,0x1b1d129c,
+        0x04ad966e,0x0b8c6f11,0x00620975 },
+      { 0x0db1ee52,0x08798318,0x109fc0ee,0x1b90b129,0x0acdccc1,0x014113e8,
+        0x0ff9b7d4,0x0eda2973,0x009c98a6 } },
+    /* 168 */
+    { { 0x15b988b6,0x0fb44832,0x0292e719,0x0fe84f4c,0x009c5b26,0x1786ff7d,
+        0x033ac0fc,0x0e798d3c,0x00005bd6 },
+      { 0x0964b119,0x086ea334,0x048d0ccf,0x0e019883,0x028df1a8,0x01103a64,
+        0x1bb8403e,0x0d494784,0x0037984f } },
+    /* 169 */
+    { { 0x0a75986a,0x0c09a05c,0x0cec6e73,0x0366f088,0x17ff45b6,0x042d990b,
+        0x04c4e02e,0x116e2826,0x004a1e0e },
+      { 0x051cd8cc,0x1047796f,0x01c0a982,0x153084bf,0x0bf69551,0x11b6aede,
+        0x03c1c4b6,0x1c01852d,0x008a5271 } },
+    /* 170 */
+    { { 0x1e39f03c,0x04666eb3,0x07476fdd,0x064543c1,0x03c444bc,0x04f4599a,
+        0x1523a5a3,0x15ee325c,0x0015ee7b },
+      { 0x1a8589b9,0x14cad128,0x136bf64d,0x10a3661a,0x003f3163,0x03151576,
+        0x19f9e312,0x040e7aab,0x0045c4df } },
+    /* 171 */
+    { { 0x088cfb23,0x0c29bfd1,0x11300bee,0x09463a74,0x0787f54f,0x0f16a801,
+        0x028bd9f6,0x01c16dd7,0x001f3859 },
+      { 0x12573a71,0x1662e0cf,0x0c53a2c8,0x0296093e,0x107a0e00,0x1139c448,
+        0x1420c2af,0x1464c9f7,0x009b0bac } },
+    /* 172 */
+    { { 0x1a935188,0x047f6921,0x1f9047cf,0x0c588d4f,0x072997a1,0x09744721,
+        0x1f3c9d88,0x0b7a9576,0x00860c14 },
+      { 0x0386faab,0x0b80ed0e,0x0089a1c2,0x136235f2,0x0c483ddd,0x189af4ae,
+        0x1c505275,0x0473641a,0x007b6e17 } },
+    /* 173 */
+    { { 0x0262722b,0x19141f41,0x013647ad,0x1223e27a,0x06e81892,0x044fc34c,
+        0x16d0826e,0x0282806a,0x003adda0 },
+      { 0x04f37c8b,0x155ceca2,0x18ed42fd,0x16c6fd94,0x07b99651,0x199287b8,
+        0x0ada4e2a,0x0523ec95,0x00632180 } },
+    /* 174 */
+    { { 0x1cd409ad,0x07196d7b,0x1173daa2,0x03b59691,0x1a6e4bae,0x11487ee5,
+        0x1da6432a,0x03118b8f,0x0008a135 },
+      { 0x0f3bd0c3,0x036f38d1,0x05156d6a,0x191c3351,0x0e49d854,0x07f6a6a5,
+        0x1afc438b,0x0cb82689,0x00280f5a } },
+    /* 175 */
+    { { 0x1fa2c194,0x19649617,0x08087a2e,0x1dcfefe1,0x000250f7,0x03a1bdd8,
+        0x0d955aee,0x0876adf9,0x00821e0d },
+      { 0x1f678f55,0x02f5ae23,0x03868699,0x1a8f673f,0x0073ae25,0x17a85c45,
+        0x1029930d,0x1881b878,0x000e055f } },
+    /* 176 */
+    { { 0x0609572d,0x077e79d2,0x052f65cb,0x1004d8e9,0x16a57f96,0x06d18376,
+        0x055308f4,0x05c6af8d,0x00856e79 },
+      { 0x007b2072,0x1c536ff6,0x1c9107f0,0x008dcad3,0x0e7e5633,0x1afda975,
+        0x0eb7fefe,0x07ef198e,0x0037c19f } },
+    /* 177 */
+    { { 0x1035176a,0x00ec76aa,0x08e1a021,0x1a42582a,0x17f3051f,0x0cc4a3fe,
+        0x1d2c30ea,0x1578694d,0x007e632f },
+      { 0x1e9c319c,0x1d78131b,0x135304f5,0x11615fcf,0x171f6ebc,0x1931298e,
+        0x1f1149a2,0x0ff5b15f,0x007aa6ad } },
+    /* 178 */
+    { { 0x1e888b27,0x135eb9be,0x11e893ec,0x0b4eceb2,0x18bd310c,0x1100c048,
+        0x027e094f,0x070e8222,0x002aeacb },
+      { 0x18e64765,0x014cc05f,0x1210a004,0x0b7047fb,0x1d3d8c81,0x15b865d1,
+        0x03b1fadd,0x11ad44a6,0x00166fbf } },
+    /* 179 */
+    { { 0x1425d686,0x055ff6cc,0x0ff37654,0x0ae1834f,0x0fb6f290,0x09755402,
+        0x02e1a440,0x1af5c84a,0x009410b3 },
+      { 0x1cb6730c,0x0cc53287,0x16a072cb,0x1b7f9750,0x14a3b673,0x19cfed3d,
+        0x0a5b8041,0x0e3d8d37,0x00911844 } },
+    /* 180 */
+    { { 0x1e4f4c6d,0x11490573,0x1c48cf02,0x051a6dae,0x1d15be6c,0x0c5f9f94,
+        0x01c527b4,0x16f32ef7,0x00910ece },
+      { 0x0a771b2a,0x15d46bfb,0x0b29285e,0x0882a549,0x0e461f03,0x0b8a6ec4,
+        0x146d6763,0x0111eee5,0x008e1dad } },
+    /* 181 */
+    { { 0x17aad0f4,0x1cd2a59f,0x19ed86b5,0x0617a5b8,0x154b7d90,0x1543124a,
+        0x151110d5,0x1281ce8f,0x001861c1 },
+      { 0x11ed9651,0x082c8467,0x13cee26b,0x1ccf673c,0x01539eb7,0x027f6e4f,
+        0x07e58cce,0x18f032ec,0x0076d698 } },
+    /* 182 */
+    { { 0x062e278a,0x05de91e2,0x0ed67b55,0x1ec0fd95,0x1e69554e,0x00b606a5,
+        0x0a8faa3d,0x1bfb04f6,0x007a8e14 },
+      { 0x14fb47e4,0x11c0fcf7,0x102a2cca,0x037146e0,0x1b42549c,0x1b93998e,
+        0x1aacf1da,0x1da7fd4f,0x00167502 } },
+    /* 183 */
+    { { 0x0531469a,0x0d0e1d94,0x1995041c,0x19ea6ae0,0x0373bfc9,0x18563dd1,
+        0x144cfff5,0x0a1fbc0f,0x00230211 },
+      { 0x16927596,0x17fd0963,0x1f0b266a,0x063b8bdd,0x1892ce18,0x03fa8152,
+        0x020f4d32,0x1dc8a003,0x00a5fe14 } },
+    /* 184 */
+    { { 0x1b25adc8,0x15204597,0x16bdfba5,0x0691be49,0x111693da,0x02235994,
+        0x099910eb,0x17b3d7a8,0x0062b487 },
+      { 0x0cb35de3,0x02b11137,0x0ee03bf0,0x13600562,0x1db68ef7,0x1a8d9b29,
+        0x0c754c8d,0x069a94bc,0x004f2ede } },
+    /* 185 */
+    { { 0x0c0f0c47,0x0a3cc02f,0x0789d8f8,0x0a641d6a,0x06d09c4e,0x003f821f,
+        0x0636b1b3,0x1998790d,0x0050e911 },
+      { 0x175b7f2e,0x00f0c5f6,0x1d13a387,0x0b6912d9,0x1ff8e770,0x1a7add45,
+        0x0dcab485,0x0c0fc178,0x00262492 } },
+    /* 186 */
+    { { 0x16d66355,0x1bc4980e,0x14c104f3,0x0d9eb71b,0x1204f9db,0x15c204a1,
+        0x0918ff57,0x0f2b99f9,0x000f2eec },
+      { 0x111803bb,0x1e4dd318,0x02bbe28e,0x0e43ce27,0x1557a2fa,0x11995826,
+        0x0832a18f,0x11de9d2b,0x00944635 } },
+    /* 187 */
+    { { 0x0879bea4,0x046d22e0,0x1cf84737,0x11d3b6a8,0x13a29ff0,0x1c587bc6,
+        0x1084c758,0x118d64e5,0x0037025d },
+      { 0x0774ba9e,0x0374d054,0x0014623d,0x1bff6c61,0x15b4262b,0x0225f968,
+        0x1008a983,0x1ed7d624,0x009ad646 } },
+    /* 188 */
+    { { 0x0b6d6b28,0x11a8fb06,0x024f6d02,0x0b85fc86,0x15eaa4eb,0x0d189c73,
+        0x0af60d17,0x1628c95e,0x00a3a288 },
+      { 0x09b7ed6c,0x0aed5ed1,0x142617ba,0x0ff352d7,0x108012e6,0x0c594958,
+        0x085b624e,0x040132a3,0x005781f2 } },
+    /* 189 */
+    { { 0x093fd8a6,0x0fca4cc3,0x12f5cb78,0x1cae68d7,0x0e3f861b,0x1145533f,
+        0x03ff7dbe,0x18048f7d,0x002687c7 },
+      { 0x08d3e8a2,0x0777344f,0x1dfd9c06,0x0df81898,0x1243bb13,0x0c419ccb,
+        0x03c5eaa0,0x0bd230b1,0x0064d9fe } },
+    /* 190 */
+    { { 0x0dd8852f,0x1d42d334,0x07b33186,0x0d54e8a6,0x07f8fb4f,0x0eebfd6f,
+        0x0bc0e4b6,0x1278e412,0x0035594c },
+      { 0x1f23fdaa,0x00e58737,0x026314a1,0x05867a07,0x0005e48d,0x05e48a69,
+        0x179e1557,0x0a071f13,0x000c603e } },
+    /* 191 */
+    { { 0x1cd9caea,0x0042a718,0x0b069924,0x0641049b,0x16d98d87,0x15b03a75,
+        0x12a42824,0x1a821298,0x00526e22 },
+      { 0x0b73e5b5,0x1e6dc3a7,0x1277fab4,0x0378c33a,0x07afc344,0x01630f45,
+        0x0ed5a41e,0x01224462,0x0015b2ad } },
+    /* 192 */
+    { { 0x1047c857,0x1c036e2d,0x13fd4a97,0x15661760,0x1913247a,0x08ac0a98,
+        0x15364690,0x1d48c6b7,0x001b55a7 },
+      { 0x1c2f9705,0x19af8c65,0x03ca7a39,0x03338a15,0x16e888f2,0x0f0756d4,
+        0x17806c44,0x1fcfa818,0x00328fab } },
+    /* 193 */
+    { { 0x1e3f1463,0x1ed9d3a8,0x05f2a675,0x03e08ea4,0x0a4ead74,0x0a62a1e8,
+        0x012f03d1,0x183f1a83,0x0027893a },
+      { 0x19262bf0,0x097bbea8,0x1c462320,0x1a190773,0x1983dac6,0x1e379f6a,
+        0x0d6c3af8,0x1f388426,0x001aee29 } },
+    /* 194 */
+    { { 0x1004e70a,0x1f1f470f,0x1cb83c02,0x1f709060,0x1a486c2a,0x0e2aa09b,
+        0x0aa49ffc,0x14e00378,0x009cbc5c },
+      { 0x1840c49c,0x079eec0e,0x0413c361,0x040daab7,0x10efd50d,0x16d38972,
+        0x11f5f608,0x1fca2367,0x00a10782 } },
+    /* 195 */
+    { { 0x1a1c5705,0x1e02eeb3,0x13b0736e,0x08a0390b,0x06e02e9c,0x0b787de0,
+        0x1a7f582c,0x09fd289e,0x002d2c13 },
+      { 0x163f9d5f,0x19e23e3b,0x0b2f8c41,0x18d7e75c,0x105e9b57,0x070202d8,
+        0x1699eed3,0x06fb1dcd,0x00463608 } },
+    /* 196 */
+    { { 0x0f37b5dc,0x0ee13c1c,0x1265e4a5,0x0f2bf9f2,0x145d80ab,0x121bed95,
+        0x01e5b462,0x0d509d64,0x006aebf0 },
+      { 0x06e7df01,0x05e90e30,0x0869b2c3,0x1fe705e9,0x16726550,0x1cafbd32,
+        0x194c1a12,0x1e739366,0x00315751 } },
+    /* 197 */
+    { { 0x02fc84f7,0x12cc7322,0x0b39854b,0x0653dccc,0x1c94d350,0x058ab2b7,
+        0x0800d421,0x1bc430f5,0x00657c8d },
+      { 0x1526ce8f,0x1f1e4c54,0x19d63c57,0x10d2e1f9,0x188d2f22,0x0c3cb4ca,
+        0x1428c856,0x098947ee,0x00932302 } },
+    /* 198 */
+    { { 0x10958582,0x1fda4874,0x1562e7db,0x0b68ddb0,0x13309bc3,0x00c6db97,
+        0x0aaf9524,0x0c8d7ac2,0x004383a9 },
+      { 0x1e69ee4b,0x1a5cfd0c,0x092ce7aa,0x0517ec5e,0x0a728074,0x172290a7,
+        0x0e953ede,0x0563a394,0x00a64649 } },
+    /* 199 */
+    { { 0x10ef8384,0x169e86dc,0x195d4369,0x0b1a6281,0x1f4d6e69,0x1e2df2ce,
+        0x02d56d31,0x0bff399b,0x00357302 },
+      { 0x1bc75bc9,0x0fb6a22c,0x00c14935,0x14ec8505,0x1ee766b8,0x02d7abe7,
+        0x093332c1,0x0d836a51,0x00150415 } },
+    /* 200 */
+    { { 0x1c8231fe,0x03e034cc,0x1d8835b3,0x1d72ed47,0x13be6e99,0x1f1b1ca0,
+        0x0c13aeae,0x131f1785,0x00a9e0f7 },
+      { 0x1777e92a,0x03d55696,0x118f4f46,0x01f1cc66,0x13f46605,0x0a59299e,
+        0x12eeb4c8,0x19731f88,0x00130131 } },
+    /* 201 */
+    { { 0x0f962c60,0x08f3fadd,0x13469697,0x0861c2e9,0x03e3d680,0x0699c4ee,
+        0x071642a3,0x1836736d,0x00a7e83a },
+      { 0x1737fae2,0x1b69b053,0x08a3a9a3,0x068ee3aa,0x1656645e,0x1e9913ba,
+        0x1348949e,0x15fb8867,0x00060558 } },
+    /* 202 */
+    { { 0x0d101a28,0x1bf24576,0x051ef7b6,0x162523db,0x123d7ee7,0x1e21f8c4,
+        0x13a21e8a,0x147aab77,0x00031199 },
+      { 0x09b244e1,0x1657ff44,0x0a4d35df,0x020f843c,0x17b2506d,0x06ed4974,
+        0x1538447a,0x054b2179,0x00714bdd } },
+    /* 203 */
+    { { 0x176a9d72,0x0cfffc22,0x143a79ef,0x1ed95d05,0x05508012,0x02271427,
+        0x08ae1de6,0x13e6b830,0x0076cb75 },
+      { 0x06177816,0x047e01c4,0x01388dba,0x0bb076dd,0x1ae1a5dc,0x1d59ecad,
+        0x08117231,0x163d872a,0x0001c28b } },
+    /* 204 */
+    { { 0x0503d71d,0x09e35e32,0x132b2adf,0x0b8324df,0x1dba344c,0x0374356e,
+        0x128d68c6,0x1db5832f,0x004965af },
+      { 0x00900b92,0x120ade5b,0x07461686,0x1d52c2b5,0x18421ba2,0x027f0be8,
+        0x1da45b63,0x122b27ea,0x002e2136 } },
+    /* 205 */
+    { { 0x1dea787a,0x184dc0b2,0x14912b23,0x169ff2b2,0x130ce00e,0x00a1fa91,
+        0x0f8b39e9,0x1b8be9dc,0x0023a4bd },
+      { 0x0009d6cf,0x1b5ec2c4,0x0f865624,0x154f2dae,0x0b44c164,0x0319847a,
+        0x0ced25b0,0x1a9b7ae5,0x00a13857 } },
+    /* 206 */
+    { { 0x0536a375,0x13f73bff,0x13020a99,0x0b152163,0x12b24d73,0x1d3aaeaf,
+        0x16f09689,0x06216f40,0x000b35c9 },
+      { 0x084d0400,0x02c6b49f,0x0fc8c16a,0x09ddb7b3,0x06c0f61b,0x113007c9,
+        0x1227f23a,0x1bf7b4ce,0x009c7d30 } },
+    /* 207 */
+    { { 0x1e6cf1ee,0x081b73e7,0x1af4369d,0x05acfbaf,0x00121799,0x0e15eafa,
+        0x1b7b639e,0x17076416,0x00149669 },
+      { 0x06064967,0x1686e8bf,0x1a0686ad,0x14116897,0x157c68d9,0x131dccc9,
+        0x1267b9fd,0x0043ebfe,0x004ee197 } },
+    /* 208 */
+    { { 0x025a430b,0x1ad69a9d,0x0ebaaa83,0x16d6dc62,0x0cddafe9,0x0239a1fe,
+        0x007e3516,0x1256a853,0x00316c77 },
+      { 0x117b454c,0x0e595f04,0x15818c70,0x1a5407aa,0x00dcb4ad,0x07923579,
+        0x131189a1,0x04936ad8,0x0040eb2d } },
+    /* 209 */
+    { { 0x145a721b,0x185d0407,0x001a5120,0x08db1fe0,0x19ac8715,0x119938b8,
+        0x05e100ec,0x16d98f2a,0x005b53a8 },
+      { 0x18adc0ee,0x17e7665d,0x0f56fcd5,0x1bb3467e,0x0c8ad902,0x0c0859ae,
+        0x12f2b78e,0x1149f052,0x007716d1 } },
+    /* 210 */
+    { { 0x1ad2580e,0x14bc3ff7,0x0b9bcf50,0x02960cdc,0x169391a3,0x1389cc2f,
+        0x1f959800,0x16ce4646,0x0047be53 },
+      { 0x010416f8,0x158bbc1c,0x07451c71,0x0307358d,0x0f66a3d0,0x0cb63141,
+        0x0536aed8,0x038f77ba,0x0077253b } },
+    /* 211 */
+    { { 0x1a5d4545,0x0e4922a8,0x164fd472,0x1aef5ae0,0x0c5b9a73,0x119e0458,
+        0x0e0f3015,0x14ea0fd7,0x000b1785 },
+      { 0x0092e31b,0x08bede8b,0x0b02e2c6,0x0e9345c4,0x0a99dbb6,0x0a02a7ce,
+        0x03404786,0x053dd021,0x008c34ce } },
+    /* 212 */
+    { { 0x16834029,0x0e389d5d,0x0fb21aee,0x1edb2b8d,0x196b132a,0x0775fecc,
+        0x086b1ada,0x049bd74a,0x007f07cf },
+      { 0x1e9943d2,0x133642a4,0x0a9049a8,0x12b189de,0x1af8f753,0x045f1450,
+        0x00355f33,0x175a85e8,0x003776c9 } },
+    /* 213 */
+    { { 0x1500d588,0x04f18b7d,0x1749503b,0x1cf68861,0x1d670b2a,0x155b3eda,
+        0x0d9d252f,0x0e22aa9b,0x00a3f19b },
+      { 0x09cd5a91,0x17f6d518,0x1f92a8fb,0x1146d5ba,0x06d57042,0x1066ddff,
+        0x0cd0ed07,0x1d19c5c4,0x003e4b99 } },
+    /* 214 */
+    { { 0x1a487f5b,0x16c3a012,0x02b2cffd,0x1887feaa,0x15d073fa,0x1c3d2296,
+        0x14d15e6b,0x06f1d4e8,0x0098df53 },
+      { 0x05a556b1,0x17e89ba4,0x1922c626,0x0395cba4,0x1143a48f,0x1a9fc794,
+        0x00f872c7,0x164d7072,0x0041b20e } },
+    /* 215 */
+    { { 0x13938b6c,0x09117bca,0x0d1cc366,0x02d5d008,0x0a3b3b8b,0x1d540766,
+        0x1074f7bc,0x09a0d8ed,0x00939d0d },
+      { 0x17a0641e,0x12024094,0x09e3b6f3,0x1ab11707,0x0dc4e3a9,0x0d430b08,
+        0x0fa73f09,0x05933f4b,0x0057ce3d } },
+    /* 216 */
+    { { 0x120ac75a,0x05de4a73,0x112529d7,0x19093a4f,0x0f9edb8b,0x0668313e,
+        0x066d5125,0x18db61b0,0x00765b9b },
+      { 0x0a82a978,0x1075df3a,0x0225e449,0x17e88a4d,0x1b2075d2,0x18ab72d9,
+        0x12ff2dae,0x1584e9a0,0x002c3dd3 } },
+    /* 217 */
+    { { 0x132c70c2,0x10714078,0x18916224,0x15e86312,0x1a97dff6,0x1a6bc277,
+        0x17f90141,0x07449ab6,0x002dcf2b },
+      { 0x02287085,0x025e845e,0x1189ecf1,0x15eeebe8,0x0fa37420,0x0b43796a,
+        0x0b34187b,0x19f29c80,0x00678b30 } },
+    /* 218 */
+    { { 0x186770bf,0x160679bd,0x0c0e1f9e,0x044148e9,0x099de456,0x1b1af451,
+        0x00c157bc,0x18a522e5,0x00738f83 },
+      { 0x0bb423ae,0x08f6fe21,0x13574776,0x1a1fbf2a,0x08524dcf,0x0e475fa1,
+        0x1027a092,0x0fdc431b,0x004ff060 } },
+    /* 219 */
+    { { 0x030b9cc1,0x0d1b4f56,0x0646c9cd,0x1bd8af23,0x196aa7f8,0x06b64a7d,
+        0x173ff4b1,0x1841aa47,0x003df94f },
+      { 0x11ce04ee,0x1d03b7d2,0x0f4ef461,0x04f42f71,0x09bcb2c2,0x0426e08d,
+        0x15cd2e12,0x1a22fd81,0x0005ab6f } },
+    /* 220 */
+    { { 0x154876f5,0x0d8cebfb,0x0f8cfbaa,0x04aa0a96,0x1853a701,0x1aa76fe8,
+        0x0bb3b24a,0x1d90c7e2,0x0047abd1 },
+      { 0x0805f95c,0x17425ecb,0x04453e7c,0x1453161f,0x1f965c79,0x1764029b,
+        0x144ce791,0x068ac9ef,0x00981df5 } },
+    /* 221 */
+    { { 0x102efa7e,0x08482daf,0x092268b8,0x03ec5791,0x054081c4,0x00176aab,
+        0x02287819,0x05b167f0,0x0034fe37 },
+      { 0x0e1da3af,0x05fa13f0,0x07e3c88e,0x1587fc2a,0x1c5a5f6e,0x1f0bd89f,
+        0x0898ec26,0x1b1e6e44,0x008bc26d } },
+    /* 222 */
+    { { 0x1b7f7fc1,0x1fa7fc72,0x17d23adb,0x158fa4af,0x1955b11f,0x18165258,
+        0x1f22b874,0x0d06a3a3,0x00132866 },
+      { 0x0f878d6b,0x1a218b07,0x1c9d086c,0x1c1d3c37,0x02921b04,0x17c948be,
+        0x02b5a28b,0x022fcd6b,0x006a21c3 } },
+    /* 223 */
+    { { 0x05792848,0x1144e8de,0x0bd29f8f,0x0b9bcba2,0x0de9d265,0x198fb372,
+        0x1ea82dec,0x09207b27,0x00699a76 },
+      { 0x19ca2583,0x1db3f6c2,0x194ccad4,0x06f8fa31,0x0443798f,0x0691ef29,
+        0x031ede01,0x0bc3ceef,0x0008b784 } },
+    /* 224 */
+    { { 0x066d1ae1,0x1fff6fb6,0x153ffbb7,0x015f25cc,0x1eaf24b5,0x15044b74,
+        0x1927db2c,0x17417e95,0x0007b92d },
+      { 0x19d2cabe,0x1f3c3649,0x1948c72b,0x1e854e54,0x06195dd3,0x18ab9d61,
+        0x16a380c6,0x1783f820,0x0049cc3f } },
+    /* 225 */
+    { { 0x0fedc234,0x0353acb7,0x1f1a1e4b,0x148c8948,0x123c0149,0x09a5f1ad,
+        0x1dfebffc,0x08391cd9,0x0019b9c7 },
+      { 0x126af28d,0x06e4dd76,0x12a6e3dc,0x1ad409e1,0x0dcc7a5f,0x0e4cf30d,
+        0x1c32f547,0x1129a7a4,0x00a9948f } },
+    /* 226 */
+    { { 0x18e3f56e,0x11161fdf,0x00923691,0x133786b2,0x1bd774a3,0x1a7f121f,
+        0x1418147c,0x0020c637,0x008bfbfe },
+      { 0x0eb7a747,0x1bb00a12,0x11cf2b4d,0x1b6f70aa,0x01f7a136,0x0bf1265a,
+        0x13107aed,0x1ecfe3a2,0x008ce4f8 } },
+    /* 227 */
+    { { 0x06f98690,0x1fd4bd19,0x0df446fd,0x1d0501f6,0x011f0ad8,0x1c6fc1d4,
+        0x1ce023df,0x070cc9d8,0x00a5d21e },
+      { 0x0a9b84e5,0x0f41a292,0x05ee0427,0x19cfd82e,0x1396bee9,0x076096ac,
+        0x18108948,0x000ef476,0x0030013b } },
+    /* 228 */
+    { { 0x13ca294d,0x10c5f534,0x1c0d45a7,0x087aacb7,0x16570548,0x05a826ee,
+        0x1f866204,0x168ddb4f,0x00755a65 },
+      { 0x1580b991,0x19af8bee,0x05a71058,0x0a5b0f59,0x0e67e607,0x0b94148a,
+        0x1c9c28cd,0x0a8a9e5d,0x00617e52 } },
+    /* 229 */
+    { { 0x10a95fdb,0x09cb6b7a,0x19bcc9ab,0x099361f7,0x19f54529,0x113bbf73,
+        0x1c1bea0a,0x0a6ab49c,0x001121f0 },
+      { 0x0374408e,0x1a9d5d45,0x17375efc,0x0d608c18,0x1d27c5c6,0x09b03ccf,
+        0x0e0e459f,0x0c2c18d8,0x0005b2d8 } },
+    /* 230 */
+    { { 0x13730792,0x040cc332,0x11d95050,0x007eddd6,0x077d79e5,0x0a65792f,
+        0x1823612c,0x02644e48,0x00a96f11 },
+      { 0x1d8bba2b,0x048fb7c2,0x1471dbda,0x18258235,0x00e8c991,0x0499b1ee,
+        0x002bb9c3,0x02d206d9,0x001e584d } },
+    /* 231 */
+    { { 0x1cf7f492,0x1a215a8d,0x03d18faf,0x11586adf,0x0369abdc,0x18e412fd,
+        0x12c423bb,0x03c91e25,0x0065b4cb },
+      { 0x0c4f36cd,0x0a71a707,0x098c1711,0x0e4e1b17,0x0347d2a3,0x19253b85,
+        0x04f5e78e,0x1312b8d7,0x00a4ce56 } },
+    /* 232 */
+    { { 0x19d5cd05,0x07f11044,0x00f75fb3,0x1e72d3af,0x06c0ab27,0x03173c17,
+        0x0298cd0e,0x17c94cef,0x003968f1 },
+      { 0x0c370e83,0x1d2be423,0x141e74e9,0x00bab456,0x0bf94e95,0x18c8b5ae,
+        0x1eb997b5,0x08edf07e,0x006176ec } },
+    /* 233 */
+    { { 0x0a89d3a8,0x0212ce83,0x1c6fea1a,0x04dceffa,0x1851306e,0x0cb570eb,
+        0x19ea9d75,0x12a74233,0x002da37d },
+      { 0x06930fa5,0x118b0d1d,0x096a9557,0x077204f7,0x1623bd8b,0x03155d9b,
+        0x1819fe2d,0x1dc339ba,0x00018312 } },
+    /* 234 */
+    { { 0x150de10e,0x12b3e606,0x16c78910,0x0e4b993d,0x10e2e143,0x1e80e471,
+        0x1c2c13b3,0x1c1417e0,0x007624a0 },
+      { 0x022e17b2,0x0674290e,0x0e1007f0,0x0bcbea91,0x048bb112,0x0a923f1c,
+        0x0b7f8744,0x1996e3fa,0x007cab17 } },
+    /* 235 */
+    { { 0x02838312,0x0275689f,0x1424f1ce,0x1162d6b2,0x07b9cd56,0x1b28c667,
+        0x16f2f335,0x1ccfbeb9,0x003d681d },
+      { 0x1013eb12,0x1bbcafc3,0x1f6bc5bc,0x07e97476,0x1f3827a7,0x072f02b0,
+        0x1479ea7e,0x12c08e1e,0x0092e8d0 } },
+    /* 236 */
+    { { 0x1bc16739,0x050a4f45,0x0c480cd5,0x0fd47884,0x022c161c,0x0e26a9a3,
+        0x13f1d3ec,0x1edac24f,0x00016eee },
+      { 0x1d456a4a,0x09825e71,0x0d281969,0x19dbb719,0x1c72fb0d,0x08a89aa6,
+        0x08c0c159,0x1008436c,0x0095bf3f } },
+    /* 237 */
+    { { 0x1ea61443,0x083b8e40,0x0cdb799f,0x088384a9,0x038e6a53,0x1d8d9091,
+        0x054c3245,0x1f354c88,0x0034017c },
+      { 0x140ddf84,0x1c0a233f,0x15f5db4b,0x1c1fa147,0x0f989f9f,0x186bc012,
+        0x103922cc,0x0e7e0802,0x0042ecf5 } },
+    /* 238 */
+    { { 0x07764032,0x1925754e,0x0548c36c,0x043646e8,0x0abed0db,0x15f263f9,
+        0x1b669df2,0x021cc6ba,0x0044bcdd },
+      { 0x09d7ac0d,0x16780e15,0x1a77b3e9,0x0131a844,0x10692d32,0x10cc8212,
+        0x17a16409,0x1eb69825,0x008b3654 } },
+    /* 239 */
+    { { 0x11899170,0x1f9c34f5,0x01cdb7f0,0x1c441b48,0x0d5d3ca8,0x0923bfe9,
+        0x02199662,0x00a62db1,0x0005684b },
+      { 0x0f97b03d,0x05eb39a0,0x12a2b76e,0x13792908,0x0464fb96,0x03b26be5,
+        0x0676d5c3,0x1c00c15e,0x002423a1 } },
+    /* 240 */
+    { { 0x165f82a5,0x0753b69a,0x1b98c030,0x049e579c,0x057f63d7,0x07d17628,
+        0x1e37e675,0x050131a5,0x00149e80 },
+      { 0x1e742c74,0x0eb3ae2c,0x032c8e1d,0x015f42da,0x140b623d,0x15bc2a50,
+        0x12ae4d23,0x135e2687,0x007902a2 } },
+    /* 241 */
+    { { 0x0cb69545,0x0106801c,0x1c31de5e,0x1bf04225,0x1243d88e,0x06abc7ca,
+        0x0c0b79db,0x0101436c,0x006504e9 },
+      { 0x14641de1,0x0da0f648,0x102b094f,0x0998e9f8,0x1078bb7f,0x0d82b72e,
+        0x19badcaa,0x028c2f22,0x002cc85d } },
+    /* 242 */
+    { { 0x197b90c0,0x14d45757,0x0d7bc02f,0x13725124,0x1304629d,0x1527e2b9,
+        0x12ada3b7,0x1f59a811,0x009b97e0 },
+      { 0x0fa5416b,0x0a1614f2,0x19e11d0d,0x1e4ddfef,0x08206d08,0x00d64921,
+        0x12d4496a,0x1d4e31e2,0x004c2d68 } },
+    /* 243 */
+    { { 0x09cee030,0x0a17c3e2,0x18152b82,0x18787d49,0x00e2d032,0x18bd0ee8,
+        0x0d5b3b25,0x08571146,0x0028944b },
+      { 0x0bae4024,0x04368680,0x0cc52ea8,0x070ecf3c,0x1ce00e92,0x0ebef03c,
+        0x1ce95f8e,0x1eec95c4,0x001b82dd } },
+    /* 244 */
+    { { 0x1fd5c21f,0x18991cf3,0x1f7f7847,0x18a983d2,0x01a32887,0x0b75c5ff,
+        0x1c4971e7,0x1cf5e873,0x002e02ce },
+      { 0x0b2077e0,0x0eca7803,0x1bec03c1,0x05220871,0x0b2a7f1d,0x149caf7d,
+        0x0e47de09,0x1de7d8b9,0x00329f39 } },
+    /* 245 */
+    { { 0x155a3c35,0x17225b13,0x124e970f,0x16d16268,0x1de8fc4a,0x120d8c9f,
+        0x081e90b5,0x019d8e9f,0x009e8c1e },
+      { 0x03d6d776,0x0ae26008,0x1ded57b9,0x15ff71d4,0x0d7fa78e,0x1f89aae9,
+        0x1aed2b52,0x066156af,0x00195075 } },
+    /* 246 */
+    { { 0x10fd29a5,0x0228aabf,0x0f19d257,0x1122d67e,0x0f117a8c,0x0879d841,
+        0x0ae63aee,0x0b6e7451,0x00209e52 },
+      { 0x0cd3b651,0x1af54ee1,0x0a827c02,0x0e4578c5,0x1560e90b,0x04426d94,
+        0x11ce4d39,0x198624cc,0x00749d1f } },
+    /* 247 */
+    { { 0x00faf913,0x1e8aab63,0x0f2ac400,0x127d0632,0x0817e265,0x0c4c2e23,
+        0x17dcb6ee,0x06cc2e42,0x003f07ab },
+      { 0x10b19db8,0x07ae130b,0x199620af,0x1ce2341a,0x0236c2a3,0x106976fc,
+        0x1d7e0764,0x0459e78f,0x002abcee } },
+    /* 248 */
+    { { 0x0f716c72,0x161cc57e,0x1e2b17c1,0x1e531bf2,0x09ceb2e7,0x0b3008f2,
+        0x0140d58f,0x1606bf79,0x004b6186 },
+      { 0x19269d28,0x079b08a7,0x1d9071b7,0x113b417a,0x0fb43990,0x1ef20a2f,
+        0x1e2efaf2,0x1682d412,0x0032a123 } },
+    /* 249 */
+    { { 0x0f56f2f0,0x0a53c04a,0x0d9dc3ee,0x0b4f2f8b,0x1d778340,0x1e6178e6,
+        0x04dedd57,0x040c8efb,0x005976f3 },
+      { 0x0a72e083,0x08259878,0x065d6317,0x057ce6ce,0x160cd8b4,0x1f7d4b77,
+        0x0f3fbd90,0x1d1e40ba,0x00a2c9c1 } },
+    /* 250 */
+    { { 0x0cad3dfd,0x1d4eab30,0x1199248e,0x05743370,0x0e352234,0x19a717b6,
+        0x00e8bf18,0x114d5b9f,0x007dbb9a },
+      { 0x08a6f051,0x17399671,0x02e6226f,0x08a7a730,0x04658267,0x1ac87276,
+        0x06558ec9,0x0b509d7f,0x0012be70 } },
+    /* 251 */
+    { { 0x16a5fe7c,0x065c5c6f,0x0e880688,0x157ae863,0x1b3dc242,0x06603090,
+        0x06a1fff3,0x0b795020,0x0024618e },
+      { 0x10eeb385,0x1353011a,0x1609fd23,0x1373f703,0x1019e0af,0x05360b7f,
+        0x1f1b756a,0x06a5c268,0x0086ef81 } },
+    /* 252 */
+    { { 0x1e26d131,0x130a2345,0x0a26620a,0x09ec5e81,0x11004b38,0x16cd1a78,
+        0x0374eac8,0x1661b854,0x001540e2 },
+      { 0x04b56199,0x15c20d0a,0x1ebf1d61,0x19f6a0b1,0x1cab569a,0x1d12ebb2,
+        0x09e57fee,0x1a3ec290,0x0085fb9d } },
+    /* 253 */
+    { { 0x0ef50237,0x0dbe4f0c,0x147156b2,0x0dc0f64a,0x07bef446,0x1c41c119,
+        0x04cc12bf,0x052050d5,0x005c931e },
+      { 0x00bbbe3a,0x1bce9e65,0x16e1ebc1,0x193671df,0x1b6097b3,0x11d73a76,
+        0x0cd62efe,0x0c10a642,0x001716ed } },
+    /* 254 */
+    { { 0x1f7ed999,0x0aad792a,0x07a051a3,0x01a1b2e7,0x0d08b9b4,0x03b189bb,
+        0x048ff744,0x14020bdd,0x00432da2 },
+      { 0x1de98e75,0x1175f01c,0x033b9f85,0x13616beb,0x12d75d21,0x101f9754,
+        0x05979316,0x0887ce2c,0x009c4bf1 } },
+    /* 255 */
+    { { 0x0374f80a,0x18f62a69,0x1952e341,0x09cbb6c1,0x08fed410,0x18021403,
+        0x0f010d10,0x064940db,0x0037db55 },
+      { 0x0ff0ce47,0x126a2ef1,0x13ed96f9,0x074617b1,0x064a67f5,0x0167368f,
+        0x040ddcfb,0x12c1a661,0x0017675b } },
+};
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_base_brainpool_9(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_256_ecc_mulmod_stripe_brainpool_9(r, &p256_brainpool_base, p256_brainpool_table,
+                                      k, map, ct, heap);
+}
+
+#endif
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_brainpool_256(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256  point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 9, km);
+
+            err = sp_256_ecc_mulmod_base_brainpool_9(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the base point of P256 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montgomery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_brainpool_256(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[2];
+    sp_digit k[9 + 9 * 2 * 5];
+#endif
+    sp_point_256* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (9 + 9 * 2 * 5),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 9;
+
+        sp_256_from_mp(k, 9, km);
+        sp_256_point_from_ecc_point_9(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_9(addP->x, addP->x, p256_brainpool_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_9(addP->y, addP->y, p256_brainpool_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_9(addP->z, addP->z, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_base_brainpool_9(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_256_proj_point_add_9(point, point, addP, tmp);
+
+        if (map) {
+                sp_256_map_9(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_9(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                                        defined(HAVE_ECC_VERIFY)
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+/* Generates a scalar that is in the range 1..order-1.
+ *
+ * rng  Random number generator.
+ * k    Scalar value.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+static int sp_256_ecc_gen_k_brainpool_9(WC_RNG* rng, sp_digit* k)
+{
+    int err;
+    byte buf[32];
+
+    do {
+        err = wc_RNG_GenerateBlock(rng, buf, sizeof(buf));
+        if (err == 0) {
+            sp_256_from_bin(k, 9, buf, (int)sizeof(buf));
+            if (sp_256_cmp_9(k, p256_brainpool_order2) <= 0) {
+                sp_256_add_one_9(k);
+                break;
+            }
+        }
+    }
+    while (err == 0);
+
+    return err;
+}
+
+/* Makes a random EC key pair.
+ *
+ * rng   Random number generator.
+ * priv  Generated private value.
+ * pub   Generated public point.
+ * heap  Heap to use for allocation.
+ * returns ECC_INF_E when the point does not have the correct order, RNG
+ * failures, MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_make_key_brainpool_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256 point[2];
+    #else
+    sp_point_256 point[1];
+    #endif
+    sp_digit k[9];
+#endif
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, DYNAMIC_TYPE_ECC);
+    #else
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);
+    #endif
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_256_ecc_gen_k_brainpool_9(rng, k);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_base_brainpool_9(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_9(infinity, point, p256_brainpool_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_9(infinity, point, p256_brainpool_order, 1, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        if (sp_256_iszero_9(point->x) || sp_256_iszero_9(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_9(point, pub);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL) {
+        /* point is not sensitive, so no need to zeroize */
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+
+    return err;
+}
+
+#ifdef HAVE_ECC_DHE
+/* Multiply the point by the scalar and serialize the X ordinate.
+ * The number is 0 padded to maximum size on output.
+ *
+ * priv    Scalar to multiply the point by.
+ * pub     Point to multiply.
+ * out     Buffer to hold X ordinate.
+ * outLen  On entry, size of the buffer in bytes.
+ *         On exit, length of data in buffer in bytes.
+ * heap    Heap to use for allocation.
+ * returns BUFFER_E if the buffer is to small for output size,
+ * MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_secret_gen_brainpool_256(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[9];
+#endif
+    int err = MP_OKAY;
+
+    if (*outLen < 32U) {
+        err = BUFFER_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 9, priv);
+        sp_256_point_from_ecc_point_9(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_9(point, point, k, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_9(point, point, k, 1, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        sp_256_to_bin_9(point->x, out);
+        *outLen = 32;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* HAVE_ECC_DHE */
+
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Order-2 for the P256 curve. */
+static const uint32_t p256_brainpool_order_minus_2[8] = {
+    0x974856a5,0x901e0e82,0xb561a6f7,0x8c397aa3,0x9d838d71,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+
+/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_256_mont_mul_order_brainpool_9(sp_digit* r, sp_digit* a, sp_digit* b)
+{
+    sp_256_mul_9(r, a, b);
+    sp_256_mont_reduce_order_brainpool_9(r, p256_brainpool_order, p256_brainpool_mp_order);
+}
+
+/* Square number mod the order of P256 curve. (r = a * a mod order)
+ *
+ * r  Result of the squaring.
+ * a  Number to square.
+ */
+static void sp_256_mont_sqr_order_brainpool_9(sp_digit* r, sp_digit* a)
+{
+    sp_256_sqr_9(r, a);
+    sp_256_mont_reduce_order_brainpool_9(r, p256_brainpool_order, p256_brainpool_mp_order);
+}
+/* Invert the number, in Montgomery form, modulo the order of the P256 curve.
+ * (r = 1 / a mod order)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_256_mont_inv_order_brainpool_9(sp_digit* r, sp_digit* a,
+        sp_digit* td)
+{
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 9);
+    for (i=254; i>=0; i--) {
+        sp_256_mont_sqr_order_brainpool_9(t, t);
+        if (p256_brainpool_order_minus_2[i / 32] & ((sp_digit)1 << (i % 32)))
+            sp_256_mont_mul_order_brainpool_9(t, t, a);
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 9);
+}
+#endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifdef HAVE_ECC_SIGN
+#ifndef SP_ECC_MAX_SIG_GEN
+#define SP_ECC_MAX_SIG_GEN  64
+#endif
+
+/* Calculate second signature value S from R, k and private value.
+ *
+ * s = (r * x + e) / k
+ *
+ * s    Signature value.
+ * r    First signature value.
+ * k    Ephemeral private key.
+ * x    Private key as a number.
+ * e    Hash of message as a number.
+ * tmp  Temporary storage for intermediate numbers.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_s_brainpool_9(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int32 c;
+    sp_digit* kInv = k;
+
+    /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_9(k, k, p256_brainpool_norm_order);
+    err = sp_256_mod_brainpool_9(k, k, p256_brainpool_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_9(k);
+
+        /* kInv = 1/k mod order */
+            sp_256_mont_inv_order_brainpool_9(kInv, k, tmp);
+        sp_256_norm_9(kInv);
+
+        /* s = r * x + e */
+            sp_256_mul_9(x, x, r);
+        err = sp_256_mod_brainpool_9(x, x, p256_brainpool_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_9(x);
+        carry = sp_256_add_9(s, e, x);
+        sp_256_cond_sub_9(s, s, p256_brainpool_order, 0 - carry);
+        sp_256_norm_9(s);
+        c = sp_256_cmp_9(s, p256_brainpool_order);
+        sp_256_cond_sub_9(s, s, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_9(s);
+
+        /* s = s * k^-1 mod order */
+            sp_256_mont_mul_order_brainpool_9(s, s, kInv);
+        sp_256_norm_9(s);
+    }
+
+    return err;
+}
+
+/* Sign the hash using the private key.
+ *   e = [hash, 256 bits] from binary
+ *   r = (k.G)->x mod order
+ *   s = (r * x + e) / k mod order
+ * The hash is truncated to the first 256 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_sign_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_9_ctx mulmod_ctx;
+        sp_256_mont_inv_order_9_ctx mont_inv_order_ctx;
+    };
+    sp_digit e[2*9];
+    sp_digit x[2*9];
+    sp_digit k[2*9];
+    sp_digit r[2*9];
+    sp_digit tmp[3 * 2*9];
+    sp_point_256 point;
+    sp_digit* s;
+    sp_digit* kInv;
+    int i;
+} sp_ecc_sign_256_ctx;
+
+int sp_ecc_sign_brainpool_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, WC_RNG* rng,
+    mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_sign_256_ctx* ctx = (sp_ecc_sign_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_sign_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    (void)heap;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->s = ctx->e;
+        ctx->kInv = ctx->k;
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        ctx->i = SP_ECC_MAX_SIG_GEN;
+        ctx->state = 1;
+        break;
+    case 1: /* GEN */
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_brainpool_9(rng, ctx->k);
+        }
+        else {
+            sp_256_from_mp(ctx->k, 9, km);
+            mp_zero(km);
+        }
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 2;
+        break;
+    case 2: /* MULMOD */
+        err = sp_256_ecc_mulmod_brainpool_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
+            &ctx->point, &p256_brainpool_base, ctx->k, 1, 1, heap);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* MODORDER */
+    {
+        sp_int32 c;
+        /* r = point->x mod order */
+        XMEMCPY(ctx->r, ctx->point.x, sizeof(sp_digit) * 9U);
+        sp_256_norm_9(ctx->r);
+        c = sp_256_cmp_9(ctx->r, p256_brainpool_order);
+        sp_256_cond_sub_9(ctx->r, ctx->r, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_9(ctx->r);
+
+        sp_256_from_mp(ctx->x, 9, priv);
+        sp_256_from_bin(ctx->e, 9, hash, (int)hashLen);
+        ctx->state = 4;
+        break;
+    }
+    case 4: /* KMODORDER */
+        /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_9(ctx->k, ctx->k, p256_brainpool_norm_order);
+        err = sp_256_mod_brainpool_9(ctx->k, ctx->k, p256_brainpool_order);
+        if (err == MP_OKAY) {
+            sp_256_norm_9(ctx->k);
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 5;
+        }
+        break;
+    case 5: /* KINV */
+        /* kInv = 1/k mod order */
+        err = sp_256_mont_inv_order_brainpool_9_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->kInv, ctx->k, ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* KINVNORM */
+        sp_256_norm_9(ctx->kInv);
+        ctx->state = 7;
+        break;
+    case 7: /* R */
+        /* s = r * x + e */
+        sp_256_mul_9(ctx->x, ctx->x, ctx->r);
+        ctx->state = 8;
+        break;
+    case 8: /* S1 */
+        err = sp_256_mod_brainpool_9(ctx->x, ctx->x, p256_brainpool_order);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* S2 */
+    {
+        sp_digit carry;
+        sp_int32 c;
+        sp_256_norm_9(ctx->x);
+        carry = sp_256_add_9(ctx->s, ctx->e, ctx->x);
+        sp_256_cond_sub_9(ctx->s, ctx->s,
+            p256_brainpool_order, 0 - carry);
+        sp_256_norm_9(ctx->s);
+        c = sp_256_cmp_9(ctx->s, p256_brainpool_order);
+        sp_256_cond_sub_9(ctx->s, ctx->s, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_9(ctx->s);
+
+        /* s = s * k^-1 mod order */
+        sp_256_mont_mul_order_brainpool_9(ctx->s, ctx->s, ctx->kInv);
+        sp_256_norm_9(ctx->s);
+
+        /* Check that signature is usable. */
+        if (sp_256_iszero_9(ctx->s) == 0) {
+            ctx->state = 10;
+            break;
+        }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        ctx->i = 1;
+    #endif
+
+        /* not usable gen, try again */
+        ctx->i--;
+        if (ctx->i == 0) {
+            err = RNG_FAILURE_E;
+        }
+        ctx->state = 1;
+        break;
+    }
+    case 10: /* RES */
+        err = sp_256_to_mp(ctx->r, rm);
+        if (err == MP_OKAY) {
+            err = sp_256_to_mp(ctx->s, sm);
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 10) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 9U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 9U);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+int sp_ecc_sign_brainpool_256(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* e = NULL;
+    sp_point_256* point = NULL;
+#else
+    sp_digit e[7 * 2 * 9];
+    sp_point_256 point[1];
+#endif
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int32 c;
+    int err = MP_OKAY;
+    int i;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        e = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 9, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (e == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        x = e + 2 * 9;
+        k = e + 4 * 9;
+        r = e + 6 * 9;
+        tmp = e + 8 * 9;
+        s = e;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_brainpool_9(rng, k);
+        }
+        else {
+            sp_256_from_mp(k, 9, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+                err = sp_256_ecc_mulmod_base_brainpool_9(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 9U);
+            sp_256_norm_9(r);
+            c = sp_256_cmp_9(r, p256_brainpool_order);
+            sp_256_cond_sub_9(r, r, p256_brainpool_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_256_norm_9(r);
+
+            sp_256_from_mp(x, 9, priv);
+            sp_256_from_bin(e, 9, hash, (int)hashLen);
+
+            err = sp_256_calc_s_brainpool_9(s, r, k, x, e, tmp);
+        }
+
+        /* Check that signature is usable. */
+        if ((err == MP_OKAY) && (sp_256_iszero_9(s) == 0)) {
+            break;
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(s, sm);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (e != NULL)
+#endif
+    {
+        ForceZero(e, sizeof(sp_digit) * 7 * 2 * 9);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(e, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (point != NULL)
+#endif
+    {
+        ForceZero(point, sizeof(sp_point_256));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+#endif /* HAVE_ECC_SIGN */
+
+#ifndef WOLFSSL_SP_SMALL
+#endif /* WOLFSSL_SP_SMALL */
+
+/* Add point p1 into point p2. Handles p1 == p2 and result at infinity.
+ *
+ * p1   First point to add and holds result.
+ * p2   Second point to add.
+ * tmp  Temporary storage for intermediate numbers.
+ */
+static void sp_256_add_points_brainpool_9(sp_point_256* p1, const sp_point_256* p2,
+    sp_digit* tmp)
+{
+
+        sp_256_proj_point_add_brainpool_9(p1, p1, p2, tmp);
+    if (sp_256_iszero_9(p1->z)) {
+        if (sp_256_iszero_9(p1->x) && sp_256_iszero_9(p1->y)) {
+                sp_256_proj_point_dbl_brainpool_9(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            p1->x[8] = 0;
+            XMEMCPY(p1->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        }
+    }
+}
+
+/* Calculate the verification point: [e/s]G + [r/s]Q
+ *
+ * p1    Calculated point.
+ * p2    Public point and temporary.
+ * s     Second part of signature as a number.
+ * u1    Temporary number.
+ * u2    Temproray number.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_vfy_point_brainpool_9(sp_point_256* p1, sp_point_256* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_256_t* cache, void* heap)
+{
+    int err;
+        sp_256_mul_9(s, s, p256_brainpool_norm_order);
+        err = sp_256_mod_brainpool_9(s, s, p256_brainpool_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_9(s);
+        {
+            sp_256_mont_inv_order_brainpool_9(s, s, tmp);
+            sp_256_mont_mul_order_brainpool_9(u1, u1, s);
+            sp_256_mont_mul_order_brainpool_9(u2, u2, s);
+        }
+        {
+            err = sp_256_ecc_mulmod_base_brainpool_9(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_9(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_9(p2, p2, u2, 0, 0, cache, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_9(p2, p2, u2, 0, 0, heap);
+#endif
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_9(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_256_add_points_brainpool_9(p1, p2, tmp);
+    }
+
+    (void)cache;
+    return err;
+}
+
+#ifdef HAVE_ECC_VERIFY
+/* Verify the signature values with the hash and public key.
+ *   e = Truncate(hash, 256)
+ *   u1 = e/s mod order
+ *   u2 = r/s mod order
+ *   r == (u1.G + u2.Q)->x mod order
+ * Optimization: Leave point in projective form.
+ *   (x, y, 1) == (x' / z'*z', y' / z'*z'*z', z' / z')
+ *   (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x'
+ * The hash is truncated to the first 256 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_verify_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_9_ctx mulmod_ctx;
+        sp_256_mont_inv_order_9_ctx mont_inv_order_ctx;
+        sp_256_proj_point_dbl_9_ctx dbl_ctx;
+        sp_256_proj_point_add_9_ctx add_ctx;
+    };
+    sp_digit u1[2*9];
+    sp_digit u2[2*9];
+    sp_digit s[2*9];
+    sp_digit tmp[2*9 * 5];
+    sp_point_256 p1;
+    sp_point_256 p2;
+} sp_ecc_verify_256_ctx;
+
+int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* rm, const mp_int* sm, int* res, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_verify_256_ctx* ctx = (sp_ecc_verify_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_verify_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(ctx->u1, 9, hash, (int)hashLen);
+        sp_256_from_mp(ctx->u2, 9, rm);
+        sp_256_from_mp(ctx->s, 9, sm);
+        sp_256_from_mp(ctx->p2.x, 9, pX);
+        sp_256_from_mp(ctx->p2.y, 9, pY);
+        sp_256_from_mp(ctx->p2.z, 9, pZ);
+        ctx->state = 1;
+        break;
+    case 1: /* NORMS0 */
+        sp_256_mul_9(ctx->s, ctx->s, p256_norm_order);
+        err = sp_256_mod_brainpool_9(ctx->s, ctx->s, p256_order);
+        if (err == MP_OKAY)
+            ctx->state = 2;
+        break;
+    case 2: /* NORMS1 */
+        sp_256_norm_9(ctx->s);
+        XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+        ctx->state = 3;
+        break;
+    case 3: /* NORMS2 */
+        err = sp_256_mont_inv_order_9_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 4;
+        }
+        break;
+    case 4: /* NORMS3 */
+        sp_256_mont_mul_order_9(ctx->u1, ctx->u1, ctx->s);
+        ctx->state = 5;
+        break;
+    case 5: /* NORMS4 */
+        sp_256_mont_mul_order_9(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 6;
+        break;
+    case 6: /* MULBASE */
+        err = sp_256_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_256_iszero_9(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
+            XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+            ctx->state = 7;
+        }
+        break;
+    case 7: /* MULMOD */
+        err = sp_256_ecc_mulmod_9_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_256_iszero_9(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 8;
+        }
+        break;
+    case 8: /* ADD */
+        err = sp_256_proj_point_add_9_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* MONT */
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(ctx->u2, 9, rm);
+        err = sp_256_mod_mul_norm_9(ctx->u2, ctx->u2, p256_mod);
+        if (err == MP_OKAY)
+            ctx->state = 10;
+        break;
+    case 10: /* SQR */
+        /* u1 = r.z'.z' mod prime */
+        sp_256_mont_sqr_9(ctx->p1.z, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11: /* MUL */
+        sp_256_mont_mul_9(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12: /* RES */
+    {
+        sp_int32 c = 0;
+        err = MP_OKAY; /* math okay, now check result */
+        *res = (int)(sp_256_cmp_9(ctx->p1.x, ctx->u1) == 0);
+        if (*res == 0) {
+            sp_digit carry;
+
+            /* Reload r and add order. */
+            sp_256_from_mp(ctx->u2, 9, rm);
+            carry = sp_256_add_9(ctx->u2, ctx->u2, p256_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_9(ctx->u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_9(ctx->u2, p256_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_9(ctx->u2, ctx->u2, p256_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_256_mont_mul_9(ctx->u1, ctx->u2, ctx->p1.z, p256_mod,
+                                                            p256_mp_mod);
+                *res = (int)(sp_256_cmp_9(ctx->p1.x, ctx->u1) == 0);
+            }
+        }
+        break;
+    }
+    } /* switch */
+
+    if (err == MP_OKAY && ctx->state != 12) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static int sp_ecc_verify_brainpool_256_ex(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* u1 = NULL;
+    sp_point_256* p1 = NULL;
+#else
+    sp_digit  u1[16 * 9];
+    sp_point_256 p1[2];
+#endif
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_256* p2 = NULL;
+    sp_digit carry;
+    sp_int32 c = 0;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p1 = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (p1 == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        u1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 9, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (u1 == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 9;
+        s   = u1 + 4 * 9;
+        tmp = u1 + 6 * 9;
+        p2 = p1 + 1;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(u1, 9, hash, (int)hashLen);
+        sp_256_from_mp(u2, 9, rm);
+        sp_256_from_mp(s, 9, sm);
+        sp_256_from_mp(p2->x, 9, pX);
+        sp_256_from_mp(p2->y, 9, pY);
+        sp_256_from_mp(p2->z, 9, pZ);
+
+        err = sp_256_calc_vfy_point_brainpool_9(p1, p2, s, u1, u2, tmp, cache, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(u2, 9, rm);
+        err = sp_256_mod_mul_norm_brainpool_9(u2, u2, p256_brainpool_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+            sp_256_mont_sqr_brainpool_9(p1->z, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_9(u1, u2, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        *res = (int)(sp_256_cmp_9(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_256_from_mp(u2, 9, rm);
+            carry = sp_256_add_9(u2, u2, p256_brainpool_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_9(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_9(u2, p256_brainpool_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_brainpool_9(u2, u2, p256_brainpool_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                {
+                    sp_256_mont_mul_brainpool_9(u1, u2, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+                }
+                *res = (sp_256_cmp_9(p1->x, u1) == 0);
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u1 != NULL)
+        XFREE(u1, heap, DYNAMIC_TYPE_ECC);
+    if (p1 != NULL)
+        XFREE(p1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+
+int sp_ecc_verify_brainpool_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_brainpool_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_brainpool_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+    return sp_ecc_verify_brainpool_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
+#endif /* HAVE_ECC_VERIFY */
+
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_256_ecc_is_point_brainpool_9(const sp_point_256* point,
+    void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
+#else
+    sp_digit t1[9 * 4];
+#endif
+    sp_digit* t2 = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
+        err = MEMORY_E;
+#endif
+    (void)heap;
+
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 9;
+
+        /* y^2 - x^3 - a.x = b */
+        sp_256_sqr_9(t1, point->y);
+        (void)sp_256_mod_brainpool_9(t1, t1, p256_brainpool_mod);
+        sp_256_sqr_9(t2, point->x);
+        (void)sp_256_mod_brainpool_9(t2, t2, p256_brainpool_mod);
+        sp_256_mul_9(t2, t2, point->x);
+        (void)sp_256_mod_brainpool_9(t2, t2, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(t1, t1, t2, p256_brainpool_mod);
+
+        sp_256_mul_9(t2, point->x, p256_brainpool_a);
+        (void)sp_256_mod_brainpool_9(t2, t2, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(t1, t1, t2, p256_brainpool_mod);
+
+        if (sp_256_cmp_9(t1, p256_brainpool_b) != 0) {
+            err = MP_VAL;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_brainpool_256(const mp_int* pX, const mp_int* pY)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* pub = NULL;
+#else
+    sp_point_256 pub[1];
+#endif
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 9, pX);
+        sp_256_from_mp(pub->y, 9, pY);
+        sp_256_from_bin(pub->z, 9, one, (int)sizeof(one));
+
+        err = sp_256_ecc_is_point_brainpool_9(pub, NULL);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_brainpool_256(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* priv = NULL;
+    sp_point_256* pub = NULL;
+#else
+    sp_digit priv[9];
+    sp_point_256 pub[2];
+#endif
+    sp_point_256* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 256) ||
+        (mp_count_bits(pY) > 256) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 9, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_256_from_mp(pub->x, 9, pX);
+        sp_256_from_mp(pub->y, 9, pY);
+        sp_256_from_bin(pub->z, 9, one, (int)sizeof(one));
+        if (privm)
+            sp_256_from_mp(priv, 9, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_256_iszero_9(pub->x) != 0) &&
+            (sp_256_iszero_9(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_256_cmp_9(pub->x, p256_brainpool_mod) >= 0) ||
+             (sp_256_cmp_9(pub->y, p256_brainpool_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_brainpool_9(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_9(p, pub, p256_brainpool_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_9(p, pub, p256_brainpool_order, 1, 1, heap);
+#endif
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_256_iszero_9(p->x) == 0) ||
+                             (sp_256_iszero_9(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_256_ecc_mulmod_base_brainpool_9(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_256_cmp_9(p->x, pub->x) != 0) ||
+                 (sp_256_cmp_9(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 5];
+    sp_point_256 p[2];
+#endif
+    sp_point_256* q = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_256_from_mp(p->x, 9, pX);
+        sp_256_from_mp(p->y, 9, pY);
+        sp_256_from_mp(p->z, 9, pZ);
+        sp_256_from_mp(q->x, 9, qX);
+        sp_256_from_mp(q->y, 9, qY);
+        sp_256_from_mp(q->z, 9, qZ);
+        p->infinity = sp_256_iszero_9(p->x) &
+                      sp_256_iszero_9(p->y);
+        q->infinity = sp_256_iszero_9(q->x) &
+                      sp_256_iszero_9(q->y);
+
+            sp_256_proj_point_add_brainpool_9(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 2];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 2, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 9, pX);
+        sp_256_from_mp(p->y, 9, pY);
+        sp_256_from_mp(p->z, 9, pZ);
+        p->infinity = sp_256_iszero_9(p->x) &
+                      sp_256_iszero_9(p->y);
+
+            sp_256_proj_point_dbl_brainpool_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 9 * 5];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 9, pX);
+        sp_256_from_mp(p->y, 9, pY);
+        sp_256_from_mp(p->z, 9, pZ);
+        p->infinity = sp_256_iszero_9(p->x) &
+                      sp_256_iszero_9(p->y);
+
+            sp_256_map_brainpool_9(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, pZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+static const sp_digit p256_brainpool_sqrt_power[9] = {
+    0x07db94de,0x0026903a,0x12620282,0x1dfb11ea,0x0e35c9b8,0x015213b0,
+    0x09bc3e66,0x1edd0f75,0x002a7ed5
+};
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mont_sqrt_brainpool_9(sp_digit* y)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t = NULL;
+#else
+    sp_digit t[2 * 9];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+
+        {
+            int i;
+
+            XMEMCPY(t, y, sizeof(sp_digit) * 9);
+            for (i=252; i>=0; i--) {
+                sp_256_mont_sqr_brainpool_9(t, t, p256_brainpool_mod, p256_brainpool_mp_mod);
+                if (p256_brainpool_sqrt_power[i / 29] & ((sp_digit)1 << (i % 29)))
+                    sp_256_mont_mul_brainpool_9(t, t, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+            }
+            XMEMCPY(y, t, sizeof(sp_digit) * 9);
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_brainpool_256(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* x = NULL;
+#else
+    sp_digit x[4 * 9];
+#endif
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    x = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 9, NULL, DYNAMIC_TYPE_ECC);
+    if (x == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        y = x + 2 * 9;
+
+        sp_256_from_mp(x, 9, xm);
+        err = sp_256_mod_mul_norm_brainpool_9(x, x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+        {
+            sp_256_mont_sqr_brainpool_9(y, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+            sp_256_mont_mul_brainpool_9(y, y, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_9(y, y, x, p256_brainpool_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_brainpool_9(x, p256_brainpool_b, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_brainpool_9(y, y, x, p256_brainpool_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_brainpool_9(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 9, 0, 9U * sizeof(sp_digit));
+        sp_256_mont_reduce_brainpool_9(y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_256_mont_sub_brainpool_9(y, p256_brainpool_mod, y, p256_brainpool_mod);
+        }
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (x != NULL)
+        XFREE(x, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#endif /* !WOLFSSL_SP_NO_256 */
+#endif /* HAVE_ECC_BRAINPOOL */
+#if defined(FP_ECC_CONTROL) && defined(FP_ECC)
+/* returns the pointer to ecc_point 'g' location in the cache table if it has
+ * been generated
+ */
+sp_cache_256_t* sp_ecc_get_cache_entry_256(ecc_point* g, int curveId,
+        int idx, byte bld, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256 point[1];
+#else
+    sp_point_256 *point;
+#endif
+    sp_cache_256_t *ret = NULL;
+    int i;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        return MEMORY_E;
+#endif
+
+    if (idx >= sp_cache_entries_256 || idx < 0 ||
+        sp_cache_256 == NULL) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+        return NULL;
+    }
+
+    if (sp_cache_256_inited == 0) {
+        for (i=0; i<sp_cache_entries_256; i++) {
+            sp_cache_256[i].set = 0;
+        }
+        sp_cache_256_inited = 1;
+    }
+
+    sp_256_point_from_ecc_point_9(point, g);
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_256 == 0) {
+        wc_InitMutex(&sp_cache_256_lock);
+        initCacheMutex_256 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_256_lock) != 0) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+        return NULL;
+    }
+#endif /* HAVE_THREAD_LS */
+    ret = &sp_cache_256[idx];
+    if (ret != NULL && bld) {
+        /* overwriting index */
+        XMEMSET(ret, 0, sizeof(sp_cache_256_t));
+        ret->set = 1;
+        XMEMCPY(ret->x, point->x, 32);
+        XMEMCPY(ret->y, point->y, 32);
+    }
+
+    /* for now generate table to share after selected */
+    if (ret != NULL && bld) {
+        sp_digit tmp[2 * 9 * 6]; /* value of 6 from most generated table count size */
+        switch (curveId) {
+            case ECC_SECP256R1:
+                sp_256_gen_stripe_table_9(point, ret->table, tmp, heap);
+                break;
+        #ifdef HAVE_ECC_BRAINPOOL
+            case ECC_BRAINPOOLP256R1:
+                sp_256_gen_stripe_table_brainpool_9(point, ret->table, tmp, heap);
+                break;
+        #endif
+            default:
+                /* unknown curve type */
+                ret = NULL;
+        }
+    }
+#ifndef HAVE_THREAD_LS
+    wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* HAVE_THREAD_LS */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return ret;
+}
+#endif /* FP_ECC_CONTROL && FP_ECC */
 #endif /* WOLFSSL_HAVE_SP_ECC */
 #endif /* SP_WORD_SIZE == 32 */
 #endif /* !WOLFSSL_SP_ASM */

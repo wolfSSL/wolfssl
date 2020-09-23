@@ -514,6 +514,10 @@ struct ecc_key {
 #ifdef WOLFSSL_DSP
     remote_handle64 handle;
 #endif
+#ifdef FP_ECC_CONTROL
+    int  fpIdx;   /* user controls index in cache table */
+    byte fpBuild; /* user controls build of look up table */
+#endif
 #ifdef ECC_TIMING_RESISTANT
     WC_RNG* rng;
 #endif
@@ -650,6 +654,10 @@ WOLFSSL_API
 void wc_ecc_fp_free(void);
 WOLFSSL_LOCAL
 void wc_ecc_fp_init(void);
+#ifdef FP_ECC_CONTROL
+WOLFSSL_API
+int wc_ecc_fp_set_idx(ecc_key* key, int idx, byte buildFlag);
+#endif
 #ifdef ECC_TIMING_RESISTANT
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
@@ -902,8 +910,9 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order);
 WOLFSSL_API
 int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle);
 WOLFSSL_LOCAL
-int sp_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash, word32 hashLen, mp_int* pX,
-    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+int wc_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash,
+        word32 hashLen, mp_int* pX, mp_int* pY, mp_int* pZ, mp_int* r,
+        mp_int* sm, int* res, void* heap);
 #endif
 
 #ifdef WC_ECC_NONBLOCK

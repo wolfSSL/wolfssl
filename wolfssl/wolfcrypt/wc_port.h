@@ -976,8 +976,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
                                          void *ctx);
     WOLFSSL_API int wolfSSL_GetHandleCbSet();
     WOLFSSL_API int wolfSSL_SetHandleCb(wolfSSL_DSP_Handle_cb in);
-    WOLFSSL_LOCAL int wolfSSL_InitHandle();
-    WOLFSSL_LOCAL void wolfSSL_CleanupHandle();
+    WOLFSSL_LOCAL int wolfSSL_DSPInit();
+    WOLFSSL_LOCAL void wolfSSL_DSPCleanup();
 #endif
 
 #ifdef WOLFSSL_SCE

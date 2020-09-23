@@ -1547,6 +1547,91 @@ SP_NOINLINE static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_mul_16(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp_arr[16 * 2];
+    sp_digit* tmp = tmp_arr;
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r11, %[b]\n\t"
+        "mov	r6, #64\n\t"
+        "add	r6, r6, r10\n\t"
+        "mov	r14, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #60\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	%[b], r9\n\t"
+        "sub	%[b], %[b], %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	%[b], %[b], r11\n\t"
+        "\n2:\n\t"
+        /* Multiply Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [%[b]]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply Done */
+        "add	%[a], %[a], #4\n\t"
+        "sub	%[b], %[b], #4\n\t"
+        "cmp	%[a], r14\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, r9\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #120\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[b], r11\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    XMEMCPY(r, tmp_arr, sizeof(tmp_arr));
+}
+
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -1610,6 +1695,130 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
     r[48] = u;
     XMEMSET(r + 48 + 1, 0, sizeof(sp_digit) * (16 - 1));
     (void)sp_2048_add_32(r + 32, r + 32, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r6, #128\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, sp, r6\n\t"
+        "mov	r11, sp\n\t"
+        "mov	r10, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #60\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	r2, r9\n\t"
+        "sub	r2, r2, %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	r2, r2, r10\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+#ifdef __GNUC__
+        "beq	4f\n\t"
+#else
+        "beq.n	4f\n\t"
+#endif /* __GNUC__ */
+        /* Multiply * 2: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [r2]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply * 2: Done */
+#ifdef __GNUC__
+        "bal	5f\n\t"
+#else
+        "bal.n	5f\n\t"
+#endif /* __GNUC__ */
+        "\n4:\n\t"
+        /* Square: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Square: Done */
+        "\n5:\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "sub	r2, r2, #4\n\t"
+        "mov	r6, #64\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "cmp	%[a], r2\n\t"
+#ifdef __GNUC__
+        "bgt	3f\n\t"
+#else
+        "bgt.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r8, r9\n\t"
+        "add	r8, r8, r10\n\t"
+        "cmp	%[a], r8\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #120\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	%[a], r11\n\t"
+        "mov	r3, #124\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "subs	r3, r3, #4\n\t"
+#ifdef __GNUC__
+        "bge	4b\n\t"
+#else
+        "bge.n	4b\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, #128\n\t"
+        "add	sp, sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+    );
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -2002,6 +2211,91 @@ SP_NOINLINE static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp_arr[32 * 2];
+    sp_digit* tmp = tmp_arr;
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r11, %[b]\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r6, r10\n\t"
+        "mov	r14, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	%[b], r9\n\t"
+        "sub	%[b], %[b], %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	%[b], %[b], r11\n\t"
+        "\n2:\n\t"
+        /* Multiply Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [%[b]]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply Done */
+        "add	%[a], %[a], #4\n\t"
+        "sub	%[b], %[b], #4\n\t"
+        "cmp	%[a], r14\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, r9\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[b], r11\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    XMEMCPY(r, tmp_arr, sizeof(tmp_arr));
+}
+
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -2065,6 +2359,132 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
     r[96] = u;
     XMEMSET(r + 96 + 1, 0, sizeof(sp_digit) * (32 - 1));
     (void)sp_2048_add_64(r + 64, r + 64, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, sp, r6\n\t"
+        "mov	r11, sp\n\t"
+        "mov	r10, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	r2, r9\n\t"
+        "sub	r2, r2, %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	r2, r2, r10\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+#ifdef __GNUC__
+        "beq	4f\n\t"
+#else
+        "beq.n	4f\n\t"
+#endif /* __GNUC__ */
+        /* Multiply * 2: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [r2]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply * 2: Done */
+#ifdef __GNUC__
+        "bal	5f\n\t"
+#else
+        "bal.n	5f\n\t"
+#endif /* __GNUC__ */
+        "\n4:\n\t"
+        /* Square: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Square: Done */
+        "\n5:\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "sub	r2, r2, #4\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "cmp	%[a], r2\n\t"
+#ifdef __GNUC__
+        "bgt	3f\n\t"
+#else
+        "bgt.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r8, r9\n\t"
+        "add	r8, r8, r10\n\t"
+        "cmp	%[a], r8\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	%[a], r11\n\t"
+        "mov	r3, #252\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "subs	r3, r3, #4\n\t"
+#ifdef __GNUC__
+        "bge	4b\n\t"
+#else
+        "bge.n	4b\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	sp, sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+    );
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -2180,7 +2600,6 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#ifdef WOLFSSL_SP_SMALL
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -2400,7 +2819,6 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
     );
 }
 
-#endif /* WOLFSSL_SP_SMALL */
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
@@ -2837,6 +3255,8 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+#define sp_2048_mont_reduce_order_64   sp_2048_mont_reduce_64
+
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -2931,6 +3351,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -3550,6 +3971,8 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+#define sp_2048_mont_reduce_order_64   sp_2048_mont_reduce_64
+
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -3644,6 +4067,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -6544,6 +6968,91 @@ SP_NOINLINE static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_mul_24(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp_arr[24 * 2];
+    sp_digit* tmp = tmp_arr;
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r11, %[b]\n\t"
+        "mov	r6, #96\n\t"
+        "add	r6, r6, r10\n\t"
+        "mov	r14, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #92\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	%[b], r9\n\t"
+        "sub	%[b], %[b], %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	%[b], %[b], r11\n\t"
+        "\n2:\n\t"
+        /* Multiply Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [%[b]]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply Done */
+        "add	%[a], %[a], #4\n\t"
+        "sub	%[b], %[b], #4\n\t"
+        "cmp	%[a], r14\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, r9\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #184\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[b], r11\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    XMEMCPY(r, tmp_arr, sizeof(tmp_arr));
+}
+
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -6607,6 +7116,130 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
     r[72] = u;
     XMEMSET(r + 72 + 1, 0, sizeof(sp_digit) * (24 - 1));
     (void)sp_3072_add_48(r + 48, r + 48, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r6, #192\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, sp, r6\n\t"
+        "mov	r11, sp\n\t"
+        "mov	r10, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #92\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	r2, r9\n\t"
+        "sub	r2, r2, %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	r2, r2, r10\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+#ifdef __GNUC__
+        "beq	4f\n\t"
+#else
+        "beq.n	4f\n\t"
+#endif /* __GNUC__ */
+        /* Multiply * 2: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [r2]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply * 2: Done */
+#ifdef __GNUC__
+        "bal	5f\n\t"
+#else
+        "bal.n	5f\n\t"
+#endif /* __GNUC__ */
+        "\n4:\n\t"
+        /* Square: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Square: Done */
+        "\n5:\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "sub	r2, r2, #4\n\t"
+        "mov	r6, #96\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "cmp	%[a], r2\n\t"
+#ifdef __GNUC__
+        "bgt	3f\n\t"
+#else
+        "bgt.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r8, r9\n\t"
+        "add	r8, r8, r10\n\t"
+        "cmp	%[a], r8\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #184\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	%[a], r11\n\t"
+        "mov	r3, #188\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "subs	r3, r3, #4\n\t"
+#ifdef __GNUC__
+        "bge	4b\n\t"
+#else
+        "bge.n	4b\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, #192\n\t"
+        "add	sp, sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+    );
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -7159,6 +7792,93 @@ SP_NOINLINE static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp_arr[48 * 2];
+    sp_digit* tmp = tmp_arr;
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r11, %[b]\n\t"
+        "mov	r6, #192\n\t"
+        "add	r6, r6, r10\n\t"
+        "mov	r14, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #188\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	%[b], r9\n\t"
+        "sub	%[b], %[b], %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	%[b], %[b], r11\n\t"
+        "\n2:\n\t"
+        /* Multiply Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [%[b]]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply Done */
+        "add	%[a], %[a], #4\n\t"
+        "sub	%[b], %[b], #4\n\t"
+        "cmp	%[a], r14\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, r9\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, r6, #120\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[b], r11\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    XMEMCPY(r, tmp_arr, sizeof(tmp_arr));
+}
+
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -7222,6 +7942,138 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
     r[144] = u;
     XMEMSET(r + 144 + 1, 0, sizeof(sp_digit) * (48 - 1));
     (void)sp_3072_add_96(r + 96, r + 96, z2);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, r6, #128\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, sp, r6\n\t"
+        "mov	r11, sp\n\t"
+        "mov	r10, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #188\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	r2, r9\n\t"
+        "sub	r2, r2, %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	r2, r2, r10\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+#ifdef __GNUC__
+        "beq	4f\n\t"
+#else
+        "beq.n	4f\n\t"
+#endif /* __GNUC__ */
+        /* Multiply * 2: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [r2]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply * 2: Done */
+#ifdef __GNUC__
+        "bal	5f\n\t"
+#else
+        "bal.n	5f\n\t"
+#endif /* __GNUC__ */
+        "\n4:\n\t"
+        /* Square: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Square: Done */
+        "\n5:\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "sub	r2, r2, #4\n\t"
+        "mov	r6, #192\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "cmp	%[a], r2\n\t"
+#ifdef __GNUC__
+        "bgt	3f\n\t"
+#else
+        "bgt.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r8, r9\n\t"
+        "add	r8, r8, r10\n\t"
+        "cmp	%[a], r8\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, r6, #120\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	%[a], r11\n\t"
+        "mov	r3, #1\n\t"
+        "lsl	r3, r3, #8\n\t"
+        "add	r3, r3, #124\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "subs	r3, r3, #4\n\t"
+#ifdef __GNUC__
+        "bge	4b\n\t"
+#else
+        "bge.n	4b\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, r6, #128\n\t"
+        "add	sp, sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+    );
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -7337,7 +8189,6 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#ifdef WOLFSSL_SP_SMALL
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -7563,7 +8414,6 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
     );
 }
 
-#endif /* WOLFSSL_SP_SMALL */
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
@@ -8008,6 +8858,8 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+#define sp_3072_mont_reduce_order_96   sp_3072_mont_reduce_96
+
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -8102,6 +8954,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -8722,6 +9575,8 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+#define sp_3072_mont_reduce_order_96   sp_3072_mont_reduce_96
+
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -8816,6 +9671,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -11182,12 +12038,6 @@ static void sp_4096_to_bin_128(sp_digit* r, byte* a)
 }
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && (!defined(WOLFSSL_RSA_PUBLIC_ONLY) || !defined(WOLFSSL_SP_SMALL))) || defined(WOLFSSL_HAVE_SP_DH)
-/* Normalize the values in each word to 32.
- *
- * a  Array of sp_digit to normalize.
- */
-#define sp_4096_norm_128(a)
-
 #endif /* (WOLFSSL_HAVE_SP_RSA && (!WOLFSSL_RSA_PUBLIC_ONLY || !WOLFSSL_SP_SMALL)) || WOLFSSL_HAVE_SP_DH */
 /* Normalize the values in each word to 32.
  *
@@ -12027,7 +12877,6 @@ SP_NOINLINE static sp_digit sp_4096_sub_in_place_128(sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#ifdef WOLFSSL_SP_SMALL
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -12251,7 +13100,6 @@ SP_NOINLINE static void sp_4096_sqr_128(sp_digit* r, const sp_digit* a)
     );
 }
 
-#endif /* WOLFSSL_SP_SMALL */
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
  * a    A single precision number.
@@ -12372,6 +13220,8 @@ SP_NOINLINE static sp_digit sp_4096_cond_sub_128(sp_digit* r, const sp_digit* a,
     return c;
 }
 
+#define sp_4096_mont_reduce_order_128   sp_4096_mont_reduce_128
+
 /* Reduce the number back to 4096 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -12466,6 +13316,7 @@ SP_NOINLINE static void sp_4096_mont_reduce_128(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -16031,234 +16882,92 @@ SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
  * r  The resulting Montgomery form number.
  * a  The number to convert.
  * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
  */
 static int sp_256_mod_mul_norm_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
-   (void)m;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    int64_t* t = NULL;
+#else
+    int64_t t[2 * 8];
+#endif
+    int64_t* a32 = NULL;
+    int64_t o;
+    int err = MP_OKAY;
 
-    __asm__ __volatile__ (
-        "sub   sp, sp, #24\n\t"
-        "ldr r2, [%[a], #0]\n\t"
-        "ldr r3, [%[a], #4]\n\t"
-        "ldr r4, [%[a], #8]\n\t"
-        "ldr r5, [%[a], #12]\n\t"
-        "ldr r6, [%[a], #16]\n\t"
-        "ldr r8, [%[a], #20]\n\t"
-        "ldr r9, [%[a], #24]\n\t"
-        "ldr r10, [%[a], #28]\n\t"
-        /* Clear overflow and underflow */
-        "mov   r14, #0\n\t"
-        "mov   r12, #0\n\t"
-        /* t[0] =  1  1  0 -1 -1 -1 -1  0 */
-        "adds  r11, r2, r3\n\t"
-        "adc   r14, r14, #0\n\t"
-        "subs    r11, r11, r5\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r6\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r8\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r9\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[0] */
-        "str       r11, [sp, #0]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r11, #0\n\t"
-        /* t[1] =  0  1  1  0 -1 -1 -1 -1 */
-        "adds  r14, r14, r3\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r4\n\t"
-        "adc   r11, r11, #0\n\t"
-        "subs      r14, r14, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r14, r14, r6\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r8\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r9\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r10\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[1] */
-        "str       r14, [sp, #4]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r14, #0\n\t"
-        /* t[2] =  0  0  1  1  0 -1 -1 -1 */
-        "adds  r11, r11, r4\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r5\n\t"
-        "adc   r14, r14, #0\n\t"
-        "subs      r11, r11, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r11, r11, r8\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r9\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r10\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[2] */
-        "str       r11, [sp, #8]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r11, #0\n\t"
-        /* t[3] = -1 -1  0  2  2  1  0 -1 */
-        "adds  r14, r14, r5\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r5\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r6\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r6\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r8\n\t"
-        "adc   r11, r11, #0\n\t"
-        "subs      r14, r14, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r14, r14, r2\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r3\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r10\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[3] */
-        "str       r14, [sp, #12]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r14, #0\n\t"
-        /* t[4] =  0 -1 -1  0  2  2  1  0 */
-        "adds  r11, r11, r6\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r6\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r8\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r8\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r9\n\t"
-        "adc   r14, r14, #0\n\t"
-        "subs      r11, r11, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r11, r11, r3\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r4\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[4] */
-        "str       r11, [sp, #16]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r11, #0\n\t"
-        /* t[5] =  0  0 -1 -1  0  2  2  1 */
-        "adds  r14, r14, r8\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r8\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r9\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r9\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r10\n\t"
-        "adc   r11, r11, #0\n\t"
-        "subs      r14, r14, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r14, r14, r4\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r5\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[5] */
-        "str       r14, [sp, #20]\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r14, #0\n\t"
-        /* t[6] = -1 -1  0  0  0  1  3  2 */
-        "adds  r11, r11, r8\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r9\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r9\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r9\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r10\n\t"
-        "adc   r14, r14, #0\n\t"
-        "adds  r11, r11, r10\n\t"
-        "adc   r14, r14, #0\n\t"
-        "subs      r11, r11, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r11, r11, r2\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r11, r11, r3\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[6] */
-        "mov       r9, r11\n\t"
-        "neg       r12, r12\n\t"
-        "mov       r11, #0\n\t"
-        /* t[7] =  1  0 -1 -1 -1 -1  0  3 */
-        "adds  r14, r14, r2\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r10\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r10\n\t"
-        "adc   r11, r11, #0\n\t"
-        "adds  r14, r14, r10\n\t"
-        "adc   r11, r11, #0\n\t"
-        "subs      r14, r14, r12\n\t"
-        "mov       r12, #0\n\t"
-        "sbc       r12, r12, #0\n\t"
-        "subs    r14, r14, r4\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r5\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r6\n\t"
-        "sbc     r12, r12, #0\n\t"
-        "subs    r14, r14, r8\n\t"
-        "sbc     r12, r12, #0\n\t"
-        /* Store t[7] */
-        /* Load intermediate */
-        "ldr r2, [sp, #0]\n\t"
-        "ldr r3, [sp, #4]\n\t"
-        "ldr r4, [sp, #8]\n\t"
-        "ldr r5, [sp, #12]\n\t"
-        "ldr r6, [sp, #16]\n\t"
-        "ldr r8, [sp, #20]\n\t"
-        "neg   r12, r12\n\t"
-        /* Add overflow */
-        /* Subtract underflow - add neg underflow */
-        "adds  r2, r2, r11\n\t"
-        "adcs  r3, r3, #0\n\t"
-        "adcs  r4, r4, #0\n\t"
-        "adds  r5, r5, r12\n\t"
-        "adcs  r6, r6, #0\n\t"
-        "adcs  r8, r8, #0\n\t"
-        "adcs  r9, r9, r12\n\t"
-        "adc   r14, r14, r11\n\t"
-        /* Subtract overflow */
-        /* Add underflow - subtract neg underflow */
-        "subs  r2, r2, r12\n\t"
-        "sbcs  r3, r3, #0\n\t"
-        "sbcs  r4, r4, #0\n\t"
-        "subs  r5, r5, r11\n\t"
-        "sbcs  r6, r6, #0\n\t"
-        "sbcs  r8, r8, #0\n\t"
-        "sbcs  r9, r9, r11\n\t"
-        "sbc   r14, r14, r12\n\t"
-        /* Store result */
-        "str r2, [%[r], #0]\n\t"
-        "str r3, [%[r], #4]\n\t"
-        "str r4, [%[r], #8]\n\t"
-        "str r5, [%[r], #12]\n\t"
-        "str r6, [%[r], #16]\n\t"
-        "str r8, [%[r], #20]\n\t"
-        "str r9, [%[r], #24]\n\t"
-        "str r14, [%[r], #28]\n\t"
-        "add   sp, sp, #24\n\t"
-        :
-        : [r] "r" (r), [a] "r" (a)
-        : "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r12"
-    );
+    (void)m;
 
-    return MP_OKAY;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (int64_t*)XMALLOC(sizeof(int64_t) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        return MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        a32 = t + 8;
+
+        a32[0] = a[0];
+        a32[1] = a[1];
+        a32[2] = a[2];
+        a32[3] = a[3];
+        a32[4] = a[4];
+        a32[5] = a[5];
+        a32[6] = a[6];
+        a32[7] = a[7];
+
+        /*  1  1  0 -1 -1 -1 -1  0 */
+        t[0] = 0 + a32[0] + a32[1] - a32[3] - a32[4] - a32[5] - a32[6];
+        /*  0  1  1  0 -1 -1 -1 -1 */
+        t[1] = 0 + a32[1] + a32[2] - a32[4] - a32[5] - a32[6] - a32[7];
+        /*  0  0  1  1  0 -1 -1 -1 */
+        t[2] = 0 + a32[2] + a32[3] - a32[5] - a32[6] - a32[7];
+        /* -1 -1  0  2  2  1  0 -1 */
+        t[3] = 0 - a32[0] - a32[1] + 2 * a32[3] + 2 * a32[4] + a32[5] - a32[7];
+        /*  0 -1 -1  0  2  2  1  0 */
+        t[4] = 0 - a32[1] - a32[2] + 2 * a32[4] + 2 * a32[5] + a32[6];
+        /*  0  0 -1 -1  0  2  2  1 */
+        t[5] = 0 - a32[2] - a32[3] + 2 * a32[5] + 2 * a32[6] + a32[7];
+        /* -1 -1  0  0  0  1  3  2 */
+        t[6] = 0 - a32[0] - a32[1] + a32[5] + 3 * a32[6] + 2 * a32[7];
+        /*  1  0 -1 -1 -1 -1  0  3 */
+        t[7] = 0 + a32[0] - a32[2] - a32[3] - a32[4] - a32[5] + 3 * a32[7];
+
+        t[1] += t[0] >> 32U; t[0] &= 0xffffffffL;
+        t[2] += t[1] >> 32U; t[1] &= 0xffffffffL;
+        t[3] += t[2] >> 32U; t[2] &= 0xffffffffL;
+        t[4] += t[3] >> 32U; t[3] &= 0xffffffffL;
+        t[5] += t[4] >> 32U; t[4] &= 0xffffffffL;
+        t[6] += t[5] >> 32U; t[5] &= 0xffffffffL;
+        t[7] += t[6] >> 32U; t[6] &= 0xffffffffL;
+        o     = t[7] >> 32U; t[7] &= 0xffffffffL;
+        t[0] += o;
+        t[3] -= o;
+        t[6] -= o;
+        t[7] += o;
+        t[1] += t[0] >> 32U; t[0] &= 0xffffffffL;
+        t[2] += t[1] >> 32U; t[1] &= 0xffffffffL;
+        t[3] += t[2] >> 32U; t[2] &= 0xffffffffL;
+        t[4] += t[3] >> 32U; t[3] &= 0xffffffffL;
+        t[5] += t[4] >> 32U; t[4] &= 0xffffffffL;
+        t[6] += t[5] >> 32U; t[5] &= 0xffffffffL;
+        t[7] += t[6] >> 32U; t[6] &= 0xffffffffL;
+
+        r[0] = t[0];
+        r[1] = t[1];
+        r[2] = t[2];
+        r[3] = t[3];
+        r[4] = t[4];
+        r[5] = t[5];
+        r[6] = t[6];
+        r[7] = t[7];
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
 }
 
 /* Convert an mp_int to an array of sp_digit.
@@ -18036,6 +18745,7 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* 
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -18097,64 +18807,74 @@ static void sp_256_map_8(sp_point_256* r, const sp_point_256* p,
 SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m)
 {
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montogmery form.
+ * b   Second number to add in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
     (void)m;
 
     __asm__ __volatile__ (
         "mov   r12, #0\n\t"
-        "ldr       r4, [%[a],#0]\n\t"
-        "ldr       r5, [%[a],#4]\n\t"
-        "ldr       r6, [%[a],#8]\n\t"
-        "ldr       r8, [%[a],#12]\n\t"
-        "ldr       r9, [%[b],#0]\n\t"
-        "ldr       r10, [%[b],#4]\n\t"
-        "ldr       r11, [%[b],#8]\n\t"
-        "ldr       r14, [%[b],#12]\n\t"
-        "adds    r4, r4, r9\n\t"
-        "adcs    r5, r5, r10\n\t"
-        "adcs    r6, r6, r11\n\t"
-        "adcs    r8, r8, r14\n\t"
-        "str       r4, [%[r],#0]\n\t"
-        "str       r5, [%[r],#4]\n\t"
-        "str       r6, [%[r],#8]\n\t"
-        "str       r8, [%[r],#12]\n\t"
-        "ldr       r4, [%[a],#16]\n\t"
-        "ldr       r5, [%[a],#20]\n\t"
-        "ldr       r6, [%[a],#24]\n\t"
-        "ldr       r8, [%[a],#28]\n\t"
-        "ldr       r9, [%[b],#16]\n\t"
-        "ldr       r10, [%[b],#20]\n\t"
-        "ldr       r11, [%[b],#24]\n\t"
-        "ldr       r14, [%[b],#28]\n\t"
-        "adcs    r4, r4, r9\n\t"
-        "adcs    r5, r5, r10\n\t"
-        "adcs    r6, r6, r11\n\t"
-        "adcs    r8, r8, r14\n\t"
-        "adc   r3, r12, #0\n\t"
-        "sub   r3, r12, r3\n\t"
-        "and   r12, r3, #1\n\t"
-        "ldr   r9, [%[r],#0]\n\t"
-        "ldr   r10, [%[r],#4]\n\t"
-        "ldr   r11, [%[r],#8]\n\t"
-        "ldr   r14, [%[r],#12]\n\t"
-        "subs  r9, r9, r3\n\t"
-        "sbcs  r10, r10, r3\n\t"
-        "sbcs  r11, r11, r3\n\t"
-        "sbcs  r14, r14, #0\n\t"
-        "sbcs  r4, r4, #0\n\t"
-        "sbcs  r5, r5, #0\n\t"
-        "sbcs  r6, r6, r12\n\t"
-        "sbc   r8, r8, r3\n\t"
-        "str   r9, [%[r],#0]\n\t"
-        "str   r10, [%[r],#4]\n\t"
-        "str   r11, [%[r],#8]\n\t"
-        "str   r14, [%[r],#12]\n\t"
-        "str   r4, [%[r],#16]\n\t"
-        "str   r5, [%[r],#20]\n\t"
-        "str   r6, [%[r],#24]\n\t"
-        "str   r8, [%[r],#28]\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[b],#0]\n\t"
+        "ldr	r10, [%[b],#4]\n\t"
+        "ldr	r11, [%[b],#8]\n\t"
+        "ldr	r14, [%[b],#12]\n\t"
+        "adds	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adcs	r6, r6, r11\n\t"
+        "adcs	r8, r8, r14\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "ldr	r4, [%[a],#16]\n\t"
+        "ldr	r5, [%[a],#20]\n\t"
+        "ldr	r6, [%[a],#24]\n\t"
+        "ldr	r8, [%[a],#28]\n\t"
+        "ldr	r9, [%[b],#16]\n\t"
+        "ldr	r10, [%[b],#20]\n\t"
+        "ldr	r11, [%[b],#24]\n\t"
+        "ldr	r14, [%[b],#28]\n\t"
+        "adcs	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adcs	r6, r6, r11\n\t"
+        "adcs	r8, r8, r14\n\t"
+        "adc	r3, r12, #0\n\t"
+        "neg	r3, r3\n\t"
+        "ldr	r9, [%[r],#0]\n\t"
+        "ldr	r10, [%[r],#4]\n\t"
+        "ldr	r11, [%[r],#8]\n\t"
+        "ldr	r14, [%[r],#12]\n\t"
+        "and	r12, r3, #1\n\t"
+        "subs	r9, r9, r3\n\t"
+        "sbcs	r10, r10, r3\n\t"
+        "sbcs	r11, r11, r3\n\t"
+        "sbcs	r14, r14, #0\n\t"
+        "sbcs	r4, r4, #0\n\t"
+        "sbcs	r5, r5, #0\n\t"
+        "sbcs	r6, r6, r12\n\t"
+        "sbc	r8, r8, r3\n\t"
+        "str	r9, [%[r],#0]\n\t"
+        "str	r10, [%[r],#4]\n\t"
+        "str	r11, [%[r],#8]\n\t"
+        "str	r14, [%[r],#12]\n\t"
+        "str	r4, [%[r],#16]\n\t"
+        "str	r5, [%[r],#20]\n\t"
+        "str	r6, [%[r],#24]\n\t"
+        "str	r8, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
-        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r12", "r3"
     );
 }
 
@@ -18169,48 +18889,46 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const 
     (void)m;
 
     __asm__ __volatile__ (
-        "mov   r12, #0\n\t"
-        "ldr        r4, [%[a],#0]\n\t"
-        "ldr        r5, [%[a],#4]\n\t"
-        "ldr        r6, [%[a],#8]\n\t"
-        "ldr        r8, [%[a],#12]\n\t"
-        "ldr        r9, [%[a],#16]\n\t"
-        "ldr        r10, [%[a],#20]\n\t"
-        "ldr        r11, [%[a],#24]\n\t"
-        "ldr        r14, [%[a],#28]\n\t"
-        "adds      r4, r4, r4\n\t"
-        "adcs      r5, r5, r5\n\t"
-        "adcs      r6, r6, r6\n\t"
-        "adcs      r8, r8, r8\n\t"
-        "adcs      r9, r9, r9\n\t"
-        "adcs      r10, r10, r10\n\t"
-        "adcs      r11, r11, r11\n\t"
-        "adcs      r14, r14, r14\n\t"
-        "adc   r3, r12, #0\n\t"
-        "sub   r3, r12, r3\n\t"
-        "and   r12, r3, #1\n\t"
-        "subs  r4, r4, r3\n\t"
-        "sbcs  r5, r5, r3\n\t"
-        "sbcs  r6, r6, r3\n\t"
-        "sbcs  r8, r8, #0\n\t"
-        "sbcs  r9, r9, #0\n\t"
-        "sbcs  r10, r10, #0\n\t"
-        "sbcs  r11, r11, r12\n\t"
-        "sbc   r14, r14, r3\n\t"
-        "str   r4, [%[r],#0]\n\t"
-        "str   r5, [%[r],#4]\n\t"
-        "str   r6, [%[r],#8]\n\t"
-        "str   r8, [%[r],#12]\n\t"
-        "str   r9, [%[r],#16]\n\t"
-        "str   r10, [%[r],#20]\n\t"
-        "str   r11, [%[r],#24]\n\t"
-        "str   r14, [%[r],#28]\n\t"
+        "mov	r12, #0\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[a],#16]\n\t"
+        "ldr	r10, [%[a],#20]\n\t"
+        "ldr	r11, [%[a],#24]\n\t"
+        "ldr	r14, [%[a],#28]\n\t"
+        "adds	r4, r4, r4\n\t"
+        "adcs	r5, r5, r5\n\t"
+        "adcs	r6, r6, r6\n\t"
+        "adcs	r8, r8, r8\n\t"
+        "adcs	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adcs	r11, r11, r11\n\t"
+        "adcs	r14, r14, r14\n\t"
+        "adc	r3, r12, #0\n\t"
+        "neg	r3, r3\n\t"
+        "and	r12, r3, #1\n\t"
+        "subs	r4, r4, r3\n\t"
+        "sbcs	r5, r5, r3\n\t"
+        "sbcs	r6, r6, r3\n\t"
+        "sbcs	r8, r8, #0\n\t"
+        "sbcs	r9, r9, #0\n\t"
+        "sbcs	r10, r10, #0\n\t"
+        "sbcs	r11, r11, r12\n\t"
+        "sbc	r14, r14, r3\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "str	r9, [%[r],#16]\n\t"
+        "str	r10, [%[r],#20]\n\t"
+        "str	r11, [%[r],#24]\n\t"
+        "str	r14, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
     );
-}
-
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
@@ -18219,9 +18937,18 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const 
  */
 SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
     (void)m;
 
     __asm__ __volatile__ (
+        "mov	r11, #0\n\t"
         "ldr	r2, [%[a],#0]\n\t"
         "ldr	r3, [%[a],#4]\n\t"
         "ldr	r4, [%[a],#8]\n\t"
@@ -18238,10 +18965,9 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const 
         "adcs	r8, r8, r8\n\t"
         "adcs	r9, r9, r9\n\t"
         "adcs	r10, r10, r10\n\t"
-        "mov	r11, #0\n\t"
-        "mov	r14, #0\n\t"
         "adc	r11, r11, r11\n\t"
         "mov	r12, r11\n\t"
+        "mov	r14, #0\n\t"
         "sub	r11, r11, #1\n\t"
         "mvn	r11, r11\n\t"
         "subs	r2, r2, r11\n\t"
@@ -18252,6 +18978,7 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const 
         "sbcs	r8, r8, r14\n\t"
         "sbcs	r9, r9, r12\n\t"
         "sbc	r10, r10, r11\n\t"
+        "mov	r11, #0\n\t"
         "ldr	r12, [%[a],#0]\n\t"
         "ldr	r14, [%[a],#4]\n\t"
         "adds	r2, r2, r12\n\t"
@@ -18268,34 +18995,31 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const 
         "ldr	r14, [%[a],#28]\n\t"
         "adcs	r9, r9, r12\n\t"
         "adcs	r10, r10, r14\n\t"
-        "mov	r11, #0\n\t"
-        "mov	r14, #0\n\t"
         "adc	r11, r11, r11\n\t"
         "mov	r12, r11\n\t"
+        "mov	r14, #0\n\t"
         "sub	r11, r11, #1\n\t"
         "mvn	r11, r11\n\t"
         "subs	r2, r2, r11\n\t"
-        "str	r2, [%[r],#0]\n\t"
         "sbcs	r3, r3, r11\n\t"
-        "str	r3, [%[r],#4]\n\t"
         "sbcs	r4, r4, r11\n\t"
-        "str	r4, [%[r],#8]\n\t"
         "sbcs	r5, r5, r14\n\t"
-        "str	r5, [%[r],#12]\n\t"
         "sbcs	r6, r6, r14\n\t"
-        "str	r6, [%[r],#16]\n\t"
         "sbcs	r8, r8, r14\n\t"
-        "str	r8, [%[r],#20]\n\t"
         "sbcs	r9, r9, r12\n\t"
-        "str	r9, [%[r],#24]\n\t"
         "sbc	r10, r10, r11\n\t"
+        "str	r2, [%[r],#0]\n\t"
+        "str	r3, [%[r],#4]\n\t"
+        "str	r4, [%[r],#8]\n\t"
+        "str	r5, [%[r],#12]\n\t"
+        "str	r6, [%[r],#16]\n\t"
+        "str	r8, [%[r],#20]\n\t"
+        "str	r9, [%[r],#24]\n\t"
         "str	r10, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a)
         : "memory", "r11", "r12", "r14", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10"
     );
-}
-
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
@@ -18306,60 +19030,70 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const 
 SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
         const sp_digit* m)
 {
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montogmery form.
+ * b   Number to subtract with in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
     (void)m;
 
     __asm__ __volatile__ (
         "mov   r12, #0\n\t"
-        "ldr       r4, [%[a],#0]\n\t"
-        "ldr       r5, [%[a],#4]\n\t"
-        "ldr       r6, [%[a],#8]\n\t"
-        "ldr       r8, [%[a],#12]\n\t"
-        "ldr       r9, [%[b],#0]\n\t"
-        "ldr       r10, [%[b],#4]\n\t"
-        "ldr       r11, [%[b],#8]\n\t"
-        "ldr       r14, [%[b],#12]\n\t"
-        "subs    r4, r4, r9\n\t"
-        "sbcs    r5, r5, r10\n\t"
-        "sbcs    r6, r6, r11\n\t"
-        "sbcs    r8, r8, r14\n\t"
-        "str       r4, [%[r],#0]\n\t"
-        "str       r5, [%[r],#4]\n\t"
-        "str       r6, [%[r],#8]\n\t"
-        "str       r8, [%[r],#12]\n\t"
-        "ldr       r4, [%[a],#16]\n\t"
-        "ldr       r5, [%[a],#20]\n\t"
-        "ldr       r6, [%[a],#24]\n\t"
-        "ldr       r8, [%[a],#28]\n\t"
-        "ldr       r9, [%[b],#16]\n\t"
-        "ldr       r10, [%[b],#20]\n\t"
-        "ldr       r11, [%[b],#24]\n\t"
-        "ldr       r14, [%[b],#28]\n\t"
-        "sbcs    r4, r4, r9\n\t"
-        "sbcs    r5, r5, r10\n\t"
-        "sbcs    r6, r6, r11\n\t"
-        "sbcs    r8, r8, r14\n\t"
-        "sbc   r3, r12, #0\n\t"
-        "and   r12, r3, #1\n\t"
-        "ldr   r9, [%[r],#0]\n\t"
-        "ldr   r10, [%[r],#4]\n\t"
-        "ldr   r11, [%[r],#8]\n\t"
-        "ldr   r14, [%[r],#12]\n\t"
-        "adds  r9, r9, r3\n\t"
-        "adcs  r10, r10, r3\n\t"
-        "adcs  r11, r11, r3\n\t"
-        "adcs  r14, r14, #0\n\t"
-        "adcs  r4, r4, #0\n\t"
-        "adcs  r5, r5, #0\n\t"
-        "adcs  r6, r6, r12\n\t"
-        "adc   r8, r8, r3\n\t"
-        "str   r9, [%[r],#0]\n\t"
-        "str   r10, [%[r],#4]\n\t"
-        "str   r11, [%[r],#8]\n\t"
-        "str   r14, [%[r],#12]\n\t"
-        "str   r4, [%[r],#16]\n\t"
-        "str   r5, [%[r],#20]\n\t"
-        "str   r6, [%[r],#24]\n\t"
-        "str   r8, [%[r],#28]\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[b],#0]\n\t"
+        "ldr	r10, [%[b],#4]\n\t"
+        "ldr	r11, [%[b],#8]\n\t"
+        "ldr	r14, [%[b],#12]\n\t"
+        "subs	r4, r4, r9\n\t"
+        "sbcs	r5, r5, r10\n\t"
+        "sbcs	r6, r6, r11\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "ldr	r4, [%[a],#16]\n\t"
+        "ldr	r5, [%[a],#20]\n\t"
+        "ldr	r6, [%[a],#24]\n\t"
+        "ldr	r8, [%[a],#28]\n\t"
+        "ldr	r9, [%[b],#16]\n\t"
+        "ldr	r10, [%[b],#20]\n\t"
+        "ldr	r11, [%[b],#24]\n\t"
+        "ldr	r14, [%[b],#28]\n\t"
+        "sbcs	r4, r4, r9\n\t"
+        "sbcs	r5, r5, r10\n\t"
+        "sbcs	r6, r6, r11\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "sbc	r3, r12, #0\n\t"
+        "ldr	r9, [%[r],#0]\n\t"
+        "ldr	r10, [%[r],#4]\n\t"
+        "ldr	r11, [%[r],#8]\n\t"
+        "ldr	r14, [%[r],#12]\n\t"
+        "and	r12, r3, #1\n\t"
+        "adds	r9, r9, r3\n\t"
+        "adcs	r10, r10, r3\n\t"
+        "adcs	r11, r11, r3\n\t"
+        "adcs	r14, r14, #0\n\t"
+        "adcs	r4, r4, #0\n\t"
+        "adcs	r5, r5, #0\n\t"
+        "adcs	r6, r6, r12\n\t"
+        "adc	r8, r8, r3\n\t"
+        "str	r9, [%[r],#0]\n\t"
+        "str	r10, [%[r],#4]\n\t"
+        "str	r11, [%[r],#8]\n\t"
+        "str	r14, [%[r],#12]\n\t"
+        "str	r4, [%[r],#16]\n\t"
+        "str	r5, [%[r],#20]\n\t"
+        "str	r6, [%[r],#24]\n\t"
+        "str	r8, [%[r],#28]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
@@ -19214,6 +19948,12 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
     return err;
 }
 
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_256 {
+    sp_digit x[8];
+    sp_digit y[8];
+} sp_table_entry_256;
+
 #ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
  *
@@ -19326,14 +20066,6 @@ static void sp_256_proj_to_affine_8(sp_point_256* a, sp_digit* t)
     XMEMCPY(a->z, p256_norm_mod, sizeof(p256_norm_mod));
 }
 
-#endif /* FP_ECC */
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_256 {
-    sp_digit x[8];
-    sp_digit y[8];
-} sp_table_entry_256;
-
-#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -19681,7 +20413,15 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_256 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_256_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[8];
@@ -19696,37 +20436,130 @@ typedef struct sp_cache_256_t {
 } sp_cache_256_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_256_t sp_cache_256[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_256_last = -1;
+static THREAD_LS_T sp_cache_256_t sp_cache_256[SP_ENTRIES];
+#else
+struct sp_cache_256_t {
+    sp_digit x[8];
+    sp_digit y[8];
+    sp_table_entry_256 table[16];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_256_t *sp_cache_256 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_256()
+{
+    return sizeof(sp_cache_256_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_256(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_256() * sp_cache_entries_256) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_256 = (sp_cache_256_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_256(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_256 = 0;
+    }
+    else {
+        sp_cache_entries_256 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_256_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_256 = 0;
     static wolfSSL_Mutex sp_cache_256_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_256_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+static int sp_ecc_get_cache_256_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_256_last + 1) % sp_cache_entries_256;
+    for (; i != sp_cache_256_last; i=(i+1)%sp_cache_entries_256) {
+        if (!sp_cache_256[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_256_last) {
+        least = sp_cache_256[0].cnt;
+        for (j=1; j<sp_cache_entries_256; j++) {
+            if (sp_cache_256[j].cnt < least) {
+                i = j;
+                least = sp_cache_256[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_256) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_256 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_256_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_256; i++) {
             sp_cache_256[i].set = 0;
         }
         sp_cache_256_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_256; i++) {
         if (!sp_cache_256[i].set)
             continue;
 
@@ -19738,35 +20571,22 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_256_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_256_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_256[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_256) {
+        i = sp_ecc_get_cache_256_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
+            XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
+            sp_cache_256[i].set = 1;
+            sp_cache_256[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_256_last) {
-            least = sp_cache_256[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_256[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_256[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
-        XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
-        sp_cache_256[i].set = 1;
-        sp_cache_256[i].cnt = 1;
     }
 
-    *cache = &sp_cache_256[i];
-    sp_cache_256_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_256[i];
+        sp_cache_256_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P256 by the scalar and return the result.
@@ -19786,9 +20606,9 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #ifndef FP_ECC
     return sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 8 * 5];
-    sp_cache_256_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 8 * 5];
+    sp_cache_256_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_256 == 0) {
@@ -19800,20 +20620,25 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_256_gen_stripe_table_8(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_256_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -20085,7 +20910,15 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_256 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_256_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[8];
@@ -20100,37 +20933,130 @@ typedef struct sp_cache_256_t {
 } sp_cache_256_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_256_t sp_cache_256[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_256_last = -1;
+static THREAD_LS_T sp_cache_256_t sp_cache_256[SP_ENTRIES];
+#else
+struct sp_cache_256_t {
+    sp_digit x[8];
+    sp_digit y[8];
+    sp_table_entry_256 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_256_t *sp_cache_256 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_256()
+{
+    return sizeof(sp_cache_256_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_256(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_256() * sp_cache_entries_256) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_256 = (sp_cache_256_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_256(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_256 = 0;
+    }
+    else {
+        sp_cache_entries_256 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_256_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_256 = 0;
     static wolfSSL_Mutex sp_cache_256_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_256_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+static int sp_ecc_get_cache_256_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_256_last + 1) % sp_cache_entries_256;
+    for (; i != sp_cache_256_last; i=(i+1)%sp_cache_entries_256) {
+        if (!sp_cache_256[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_256_last) {
+        least = sp_cache_256[0].cnt;
+        for (j=1; j<sp_cache_entries_256; j++) {
+            if (sp_cache_256[j].cnt < least) {
+                i = j;
+                least = sp_cache_256[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_256) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_256 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_256_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_256; i++) {
             sp_cache_256[i].set = 0;
         }
         sp_cache_256_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_256; i++) {
         if (!sp_cache_256[i].set)
             continue;
 
@@ -20142,35 +21068,22 @@ static void sp_ecc_get_cache_256(const sp_point_256* g, sp_cache_256_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_256_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_256_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_256[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_256) {
+        i = sp_ecc_get_cache_256_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
+            XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
+            sp_cache_256[i].set = 1;
+            sp_cache_256[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_256_last) {
-            least = sp_cache_256[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_256[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_256[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_256[i].x, g->x, sizeof(sp_cache_256[i].x));
-        XMEMCPY(sp_cache_256[i].y, g->y, sizeof(sp_cache_256[i].y));
-        sp_cache_256[i].set = 1;
-        sp_cache_256[i].cnt = 1;
     }
 
-    *cache = &sp_cache_256[i];
-    sp_cache_256_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_256[i];
+        sp_cache_256_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P256 by the scalar and return the result.
@@ -20190,9 +21103,9 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #ifndef FP_ECC
     return sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 8 * 5];
-    sp_cache_256_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 8 * 5];
+    sp_cache_256_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_256 == 0) {
@@ -20204,20 +21117,25 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_256(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_256_gen_stripe_table_8(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_256_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_fast_8(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_8(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -20265,7 +21183,11 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_8(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_8(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_256_point_to_ecc_point_8(point, r);
@@ -20297,7 +21219,7 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256* point = NULL;    
+    sp_point_256* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_256 point[2];
@@ -20339,7 +21261,11 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
         err = sp_256_mod_mul_norm_8(addP->z, addP->z, p256_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_256_ecc_mulmod_8(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_256_ecc_mulmod_8(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_256_proj_point_add_8(point, point, addP, tmp);
@@ -22053,7 +22979,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_256* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -22061,7 +22987,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -22086,7 +23012,11 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_256_iszero_8(point->x) || sp_256_iszero_8(point->y)) {
@@ -22180,7 +23110,11 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, priv);
         sp_256_point_from_ecc_point_8(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_8(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_8(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_256_to_bin_8(point->x, out);
@@ -23344,7 +24278,7 @@ static void sp_256_add_points_8(sp_point_256* p1, const sp_point_256* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_256_calc_vfy_point_8(sp_point_256* p1, sp_point_256* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_256_t* cache, void* heap)
 {
     int err;
 
@@ -23369,7 +24303,7 @@ static int sp_256_calc_vfy_point_8(sp_point_256* p1, sp_point_256* p2,
             sp_256_mont_mul_order_8(u1, u1, s);
             sp_256_mont_mul_order_8(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_256_ecc_mulmod_base_8(p1, u1, 0, 0, heap);
         }
@@ -23378,7 +24312,11 @@ static int sp_256_calc_vfy_point_8(sp_point_256* p1, sp_point_256* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_256_iszero_8(p2->z)) {
         p2->infinity = 1;
@@ -23388,6 +24326,7 @@ static int sp_256_calc_vfy_point_8(sp_point_256* p1, sp_point_256* p2,
         sp_256_add_points_8(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -23561,9 +24500,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_256_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_256_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -23612,7 +24551,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_256_from_mp(p2->y, 8, pY);
         sp_256_from_mp(p2->z, 8, pZ);
 
-        err = sp_256_calc_vfy_point_8(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_256_calc_vfy_point_8(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -23624,7 +24563,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_256_mont_sqr_8(p1->z, p1->z, p256_mod, p256_mp_mod);
-            sp_256_mont_mul_8(u1, u2, p1->z, p256_mod, p256_mp_mod);
+        sp_256_mont_mul_8(u1, u2, p1->z, p256_mod, p256_mp_mod);
         *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -23660,6 +24599,25 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+    return sp_ecc_verify_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -23691,15 +24649,16 @@ static int sp_256_ecc_is_point_8(const sp_point_256* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 8;
 
+        /* y^2 - x^3 - a.x = b */
         sp_256_sqr_8(t1, point->y);
         (void)sp_256_mod_8(t1, t1, p256_mod);
         sp_256_sqr_8(t2, point->x);
         (void)sp_256_mod_8(t2, t2, p256_mod);
         sp_256_mul_8(t2, t2, point->x);
         (void)sp_256_mod_8(t2, t2, p256_mod);
-        (void)sp_256_sub_8(t2, p256_mod, t2);
-        sp_256_mont_add_8(t1, t1, t2, p256_mod);
+        sp_256_mont_sub_8(t1, t1, t2, p256_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_256_mont_add_8(t1, t1, point->x, p256_mod);
         sp_256_mont_add_8(t1, t1, point->x, p256_mod);
         sp_256_mont_add_8(t1, t1, point->x, p256_mod);
@@ -23837,7 +24796,11 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, 1, NULL, heap);
+#else
             err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_256_iszero_8(p->x) == 0) ||
@@ -24032,7 +24995,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_256* p = NULL;
 #else
-    sp_digit tmp[2 * 8 * 4];
+    sp_digit tmp[2 * 8 * 5];
     sp_point_256 p[1];
 #endif
     int err = MP_OKAY;
@@ -24046,7 +25009,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 4, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -24710,23 +25673,23 @@ SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
 static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    int64_t* t = NULL;
+int64_t* t = NULL;
 #else
-    int64_t t[12];
+int64_t t[12];
 #endif
-    int64_t o;
-    int err = MP_OKAY;
+int64_t o;
+int err = MP_OKAY;
 
-    (void)m;
+(void)m;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (int64_t*)XMALLOC(sizeof(int64_t) * 12, NULL, DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
-        err = MEMORY_E;
-    }
+t = (int64_t*)XMALLOC(sizeof(int64_t) * 12, NULL, DYNAMIC_TYPE_ECC);
+if (t == NULL) {
+    err = MEMORY_E;
+}
 #endif
 
-    if (err == MP_OKAY) {
+if (err == MP_OKAY) {
         /*  1  0  0  0  0  0  0  0  1  1  0 -1 */
         t[0] = 0 + (int64_t)a[0] + (int64_t)a[8] + (int64_t)a[9] - (int64_t)a[11];
         /* -1  1  0  0  0  0  0  0 -1  0  1  1 */
@@ -24792,14 +25755,14 @@ static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit
         r[9] = t[9];
         r[10] = t[10];
         r[11] = t[11];
-    }
+}
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL)
-        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+if (t != NULL)
+    XFREE(t, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
-    return err;
+return err;
 }
 
 /* Convert an mp_int to an array of sp_digit.
@@ -25131,6 +26094,7 @@ SP_NOINLINE static void sp_384_mont_reduce_12(sp_digit* a, const sp_digit* m,
 #endif /* __GNUC__ */
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -25405,8 +26369,6 @@ SP_NOINLINE static void sp_384_mont_dbl_12(sp_digit* r, const sp_digit* a, const
 
     o = sp_384_add_12(r, a, a);
     sp_384_cond_sub_12(r, r, m, 0 - o);
-}
-
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
@@ -25421,8 +26383,6 @@ SP_NOINLINE static void sp_384_mont_tpl_12(sp_digit* r, const sp_digit* a, const
     sp_384_cond_sub_12(r, r, m, 0 - o);
     o = sp_384_add_12(r, r, a);
     sp_384_cond_sub_12(r, r, m, 0 - o);
-}
-
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -26173,7 +27133,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     sp_digit* tmp = NULL;
 #else
     sp_point_384 t[16 + 1];
-    sp_digit tmp[2 * 12 * 6];
+    sp_digit tmp[2 * 12 * 7];
 #endif
     sp_point_384* rt = NULL;
 #ifndef WC_NO_CACHE_RESISTANT
@@ -26207,7 +27167,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     }
     #endif
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 7, heap,
                                 DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -26308,7 +27268,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     if (tmp != NULL)
 #endif
     {
-        ForceZero(tmp, sizeof(sp_digit) * 2 * 12 * 6);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 12 * 7);
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     #endif
@@ -26336,6 +27296,12 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
 
     return err;
 }
+
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_384 {
+    sp_digit x[12];
+    sp_digit y[12];
+} sp_table_entry_384;
 
 #ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
@@ -26449,14 +27415,6 @@ static void sp_384_proj_to_affine_12(sp_point_384* a, sp_digit* t)
     XMEMCPY(a->z, p384_norm_mod, sizeof(p384_norm_mod));
 }
 
-#endif /* FP_ECC */
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_384 {
-    sp_digit x[12];
-    sp_digit y[12];
-} sp_table_entry_384;
-
-#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -26724,7 +27682,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     sp_digit* t = NULL;
 #else
     sp_point_384 rt[2];
-    sp_digit t[2 * 12 * 6];
+    sp_digit t[2 * 12 * 7];
 #endif
     sp_point_384* p = NULL;
     int i;
@@ -26745,7 +27703,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 7, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -26820,7 +27778,15 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_384 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_384_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[12];
@@ -26835,37 +27801,130 @@ typedef struct sp_cache_384_t {
 } sp_cache_384_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_384_t sp_cache_384[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_384_last = -1;
+static THREAD_LS_T sp_cache_384_t sp_cache_384[SP_ENTRIES];
+#else
+struct sp_cache_384_t {
+    sp_digit x[12];
+    sp_digit y[12];
+    sp_table_entry_384 table[16];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_384_t *sp_cache_384 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_384()
+{
+    return sizeof(sp_cache_384_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_384(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_384() * sp_cache_entries_384) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_384 = (sp_cache_384_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_384(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_384 = 0;
+    }
+    else {
+        sp_cache_entries_384 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_384_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_384 = 0;
     static wolfSSL_Mutex sp_cache_384_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_384_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+static int sp_ecc_get_cache_384_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_384_last + 1) % sp_cache_entries_384;
+    for (; i != sp_cache_384_last; i=(i+1)%sp_cache_entries_384) {
+        if (!sp_cache_384[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_384_last) {
+        least = sp_cache_384[0].cnt;
+        for (j=1; j<sp_cache_entries_384; j++) {
+            if (sp_cache_384[j].cnt < least) {
+                i = j;
+                least = sp_cache_384[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_384) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_384 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_384_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_384; i++) {
             sp_cache_384[i].set = 0;
         }
         sp_cache_384_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_384; i++) {
         if (!sp_cache_384[i].set)
             continue;
 
@@ -26877,35 +27936,22 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_384_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_384_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_384[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_384) {
+        i = sp_ecc_get_cache_384_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
+            XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
+            sp_cache_384[i].set = 1;
+            sp_cache_384[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_384_last) {
-            least = sp_cache_384[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_384[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_384[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
-        XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
-        sp_cache_384[i].set = 1;
-        sp_cache_384[i].cnt = 1;
     }
 
-    *cache = &sp_cache_384[i];
-    sp_cache_384_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_384[i];
+        sp_cache_384_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P384 by the scalar and return the result.
@@ -26925,9 +27971,9 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #ifndef FP_ECC
     return sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 12 * 7];
-    sp_cache_384_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 12 * 7];
+    sp_cache_384_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_384 == 0) {
@@ -26939,20 +27985,25 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_384(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_384_gen_stripe_table_12(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_384_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -27144,7 +28195,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     sp_digit* t = NULL;
 #else
     sp_point_384 rt[2];
-    sp_digit t[2 * 12 * 6];
+    sp_digit t[2 * 12 * 7];
 #endif
     sp_point_384* p = NULL;
     int i;
@@ -27165,7 +28216,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 7, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -27240,7 +28291,15 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_384 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_384_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[12];
@@ -27255,37 +28314,130 @@ typedef struct sp_cache_384_t {
 } sp_cache_384_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_384_t sp_cache_384[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_384_last = -1;
+static THREAD_LS_T sp_cache_384_t sp_cache_384[SP_ENTRIES];
+#else
+struct sp_cache_384_t {
+    sp_digit x[12];
+    sp_digit y[12];
+    sp_table_entry_384 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_384_t *sp_cache_384 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_384()
+{
+    return sizeof(sp_cache_384_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_384(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_384() * sp_cache_entries_384) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_384 = (sp_cache_384_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_384(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_384 = 0;
+    }
+    else {
+        sp_cache_entries_384 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_384_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_384 = 0;
     static wolfSSL_Mutex sp_cache_384_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_384_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+static int sp_ecc_get_cache_384_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_384_last + 1) % sp_cache_entries_384;
+    for (; i != sp_cache_384_last; i=(i+1)%sp_cache_entries_384) {
+        if (!sp_cache_384[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_384_last) {
+        least = sp_cache_384[0].cnt;
+        for (j=1; j<sp_cache_entries_384; j++) {
+            if (sp_cache_384[j].cnt < least) {
+                i = j;
+                least = sp_cache_384[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_384) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_384 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_384_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_384; i++) {
             sp_cache_384[i].set = 0;
         }
         sp_cache_384_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_384; i++) {
         if (!sp_cache_384[i].set)
             continue;
 
@@ -27297,35 +28449,22 @@ static void sp_ecc_get_cache_384(const sp_point_384* g, sp_cache_384_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_384_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_384_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_384[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_384) {
+        i = sp_ecc_get_cache_384_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
+            XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
+            sp_cache_384[i].set = 1;
+            sp_cache_384[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_384_last) {
-            least = sp_cache_384[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_384[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_384[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_384[i].x, g->x, sizeof(sp_cache_384[i].x));
-        XMEMCPY(sp_cache_384[i].y, g->y, sizeof(sp_cache_384[i].y));
-        sp_cache_384[i].set = 1;
-        sp_cache_384[i].cnt = 1;
     }
 
-    *cache = &sp_cache_384[i];
-    sp_cache_384_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_384[i];
+        sp_cache_384_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P384 by the scalar and return the result.
@@ -27345,9 +28484,9 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #ifndef FP_ECC
     return sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 12 * 7];
-    sp_cache_384_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 12 * 7];
+    sp_cache_384_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_384 == 0) {
@@ -27359,20 +28498,25 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_384(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_384(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_384_gen_stripe_table_12(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_384_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_384_ecc_mulmod_fast_12(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_384_ecc_mulmod_stripe_12(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -27420,7 +28564,11 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_12(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_12(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_384_point_to_ecc_point_12(point, r);
@@ -27452,11 +28600,11 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384* point = NULL;    
+    sp_point_384* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_384 point[2];
-    sp_digit k[12 + 12 * 2 * 6];
+    sp_digit k[12 + 12 * 2 * 7];
 #endif
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
@@ -27469,7 +28617,7 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (12 + 12 * 2 * 6), heap,
+            sizeof(sp_digit) * (12 + 12 * 2 * 7), heap,
             DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -27494,7 +28642,11 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = sp_384_mod_mul_norm_12(addP->z, addP->z, p384_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_384_ecc_mulmod_12(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_384_ecc_mulmod_12(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_384_proj_point_add_12(point, point, addP, tmp);
@@ -29005,7 +30157,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
     sp_digit* k = NULL;
 #else
     sp_point_384 point[2];
-    sp_digit k[12 + 12 * 2 * 6];
+    sp_digit k[12 + 12 * 2 * 7];
 #endif
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
@@ -29018,7 +30170,7 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (12 + 12 * 2 * 6),
+            sizeof(sp_digit) * (12 + 12 * 2 * 7),
             heap, DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -29221,7 +30373,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_384* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -29229,7 +30381,7 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -29254,7 +30406,11 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, NULL, heap);
+#else
+            err = sp_384_ecc_mulmod_12(infinity, point, p384_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_384_iszero_12(point->x) || sp_384_iszero_12(point->y)) {
@@ -29348,7 +30504,11 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 12, priv);
         sp_384_point_from_ecc_point_12(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_12(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_12(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_384_to_bin_12(point->x, out);
@@ -29744,7 +30904,6 @@ static int sp_384_mont_inv_order_12_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const 
     return err;
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
-
 static void sp_384_mont_inv_order_12(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -29808,7 +30967,6 @@ static void sp_384_mont_inv_order_12(sp_digit* r, const sp_digit* a,
     sp_384_mont_mul_order_12(r, t2, a);
 #endif /* WOLFSSL_SP_SMALL */
 }
-
 #endif /* HAVE_ECC_SIGN || (HAVE_ECC_VERIFY && WOLFSSL_SP_SMALL) */
 #endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
@@ -30545,7 +31703,7 @@ static void sp_384_add_points_12(sp_point_384* p1, const sp_point_384* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_384_calc_vfy_point_12(sp_point_384* p1, sp_point_384* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_384_t* cache, void* heap)
 {
     int err;
 
@@ -30570,7 +31728,7 @@ static int sp_384_calc_vfy_point_12(sp_point_384* p1, sp_point_384* p2,
             sp_384_mont_mul_order_12(u1, u1, s);
             sp_384_mont_mul_order_12(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_384_ecc_mulmod_base_12(p1, u1, 0, 0, heap);
         }
@@ -30579,7 +31737,11 @@ static int sp_384_calc_vfy_point_12(sp_point_384* p1, sp_point_384* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_384_ecc_mulmod_12(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_384_iszero_12(p2->z)) {
         p2->infinity = 1;
@@ -30589,6 +31751,7 @@ static int sp_384_calc_vfy_point_12(sp_point_384* p1, sp_point_384* p2,
         sp_384_add_points_12(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -30762,9 +31925,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_384_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_384_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -30813,7 +31976,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
         sp_384_from_mp(p2->y, 12, pY);
         sp_384_from_mp(p2->z, 12, pZ);
 
-        err = sp_384_calc_vfy_point_12(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_384_calc_vfy_point_12(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -30825,7 +31988,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_384_mont_sqr_12(p1->z, p1->z, p384_mod, p384_mp_mod);
-            sp_384_mont_mul_12(u1, u2, p1->z, p384_mod, p384_mp_mod);
+        sp_384_mont_mul_12(u1, u2, p1->z, p384_mod, p384_mp_mod);
         *res = (int)(sp_384_cmp_12(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -30861,6 +32024,25 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_384_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_384_t* cache, void* heap)
+{
+    return sp_ecc_verify_384_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -30892,15 +32074,16 @@ static int sp_384_ecc_is_point_12(const sp_point_384* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 12;
 
+        /* y^2 - x^3 - a.x = b */
         sp_384_sqr_12(t1, point->y);
         (void)sp_384_mod_12(t1, t1, p384_mod);
         sp_384_sqr_12(t2, point->x);
         (void)sp_384_mod_12(t2, t2, p384_mod);
         sp_384_mul_12(t2, t2, point->x);
         (void)sp_384_mod_12(t2, t2, p384_mod);
-        (void)sp_384_sub_12(t2, p384_mod, t2);
-        sp_384_mont_add_12(t1, t1, t2, p384_mod);
+        sp_384_mont_sub_12(t1, t1, t2, p384_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_384_mont_add_12(t1, t1, point->x, p384_mod);
         sp_384_mont_add_12(t1, t1, point->x, p384_mod);
         sp_384_mont_add_12(t1, t1, point->x, p384_mod);
@@ -31038,7 +32221,11 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_384_ecc_mulmod_12(p, pub, p384_order, 1, 1, NULL, heap);
+#else
             err = sp_384_ecc_mulmod_12(p, pub, p384_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_384_iszero_12(p->x) == 0) ||
@@ -31233,7 +32420,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_384* p = NULL;
 #else
-    sp_digit tmp[2 * 12 * 6];
+    sp_digit tmp[2 * 12 * 7];
     sp_point_384 p[1];
 #endif
     int err = MP_OKAY;
@@ -31247,7 +32434,7 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 7, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -32497,6 +33684,7 @@ SP_NOINLINE static void sp_521_mont_reduce_order_17(sp_digit* a, const sp_digit*
         "lsr       %[ca], r4, #9\n\t"
         "sub	%[a], r10, #64\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -32904,8 +34092,6 @@ SP_NOINLINE static void sp_521_mont_dbl_17(sp_digit* r, const sp_digit* a, const
         :
         : "memory", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
-}
-
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
@@ -33016,8 +34202,6 @@ SP_NOINLINE static void sp_521_mont_tpl_17(sp_digit* r, const sp_digit* a, const
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r14", "r12"
     );
-}
-
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
@@ -33890,7 +35074,7 @@ static int sp_521_ecc_mulmod_fast_17(sp_point_521* r, const sp_point_521* g, con
     sp_digit* tmp = NULL;
 #else
     sp_point_521 t[16 + 1];
-    sp_digit tmp[2 * 17 * 5];
+    sp_digit tmp[2 * 17 * 6];
 #endif
     sp_point_521* rt = NULL;
 #ifndef WC_NO_CACHE_RESISTANT
@@ -33924,7 +35108,7 @@ static int sp_521_ecc_mulmod_fast_17(sp_point_521* r, const sp_point_521* g, con
     }
     #endif
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 5, heap,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 6, heap,
                                 DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -34029,7 +35213,7 @@ static int sp_521_ecc_mulmod_fast_17(sp_point_521* r, const sp_point_521* g, con
     if (tmp != NULL)
 #endif
     {
-        ForceZero(tmp, sizeof(sp_digit) * 2 * 17 * 5);
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 17 * 6);
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
     #endif
@@ -34057,6 +35241,12 @@ static int sp_521_ecc_mulmod_fast_17(sp_point_521* r, const sp_point_521* g, con
 
     return err;
 }
+
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_521 {
+    sp_digit x[17];
+    sp_digit y[17];
+} sp_table_entry_521;
 
 #ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
@@ -34170,14 +35360,6 @@ static void sp_521_proj_to_affine_17(sp_point_521* a, sp_digit* t)
     XMEMCPY(a->z, p521_norm_mod, sizeof(p521_norm_mod));
 }
 
-#endif /* FP_ECC */
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_521 {
-    sp_digit x[17];
-    sp_digit y[17];
-} sp_table_entry_521;
-
-#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -34465,7 +35647,7 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     sp_digit* t = NULL;
 #else
     sp_point_521 rt[2];
-    sp_digit t[2 * 17 * 5];
+    sp_digit t[2 * 17 * 6];
 #endif
     sp_point_521* p = NULL;
     int i;
@@ -34486,7 +35668,7 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 5, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 6, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -34561,7 +35743,15 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_521 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_521_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[17];
@@ -34576,37 +35766,130 @@ typedef struct sp_cache_521_t {
 } sp_cache_521_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_521_t sp_cache_521[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_521_last = -1;
+static THREAD_LS_T sp_cache_521_t sp_cache_521[SP_ENTRIES];
+#else
+struct sp_cache_521_t {
+    sp_digit x[17];
+    sp_digit y[17];
+    sp_table_entry_521 table[16];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_521_t *sp_cache_521 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_521()
+{
+    return sizeof(sp_cache_521_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_521(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_521() * sp_cache_entries_521) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_521 = (sp_cache_521_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_521(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_521 = 0;
+    }
+    else {
+        sp_cache_entries_521 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_521_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_521 = 0;
     static wolfSSL_Mutex sp_cache_521_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_521_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+static int sp_ecc_get_cache_521_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_521_last + 1) % sp_cache_entries_521;
+    for (; i != sp_cache_521_last; i=(i+1)%sp_cache_entries_521) {
+        if (!sp_cache_521[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_521_last) {
+        least = sp_cache_521[0].cnt;
+        for (j=1; j<sp_cache_entries_521; j++) {
+            if (sp_cache_521[j].cnt < least) {
+                i = j;
+                least = sp_cache_521[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_521) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_521 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_521_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_521; i++) {
             sp_cache_521[i].set = 0;
         }
         sp_cache_521_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_521; i++) {
         if (!sp_cache_521[i].set)
             continue;
 
@@ -34618,35 +35901,22 @@ static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_521_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_521_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_521[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_521) {
+        i = sp_ecc_get_cache_521_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
+            XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
+            sp_cache_521[i].set = 1;
+            sp_cache_521[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_521_last) {
-            least = sp_cache_521[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_521[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_521[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
-        XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
-        sp_cache_521[i].set = 1;
-        sp_cache_521[i].cnt = 1;
     }
 
-    *cache = &sp_cache_521[i];
-    sp_cache_521_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_521[i];
+        sp_cache_521_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P521 by the scalar and return the result.
@@ -34666,9 +35936,9 @@ static int sp_521_ecc_mulmod_17(sp_point_521* r, const sp_point_521* g, const sp
 #ifndef FP_ECC
     return sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 17 * 6];
-    sp_cache_521_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 17 * 6];
+    sp_cache_521_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_521 == 0) {
@@ -34680,20 +35950,25 @@ static int sp_521_ecc_mulmod_17(sp_point_521* r, const sp_point_521* g, const sp
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_521(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_521_gen_stripe_table_17(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_521_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_521_ecc_mulmod_stripe_17(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_521_ecc_mulmod_stripe_17(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -34905,7 +36180,7 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     sp_digit* t = NULL;
 #else
     sp_point_521 rt[2];
-    sp_digit t[2 * 17 * 5];
+    sp_digit t[2 * 17 * 6];
 #endif
     sp_point_521* p = NULL;
     int i;
@@ -34926,7 +36201,7 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     if (rt == NULL)
         err = MEMORY_E;
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 5, heap,
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 6, heap,
                                DYNAMIC_TYPE_ECC);
         if (t == NULL)
             err = MEMORY_E;
@@ -35001,7 +36276,15 @@ static int sp_521_ecc_mulmod_stripe_17(sp_point_521* r, const sp_point_521* g,
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_521 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_521_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[17];
@@ -35016,37 +36299,130 @@ typedef struct sp_cache_521_t {
 } sp_cache_521_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_521_t sp_cache_521[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_521_last = -1;
+static THREAD_LS_T sp_cache_521_t sp_cache_521[SP_ENTRIES];
+#else
+struct sp_cache_521_t {
+    sp_digit x[17];
+    sp_digit y[17];
+    sp_table_entry_521 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_521_t *sp_cache_521 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_521()
+{
+    return sizeof(sp_cache_521_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_521(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_521() * sp_cache_entries_521) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_521 = (sp_cache_521_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_521(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_521 = 0;
+    }
+    else {
+        sp_cache_entries_521 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_521_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_521 = 0;
     static wolfSSL_Mutex sp_cache_521_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_521_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+static int sp_ecc_get_cache_521_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_521_last + 1) % sp_cache_entries_521;
+    for (; i != sp_cache_521_last; i=(i+1)%sp_cache_entries_521) {
+        if (!sp_cache_521[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_521_last) {
+        least = sp_cache_521[0].cnt;
+        for (j=1; j<sp_cache_entries_521; j++) {
+            if (sp_cache_521[j].cnt < least) {
+                i = j;
+                least = sp_cache_521[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_521) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_521 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_521_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_521; i++) {
             sp_cache_521[i].set = 0;
         }
         sp_cache_521_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_521; i++) {
         if (!sp_cache_521[i].set)
             continue;
 
@@ -35058,35 +36434,22 @@ static void sp_ecc_get_cache_521(const sp_point_521* g, sp_cache_521_t** cache)
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_521_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_521_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_521[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_521) {
+        i = sp_ecc_get_cache_521_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
+            XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
+            sp_cache_521[i].set = 1;
+            sp_cache_521[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_521_last) {
-            least = sp_cache_521[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_521[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_521[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_521[i].x, g->x, sizeof(sp_cache_521[i].x));
-        XMEMCPY(sp_cache_521[i].y, g->y, sizeof(sp_cache_521[i].y));
-        sp_cache_521[i].set = 1;
-        sp_cache_521[i].cnt = 1;
     }
 
-    *cache = &sp_cache_521[i];
-    sp_cache_521_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_521[i];
+        sp_cache_521_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P521 by the scalar and return the result.
@@ -35106,9 +36469,9 @@ static int sp_521_ecc_mulmod_17(sp_point_521* r, const sp_point_521* g, const sp
 #ifndef FP_ECC
     return sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 17 * 6];
-    sp_cache_521_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 17 * 6];
+    sp_cache_521_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_521 == 0) {
@@ -35120,20 +36483,25 @@ static int sp_521_ecc_mulmod_17(sp_point_521* r, const sp_point_521* g, const sp
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_521(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_521(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_521_gen_stripe_table_17(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_521_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_521_ecc_mulmod_stripe_17(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_521_ecc_mulmod_fast_17(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_521_ecc_mulmod_stripe_17(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -35181,7 +36549,11 @@ int sp_ecc_mulmod_521(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_521_from_mp(k, 17, km);
         sp_521_point_from_ecc_point_17(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_17(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_17(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_521_point_to_ecc_point_17(point, r);
@@ -35213,11 +36585,11 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_521* point = NULL;    
+    sp_point_521* point = NULL;
     sp_digit* k = NULL;
 #else
     sp_point_521 point[2];
-    sp_digit k[17 + 17 * 2 * 5];
+    sp_digit k[17 + 17 * 2 * 6];
 #endif
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
@@ -35230,7 +36602,7 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (17 + 17 * 2 * 5), heap,
+            sizeof(sp_digit) * (17 + 17 * 2 * 6), heap,
             DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -35255,7 +36627,11 @@ int sp_ecc_mulmod_add_521(const mp_int* km, const ecc_point* gm,
         err = sp_521_mod_mul_norm_17(addP->z, addP->z, p521_mod);
     }
     if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_17(point, point, k, 0, 0, heap);
+#ifdef FP_ECC_CONTROL
+        err = sp_521_ecc_mulmod_17(point, point, k, 0, 0, NULL, heap);
+#else
+        err = sp_521_ecc_mulmod_17(point, point, k, 0, 0, heap);
+#endif
     }
     if (err == MP_OKAY) {
             sp_521_proj_point_add_17(point, point, addP, tmp);
@@ -37310,7 +38686,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
     sp_digit* k = NULL;
 #else
     sp_point_521 point[2];
-    sp_digit k[17 + 17 * 2 * 5];
+    sp_digit k[17 + 17 * 2 * 6];
 #endif
     sp_point_521* addP = NULL;
     sp_digit* tmp = NULL;
@@ -37323,7 +38699,7 @@ int sp_ecc_mulmod_base_add_521(const mp_int* km, const ecc_point* am,
         err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(
-            sizeof(sp_digit) * (17 + 17 * 2 * 5),
+            sizeof(sp_digit) * (17 + 17 * 2 * 6),
             heap, DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
@@ -37543,7 +38919,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point_521* infinity = NULL;
 #endif
     int err = MP_OKAY;
-    
+
 
     (void)heap;
 
@@ -37551,7 +38927,7 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     point = (sp_point_521*)XMALLOC(sizeof(sp_point_521) * 2, heap, DYNAMIC_TYPE_ECC);
     #else
-    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap, DYNAMIC_TYPE_ECC);    
+    point = (sp_point_521*)XMALLOC(sizeof(sp_point_521), heap, DYNAMIC_TYPE_ECC);
     #endif
     if (point == NULL)
         err = MEMORY_E;
@@ -37576,7 +38952,11 @@ int sp_ecc_make_key_521(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-            err = sp_521_ecc_mulmod_17(infinity, point, p521_order, 1, 1, NULL);
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_17(infinity, point, p521_order, 1, 1, NULL, heap);
+#else
+            err = sp_521_ecc_mulmod_17(infinity, point, p521_order, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         if (sp_521_iszero_17(point->x) || sp_521_iszero_17(point->y)) {
@@ -37672,7 +39052,11 @@ int sp_ecc_secret_gen_521(const mp_int* priv, const ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_521_from_mp(k, 17, priv);
         sp_521_point_from_ecc_point_17(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_17(point, point, k, 1, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_17(point, point, k, 1, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         sp_521_to_bin_17(point->x, out);
@@ -39429,7 +40813,7 @@ static void sp_521_add_points_17(sp_point_521* p1, const sp_point_521* p2,
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
 static int sp_521_calc_vfy_point_17(sp_point_521* p1, sp_point_521* p2,
-    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, void* heap)
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_521_t* cache, void* heap)
 {
     int err;
 
@@ -39454,7 +40838,7 @@ static int sp_521_calc_vfy_point_17(sp_point_521* p1, sp_point_521* p2,
             sp_521_mont_mul_order_17(u1, u1, s);
             sp_521_mont_mul_order_17(u2, u2, s);
         }
-#endif /* WOLFSSL_SP_SMALL */
+#endif  /* WOLFSSL_SP_SMALL */
         {
             err = sp_521_ecc_mulmod_base_17(p1, u1, 0, 0, heap);
         }
@@ -39463,7 +40847,11 @@ static int sp_521_calc_vfy_point_17(sp_point_521* p1, sp_point_521* p2,
         p1->infinity = 1;
     }
     if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_17(p2, p2, u2, 0, 0, cache, heap);
+#else
             err = sp_521_ecc_mulmod_17(p2, p2, u2, 0, 0, heap);
+#endif
     }
     if ((err == MP_OKAY) && sp_521_iszero_17(p2->z)) {
         p2->infinity = 1;
@@ -39473,6 +40861,7 @@ static int sp_521_calc_vfy_point_17(sp_point_521* p1, sp_point_521* p2,
         sp_521_add_points_17(p1, p2, tmp);
     }
 
+    (void)cache;
     return err;
 }
 
@@ -39649,9 +41038,9 @@ int sp_ecc_verify_521_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
-int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+static int sp_ecc_verify_521_ex(const byte* hash, word32 hashLen, const mp_int* pX,
     const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
-    int* res, void* heap)
+    int* res, sp_cache_521_t* cache, void* heap)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
@@ -39704,7 +41093,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
             sp_521_rshift_17(u1, u1, 7);
         }
 
-        err = sp_521_calc_vfy_point_17(p1, p2, s, u1, u2, tmp, heap);
+        err = sp_521_calc_vfy_point_17(p1, p2, s, u1, u2, tmp, cache, heap);
     }
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -39716,7 +41105,7 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* u1 = r.z'.z' mod prime */
             sp_521_mont_sqr_17(p1->z, p1->z, p521_mod, p521_mp_mod);
-            sp_521_mont_mul_17(u1, u2, p1->z, p521_mod, p521_mp_mod);
+        sp_521_mont_mul_17(u1, u2, p1->z, p521_mod, p521_mp_mod);
         *res = (int)(sp_521_cmp_17(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
@@ -39752,6 +41141,25 @@ int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
 
     return err;
 }
+
+
+int sp_ecc_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_521_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_521(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_521_t* cache, void* heap)
+{
+    return sp_ecc_verify_521_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_CHECK_KEY
@@ -39783,15 +41191,16 @@ static int sp_521_ecc_is_point_17(const sp_point_521* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 17;
 
+        /* y^2 - x^3 - a.x = b */
         sp_521_sqr_17(t1, point->y);
         (void)sp_521_mod_17(t1, t1, p521_mod);
         sp_521_sqr_17(t2, point->x);
         (void)sp_521_mod_17(t2, t2, p521_mod);
         sp_521_mul_17(t2, t2, point->x);
         (void)sp_521_mod_17(t2, t2, p521_mod);
-        (void)sp_521_sub_17(t2, p521_mod, t2);
-        sp_521_mont_add_17(t1, t1, t2, p521_mod);
+        sp_521_mont_sub_17(t1, t1, t2, p521_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_521_mont_add_17(t1, t1, point->x, p521_mod);
         sp_521_mont_add_17(t1, t1, point->x, p521_mod);
         sp_521_mont_add_17(t1, t1, point->x, p521_mod);
@@ -39929,7 +41338,11 @@ int sp_ecc_check_key_521(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_521_ecc_mulmod_17(p, pub, p521_order, 1, 1, NULL, heap);
+#else
             err = sp_521_ecc_mulmod_17(p, pub, p521_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_521_iszero_17(p->x) == 0) ||
@@ -40124,7 +41537,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
     sp_digit* tmp = NULL;
     sp_point_521* p = NULL;
 #else
-    sp_digit tmp[2 * 17 * 5];
+    sp_digit tmp[2 * 17 * 6];
     sp_point_521 p[1];
 #endif
     int err = MP_OKAY;
@@ -40138,7 +41551,7 @@ int sp_ecc_map_521(mp_int* pX, mp_int* pY, mp_int* pZ)
             err = MEMORY_E;
     }
     if (err == MP_OKAY) {
-        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 5, NULL,
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 17 * 6, NULL,
                                  DYNAMIC_TYPE_ECC);
         if (tmp == NULL)
             err = MEMORY_E;
@@ -41171,354 +42584,6 @@ static const sp_point_1024 p1024_base = {
     0
 };
 
-#ifdef WOLFSSL_SP_SMALL
-/* Sub b from a into a. (a -= b)
- *
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_1024_sub_in_place_32(sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-    __asm__ __volatile__ (
-        "mov	r8, %[a]\n\t"
-        "add	r8, r8, #128\n\t"
-        "\n1:\n\t"
-        "mov	r5, #0\n\t"
-        "subs	r5, r5, %[c]\n\t"
-        "ldr	r3, [%[a]]\n\t"
-        "ldr	r4, [%[a], #4]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "ldr	r6, [%[b], #4]\n\t"
-        "sbcs	r3, r3, r5\n\t"
-        "sbcs	r4, r4, r6\n\t"
-        "str	r3, [%[a]]\n\t"
-        "str	r4, [%[a], #4]\n\t"
-        "sbc	%[c], %[c], %[c]\n\t"
-        "add	%[a], %[a], #8\n\t"
-        "add	%[b], %[b], #8\n\t"
-        "cmp	%[a], r8\n\t"
-#ifdef __GNUC__
-        "bne	1b\n\t"
-#else
-        "bne.n	1b\n\t"
-#endif /* __GNUC__ */
-        : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r3", "r4", "r5", "r6", "r8"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
-/* Conditionally subtract b from a using the mask m.
- * m is -1 to subtract and 0 when not copying.
- *
- * r  A single precision number representing condition subtract result.
- * a  A single precision number to subtract from.
- * b  A single precision number to subtract.
- * m  Mask value to apply.
- */
-SP_NOINLINE static sp_digit sp_1024_cond_sub_32(sp_digit* r, const sp_digit* a,
-        const sp_digit* b, sp_digit m)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r5, #128\n\t"
-        "mov	r9, r5\n\t"
-        "mov	r8, #0\n\t"
-        "\n1:\n\t"
-        "ldr	r6, [%[b], r8]\n\t"
-        "and	r6, r6, %[m]\n\t"
-        "mov	r5, #0\n\t"
-        "subs	r5, r5, %[c]\n\t"
-        "ldr	r5, [%[a], r8]\n\t"
-        "sbcs	r5, r5, r6\n\t"
-        "sbcs	%[c], %[c], %[c]\n\t"
-        "str	r5, [%[r], r8]\n\t"
-        "add	r8, r8, #4\n\t"
-        "cmp	r8, r9\n\t"
-#ifdef __GNUC__
-        "blt	1b\n\t"
-#else
-        "blt.n	1b\n\t"
-#endif /* __GNUC__ */
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "r5", "r6", "r8", "r9"
-    );
-
-    return c;
-}
-
-#ifdef WOLFSSL_SP_SMALL
-/* Add b to a into r. (r = a + b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision integer.
- */
-SP_NOINLINE static sp_digit sp_1024_add_32(sp_digit* r, const sp_digit* a,
-        const sp_digit* b)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r6, %[a]\n\t"
-        "mov	r8, #0\n\t"
-        "add	r6, r6, #128\n\t"
-        "sub	r8, r8, #1\n\t"
-        "\n1:\n\t"
-        "adds	%[c], %[c], r8\n\t"
-        "ldr	r4, [%[a]]\n\t"
-        "ldr	r5, [%[b]]\n\t"
-        "adcs	r4, r4, r5\n\t"
-        "str	r4, [%[r]]\n\t"
-        "mov	%[c], #0\n\t"
-        "adc	%[c], %[c], %[c]\n\t"
-        "add	%[a], %[a], #4\n\t"
-        "add	%[b], %[b], #4\n\t"
-        "add	%[r], %[r], #4\n\t"
-        "cmp	%[a], r6\n\t"
-#ifdef __GNUC__
-        "bne	1b\n\t"
-#else
-        "bne.n	1b\n\t"
-#endif /* __GNUC__ */
-        : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
-        :
-        : "memory", "r4", "r5", "r6", "r8"
-    );
-
-    return c;
-}
-
-#endif /* WOLFSSL_SP_SMALL */
-/* Mul a by digit b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
- */
-SP_NOINLINE static void sp_1024_mul_d_32(sp_digit* r, const sp_digit* a,
-        sp_digit b)
-{
-    __asm__ __volatile__ (
-        "add	r9, %[a], #128\n\t"
-        /* A[0] * B */
-        "ldr	r6, [%[a]], #4\n\t"
-        "umull	r5, r3, r6, %[b]\n\t"
-        "mov	r4, #0\n\t"
-        "str	r5, [%[r]], #4\n\t"
-        /* A[0] * B - Done */
-        "\n1:\n\t"
-        "mov	r5, #0\n\t"
-        /* A[] * B */
-        "ldr	r6, [%[a]], #4\n\t"
-        "umull	r6, r8, r6, %[b]\n\t"
-        "adds	r3, r3, r6\n\t"
-        "adcs 	r4, r4, r8\n\t"
-        "adc	r5, r5, #0\n\t"
-        /* A[] * B - Done */
-        "str	r3, [%[r]], #4\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "cmp	%[a], r9\n\t"
-#ifdef __GNUC__
-        "blt	1b\n\t"
-#else
-        "blt.n	1b\n\t"
-#endif /* __GNUC__ */
-        "str	r3, [%[r]]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        : [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r8", "r9"
-    );
-}
-
-/* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
- *
- * d1   The high order half of the number to divide.
- * d0   The low order half of the number to divide.
- * div  The dividend.
- * returns the result of the division.
- *
- * Note that this is an approximate div. It may give an answer 1 larger.
- */
-SP_NOINLINE static sp_digit div_1024_word_32(sp_digit d1, sp_digit d0,
-        sp_digit div)
-{
-    sp_digit r = 0;
-
-    __asm__ __volatile__ (
-        "lsr	r6, %[div], #16\n\t"
-        "add	r6, r6, #1\n\t"
-        "udiv	r4, %[d1], r6\n\t"
-        "lsl	r8, r4, #16\n\t"
-        "umull	r4, r5, %[div], r8\n\t"
-        "subs	%[d0], %[d0], r4\n\t"
-        "sbc	%[d1], %[d1], r5\n\t"
-        "udiv	r5, %[d1], r6\n\t"
-        "lsl	r4, r5, #16\n\t"
-        "add	r8, r8, r4\n\t"
-        "umull	r4, r5, %[div], r4\n\t"
-        "subs	%[d0], %[d0], r4\n\t"
-        "sbc	%[d1], %[d1], r5\n\t"
-        "lsl	r4, %[d1], #16\n\t"
-        "orr	r4, r4, %[d0], lsr #16\n\t"
-        "udiv	r4, r4, r6\n\t"
-        "add	r8, r8, r4\n\t"
-        "umull	r4, r5, %[div], r4\n\t"
-        "subs	%[d0], %[d0], r4\n\t"
-        "sbc	%[d1], %[d1], r5\n\t"
-        "lsl	r4, %[d1], #16\n\t"
-        "orr	r4, r4, %[d0], lsr #16\n\t"
-        "udiv	r4, r4, r6\n\t"
-        "add	r8, r8, r4\n\t"
-        "umull	r4, r5, %[div], r4\n\t"
-        "subs	%[d0], %[d0], r4\n\t"
-        "sbc	%[d1], %[d1], r5\n\t"
-        "udiv	r4, %[d0], %[div]\n\t"
-        "add	r8, r8, r4\n\t"
-        "mov	%[r], r8\n\t"
-        : [r] "+r" (r)
-        : [d1] "r" (d1), [d0] "r" (d0), [div] "r" (div)
-        : "r4", "r5", "r6", "r8"
-    );
-    return r;
-}
-
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_1024_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<32; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 32; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-#endif
-}
-
-/* Compare a with b in constant time.
- *
- * a  A single precision integer.
- * b  A single precision integer.
- * return -ve, 0 or +ve if a is less than, equal to or greater than b
- * respectively.
- */
-SP_NOINLINE static sp_int32 sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
-{
-    sp_digit r = 0;
-
-
-    __asm__ __volatile__ (
-        "mov	r3, #0\n\t"
-        "mvn	r3, r3\n\t"
-        "mov	r6, #124\n\t"
-        "\n1:\n\t"
-        "ldr	r8, [%[a], r6]\n\t"
-        "ldr	r5, [%[b], r6]\n\t"
-        "and	r8, r8, r3\n\t"
-        "and	r5, r5, r3\n\t"
-        "mov	r4, r8\n\t"
-        "subs	r8, r8, r5\n\t"
-        "sbc	r8, r8, r8\n\t"
-        "add	%[r], %[r], r8\n\t"
-        "mvn	r8, r8\n\t"
-        "and	r3, r3, r8\n\t"
-        "subs	r5, r5, r4\n\t"
-        "sbc	r8, r8, r8\n\t"
-        "sub	%[r], %[r], r8\n\t"
-        "mvn	r8, r8\n\t"
-        "and	r3, r3, r8\n\t"
-        "sub	r6, r6, #4\n\t"
-        "cmp	r6, #0\n\t"
-#ifdef __GNUC__
-        "bge	1b\n\t"
-#else
-        "bge.n	1b\n\t"
-#endif /* __GNUC__ */
-        : [r] "+r" (r)
-        : [a] "r" (a), [b] "r" (b)
-        : "r3", "r4", "r5", "r6", "r8"
-    );
-
-    return r;
-}
-
-/* Divide d in a and put remainder into r (m*d + r = a)
- * m is not calculated as it is not needed at this time.
- *
- * a  Number to be divided.
- * d  Number to divide with.
- * m  Multiplier result.
- * r  Remainder from the division.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_1024_div_32(const sp_digit* a, const sp_digit* d, sp_digit* m,
-        sp_digit* r)
-{
-    sp_digit t1[64], t2[33];
-    sp_digit div, r1;
-    int i;
-
-    (void)m;
-
-    div = d[31];
-    XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
-    for (i=31; i>=0; i--) {
-        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
-        r1 = div_1024_word_32(hi, t1[32 + i - 1], div);
-
-        sp_1024_mul_d_32(t2, d, r1);
-        t1[32 + i] += sp_1024_sub_in_place_32(&t1[i], t2);
-        t1[32 + i] -= t2[32];
-        sp_1024_mask_32(t2, d, t1[32 + i]);
-        t1[32 + i] += sp_1024_add_32(&t1[i], &t1[i], t2);
-        sp_1024_mask_32(t2, d, t1[32 + i]);
-        t1[32 + i] += sp_1024_add_32(&t1[i], &t1[i], t2);
-    }
-
-    r1 = sp_1024_cmp_32(t1, d) >= 0;
-    sp_1024_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
-
-    return MP_OKAY;
-}
-
-/* Reduce a modulo m into r. (r = a mod m)
- *
- * r  A single precision number that is the reduced result.
- * a  A single precision number that is to be reduced.
- * m  A single precision number that is the modulus to reduce with.
- * returns MP_OKAY indicating success.
- */
-static WC_INLINE int sp_1024_mod_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
-{
-    return sp_1024_div_32(a, m, NULL, r);
-}
-
 /* Multiply a number by Montgomery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
@@ -41786,6 +42851,93 @@ static int sp_1024_point_to_ecc_point_32(const sp_point_1024* p, ecc_point* pm)
     return err;
 }
 
+/* Multiply a and b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_mul_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    sp_digit tmp_arr[32 * 2];
+    sp_digit* tmp = tmp_arr;
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r11, %[b]\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r6, r10\n\t"
+        "mov	r14, r6\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	%[b], r9\n\t"
+        "sub	%[b], %[b], %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	%[b], %[b], r11\n\t"
+        "\n2:\n\t"
+        /* Multiply Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [%[b]]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply Done */
+        "add	%[a], %[a], #4\n\t"
+        "sub	%[b], %[b], #4\n\t"
+        "cmp	%[a], r14\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, r9\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[a], r10\n\t"
+        "mov	%[b], r11\n\t"
+        :
+        : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    XMEMCPY(r, tmp_arr, sizeof(tmp_arr));
+}
+
+#define sp_1024_mont_reduce_order_32   sp_1024_mont_reduce_32
+
 /* Reduce the number back to 1024 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -41885,6 +43037,7 @@ SP_NOINLINE static void sp_1024_mont_reduce_32(sp_digit* a, const sp_digit* m,
         "orr	%[ca], %[ca], r6\n\t"
         "mov	%[a], r10\n\t"
         "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
         : [ca] "+r" (ca), [a] "+r" (a)
         : [m] "r" (m), [mp] "r" (mp)
         : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
@@ -41907,6 +43060,132 @@ static void sp_1024_mont_mul_32(sp_digit* r, const sp_digit* a,
 {
     sp_1024_mul_32(r, a, b);
     sp_1024_mont_reduce_32(r, m, mp);
+}
+
+/* Square a and put result in r. (r = a * a)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ */
+SP_NOINLINE static void sp_1024_sqr_32(sp_digit* r, const sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "mov	r5, #0\n\t"
+        "mov	r9, r3\n\t"
+        "mov	r12, %[r]\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "neg	r6, r6\n\t"
+        "add	sp, sp, r6\n\t"
+        "mov	r11, sp\n\t"
+        "mov	r10, %[a]\n\t"
+        "\n1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r6, #124\n\t"
+        "mov	%[a], r9\n\t"
+        "subs	%[a], %[a], r6\n\t"
+        "sbc	r6, r6, r6\n\t"
+        "mvn	r6, r6\n\t"
+        "and	%[a], %[a], r6\n\t"
+        "mov	r2, r9\n\t"
+        "sub	r2, r2, %[a]\n\t"
+        "add	%[a], %[a], r10\n\t"
+        "add	r2, r2, r10\n\t"
+        "\n2:\n\t"
+        "cmp	r2, %[a]\n\t"
+#ifdef __GNUC__
+        "beq	4f\n\t"
+#else
+        "beq.n	4f\n\t"
+#endif /* __GNUC__ */
+        /* Multiply * 2: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "ldr	r8, [r2]\n\t"
+        "umull	r6, r8, r6, r8\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Multiply * 2: Done */
+#ifdef __GNUC__
+        "bal	5f\n\t"
+#else
+        "bal.n	5f\n\t"
+#endif /* __GNUC__ */
+        "\n4:\n\t"
+        /* Square: Start */
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r8, r6, r6\n\t"
+        "adds	r3, r3, r6\n\t"
+        "adcs	r4, r4, r8\n\t"
+        "adc	r5, r5, %[r]\n\t"
+        /* Square: Done */
+        "\n5:\n\t"
+        "add	%[a], %[a], #4\n\t"
+        "sub	r2, r2, #4\n\t"
+        "mov	r6, #128\n\t"
+        "add	r6, r6, r10\n\t"
+        "cmp	%[a], r6\n\t"
+#ifdef __GNUC__
+        "beq	3f\n\t"
+#else
+        "beq.n	3f\n\t"
+#endif /* __GNUC__ */
+        "cmp	%[a], r2\n\t"
+#ifdef __GNUC__
+        "bgt	3f\n\t"
+#else
+        "bgt.n	3f\n\t"
+#endif /* __GNUC__ */
+        "mov	r8, r9\n\t"
+        "add	r8, r8, r10\n\t"
+        "cmp	%[a], r8\n\t"
+#ifdef __GNUC__
+        "ble	2b\n\t"
+#else
+        "ble.n	2b\n\t"
+#endif /* __GNUC__ */
+        "\n3:\n\t"
+        "mov	%[r], r11\n\t"
+        "mov	r8, r9\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "mov	r5, #0\n\t"
+        "add	r8, r8, #4\n\t"
+        "mov	r9, r8\n\t"
+        "mov	r6, #248\n\t"
+        "cmp	r8, r6\n\t"
+#ifdef __GNUC__
+        "ble	1b\n\t"
+#else
+        "ble.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "str	r3, [%[r], r8]\n\t"
+        "mov	%[r], r12\n\t"
+        "mov	%[a], r11\n\t"
+        "mov	r3, #252\n\t"
+        "\n4:\n\t"
+        "ldr	r6, [%[a], r3]\n\t"
+        "str	r6, [%[r], r3]\n\t"
+        "subs	r3, r3, #4\n\t"
+#ifdef __GNUC__
+        "bge	4b\n\t"
+#else
+        "bge.n	4b\n\t"
+#endif /* __GNUC__ */
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	sp, sp, r6\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12"
+    );
 }
 
 /* Square the Montgomery form number. (r = a * a mod m)
@@ -41980,12 +43259,6 @@ static void sp_1024_mont_inv_32(sp_digit* r, const sp_digit* a,
     sp_1024_mont_sqr_32(t, t, p1024_mod, p1024_mp_mod);
     sp_1024_mont_mul_32(r, t, a, p1024_mod, p1024_mp_mod);
 }
-
-/* Normalize the values in each word to 32.
- *
- * a  Array of sp_digit to normalize.
- */
-#define sp_1024_norm_32(a)
 
 /* Map the Montgomery form projective coordinate point to an affine point.
  *
@@ -42350,8 +43623,6 @@ SP_NOINLINE static void sp_1024_mont_dbl_32(sp_digit* r, const sp_digit* a, cons
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r14", "r12"
     );
-}
-
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
@@ -42657,8 +43928,6 @@ SP_NOINLINE static void sp_1024_mont_tpl_32(sp_digit* r, const sp_digit* a, cons
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r14", "r12"
     );
-}
-
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
@@ -42822,47 +44091,6 @@ SP_NOINLINE static void sp_1024_mont_sub_32(sp_digit* r, const sp_digit* a, cons
         :
         : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r14", "r12"
     );
-}
-
-/* Conditionally add a and b using the mask m.
- * m is -1 to add and 0 when not.
- *
- * r  A single precision number representing conditional add result.
- * a  A single precision number to add with.
- * b  A single precision number to add.
- * m  Mask value to apply.
- */
-SP_NOINLINE static sp_digit sp_1024_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
-        sp_digit m)
-{
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	r5, #128\n\t"
-        "mov	r9, r5\n\t"
-        "mov	r8, #0\n\t"
-        "\n1:\n\t"
-        "ldr	r6, [%[b], r8]\n\t"
-        "and	r6, r6, %[m]\n\t"
-        "adds	r5, %[c], #-1\n\t"
-        "ldr	r5, [%[a], r8]\n\t"
-        "adcs	r5, r5, r6\n\t"
-        "mov	%[c], #0\n\t"
-        "adcs	%[c], %[c], %[c]\n\t"
-        "str	r5, [%[r], r8]\n\t"
-        "add	r8, r8, #4\n\t"
-        "cmp	r8, r9\n\t"
-#ifdef __GNUC__
-        "blt	1b\n\t"
-#else
-        "blt.n	1b\n\t"
-#endif /* __GNUC__ */
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "r5", "r6", "r8", "r9"
-    );
-
-    return c;
 }
 
 static void sp_1024_rshift1_32(sp_digit* r, const sp_digit* a)
@@ -43816,7 +45044,13 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
     return err;
 }
 
-#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+/* A table entry for pre-computed points. */
+typedef struct sp_table_entry_1024 {
+    sp_digit x[32];
+    sp_digit y[32];
+} sp_table_entry_1024;
+
+#ifdef FP_ECC
 /* Double the Montgomery form projective point p a number of times.
  *
  * r  Result of repeated doubling of point.
@@ -43928,14 +45162,6 @@ static void sp_1024_proj_to_affine_32(sp_point_1024* a, sp_digit* t)
     XMEMCPY(a->z, p1024_norm_mod, sizeof(p1024_norm_mod));
 }
 
-#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
-/* A table entry for pre-computed points. */
-typedef struct sp_table_entry_1024 {
-    sp_digit x[32];
-    sp_digit y[32];
-} sp_table_entry_1024;
-
-#ifdef FP_ECC
 #endif /* FP_ECC */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
@@ -44020,7 +45246,7 @@ static void sp_1024_proj_point_add_qz1_32(sp_point_1024* r, const sp_point_1024*
 }
 
 #ifdef WOLFSSL_SP_SMALL
-#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+#ifdef FP_ECC
 /* Generate the pre-computed table of points for the base point.
  *
  * width = 4
@@ -44111,7 +45337,7 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
     return err;
 }
 
-#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+#endif /* FP_ECC */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -44218,7 +45444,15 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_1024 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_1024_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[32];
@@ -44233,37 +45467,130 @@ typedef struct sp_cache_1024_t {
 } sp_cache_1024_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_1024_t sp_cache_1024[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_1024_last = -1;
+static THREAD_LS_T sp_cache_1024_t sp_cache_1024[SP_ENTRIES];
+#else
+struct sp_cache_1024_t {
+    sp_digit x[32];
+    sp_digit y[32];
+    sp_table_entry_1024 table[16];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_1024_t *sp_cache_1024 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_1024()
+{
+    return sizeof(sp_cache_1024_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_1024(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_1024() * sp_cache_entries_1024) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_1024 = (sp_cache_1024_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_1024(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_1024 = 0;
+    }
+    else {
+        sp_cache_entries_1024 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_1024_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_1024 = 0;
     static wolfSSL_Mutex sp_cache_1024_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_1024_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+static int sp_ecc_get_cache_1024_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_1024_last + 1) % sp_cache_entries_1024;
+    for (; i != sp_cache_1024_last; i=(i+1)%sp_cache_entries_1024) {
+        if (!sp_cache_1024[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_1024_last) {
+        least = sp_cache_1024[0].cnt;
+        for (j=1; j<sp_cache_entries_1024; j++) {
+            if (sp_cache_1024[j].cnt < least) {
+                i = j;
+                least = sp_cache_1024[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_1024) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_1024 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_1024_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_1024; i++) {
             sp_cache_1024[i].set = 0;
         }
         sp_cache_1024_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_1024; i++) {
         if (!sp_cache_1024[i].set)
             continue;
 
@@ -44275,35 +45602,22 @@ static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cach
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_1024_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_1024_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_1024[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_1024) {
+        i = sp_ecc_get_cache_1024_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
+            XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
+            sp_cache_1024[i].set = 1;
+            sp_cache_1024[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_1024_last) {
-            least = sp_cache_1024[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_1024[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_1024[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
-        XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
-        sp_cache_1024[i].set = 1;
-        sp_cache_1024[i].cnt = 1;
     }
 
-    *cache = &sp_cache_1024[i];
-    sp_cache_1024_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_1024[i];
+        sp_cache_1024_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P1024 by the scalar and return the result.
@@ -44323,9 +45637,9 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 #ifndef FP_ECC
     return sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 32 * 5];
-    sp_cache_1024_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 32 * 5];
+    sp_cache_1024_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_1024 == 0) {
@@ -44337,20 +45651,25 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_1024(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_1024_gen_stripe_table_32(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_1024_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -44359,7 +45678,7 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 }
 
 #else
-#if defined(FP_ECC) || !defined(WOLFSSL_SP_SMALL)
+#ifdef FP_ECC
 /* Generate the pre-computed table of points for the base point.
  *
  * width = 8
@@ -44450,7 +45769,7 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
     return err;
 }
 
-#endif /* FP_ECC || !WOLFSSL_SP_SMALL */
+#endif /* FP_ECC */
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -44557,7 +45876,15 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
     #define FP_ENTRIES 16
 #endif
 
+/* disconnect the size of SP cache table from ecc.c cache table */
+#ifndef SP_ENTRIES
+    #define SP_ENTRIES FP_ENTRIES
+#endif
+
 /* Cache entry - holds precomputation tables for a point. */
+static int sp_cache_entries_1024 = SP_ENTRIES;
+
+#ifndef FP_ECC_CONTROL
 typedef struct sp_cache_1024_t {
     /* X ordinate of point that table was generated from. */
     sp_digit x[32];
@@ -44572,37 +45899,130 @@ typedef struct sp_cache_1024_t {
 } sp_cache_1024_t;
 
 /* Cache of tables. */
-static THREAD_LS_T sp_cache_1024_t sp_cache_1024[FP_ENTRIES];
-/* Index of last entry in cache. */
-static THREAD_LS_T int sp_cache_1024_last = -1;
+static THREAD_LS_T sp_cache_1024_t sp_cache_1024[SP_ENTRIES];
+#else
+struct sp_cache_1024_t {
+    sp_digit x[32];
+    sp_digit y[32];
+    sp_table_entry_1024 table[256];
+    uint32_t cnt;
+    int set;
+};
+
+static THREAD_LS_T sp_cache_1024_t *sp_cache_1024 = NULL;
+
+/* get the size of a single entry in the cache table */
+int sp_ecc_get_cache_size_1024()
+{
+    return sizeof(sp_cache_1024_t);
+}
+
+/* set the cache table to void 't' pointer and 'tSz' bytes
+ * returns 0 on success, can return failure BAD_FUNC_ARG if too small
+ */
+int sp_ecc_set_cache_table_1024(void* t, int tSz)
+{
+    if ((sp_ecc_get_cache_size_1024() * sp_cache_entries_1024) > tSz) {
+        return BAD_FUNC_ARG;
+    }
+    sp_cache_1024 = (sp_cache_1024_t*)t;
+    return 0;
+}
+
+
+/* Function to set the number of entries to use.
+ * Not thread safe, meant to be called once during wolfCrypt_Init()
+ * Use the macro CUSTOM_FP_ECC_ENTRIES to get entries to then set here
+ *     see wolfcrypt/src/wc_dsp.c function wolfSSL_DSPInit()
+ *
+ * returns 0 on success
+ */
+int sp_ecc_set_cache_entries_1024(int numEntries)
+{
+    if (numEntries < 0) {
+        sp_cache_entries_1024 = 0;
+    }
+    else {
+        sp_cache_entries_1024 = numEntries;
+    }
+
+    return 0;
+}
+#endif
+
 /* Cache has been initialized. */
 static THREAD_LS_T int sp_cache_1024_inited = 0;
 
-#ifndef HAVE_THREAD_LS
+#if !defined(HAVE_THREAD_LS)
     static volatile int initCacheMutex_1024 = 0;
     static wolfSSL_Mutex sp_cache_1024_lock;
 #endif
+
+#ifndef FP_ECC_CONTROL
+/* Index of last entry in cache. */
+static THREAD_LS_T int sp_cache_1024_last = -1;
 
 /* Get the cache entry for the point.
  *
  * g      [in]   Point scalar multipling.
  * cache  [out]  Cache table to use.
  */
-static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+static int sp_ecc_get_cache_1024_index()
 {
-    int i;
+    int i = -1;
     int j;
     uint32_t least;
 
+    /* Find empty entry. */
+    i = (sp_cache_1024_last + 1) % sp_cache_entries_1024;
+    for (; i != sp_cache_1024_last; i=(i+1)%sp_cache_entries_1024) {
+        if (!sp_cache_1024[i].set) {
+            break;
+        }
+    }
+
+    /* Evict least used. */
+    if (i == sp_cache_1024_last) {
+        least = sp_cache_1024[0].cnt;
+        for (j=1; j<sp_cache_entries_1024; j++) {
+            if (sp_cache_1024[j].cnt < least) {
+                i = j;
+                least = sp_cache_1024[i].cnt;
+            }
+        }
+    }
+
+    /* sanity check on index */
+    if (i >= sp_cache_entries_1024) {
+        /* Invalid cache table index choice (too large) */
+        i = -1;
+    }
+
+    return i;
+}
+
+static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cache)
+{
+    int i;
+
+    *cache = NULL;
+
+#ifdef FP_ECC_CONTROL
+    if (sp_cache_1024 == NULL) {
+        /* the cache table was not set */
+        return;
+    }
+#endif
+
     if (sp_cache_1024_inited == 0) {
-        for (i=0; i<FP_ENTRIES; i++) {
+        for (i=0; i<sp_cache_entries_1024; i++) {
             sp_cache_1024[i].set = 0;
         }
         sp_cache_1024_inited = 1;
     }
 
     /* Compare point with those in cache. */
-    for (i=0; i<FP_ENTRIES; i++) {
+    for (i=0; i<sp_cache_entries_1024; i++) {
         if (!sp_cache_1024[i].set)
             continue;
 
@@ -44614,35 +46034,22 @@ static void sp_ecc_get_cache_1024(const sp_point_1024* g, sp_cache_1024_t** cach
     }
 
     /* No match. */
-    if (i == FP_ENTRIES) {
-        /* Find empty entry. */
-        i = (sp_cache_1024_last + 1) % FP_ENTRIES;
-        for (; i != sp_cache_1024_last; i=(i+1)%FP_ENTRIES) {
-            if (!sp_cache_1024[i].set) {
-                break;
-            }
+    if (i == sp_cache_entries_1024) {
+        i = sp_ecc_get_cache_1024_index();
+        if (i >= 0) {
+            XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
+            XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
+            sp_cache_1024[i].set = 1;
+            sp_cache_1024[i].cnt = 1;
         }
-
-        /* Evict least used. */
-        if (i == sp_cache_1024_last) {
-            least = sp_cache_1024[0].cnt;
-            for (j=1; j<FP_ENTRIES; j++) {
-                if (sp_cache_1024[j].cnt < least) {
-                    i = j;
-                    least = sp_cache_1024[i].cnt;
-                }
-            }
-        }
-
-        XMEMCPY(sp_cache_1024[i].x, g->x, sizeof(sp_cache_1024[i].x));
-        XMEMCPY(sp_cache_1024[i].y, g->y, sizeof(sp_cache_1024[i].y));
-        sp_cache_1024[i].set = 1;
-        sp_cache_1024[i].cnt = 1;
     }
 
-    *cache = &sp_cache_1024[i];
-    sp_cache_1024_last = i;
+    if (i >= 0) {
+        *cache = &sp_cache_1024[i];
+        sp_cache_1024_last = i;
+    }
 }
+#endif /* !FP_ECC_CONTROL */
 #endif /* FP_ECC */
 
 /* Multiply the base point of P1024 by the scalar and return the result.
@@ -44662,9 +46069,9 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 #ifndef FP_ECC
     return sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
 #else
-    sp_digit tmp[2 * 32 * 5];
-    sp_cache_1024_t* cache;
     int err = MP_OKAY;
+    sp_digit tmp[2 * 32 * 5];
+    sp_cache_1024_t* cache = NULL;
 
 #ifndef HAVE_THREAD_LS
     if (initCacheMutex_1024 == 0) {
@@ -44676,20 +46083,25 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 #endif /* HAVE_THREAD_LS */
 
     if (err == MP_OKAY) {
-        sp_ecc_get_cache_1024(g, &cache);
-        if (cache->cnt == 2)
+        if (cache == NULL) {
+            sp_ecc_get_cache_1024(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
             sp_1024_gen_stripe_table_32(g, cache->table, tmp, heap);
-
 #ifndef HAVE_THREAD_LS
         wc_UnLockMutex(&sp_cache_1024_lock);
 #endif /* HAVE_THREAD_LS */
 
-        if (cache->cnt < 2) {
-            err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
-        }
-        else {
-            err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
-                    map, ct, heap);
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_1024_ecc_mulmod_fast_32(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_1024_ecc_mulmod_stripe_32(r, g, cache->table, k,
+                        map, ct, heap);
+            }
         }
     }
 
@@ -44737,7 +46149,11 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         sp_1024_from_mp(k, 32, km);
         sp_1024_point_from_ecc_point_32(point, gm);
 
+#ifdef FP_ECC_CONTROL
+            err = sp_1024_ecc_mulmod_32(point, point, k, map, 1, NULL, heap);
+#else
             err = sp_1024_ecc_mulmod_32(point, point, k, map, 1, heap);
+#endif
     }
     if (err == MP_OKAY) {
         err = sp_1024_point_to_ecc_point_32(point, r);
@@ -52125,15 +53541,16 @@ static int sp_1024_ecc_is_point_32(const sp_point_1024* point,
     if (err == MP_OKAY) {
         t2 = t1 + 2 * 32;
 
+        /* y^2 - x^3 - a.x = b */
         sp_1024_sqr_32(t1, point->y);
         (void)sp_1024_mod_32(t1, t1, p1024_mod);
         sp_1024_sqr_32(t2, point->x);
         (void)sp_1024_mod_32(t2, t2, p1024_mod);
         sp_1024_mul_32(t2, t2, point->x);
         (void)sp_1024_mod_32(t2, t2, p1024_mod);
-        (void)sp_1024_sub_32(t2, p1024_mod, t2);
-        sp_1024_mont_add_32(t1, t1, t2, p1024_mod);
+        sp_1024_mont_sub_32(t1, t1, t2, p1024_mod);
 
+        /* y^2 - x^3 + 3.x = b, when a = -3  */
         sp_1024_mont_add_32(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_32(t1, t1, point->x, p1024_mod);
         sp_1024_mont_add_32(t1, t1, point->x, p1024_mod);
@@ -52275,7 +53692,11 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_1024_ecc_mulmod_32(p, pub, p1024_order, 1, 1, NULL, heap);
+#else
             err = sp_1024_ecc_mulmod_32(p, pub, p1024_order, 1, 1, heap);
+#endif
     }
     /* Check result is infinity */
     if ((err == MP_OKAY) && ((sp_1024_iszero_32(p->x) == 0) ||
@@ -52307,6 +53728,5393 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
 }
 #endif
 #endif /* WOLFSSL_SP_1024 */
+#ifdef HAVE_ECC_BRAINPOOL
+#ifndef WOLFSSL_SP_NO_256
+
+/* The modulus (prime) of the curve Brainpool P256. */
+static const sp_digit p256_brainpool_mod[8] = {
+    0x1f6e5377,0x2013481d,0xd5262028,0x6e3bf623,0x9d838d72,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+/* The Montgomery normalizer for modulus of the curve P256. */
+static const sp_digit p256_brainpool_norm_mod[8] = {
+    0xe091ac89,0xdfecb7e2,0x2ad9dfd7,0x91c409dc,0x627c728d,0xc199f56f,
+    0x5e115643,0x5604a824
+};
+/* The Montgomery multiplier for modulus of the curve P256. */
+static const sp_digit p256_brainpool_mp_mod = 0xcefd89b9;
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                            defined(HAVE_ECC_VERIFY)
+/* The order of the curve P256. */
+static const sp_digit p256_brainpool_order[8] = {
+    0x974856a7,0x901e0e82,0xb561a6f7,0x8c397aa3,0x9d838d71,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+#endif
+/* The order of the curve P256 minus 2. */
+static const sp_digit p256_brainpool_order2[8] = {
+    0x974856a5,0x901e0e82,0xb561a6f7,0x8c397aa3,0x9d838d71,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery normalizer for order of the curve P256. */
+static const sp_digit p256_brainpool_norm_order[8] = {
+    0x68b7a959,0x6fe1f17d,0x4a9e5908,0x73c6855c,0x627c728e,0xc199f56f,
+    0x5e115643,0x5604a824
+};
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* The Montgomery multiplier for order of the curve P256. */
+static const sp_digit p256_brainpool_mp_order = 0xcbb40ee9;
+#endif
+/* The base point of curve P256. */
+static const sp_point_256 p256_brainpool_base = {
+    /* X ordinate */
+    {
+        0x9ace3262,0x3a4453bd,0xe3bd23c2,0xb9de27e1,0xfc81b7af,0x2c4b482f,
+        0xcb7e57cb,0x8bd2aeb9,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Y ordinate */
+    {
+        0x2f046997,0x5c1d54c7,0x2ded8e54,0xc2774513,0x14611dc9,0x97f8461a,
+        0xc3dac4fd,0x547ef835,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* Z ordinate */
+    {
+        0x00000001,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,
+        0x00000000,0x00000000,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0, (sp_digit)0,
+        (sp_digit)0, (sp_digit)0, (sp_digit)0
+    },
+    /* infinity */
+    0
+};
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static const sp_digit p256_brainpool_b[8] = {
+    0xff8c07b6,0x6bccdc18,0x5cf7e1ce,0x95841629,0xbbd77cbf,0xf330b5d9,
+    0xe94a4b44,0x26dc5c6c
+};
+#endif
+#ifdef HAVE_ECC_CHECK_KEY
+static const sp_digit p256_brainpool_a[8] = {
+    0xf330b5d9,0xe94a4b44,0x26dc5c6c,0xfb8055c1,0x417affe7,0xeef67530,
+    0xfc2c3057,0x7d5a0975
+};
+#endif /* HAVE_ECC_CHECK_KEY */
+#ifdef FP_ECC
+static const sp_digit p256_brainpool_a_mont[8] = {
+    0x69696261,0xd5d18edf,0xc1d20c64,0xa68123f1,0x6398556e,0x95ec1e5e,
+    0xd666bc17,0x1e4676ab
+};
+#endif /* FP_ECC */
+static const sp_digit p256_brainpool_a_neg_div_3_sqrt[8] = {
+    0xce68ff1b,0x530e3bdd,0x1feec28b,0xf02125e7,0xbda07f13,0xa998b1ae,
+    0xd577fd90,0x72ac986d
+};
+
+/* Multiply a number by Montgomery normalizer mod modulus (prime).
+ *
+ * r  The resulting Montgomery form number.
+ * a  The number to convert.
+ * m  The modulus (prime).
+ * returns MEMORY_E when memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mod_mul_norm_brainpool_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* m)
+{
+    sp_256_mul_8(r, a, p256_brainpool_norm_mod);
+    return sp_256_mod_brainpool_8(r, r, m);
+}
+
+#define sp_256_mont_reduce_order_brainpool_8   sp_256_mont_reduce_brainpool_8
+
+/* Reduce the number back to 256 bits using Montgomery reduction.
+ *
+ * a   A single precision number to reduce in place.
+ * m   The single precision number representing the modulus.
+ * mp  The digit representing the negative inverse of m mod 2^n.
+ */
+SP_NOINLINE static void sp_256_mont_reduce_brainpool_8(sp_digit* a, const sp_digit* m,
+        sp_digit mp)
+{
+    sp_digit ca = 0;
+
+    __asm__ __volatile__ (
+        "mov	r9, %[mp]\n\t"
+        "mov	r12, %[m]\n\t"
+        "mov	r10, %[a]\n\t"
+        "mov	r4, #0\n\t"
+        "add	r11, r10, #32\n\t"
+        "\n1:\n\t"
+        /* mu = a[i] * mp */
+        "mov	%[mp], r9\n\t"
+        "ldr	%[a], [r10]\n\t"
+        "mul	%[mp], %[mp], %[a]\n\t"
+        "mov	%[m], r12\n\t"
+        "add	r14, r10, #24\n\t"
+        "\n2:\n\t"
+        /* a[i+j] += m[j] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r5, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r4, r4, %[a]\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r4, [r10], #4\n\t"
+        /* a[i+j+1] += m[j+1] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r4, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r4, r4, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r5, r5, %[a]\n\t"
+        "adc	r4, r4, #0\n\t"
+        "str	r5, [r10], #4\n\t"
+        "cmp	r10, r14\n\t"
+#ifdef __GNUC__
+        "blt	2b\n\t"
+#else
+        "blt.n	2b\n\t"
+#endif /* __GNUC__ */
+        /* a[i+6] += m[6] * mu */
+        "ldr	%[a], [r10]\n\t"
+        "mov	r5, #0\n\t"
+        /* Multiply m[j] and mu - Start */
+        "ldr	r8, [%[m]], #4\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	%[a], %[a], r6\n\t"
+        "adc	r5, r5, r8\n\t"
+        /* Multiply m[j] and mu - Done */
+        "adds	r4, r4, %[a]\n\t"
+        "adc	r5, r5, #0\n\t"
+        "str	r4, [r10], #4\n\t"
+        /* a[i+7] += m[7] * mu */
+        "mov	r4, %[ca]\n\t"
+        "mov	%[ca], #0\n\t"
+        /* Multiply m[7] and mu - Start */
+        "ldr	r8, [%[m]]\n\t"
+        "umull	r6, r8, %[mp], r8\n\t"
+        "adds	r5, r5, r6\n\t"
+        "adcs 	r4, r4, r8\n\t"
+        "adc	%[ca], %[ca], #0\n\t"
+        /* Multiply m[7] and mu - Done */
+        "ldr	r6, [r10]\n\t"
+        "ldr	r8, [r10, #4]\n\t"
+        "adds	r6, r6, r5\n\t"
+        "adcs	r8, r8, r4\n\t"
+        "adc	%[ca], %[ca], #0\n\t"
+        "str	r6, [r10]\n\t"
+        "str	r8, [r10, #4]\n\t"
+        /* Next word in a */
+        "sub	r10, r10, #24\n\t"
+        "cmp	r10, r11\n\t"
+#ifdef __GNUC__
+        "blt	1b\n\t"
+#else
+        "blt.n	1b\n\t"
+#endif /* __GNUC__ */
+        "mov	%[a], r10\n\t"
+        "mov	%[m], r12\n\t"
+        "neg	%[ca], %[ca]\n\t"
+        "ldr	r6, [%[m], #28]\n\t"
+        "ldr	r8, [%[a], #28]\n\t"
+        "subs	r6, r6, r8\n\t"
+        "sbc	%[ca], %[ca], #0\n\t"
+        : [ca] "+r" (ca), [a] "+r" (a)
+        : [m] "r" (m), [mp] "r" (mp)
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r12", "r14"
+    );
+
+    sp_256_cond_sub_8(a - 8, a, m, (sp_digit)0 - ca);
+}
+
+/* Multiply two Montgomery form numbers mod the modulus (prime).
+ * (r = a * b mod m)
+ *
+ * r   Result of multiplication.
+ * a   First number to multiply in Montgomery form.
+ * b   Second number to multiply in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_256_mont_mul_brainpool_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, const sp_digit* m, sp_digit mp)
+{
+    sp_256_mul_8(r, a, b);
+    sp_256_mont_reduce_brainpool_8(r, m, mp);
+}
+
+/* Square the Montgomery form number. (r = a * a mod m)
+ *
+ * r   Result of squaring.
+ * a   Number to square in Montgomery form.
+ * m   Modulus (prime).
+ * mp  Montgomery mulitplier.
+ */
+static void sp_256_mont_sqr_brainpool_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* m, sp_digit mp)
+{
+    sp_256_sqr_8(r, a);
+    sp_256_mont_reduce_brainpool_8(r, m, mp);
+}
+
+/* Mod-2 for the P256 curve. */
+static const uint32_t p256_brainpool_mod_minus_2[8] = {
+    0x1f6e5375,0x2013481d,0xd5262028,0x6e3bf623,0x9d838d72,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+
+/* Invert the number, in Montgomery form, modulo the modulus (prime) of the
+ * P256 curve. (r = 1 / a mod m)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_256_mont_inv_brainpool_8(sp_digit* r, const sp_digit* a, sp_digit* td)
+{
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 8);
+    for (i=254; i>=0; i--) {
+        sp_256_mont_sqr_brainpool_8(t, t, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if (p256_brainpool_mod_minus_2[i / 32] & ((sp_digit)1 << (i % 32)))
+            sp_256_mont_mul_brainpool_8(t, t, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 8);
+}
+
+/* Map the Montgomery form projective coordinate point to an affine point.
+ *
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
+ * t  Temporary ordinate data.
+ */
+static void sp_256_map_brainpool_8(sp_point_256* r, const sp_point_256* p,
+    sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*8;
+    sp_int32 n;
+
+    sp_256_mont_inv_brainpool_8(t1, p->z, t + 2*8);
+
+    sp_256_mont_sqr_brainpool_8(t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_8(t1, t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    /* x /= z^2 */
+    sp_256_mont_mul_brainpool_8(r->x, p->x, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMSET(r->x + 8, 0, sizeof(r->x) / 2U);
+    sp_256_mont_reduce_brainpool_8(r->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Reduce x to less than modulus */
+    n = sp_256_cmp_8(r->x, p256_brainpool_mod);
+    sp_256_cond_sub_8(r->x, r->x, p256_brainpool_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_8(r->x);
+
+    /* y /= z^3 */
+    sp_256_mont_mul_brainpool_8(r->y, p->y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMSET(r->y + 8, 0, sizeof(r->y) / 2U);
+    sp_256_mont_reduce_brainpool_8(r->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Reduce y to less than modulus */
+    n = sp_256_cmp_8(r->y, p256_brainpool_mod);
+    sp_256_cond_sub_8(r->y, r->y, p256_brainpool_mod, 0 - ((n >= 0) ?
+                (sp_digit)1 : (sp_digit)0));
+    sp_256_norm_8(r->y);
+
+    XMEMSET(r->z, 0, sizeof(r->z));
+    r->z[0] = 1;
+
+}
+
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montgomery form.
+ * b   Second number to add in Montgomery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+/* Add two Montgomery form numbers (r = a + b % m).
+ *
+ * r   Result of addition.
+ * a   First number to add in Montogmery form.
+ * b   Second number to add in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_add_brainpool_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)m;
+
+    __asm__ __volatile__ (
+        "mov   r12, #0\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[b],#0]\n\t"
+        "ldr	r10, [%[b],#4]\n\t"
+        "ldr	r11, [%[b],#8]\n\t"
+        "ldr	r14, [%[b],#12]\n\t"
+        "adds	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adcs	r6, r6, r11\n\t"
+        "adcs	r8, r8, r14\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "ldr	r4, [%[a],#16]\n\t"
+        "ldr	r5, [%[a],#20]\n\t"
+        "ldr	r6, [%[a],#24]\n\t"
+        "ldr	r8, [%[a],#28]\n\t"
+        "ldr	r9, [%[b],#16]\n\t"
+        "ldr	r10, [%[b],#20]\n\t"
+        "ldr	r11, [%[b],#24]\n\t"
+        "ldr	r14, [%[b],#28]\n\t"
+        "adcs	r4, r4, r9\n\t"
+        "adcs	r5, r5, r10\n\t"
+        "adcs	r6, r6, r11\n\t"
+        "adcs	r8, r8, r14\n\t"
+        "adc	r12, r12, #0\n\t"
+        "neg	r12, r12\n\t"
+        "ldr	r9, [%[r],#0]\n\t"
+        "ldr	r10, [%[r],#4]\n\t"
+        "ldr	r11, [%[r],#8]\n\t"
+        "ldr	r14, [%[r],#12]\n\t"
+        "ldr	%[a], [%[m], #0]\n\t"
+        "ldr	%[b], [%[m], #4]\n\t"
+        "and	%[a], %[a], r12\n\t"
+        "and	%[b], %[b], r12\n\t"
+        "subs	r9, r9, %[a]\n\t"
+        "sbcs	r10, r10, %[b]\n\t"
+        "ldr	%[a], [%[m], #8]\n\t"
+        "ldr	%[b], [%[m], #12]\n\t"
+        "and	%[a], %[a], r12\n\t"
+        "and	%[b], %[b], r12\n\t"
+        "sbcs	r11, r11, %[a]\n\t"
+        "sbcs	r14, r14, %[b]\n\t"
+        "ldr	%[a], [%[m], #16]\n\t"
+        "ldr	%[b], [%[m], #20]\n\t"
+        "and	%[a], %[a], r12\n\t"
+        "and	%[b], %[b], r12\n\t"
+        "sbcs	r4, r4, %[a]\n\t"
+        "sbcs	r5, r5, %[b]\n\t"
+        "ldr	%[a], [%[m], #24]\n\t"
+        "ldr	%[b], [%[m], #28]\n\t"
+        "and	%[a], %[a], r12\n\t"
+        "and	%[b], %[b], r12\n\t"
+        "sbcs	r6, r6, %[a]\n\t"
+        "sbc	r8, r8, %[b]\n\t"
+        "str	r9, [%[r],#0]\n\t"
+        "str	r10, [%[r],#4]\n\t"
+        "str	r11, [%[r],#8]\n\t"
+        "str	r14, [%[r],#12]\n\t"
+        "str	r4, [%[r],#16]\n\t"
+        "str	r5, [%[r],#20]\n\t"
+        "str	r6, [%[r],#24]\n\t"
+        "str	r8, [%[r],#28]\n\t"
+        : [a] "+r" (a), [b] "+r" (b)
+        : [r] "r" (r), [m] "r" (m)
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r12"
+    );
+}
+
+/* Double a Montgomery form number (r = a + a % m).
+ *
+ * r   Result of doubling.
+ * a   Number to double in Montgomery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)m;
+
+    __asm__ __volatile__ (
+        "mov	r12, #0\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[a],#16]\n\t"
+        "ldr	r10, [%[a],#20]\n\t"
+        "ldr	r11, [%[a],#24]\n\t"
+        "ldr	r14, [%[a],#28]\n\t"
+        "adds	r4, r4, r4\n\t"
+        "adcs	r5, r5, r5\n\t"
+        "adcs	r6, r6, r6\n\t"
+        "adcs	r8, r8, r8\n\t"
+        "adcs	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adcs	r11, r11, r11\n\t"
+        "adcs	r14, r14, r14\n\t"
+        "adc	r3, r12, #0\n\t"
+        "neg	r3, r3\n\t"
+        "ldr	r12, [%[m], #28]\n\t"
+        "subs	r12, r12, r14\n\t"
+        "sbc	r3, r3, #0\n\t"
+        "ldr	r12, [%[m], #0]\n\t"
+        "ldr	%[a], [%[m], #4]\n\t"
+        "and	r12, r12, r3\n\t"
+        "and	%[a], %[a], r3\n\t"
+        "subs	r4, r4, r12\n\t"
+        "sbcs	r5, r5, %[a]\n\t"
+        "ldr	r12, [%[m], #8]\n\t"
+        "ldr	%[a], [%[m], #12]\n\t"
+        "and	r12, r12, r3\n\t"
+        "and	%[a], %[a], r3\n\t"
+        "sbcs	r6, r6, r12\n\t"
+        "sbcs	r8, r8, %[a]\n\t"
+        "ldr	r12, [%[m], #16]\n\t"
+        "ldr	%[a], [%[m], #20]\n\t"
+        "and	r12, r12, r3\n\t"
+        "and	%[a], %[a], r3\n\t"
+        "sbcs	r9, r9, r12\n\t"
+        "sbcs	r10, r10, %[a]\n\t"
+        "ldr	r12, [%[m], #24]\n\t"
+        "ldr	%[a], [%[m], #28]\n\t"
+        "and	r12, r12, r3\n\t"
+        "and	%[a], %[a], r3\n\t"
+        "sbcs	r11, r11, r12\n\t"
+        "sbc	r14, r14, %[a]\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "str	r9, [%[r],#16]\n\t"
+        "str	r10, [%[r],#20]\n\t"
+        "str	r11, [%[r],#24]\n\t"
+        "str	r14, [%[r],#28]\n\t"
+        : [a] "+r" (a)
+        : [r] "r" (r), [m] "r" (m)
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r3", "r12"
+    );
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montgomery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+/* Triple a Montgomery form number (r = a + a + a % m).
+ *
+ * r   Result of Tripling.
+ * a   Number to triple in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_tpl_brainpool_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    (void)m;
+
+    __asm__ __volatile__ (
+        "mov	r11, #0\n\t"
+        "ldr	r2, [%[a],#0]\n\t"
+        "ldr	r3, [%[a],#4]\n\t"
+        "ldr	r4, [%[a],#8]\n\t"
+        "ldr	r5, [%[a],#12]\n\t"
+        "ldr	r6, [%[a],#16]\n\t"
+        "ldr	r8, [%[a],#20]\n\t"
+        "ldr	r9, [%[a],#24]\n\t"
+        "ldr	r10, [%[a],#28]\n\t"
+        "adds	r2, r2, r2\n\t"
+        "adcs	r3, r3, r3\n\t"
+        "adcs	r4, r4, r4\n\t"
+        "adcs	r5, r5, r5\n\t"
+        "adcs	r6, r6, r6\n\t"
+        "adcs	r8, r8, r8\n\t"
+        "adcs	r9, r9, r9\n\t"
+        "adcs	r10, r10, r10\n\t"
+        "adc	r11, r11, r11\n\t"
+        "sub	r11, r11, #1\n\t"
+        "mvn	r11, r11\n\t"
+        "ldr	r12, [%[m], #28]\n\t"
+        "subs	r12, r12, r10\n\t"
+        "sbc	r11, r11, #0\n\t"
+        "ldr	r12, [%[m], #0]\n\t"
+        "ldr	r14, [%[m], #4]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "subs	r2, r2, r12\n\t"
+        "sbcs	r3, r3, r14\n\t"
+        "ldr	r12, [%[m], #8]\n\t"
+        "ldr	r14, [%[m], #12]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r4, r4, r12\n\t"
+        "sbcs	r5, r5, r14\n\t"
+        "ldr	r12, [%[m], #16]\n\t"
+        "ldr	r14, [%[m], #20]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r6, r6, r12\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "ldr	r12, [%[m], #24]\n\t"
+        "ldr	r14, [%[m], #28]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r9, r9, r12\n\t"
+        "sbc	r10, r10, r14\n\t"
+        "mov	r11, #0\n\t"
+        "ldr	r12, [%[a],#0]\n\t"
+        "ldr	r14, [%[a],#4]\n\t"
+        "adds	r2, r2, r12\n\t"
+        "adcs	r3, r3, r14\n\t"
+        "ldr	r12, [%[a],#8]\n\t"
+        "ldr	r14, [%[a],#12]\n\t"
+        "adcs	r4, r4, r12\n\t"
+        "adcs	r5, r5, r14\n\t"
+        "ldr	r12, [%[a],#16]\n\t"
+        "ldr	r14, [%[a],#20]\n\t"
+        "adcs	r6, r6, r12\n\t"
+        "adcs	r8, r8, r14\n\t"
+        "ldr	r12, [%[a],#24]\n\t"
+        "ldr	r14, [%[a],#28]\n\t"
+        "adcs	r9, r9, r12\n\t"
+        "adcs	r10, r10, r14\n\t"
+        "adc	r11, r11, r11\n\t"
+        "sub	r11, r11, #1\n\t"
+        "mvn	r11, r11\n\t"
+        "ldr	r12, [%[m], #28]\n\t"
+        "subs	r12, r12, r10\n\t"
+        "sbc	r11, r11, #0\n\t"
+        "ldr	r12, [%[m], #0]\n\t"
+        "ldr	r14, [%[m], #4]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "subs	r2, r2, r12\n\t"
+        "sbcs	r3, r3, r14\n\t"
+        "ldr	r12, [%[m], #8]\n\t"
+        "ldr	r14, [%[m], #12]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r4, r4, r12\n\t"
+        "sbcs	r5, r5, r14\n\t"
+        "ldr	r12, [%[m], #16]\n\t"
+        "ldr	r14, [%[m], #20]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r6, r6, r12\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "ldr	r12, [%[m], #24]\n\t"
+        "ldr	r14, [%[m], #28]\n\t"
+        "and	r12, r11\n\t"
+        "and	r14, r11\n\t"
+        "sbcs	r9, r9, r12\n\t"
+        "sbc	r10, r10, r14\n\t"
+        "str	r2, [%[r],#0]\n\t"
+        "str	r3, [%[r],#4]\n\t"
+        "str	r4, [%[r],#8]\n\t"
+        "str	r5, [%[r],#12]\n\t"
+        "str	r6, [%[r],#16]\n\t"
+        "str	r8, [%[r],#20]\n\t"
+        "str	r9, [%[r],#24]\n\t"
+        "str	r10, [%[r],#28]\n\t"
+        : [a] "+r" (a)
+        : [r] "r" (r), [m] "r" (m)
+        : "memory", "r11", "r12", "r14", "r2", "r3", "r4", "r5", "r6", "r8", "r9", "r10"
+    );
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montgomery form.
+ * b   Number to subtract with in Montgomery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+/* Subtract two Montgomery form numbers (r = a - b % m).
+ *
+ * r   Result of subtration.
+ * a   Number to subtract from in Montogmery form.
+ * b   Number to subtract with in Montogmery form.
+ * m   Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_mont_sub_brainpool_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
+{
+    (void)m;
+
+    __asm__ __volatile__ (
+        "mov   r12, #0\n\t"
+        "ldr	r4, [%[a],#0]\n\t"
+        "ldr	r5, [%[a],#4]\n\t"
+        "ldr	r6, [%[a],#8]\n\t"
+        "ldr	r8, [%[a],#12]\n\t"
+        "ldr	r9, [%[b],#0]\n\t"
+        "ldr	r10, [%[b],#4]\n\t"
+        "ldr	r11, [%[b],#8]\n\t"
+        "ldr	r14, [%[b],#12]\n\t"
+        "subs	r4, r4, r9\n\t"
+        "sbcs	r5, r5, r10\n\t"
+        "sbcs	r6, r6, r11\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "str	r4, [%[r],#0]\n\t"
+        "str	r5, [%[r],#4]\n\t"
+        "str	r6, [%[r],#8]\n\t"
+        "str	r8, [%[r],#12]\n\t"
+        "ldr	r4, [%[a],#16]\n\t"
+        "ldr	r5, [%[a],#20]\n\t"
+        "ldr	r6, [%[a],#24]\n\t"
+        "ldr	r8, [%[a],#28]\n\t"
+        "ldr	r9, [%[b],#16]\n\t"
+        "ldr	r10, [%[b],#20]\n\t"
+        "ldr	r11, [%[b],#24]\n\t"
+        "ldr	r14, [%[b],#28]\n\t"
+        "sbcs	r4, r4, r9\n\t"
+        "sbcs	r5, r5, r10\n\t"
+        "sbcs	r6, r6, r11\n\t"
+        "sbcs	r8, r8, r14\n\t"
+        "sbc	r12, r12, #0\n\t"
+        "ldr	r9, [%[r],#0]\n\t"
+        "ldr	r10, [%[r],#4]\n\t"
+        "ldr	r11, [%[r],#8]\n\t"
+        "ldr	r14, [%[r],#12]\n\t"
+        "ldr	%[a], [%[m], #0]\n\t"
+        "ldr	%[b], [%[m], #4]\n\t"
+        "and	%[a], r12\n\t"
+        "and	%[b], r12\n\t"
+        "adds	r9, r9, %[a]\n\t"
+        "adcs	r10, r10, %[b]\n\t"
+        "ldr	%[a], [%[m], #8]\n\t"
+        "ldr	%[b], [%[m], #12]\n\t"
+        "and	%[a], r12\n\t"
+        "and	%[b], r12\n\t"
+        "adcs	r11, r11, %[a]\n\t"
+        "adcs	r14, r14, %[b]\n\t"
+        "ldr	%[a], [%[m], #16]\n\t"
+        "ldr	%[b], [%[m], #20]\n\t"
+        "and	%[a], r12\n\t"
+        "and	%[b], r12\n\t"
+        "adcs	r4, r4, %[a]\n\t"
+        "adcs	r5, r5, %[b]\n\t"
+        "ldr	%[a], [%[m], #24]\n\t"
+        "ldr	%[b], [%[m], #28]\n\t"
+        "and	%[a], r12\n\t"
+        "and	%[b], r12\n\t"
+        "adcs	r6, r6, %[a]\n\t"
+        "adc	r8, r8, %[b]\n\t"
+        "str	r9, [%[r],#0]\n\t"
+        "str	r10, [%[r],#4]\n\t"
+        "str	r11, [%[r],#8]\n\t"
+        "str	r14, [%[r],#12]\n\t"
+        "str	r4, [%[r],#16]\n\t"
+        "str	r5, [%[r],#20]\n\t"
+        "str	r6, [%[r],#24]\n\t"
+        "str	r8, [%[r],#28]\n\t"
+        : [a] "+r" (a), [b] "+r" (b)
+        : [r] "r" (r), [m] "r" (m)
+        : "memory", "r4", "r5", "r6", "r8", "r9", "r10", "r11", "r14", "r12"
+    );
+}
+
+/* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus (prime).
+ */
+SP_NOINLINE static void sp_256_div2_brainpool_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    __asm__ __volatile__ (
+        "ldr	r8, [%[a], #0]\n\t"
+        "lsl	r8, r8, #31\n\t"
+        "lsr	r8, r8, #31\n\t"
+        "mov	r5, #0\n\t"
+        "sub	r5, r5, r8\n\t"
+        "mov	r8, #0\n\t"
+        "ldr	r8, [%[m], #0]\n\t"
+        "ldr	r6, [%[m], #4]\n\t"
+        "ldr	r3, [%[a], #0]\n\t"
+        "ldr	r4, [%[a], #4]\n\t"
+        "and	r8, r8, r5\n\t"
+        "and	r6, r6, r5\n\t"
+        "adds	r3, r3, r8\n\t"
+        "adcs	r4, r4, r6\n\t"
+        "str	r3, [%[r], #0]\n\t"
+        "str	r4, [%[r], #4]\n\t"
+        "ldr	r8, [%[m], #8]\n\t"
+        "ldr	r6, [%[m], #12]\n\t"
+        "ldr	r3, [%[a], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "and	r8, r8, r5\n\t"
+        "and	r6, r6, r5\n\t"
+        "adcs	r3, r3, r8\n\t"
+        "adcs	r4, r4, r6\n\t"
+        "str	r3, [%[r], #8]\n\t"
+        "str	r4, [%[r], #12]\n\t"
+        "ldr	r8, [%[m], #16]\n\t"
+        "ldr	r6, [%[m], #20]\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "and	r8, r8, r5\n\t"
+        "and	r6, r6, r5\n\t"
+        "adcs	r3, r3, r8\n\t"
+        "adcs	r4, r4, r6\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "ldr	r8, [%[m], #24]\n\t"
+        "ldr	r6, [%[m], #28]\n\t"
+        "ldr	r3, [%[a], #24]\n\t"
+        "ldr	r4, [%[a], #28]\n\t"
+        "and	r8, r8, r5\n\t"
+        "and	r6, r6, r5\n\t"
+        "adcs	r3, r3, r8\n\t"
+        "adcs	r4, r4, r6\n\t"
+        "mov	r8, #0\n\t"
+        "adc	r8, r8, r8\n\t"
+        "lsl	r8, r8, #31\n\t"
+        "lsr	r5, r3, #1\n\t"
+        "lsl	r3, r3, #31\n\t"
+        "lsr	r6, r4, #1\n\t"
+        "lsl	r4, r4, #31\n\t"
+        "orr	r5, r5, r4\n\t"
+        "orr	r6, r6, r8\n\t"
+        "mov	r8, r3\n\t"
+        "str	r5, [%[r], #24]\n\t"
+        "str	r6, [%[r], #28]\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "lsr	r5, r3, #1\n\t"
+        "lsl	r3, r3, #31\n\t"
+        "lsr	r6, r4, #1\n\t"
+        "lsl	r4, r4, #31\n\t"
+        "orr	r5, r5, r4\n\t"
+        "orr	r6, r6, r8\n\t"
+        "mov	r8, r3\n\t"
+        "str	r5, [%[r], #16]\n\t"
+        "str	r6, [%[r], #20]\n\t"
+        "ldr	r3, [%[a], #8]\n\t"
+        "ldr	r4, [%[a], #12]\n\t"
+        "lsr	r5, r3, #1\n\t"
+        "lsl	r3, r3, #31\n\t"
+        "lsr	r6, r4, #1\n\t"
+        "lsl	r4, r4, #31\n\t"
+        "orr	r5, r5, r4\n\t"
+        "orr	r6, r6, r8\n\t"
+        "mov	r8, r3\n\t"
+        "str	r5, [%[r], #8]\n\t"
+        "str	r6, [%[r], #12]\n\t"
+        "ldr	r3, [%[r], #0]\n\t"
+        "ldr	r4, [%[r], #4]\n\t"
+        "lsr	r5, r3, #1\n\t"
+        "lsr	r6, r4, #1\n\t"
+        "lsl	r4, r4, #31\n\t"
+        "orr	r5, r5, r4\n\t"
+        "orr	r6, r6, r8\n\t"
+        "str	r5, [%[r], #0]\n\t"
+        "str	r6, [%[r], #4]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+        : "memory", "r3", "r4", "r5", "r6", "r8"
+    );
+}
+
+/* Double the Montgomery form projective point p.
+ *
+ * r  Result of doubling point.
+ * p  Point to double.
+ * t  Temporary ordinate data.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_dbl_8_ctx {
+    int state;
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_dbl_8_ctx;
+
+static int sp_256_proj_point_dbl_brainpool_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, const sp_point_256* p, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_dbl_8_ctx* ctx = (sp_256_proj_point_dbl_brainpool_8_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_dbl_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0:
+        ctx->t1 = t;
+        ctx->t2 = t + 2*8;
+        ctx->x = r->x;
+        ctx->y = r->y;
+        ctx->z = r->z;
+
+        /* Put infinity into result. */
+        if (r != p) {
+            r->infinity = p->infinity;
+        }
+        ctx->state = 1;
+        break;
+    case 1:
+        /* T1 = Z * Z */
+        sp_256_mont_sqr_brainpool_8(ctx->t1, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 2;
+        break;
+    case 2:
+        /* Z = Y * Z */
+        sp_256_mont_mul_brainpool_8(ctx->z, p->y, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 3;
+        break;
+    case 3:
+        /* Z = 2Z */
+        sp_256_mont_dbl_brainpool_8(ctx->z, ctx->z, p256_brainpool_mod);
+        ctx->state = 4;
+        break;
+    case 4:
+        /* T2 = X - T1 */
+        sp_256_mont_sub_brainpool_8(ctx->t2, p->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        /* T1 = X + T1 */
+        sp_256_mont_add_brainpool_8(ctx->t1, p->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        /* T2 = T1 * T2 */
+        sp_256_mont_mul_brainpool_8(ctx->t2, ctx->t1, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* T1 = 3T2 */
+        sp_256_mont_tpl_brainpool_8(ctx->t1, ctx->t2, p256_brainpool_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        /* Y = 2Y */
+        sp_256_mont_dbl_brainpool_8(ctx->y, p->y, p256_brainpool_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        /* Y = Y * Y */
+        sp_256_mont_sqr_brainpool_8(ctx->y, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* T2 = Y * Y */
+        sp_256_mont_sqr_brainpool_8(ctx->t2, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* T2 = T2/2 */
+        sp_256_div2_brainpool_8(ctx->t2, ctx->t2, p256_brainpool_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* Y = Y * X */
+        sp_256_mont_mul_brainpool_8(ctx->y, ctx->y, p->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* X = T1 * T1 */
+        sp_256_mont_sqr_brainpool_8(ctx->x, ctx->t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* X = X - Y */
+        sp_256_mont_sub_brainpool_8(ctx->x, ctx->x, ctx->y, p256_brainpool_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        /* X = X - Y */
+        sp_256_mont_sub_brainpool_8(ctx->x, ctx->x, ctx->y, p256_brainpool_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* Y = Y - X */
+        sp_256_mont_sub_brainpool_8(ctx->y, ctx->y, ctx->x, p256_brainpool_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        /* Y = Y * T1 */
+        sp_256_mont_mul_brainpool_8(ctx->y, ctx->y, ctx->t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        /* Y = Y - T2 */
+        sp_256_mont_sub_brainpool_8(ctx->y, ctx->y, ctx->t2, p256_brainpool_mod);
+        ctx->state = 19;
+        /* fall-through */
+    case 19:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 19) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_256_proj_point_dbl_brainpool_8(sp_point_256* r, const sp_point_256* p, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*8;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
+    if (r != p) {
+        r->infinity = p->infinity;
+    }
+
+    /* T1 = Z * Z */
+    sp_256_mont_sqr_brainpool_8(t1, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Z = Y * Z */
+    sp_256_mont_mul_brainpool_8(z, p->y, p->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Z = 2Z */
+    sp_256_mont_dbl_brainpool_8(z, z, p256_brainpool_mod);
+    /* T1 = T1 * sqrt(-a / 3) */
+    sp_256_mont_mul_brainpool_8(t1, t1, p256_brainpool_a_neg_div_3_sqrt, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = X - T1 */
+    sp_256_mont_sub_brainpool_8(t2, p->x, t1, p256_brainpool_mod);
+    /* T1 = X + T1 */
+    sp_256_mont_add_brainpool_8(t1, p->x, t1, p256_brainpool_mod);
+    /* T2 = T1 * T2 */
+    sp_256_mont_mul_brainpool_8(t2, t1, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T1 = 3T2 */
+    sp_256_mont_tpl_brainpool_8(t1, t2, p256_brainpool_mod);
+    /* Y = 2Y */
+    sp_256_mont_dbl_brainpool_8(y, p->y, p256_brainpool_mod);
+    /* Y = Y * Y */
+    sp_256_mont_sqr_brainpool_8(y, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = Y * Y */
+    sp_256_mont_sqr_brainpool_8(t2, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* T2 = T2/2 */
+    sp_256_div2_brainpool_8(t2, t2, p256_brainpool_mod);
+    /* Y = Y * X */
+    sp_256_mont_mul_brainpool_8(y, y, p->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* X = T1 * T1 */
+    sp_256_mont_sqr_brainpool_8(x, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* X = X - Y */
+    sp_256_mont_sub_brainpool_8(x, x, y, p256_brainpool_mod);
+    /* X = X - Y */
+    sp_256_mont_sub_brainpool_8(x, x, y, p256_brainpool_mod);
+    /* Y = Y - X */
+    sp_256_mont_sub_brainpool_8(y, y, x, p256_brainpool_mod);
+    /* Y = Y * T1 */
+    sp_256_mont_mul_brainpool_8(y, y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    /* Y = Y - T2 */
+    sp_256_mont_sub_brainpool_8(y, y, t2, p256_brainpool_mod);
+}
+
+/* Add two Montgomery form projective points.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_256_proj_point_add_8_ctx {
+    int state;
+    sp_256_proj_point_dbl_8_ctx dbl_ctx;
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1;
+    sp_digit* t2;
+    sp_digit* t3;
+    sp_digit* t4;
+    sp_digit* t5;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+} sp_256_proj_point_add_8_ctx;
+
+static int sp_256_proj_point_add_brainpool_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
+    const sp_point_256* p, const sp_point_256* q, sp_digit* t)
+{
+    int err = FP_WOULDBLOCK;
+    sp_256_proj_point_add_brainpool_8_ctx* ctx = (sp_256_proj_point_add_8_ctx*)sp_ctx->data;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_256* a = p;
+        p = q;
+        q = a;
+    }
+
+    typedef char ctx_size_test[sizeof(sp_256_proj_point_add_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->t1 = t;
+        ctx->t2 = t + 2*8;
+        ctx->t3 = t + 4*8;
+        ctx->t4 = t + 6*8;
+        ctx->t5 = t + 8*8;
+
+        ctx->state = 1;
+        break;
+    case 1:
+        /* Check double */
+        (void)sp_256_sub_8(ctx->t1, p256_brainpool_mod, q->y);
+        sp_256_norm_8(ctx->t1);
+        if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+            (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, ctx->t1))) != 0)
+        {
+            XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
+            ctx->state = 2;
+        }
+        else {
+            ctx->state = 3;
+        }
+        break;
+    case 2:
+        err = sp_256_proj_point_dbl_brainpool_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, r, p, t);
+        if (err == MP_OKAY)
+            ctx->state = 27; /* done */
+        break;
+    case 3:
+    {
+        int i;
+        ctx->rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        ctx->rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(ctx->rp[1], 0, sizeof(sp_point_256));
+        ctx->x = ctx->rp[p->infinity | q->infinity]->x;
+        ctx->y = ctx->rp[p->infinity | q->infinity]->y;
+        ctx->z = ctx->rp[p->infinity | q->infinity]->z;
+
+        ctx->ap[0] = p;
+        ctx->ap[1] = q;
+        for (i=0; i<8; i++) {
+            r->x[i] = ctx->ap[p->infinity]->x[i];
+        }
+        for (i=0; i<8; i++) {
+            r->y[i] = ctx->ap[p->infinity]->y[i];
+        }
+        for (i=0; i<8; i++) {
+            r->z[i] = ctx->ap[p->infinity]->z[i];
+        }
+        r->infinity = ctx->ap[p->infinity]->infinity;
+
+        ctx->state = 4;
+        break;
+    }
+    case 4:
+        /* U1 = X1*Z2^2 */
+        sp_256_mont_sqr_brainpool_8(ctx->t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 5;
+        break;
+    case 5:
+        sp_256_mont_mul_brainpool_8(ctx->t3, ctx->t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 6;
+        break;
+    case 6:
+        sp_256_mont_mul_brainpool_8(ctx->t1, ctx->t1, ctx->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 7;
+        break;
+    case 7:
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_8(ctx->t2, ctx->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 8;
+        break;
+    case 8:
+        sp_256_mont_mul_brainpool_8(ctx->t4, ctx->t2, ctx->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 9;
+        break;
+    case 9:
+        sp_256_mont_mul_brainpool_8(ctx->t2, ctx->t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 10;
+        break;
+    case 10:
+        /* S1 = Y1*Z2^3 */
+        sp_256_mont_mul_brainpool_8(ctx->t3, ctx->t3, ctx->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11:
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_8(ctx->t4, ctx->t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12:
+        /* H = U2 - U1 */
+        sp_256_mont_sub_brainpool_8(ctx->t2, ctx->t2, ctx->t1, p256_brainpool_mod);
+        ctx->state = 13;
+        break;
+    case 13:
+        /* R = S2 - S1 */
+        sp_256_mont_sub_brainpool_8(ctx->t4, ctx->t4, ctx->t3, p256_brainpool_mod);
+        ctx->state = 14;
+        break;
+    case 14:
+        /* Z3 = H*Z1*Z2 */
+        sp_256_mont_mul_brainpool_8(ctx->z, ctx->z, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 15;
+        break;
+    case 15:
+        sp_256_mont_mul_brainpool_8(ctx->z, ctx->z, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 16;
+        break;
+    case 16:
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_256_mont_sqr_brainpool_8(ctx->x, ctx->t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 17;
+        break;
+    case 17:
+        sp_256_mont_sqr_brainpool_8(ctx->t5, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 18;
+        break;
+    case 18:
+        sp_256_mont_mul_brainpool_8(ctx->y, ctx->t1, ctx->t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 19;
+        break;
+    case 19:
+        sp_256_mont_mul_brainpool_8(ctx->t5, ctx->t5, ctx->t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 20;
+        break;
+    case 20:
+        sp_256_mont_sub_brainpool_8(ctx->x, ctx->x, ctx->t5, p256_brainpool_mod);
+        ctx->state = 21;
+        break;
+    case 21:
+        sp_256_mont_dbl_brainpool_8(ctx->t1, ctx->y, p256_brainpool_mod);
+        ctx->state = 22;
+        break;
+    case 22:
+        sp_256_mont_sub_brainpool_8(ctx->x, ctx->x, ctx->t1, p256_brainpool_mod);
+        ctx->state = 23;
+        break;
+    case 23:
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_256_mont_sub_brainpool_8(ctx->y, ctx->y, ctx->x, p256_brainpool_mod);
+        ctx->state = 24;
+        break;
+    case 24:
+        sp_256_mont_mul_brainpool_8(ctx->y, ctx->y, ctx->t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 25;
+        break;
+    case 25:
+        sp_256_mont_mul_brainpool_8(ctx->t5, ctx->t5, ctx->t3, p256_brainpool_mod, p256_brainpool_mp_mod);
+        ctx->state = 26;
+        break;
+    case 26:
+        sp_256_mont_sub_brainpool_8(ctx->y, ctx->y, ctx->t5, p256_brainpool_mod);
+        ctx->state = 27;
+        /* fall-through */
+    case 27:
+        err = MP_OKAY;
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 27) {
+        err = FP_WOULDBLOCK;
+    }
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static void sp_256_proj_point_add_brainpool_8(sp_point_256* r,
+        const sp_point_256* p, const sp_point_256* q, sp_digit* t)
+{
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*8;
+    sp_digit* t3 = t + 4*8;
+    sp_digit* t4 = t + 6*8;
+    sp_digit* t5 = t + 8*8;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Ensure only the first point is the same as the result. */
+    if (q == r) {
+        const sp_point_256* a = p;
+        p = q;
+        q = a;
+    }
+
+    /* Check double */
+    (void)sp_256_sub_8(t1, p256_brainpool_mod, q->y);
+    sp_256_norm_8(t1);
+    if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+        (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, t1))) != 0) {
+        sp_256_proj_point_dbl_brainpool_8(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_256));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<8; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<8; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<8; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U1 = X1*Z2^2 */
+        sp_256_mont_sqr_brainpool_8(t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t3, t1, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t1, t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_8(t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t4, t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t2, t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S1 = Y1*Z2^3 */
+        sp_256_mont_mul_brainpool_8(t3, t3, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_8(t4, t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* H = U2 - U1 */
+        sp_256_mont_sub_brainpool_8(t2, t2, t1, p256_brainpool_mod);
+        /* R = S2 - S1 */
+        sp_256_mont_sub_brainpool_8(t4, t4, t3, p256_brainpool_mod);
+        /* Z3 = H*Z1*Z2 */
+        sp_256_mont_mul_brainpool_8(z, z, q->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(z, z, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X3 = R^2 - H^3 - 2*U1*H^2 */
+        sp_256_mont_sqr_brainpool_8(x, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sqr_brainpool_8(t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(y, t1, t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t5, t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_8(x, x, t5, p256_brainpool_mod);
+        sp_256_mont_dbl_brainpool_8(t1, y, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(x, x, t1, p256_brainpool_mod);
+        /* Y3 = R*(U1*H^2 - X3) - S1*H^3 */
+        sp_256_mont_sub_brainpool_8(y, y, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_8(y, y, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t5, t5, t3, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_8(y, y, t5, p256_brainpool_mod);
+    }
+}
+
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Fast implementation that generates a pre-computation table.
+ * 4 bits of window (no sliding!).
+ * Uses add and double for calculating table.
+ * 256 doubles.
+ * 76 adds.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_fast_brainpool_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_256 t[16 + 1];
+    sp_digit tmp[2 * 8 * 5];
+#endif
+    sp_point_256* rt = NULL;
+#ifndef WC_NO_CACHE_RESISTANT
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* p = NULL;
+#else
+    sp_point_256 p[1];
+#endif
+#endif /* !WC_NO_CACHE_RESISTANT */
+    sp_digit n;
+    int i;
+    int c;
+    int y;
+    int err = MP_OKAY;
+
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * (16 + 1),
+        heap, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+    #ifndef WC_NO_CACHE_RESISTANT
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256),
+            heap, DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    #endif
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                                DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        rt = t + 16;
+
+        /* t[0] = {0, 0, 1} * norm */
+        XMEMSET(&t[0], 0, sizeof(t[0]));
+        t[0].infinity = 1;
+        /* t[1] = {g->x, g->y, g->z} * norm */
+        (void)sp_256_mod_mul_norm_brainpool_8(t[1].x, g->x, p256_brainpool_mod);
+        (void)sp_256_mod_mul_norm_brainpool_8(t[1].y, g->y, p256_brainpool_mod);
+        (void)sp_256_mod_mul_norm_brainpool_8(t[1].z, g->z, p256_brainpool_mod);
+        t[1].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[ 2], &t[ 1], tmp);
+        t[ 2].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[ 3], &t[ 2], &t[ 1], tmp);
+        t[ 3].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[ 4], &t[ 2], tmp);
+        t[ 4].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[ 5], &t[ 3], &t[ 2], tmp);
+        t[ 5].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[ 6], &t[ 3], tmp);
+        t[ 6].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[ 7], &t[ 4], &t[ 3], tmp);
+        t[ 7].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[ 8], &t[ 4], tmp);
+        t[ 8].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[ 9], &t[ 5], &t[ 4], tmp);
+        t[ 9].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[10], &t[ 5], tmp);
+        t[10].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[11], &t[ 6], &t[ 5], tmp);
+        t[11].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[12], &t[ 6], tmp);
+        t[12].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[13], &t[ 7], &t[ 6], tmp);
+        t[13].infinity = 0;
+        sp_256_proj_point_dbl_brainpool_8(&t[14], &t[ 7], tmp);
+        t[14].infinity = 0;
+        sp_256_proj_point_add_brainpool_8(&t[15], &t[ 8], &t[ 7], tmp);
+        t[15].infinity = 0;
+
+        i = 6;
+        n = k[i+1] << 0;
+        c = 28;
+        y = (int)(n >> 28);
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_point_16_8(rt, t, y);
+            rt->infinity = !y;
+        }
+        else
+    #endif
+        {
+            XMEMCPY(rt, &t[y], sizeof(sp_point_256));
+        }
+        n <<= 4;
+        for (; i>=0 || c>=4; ) {
+            if (c < 4) {
+                n |= k[i--];
+                c += 32;
+            }
+            y = (n >> 28) & 0xf;
+            n <<= 4;
+            c -= 4;
+
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, tmp);
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, tmp);
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, tmp);
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, tmp);
+
+    #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_point_16_8(p, t, y);
+                p->infinity = !y;
+                sp_256_proj_point_add_brainpool_8(rt, rt, p, tmp);
+            }
+            else
+    #endif
+            {
+                sp_256_proj_point_add_brainpool_8(rt, rt, &t[y], tmp);
+            }
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_8(r, rt, tmp);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+#endif
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 8 * 5);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#ifndef WC_NO_CACHE_RESISTANT
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (p != NULL)
+    #endif
+        {
+            ForceZero(p, sizeof(sp_point_256));
+        #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+            XFREE(p, heap, DYNAMIC_TYPE_ECC);
+        #endif
+        }
+#endif /* !WC_NO_CACHE_RESISTANT */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_256) * 17);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+
+#ifdef FP_ECC
+/* Double the Montgomery form projective point p a number of times.
+ *
+ * r  Result of repeated doubling of point.
+ * p  Point to double.
+ * n  Number of times to double
+ * t  Temporary ordinate data.
+ */
+static void sp_256_proj_point_dbl_n_brainpool_8(sp_point_256* p, int n,
+    sp_digit* t)
+{
+    sp_digit* w = t;
+    sp_digit* a = t + 2*8;
+    sp_digit* b = t + 4*8;
+    sp_digit* t1 = t + 6*8;
+    sp_digit* t2 = t + 8*8;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+
+    x = p->x;
+    y = p->y;
+    z = p->z;
+
+    /* Y = 2*Y */
+    sp_256_mont_dbl_brainpool_8(y, y, p256_brainpool_mod);
+    /* W = Z^4 */
+    sp_256_mont_sqr_brainpool_8(w, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_sqr_brainpool_8(w, w, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    while (n-- > 0) {
+        /* A = 3*X^2 + a*W */
+        sp_256_mont_sqr_brainpool_8(t1, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t2, w, p256_brainpool_a_mont, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_tpl_brainpool_8(a, t1, p256_brainpool_mod);
+        sp_256_mont_add_brainpool_8(a, t2, a, p256_brainpool_mod);
+        /* B = X*Y^2 */
+        sp_256_mont_sqr_brainpool_8(t2, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(b, t2, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X = A^2 - 2B */
+        sp_256_mont_sqr_brainpool_8(x, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_8(t1, b, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(x, x, t1, p256_brainpool_mod);
+        /* Z = Z*Y */
+        sp_256_mont_mul_brainpool_8(z, z, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* t2 = Y^4 */
+        sp_256_mont_sqr_brainpool_8(t2, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if (n != 0) {
+            /* W = W*Y^4 */
+            sp_256_mont_mul_brainpool_8(w, w, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        }
+        /* y = 2*A*(B - X) - Y^4 */
+        sp_256_mont_sub_brainpool_8(y, b, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_8(y, y, a, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_dbl_brainpool_8(y, y, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(y, y, t2, p256_brainpool_mod);
+    }
+    /* Y = Y/2 */
+    sp_256_div2_brainpool_8(y, y, p256_brainpool_mod);
+}
+
+/* Convert the projective point to affine.
+ * Ordinates are in Montgomery form.
+ *
+ * a  Point to convert.
+ * t  Temporary data.
+ */
+static void sp_256_proj_to_affine_brainpool_8(sp_point_256* a, sp_digit* t)
+{
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2 * 8;
+    sp_digit* tmp = t + 4 * 8;
+
+    sp_256_mont_inv_brainpool_8(t1, a->z, tmp);
+
+    sp_256_mont_sqr_brainpool_8(t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_8(t1, t2, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+
+    sp_256_mont_mul_brainpool_8(a->x, a->x, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+    sp_256_mont_mul_brainpool_8(a->y, a->y, t1, p256_brainpool_mod, p256_brainpool_mp_mod);
+    XMEMCPY(a->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+}
+
+#endif /* FP_ECC */
+/* Add two Montgomery form projective points. The second point has a q value of
+ * one.
+ * Only the first point can be the same pointer as the result point.
+ *
+ * r  Result of addition.
+ * p  First point to add.
+ * q  Second point to add.
+ * t  Temporary ordinate data.
+ */
+static void sp_256_proj_point_add_qz1_brainpool_8(sp_point_256* r, const sp_point_256* p,
+        const sp_point_256* q, sp_digit* t)
+{
+    const sp_point_256* ap[2];
+    sp_point_256* rp[2];
+    sp_digit* t1 = t;
+    sp_digit* t2 = t + 2*8;
+    sp_digit* t3 = t + 4*8;
+    sp_digit* t4 = t + 6*8;
+    sp_digit* t5 = t + 8*8;
+    sp_digit* x;
+    sp_digit* y;
+    sp_digit* z;
+    int i;
+
+    /* Check double */
+    (void)sp_256_sub_8(t1, p256_brainpool_mod, q->y);
+    sp_256_norm_8(t1);
+    if ((sp_256_cmp_equal_8(p->x, q->x) & sp_256_cmp_equal_8(p->z, q->z) &
+        (sp_256_cmp_equal_8(p->y, q->y) | sp_256_cmp_equal_8(p->y, t1))) != 0) {
+        sp_256_proj_point_dbl_brainpool_8(r, p, t);
+    }
+    else {
+        rp[0] = r;
+
+        /*lint allow cast to different type of pointer*/
+        rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
+        XMEMSET(rp[1], 0, sizeof(sp_point_256));
+        x = rp[p->infinity | q->infinity]->x;
+        y = rp[p->infinity | q->infinity]->y;
+        z = rp[p->infinity | q->infinity]->z;
+
+        ap[0] = p;
+        ap[1] = q;
+        for (i=0; i<8; i++) {
+            r->x[i] = ap[p->infinity]->x[i];
+        }
+        for (i=0; i<8; i++) {
+            r->y[i] = ap[p->infinity]->y[i];
+        }
+        for (i=0; i<8; i++) {
+            r->z[i] = ap[p->infinity]->z[i];
+        }
+        r->infinity = ap[p->infinity]->infinity;
+
+        /* U2 = X2*Z1^2 */
+        sp_256_mont_sqr_brainpool_8(t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t4, t2, z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t2, t2, q->x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* S2 = Y2*Z1^3 */
+        sp_256_mont_mul_brainpool_8(t4, t4, q->y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* H = U2 - X1 */
+        sp_256_mont_sub_brainpool_8(t2, t2, x, p256_brainpool_mod);
+        /* R = S2 - Y1 */
+        sp_256_mont_sub_brainpool_8(t4, t4, y, p256_brainpool_mod);
+        /* Z3 = H*Z1 */
+        sp_256_mont_mul_brainpool_8(z, z, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        /* X3 = R^2 - H^3 - 2*X1*H^2 */
+        sp_256_mont_sqr_brainpool_8(t1, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sqr_brainpool_8(t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t3, x, t5, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t5, t5, t2, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_8(x, t1, t5, p256_brainpool_mod);
+        sp_256_mont_dbl_brainpool_8(t1, t3, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(x, x, t1, p256_brainpool_mod);
+        /* Y3 = R*(X1*H^2 - X3) - Y1*H^3 */
+        sp_256_mont_sub_brainpool_8(t3, t3, x, p256_brainpool_mod);
+        sp_256_mont_mul_brainpool_8(t3, t3, t4, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(t5, t5, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_sub_brainpool_8(y, t3, t5, p256_brainpool_mod);
+    }
+}
+
+#ifdef WOLFSSL_SP_SMALL
+#ifdef FP_ECC
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 4
+ * 16 entries
+ * 64 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_256_gen_stripe_table_brainpool_8(const sp_point_256* a,
+        sp_table_entry_256* table, sp_digit* tmp, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+#else
+    sp_point_256 t[3];
+#endif
+    sp_point_256* s1 = NULL;
+    sp_point_256* s2 = NULL;
+    int i;
+    int j;
+    int err = MP_OKAY;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
+        err = sp_256_mod_mul_norm_brainpool_8(t->x, a->x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_8(t->y, a->y, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_8(t->z, a->z, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_256_proj_to_affine_brainpool_8(t, tmp);
+
+        XMEMCPY(s1->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_256));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<4; i++) {
+            sp_256_proj_point_dbl_n_brainpool_8(t, 64, tmp);
+            sp_256_proj_to_affine_brainpool_8(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<4; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_256_proj_point_add_qz1_brainpool_8(t, s1, s2, tmp);
+                sp_256_proj_to_affine_brainpool_8(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#endif /* FP_ECC */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^64, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_stripe_brainpool_8(sp_point_256* r, const sp_point_256* g,
+        const sp_table_entry_256* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_256 rt[2];
+    sp_digit t[2 * 8 * 5];
+#endif
+    sp_point_256* p = NULL;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err = MP_OKAY;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = rt + 1;
+
+        XMEMCPY(p->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        XMEMCPY(rt->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+
+        y = 0;
+        x = 63;
+        for (j=0; j<4; j++) {
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
+            x += 64;
+        }
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_entry_16_8(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
+        rt->infinity = !y;
+        for (i=62; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j=0; j<4; j++) {
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
+                x += 64;
+            }
+
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_entry_16_8(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
+            p->infinity = !y;
+            sp_256_proj_point_add_qz1_brainpool_8(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_8(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_brainpool_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+#else
+    int err = MP_OKAY;
+    sp_digit tmp[2 * 8 * 5];
+    sp_cache_256_t* cache = NULL;
+
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_256 == 0) {
+         wc_InitMutex(&sp_cache_256_lock);
+         initCacheMutex_256 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_256_lock) != 0)
+       err = BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
+            sp_256_gen_stripe_table_brainpool_8(g, cache->table, tmp, heap);
+#ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_brainpool_8(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+        }
+    }
+
+    return err;
+#endif
+}
+
+#else
+#ifdef FP_ECC
+/* Generate the pre-computed table of points for the base point.
+ *
+ * width = 8
+ * 256 entries
+ * 32 bits between
+ *
+ * a      The base point.
+ * table  Place to store generated point data.
+ * tmp    Temporary data.
+ * heap  Heap to use for allocation.
+ */
+static int sp_256_gen_stripe_table_brainpool_8(const sp_point_256* a,
+        sp_table_entry_256* table, sp_digit* tmp, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+#else
+    sp_point_256 t[3];
+#endif
+    sp_point_256* s1 = NULL;
+    sp_point_256* s2 = NULL;
+    int i;
+    int j;
+    int err = MP_OKAY;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
+        err = sp_256_mod_mul_norm_brainpool_8(t->x, a->x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_8(t->y, a->y, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_mod_mul_norm_brainpool_8(t->z, a->z, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        t->infinity = 0;
+        sp_256_proj_to_affine_brainpool_8(t, tmp);
+
+        XMEMCPY(s1->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s1->infinity = 0;
+        XMEMCPY(s2->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        s2->infinity = 0;
+
+        /* table[0] = {0, 0, infinity} */
+        XMEMSET(&table[0], 0, sizeof(sp_table_entry_256));
+        /* table[1] = Affine version of 'a' in Montgomery form */
+        XMEMCPY(table[1].x, t->x, sizeof(table->x));
+        XMEMCPY(table[1].y, t->y, sizeof(table->y));
+
+        for (i=1; i<8; i++) {
+            sp_256_proj_point_dbl_n_brainpool_8(t, 32, tmp);
+            sp_256_proj_to_affine_brainpool_8(t, tmp);
+            XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
+            XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
+        }
+
+        for (i=1; i<8; i++) {
+            XMEMCPY(s1->x, table[1<<i].x, sizeof(table->x));
+            XMEMCPY(s1->y, table[1<<i].y, sizeof(table->y));
+            for (j=(1<<i)+1; j<(1<<(i+1)); j++) {
+                XMEMCPY(s2->x, table[j-(1<<i)].x, sizeof(table->x));
+                XMEMCPY(s2->y, table[j-(1<<i)].y, sizeof(table->y));
+                sp_256_proj_point_add_qz1_brainpool_8(t, s1, s2, tmp);
+                sp_256_proj_to_affine_brainpool_8(t, tmp);
+                XMEMCPY(table[j].x, t->x, sizeof(table->x));
+                XMEMCPY(table[j].y, t->y, sizeof(table->y));
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#endif /* FP_ECC */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r      Resulting point.
+ * k      Scalar to multiply by.
+ * table  Pre-computed table.
+ * map    Indicates whether to convert result to affine.
+ * ct     Constant time required.
+ * heap   Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_stripe_brainpool_8(sp_point_256* r, const sp_point_256* g,
+        const sp_table_entry_256* table, const sp_digit* k, int map,
+        int ct, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_256 rt[2];
+    sp_digit t[2 * 8 * 5];
+#endif
+    sp_point_256* p = NULL;
+    int i;
+    int j;
+    int y;
+    int x;
+    int err = MP_OKAY;
+
+    (void)g;
+    /* Constant time used for cache attack resistance implementation. */
+    (void)ct;
+    (void)heap;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = rt + 1;
+
+        XMEMCPY(p->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        XMEMCPY(rt->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+
+        y = 0;
+        x = 31;
+        for (j=0; j<8; j++) {
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
+            x += 32;
+        }
+    #ifndef WC_NO_CACHE_RESISTANT
+        if (ct) {
+            sp_256_get_entry_256_8(rt, table, y);
+        } else
+    #endif
+        {
+            XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
+            XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
+        }
+        rt->infinity = !y;
+        for (i=30; i>=0; i--) {
+            y = 0;
+            x = i;
+            for (j=0; j<8; j++) {
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
+                x += 32;
+            }
+
+            sp_256_proj_point_dbl_brainpool_8(rt, rt, t);
+        #ifndef WC_NO_CACHE_RESISTANT
+            if (ct) {
+                sp_256_get_entry_256_8(p, table, y);
+            }
+            else
+        #endif
+            {
+                XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
+                XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
+            }
+            p->infinity = !y;
+            sp_256_proj_point_add_qz1_brainpool_8(rt, rt, p, t);
+        }
+
+        if (map != 0) {
+            sp_256_map_brainpool_8(r, rt, t);
+        }
+        else {
+            XMEMCPY(r, rt, sizeof(sp_point_256));
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * g     Point to multiply.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_brainpool_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+#ifndef FP_ECC
+    return sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+#else
+    int err = MP_OKAY;
+    sp_digit tmp[2 * 8 * 5];
+    sp_cache_256_t* cache = NULL;
+
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_256 == 0) {
+         wc_InitMutex(&sp_cache_256_lock);
+         initCacheMutex_256 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_256_lock) != 0)
+       err = BAD_MUTEX_E;
+#endif /* HAVE_THREAD_LS */
+
+    if (err == MP_OKAY) {
+        if (cache == NULL) {
+            sp_ecc_get_cache_256(g, &cache);
+            if (cache == NULL) /* no entry found, fall back to slower mulmod */
+                err = sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+        }
+        if (cache != NULL && cache->cnt == 2)
+            sp_256_gen_stripe_table_brainpool_8(g, cache->table, tmp, heap);
+#ifndef HAVE_THREAD_LS
+        wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* HAVE_THREAD_LS */
+
+        if (cache != NULL) {
+            if (cache->cnt < 2) {
+                err = sp_256_ecc_mulmod_fast_brainpool_8(r, g, k, map, ct, heap);
+            }
+            else {
+                err = sp_256_ecc_mulmod_stripe_brainpool_8(r, g, cache->table, k,
+                        map, ct, heap);
+            }
+        }
+    }
+
+    return err;
+#endif
+}
+
+#endif /* WOLFSSL_SP_SMALL */
+/* Multiply the point by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * p     Point to multiply.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_brainpool_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
+        int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[8];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 8, km);
+        sp_256_point_from_ecc_point_8(point, gm);
+
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_8(point, point, k, map, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_8(point, point, k, map, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_8(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#ifdef WOLFSSL_SP_SMALL
+/* Stripe table
+ * Gap = 64
+ * Width = 4
+ */
+static const sp_table_entry_256 p256_brainpool_table[16] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0x351fd10c,0x27c0d92d,0xb97cf30a,0x80de4d9a,0x6b892ad3,0x704c311d,
+        0x9e119bdf,0x8e1f767a },
+      { 0xa0917a17,0x9a4fe948,0xcd950162,0xa618f259,0xdfbd8b03,0x16fdf6e8,
+        0x026eb0a2,0x14eb78c6 } },
+    /* 2 */
+    { { 0xf1296a6b,0x24a31b71,0xe37256d0,0x373e4302,0xf7cd9cb1,0xde09beeb,
+        0x48093dd2,0x5c892956 },
+      { 0xf6258802,0xc3870c92,0xe33d8590,0x6ecefac2,0xce3d2196,0x62df0574,
+        0x7285bebd,0x5760015b } },
+    /* 3 */
+    { { 0x06ecb543,0xe4c56816,0x90556047,0x27666c38,0x77088a4e,0x6366d120,
+        0x885709c9,0x142d8c20 },
+      { 0xd655779e,0x94e05202,0x87e40c1b,0x042b8ca2,0x5d6daaab,0xbe2836b7,
+        0x33ca2df7,0x299705e0 } },
+    /* 4 */
+    { { 0xf9140263,0xd08fa529,0x2686fa5d,0x7448f3f6,0xfce3ed45,0xf9302740,
+        0x6d6667fe,0x84d5065e },
+      { 0xf511b1b6,0xc0e10531,0x8eb55689,0x43ea58bc,0x626d9688,0xd7dd957f,
+        0x26a297c9,0x0b7185b4 } },
+    /* 5 */
+    { { 0xae1d1e5c,0x50e67cc1,0x16dd1815,0x895b7510,0x9d12868a,0x392c7be3,
+        0x1cec789e,0x010e0d94 },
+      { 0xfe41036c,0xa540208f,0x03d80585,0x08e8d2a2,0x4f712523,0xbc80b033,
+        0x04831658,0x5d5068ea } },
+    /* 6 */
+    { { 0x5da2d579,0xe2027285,0xb8629d9d,0x6ade2ea0,0x573ac21a,0xe2d0d0a2,
+        0x836ad34c,0x16b88703 },
+      { 0x8879517c,0x0cc903fe,0x27d9768d,0x7eeb8433,0x2df6564e,0xa1d8d03b,
+        0x89ee40c2,0x77d73ef0 } },
+    /* 7 */
+    { { 0xcd6e8a0d,0x683be567,0x5bf7e51a,0x927e071c,0x39e50085,0x7e3f8830,
+        0x22d1bc43,0x91326bf6 },
+      { 0x4b109cd9,0x53de2fb0,0x61805fbb,0xaccc68d2,0x8063ee76,0x20e0472b,
+        0x40b65f39,0x281c9be7 } },
+    /* 8 */
+    { { 0x6e5c5ec8,0xf0a10532,0x81605f57,0x7db8c847,0xc960a4b8,0xc7568e6e,
+        0xaffe7677,0x8e99894f },
+      { 0x374d6f0f,0xe257e44c,0x5d42dd2c,0x4507bb52,0x3729ac93,0x61da9c47,
+        0x036eed63,0x5c266abc } },
+    /* 9 */
+    { { 0xe34dc1e7,0x0b28898f,0x44315734,0xdda18d77,0x7e54dcba,0x9f7b8f94,
+        0x2475bd09,0x0daaeaf8 },
+      { 0xc8e65f4e,0x33e60595,0x37f2b1eb,0x63ee5269,0x29c76fde,0x0f2ce8ef,
+        0xb956a848,0x1c2e3854 } },
+    /* 10 */
+    { { 0x4f00e05e,0x98008385,0x21db8fee,0x39615cca,0x34fff685,0x4f169647,
+        0x3a4a5d62,0x1bee1c7e },
+      { 0x85f08613,0x1d87da55,0xc8dff598,0x76a06bce,0x7391952e,0xaf77038b,
+        0xfdb9c9ed,0x8830ccd1 } },
+    /* 11 */
+    { { 0x2aff481a,0x5e180538,0xc54d6397,0xaaaa5588,0xb3476f05,0xd7997389,
+        0x40bb0d95,0x226e251a },
+      { 0xe14fcf24,0xd6190a08,0xf1a2328d,0x377a8988,0x8c44f8b6,0x7d27d30f,
+        0x4ac3d463,0x293c7674 } },
+    /* 12 */
+    { { 0xbf5588a1,0xbd0db348,0x396ab42d,0xa92d6c30,0xba7e78e7,0xde124ce6,
+        0x4303f840,0x279a248f },
+      { 0x7ac08331,0xbf1018a1,0x84145fc0,0x3c6649d2,0x8e09020f,0x178b24db,
+        0x17c2187b,0x82075e16 } },
+    /* 13 */
+    { { 0xaa2f8e2d,0x6c7e4629,0x35754fd0,0xb0756623,0xcc0d865f,0x3416b1c0,
+        0x750165a9,0x9cfff345 },
+      { 0x5e77453e,0x3f2c1abc,0x8de7d47c,0xd4d245da,0xeba4bf42,0x4c2d42e2,
+        0x88854be4,0x961f73ac } },
+    /* 14 */
+    { { 0x6125847c,0x2e622ce8,0xcb873533,0x112906fa,0x04887fa2,0x414ad691,
+        0x1b6e6914,0x56a28431 },
+      { 0xb0529422,0x6b137adf,0x585c5b32,0xa4606ab1,0xc0d0b233,0x1965b796,
+        0x7628bbae,0x0a310e89 } },
+    /* 15 */
+    { { 0x5c0f6a5a,0x72ca2aa5,0x90f75c1a,0xfc5a6aec,0x4c8dca5e,0x027fffbc,
+        0x51bcd38b,0x4be8a962 },
+      { 0xc885241d,0x718f0601,0xb29c5fcd,0x929f3af7,0x2f153ae4,0xb9b9f31d,
+        0x343b86c4,0x404f8982 } },
+};
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^64, ...
+ * Pre-generated: products of all combinations of above.
+ * 4 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_base_brainpool_8(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_256_ecc_mulmod_stripe_brainpool_8(r, &p256_brainpool_base, p256_brainpool_table,
+                                      k, map, ct, heap);
+}
+
+#else
+/* Stripe table
+ * Gap = 32
+ * Width = 8
+ */
+static const sp_table_entry_256 p256_brainpool_table[256] = {
+    /* 0 */
+    { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
+    /* 1 */
+    { { 0x351fd10c,0x27c0d92d,0xb97cf30a,0x80de4d9a,0x6b892ad3,0x704c311d,
+        0x9e119bdf,0x8e1f767a },
+      { 0xa0917a17,0x9a4fe948,0xcd950162,0xa618f259,0xdfbd8b03,0x16fdf6e8,
+        0x026eb0a2,0x14eb78c6 } },
+    /* 2 */
+    { { 0xc8f5c1a7,0x73e4c534,0x62789f21,0xbe097cf8,0xa9c337f1,0xd27f2837,
+        0x4e5507c0,0x24a44815 },
+      { 0x7909be57,0xed3adebd,0x276cbc8d,0x9ca0f9a1,0xb0953171,0x6253841d,
+        0x7276c4ee,0x4633cb49 } },
+    /* 3 */
+    { { 0x88fe9c55,0xc642f997,0x9a3d1abc,0x8e5acd11,0xdff170e0,0xc7d9a7a9,
+        0x97885ced,0x19e52556 },
+      { 0x338dfd28,0x035cd570,0x968e067d,0xef4ebb08,0x48b58eeb,0x056283e2,
+        0xd7ded6b3,0x4f39eac6 } },
+    /* 4 */
+    { { 0xf1296a6b,0x24a31b71,0xe37256d0,0x373e4302,0xf7cd9cb1,0xde09beeb,
+        0x48093dd2,0x5c892956 },
+      { 0xf6258802,0xc3870c92,0xe33d8590,0x6ecefac2,0xce3d2196,0x62df0574,
+        0x7285bebd,0x5760015b } },
+    /* 5 */
+    { { 0x06ecb543,0xe4c56816,0x90556047,0x27666c38,0x77088a4e,0x6366d120,
+        0x885709c9,0x142d8c20 },
+      { 0xd655779e,0x94e05202,0x87e40c1b,0x042b8ca2,0x5d6daaab,0xbe2836b7,
+        0x33ca2df7,0x299705e0 } },
+    /* 6 */
+    { { 0x0b85b709,0x10031646,0xe368fa3e,0xdc21e3e6,0x7ed8d06d,0x9b76a5d7,
+        0xe17a0417,0x9904a9a6 },
+      { 0x70acb164,0x3d7c22aa,0xc358f350,0x36a1219b,0x7409cff6,0x36a4ec81,
+        0xf3ab9d73,0x71ce46ad } },
+    /* 7 */
+    { { 0x119f840a,0xe7aeafc1,0x296c420f,0xd99ccf6d,0x56a59204,0x03a4c72f,
+        0xf88149db,0x3a8562f1 },
+      { 0x224c53ea,0xc20b941b,0xb0d1704e,0x52f656dc,0x23b9d060,0x82581865,
+        0xbcef5521,0x4f55fe51 } },
+    /* 8 */
+    { { 0x275bb3f6,0x3c75270d,0x4f8e33d4,0x6c10b47a,0x1f7c48a7,0x46b846a5,
+        0x16286af3,0x639f1f5f },
+      { 0x3e8566d2,0xc48e48b9,0xf511c300,0x3c03562e,0x77c0e96b,0xfb6fcde0,
+        0x2b9018ba,0x636b2d5e } },
+    /* 9 */
+    { { 0x05d1513e,0xd5551f2b,0x0aaabfcf,0x17d23835,0x35e681c8,0xc9f51eda,
+        0x13636c65,0x533713f0 },
+      { 0x2f285164,0xb6a584c1,0x3f286845,0xf7b760d1,0xb3c6a1ff,0xb6cf41e9,
+        0xa7ad9506,0x2ef2778d } },
+    /* 10 */
+    { { 0x20eea3e0,0x790d03f5,0x45a9275c,0x3fcfc172,0x7ef693f9,0x7bd1a4e8,
+        0xc1700941,0x229b1c98 },
+      { 0xdeaf43eb,0x26ed7b4e,0xc66f95a8,0xa9d93d7f,0x25a42e24,0x6fce91f7,
+        0xdb3a2035,0x4582a472 } },
+    /* 11 */
+    { { 0xc1055852,0xaf030fa3,0xa221000b,0x5db858f6,0x209a6586,0xa4b08dbe,
+        0x8fad6165,0x63e9e7e6 },
+      { 0x217f5cff,0xfde85aa9,0x5f150318,0x745f066a,0x8c93c6bd,0x532d0e9c,
+        0xcd197708,0x12c4d5a2 } },
+    /* 12 */
+    { { 0x845fddf3,0x5707a450,0xda9be8ec,0x164e9af0,0x766ee127,0xf7815931,
+        0x1d185b95,0x284b1f57 },
+      { 0x3d970206,0x92bb4719,0xfa25405e,0x14eccaee,0x86199c9b,0xb4748010,
+        0x79dc33b5,0x4601692c } },
+    /* 13 */
+    { { 0x90a105b4,0x20590708,0xc2824fff,0xa0d4ae1c,0x05852e4a,0xf2592dc5,
+        0x459a7c49,0x442b4179 },
+      { 0x1e46ab9f,0xb0b4556d,0x1e3bec4e,0xfe409195,0x87ed8f19,0xb0c18dc0,
+        0x4ce087d0,0x4a8b18e4 } },
+    /* 14 */
+    { { 0xb99302e2,0x0f38ca3b,0x2f8a3b8b,0xcbef876c,0x1a5b4d63,0x5b3cc625,
+        0xcf7a905e,0x9519ce3d },
+      { 0x750876fc,0x7ec3dbeb,0xa9b771c7,0xe440a936,0x1ffdf723,0x31f25b6e,
+        0x988b4449,0x58b08c2b } },
+    /* 15 */
+    { { 0xd98fcd83,0x5a317cb7,0xe391ead0,0xb8e74a22,0x7c12d7d0,0xd2baeda1,
+        0xf65269b5,0x72f848f7 },
+      { 0x55bb1580,0x345c84ce,0xb9e5ac1c,0x2a3d8b0c,0x55167317,0x573c659b,
+        0xec026e4f,0x44d5a015 } },
+    /* 16 */
+    { { 0xf9140263,0xd08fa529,0x2686fa5d,0x7448f3f6,0xfce3ed45,0xf9302740,
+        0x6d6667fe,0x84d5065e },
+      { 0xf511b1b6,0xc0e10531,0x8eb55689,0x43ea58bc,0x626d9688,0xd7dd957f,
+        0x26a297c9,0x0b7185b4 } },
+    /* 17 */
+    { { 0xae1d1e5c,0x50e67cc1,0x16dd1815,0x895b7510,0x9d12868a,0x392c7be3,
+        0x1cec789e,0x010e0d94 },
+      { 0xfe41036c,0xa540208f,0x03d80585,0x08e8d2a2,0x4f712523,0xbc80b033,
+        0x04831658,0x5d5068ea } },
+    /* 18 */
+    { { 0x7ccb86e9,0x2d679cba,0x11f7fba1,0xfaa65df1,0xb0477410,0xb62e8274,
+        0x8b16228f,0x1ed9dfc3 },
+      { 0x791afde4,0x1d480d4d,0x4d09724e,0x942d066b,0x9c757f29,0x4b29c66a,
+        0x02a097bd,0x0eb81226 } },
+    /* 19 */
+    { { 0x42355ce7,0x77c43514,0x708188c7,0x321087d9,0xc8748cdd,0x83f5c7a1,
+        0x3d673c24,0x6c239a90 },
+      { 0xec36c837,0xabd7ceec,0x1830fbfe,0xbacf26f8,0x8c9f4d19,0xdb2e8776,
+        0x3247c827,0x91a19c71 } },
+    /* 20 */
+    { { 0x5da2d579,0xe2027285,0xb8629d9d,0x6ade2ea0,0x573ac21a,0xe2d0d0a2,
+        0x836ad34c,0x16b88703 },
+      { 0x8879517c,0x0cc903fe,0x27d9768d,0x7eeb8433,0x2df6564e,0xa1d8d03b,
+        0x89ee40c2,0x77d73ef0 } },
+    /* 21 */
+    { { 0xcd6e8a0d,0x683be567,0x5bf7e51a,0x927e071c,0x39e50085,0x7e3f8830,
+        0x22d1bc43,0x91326bf6 },
+      { 0x4b109cd9,0x53de2fb0,0x61805fbb,0xaccc68d2,0x8063ee76,0x20e0472b,
+        0x40b65f39,0x281c9be7 } },
+    /* 22 */
+    { { 0x8c6fabfc,0x9b0851db,0x6fb838ef,0xc3d9947e,0xd4219b65,0x5dcdadd4,
+        0x7e602c9c,0x3f53dc68 },
+      { 0x829e490c,0xbdf1048e,0xf2611ec6,0x75ffe480,0xa2e6884a,0x8321742b,
+        0xd2920ea0,0x014b02c0 } },
+    /* 23 */
+    { { 0x52a96682,0x86672096,0x72ce5eeb,0x2e8a238d,0x72476936,0x314a630c,
+        0x7ec48e05,0x5e5d985b },
+      { 0x7e932fad,0x632a99ad,0xe6d02125,0xa7a15b8b,0xaadb6f09,0x28a2d54d,
+        0x609b894e,0x4b4f6c60 } },
+    /* 24 */
+    { { 0x42d9d2d2,0xa6d68773,0x2d62887b,0xbd82a6e1,0xcf785e38,0x8d164fd9,
+        0x42b27829,0x38104468 },
+      { 0x3a80de6c,0x2b73db17,0x64ff23fb,0xdf6972b1,0xd06fb8a5,0xe023383a,
+        0xe2e24ba9,0x5b06e623 } },
+    /* 25 */
+    { { 0x714d091c,0x838c82a4,0x4fec425c,0x146f26de,0xe30fdc89,0x757b42f5,
+        0x9fa46a1e,0x1eae2bef },
+      { 0xf977e1fd,0x02379f4a,0xd498d67e,0xf0000115,0xa6ad1a4e,0x033c03c2,
+        0x44ea0587,0x9d3b4f7d } },
+    /* 26 */
+    { { 0x30c72d8d,0x4f4ccd7e,0xf8c5c7ad,0x0f5fd3d3,0x40321a77,0xdffd1332,
+        0x3ecfdde8,0x4f198c28 },
+      { 0x2cfff945,0x57b97b05,0x096f935b,0xfcd4a610,0xb2761f93,0x8be9a793,
+        0xb1488b69,0x0ee2d1f7 } },
+    /* 27 */
+    { { 0x92a8316e,0xc35e51f9,0x1871da8b,0xf5474d7c,0xe2a66ca8,0x880b76bf,
+        0x43ec8d6e,0x475d6f6b },
+      { 0xcf96dbb3,0x377d5158,0x15381c08,0x180d25df,0x50f36379,0xbbf995d4,
+        0xf2ef299f,0x4ef54353 } },
+    /* 28 */
+    { { 0x24643453,0x54aa7bce,0x210a960e,0x09b324cc,0x62dcb74c,0x4bed1f78,
+        0x3fee131b,0x64a54a5a },
+      { 0xcc66fd17,0x9b957ac5,0x31c32199,0x34c13718,0x35556e3e,0x3dc94262,
+        0xb411c37d,0x9a05bcaf } },
+    /* 29 */
+    { { 0xde068869,0xec538ba3,0x24262300,0xf7676a53,0x0fc70593,0x8bae8d7d,
+        0x994fb903,0x80e6d6e2 },
+      { 0xfd7cd055,0xf7b670af,0xa06092b5,0x54545bc3,0x4e792335,0xbed99fa2,
+        0xbf47aee1,0xa274e473 } },
+    /* 30 */
+    { { 0xf8b8af1b,0x40f7d649,0xacdf6e1a,0xa82f6659,0x1ce7d6d0,0x18d6d3aa,
+        0xa4faaab9,0x10ce7b5f },
+      { 0xc6b15ff1,0x99bd1db3,0x18514ce7,0x09d19afc,0x9bd87d84,0xd281d21b,
+        0xf3d60b5c,0x671d25e1 } },
+    /* 31 */
+    { { 0x9d94ef67,0x846546bb,0x25a7e060,0x8e0f183b,0x6c63fe81,0x644e7526,
+        0x5d6c5cfc,0x3e50ed2e },
+      { 0x43fc9769,0x06f1ecdc,0xae18d8d7,0xd2d66dae,0xa1640e48,0x9952a573,
+        0x4f1854e4,0x05178902 } },
+    /* 32 */
+    { { 0x7db41b11,0x20d3facd,0x228af15b,0x41b1cc6e,0x3ef005c2,0xd22413e5,
+        0x9f59e296,0x233ccf0e },
+      { 0x1e88b905,0x3de4f64d,0xbba7d4c5,0x23891bf6,0xeef7b840,0xf9663f95,
+        0xf92d7062,0x912b0b75 } },
+    /* 33 */
+    { { 0x7f425cab,0x232dacf2,0xc711b74b,0xf6231463,0x631ff73c,0xe0e9728d,
+        0x75198fac,0x9e36d3dd },
+      { 0x1912ba71,0x6f7d7391,0x35c8fffc,0x714f60f9,0x2948648e,0x55e09a07,
+        0x4a79f9ee,0x8ee32243 } },
+    /* 34 */
+    { { 0x27e40fc4,0x9b35c12f,0x417e25e9,0x6ffa3df3,0x8b8eb716,0x41daf773,
+        0x7f65adb6,0xa75b9586 },
+      { 0x2b69f058,0x6c599a0b,0x20c79dfe,0x7ba66f77,0x0a63b13d,0xa17f982e,
+        0x69987041,0x5415eadf } },
+    /* 35 */
+    { { 0x4a310aa3,0x28c3f195,0x9108cf43,0x73fd1c6d,0xf16ab5c1,0x5e1bdd7c,
+        0x093cefd7,0x90c5357a },
+      { 0xc5b0d6dc,0xda591aa1,0x33eff993,0xa9edc8b3,0x6aa5f18c,0x7a96ac18,
+        0xe1449fd2,0x9855f5c0 } },
+    /* 36 */
+    { { 0x3cca194a,0x86b4bf96,0x81a70fb6,0x2a17f5e5,0xf53cd3a2,0xbdbed67e,
+        0x9d121fce,0x5bf0018b },
+      { 0xf96fbd37,0x3597cf15,0x533d0231,0xeecbe799,0x5857f2fd,0xb1e31f30,
+        0xe762e299,0x26e668b9 } },
+    /* 37 */
+    { { 0x5bee894e,0x9676bfb6,0x1601cbfc,0xb03508c3,0xffee0bbe,0xac0d8100,
+        0x76ed9459,0x65f1fbe8 },
+      { 0x4ab085fc,0xee6fb948,0x71435d2c,0x2e98416c,0xbf060507,0xb8cfd622,
+        0xd5647baa,0x7bdd6438 } },
+    /* 38 */
+    { { 0x80986f2c,0xed9e1734,0x6a5edf0f,0x691ecea2,0xb2169b88,0x3e7edc9b,
+        0x7a9ac6f3,0x5464e0eb },
+      { 0xdc6c188c,0x42fa9444,0x624b40f5,0xd9742128,0x5f043e0d,0x389286d6,
+        0xc5295894,0x7f581276 } },
+    /* 39 */
+    { { 0xbaaabd57,0xdd2a4070,0xc1585bb8,0xed723ec2,0x69357e51,0xf6463a75,
+        0xd3e2fed7,0x083d7c38 },
+      { 0x3f151146,0xe07601b5,0xedfb9ae6,0x948b8285,0x09c32a68,0xd55e482e,
+        0x18642d48,0x8e42fc6d } },
+    /* 40 */
+    { { 0x12cebfe5,0x22c15f30,0x074bcbff,0x86c45137,0xd56c5015,0x8c00755f,
+        0xdff9e705,0x48e54775 },
+      { 0x460a794a,0xb7f25d39,0xb81370c1,0x5acdac84,0x99bdcd8a,0xf2efe782,
+        0x30120f0e,0x9a476a6d } },
+    /* 41 */
+    { { 0x5182f136,0x9ea079d8,0x66f61df8,0xf62bd5f7,0x16bfc5be,0x8ee14de1,
+        0x89c41bc1,0xa6db7ba0 },
+      { 0xec458e03,0x4690c451,0x3e0240e5,0x59aac85d,0x78ecf1f1,0x9c5bb835,
+        0x72fd24c1,0x6923d28c } },
+    /* 42 */
+    { { 0xb0578ad3,0x9aee6df9,0x052cc5a4,0xb365c5d1,0x311ea7c6,0xfb910d82,
+        0x82035508,0x02abf73d },
+      { 0x3714bba1,0xcf46ba97,0x7e2d1aeb,0x0829eb3f,0x3b6f29c4,0xda0a7141,
+        0x1648726d,0x5a0e64f3 } },
+    /* 43 */
+    { { 0x2bede6a4,0xafd889f6,0x8ab8abf4,0x8e1af97c,0xf259eb8c,0x493f8923,
+        0xfa7ad7f4,0xa8505d02 },
+      { 0xbc3bdaee,0x52fc497a,0x41467619,0xa50f2aca,0x426c1fd7,0x2e9ae2e8,
+        0x38703d85,0x2707891a } },
+    /* 44 */
+    { { 0x0158d90c,0xbe1029b4,0xdfc475d1,0xeca1869e,0x1bdbbe54,0xb8d61c7e,
+        0x15470ba8,0x0ed8d10f },
+      { 0x418dc0c2,0x7266a089,0x7de1a65a,0x0959a8a1,0x159de05c,0xd34abbac,
+        0x8a391120,0x477f0bf5 } },
+    /* 45 */
+    { { 0xfeb60f0f,0xb6cad1c7,0x76610e10,0x097cc233,0x156dd62b,0x4fbe861c,
+        0xe5de6cb2,0x4b9b99ce },
+      { 0x39968d1a,0xa87a0b33,0xd18ac7b3,0x5d56127d,0xf960068e,0x814c2ab1,
+        0x2d14b69a,0x435873bc } },
+    /* 46 */
+    { { 0x4ee278fd,0x2a9c846a,0xdf69ecf7,0x90162b39,0xc6de16b3,0x9ee1a521,
+        0x6a81e2a6,0x0370bf61 },
+      { 0xc522e916,0x82136b36,0x1d9034f9,0x9412d1e5,0x533d7c64,0x73f97ac3,
+        0xcde8c3aa,0x65a540ad } },
+    /* 47 */
+    { { 0x133e19f6,0xb5608e50,0xfb1d9fa7,0xe66c8c31,0x7e0e195c,0x8de40dc8,
+        0xd95409d7,0x950db158 },
+      { 0x1a2450f5,0x77be3a1b,0x41017467,0x055c23a2,0x7dc308da,0x80fd37a1,
+        0xa95ff5c4,0x9e5e1fc1 } },
+    /* 48 */
+    { { 0xb5e58ac1,0xaaa1e730,0xbcbb0063,0xdd95ec53,0x00811c18,0x90760027,
+        0x99a20008,0x12ec14fc },
+      { 0x09baed47,0x1dd89c35,0x41ab6d1f,0x542ae1fb,0x00107949,0xee458dc8,
+        0x8eb75f08,0x1c7a50c2 } },
+    /* 49 */
+    { { 0x7e185805,0xd8a4ada5,0x762f6ab5,0x4dbea49c,0x49166ded,0xe6a4321b,
+        0xc7d04873,0x951ce486 },
+      { 0xfdaf05fd,0x8d9b3f22,0x2eae5a35,0x6544ac9b,0x8fd153a0,0x74e0bfe7,
+        0x347bc18f,0x61af6baf } },
+    /* 50 */
+    { { 0x9ae1154c,0x09c1ba78,0x279b63ce,0xe6a746ac,0xd84583c5,0x8cff94b1,
+        0x2465b13a,0x06e59447 },
+      { 0xd5fed623,0xf5f65e47,0x0c2b8c2e,0xc7b91ef3,0x3cad351e,0x39cf8611,
+        0xe7bbd346,0x4f3ef48a } },
+    /* 51 */
+    { { 0xdd7dbd82,0x2724bed1,0xc3bec63f,0x8dc8cd47,0x3e975e01,0x4cd0a916,
+        0xb2e035da,0x4f6e7ccb },
+      { 0x98f4f427,0x7ee546fb,0x188f109b,0xfadfc5fc,0xd9380705,0xce384c86,
+        0x9c4ace1e,0x85bdb54f } },
+    /* 52 */
+    { { 0x814d891a,0x754aab0a,0xeefdb2e2,0x6fa260c4,0x8f4d2d80,0x8064085f,
+        0xc5867244,0x4379b7bb },
+      { 0x6f9f4662,0x54b916ea,0x4155432c,0x63b4ce12,0x14b0920c,0x12a57f8d,
+        0xeae376f0,0x269a352d } },
+    /* 53 */
+    { { 0xcfddb93b,0xd0bc17fc,0x6e9a0034,0x4be3f893,0xb7182f0d,0xebe09af4,
+        0xed336a53,0x0f158d04 },
+      { 0x810cd255,0x791a5f87,0xd6b59e91,0x9706d154,0xf288a56c,0x67d61b39,
+        0xbe25b302,0x9c2b3b85 } },
+    /* 54 */
+    { { 0x155089e5,0xaa674d9c,0x8e25592f,0x3ee43095,0x2f071fd1,0x7b9023b9,
+        0x2ca57511,0x849f3374 },
+      { 0x9529f58e,0x7546dc1f,0xcd7aa8c2,0xc59f5b35,0x3a583e17,0x3945e630,
+        0x021207c5,0x70aaa812 } },
+    /* 55 */
+    { { 0x0511e250,0x4c229145,0x0b65abcd,0xd075fa91,0x876c4222,0x9d8a7e8f,
+        0x6db01d5e,0x5ca221bf },
+      { 0xdfcfaa5e,0x76b1dfff,0x80bb29a6,0xa12d57d8,0x1409dd48,0x74ce1001,
+        0xbec730eb,0xa78812bc } },
+    /* 56 */
+    { { 0x4149795a,0xbb42e5f3,0x06a2f272,0x0a12f390,0x00218702,0xc01899ad,
+        0x3ed8ccd9,0x31305702 },
+      { 0x3c5d2e15,0x12f1ccf2,0x490dfc3a,0xbade47a1,0x2d6bbd2a,0xbfd8fff5,
+        0x0ba5608d,0x11bda856 } },
+    /* 57 */
+    { { 0xdef18309,0xe1befb42,0x7d15dccc,0x9f1d5c8e,0x2201fc51,0x5a91b23f,
+        0xe4f78231,0x73d9ecca },
+      { 0x5e136f2f,0xa4b8eabc,0x14da21a1,0x8017df32,0x52dc7a80,0x4605206d,
+        0xd91a0cb4,0x6f697028 } },
+    /* 58 */
+    { { 0x4be0a122,0x1533415c,0xc59090ea,0xadc438ca,0xa6a78613,0xadacef6b,
+        0x732a326d,0x9c1b642d },
+      { 0x65214e91,0x78c98053,0x950ef59a,0x80a8d5d5,0x942a0436,0x5d763394,
+        0xb4fc7f95,0x9801d2b5 } },
+    /* 59 */
+    { { 0x410f177c,0x41677546,0x9605e783,0x6c72ddaa,0xe6cd321a,0x25ad08c3,
+        0xbe4459ad,0x93988479 },
+      { 0xc1f4f16d,0x85db760b,0x9ff63f86,0x89ddcb6a,0x0df9f83e,0x7e9189d8,
+        0xd433b432,0x9f7bb131 } },
+    /* 60 */
+    { { 0x41553955,0x444fabe9,0xb61fe95f,0x14826b77,0x3ce4a6e4,0x670ec7d5,
+        0x2ba38dcc,0x88947f96 },
+      { 0x047d2b1a,0x3701dc50,0x944fa938,0x19c5ea4d,0x3763b572,0x3e1fbf09,
+        0x7779e167,0x158b22ba } },
+    /* 61 */
+    { { 0xfc236b22,0x1fa4f5f8,0x84a84b03,0x067eb159,0x7ec75780,0x54852f70,
+        0xae216245,0x8692051d },
+      { 0xcb4968d2,0xdf958a55,0xaf65ab46,0x342ee329,0x134c7cad,0x43996984,
+        0x832ecaff,0x4870f72c } },
+    /* 62 */
+    { { 0x7dac3133,0xc2ec963d,0xb03bb57c,0xbb141655,0x5f36c73f,0xc3f58e23,
+        0x228926d7,0x16aeedea },
+      { 0x78af163e,0x17eb719d,0x3f9bb095,0x01782ae8,0xa9f0274a,0xc9f8c354,
+        0x73250e07,0x22e6517a } },
+    /* 63 */
+    { { 0x95f67dfa,0x2d181d6e,0x8243d1a8,0xe28c1d26,0x8dc32fc1,0xa7c36feb,
+        0xd3885846,0x9f20d945 },
+      { 0xc25d20f4,0xd8ff36d5,0x5f388588,0x2c036a2e,0x8351c240,0xe347ab4d,
+        0xe9c13216,0xa24f5a4f } },
+    /* 64 */
+    { { 0x6e5c5ec8,0xf0a10532,0x81605f57,0x7db8c847,0xc960a4b8,0xc7568e6e,
+        0xaffe7677,0x8e99894f },
+      { 0x374d6f0f,0xe257e44c,0x5d42dd2c,0x4507bb52,0x3729ac93,0x61da9c47,
+        0x036eed63,0x5c266abc } },
+    /* 65 */
+    { { 0xe34dc1e7,0x0b28898f,0x44315734,0xdda18d77,0x7e54dcba,0x9f7b8f94,
+        0x2475bd09,0x0daaeaf8 },
+      { 0xc8e65f4e,0x33e60595,0x37f2b1eb,0x63ee5269,0x29c76fde,0x0f2ce8ef,
+        0xb956a848,0x1c2e3854 } },
+    /* 66 */
+    { { 0x7cba52c6,0xafe493bc,0x67d8b339,0x81721788,0xa2628244,0xeb833d06,
+        0x175f4e88,0x31cfcd6c },
+      { 0x03072b67,0x60cce9cd,0x991b2612,0x56ad0e3a,0xc3ef43a8,0x65c0b23d,
+        0x4b42d190,0x4fffba76 } },
+    /* 67 */
+    { { 0xf3d31ff3,0xaec19ed3,0x342ce2f6,0xdd4d01e2,0x0258a1f5,0x196b6047,
+        0x823d30f8,0x24da2a6a },
+      { 0x07465c8b,0x034122ff,0xf43b2127,0x1ca2a2cc,0x6aab9421,0xcafcdb05,
+        0x1b91bd2a,0x6556bfe1 } },
+    /* 68 */
+    { { 0x4f00e05e,0x98008385,0x21db8fee,0x39615cca,0x34fff685,0x4f169647,
+        0x3a4a5d62,0x1bee1c7e },
+      { 0x85f08613,0x1d87da55,0xc8dff598,0x76a06bce,0x7391952e,0xaf77038b,
+        0xfdb9c9ed,0x8830ccd1 } },
+    /* 69 */
+    { { 0x2aff481a,0x5e180538,0xc54d6397,0xaaaa5588,0xb3476f05,0xd7997389,
+        0x40bb0d95,0x226e251a },
+      { 0xe14fcf24,0xd6190a08,0xf1a2328d,0x377a8988,0x8c44f8b6,0x7d27d30f,
+        0x4ac3d463,0x293c7674 } },
+    /* 70 */
+    { { 0x75e9b7e0,0xc940d49e,0xf031a24a,0xd0d18cdf,0x5f370fe7,0xb86a9a3b,
+        0x4faef958,0x07b7925c },
+      { 0xf7afe031,0x50dec176,0x4d81e4bd,0x7b8eada7,0x62c09a75,0xaeec6c8c,
+        0xbcacdf3a,0x151f0e05 } },
+    /* 71 */
+    { { 0x44c8ccad,0xd1217081,0x0cb22985,0x10776701,0x02b6c9b3,0xe41d81be,
+        0x73990f26,0x818ba13a },
+      { 0x78ac308c,0x57d8f609,0x59684f18,0x5a11ba10,0xf2af5f38,0x2497af16,
+        0x34e54d7e,0x8afb40ba } },
+    /* 72 */
+    { { 0xc2a876da,0xb71cf8c3,0x4ad26c5a,0xa932c823,0x9e4839e8,0x2f529fed,
+        0x6c1adc52,0x0c296478 },
+      { 0xb3770d9e,0x4780b004,0x31151090,0x38f76bc0,0xb98a1f2d,0x47a18cc0,
+        0x3b681e66,0x4fa34853 } },
+    /* 73 */
+    { { 0xa23a10c2,0xa768cd31,0x1f76308b,0xa875478c,0xe69b21c0,0x0ab9d75b,
+        0x0e28db45,0x0a604e86 },
+      { 0xf83aed71,0x17969219,0x0d1906c9,0x9df097d0,0x5c9f1fa9,0x885117bb,
+        0xb3eb15d8,0x098aa073 } },
+    /* 74 */
+    { { 0x02b2080a,0x38951fee,0x99235b6a,0x3ef27d01,0x3d6f0ef9,0xf6b7df59,
+        0x3ba018a9,0x3137dafc },
+      { 0xb3f8e979,0x6ecaf572,0xe16879ec,0xc30adfeb,0x280d45f2,0x48a6e4ad,
+        0x2095e48b,0x0008a177 } },
+    /* 75 */
+    { { 0x9d632a78,0x5f3cdf02,0x1d46a2f5,0xb97b6df6,0x9a95e43f,0xb930aa15,
+        0x72fa2089,0x751b8864 },
+      { 0x0e531c0d,0xe061a74f,0xf130b695,0x712cb334,0x62d43db9,0xd8acba77,
+        0xb9de39ad,0x73518874 } },
+    /* 76 */
+    { { 0x6fd38250,0x53c292db,0xa77b23d7,0x05c1070f,0x45bac2ac,0x59a11dac,
+        0xab866025,0x5ba8af20 },
+      { 0x173b5ee8,0xd6bd8e1e,0x98f4986f,0xeadbedd5,0x17945c2c,0xe667f24a,
+        0xe9bc266e,0x5e62eb93 } },
+    /* 77 */
+    { { 0x9cf8e309,0x0d6b207c,0x92392d45,0xda310a49,0x27b708eb,0xbdcc540f,
+        0x8b936b9d,0x6f75d566 },
+      { 0xbb73778c,0xf33ba44d,0xa92149b7,0x813940a8,0xb4db105e,0x53aebb98,
+        0x30b95519,0x876db439 } },
+    /* 78 */
+    { { 0xe9402714,0x25ea73ee,0x4d290b7a,0xdecc6604,0xb8b8c045,0xaeb1183e,
+        0xcf1dbfdf,0x841d3934 },
+      { 0x838f5dfd,0x9ac31521,0xcfe3a93f,0xf01553e7,0x666580b3,0xc2e1a001,
+        0xce5f0a17,0x7b5ae3c8 } },
+    /* 79 */
+    { { 0x55454e99,0x1cac3c19,0x841e6bcd,0x907ba947,0xccaa276e,0xad700177,
+        0x09be8fc5,0x14dcdaef },
+      { 0x30da845e,0xb9b6eb1d,0x7323f4b9,0x068511f5,0x23a63096,0xcd9731ff,
+        0x37fd7303,0x15bb0931 } },
+    /* 80 */
+    { { 0xbf5588a1,0xbd0db348,0x396ab42d,0xa92d6c30,0xba7e78e7,0xde124ce6,
+        0x4303f840,0x279a248f },
+      { 0x7ac08331,0xbf1018a1,0x84145fc0,0x3c6649d2,0x8e09020f,0x178b24db,
+        0x17c2187b,0x82075e16 } },
+    /* 81 */
+    { { 0xaa2f8e2d,0x6c7e4629,0x35754fd0,0xb0756623,0xcc0d865f,0x3416b1c0,
+        0x750165a9,0x9cfff345 },
+      { 0x5e77453e,0x3f2c1abc,0x8de7d47c,0xd4d245da,0xeba4bf42,0x4c2d42e2,
+        0x88854be4,0x961f73ac } },
+    /* 82 */
+    { { 0xf657902e,0x03e21410,0xc8d8a7c5,0x4fa93dd1,0x028dc502,0xe561f39c,
+        0xacf95a93,0x6de218b7 },
+      { 0xf0cdf0b4,0xcd7af6be,0xb8eaa14b,0xbefd3df9,0x28cb817f,0xc57e84ad,
+        0xeecab3a2,0x6fa3b7af } },
+    /* 83 */
+    { { 0xe3207aa3,0x78f3f7bd,0xed4ad2ad,0x3ef8090b,0x99de4074,0xddefb09c,
+        0xf0074060,0x6a8056fc },
+      { 0xa32c2187,0x7d4755d2,0x66820271,0xbeac42bf,0xf33d1b92,0x6ccc22dc,
+        0x4b031d03,0x4d008118 } },
+    /* 84 */
+    { { 0x6125847c,0x2e622ce8,0xcb873533,0x112906fa,0x04887fa2,0x414ad691,
+        0x1b6e6914,0x56a28431 },
+      { 0xb0529422,0x6b137adf,0x585c5b32,0xa4606ab1,0xc0d0b233,0x1965b796,
+        0x7628bbae,0x0a310e89 } },
+    /* 85 */
+    { { 0x5c0f6a5a,0x72ca2aa5,0x90f75c1a,0xfc5a6aec,0x4c8dca5e,0x027fffbc,
+        0x51bcd38b,0x4be8a962 },
+      { 0xc885241d,0x718f0601,0xb29c5fcd,0x929f3af7,0x2f153ae4,0xb9b9f31d,
+        0x343b86c4,0x404f8982 } },
+    /* 86 */
+    { { 0x4123022f,0xddd80b09,0xd4f48ff1,0xd8b5e214,0x4b5415f5,0x82fab3aa,
+        0x5ee2ba6e,0x978c1c14 },
+      { 0x527140b2,0xb2855996,0x4017e98e,0x8bf741c0,0xc0f45fa1,0x60f1e376,
+        0x0d9758b1,0x5940ebcf } },
+    /* 87 */
+    { { 0x5ae5b390,0xeddbf7fb,0x0c48a27a,0x5ccd5bc0,0x14f056ec,0xe98ea0e1,
+        0x50331f94,0x8ad02161 },
+      { 0xb8f48329,0xbf762736,0x81efc2c7,0x8a8ece64,0xadc081cf,0x4cf8b50b,
+        0x28f27a25,0x299ec7cb } },
+    /* 88 */
+    { { 0x93998367,0x89210803,0x57dbc000,0x9c0165cb,0x74f6eef4,0x198b5890,
+        0xea88a075,0x7b1570fd },
+      { 0x2f1a1c7e,0xbc84dfb3,0x246346cf,0x19d4dbd2,0xe87c2ff8,0x8e326b79,
+        0x69914610,0x0d06eff9 } },
+    /* 89 */
+    { { 0x97f33e7b,0xca7828c7,0x75bbfb81,0x0feafb6e,0xaa7b6054,0x1addb806,
+        0xdcb64b44,0x7cb88f3a },
+      { 0x1df86b21,0xb22536b2,0xac15b999,0x006514b9,0xa68d9af6,0xed19ed5c,
+        0xdcf10bb3,0x0224d792 } },
+    /* 90 */
+    { { 0x54b77059,0xcd3eadb3,0x93ab1dcf,0xec2393cd,0xb4754846,0x2e75efb1,
+        0xe29cd2db,0x3238d352 },
+      { 0x5fb0c382,0xde76afb3,0x7942da64,0x0e9baa00,0xc1b14815,0xcb87d7bd,
+        0x9902b3bf,0xa48ad50e } },
+    /* 91 */
+    { { 0x97583d46,0x1be4a407,0xe6757508,0xf397098f,0xf927bcf6,0x727e4be7,
+        0x4c26eecc,0x5d26413a },
+      { 0x715381e7,0x769f0f33,0x02f56b56,0xb686889f,0x227f6b7d,0x4749045a,
+        0x700c7272,0x06e06994 } },
+    /* 92 */
+    { { 0xf341e062,0x4dd441ce,0xf6796ff6,0x6cf6997e,0x99b3b663,0xf0ed3382,
+        0xb12c2d12,0x9f32343a },
+      { 0xfe4923c3,0x9d9d48a0,0x8e3cb8f3,0x61ce92e6,0xa24b7917,0x0c2b3a91,
+        0xc222167a,0x78873bff } },
+    /* 93 */
+    { { 0x591b40ed,0x389def7d,0xc97c361e,0x70e73164,0xfc425427,0x6ab07d2d,
+        0xdcc96710,0x17c38ed6 },
+      { 0x3f4cd15e,0xa6d0378f,0xc33ab6e9,0x088acc68,0x4f0f602d,0x12cf7d95,
+        0xc1339cb1,0x4ff8c60c } },
+    /* 94 */
+    { { 0x8366bbbf,0x5d6a9348,0x3ea51aa5,0x567904d3,0xc95dbca2,0x486782dd,
+        0x33a0d564,0x5b27c0c6 },
+      { 0xbd5b7c9d,0x8882ded6,0xcdac1057,0xfc0373f3,0x8dc2b917,0x40c21fd5,
+        0x8b3eb3d8,0x66428f86 } },
+    /* 95 */
+    { { 0xb25887b3,0x5d2d14f0,0x4cc52bde,0x7cd80ff7,0xee93ed1a,0xfa96a489,
+        0xbb99e79a,0x5b862f0d },
+      { 0x12cc9c2b,0x55c2b36a,0x82c90011,0x1f4c6208,0x72871728,0x45cda234,
+        0xd8955dea,0x16580936 } },
+    /* 96 */
+    { { 0x929a382c,0xf0d507f3,0xb89e4182,0xf33f98d9,0x8b60f4b3,0x1781842c,
+        0xfc633f51,0x5ff0003f },
+      { 0x1a92ffe1,0x450f4c82,0xe47f7ba0,0x63b1ee3e,0xed6c1d18,0x765c2ff3,
+        0xc292d604,0x160e0d6e } },
+    /* 97 */
+    { { 0xcd4f77ca,0xb4631347,0x66e22402,0x75263f2c,0x2e640ba7,0x3381bf6c,
+        0x8993ce63,0x87f3f6e1 },
+      { 0xe1ef773a,0xfd46bdd3,0x056a9bee,0x67822690,0x1e95c255,0x02f8ded4,
+        0x767aea44,0xa50290ec } },
+    /* 98 */
+    { { 0x43c0f718,0x3ca67480,0x4a5f77bc,0xf5a76ab8,0x5ba856d9,0x7e8a12fc,
+        0x10ac029d,0x4509c8c3 },
+      { 0xb18e951a,0x1f0adb0a,0x10a95fb8,0x800caa22,0x22618369,0xd250cf51,
+        0xe9d45748,0x1e1ea807 } },
+    /* 99 */
+    { { 0x2ccb454e,0x487e460b,0x00418205,0x4d1aa42e,0x03a2c724,0x2bc107da,
+        0xcf8ad493,0x0559e81a },
+      { 0x3dd591b7,0x39ae685a,0xbbcc62b4,0x19327280,0x6affc9ec,0x544b9091,
+        0x6990aa45,0x05c8df8f } },
+    /* 100 */
+    { { 0x1b3b21b1,0x3a7f2799,0x6a36d4a0,0x2e9aee37,0x173fbcf9,0x5413f9d6,
+        0xb21bcd8c,0x18aad2db },
+      { 0x76cb753d,0xbac8d4a1,0xdca87e77,0xe666a86f,0xd3c79661,0x0e2de2e6,
+        0x8fbd3908,0xa68c3ca6 } },
+    /* 101 */
+    { { 0xee5f5306,0x66fcae9e,0x20891d3d,0xc0d0541e,0xefcb3dc0,0xcad933e6,
+        0xc47b18f5,0x072b0939 },
+      { 0x46613832,0x1d791796,0x79387079,0xc044b565,0x80336cfc,0x599f9339,
+        0x6621f8a5,0x277e6fd6 } },
+    /* 102 */
+    { { 0x4e02698e,0xc20e8115,0xf95a4608,0x64e0efe4,0x752aced5,0xb967e248,
+        0xa0903b6a,0x60fb770b },
+      { 0x37c9ce93,0xb12efdaa,0x139af5fb,0x9a75a2c3,0x19052abc,0x3bdcfdc7,
+        0x09abf6c9,0x0e6a9818 } },
+    /* 103 */
+    { { 0x0b29b33f,0xbaba160e,0xba7a9afe,0x6738255e,0xd456efc7,0xab394151,
+        0x3f2898a1,0x828071a5 },
+      { 0x33a9cecf,0x8222af74,0xc9d3fc07,0x1aeff507,0x022e0173,0x5e7313f7,
+        0xeea0ef5c,0x5f3fd2e7 } },
+    /* 104 */
+    { { 0xdc5f9659,0x17976b0a,0x9eee41e5,0x7c630fc5,0x2aef0597,0x283715fb,
+        0x45da9111,0x5d1bd14e },
+      { 0x731d050b,0xb2a6e95c,0xd15b7c56,0xe682ac0f,0xbafc6041,0x53fbfb4d,
+        0x1bd85867,0x4b70972b } },
+    /* 105 */
+    { { 0x358b4546,0x2334ab06,0x69f1ab7b,0xf958042a,0xa1ec79bc,0x4fcfccf1,
+        0x4317b36a,0x497c8961 },
+      { 0x3ad19134,0x5f447658,0x54f8027a,0x9d9241be,0x9416a431,0x4622335b,
+        0x289505bd,0x65d2c5d1 } },
+    /* 106 */
+    { { 0xd9117375,0x5d56eae3,0x1f1941dd,0xe0cf799f,0x9fc81f23,0x004a84a1,
+        0x5fc99625,0x01a424de },
+      { 0x6c1d98c2,0x6a544121,0x387aadf6,0x75ef466f,0xfa5bc1ac,0x757851f7,
+        0x0f7268d7,0x0f3df44f } },
+    /* 107 */
+    { { 0xd1d98bdc,0x8bbf94a4,0x7b32d4ca,0x62d38f71,0xddce0ef9,0xd85e66ee,
+        0x356958c5,0x86ba5f71 },
+      { 0x2ee6f5cc,0x881e5e14,0x59f6d3e6,0xdc6c564c,0x158a23b8,0x24bb6689,
+        0x9756d7a0,0x14017d90 } },
+    /* 108 */
+    { { 0xd980847d,0x869e89f4,0x3a866420,0x8a712043,0x6a8e8b9b,0x80ff309f,
+        0xa15e88f0,0x25c31abf },
+      { 0x2d177a92,0x3b3bf5e4,0xd5813a5e,0x96cc12e4,0x354f897f,0x351baa4b,
+        0xab2db5e3,0xa6b37f40 } },
+    /* 109 */
+    { { 0xe9500f91,0x52148e68,0xe3b9bd54,0xee2225cd,0x28dec782,0x83fd30b6,
+        0xde2fdbd1,0xa79c5d14 },
+      { 0xd9ece05d,0xa8c76f5b,0x38681473,0x38908151,0x13b510c1,0x213a59a6,
+        0x0cca56d0,0x6707484d } },
+    /* 110 */
+    { { 0x2f3e03c3,0xfb25b69e,0x742f764e,0x02d55116,0x80aef769,0x148ca87b,
+        0x57f57835,0x267c5949 },
+      { 0x47e85de5,0xce7af449,0x18f52081,0xadd0da46,0x37f9a0dc,0x7c24044e,
+        0x7d14ea99,0x418119b1 } },
+    /* 111 */
+    { { 0x6dc07168,0xbb2d2a69,0x8ab40054,0x43bf2508,0x8915ae36,0x7fa13243,
+        0x3a6abd0a,0x8d719d93 },
+      { 0x0271dd87,0xcc8a2728,0x3408211a,0xfd86269f,0xac415831,0xd1e23362,
+        0xf2011b11,0x2ac36c7e } },
+    /* 112 */
+    { { 0x03aeade7,0xdb588ee2,0x29a288a5,0x41d6289b,0x732fe294,0x7dd7a6d6,
+        0x9039adb3,0xa1c93039 },
+      { 0xce897b29,0xbc2d6b1c,0xa0936122,0x6c8d1fe8,0xbf752f4f,0x28721645,
+        0x148c096d,0x30c31cc2 } },
+    /* 113 */
+    { { 0x0eeb277f,0x94320f62,0x7aefecfd,0x71099ac9,0x77ff9b7d,0xbb33a790,
+        0xa008c769,0x3cd7e622 },
+      { 0x6a64af0f,0x6531fbb0,0xc7bd31f1,0x74d1ffdf,0xd44e69f8,0x455ae2c1,
+        0xa4c2c9b7,0x02a08f5c } },
+    /* 114 */
+    { { 0xab02946b,0x157b7b20,0x5a473fd1,0x1b60acb8,0x4db7e01d,0xfcd6a084,
+        0x12ee8a36,0x89a2a3db },
+      { 0xb09d8e1e,0xaa36b6b5,0xc4a953b1,0xab814503,0x7a6104ee,0x2d7e989b,
+        0xce2deec1,0x0b5415eb } },
+    /* 115 */
+    { { 0x61ef1976,0x2ade4296,0x727d970f,0xa2bb57ff,0x79557182,0x4c33e536,
+        0xd22d33d0,0x2c59ac85 },
+      { 0x45ca50a4,0x29924660,0x46c30e34,0xc18ec14c,0x716b94a8,0x4648d50d,
+        0x3cd2a6c5,0x3124c49a } },
+    /* 116 */
+    { { 0x933a2932,0x4c652f4f,0x78e9bceb,0x399df65f,0xa1cf7d2a,0x62aade6e,
+        0xb5bf03aa,0x757c99e1 },
+      { 0xc922a106,0xf709aa16,0xf1fe383b,0x024cd13c,0xa748871a,0x8075deaf,
+        0x26322c66,0x2683de3f } },
+    /* 117 */
+    { { 0xbe1ee500,0xa2483414,0x382c23fa,0xe4028e39,0x3b3dab7f,0x2f91ca88,
+        0x3f6a50f2,0x42e9dd1e },
+      { 0x5e0a609d,0x60861876,0x14034a59,0x04bfac91,0x557b5e2f,0xc4778965,
+        0x8a85d194,0x734f39ab } },
+    /* 118 */
+    { { 0x216b5beb,0xe0da365b,0xbf3ea2ce,0xb38c3797,0xdaac6f22,0x3fa0dca6,
+        0x9ac8667d,0x5d14b57c },
+      { 0xd2db7ed8,0x653e97b9,0xfea3925a,0xd56d2e8d,0xa37f6059,0x2349a8eb,
+        0xdb0fb73a,0x7d443b2d } },
+    /* 119 */
+    { { 0x6516b1cc,0xac333d05,0xf5e4cfc6,0xd834fa8f,0x1ef2408b,0x1f3e740d,
+        0x96c7f778,0x39f7fc05 },
+      { 0x47eb3827,0x23b7a12d,0x5429b2cb,0x891f56eb,0xc31ff7a1,0x67c74ff1,
+        0xbf340fc8,0x6199ee14 } },
+    /* 120 */
+    { { 0x4f7a1f56,0x4d44dd41,0xdc7ea958,0xb21bc8a4,0x9952f399,0x9b179b1b,
+        0xd37981d8,0x394521a6 },
+      { 0x23578a21,0x56d7146b,0xb9804225,0xb94b889c,0x62d9c918,0x7efb8129,
+        0xca45224e,0x53595063 } },
+    /* 121 */
+    { { 0xcc3e2534,0x3eaa6754,0x9138b8a7,0xc3280663,0x92f7c71a,0xc5d4e80b,
+        0xb3a08423,0x9c0843fc },
+      { 0x6f03a495,0x48ed83b4,0x9128b056,0x61a73acd,0xeb285d5b,0x1251c31b,
+        0x885e830a,0x3571dd9c } },
+    /* 122 */
+    { { 0x7d52cf11,0x7b10ed70,0x86cea43f,0x8e7674c3,0x63fe4167,0xcd5e59a2,
+        0xcc2a0419,0x771d0e31 },
+      { 0xc82a29d9,0x8c6dd968,0xa42323fc,0xace2a638,0xcd3a5d74,0x9ea27bf3,
+        0x066de27d,0x0281d219 } },
+    /* 123 */
+    { { 0x20402dae,0x09e3c178,0xdd813aea,0x7ceee9c7,0xa8be4038,0xf1b07c04,
+        0xa0a9d789,0x17c8a18d },
+      { 0xb93dad0d,0x094326fc,0x387f9d3f,0x2f360506,0x3d425b10,0xb47eab76,
+        0x4d7f1e5f,0x9b88808a } },
+    /* 124 */
+    { { 0xd96e24ee,0xe7425228,0xcf4204fa,0x417ee8ab,0x55143267,0xbe313412,
+        0x37d0c165,0x885b8d4d },
+      { 0x119a6410,0x46e759e7,0x9aba7f8f,0x31ee64cb,0x39130c41,0x0575e218,
+        0xca913973,0x3948d734 } },
+    /* 125 */
+    { { 0x2fef1c86,0x1ce1226e,0x6ee3a3d2,0x9c10da05,0xdd173a05,0x5d20d6da,
+        0xdde5d0c3,0x4b443c9b },
+      { 0x31a72250,0xaa2aff15,0x57e10467,0xd57d4161,0x1d7de044,0x681523dd,
+        0x4347418b,0x00c3c02f } },
+    /* 126 */
+    { { 0x68bf7ca7,0x0d41c889,0xc4538597,0xfc4d02a7,0xe041a9a6,0x88bae98d,
+        0x4ae63cdd,0x16a7a23a },
+      { 0xe3ae16c4,0x55e50f6e,0xf3a4bdfe,0xb1adcc7b,0x04ec1f64,0x8085c2b2,
+        0x7f541e50,0x4184dc8f } },
+    /* 127 */
+    { { 0x14afec53,0xb9a8c18c,0x523830a3,0x18b80368,0x07d0699d,0x674e8155,
+        0xcae0facc,0x45449d4a },
+      { 0x40cac59c,0xbd5dfa61,0xfc2dda8d,0xb96e84ea,0x6f340a49,0x5d097b2e,
+        0xf895b34a,0x95ab2b6f } },
+    /* 128 */
+    { { 0x97a75c0c,0x2ca154d3,0xdf5f83a9,0x0666d901,0xb5870a9c,0x178dffc4,
+        0xddad6025,0x0ccef860 },
+      { 0x3e68d171,0xf8375076,0x5d81f7ce,0xd2a4e38c,0x59aec721,0x830da055,
+        0x7441fdc5,0x7355f2e7 } },
+    /* 129 */
+    { { 0xca2683a6,0x6ec08581,0x2661d6f5,0x17625fec,0xf47218c8,0xbd762b60,
+        0x6e6175bb,0x7f971ac7 },
+      { 0x91275262,0x0d03d85b,0xe652f1a2,0xa512219e,0x4b2df08c,0xa69d019d,
+        0xee5b8f54,0x8168f3dc } },
+    /* 130 */
+    { { 0x40718e77,0x3677dfbf,0xe697934e,0x1921e33b,0xb3c68072,0x4d58d69a,
+        0xa7bd9fee,0x20ffbfe3 },
+      { 0xa9d8f6b2,0xc8464d13,0xe030273c,0x745b0372,0xabcc0b04,0x41ca18b9,
+        0x903ad25b,0x2feec34b } },
+    /* 131 */
+    { { 0xe4479936,0x3c4d44f7,0x03578981,0x2c357fb4,0xcc44645e,0xdafb39b1,
+        0xc7d23d90,0xa3110150 },
+      { 0x11548f9f,0x87b3c603,0x38a4a117,0xbcc5f662,0x27159730,0x32de47fb,
+        0x742f8b94,0x1645f10b } },
+    /* 132 */
+    { { 0x0e83a049,0x2c456140,0x3323ff3a,0x15f2448c,0xadf738e8,0x619aeb55,
+        0x3805f0d2,0x730885d7 },
+      { 0x427595b4,0x8a842b0a,0x1ae33a80,0xbc649cfd,0xef5c2d74,0x6ced6538,
+        0xafe49779,0x69b0aa1b } },
+    /* 133 */
+    { { 0x9a95ef73,0xbae121f0,0xec58cbe3,0x8a3bd1a1,0x80468de8,0x66226d1b,
+        0xeb5072b8,0x93666439 },
+      { 0x259c9a8c,0xe597caac,0x60774c51,0x8626090b,0xa7488228,0xa78bdbf6,
+        0x47f95e51,0x154c9c9f } },
+    /* 134 */
+    { { 0x391d9ce2,0x01ea623b,0xd6bf9cb3,0x5cdf342f,0x0a624e01,0x37b02db2,
+        0xdda1bf6a,0x852ce71d },
+      { 0x79743a52,0x64f8686f,0x7951125b,0xdef80773,0x7b786b2e,0xb84b608a,
+        0xafa0ae34,0x1908d0f1 } },
+    /* 135 */
+    { { 0xc834e4a8,0x64d61567,0x2b735da9,0xcebcd416,0x4c167641,0x495e634a,
+        0xb2ae4633,0x308caa96 },
+      { 0x54e9dc39,0x7eb5cfb6,0xb9816f09,0xcf6e5e42,0xaec99c2d,0x47e27753,
+        0x60865dbc,0x821b1e75 } },
+    /* 136 */
+    { { 0x1c15666d,0x9915c6f6,0xa6cf4840,0xc3a75b8d,0x0fa22fe5,0x4560b528,
+        0x309f6404,0x7455fbd3 },
+      { 0xa0a77116,0x0d8f3f44,0xad1a363d,0x042b7b6e,0x71dcbfdc,0x8b716ea9,
+        0x646a2607,0x098bec71 } },
+    /* 137 */
+    { { 0x80c2180e,0x2bc734b7,0x305d3646,0xcd1c2449,0xccf83ef8,0x632b961b,
+        0x0627b54a,0x4f4bb2b9 },
+      { 0x227eaae8,0x084b7dde,0x43689dac,0x95f53458,0xe31c4da5,0xe450da98,
+        0xfd02d3c5,0x2d810a0e } },
+    /* 138 */
+    { { 0x328ce8b1,0x8d334139,0x8b1ecd22,0x27afd433,0x27816344,0x0e28f30b,
+        0x4d14115c,0x9230c951 },
+      { 0xc0701e1a,0xffa35ad6,0x5568a22a,0x8d85ec1b,0xcf6ac309,0x5b59d9d8,
+        0xaa37b919,0x4641acbf } },
+    /* 139 */
+    { { 0x70d905af,0x8be5cdeb,0x80c81c01,0xfa20364b,0x0385f200,0x9937fa80,
+        0xedf77e28,0x0231c08d },
+      { 0x35286b2f,0x262ad9ab,0x09aa200d,0x990322a8,0x0841c0e0,0x2d15db98,
+        0x0253a011,0x6dcd5a53 } },
+    /* 140 */
+    { { 0x948482c2,0x30e226d3,0x2b6b0053,0xf9017368,0x2dac093a,0xeac1a851,
+        0xd75080c8,0x986b0e47 },
+      { 0x94c4318b,0x45bdcef8,0xf845fb5c,0x7a5ac4be,0xd7fb586b,0xbb2b7ce8,
+        0x164449e9,0x42901f7d } },
+    /* 141 */
+    { { 0x83d63f16,0x0dbee237,0xe54e90fb,0x2b6cbb0b,0x9da64a48,0x3e52234d,
+        0xe4a8d96b,0x1d1027bb },
+      { 0x53039658,0x3a577f36,0x0ea3c56e,0x5333064c,0x74733bfd,0xbb705f3d,
+        0x7b197339,0x2d033713 } },
+    /* 142 */
+    { { 0x75b08641,0x7e0142f0,0xf964b417,0x61142434,0x1a28e8ea,0xe1ad61d2,
+        0x9f01e4c2,0x6c5a0a52 },
+      { 0x49482489,0xcfbdc3cb,0x617744ea,0x4e0464de,0xabab4f85,0xd89b3dec,
+        0xfc2f7452,0x8308fd8d } },
+    /* 143 */
+    { { 0x49a9cb4a,0xc0ad224d,0x9ab9a674,0x8d81b43b,0x27f252e7,0xa0f77299,
+        0xe8f17372,0x1202c0e4 },
+      { 0x4472d361,0x7e867915,0xe8149645,0x8ce3384f,0xc90447fa,0x280dda13,
+        0x2ab10c02,0x33e0bb5a } },
+    /* 144 */
+    { { 0x093e705f,0x05f4c717,0x31634d40,0x9e69607e,0x7c652aaf,0xe7210494,
+        0x6ae1388c,0x467c6c43 },
+      { 0x8bdbaed7,0x339c4abc,0x2b444b35,0xcbae3a7b,0x7fd6447e,0x5bee1e5a,
+        0xdf5e0d2a,0x9bae5cb4 } },
+    /* 145 */
+    { { 0x5e0d6c3a,0x05002304,0x8140a39b,0xcca8de31,0xe157295b,0x62c9784c,
+        0xd06e3823,0x44cddafa },
+      { 0x55c879f7,0xe3902edd,0xdf0993cb,0x778cf23f,0x31c0c616,0xda663a49,
+        0x25201792,0x148f629b } },
+    /* 146 */
+    { { 0x28ee71cd,0x285bbffb,0x8223d31e,0x13ff6055,0xfd8005ac,0x3f07a61f,
+        0x215a3bf9,0x67c3a7cb },
+      { 0xb62ce897,0x2455a66e,0x8cbef22c,0xc0c7bc29,0x707d9573,0xe4779e75,
+        0xbdfc3a50,0x8ca213b1 } },
+    /* 147 */
+    { { 0x562fad1e,0x3aff1284,0x6ebfeb41,0x58efe5ff,0x0c323c7a,0x634f3c15,
+        0xe1aa7e50,0x0554b9dd },
+      { 0xc2254afb,0xba84dcf5,0x3f02300a,0xaadb6fd2,0x350a9e65,0x120ba6ba,
+        0xcb2835fa,0xa95cb667 } },
+    /* 148 */
+    { { 0x578be06f,0xb7401808,0x92f52f92,0x38d8f647,0x9b492aec,0x77527560,
+        0x393a4342,0x33523eb5 },
+      { 0x67a99c72,0x4073607d,0x63d548c3,0x782c35de,0x8ede1908,0x47f04b94,
+        0xed5157ae,0x0fdd6ad0 } },
+    /* 149 */
+    { { 0xb7ac8c8a,0x911a4a6a,0x9fbabe5f,0x7484ca43,0x0b27fa74,0x3932c092,
+        0xb41cd10e,0x9806dea3 },
+      { 0xc522cb90,0xdb07f35c,0x36fda973,0x4d68740f,0x952d2a57,0x0b6f9439,
+        0x8e633787,0x9eb5e2c8 } },
+    /* 150 */
+    { { 0x3b939ebf,0x2e691b9d,0x843cd594,0xf52bcb31,0x402b5ff7,0xfffd1e2f,
+        0x2268ea8d,0x3d58a2a2 },
+      { 0x189422d9,0x29f5a297,0xa8fb99cf,0x1908d59a,0x09aeeebd,0x3668ad67,
+        0xad1190dc,0x4aa43d6c } },
+    /* 151 */
+    { { 0x88327bf8,0x5e9fd71d,0x596c5adf,0xa2264336,0x0950cfe6,0x0c5057b6,
+        0x334520c7,0x6910a79b },
+      { 0x790ab023,0xdc498bdc,0x79570a04,0x5a3fc5e5,0x32392376,0x6f9c5526,
+        0x29b5db25,0x4c15a7d3 } },
+    /* 152 */
+    { { 0xe8b74590,0xa236fff3,0xb40798b7,0x018d42a8,0xe1161252,0x35a0f01d,
+        0x1b5a141c,0x840233c2 },
+      { 0x21e6d689,0xdac525ce,0x9093019c,0xa6c63448,0x867c5614,0x59e55d3e,
+        0x43426fb7,0x6eca37e2 } },
+    /* 153 */
+    { { 0x25338921,0x1ca73605,0x4a3c94c8,0x1ceb40f5,0xe23c2bd9,0x4e5198d6,
+        0xe01e8672,0x72985840 },
+      { 0xdaf9a992,0x2535586f,0xf19cacfa,0x7a057365,0xd0cbb338,0xadce343c,
+        0xe4543482,0x270a6de0 } },
+    /* 154 */
+    { { 0xce2bb6e9,0x71ffb32a,0xe4ad0802,0x35fd3527,0x561168a9,0x937e0ffc,
+        0x1238625c,0x1af91ad4 },
+      { 0x3e739e62,0x27528a58,0x319f0f13,0x8a5bb599,0xbcee21e4,0xb3ac5311,
+        0xc7f6f82e,0x8a5574b2 } },
+    /* 155 */
+    { { 0xf96a7abc,0xb2413986,0x3b86fed5,0x087ff834,0xca40f57b,0x0eed1879,
+        0x81e9ade8,0x292d16b6 },
+      { 0x65ca7111,0xf857105f,0x328b495e,0xf943c01d,0xbec1cab7,0xf70ea5bb,
+        0x84ed42e2,0x80238dc1 } },
+    /* 156 */
+    { { 0xa6a18b50,0xb05a070c,0x8433dfbe,0x502a319b,0xdabbc24a,0xb7a7d9f8,
+        0x32a32035,0x8aac4519 },
+      { 0x725b2b55,0x2e27908d,0x729ab49f,0xdfb0b42f,0x428f85b0,0xf3a690d0,
+        0x238855c8,0x3173eb01 } },
+    /* 157 */
+    { { 0x1fd13b10,0xdef2b7b3,0xe5ccb3f5,0x3d6c7c32,0x8b4d36f0,0x22e56aff,
+        0x485d23c9,0x4db43b89 },
+      { 0x5bd08499,0x35ecc1f3,0xf94d5b98,0xe1782409,0x98d509b3,0x47a942eb,
+        0x12d9d753,0x50d12069 } },
+    /* 158 */
+    { { 0x01f1ef75,0x3da84ef3,0xfab2fa84,0x560b10e5,0x8558b1ac,0x1bb83946,
+        0xc4d1fb6a,0x6d711f75 },
+      { 0x32736291,0x34da74e6,0x4ef87077,0xb7355154,0xa26be847,0x094d2d40,
+        0x8dd69205,0x9a35fb53 } },
+    /* 159 */
+    { { 0xb4c7e2db,0xbeac54f5,0xc1979ac0,0x45658569,0x043f68b0,0xbf148b21,
+        0x9acbaf57,0x5102eba8 },
+      { 0x47ef22ec,0x3495821e,0x3eb370ae,0xe8a93a41,0xc8b7361d,0xe19bce25,
+        0xa1429e87,0x4b00855b } },
+    /* 160 */
+    { { 0x6122fe82,0xf0991e90,0x8c82ddb1,0x7989d94c,0x42c6b9d3,0x1aea67cd,
+        0xb48697da,0x77014c7f },
+      { 0x36f6ef60,0xf336fa81,0x9c1e57c7,0x1de94dcf,0xcc8d8163,0xe02e9642,
+        0xe3be2aa9,0x176e1ce1 } },
+    /* 161 */
+    { { 0x23378656,0x29990f51,0x23d3e078,0x0f8aa884,0x12d7821d,0x51974cce,
+        0x2e7e90cc,0x137ba634 },
+      { 0x408a0a27,0x20379e50,0x24260729,0x1be32b21,0x27b4a6f7,0x1921ecc9,
+        0xb4e0d0e5,0x923e11e4 } },
+    /* 162 */
+    { { 0xa11e1308,0x8ea4305c,0xa6a79c54,0x84d0a0b5,0xb002a6e0,0x441cc7de,
+        0x9f208e17,0x765f6a45 },
+      { 0x289a0b1d,0x9072b12c,0xed769b39,0x578545c4,0x0c9746f6,0x9350803e,
+        0x57234e9c,0x15b0f871 } },
+    /* 163 */
+    { { 0xd9492f48,0x45f8abf1,0xc60afeae,0xb43cbc67,0x42d2a27f,0x1d8b8f50,
+        0x52842002,0x8d798391 },
+      { 0x41bf2192,0x63d57498,0x1b9a0a02,0xe903a628,0xc1bf61b7,0x981328c7,
+        0x5d5a56ff,0x86d7db36 } },
+    /* 164 */
+    { { 0x1cf79d95,0x656f3971,0x6cf90b84,0x56b05bd2,0xe616df76,0x76a1fd82,
+        0xe3475bf5,0x89efbcb3 },
+      { 0x9f60ac26,0xb4dc72b2,0xc82f7be6,0x5bd14ce7,0xb27600a1,0xf05cbe61,
+        0xdee0e47d,0x69ca67a9 } },
+    /* 165 */
+    { { 0xff0d14ef,0xc765aa94,0x0e5a59ff,0x7acc56dc,0x299d8186,0xb1030d44,
+        0x553ee911,0x1c59225b },
+      { 0x8bc5b361,0x2d4ab0ce,0xb8ad5bb5,0xac8d1135,0xa07a1c99,0x0d3cd967,
+        0xe22cf789,0x463595a3 } },
+    /* 166 */
+    { { 0x7e5fcf16,0x9ee67e50,0xc39ed04a,0x58ea13b5,0x31eaefc7,0xbf9d2d86,
+        0xb0b288cf,0x3ca68e25 },
+      { 0x7cb37349,0x70d682a1,0xe97e4bab,0x2c532809,0x976d8264,0x20e76eea,
+        0xd804b17f,0x2ac8cb96 } },
+    /* 167 */
+    { { 0xeebfa52f,0xfa134537,0x8d23d72c,0xee039983,0x2539fedc,0x659bb63a,
+        0x6378892b,0x6209755c },
+      { 0x0db1ee52,0xb90f3063,0x94c27f03,0xcc1dc858,0x27d0acdc,0x6df50282,
+        0xd14b9bfe,0x9c98a676 } },
+    /* 168 */
+    { { 0x55b988b6,0x65f68906,0xa60a4b9c,0xb267f427,0xfefa09c5,0xb03f2f0d,
+        0xcc69e0ce,0x005bd673 },
+      { 0x8964b119,0x3d0dd466,0x41923433,0x1a8700cc,0x74c828df,0x100f8220,
+        0x4a3c26ee,0x37984f6a } },
+    /* 169 */
+    { { 0x8a75986a,0xcd81340b,0x4433b1b9,0x5b61b378,0x32177ff4,0x380b885b,
+        0x71413131,0x4a1e0e8b },
+      { 0xe51cd8cc,0x0a08ef2d,0x5f8702a6,0x551a9842,0x5dbcbf69,0x712da36d,
+        0x0c2968f0,0x8a5271e0 } },
+    /* 170 */
+    { { 0x7e39f03c,0x748ccdd6,0xe09d1dbf,0x4bc322a1,0xb3343c44,0xe968c9e8,
+        0x7192e548,0x15ee7baf },
+      { 0x1a8589b9,0x36995a25,0x0d4dafd9,0x163851b3,0x2aec03f3,0x78c4862a,
+        0x73d55e7e,0x45c4df20 } },
+    /* 171 */
+    { { 0x288cfb23,0xb98537fa,0x3a44c02f,0x54f4a31d,0x5002787f,0xf67d9e2d,
+        0x0b6eb8a2,0x1f38590e },
+      { 0xf2573a71,0x22cc5c19,0x9f314e8b,0xe0014b04,0x889107a0,0x30abe273,
+        0x264fbd08,0x9b0baca3 } },
+    /* 172 */
+    { { 0x3a935188,0x3c8fed24,0xa7fe411f,0x7a162c46,0x8e427299,0x276212e8,
+        0xd4abb7cf,0x860c145b },
+      { 0xc386faab,0x09701da1,0xf9022687,0xddd9b11a,0xe95cc483,0x149d7135,
+        0x9b20d714,0x7b6e1723 } },
+    /* 173 */
+    { { 0x2262722b,0xb72283e8,0x3d04d91e,0x892911f1,0x86986e81,0x209b889f,
+        0x140355b4,0x3adda014 },
+      { 0x44f37c8b,0xf6ab9d94,0xca63b50b,0x651b637e,0x0f707b99,0x938ab325,
+        0x1f64aab6,0x63218029 } },
+    /* 174 */
+    { { 0x7cd409ad,0x88e32daf,0x48c5cf6a,0xbae1dacb,0xfdcba6e4,0x90caa290,
+        0x8c5c7f69,0x08a13518 },
+      { 0x2f3bd0c3,0xa86de71a,0xa89455b5,0x854c8e19,0x4d4ae49d,0x10e2cfed,
+        0xc1344ebf,0x280f5a65 } },
+    /* 175 */
+    { { 0xffa2c194,0xbb2c92c2,0xf0a021e8,0x0f7ee7f7,0x7bb00025,0x56bb8743,
+        0xb56fcb65,0x821e0d43 },
+      { 0x7f678f55,0x645eb5c4,0x9f8e1a1a,0xe25d47b3,0xb88a073a,0x64c36f50,
+        0x0dc3c40a,0x0e055fc4 } },
+    /* 176 */
+    { { 0x4609572d,0x2cefcf3a,0x7494bd97,0xf968026c,0x06ed6a57,0xc23d0da3,
+        0x357c6954,0x856e792e },
+      { 0xc07b2072,0xc38a6dfe,0x69f2441f,0x633046e5,0x52eae7e5,0xffbfb5fb,
+        0x78cc73ad,0x37c19f3f } },
+    /* 177 */
+    { { 0x5035176a,0x841d8ed5,0x15238680,0x51fd212c,0x47fd7f30,0x0c3a9989,
+        0xc34a6f4b,0x7e632fab },
+      { 0x7e9c319c,0xd7af0263,0xe7cd4c13,0xebc8b0af,0x531d71f6,0x5268b262,
+        0xad8affc4,0x7aa6ad7f } },
+    /* 178 */
+    { { 0xde888b27,0xb26bd737,0x5947a24f,0x10c5a767,0x80918bd3,0x8253e201,
+        0x7411109f,0x2aeacb38 },
+      { 0xf8e64765,0x1029980b,0xfdc84280,0xc815b823,0xcba3d3d8,0x7eb76b70,
+        0x6a2530ec,0x166fbf8d } },
+    /* 179 */
+    { { 0x9425d686,0x50abfed9,0xa7bfcdd9,0x290570c1,0xa804fb6f,0x691012ea,
+        0xae4250b8,0x9410b3d7 },
+      { 0xfcb6730c,0x2d98a650,0xa85a81cb,0x673dbfcb,0xda7b4a3b,0xe010739f,
+        0xec69ba96,0x91184471 } },
+    /* 180 */
+    { { 0x7e4f4c6d,0x0a2920ae,0xd771233c,0xe6c28d36,0x3f29d15b,0x49ed18bf,
+        0x9977b871,0x910eceb7 },
+      { 0x6a771b2a,0x7aba8d7f,0xa4aca4a1,0xf0344152,0xdd88e461,0x59d8d714,
+        0x8f772d1b,0x8e1dad08 } },
+    /* 181 */
+    { { 0xf7aad0f4,0xd79a54b3,0xdc67b61a,0xd9030bd2,0x249554b7,0x44356a86,
+        0x0e747d44,0x1861c194 },
+      { 0xf1ed9651,0xad05908c,0x9e4f3b89,0xeb7e67b3,0xdc9e1539,0x633384fe,
+        0x819761f9,0x76d698c7 } },
+    /* 182 */
+    { { 0x462e278a,0x54bbd23c,0xcabb59ed,0x54ef607e,0x0d4be695,0xea8f416c,
+        0xd827b2a3,0x7a8e14df },
+      { 0xf4fb47e4,0x2a381f9e,0x7040a8b3,0x49c1b8a3,0x331db425,0x3c76b727,
+        0x3fea7eab,0x167502ed } },
+    /* 183 */
+    { { 0x8531469a,0x71a1c3b2,0x70665410,0xfc9cf535,0x7ba2373b,0x3ffd70ac,
+        0xfde07d13,0x23021150 },
+      { 0x76927596,0xaaffa12c,0xeefc2c99,0xe1831dc5,0x02a5892c,0xd34c87f5,
+        0x45001883,0xa5fe14ee } },
+    /* 184 */
+    { { 0xfb25adc8,0x96a408b2,0x24daf7ee,0x3da348df,0xb3291169,0x443ac446,
+        0x9ebd4266,0x62b487bd },
+      { 0xecb35de3,0xc0562226,0xb13b80ef,0xef79b002,0x3653db68,0x5323751b,
+        0xd4a5e31d,0x4f2ede34 } },
+    /* 185 */
+    { { 0xec0f0c47,0xe1479805,0xb51e2763,0xc4e5320e,0x043e6d09,0xac6cc07f,
+        0xc3c8698d,0x50e911cc },
+      { 0xd75b7f2e,0x1c1e18be,0x6cf44e8e,0x7705b489,0xba8bff8e,0xad2174f5,
+        0x7e0bc372,0x26249260 } },
+    /* 186 */
+    { { 0xd6d66355,0xcf789301,0x8dd30413,0x9db6cf5b,0x0943204f,0x3fd5eb84,
+        0x5ccfca46,0x0f2eec79 },
+      { 0x111803bb,0x3bc9ba63,0x138aef8a,0x2fa721e7,0xb04d557a,0xa863e332,
+        0xf4e95a0c,0x9446358e } },
+    /* 187 */
+    { { 0x0879bea4,0xdc8da45c,0x5473e11c,0xff08e9db,0xf78d3a29,0x31d638b0,
+        0x6b272c21,0x37025d8c },
+      { 0x8774ba9e,0xf46e9a0a,0x30805188,0x62bdffb6,0xf2d15b42,0x2a60c44b,
+        0xbeb12402,0x9ad646f6 } },
+    /* 188 */
+    { { 0xcb6d6b28,0x0a351f60,0x43093db4,0x4eb5c2fe,0x38e75eaa,0x8345da31,
+        0x464af2bd,0xa3a288b1 },
+      { 0x29b7ed6c,0xe95dabda,0x6bd0985e,0x2e67f9a9,0x92b10801,0xd89398b2,
+        0x09951a16,0x5781f220 } },
+    /* 189 */
+    { { 0x693fd8a6,0xe1f94998,0x6bcbd72d,0x61be5734,0xa67ee3f8,0xdf6fa28a,
+        0x247be8ff,0x2687c7c0 },
+      { 0xe8d3e8a2,0x18eee689,0x4c77f670,0xb136fc0c,0x3997243b,0x7aa81883,
+        0x918588f1,0x64d9fe5e } },
+    /* 190 */
+    { { 0x8dd8852f,0x1ba85a66,0x531eccc6,0xb4f6aa74,0xfade7f8f,0x392d9dd7,
+        0xc72092f0,0x35594c93 },
+      { 0xff23fdaa,0x841cb0e6,0x03898c52,0x48d2c33d,0x14d2005e,0x8555cbc9,
+        0x38f89de7,0x0c603e50 } },
+    /* 191 */
+    { { 0x1cd9caea,0x900854e3,0x4dac1a64,0xd8732082,0x74eb6d98,0x0a092b60,
+        0x1094c4a9,0x526e22d4 },
+      { 0xeb73e5b5,0xd3cdb874,0x9d49dfea,0x3441bc61,0x1e8a7afc,0x690782c6,
+        0x122313b5,0x15b2ad09 } },
+    /* 192 */
+    { { 0xb047c857,0x5f806dc5,0xb04ff52a,0x47aab30b,0x15319132,0x91a41158,
+        0x4635bd4d,0x1b55a7ea },
+      { 0xbc2f9705,0xe735f18c,0x0a8f29e8,0x8f2199c5,0xada96e88,0x1b111e0e,
+        0x7d40c5e0,0x328fabfe } },
+    /* 193 */
+    { { 0x1e3f1463,0xd7db3a75,0x5217ca99,0xd741f047,0x43d0a4ea,0xc0f454c5,
+        0xf8d4184b,0x27893ac1 },
+      { 0x19262bf0,0x812f77d5,0xb9f1188c,0xac6d0c83,0x3ed5983d,0x0ebe3c6f,
+        0xc421335b,0x1aee29f9 } },
+    /* 194 */
+    { { 0xf004e70a,0x0be3e8e1,0x3072e0f0,0xc2afb848,0x4137a486,0x27ff1c55,
+        0x001bc2a9,0x9cbc5ca7 },
+      { 0xd840c49c,0x84f3dd81,0x5b904f0d,0x50d206d5,0x12e50efd,0x7d822da7,
+        0x511b3c7d,0xa10782fe } },
+    /* 195 */
+    { { 0x7a1c5705,0xbbc05dd6,0x85cec1cd,0xe9c4501c,0xfbc06e02,0xd60b16f0,
+        0xe944f69f,0x2d2c134f },
+      { 0x763f9d5f,0x073c47c7,0xae2cbe31,0xb57c6bf3,0x05b105e9,0x7bb4ce04,
+        0xd8ee6da6,0x46360837 } },
+    /* 196 */
+    { { 0x8f37b5dc,0x95dc2783,0xf9499792,0x0ab795fc,0xdb2b45d8,0x6d18a437,
+        0x84eb2079,0x6aebf06a },
+      { 0x06e7df01,0x0cbd21c6,0xf4a1a6cb,0x550ff382,0x7a656726,0x0684b95f,
+        0x9c9b3653,0x315751f3 } },
+    /* 197 */
+    { { 0x42fc84f7,0x2e598e64,0x662ce615,0x350329ee,0x656fc94d,0x35084b15,
+        0x2187aa00,0x657c8dde },
+      { 0x9526ce8f,0x5fe3c98a,0xfce758f1,0xf2286970,0x699588d2,0x32159879,
+        0x4a3f750a,0x9323024c } },
+    /* 198 */
+    { { 0x90958582,0x6ffb490e,0xd8558b9f,0xbc35b46e,0xb72f3309,0xe549018d,
+        0x6bd612ab,0x4383a964 },
+      { 0x9e69ee4b,0xab4b9fa1,0x2f24b39e,0x07428bf6,0x214ea728,0x4fb7ae45,
+        0x1d1ca3a5,0xa646492b } },
+    /* 199 */
+    { { 0x90ef8384,0xa6d3d0db,0x40e5750d,0xe6958d31,0xe59df4d6,0x5b4c7c5b,
+        0xf9ccd8b5,0x3573025f },
+      { 0x9bc75bc9,0xd5f6d445,0x82830524,0x6b8a7642,0x57cfee76,0xccb045af,
+        0x1b528a4c,0x1504156c } },
+    /* 200 */
+    { { 0x9c8231fe,0xcc7c0699,0xa3f620d6,0xe99eb976,0x39413be6,0xebabbe36,
+        0xf8bc2b04,0xa9e0f798 },
+      { 0xd777e92a,0x187aaad2,0x33463d3d,0x6050f8e6,0x533d3f46,0xad3214b2,
+        0x98fc44bb,0x130131cb } },
+    /* 201 */
+    { { 0xaf962c60,0x5d1e7f5b,0x74cd1a5a,0x680430e1,0x89dc3e3d,0x90a8cd33,
+        0xb39b69c5,0xa7e83ac1 },
+      { 0x7737fae2,0x8f6d360a,0xd5228ea6,0x45e34771,0x27756566,0x2527bd32,
+        0xdc433cd2,0x060558af } },
+    /* 202 */
+    { { 0xcd101a28,0xdb7e48ae,0xed947bde,0xee7b1291,0xf18923d7,0x87a2bc43,
+        0xd55bbce8,0x031199a3 },
+      { 0x89b244e1,0x7ecaffe8,0x1e2934d7,0x06d107c2,0x92e97b25,0x111e8dda,
+        0x590bcd4e,0x714bdd2a } },
+    /* 203 */
+    { { 0x576a9d72,0xbd9fff84,0x82d0e9e7,0x012f6cae,0x284e5508,0x8779844e,
+        0x35c1822b,0x76cb759f },
+      { 0x86177816,0xe88fc038,0x6e84e236,0x5dc5d83b,0xd95bae1a,0x5c8c7ab3,
+        0xec395204,0x01c28bb1 } },
+    /* 204 */
+    { { 0x4503d71d,0x7d3c6bc6,0x6fccacab,0x44c5c192,0x6adddba3,0x5a3186e8,
+        0xac197ca3,0x4965afed },
+      { 0x60900b92,0x1a415bcb,0x5a9d185a,0xba2ea961,0x17d18421,0x16d8c4fe,
+        0x593f5769,0x2e213691 } },
+    /* 205 */
+    { { 0x5dea787a,0x8f09b816,0x595244ac,0x00eb4ff9,0xf52330ce,0xce7a4143,
+        0x5f4ee3e2,0x23a4bddc },
+      { 0x8009d6cf,0x936bd858,0xd73e1958,0x164aa796,0x08f4b44c,0x496c0633,
+        0xdbd72b3b,0xa13857d4 } },
+    /* 206 */
+    { { 0xe536a375,0x667ee77f,0xb1cc082a,0xd7358a90,0x5d5f2b24,0x25a27a75,
+        0x0b7a05bc,0x0b35c931 },
+      { 0xe84d0400,0xa858d693,0xd9bf2305,0x61b4eedb,0x0f926c0f,0xfc8ea260,
+        0xbda67489,0x9c7d30df } },
+    /* 207 */
+    { { 0xfe6cf1ee,0x75036e7c,0xd7ebd0da,0x7992d67d,0xd5f40121,0xd8e79c2b,
+        0x3b20b6de,0x149669b8 },
+      { 0xe6064967,0xb6d0dd17,0x4be81a1a,0x8d9a08b4,0x999357c6,0xee7f663b,
+        0x1f5ff499,0x4ee19702 } },
+    /* 208 */
+    { { 0xa25a430b,0x0f5ad353,0x313aeaaa,0xfe9b6b6e,0x43fccdda,0x8d458473,
+        0xb542981f,0x316c7792 },
+      { 0x917b454c,0xc1cb2be0,0xd5560631,0x4add2a03,0x6af20dcb,0x62684f24,
+        0x9b56c4c4,0x40eb2d24 } },
+    /* 209 */
+    { { 0xf45a721b,0x830ba080,0xf0006944,0x71546d8f,0x71719ac8,0x403b2332,
+        0xcc795178,0x5b53a8b6 },
+      { 0xb8adc0ee,0x56fceccb,0x3f3d5bf3,0x902dd9a3,0xb35cc8ad,0xade39810,
+        0x4f8294bc,0x7716d18a } },
+    /* 210 */
+    { { 0xfad2580e,0x429787fe,0x6e2e6f3d,0x1a314b06,0x985f6939,0x66002713,
+        0x723237e5,0x47be53b6 },
+      { 0x810416f8,0xc6b17783,0xc69d1471,0x3d01839a,0x6282f66a,0xabb6196c,
+        0x7bbdd14d,0x77253b1c } },
+    /* 211 */
+    { { 0x1a5d4545,0xc9c92455,0x70593f51,0xa73d77ad,0x08b0c5b9,0xcc05633c,
+        0x507ebb83,0x0b1785a7 },
+      { 0x6092e31b,0x1917dbd1,0xe22c0b8b,0xbb6749a2,0x4f9ca99d,0x11e19405,
+        0xee8108d0,0x8c34ce29 } },
+    /* 212 */
+    { { 0xb6834029,0xb9c713ab,0xc6bec86b,0x32af6d95,0xfd9996b1,0xc6b68eeb,
+        0xdeba521a,0x7f07cf24 },
+      { 0x9e9943d2,0xa266c854,0xef2a4126,0x753958c4,0x28a1af8f,0x57ccc8be,
+        0xd42f400d,0x3776c9ba } },
+    /* 213 */
+    { { 0xb500d588,0xec9e316f,0x30dd2540,0xb2ae7b44,0x7db5d670,0x494beab6,
+        0x1554db67,0xa3f19b71 },
+      { 0x09cd5a91,0xeefedaa3,0xdd7e4aa3,0x0428a36a,0xbbfe6d57,0x3b41e0cd,
+        0xce2e2334,0x3e4b99e8 } },
+    /* 214 */
+    { { 0x5a487f5b,0xf6d87402,0x550acb3f,0x3fac43ff,0x452d5d07,0x579af87a,
+        0x8ea74534,0x98df5337 },
+      { 0x85a556b1,0x9afd1374,0xd2648b18,0x48f1cae5,0x8f29143a,0x1cb1f53f,
+        0x6b83903e,0x41b20eb2 } },
+    /* 215 */
+    { { 0x53938b6c,0x99222f79,0x0434730d,0xb8b16ae8,0x0ecca3b3,0x3def3aa8,
+        0x06c76c1d,0x939d0d4d },
+      { 0x97a0641e,0xce404812,0x83a78edb,0x3a9d588b,0x1610dc4e,0xcfc25a86,
+        0x99fa5be9,0x57ce3d2c } },
+    /* 216 */
+    { { 0x720ac75a,0x5cbbc94e,0x27c494a7,0xb8bc849d,0x627cf9ed,0x54494cd0,
+        0xdb0d819b,0x765b9bc6 },
+      { 0x4a82a978,0x260ebbe7,0x26889791,0x5d2bf445,0xe5b3b207,0xcb6bb156,
+        0x274d04bf,0x2c3dd3ac } },
+    /* 217 */
+    { { 0x132c70c2,0x920e280f,0x89624588,0xff6af431,0x84efa97d,0x405074d7,
+        0x24d5b5fe,0x2dcf2b3a },
+      { 0xc2287085,0xc44bd08b,0xf44627b3,0x420af775,0xf2d4fa37,0x061ed686,
+        0x94e402cd,0x678b30cf } },
+    /* 218 */
+    { { 0xb86770bf,0x7ac0cf37,0x74b0387e,0x456220a4,0xe8a299de,0x55ef3635,
+        0x29172830,0x738f83c5 },
+      { 0x2bb423ae,0xd91edfc4,0x954d5d1d,0xdcfd0fdf,0xbf428524,0xe8249c8e,
+        0xe218dc09,0x4ff0607e } },
+    /* 219 */
+    { { 0xc30b9cc1,0x35a369ea,0x91991b27,0x7f8dec57,0x94fb96aa,0xfd2c4d6c,
+        0x0d523dcf,0x3df94fc2 },
+      { 0x51ce04ee,0x87a076fa,0xb8bd3bd1,0x2c227a17,0xc11a9bcb,0x4b84884d,
+        0x17ec0d73,0x05ab6fd1 } },
+    /* 220 */
+    { { 0x754876f5,0xa9b19d7f,0x4b3e33ee,0x70125505,0xdfd1853a,0xec92b54e,
+        0x863f12ec,0x47abd1ec },
+      { 0x6805f95c,0xf2e84bd9,0x0f9114f9,0xc79a298b,0x0537f965,0x39e46ec8,
+        0x564f7d13,0x981df534 } },
+    /* 221 */
+    { { 0xf02efa7e,0xe10905b5,0xc8a489a2,0x1c41f62b,0xd5565408,0x1e06402e,
+        0x8b3f808a,0x34fe372d },
+      { 0x0e1da3af,0x38bf427e,0x151f8f22,0xf6eac3fe,0xb13fc5a5,0x3b09be17,
+        0xf3722226,0x8bc26dd8 } },
+    /* 222 */
+    { { 0x5b7f7fc1,0x6ff4ff8e,0x57df48eb,0x11fac7d2,0xa4b1955b,0xae1d302c,
+        0x351d1fc8,0x13286668 },
+      { 0xef878d6b,0xb3443160,0x1bf27421,0xb04e0e9e,0x917c2921,0x68a2ef92,
+        0x7e6b58ad,0x6a21c311 } },
+    /* 223 */
+    { { 0xc5792848,0x3e289d1b,0xd12f4a7e,0x2655cde5,0x66e4de9d,0x0b7b331f,
+        0x03d93faa,0x699a7649 },
+      { 0x59ca2583,0x53b67ed8,0x18e5332b,0x98f37c7d,0xde524437,0xb7804d23,
+        0x1e7778c7,0x08b7845e } },
+    /* 224 */
+    { { 0xc66d1ae1,0xdfffedf6,0xe654ffee,0x4b50af92,0x96e9eaf2,0xf6cb2a08,
+        0x0bf4ae49,0x07b92dba },
+      { 0x39d2cabe,0xafe786c9,0x2a65231c,0xdd3f42a7,0x3ac26195,0xe031b157,
+        0x1fc105a8,0x49cc3fbc } },
+    /* 225 */
+    { { 0xefedc234,0x2c6a7596,0xa47c6879,0x149a4644,0xe35b23c0,0xafff134b,
+        0xc8e6cf7f,0x19b9c741 },
+      { 0xd26af28d,0x70dc9bae,0xf0ca9b8f,0xa5fd6a04,0xe61adcc7,0xbd51dc99,
+        0x4d3d270c,0xa9948f89 } },
+    /* 226 */
+    { { 0xf8e3f56e,0x4622c3fb,0x590248da,0x4a399bc3,0x243fbd77,0x051f34fe,
+        0x0631bd06,0x8bfbfe01 },
+      { 0x4eb7a747,0x37760142,0x55473cad,0x136db7b8,0x4cb41f7a,0x1ebb57e2,
+        0x7f1d14c4,0x8ce4f8f6 } },
+    /* 227 */
+    { { 0x26f98690,0xf7fa97a3,0xfb37d11b,0xad8e8280,0x83a811f0,0x08f7f8df,
+        0x664ec738,0xa5d21e38 },
+      { 0x4a9b84e5,0x9de83452,0x1717b810,0xee9ce7ec,0x2d59396b,0x22520ec1,
+        0x77a3b604,0x30013b00 } },
+    /* 228 */
+    { { 0x93ca294d,0x9e18bea6,0x5bf03516,0x54843d56,0x4ddd6570,0x98810b50,
+        0x6eda7fe1,0x755a65b4 },
+      { 0xd580b991,0x6335f17d,0xac969c41,0x60752d87,0x2914e67e,0x0a335728,
+        0x54f2ef27,0x617e5254 } },
+    /* 229 */
+    { { 0x50a95fdb,0xad396d6f,0xfbe6f326,0x5294c9b0,0x7ee79f54,0xfa82a277,
+        0x55a4e706,0x1121f053 },
+      { 0xa374408e,0xf353aba8,0x0c5cdd7b,0x5c66b046,0x799fd27c,0x9167d360,
+        0x60c6c383,0x05b2d861 } },
+    /* 230 */
+    { { 0x53730792,0x40819866,0xeb476541,0x9e503f6e,0xf25e77d7,0xd84b14ca,
+        0x22724608,0xa96f1113 },
+      { 0x5d8bba2b,0x6891f6f8,0x1ad1c76f,0x991c12c1,0x63dc0e8c,0xee70c933,
+        0x9036c80a,0x1e584d16 } },
+    /* 231 */
+    { { 0xbcf7f492,0xbf442b51,0x6f8f463e,0xbdc8ac35,0x25fa369a,0x08eef1c8,
+        0x48f12cb1,0x65b4cb1e },
+      { 0xec4f36cd,0x454e34e0,0x8ba6305c,0x2a37270d,0x770a347d,0x79e3b24a,
+        0x95c6b93d,0xa4ce5698 } },
+    /* 232 */
+    { { 0x99d5cd05,0xccfe2208,0xd783dd7e,0xb27f3969,0x782e6c0a,0x3343862e,
+        0x4a6778a6,0x3968f1be },
+      { 0x6c370e83,0xa7a57c84,0x2b5079d3,0xe9505d5a,0x6b5cbf94,0x65ed7191,
+        0x6f83f7ae,0x6176ec47 } },
+    /* 233 */
+    { { 0x6a89d3a8,0x684259d0,0xfd71bfa8,0x06e26e77,0xe1d78513,0xa75d596a,
+        0x3a119e7a,0x2da37d95 },
+      { 0xa6930fa5,0x5e3161a3,0x7ba5aa55,0xd8b3b902,0xbb37623b,0x7f8b462a,
+        0x19cdd606,0x018312ee } },
+    /* 234 */
+    { { 0xd50de10e,0x42567cc0,0x9edb1e24,0x143725cc,0xc8e30e2e,0x04ecfd01,
+        0xa0bf070b,0x7624a0e0 },
+      { 0xc22e17b2,0xc0ce8521,0x48b8401f,0x1125e5f5,0x7e3848bb,0xe1d11524,
+        0xb71fd2df,0x7cab17cc } },
+    /* 235 */
+    { { 0xe2838312,0x384ead13,0x595093c7,0xd568b16b,0x8cce7b9c,0xbccd7651,
+        0x7df5cdbc,0x3d681de6 },
+      { 0x7013eb12,0xf37795f8,0x3b7daf16,0x7a73f4ba,0x0561f382,0x7a9f8e5e,
+        0x0470f51e,0x92e8d096 } },
+    /* 236 */
+    { { 0xbbc16739,0x54a149e8,0x42312033,0x61c7ea3c,0x534622c1,0x74fb1c4d,
+        0xd6127cfc,0x016eeef6 },
+      { 0x3d456a4a,0xa5304bce,0x8cb4a065,0xb0dceddb,0x354dc72f,0x30565151,
+        0x421b6230,0x95bf3f80 } },
+    /* 237 */
+    { { 0x1ea61443,0x7d0771c8,0x54b36de6,0xa53441c2,0x212238e6,0x0c917b1b,
+        0xaa644153,0x34017cf9 },
+      { 0xf40ddf84,0x2f814467,0xa3d7d76d,0xf9fe0fd0,0x8024f989,0x48b330d7,
+        0xf040140e,0x42ecf573 } },
+    /* 238 */
+    { { 0xc7764032,0xb324aea9,0x7415230d,0x0db21b23,0xc7f2abed,0xa77cabe4,
+        0xe635d6d9,0x44bcdd10 },
+      { 0xa9d7ac0d,0xa6cf01c2,0x2269decf,0xd32098d4,0x04250692,0x59026199,
+        0xb4c12de8,0x8b3654f5 } },
+    /* 239 */
+    { { 0xb1899170,0xc3f3869e,0xa40736df,0xca8e220d,0x7fd2d5d3,0x65989247,
+        0x316d8886,0x05684b05 },
+      { 0x0f97b03d,0xb8bd6734,0x844a8add,0xb969bc94,0xd7ca464f,0xb570c764,
+        0x060af19d,0x2423a1e0 } },
+    /* 240 */
+    { { 0x565f82a5,0xc0ea76d3,0xce6e6300,0x3d724f2b,0xec5057f6,0xf99d4fa2,
+        0x098d2f8d,0x149e8028 },
+      { 0x9e742c74,0x75d675c5,0x6d0cb238,0x23d0afa1,0x54a140b6,0x9348eb78,
+        0xf1343cab,0x7902a29a } },
+    /* 241 */
+    { { 0x8cb69545,0x7820d003,0x12f0c779,0x88edf821,0x8f95243d,0xde76cd57,
+        0x0a1b6302,0x6504e908 },
+      { 0x14641de1,0x3db41ec9,0xfc40ac25,0xb7f4cc74,0x6e5d078b,0xb72a9b05,
+        0x6179166e,0x2cc85d14 } },
+    /* 242 */
+    { { 0xf97b90c0,0xbe9a8aea,0x9235ef00,0x29d9b928,0xc5733046,0x68edea4f,
+        0xcd408cab,0x9b97e0fa },
+      { 0x4fa5416b,0x3542c29e,0xf7e78474,0xd08f26ef,0x92428206,0x125a81ac,
+        0x718f14b5,0x4c2d68ea } },
+    /* 243 */
+    { { 0x49cee030,0x0942f87c,0xa4e054ae,0x032c3c3e,0x1dd00e2d,0xcec9717a,
+        0xb88a3356,0x28944b42 },
+      { 0x0bae4024,0xa086d0d0,0x9e3314ba,0xe9238767,0xe079ce00,0x57e39d7d,
+        0x64ae273a,0x1b82ddf7 } },
+    /* 244 */
+    { { 0x7fd5c21f,0x1f13239e,0xe97dfde1,0x887c54c1,0x8bfe1a32,0x5c79d6eb,
+        0xaf439f12,0x2e02cee7 },
+      { 0x6b2077e0,0x05d94f00,0x38efb00f,0xf1d29104,0x5efab2a7,0xf7826939,
+        0x3ec5cb91,0x329f39ef } },
+    /* 245 */
+    { { 0x755a3c35,0x3ee44b62,0x34493a5c,0xc4ab68b1,0x193fde8f,0xa42d641b,
+        0xec74fa07,0x9e8c1e0c },
+      { 0x03d6d776,0xe55c4c01,0xea77b55e,0x78eaffb8,0x55d2d7fa,0x4ad4bf13,
+        0x0ab57ebb,0x19507533 } },
+    /* 246 */
+    { { 0xf0fd29a5,0x5c451557,0x3f3c6749,0xa8c8916b,0xb082f117,0x8ebb90f3,
+        0x73a28ab9,0x209e525b },
+      { 0x2cd3b651,0x0b5ea9dc,0x62aa09f0,0x90b722bc,0xdb29560e,0x934e4884,
+        0x31266473,0x749d1fcc } },
+    /* 247 */
+    { { 0x60faf913,0x03d1556c,0x193cab10,0x26593e83,0x5c46817e,0x2dbb9898,
+        0x617215f7,0x3f07ab36 },
+      { 0x70b19db8,0xbcf5c261,0x0d665882,0x2a3e711a,0xedf8236c,0x81d920d2,
+        0xcf3c7f5f,0x2abcee22 } },
+    /* 248 */
+    { { 0xcf716c72,0x06c398af,0xf978ac5f,0x2e7f298d,0x11e49ceb,0x3563d660,
+        0x35fbc850,0x4b6186b0 },
+      { 0xf9269d28,0xdcf36114,0xbd7641c6,0x99089da0,0x145efb43,0xbebcbde4,
+        0x16a0978b,0x32a123b4 } },
+    /* 249 */
+    { { 0x4f56f2f0,0xb94a7809,0xc5b6770f,0x3405a797,0xf1cdd778,0xb755fcc2,
+        0x6477d937,0x5976f320 },
+      { 0x0a72e083,0x5d04b30f,0x6719758c,0x8b42be73,0x96ef60cd,0xef643efa,
+        0xf205d3cf,0xa2c9c1e8 } },
+    /* 250 */
+    { { 0x0cad3dfd,0x3ba9d566,0xb8466492,0x2342ba19,0x2f6ce352,0x2fc6334e,
+        0x6adcf83a,0x7dbb9a8a },
+      { 0x28a6f051,0xbee732ce,0x980b9889,0x267453d3,0xe4ec4658,0x63b27590,
+        0x84ebf995,0x12be705a } },
+    /* 251 */
+    { { 0xf6a5fe7c,0x20cb8b8d,0x31ba201a,0x242abd74,0x6121b3dc,0x7ffcccc0,
+        0xca8101a8,0x24618e5b },
+      { 0x50eeb385,0x8e6a6023,0x81d827f4,0x0af9b9fb,0x16ff019e,0xdd5a8a6c,
+        0x2e1347c6,0x86ef8135 } },
+    /* 252 */
+    { { 0xbe26d131,0x2a614468,0x40a89988,0xb384f62f,0x34f11004,0x3ab22d9a,
+        0x0dc2a0dd,0x1540e2b3 },
+      { 0x44b56199,0x86b841a1,0x58fafc75,0x69acfb50,0xd765cab5,0x5ffbba25,
+        0xf6148279,0x85fb9dd1 } },
+    /* 253 */
+    { { 0x8ef50237,0xc9b7c9e1,0x2551c55a,0x4466e07b,0x82327bef,0x04aff883,
+        0x0286a933,0x5c931e29 },
+      { 0xa0bbbe3a,0x0779d3cc,0xefdb87af,0x7b3c9b38,0x74edb609,0x8bbfa3ae,
+        0x85321335,0x1716ed60 } },
+    /* 254 */
+    { { 0x5f7ed999,0x8d55af25,0x739e8146,0x9b40d0d9,0x1376d08b,0xfdd10763,
+        0x105ee923,0x432da2a0 },
+      { 0x9de98e75,0x162ebe03,0xf58cee7e,0xd219b0b5,0x2ea92d75,0xe4c5a03f,
+        0x3e716165,0x9c4bf144 } },
+    /* 255 */
+    { { 0x2374f80a,0x071ec54d,0x60e54b8d,0x4104e5db,0x28068fed,0x43443004,
+        0x4a06dbc0,0x37db5532 },
+      { 0x2ff0ce47,0xe64d45de,0xd8cfb65b,0x7f53a30b,0x6d1e64a6,0x773ec2ce,
+        0x0d330903,0x17675b96 } },
+};
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * Stripe implementation.
+ * Pre-generated: 2^0, 2^32, ...
+ * Pre-generated: products of all combinations of above.
+ * 8 doubles and adds (with qz=1)
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * ct    Constant time required.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_base_brainpool_8(sp_point_256* r, const sp_digit* k,
+        int map, int ct, void* heap)
+{
+    return sp_256_ecc_mulmod_stripe_brainpool_8(r, &p256_brainpool_base, p256_brainpool_table,
+                                      k, map, ct, heap);
+}
+
+#endif
+
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * km    Scalar to multiply by.
+ * r     Resulting point.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_brainpool_256(const mp_int* km, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256  point[1];
+    sp_digit k[8];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 8, km);
+
+            err = sp_256_ecc_mulmod_base_brainpool_8(point, k, map, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_8(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Multiply the base point of P256 by the scalar, add point a and return
+ * the result. If map is true then convert result to affine coordinates.
+ *
+ * km      Scalar to multiply by.
+ * am      Point to add to scalar mulitply result.
+ * inMont  Point to add is in montgomery form.
+ * r       Resulting point.
+ * map     Indicates whether to convert result to affine.
+ * heap    Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_mulmod_base_add_brainpool_256(const mp_int* km, const ecc_point* am,
+        int inMont, ecc_point* r, int map, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[2];
+    sp_digit k[8 + 8 * 2 * 5];
+#endif
+    sp_point_256* addP = NULL;
+    sp_digit* tmp = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (8 + 8 * 2 * 5),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 8;
+
+        sp_256_from_mp(k, 8, km);
+        sp_256_point_from_ecc_point_8(addP, am);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->x, addP->x, p256_brainpool_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->y, addP->y, p256_brainpool_mod);
+    }
+    if ((err == MP_OKAY) && (!inMont)) {
+        err = sp_256_mod_mul_norm_8(addP->z, addP->z, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_base_brainpool_8(point, k, 0, 0, heap);
+    }
+    if (err == MP_OKAY) {
+            sp_256_proj_point_add_8(point, point, addP, tmp);
+
+        if (map) {
+                sp_256_map_8(point, point, tmp);
+        }
+
+        err = sp_256_point_to_ecc_point_8(point, r);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                                        defined(HAVE_ECC_VERIFY)
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN | HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+/* Generates a scalar that is in the range 1..order-1.
+ *
+ * rng  Random number generator.
+ * k    Scalar value.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+static int sp_256_ecc_gen_k_brainpool_8(WC_RNG* rng, sp_digit* k)
+{
+    int err;
+    byte buf[32];
+
+    do {
+        err = wc_RNG_GenerateBlock(rng, buf, sizeof(buf));
+        if (err == 0) {
+            sp_256_from_bin(k, 8, buf, (int)sizeof(buf));
+            if (sp_256_cmp_8(k, p256_brainpool_order2) <= 0) {
+                sp_256_add_one_8(k);
+                break;
+            }
+        }
+    }
+    while (err == 0);
+
+    return err;
+}
+
+/* Makes a random EC key pair.
+ *
+ * rng   Random number generator.
+ * priv  Generated private value.
+ * pub   Generated public point.
+ * heap  Heap to use for allocation.
+ * returns ECC_INF_E when the point does not have the correct order, RNG
+ * failures, MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_make_key_brainpool_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256 point[2];
+    #else
+    sp_point_256 point[1];
+    #endif
+    sp_digit k[8];
+#endif
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256* infinity = NULL;
+#endif
+    int err = MP_OKAY;
+
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, DYNAMIC_TYPE_ECC);
+    #else
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);
+    #endif
+    if (point == NULL)
+        err = MEMORY_E;
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
+        err = sp_256_ecc_gen_k_brainpool_8(rng, k);
+    }
+    if (err == MP_OKAY) {
+            err = sp_256_ecc_mulmod_base_brainpool_8(point, k, 1, 1, NULL);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_8(infinity, point, p256_brainpool_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_8(infinity, point, p256_brainpool_order, 1, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        if (sp_256_iszero_8(point->x) || sp_256_iszero_8(point->y)) {
+            err = ECC_INF_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(k, priv);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_point_to_ecc_point_8(point, pub);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL) {
+        /* point is not sensitive, so no need to zeroize */
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    }
+#endif
+
+    return err;
+}
+
+#ifdef HAVE_ECC_DHE
+/* Multiply the point by the scalar and serialize the X ordinate.
+ * The number is 0 padded to maximum size on output.
+ *
+ * priv    Scalar to multiply the point by.
+ * pub     Point to multiply.
+ * out     Buffer to hold X ordinate.
+ * outLen  On entry, size of the buffer in bytes.
+ *         On exit, length of data in buffer in bytes.
+ * heap    Heap to use for allocation.
+ * returns BUFFER_E if the buffer is to small for output size,
+ * MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+int sp_ecc_secret_gen_brainpool_256(const mp_int* priv, const ecc_point* pub, byte* out,
+                          word32* outLen, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[8];
+#endif
+    int err = MP_OKAY;
+
+    if (*outLen < 32U) {
+        err = BUFFER_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(k, 8, priv);
+        sp_256_point_from_ecc_point_8(point, pub);
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_8(point, point, k, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_8(point, point, k, 1, 1, heap);
+#endif
+    }
+    if (err == MP_OKAY) {
+        sp_256_to_bin_8(point->x, out);
+        *outLen = 32;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
+        XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* HAVE_ECC_DHE */
+
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#endif
+#if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+/* Order-2 for the P256 curve. */
+static const uint32_t p256_brainpool_order_minus_2[8] = {
+    0x974856a5,0x901e0e82,0xb561a6f7,0x8c397aa3,0x9d838d71,0x3e660a90,
+    0xa1eea9bc,0xa9fb57db
+};
+
+/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
+ *
+ * r  Result of the multiplication.
+ * a  First operand of the multiplication.
+ * b  Second operand of the multiplication.
+ */
+static void sp_256_mont_mul_order_brainpool_8(sp_digit* r, sp_digit* a, sp_digit* b)
+{
+    sp_256_mul_8(r, a, b);
+    sp_256_mont_reduce_order_brainpool_8(r, p256_brainpool_order, p256_brainpool_mp_order);
+}
+
+/* Square number mod the order of P256 curve. (r = a * a mod order)
+ *
+ * r  Result of the squaring.
+ * a  Number to square.
+ */
+static void sp_256_mont_sqr_order_brainpool_8(sp_digit* r, sp_digit* a)
+{
+    sp_256_sqr_8(r, a);
+    sp_256_mont_reduce_order_brainpool_8(r, p256_brainpool_order, p256_brainpool_mp_order);
+}
+/* Invert the number, in Montgomery form, modulo the order of the P256 curve.
+ * (r = 1 / a mod order)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
+static void sp_256_mont_inv_order_brainpool_8(sp_digit* r, sp_digit* a,
+        sp_digit* td)
+{
+    sp_digit* t = td;
+    int i;
+
+    XMEMCPY(t, a, sizeof(sp_digit) * 8);
+    for (i=254; i>=0; i--) {
+        sp_256_mont_sqr_order_brainpool_8(t, t);
+        if (p256_brainpool_order_minus_2[i / 32] & ((sp_digit)1 << (i % 32)))
+            sp_256_mont_mul_order_brainpool_8(t, t, a);
+    }
+    XMEMCPY(r, t, sizeof(sp_digit) * 8);
+}
+#endif /* HAVE_ECC_SIGN | HAVE_ECC_VERIFY */
+#ifdef HAVE_ECC_SIGN
+#ifndef SP_ECC_MAX_SIG_GEN
+#define SP_ECC_MAX_SIG_GEN  64
+#endif
+
+/* Calculate second signature value S from R, k and private value.
+ *
+ * s = (r * x + e) / k
+ *
+ * s    Signature value.
+ * r    First signature value.
+ * k    Ephemeral private key.
+ * x    Private key as a number.
+ * e    Hash of message as a number.
+ * tmp  Temporary storage for intermediate numbers.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_s_brainpool_8(sp_digit* s, const sp_digit* r, sp_digit* k,
+    sp_digit* x, const sp_digit* e, sp_digit* tmp)
+{
+    int err;
+    sp_digit carry;
+    sp_int32 c;
+    sp_digit* kInv = k;
+
+    /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_8(k, k, p256_brainpool_norm_order);
+    err = sp_256_mod_brainpool_8(k, k, p256_brainpool_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_8(k);
+
+        /* kInv = 1/k mod order */
+            sp_256_mont_inv_order_brainpool_8(kInv, k, tmp);
+        sp_256_norm_8(kInv);
+
+        /* s = r * x + e */
+            sp_256_mul_8(x, x, r);
+        err = sp_256_mod_brainpool_8(x, x, p256_brainpool_order);
+    }
+    if (err == MP_OKAY) {
+        sp_256_norm_8(x);
+        carry = sp_256_add_8(s, e, x);
+        sp_256_cond_sub_8(s, s, p256_brainpool_order, 0 - carry);
+        sp_256_norm_8(s);
+        c = sp_256_cmp_8(s, p256_brainpool_order);
+        sp_256_cond_sub_8(s, s, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_8(s);
+
+        /* s = s * k^-1 mod order */
+            sp_256_mont_mul_order_brainpool_8(s, s, kInv);
+        sp_256_norm_8(s);
+    }
+
+    return err;
+}
+
+/* Sign the hash using the private key.
+ *   e = [hash, 256 bits] from binary
+ *   r = (k.G)->x mod order
+ *   s = (r * x + e) / k mod order
+ * The hash is truncated to the first 256 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns RNG failures, MEMORY_E when memory allocation fails and
+ * MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_sign_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_8_ctx mulmod_ctx;
+        sp_256_mont_inv_order_8_ctx mont_inv_order_ctx;
+    };
+    sp_digit e[2*8];
+    sp_digit x[2*8];
+    sp_digit k[2*8];
+    sp_digit r[2*8];
+    sp_digit tmp[3 * 2*8];
+    sp_point_256 point;
+    sp_digit* s;
+    sp_digit* kInv;
+    int i;
+} sp_ecc_sign_256_ctx;
+
+int sp_ecc_sign_brainpool_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, WC_RNG* rng,
+    mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_sign_256_ctx* ctx = (sp_ecc_sign_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_sign_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    (void)heap;
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        ctx->s = ctx->e;
+        ctx->kInv = ctx->k;
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        ctx->i = SP_ECC_MAX_SIG_GEN;
+        ctx->state = 1;
+        break;
+    case 1: /* GEN */
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_brainpool_8(rng, ctx->k);
+        }
+        else {
+            sp_256_from_mp(ctx->k, 8, km);
+            mp_zero(km);
+        }
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 2;
+        break;
+    case 2: /* MULMOD */
+        err = sp_256_ecc_mulmod_brainpool_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
+            &ctx->point, &p256_brainpool_base, ctx->k, 1, 1, heap);
+        if (err == MP_OKAY) {
+            ctx->state = 3;
+        }
+        break;
+    case 3: /* MODORDER */
+    {
+        sp_int32 c;
+        /* r = point->x mod order */
+        XMEMCPY(ctx->r, ctx->point.x, sizeof(sp_digit) * 8U);
+        sp_256_norm_8(ctx->r);
+        c = sp_256_cmp_8(ctx->r, p256_brainpool_order);
+        sp_256_cond_sub_8(ctx->r, ctx->r, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_8(ctx->r);
+
+        sp_256_from_mp(ctx->x, 8, priv);
+        sp_256_from_bin(ctx->e, 8, hash, (int)hashLen);
+        ctx->state = 4;
+        break;
+    }
+    case 4: /* KMODORDER */
+        /* Conv k to Montgomery form (mod order) */
+        sp_256_mul_8(ctx->k, ctx->k, p256_brainpool_norm_order);
+        err = sp_256_mod_brainpool_8(ctx->k, ctx->k, p256_brainpool_order);
+        if (err == MP_OKAY) {
+            sp_256_norm_8(ctx->k);
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 5;
+        }
+        break;
+    case 5: /* KINV */
+        /* kInv = 1/k mod order */
+        err = sp_256_mont_inv_order_brainpool_8_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->kInv, ctx->k, ctx->tmp);
+        if (err == MP_OKAY) {
+            XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+            ctx->state = 6;
+        }
+        break;
+    case 6: /* KINVNORM */
+        sp_256_norm_8(ctx->kInv);
+        ctx->state = 7;
+        break;
+    case 7: /* R */
+        /* s = r * x + e */
+        sp_256_mul_8(ctx->x, ctx->x, ctx->r);
+        ctx->state = 8;
+        break;
+    case 8: /* S1 */
+        err = sp_256_mod_brainpool_8(ctx->x, ctx->x, p256_brainpool_order);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* S2 */
+    {
+        sp_digit carry;
+        sp_int32 c;
+        sp_256_norm_8(ctx->x);
+        carry = sp_256_add_8(ctx->s, ctx->e, ctx->x);
+        sp_256_cond_sub_8(ctx->s, ctx->s,
+            p256_brainpool_order, 0 - carry);
+        sp_256_norm_8(ctx->s);
+        c = sp_256_cmp_8(ctx->s, p256_brainpool_order);
+        sp_256_cond_sub_8(ctx->s, ctx->s, p256_brainpool_order,
+            (sp_digit)0 - (sp_digit)(c >= 0));
+        sp_256_norm_8(ctx->s);
+
+        /* s = s * k^-1 mod order */
+        sp_256_mont_mul_order_brainpool_8(ctx->s, ctx->s, ctx->kInv);
+        sp_256_norm_8(ctx->s);
+
+        /* Check that signature is usable. */
+        if (sp_256_iszero_8(ctx->s) == 0) {
+            ctx->state = 10;
+            break;
+        }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        ctx->i = 1;
+    #endif
+
+        /* not usable gen, try again */
+        ctx->i--;
+        if (ctx->i == 0) {
+            err = RNG_FAILURE_E;
+        }
+        ctx->state = 1;
+        break;
+    }
+    case 10: /* RES */
+        err = sp_256_to_mp(ctx->r, rm);
+        if (err == MP_OKAY) {
+            err = sp_256_to_mp(ctx->s, sm);
+        }
+        break;
+    }
+
+    if (err == MP_OKAY && ctx->state != 10) {
+        err = FP_WOULDBLOCK;
+    }
+    if (err != FP_WOULDBLOCK) {
+        XMEMSET(ctx->e, 0, sizeof(sp_digit) * 2U * 8U);
+        XMEMSET(ctx->x, 0, sizeof(sp_digit) * 2U * 8U);
+        XMEMSET(ctx->k, 0, sizeof(sp_digit) * 2U * 8U);
+        XMEMSET(ctx->r, 0, sizeof(sp_digit) * 2U * 8U);
+        XMEMSET(ctx->tmp, 0, sizeof(sp_digit) * 3U * 2U * 8U);
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+int sp_ecc_sign_brainpool_256(const byte* hash, word32 hashLen, WC_RNG* rng,
+    const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* e = NULL;
+    sp_point_256* point = NULL;
+#else
+    sp_digit e[7 * 2 * 8];
+    sp_point_256 point[1];
+#endif
+    sp_digit* x = NULL;
+    sp_digit* k = NULL;
+    sp_digit* r = NULL;
+    sp_digit* tmp = NULL;
+    sp_digit* s = NULL;
+    sp_int32 c;
+    int err = MP_OKAY;
+    int i;
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        e = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (e == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        x = e + 2 * 8;
+        k = e + 4 * 8;
+        r = e + 6 * 8;
+        tmp = e + 8 * 8;
+        s = e;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+    }
+
+    for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        /* New random point. */
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_brainpool_8(rng, k);
+        }
+        else {
+            sp_256_from_mp(k, 8, km);
+            mp_zero(km);
+        }
+        if (err == MP_OKAY) {
+                err = sp_256_ecc_mulmod_base_brainpool_8(point, k, 1, 1, heap);
+        }
+
+        if (err == MP_OKAY) {
+            /* r = point->x mod order */
+            XMEMCPY(r, point->x, sizeof(sp_digit) * 8U);
+            sp_256_norm_8(r);
+            c = sp_256_cmp_8(r, p256_brainpool_order);
+            sp_256_cond_sub_8(r, r, p256_brainpool_order,
+                (sp_digit)0 - (sp_digit)(c >= 0));
+            sp_256_norm_8(r);
+
+            sp_256_from_mp(x, 8, priv);
+            sp_256_from_bin(e, 8, hash, (int)hashLen);
+
+            err = sp_256_calc_s_brainpool_8(s, r, k, x, e, tmp);
+        }
+
+        /* Check that signature is usable. */
+        if ((err == MP_OKAY) && (sp_256_iszero_8(s) == 0)) {
+            break;
+        }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
+    }
+
+    if (i == 0) {
+        err = RNG_FAILURE_E;
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(r, rm);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(s, sm);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (e != NULL)
+#endif
+    {
+        ForceZero(e, sizeof(sp_digit) * 7 * 2 * 8);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(e, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (point != NULL)
+#endif
+    {
+        ForceZero(point, sizeof(sp_point_256));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+
+    return err;
+}
+#endif /* HAVE_ECC_SIGN */
+
+#ifndef WOLFSSL_SP_SMALL
+#endif /* WOLFSSL_SP_SMALL */
+
+/* Add point p1 into point p2. Handles p1 == p2 and result at infinity.
+ *
+ * p1   First point to add and holds result.
+ * p2   Second point to add.
+ * tmp  Temporary storage for intermediate numbers.
+ */
+static void sp_256_add_points_brainpool_8(sp_point_256* p1, const sp_point_256* p2,
+    sp_digit* tmp)
+{
+
+        sp_256_proj_point_add_brainpool_8(p1, p1, p2, tmp);
+    if (sp_256_iszero_8(p1->z)) {
+        if (sp_256_iszero_8(p1->x) && sp_256_iszero_8(p1->y)) {
+                sp_256_proj_point_dbl_brainpool_8(p1, p2, tmp);
+        }
+        else {
+            /* Y ordinate is not used from here - don't set. */
+            p1->x[0] = 0;
+            p1->x[1] = 0;
+            p1->x[2] = 0;
+            p1->x[3] = 0;
+            p1->x[4] = 0;
+            p1->x[5] = 0;
+            p1->x[6] = 0;
+            p1->x[7] = 0;
+            XMEMCPY(p1->z, p256_brainpool_norm_mod, sizeof(p256_brainpool_norm_mod));
+        }
+    }
+}
+
+/* Calculate the verification point: [e/s]G + [r/s]Q
+ *
+ * p1    Calculated point.
+ * p2    Public point and temporary.
+ * s     Second part of signature as a number.
+ * u1    Temporary number.
+ * u2    Temproray number.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_calc_vfy_point_brainpool_8(sp_point_256* p1, sp_point_256* p2,
+    sp_digit* s, sp_digit* u1, sp_digit* u2, sp_digit* tmp, sp_cache_256_t* cache, void* heap)
+{
+    int err;
+        sp_256_mul_8(s, s, p256_brainpool_norm_order);
+        err = sp_256_mod_brainpool_8(s, s, p256_brainpool_order);
+    if (err == MP_OKAY) {
+        sp_256_norm_8(s);
+        {
+            sp_256_mont_inv_order_brainpool_8(s, s, tmp);
+            sp_256_mont_mul_order_brainpool_8(u1, u1, s);
+            sp_256_mont_mul_order_brainpool_8(u2, u2, s);
+        }
+        {
+            err = sp_256_ecc_mulmod_base_brainpool_8(p1, u1, 0, 0, heap);
+        }
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_8(p1->z)) {
+        p1->infinity = 1;
+    }
+    if (err == MP_OKAY) {
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_8(p2, p2, u2, 0, 0, cache, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_8(p2, p2, u2, 0, 0, heap);
+#endif
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_8(p2->z)) {
+        p2->infinity = 1;
+    }
+
+    if (err == MP_OKAY) {
+        sp_256_add_points_brainpool_8(p1, p2, tmp);
+    }
+
+    (void)cache;
+    return err;
+}
+
+#ifdef HAVE_ECC_VERIFY
+/* Verify the signature values with the hash and public key.
+ *   e = Truncate(hash, 256)
+ *   u1 = e/s mod order
+ *   u2 = r/s mod order
+ *   r == (u1.G + u2.Q)->x mod order
+ * Optimization: Leave point in projective form.
+ *   (x, y, 1) == (x' / z'*z', y' / z'*z'*z', z' / z')
+ *   (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x'
+ * The hash is truncated to the first 256 bits.
+ *
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * rng      Random number generator.
+ * priv     Private part of key - scalar.
+ * rm       First part of result as an mp_int.
+ * sm       Sirst part of result as an mp_int.
+ * heap     Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+#ifdef WOLFSSL_SP_NONBLOCK
+typedef struct sp_ecc_verify_256_ctx {
+    int state;
+    union {
+        sp_256_ecc_mulmod_8_ctx mulmod_ctx;
+        sp_256_mont_inv_order_8_ctx mont_inv_order_ctx;
+        sp_256_proj_point_dbl_8_ctx dbl_ctx;
+        sp_256_proj_point_add_8_ctx add_ctx;
+    };
+    sp_digit u1[2*8];
+    sp_digit u2[2*8];
+    sp_digit s[2*8];
+    sp_digit tmp[2*8 * 5];
+    sp_point_256 p1;
+    sp_point_256 p2;
+} sp_ecc_verify_256_ctx;
+
+int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
+    word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
+    const mp_int* rm, const mp_int* sm, int* res, void* heap)
+{
+    int err = FP_WOULDBLOCK;
+    sp_ecc_verify_256_ctx* ctx = (sp_ecc_verify_256_ctx*)sp_ctx->data;
+
+    typedef char ctx_size_test[sizeof(sp_ecc_verify_256_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
+    (void)sizeof(ctx_size_test);
+
+    switch (ctx->state) {
+    case 0: /* INIT */
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(ctx->u1, 8, hash, (int)hashLen);
+        sp_256_from_mp(ctx->u2, 8, rm);
+        sp_256_from_mp(ctx->s, 8, sm);
+        sp_256_from_mp(ctx->p2.x, 8, pX);
+        sp_256_from_mp(ctx->p2.y, 8, pY);
+        sp_256_from_mp(ctx->p2.z, 8, pZ);
+        ctx->state = 1;
+        break;
+    case 1: /* NORMS0 */
+        sp_256_mul_8(ctx->s, ctx->s, p256_norm_order);
+        err = sp_256_mod_brainpool_8(ctx->s, ctx->s, p256_order);
+        if (err == MP_OKAY)
+            ctx->state = 2;
+        break;
+    case 2: /* NORMS1 */
+        sp_256_norm_8(ctx->s);
+        XMEMSET(&ctx->mont_inv_order_ctx, 0, sizeof(ctx->mont_inv_order_ctx));
+        ctx->state = 3;
+        break;
+    case 3: /* NORMS2 */
+        err = sp_256_mont_inv_order_8_nb((sp_ecc_ctx_t*)&ctx->mont_inv_order_ctx, ctx->s, ctx->s, ctx->tmp);
+        if (err == MP_OKAY) {
+            ctx->state = 4;
+        }
+        break;
+    case 4: /* NORMS3 */
+        sp_256_mont_mul_order_8(ctx->u1, ctx->u1, ctx->s);
+        ctx->state = 5;
+        break;
+    case 5: /* NORMS4 */
+        sp_256_mont_mul_order_8(ctx->u2, ctx->u2, ctx->s);
+        XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+        ctx->state = 6;
+        break;
+    case 6: /* MULBASE */
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_256_iszero_8(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
+            XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
+            ctx->state = 7;
+        }
+        break;
+    case 7: /* MULMOD */
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
+        if (err == MP_OKAY) {
+            if (sp_256_iszero_8(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
+            XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
+            ctx->state = 8;
+        }
+        break;
+    case 8: /* ADD */
+        err = sp_256_proj_point_add_8_nb((sp_ecc_ctx_t*)&ctx->add_ctx, &ctx->p1, &ctx->p1, &ctx->p2, ctx->tmp);
+        if (err == MP_OKAY)
+            ctx->state = 9;
+        break;
+    case 9: /* MONT */
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(ctx->u2, 8, rm);
+        err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
+        if (err == MP_OKAY)
+            ctx->state = 10;
+        break;
+    case 10: /* SQR */
+        /* u1 = r.z'.z' mod prime */
+        sp_256_mont_sqr_8(ctx->p1.z, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 11;
+        break;
+    case 11: /* MUL */
+        sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
+        ctx->state = 12;
+        break;
+    case 12: /* RES */
+    {
+        sp_int32 c = 0;
+        err = MP_OKAY; /* math okay, now check result */
+        *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
+        if (*res == 0) {
+            sp_digit carry;
+
+            /* Reload r and add order. */
+            sp_256_from_mp(ctx->u2, 8, rm);
+            carry = sp_256_add_8(ctx->u2, ctx->u2, p256_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_8(ctx->u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_8(ctx->u2, p256_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod,
+                                                            p256_mp_mod);
+                *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
+            }
+        }
+        break;
+    }
+    } /* switch */
+
+    if (err == MP_OKAY && ctx->state != 12) {
+        err = FP_WOULDBLOCK;
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_SP_NONBLOCK */
+
+static int sp_ecc_verify_brainpool_256_ex(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* u1 = NULL;
+    sp_point_256* p1 = NULL;
+#else
+    sp_digit  u1[16 * 8];
+    sp_point_256 p1[2];
+#endif
+    sp_digit* u2 = NULL;
+    sp_digit* s = NULL;
+    sp_digit* tmp = NULL;
+    sp_point_256* p2 = NULL;
+    sp_digit carry;
+    sp_int32 c = 0;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p1 = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (p1 == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        u1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 8, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (u1 == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        u2  = u1 + 2 * 8;
+        s   = u1 + 4 * 8;
+        tmp = u1 + 6 * 8;
+        p2 = p1 + 1;
+
+        if (hashLen > 32U) {
+            hashLen = 32U;
+        }
+
+        sp_256_from_bin(u1, 8, hash, (int)hashLen);
+        sp_256_from_mp(u2, 8, rm);
+        sp_256_from_mp(s, 8, sm);
+        sp_256_from_mp(p2->x, 8, pX);
+        sp_256_from_mp(p2->y, 8, pY);
+        sp_256_from_mp(p2->z, 8, pZ);
+
+        err = sp_256_calc_vfy_point_brainpool_8(p1, p2, s, u1, u2, tmp, cache, heap);
+    }
+    if (err == MP_OKAY) {
+        /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
+        /* Reload r and convert to Montgomery form. */
+        sp_256_from_mp(u2, 8, rm);
+        err = sp_256_mod_mul_norm_brainpool_8(u2, u2, p256_brainpool_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* u1 = r.z'.z' mod prime */
+            sp_256_mont_sqr_brainpool_8(p1->z, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        sp_256_mont_mul_brainpool_8(u1, u2, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+        *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
+        if (*res == 0) {
+            /* Reload r and add order. */
+            sp_256_from_mp(u2, 8, rm);
+            carry = sp_256_add_8(u2, u2, p256_brainpool_order);
+            /* Carry means result is greater than mod and is not valid. */
+            if (carry == 0) {
+                sp_256_norm_8(u2);
+
+                /* Compare with mod and if greater or equal then not valid. */
+                c = sp_256_cmp_8(u2, p256_brainpool_mod);
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_brainpool_8(u2, u2, p256_brainpool_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                {
+                    sp_256_mont_mul_brainpool_8(u1, u2, p1->z, p256_brainpool_mod, p256_brainpool_mp_mod);
+                }
+                *res = (sp_256_cmp_8(p1->x, u1) == 0);
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u1 != NULL)
+        XFREE(u1, heap, DYNAMIC_TYPE_ECC);
+    if (p1 != NULL)
+        XFREE(p1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+
+int sp_ecc_verify_brainpool_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, void* heap)
+{
+    return sp_ecc_verify_brainpool_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, NULL, heap);
+}
+
+#ifdef FP_ECC_CONTROL
+int sp_ecc_cache_verify_brainpool_256(const byte* hash, word32 hashLen, const mp_int* pX,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
+    int* res, sp_cache_256_t* cache, void* heap)
+{
+    return sp_ecc_verify_brainpool_256_ex(hash, hashLen, pX, pY, pZ, rm,
+               sm, res, cache, heap);
+}
+#endif /* FP_ECC_CONTROL */
+#endif /* HAVE_ECC_VERIFY */
+
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_256_ecc_is_point_brainpool_8(const sp_point_256* point,
+    void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
+#else
+    sp_digit t1[8 * 4];
+#endif
+    sp_digit* t2 = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
+        err = MEMORY_E;
+#endif
+    (void)heap;
+
+    if (err == MP_OKAY) {
+        t2 = t1 + 2 * 8;
+
+        /* y^2 - x^3 - a.x = b */
+        sp_256_sqr_8(t1, point->y);
+        (void)sp_256_mod_brainpool_8(t1, t1, p256_brainpool_mod);
+        sp_256_sqr_8(t2, point->x);
+        (void)sp_256_mod_brainpool_8(t2, t2, p256_brainpool_mod);
+        sp_256_mul_8(t2, t2, point->x);
+        (void)sp_256_mod_brainpool_8(t2, t2, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(t1, t1, t2, p256_brainpool_mod);
+
+        sp_256_mul_8(t2, point->x, p256_brainpool_a);
+        (void)sp_256_mod_brainpool_8(t2, t2, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(t1, t1, t2, p256_brainpool_mod);
+
+        if (sp_256_cmp_8(t1, p256_brainpool_b) != 0) {
+            err = MP_VAL;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_brainpool_256(const mp_int* pX, const mp_int* pY)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* pub = NULL;
+#else
+    sp_point_256 pub[1];
+#endif
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 8, pX);
+        sp_256_from_mp(pub->y, 8, pY);
+        sp_256_from_bin(pub->z, 8, one, (int)sizeof(one));
+
+        err = sp_256_ecc_is_point_brainpool_8(pub, NULL);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_brainpool_256(const mp_int* pX, const mp_int* pY,
+    const mp_int* privm, void* heap)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* priv = NULL;
+    sp_point_256* pub = NULL;
+#else
+    sp_digit priv[8];
+    sp_point_256 pub[2];
+#endif
+    sp_point_256* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if (((mp_count_bits(pX) > 256) ||
+        (mp_count_bits(pY) > 256) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
+
+        sp_256_from_mp(pub->x, 8, pX);
+        sp_256_from_mp(pub->y, 8, pY);
+        sp_256_from_bin(pub->z, 8, one, (int)sizeof(one));
+        if (privm)
+            sp_256_from_mp(priv, 8, privm);
+
+        /* Check point at infinitiy. */
+        if ((sp_256_iszero_8(pub->x) != 0) &&
+            (sp_256_iszero_8(pub->y) != 0)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    /* Check range of X and Y */
+    if ((err == MP_OKAY) &&
+            ((sp_256_cmp_8(pub->x, p256_brainpool_mod) >= 0) ||
+             (sp_256_cmp_8(pub->y, p256_brainpool_mod) >= 0))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_brainpool_8(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef FP_ECC_CONTROL
+            err = sp_256_ecc_mulmod_brainpool_8(p, pub, p256_brainpool_order, 1, 1, NULL, heap);
+#else
+            err = sp_256_ecc_mulmod_brainpool_8(p, pub, p256_brainpool_order, 1, 1, heap);
+#endif
+    }
+    /* Check result is infinity */
+    if ((err == MP_OKAY) && ((sp_256_iszero_8(p->x) == 0) ||
+                             (sp_256_iszero_8(p->y) == 0))) {
+        err = ECC_INF_E;
+    }
+
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_256_ecc_mulmod_base_brainpool_8(p, priv, 1, 1, heap);
+        }
+        /* Check result is public key */
+        if ((err == MP_OKAY) &&
+                ((sp_256_cmp_8(p->x, pub->x) != 0) ||
+                 (sp_256_cmp_8(p->y, pub->y) != 0))) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 5];
+    sp_point_256 p[2];
+#endif
+    sp_point_256* q = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        q = p + 1;
+
+        sp_256_from_mp(p->x, 8, pX);
+        sp_256_from_mp(p->y, 8, pY);
+        sp_256_from_mp(p->z, 8, pZ);
+        sp_256_from_mp(q->x, 8, qX);
+        sp_256_from_mp(q->y, 8, qY);
+        sp_256_from_mp(q->z, 8, qZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
+        q->infinity = sp_256_iszero_8(q->x) &
+                      sp_256_iszero_8(q->y);
+
+            sp_256_proj_point_add_brainpool_8(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 2];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 2, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 8, pX);
+        sp_256_from_mp(p->y, 8, pY);
+        sp_256_from_mp(p->z, 8, pZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
+
+            sp_256_proj_point_dbl_brainpool_8(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, rX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, rY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, rZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_brainpool_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* tmp = NULL;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 5];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
+
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, NULL,
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 8, pX);
+        sp_256_from_mp(p->y, 8, pY);
+        sp_256_from_mp(p->z, 8, pZ);
+        p->infinity = sp_256_iszero_8(p->x) &
+                      sp_256_iszero_8(p->y);
+
+            sp_256_map_brainpool_8(p, p, tmp);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->x, pX);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->y, pY);
+    }
+    if (err == MP_OKAY) {
+        err = sp_256_to_mp(p->z, pZ);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+static const sp_digit p256_brainpool_sqrt_power[8] = {
+    0x47db94de,0x0804d207,0xf549880a,0x9b8efd88,0x2760e35c,0x0f9982a4,
+    0xe87baa6f,0x2a7ed5f6
+};
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mont_sqrt_brainpool_8(sp_digit* y)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t = NULL;
+#else
+    sp_digit t[2 * 8];
+#endif
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+
+        {
+            int i;
+
+            XMEMCPY(t, y, sizeof(sp_digit) * 8);
+            for (i=252; i>=0; i--) {
+                sp_256_mont_sqr_brainpool_8(t, t, p256_brainpool_mod, p256_brainpool_mp_mod);
+                if (p256_brainpool_sqrt_power[i / 32] & ((sp_digit)1 << (i % 32)))
+                    sp_256_mont_mul_brainpool_8(t, t, y, p256_brainpool_mod, p256_brainpool_mp_mod);
+            }
+            XMEMCPY(y, t, sizeof(sp_digit) * 8);
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_brainpool_256(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* x = NULL;
+#else
+    sp_digit x[4 * 8];
+#endif
+    sp_digit* y = NULL;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    x = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
+    if (x == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY) {
+        y = x + 2 * 8;
+
+        sp_256_from_mp(x, 8, xm);
+        err = sp_256_mod_mul_norm_brainpool_8(x, x, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+        {
+            sp_256_mont_sqr_brainpool_8(y, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+            sp_256_mont_mul_brainpool_8(y, y, x, p256_brainpool_mod, p256_brainpool_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_brainpool_8(y, y, x, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(y, y, x, p256_brainpool_mod);
+        sp_256_mont_sub_brainpool_8(y, y, x, p256_brainpool_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_brainpool_8(x, p256_brainpool_b, p256_brainpool_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_brainpool_8(y, y, x, p256_brainpool_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_brainpool_8(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 8, 0, 8U * sizeof(sp_digit));
+        sp_256_mont_reduce_brainpool_8(y, p256_brainpool_mod, p256_brainpool_mp_mod);
+        if ((((word32)y[0] ^ (word32)odd) & 1U) != 0U) {
+            sp_256_mont_sub_brainpool_8(y, p256_brainpool_mod, y, p256_brainpool_mod);
+        }
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (x != NULL)
+        XFREE(x, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
+#endif /* !WOLFSSL_SP_NO_256 */
+#endif /* HAVE_ECC_BRAINPOOL */
+#if defined(FP_ECC_CONTROL) && defined(FP_ECC)
+/* returns the pointer to ecc_point 'g' location in the cache table if it has
+ * been generated
+ */
+sp_cache_256_t* sp_ecc_get_cache_entry_256(ecc_point* g, int curveId,
+        int idx, byte bld, void* heap)
+{
+#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256 point[1];
+#else
+    sp_point_256 *point;
+#endif
+    sp_cache_256_t *ret = NULL;
+    int i;
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        return MEMORY_E;
+#endif
+
+    if (idx >= sp_cache_entries_256 || idx < 0 ||
+        sp_cache_256 == NULL) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+        return NULL;
+    }
+
+    if (sp_cache_256_inited == 0) {
+        for (i=0; i<sp_cache_entries_256; i++) {
+            sp_cache_256[i].set = 0;
+        }
+        sp_cache_256_inited = 1;
+    }
+
+    sp_256_point_from_ecc_point_8(point, g);
+#ifndef HAVE_THREAD_LS
+    if (initCacheMutex_256 == 0) {
+        wc_InitMutex(&sp_cache_256_lock);
+        initCacheMutex_256 = 1;
+    }
+    if (wc_LockMutex(&sp_cache_256_lock) != 0) {
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+        return NULL;
+    }
+#endif /* HAVE_THREAD_LS */
+    ret = &sp_cache_256[idx];
+    if (ret != NULL && bld) {
+        /* overwriting index */
+        XMEMSET(ret, 0, sizeof(sp_cache_256_t));
+        ret->set = 1;
+        XMEMCPY(ret->x, point->x, 32);
+        XMEMCPY(ret->y, point->y, 32);
+    }
+
+    /* for now generate table to share after selected */
+    if (ret != NULL && bld) {
+        sp_digit tmp[2 * 8 * 6]; /* value of 6 from most generated table count size */
+        switch (curveId) {
+            case ECC_SECP256R1:
+                sp_256_gen_stripe_table_8(point, ret->table, tmp, heap);
+                break;
+        #ifdef HAVE_ECC_BRAINPOOL
+            case ECC_BRAINPOOLP256R1:
+                sp_256_gen_stripe_table_brainpool_8(point, ret->table, tmp, heap);
+                break;
+        #endif
+            default:
+                /* unknown curve type */
+                ret = NULL;
+        }
+    }
+#ifndef HAVE_THREAD_LS
+    wc_UnLockMutex(&sp_cache_256_lock);
+#endif /* HAVE_THREAD_LS */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return ret;
+}
+#endif /* FP_ECC_CONTROL && FP_ECC */
 #endif /* WOLFSSL_HAVE_SP_ECC */
 #endif /* WOLFSSL_SP_ARM_CORTEX_M_ASM */
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH | WOLFSSL_HAVE_SP_ECC */

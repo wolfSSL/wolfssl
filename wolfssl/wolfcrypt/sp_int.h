@@ -163,8 +163,6 @@ extern "C" {
 
 /* Determine the number of bits to use in each word. */
 #ifdef SP_WORD_SIZE
-#elif defined(WOLFSSL_DSP_BUILD)
-    #define SP_WORD_SIZE 32
 #elif defined(WOLFSSL_SP_X86_64) && !defined(WOLFSSL_SP_X86_64_ASM) && \
       !defined(HAVE___UINT128_T)
     #define SP_WORD_SIZE 32
@@ -203,6 +201,8 @@ extern "C" {
 #elif defined(WOLFSSL_SP_RISCV64)
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_S390X)
+    #define SP_WORD_SIZE 64
+#elif defined(WOLFSSL_DSP_BUILD)
     #define SP_WORD_SIZE 64
 #endif
 
@@ -276,7 +276,7 @@ extern "C" {
 #endif
 
 /* Define an SP digit. */
-#ifndef WOLFSSL_SP_ASM
+#if !defined(WOLFSSL_SP_ASM) && !defined(WOLFSSL_DSP_BUILD)
     /* SP C code uses n/m bits and therefore needs a signed type. */
     #if SP_WORD_SIZE == 8
         typedef  sp_int8  sp_digit;

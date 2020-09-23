@@ -26,6 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/sp.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -100,7 +101,22 @@ int wolfSSL_InitHandle()
         WOLFSSL_MSG("Unable to init handle mutex");
         return -1;
     }
+
     return 0;
+}
+
+
+int wolfSSL_DSPInit()
+{
+    int ret;
+
+    rpcmem_init();
+    ret = wolfSSL_InitHandle();
+    if (ret != 0) {
+        return ret;
+    }
+
+    return ret;
 }
 
 
@@ -110,206 +126,18 @@ void wolfSSL_CleanupHandle()
     wolfSSL_close(defaultHandle);
     wc_FreeMutex(&handle_mutex);
 }
+
+void wolfSSL_DSPCleanup()
+{
+    wolfSSL_CleanupHandle();
+
+    rpcmem_deinit();
+}
 #if defined(WOLFSSL_HAVE_SP_ECC)
-
-/* ecc conversion from sp_c32.c */
-#include <wolfssl/wolfcrypt/sp.h>
-
 
 #ifndef WOLFSSL_SP_NO_256
 
 #ifdef HAVE_ECC_VERIFY
-/* Read big endian unsigned byte array into r.
- *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  Byte array.
- * n  Number of bytes in array to read.
- */
-static void int_256_from_bin(int32* r, int size, const byte* a, int n)
-{
-    int i, j = 0;
-    word32 s = 0;
-
-    r[0] = 0;
-    for (i = n-1; i >= 0; i--) {
-        r[j] |= (((int32)a[i]) << s);
-        if (s >= 18U) {
-            r[j] &= 0x3ffffff;
-            s = 26U - s;
-            if (j + 1 >= size) {
-                break;
-            }
-            r[++j] = (int32)a[i] >> s;
-            s = 8U - s;
-        }
-        else {
-            s += 8U;
-        }
-    }
-
-    for (j++; j < size; j++) {
-        r[j] = 0;
-    }
-}
-
-/* Convert an mp_int to an array of sp_digit.
- *
- * r  A single precision integer.
- * size  Maximum number of bytes to convert
- * a  A multi-precision integer.
- */
-static void int_256_from_mp(int32* r, int size, const mp_int* a)
-{
-#if DIGIT_BIT == 26
-    int j;
-
-    XMEMCPY(r, a->dp, sizeof(int32) * a->used);
-
-    for (j = a->used; j < size; j++) {
-        r[j] = 0;
-    }
-#elif DIGIT_BIT > 26
-    int i, j = 0;
-    word32 s = 0;
-
-    r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
-        r[j] |= ((int32)a->dp[i] << s);
-        r[j] &= 0x3ffffff;
-        s = 26U - s;
-        if (j + 1 >= size) {
-            break;
-        }
-        /* lint allow cast of mismatch word32 and mp_digit */
-        r[++j] = (int32)(a->dp[i] >> s); /*lint !e9033*/
-        while ((s + 26U) <= (word32)DIGIT_BIT) {
-            s += 26U;
-            r[j] &= 0x3ffffff;
-            if (j + 1 >= size) {
-                break;
-            }
-            if (s < (word32)DIGIT_BIT) {
-                /* lint allow cast of mismatch word32 and mp_digit */
-                r[++j] = (int32)(a->dp[i] >> s); /*lint !e9033*/
-            }
-            else {
-                r[++j] = 0L;
-            }
-        }
-        s = (word32)DIGIT_BIT - s;
-    }
-
-    for (j++; j < size; j++) {
-        r[j] = 0;
-    }
-#else
-    int i, j = 0, s = 0;
-
-    r[0] = 0;
-    for (i = 0; i < a->used && j < size; i++) {
-        r[j] |= ((int32)a->dp[i]) << s;
-        if (s + DIGIT_BIT >= 26) {
-            r[j] &= 0x3ffffff;
-            if (j + 1 >= size) {
-                break;
-            }
-            s = 26 - s;
-            if (s == DIGIT_BIT) {
-                r[++j] = 0;
-                s = 0;
-            }
-            else {
-                r[++j] = a->dp[i] >> s;
-                s = DIGIT_BIT - s;
-            }
-        }
-        else {
-            s += DIGIT_BIT;
-        }
-    }
-
-    for (j++; j < size; j++) {
-        r[j] = 0;
-    }
-#endif
-}
-
-/* Verify the signature values with the hash and public key.
- *   e = Truncate(hash, 256)
- *   u1 = e/s mod order
- *   u2 = r/s mod order
- *   r == (u1.G + u2.Q)->x mod order
- * Optimization: Leave point in projective form.
- *   (x, y, 1) == (x' / z'*z', y' / z'*z'*z', z' / z')
- *   (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x'
- * The hash is truncated to the first 256 bits.
- *
- * hash     Hash to sign.
- * hashLen  Length of the hash data.
- * rng      Random number generator.
- * priv     Private part of key - scalar.
- * rm       First part of result as an mp_int.
- * sm       Sirst part of result as an mp_int.
- * heap     Heap to use for allocation.
- * returns RNG failures, MEMORY_E when memory allocation fails and
- * MP_OKAY on success.
- */
-int sp_dsp_ecc_verify_256(remote_handle64 handleIn, const byte* hash, word32 hashLen, mp_int* pX,
-    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap)
-{
-    int ret;
-    remote_handle64 handle = handleIn;
-
-#if 0
-    /* calling to alloc memory on the ION using these settings slowed the performance down slightly */
-    int32 *x = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-    int32 *y = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-    int32 *z = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-    int32 *s = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-    int32 *u1 = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-    int32 *u2 = (int32*)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, 10*sizeof(int));
-#endif
-    int32 x[10] __attribute__((aligned(128)));
-    int32 y[10] __attribute__((aligned(128)));
-    int32 z[10] __attribute__((aligned(128)));
-    int32 s[10] __attribute__((aligned(128)));
-    int32 u1[10] __attribute__((aligned(128)));
-    int32 u2[10] __attribute__((aligned(128)));
-
-    if (hashLen > 32U) {
-        hashLen = 32U;
-    }
-
-    int_256_from_bin(u1, 10, hash, (int)hashLen);
-    int_256_from_mp(u2, 10, r);
-    int_256_from_mp(s, 10, sm);
-    int_256_from_mp(x, 10, pX);
-    int_256_from_mp(y, 10, pY);
-    int_256_from_mp(z, 10, pZ);
-
-    if (handle_function != NULL) {
-        handle_function(&handle, WOLFSSL_HANDLE_GET, NULL);
-    }
-
-    *res = 0;
-    ret = wolfSSL_DSP_ECC_Verify_256(handle, u1, 10, u2, 10, s, 10, x, 10, y, 10, z, 10, res);
-
-    if (handle_function != NULL) {
-        handle_function(&handle, WOLFSSL_HANDLE_DONE, NULL);
-    }
-#if 0
-    rpcmem_free(x);
-    rpcmem_free(y);
-    rpcmem_free(z);
-    rpcmem_free(s);
-    rpcmem_free(u1);
-    rpcmem_free(u2);
-#endif
-    return ret;
-}
-
-
 /* Used to assign a handle to an ecc_key structure.
  * returns 0 on success */
 int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle)
@@ -323,4 +151,86 @@ int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle)
 #endif /* HAVE_ECC_VERIFY */
 #endif /* !WOLFSSL_SP_NO_256 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
+
+#ifdef HAVE_ECC_VERIFY
+/* Generic ECC verify the signature values with the hash and public key.
+ *
+ * handleIn The DSP handle to use
+ * hash     Hash to sign.
+ * hashLen  Length of the hash data.
+ * key      ECC key to use for verify
+ * r        First part of result as an mp_int.
+ * s        Sirst part of result as an mp_int.
+ * res      Set to 1 if verify success and 0 if verify fail
+ * heap     Heap to use for allocation.
+ * returns  0 on success (note that for verify state res should be checked)
+ */
+int wc_dsp_ecc_verify(remote_handle64 handleIn, const byte* hash,
+        word32 hashLen, ecc_key *key, mp_int* r, mp_int* s, int* res,
+        void* heap)
+{
+    remote_handle64 handle;
+    int ret, sSz, rSz, curveId, cacheSz = 0;
+    word32 keySz;
+    uint8 *x963 = NULL;
+    uint8 *sdsp = NULL;
+    uint8 *rdsp = NULL;
+    uint8 *cache = NULL;
+
+    if (hash == NULL || key == NULL || r == NULL || s == NULL || res == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    handle = handleIn;
+    ret = wc_ecc_export_x963(key, NULL, &keySz);
+    if (ret != LENGTH_ONLY_E) {
+        return BAD_FUNC_ARG;
+    }
+
+    sSz = mp_unsigned_bin_size(s);
+    rSz = mp_unsigned_bin_size(r);
+
+    x963 = (uint8*)XMALLOC(keySz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sdsp = (uint8*)XMALLOC(sSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    rdsp = (uint8*)XMALLOC(rSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (x963 == NULL || sdsp == NULL || rdsp == NULL) {
+        XFREE(x963, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sdsp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rdsp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+
+    if (handle_function != NULL) {
+        handle_function(&handle, WOLFSSL_HANDLE_GET, NULL);
+    }
+
+    ret = wc_ecc_export_x963(key, x963, &keySz);
+    if (ret != MP_OKAY) {
+        return ret;
+    }
+
+    mp_to_unsigned_bin(s, sdsp);
+    mp_to_unsigned_bin(r, rdsp);
+
+    *res = 0;
+    curveId = wc_ecc_get_curve_id_from_dp_params(key->dp);
+#if defined(FP_ECC) && defined(FP_ECC_CONTROL)
+    cache = (uint8*)sp_ecc_get_cache_entry_256(&(key->pubkey), curveId,
+                    key->fpIdx, key->fpBuild, key->heap);
+    if (cache != NULL) {
+        cacheSz = sp_ecc_get_cache_size_256();
+    }
+#endif
+    ret = wolfSSL_DSP_ECC_Verify(handle, hash, hashLen, x963, keySz,
+            rdsp, rSz, sdsp, sSz, curveId, res, cache, cacheSz);
+    if (handle_function != NULL) {
+        handle_function(&handle, WOLFSSL_HANDLE_DONE, NULL);
+    }
+
+    XFREE(x963, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sdsp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rdsp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* HAVE_ECC_VERIFY */
 #endif /* WOLFSSL_DSP */
