@@ -1259,11 +1259,11 @@ extern void uITRON4_free(void *p) ;
     #endif
     #define NO_OLD_RNGNAME
     #ifdef WOLFSSL_STM32_CUBEMX
-		#if defined(WOLFSSL_STM32F1)
-			#include "stm32f1xx_hal.h"
+        #if defined(WOLFSSL_STM32F1)
+            #include "stm32f1xx_hal.h"
         #elif defined(WOLFSSL_STM32F2)
             #include "stm32f2xx_hal.h"
-		#elif defined(WOLFSSL_STM32L5)
+        #elif defined(WOLFSSL_STM32L5)
             #include "stm32l5xx_hal.h"
         #elif defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_hal.h"
@@ -1302,7 +1302,7 @@ extern void uITRON4_free(void *p) ;
             #ifdef STM32_HASH
                 #include "stm32f4xx_hash.h"
             #endif
-		#elif defined(WOLFSSL_STM32L5)
+        #elif defined(WOLFSSL_STM32L5)
             #include "stm32l5xx.h"
             #ifdef STM32_CRYPTO
                 #include "stm32l5xx_cryp.h"
@@ -1310,7 +1310,7 @@ extern void uITRON4_free(void *p) ;
             #ifdef STM32_HASH
                 #include "stm32l5xx_hash.h"
             #endif
-    	#elif defined(WOLFSSL_STM32L4)
+        #elif defined(WOLFSSL_STM32L4)
             #include "stm32l4xx.h"
             #ifdef STM32_CRYPTO
                 #include "stm32l4xx_cryp.h"
@@ -1327,7 +1327,7 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || 
-		  WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || WOLFSSL_STM32H7 */
+          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || WOLFSSL_STM32H7 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>

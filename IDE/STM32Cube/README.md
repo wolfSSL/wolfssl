@@ -14,8 +14,13 @@ These examples use the Cube HAL for STM32.
 
 ## Configuration
 
-The settings for the wolfSTM32 project are located in `<wolfssl-root>/IDE/STM32Cube/wolfSSL.wolfSSL_conf.h`. The section for "Hardware platform" may need to be adjusted depending on your processor and board:
+The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.wolfSSL_conf.h` file. An example of this is located in `IDE/STM32Cube/wolfSSL_conf.h` (renamed to avoid possible conflicts with generated file).
 
+The template used for generation is `IDE/STM32Cube/default_conf.ftl` which can be updated at `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/CubeMX/templates/default_conf.ftl`.
+
+The section for "Hardware platform" may need to be adjusted depending on your processor and board:
+
+* To enable STM32F1 support define `WOLFSSL_STM32F1`.
 * To enable STM32F2 support define `WOLFSSL_STM32F2`.
 * To enable STM32F4 support define `WOLFSSL_STM32F4`.
 * To enable STM32F7 support define `WOLFSSL_STM32F7`.
@@ -39,7 +44,7 @@ If you'd like to use the older Standard Peripheral library undefine `WOLFSSL_STM
 
 If you are using FreeRTOS make sure your `FreeRTOSConfig.h` has its `configTOTAL_HEAP_SIZE` increased.
 
-The TLS client/server benchmark example requires about 76 KB for allocated tasks (with stack) and peak heap.
+The TLS client/server benchmark example requires about 76 KB for allocated tasks (with stack) and peak heap. This uses both a TLS client and server to test a TLS connection locally for each enabled TLS cipher suite.
 
 ## STM32 Cube Pack
 
@@ -49,6 +54,7 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 2. Run the “STM32CubeMX” tool.
 3. Under “Manage software installations” click “INSTALL/REMOVE” button.
 4. From Local and choose “I-CUBE-WOLFSSL-WOLFSSL.pack”.
+5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
 
 ### STM32 Cube Pack Usage
 
@@ -56,9 +62,10 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 2. Under “Software Packs” choose “Select Components”.
 3. Find and check all components for the wolfSSL.wolfSSL packs (wolfSSL / Core, wolfCrypt / Core and wolfCrypt / Test). Close
 4. Under the “Software Packs” section click on “wolfSSL.wolfSSL” and configure the parameters.
-5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math”
+5. For Cortex-M recommend “Math Configuration” -> “Single Precision Cortex-M Math” for the fastest option.
 6. Generate Code
 7. The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
+8. To enable printf make the `main.c` changes below in the [STM32 Printf](#stm32-printf) section.
 
 ### STM32 Cube Pack Examples
 
@@ -86,6 +93,49 @@ Please select one of the above options:
 ## Benchmarks
 
 See [STM32_Benchmarks.md](STM32_Benchmarks.md).
+
+Note: The Benchmark example uses float. To enable go to "Project Properties" -> "C/C++ Build" -> "Settings" -> "Tool Settings" -> "MCU Settings" -> Check "Use float with printf".
+
+## STM32 Printf
+
+In main.c make the following changes:
+
+```
+/* Retargets the C library printf function to the USART. */
+#include <stdio.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#ifdef __GNUC__
+int __io_putchar(int ch)
+#else
+int fputc(int ch, FILE *f)
+#endif
+{
+    HAL_UART_Transmit(&HAL_CONSOLE_UART, (uint8_t *)&ch, 1, 0xFFFF);
+
+    return ch;
+}
+#ifdef __GNUC__
+int _write(int file,char *ptr, int len)
+{
+    int DataIdx;
+    for (DataIdx= 0; DataIdx< len; DataIdx++) {
+        __io_putchar(*ptr++);
+    }
+    return len;
+}
+#endif
+
+int main(void)
+{
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
+
+    /* Turn off buffers, so I/O occurs immediately */
+    setvbuf(stdin, NULL, _IONBF, 0);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+```
 
 ## Support
 
