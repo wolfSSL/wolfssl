@@ -1613,7 +1613,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
     /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
 #elif defined(WOLFSSL_IMXRT_DCP)
-    /* implemented in wolfcrypt/src/port/cypress/psoc6_crypto.c */
+    /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
