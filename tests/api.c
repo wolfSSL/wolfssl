@@ -6081,7 +6081,6 @@ static int test_wc_InitSha(void)
     wc_ShaFree(&sha);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6092,7 +6091,6 @@ static int test_wc_InitSha(void)
  */
 static int test_wc_ShaUpdate (void)
 {
-
     int flag = 0;
 #ifndef NO_SHA
     wc_Sha sha;
@@ -6390,9 +6388,9 @@ static int test_wc_Sha256Update (void)
     }
 
     wc_Sha256Free(&sha256);
+
     /* If not returned then the unit test passed. */
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6475,8 +6473,7 @@ static int test_wc_Sha256Final (void)
 static int test_wc_Sha256FinalRaw (void)
 {
     int flag = 0;
-#if !defined(NO_SHA256) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifndef NO_SHA256
     wc_Sha256 sha256;
     byte* hash_test[3];
     byte hash1[WC_SHA256_DIGEST_SIZE];
@@ -6535,7 +6532,6 @@ static int test_wc_Sha256FinalRaw (void)
     wc_Sha256Free(&sha256);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6550,7 +6546,6 @@ static int test_wc_Sha256GetFlags (void)
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha256 sha256;
     word32 flags = 0;
-
 
     printf(testingFmt, "wc_Sha256GetFlags()");
 
@@ -6568,7 +6563,6 @@ static int test_wc_Sha256GetFlags (void)
     wc_Sha256Free(&sha256);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6580,12 +6574,10 @@ static int test_wc_Sha256Free (void)
 {
     int flag = 0;
 #ifndef NO_SHA256
-
     printf(testingFmt, "wc_Sha256Free()");
     wc_Sha256Free(NULL);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6609,29 +6601,28 @@ static int test_wc_Sha256GetHash (void)
         flag = wc_Sha256GetHash(&sha256, hash1);
     }
     /*test bad arguements*/
-     if (flag == 0) {
+    if (flag == 0) {
         flag = wc_Sha256GetHash(NULL, NULL);
         if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
-     }
-     if (flag == 0) {
+    }
+    if (flag == 0) {
         flag = wc_Sha256GetHash(NULL, hash1);
         if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
-     }
-     if (flag == 0) {
+    }
+    if (flag == 0) {
         flag = wc_Sha256GetHash(&sha256, NULL);
         if (flag == BAD_FUNC_ARG) {
             flag = 0;
         }
-     }
+    }
 
     wc_Sha256Free(&sha256);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6680,7 +6671,6 @@ static int test_wc_Sha256Copy (void)
     wc_Sha256Free(&temp);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6819,7 +6809,6 @@ static int test_wc_Sha512Update (void)
 
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6889,7 +6878,6 @@ static int test_wc_Sha512Final (void)
     wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 } /* END test_wc_Sha512Final */
@@ -6899,7 +6887,7 @@ static int test_wc_Sha512Final (void)
 static int test_wc_Sha512GetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA512) && \
+#if defined(WOLFSSL_SHA512) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha512 sha512;
     word32 flags = 0;
@@ -6921,7 +6909,6 @@ static int test_wc_Sha512GetFlags (void)
     wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -6932,8 +6919,7 @@ static int test_wc_Sha512GetFlags (void)
 static int test_wc_Sha512FinalRaw (void)
 {
     int flag = 0;
-#if !defined(NO_SHA512) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
     byte* hash_test[3];
     byte hash1[WC_SHA512_DIGEST_SIZE];
@@ -6992,38 +6978,34 @@ static int test_wc_Sha512FinalRaw (void)
     wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha512FinalRaw */
+
 /*
  * Unit test function for wc_Sha512Free()
  */
 static int test_wc_Sha512Free (void)
 {
     int flag = 0;
-#if !defined(NO_SHA512) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
-
+#ifdef WOLFSSL_SHA512
     printf(testingFmt, "wc_Sha512Free()");
     wc_Sha512Free(NULL);
 
-
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha512Free */
+
 /*
  * Unit test function for wc_Sha512GetHash()
  */
 static int test_wc_Sha512GetHash (void)
 {
     int flag = 0;
-#if !defined(NO_SHA512) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
     byte hash1[WC_SHA512_DIGEST_SIZE];
 
@@ -7058,19 +7040,18 @@ static int test_wc_Sha512GetHash (void)
     wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha512GetHash */
+
 /*
  * Unit test function for wc_Sha512Copy()
  */
 static int test_wc_Sha512Copy (void)
 {
     int flag = 0;
-#if !defined(NO_SHA512) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
     wc_Sha512 temp;
 
@@ -7104,12 +7085,10 @@ static int test_wc_Sha512Copy (void)
         }
     }
 
-
     wc_Sha512Free(&sha512);
     wc_Sha512Free(&temp);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -7141,8 +7120,8 @@ static int test_wc_InitSha384 (void)
     }
 
     wc_Sha384Free(&sha384);
-    printf(resultFmt, flag == 0 ? passed : failed);
 
+    printf(resultFmt, flag == 0 ? passed : failed);
 #endif
     return flag;
 } /* END test_wc_InitSha384 */
@@ -7328,7 +7307,7 @@ static int test_wc_Sha384Final (void)
 static int test_wc_Sha384GetFlags (void)
 {
     int flag = 0;
-#if !defined(NO_SHA384) && \
+#if defined(WOLFSSL_SHA384) && \
     (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
     wc_Sha384 sha384;
     word32 flags = 0;
@@ -7361,8 +7340,7 @@ static int test_wc_Sha384GetFlags (void)
 static int test_wc_Sha384FinalRaw (void)
 {
     int flag = 0;
-#if !defined(NO_SHA384) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA384
     wc_Sha384 sha384;
     byte* hash_test[3];
     byte hash1[WC_SHA384_DIGEST_SIZE];
@@ -7421,7 +7399,6 @@ static int test_wc_Sha384FinalRaw (void)
     wc_Sha384Free(&sha384);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -7432,15 +7409,12 @@ static int test_wc_Sha384FinalRaw (void)
 static int test_wc_Sha384Free (void)
 {
     int flag = 0;
-#if !defined(NO_SHA384) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
-
+#ifdef WOLFSSL_SHA384
     printf(testingFmt, "wc_Sha384Free()");
     wc_Sha384Free(NULL);
 
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -7451,8 +7425,7 @@ static int test_wc_Sha384Free (void)
 static int test_wc_Sha384GetHash (void)
 {
     int flag = 0;
-#if !defined(NO_SHA384) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA384
     wc_Sha384 sha384;
     byte hash1[WC_SHA384_DIGEST_SIZE];
 
@@ -7487,7 +7460,6 @@ static int test_wc_Sha384GetHash (void)
     wc_Sha384Free(&sha384);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
@@ -7498,8 +7470,7 @@ static int test_wc_Sha384GetHash (void)
 static int test_wc_Sha384Copy (void)
 {
     int flag = 0;
-#if !defined(NO_SHA384) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA384
     wc_Sha384 sha384;
     wc_Sha384 temp;
 
@@ -7537,11 +7508,11 @@ static int test_wc_Sha384Copy (void)
     wc_Sha384Free(&temp);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha384Copy */
+
 /*
  * Testing wc_InitSha224();
  */
@@ -7574,8 +7545,6 @@ static int test_wc_InitSha224 (void)
 #endif
     return flag;
 } /* END test_wc_InitSha224 */
-
-
 
 /*
  * Unit test on wc_Sha224Update
@@ -7673,13 +7642,10 @@ static int test_wc_Sha224Update (void)
 
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha224Update */
-
-
 
 /*
  * Unit test for wc_Sha224Final();
@@ -7746,10 +7712,10 @@ static int test_wc_Sha224Final (void)
     wc_Sha224Free(&sha224);
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 } /* END test_wc_Sha224Final */
+
 /*
  * Unit test function for wc_Sha224SetFlags()
  */
@@ -7782,6 +7748,7 @@ static int test_wc_Sha224SetFlags (void)
     return flag;
 
 } /* END test_wc_Sha224SetFlags */
+
 /*
  * Unit test function for wc_Sha224GetFlags()
  */
@@ -7821,27 +7788,24 @@ static int test_wc_Sha224GetFlags (void)
 static int test_wc_Sha224Free (void)
 {
     int flag = 0;
-#if defined(WOLFSSL_SHA224) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
-
+#ifdef WOLFSSL_SHA224
     printf(testingFmt, "wc_Sha224Free()");
     wc_Sha224Free(NULL);
 
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 
 } /* END test_wc_Sha224Free */
+
 /*
  * Unit test function for wc_Sha224GetHash()
  */
 static int test_wc_Sha224GetHash (void)
 {
     int flag = 0;
-#if defined(WOLFSSL_SHA224) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA224
     wc_Sha224 sha224;
     byte hash1[WC_SHA224_DIGEST_SIZE];
 
@@ -7881,14 +7845,14 @@ static int test_wc_Sha224GetHash (void)
     return flag;
 
 } /* END test_wc_Sha224GetHash */
+
 /*
  * Unit test function for wc_Sha224Copy()
  */
 static int test_wc_Sha224Copy (void)
 {
     int flag = 0;
-#if defined(WOLFSSL_SHA224) && \
-    (defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB))
+#ifdef WOLFSSL_SHA224
     wc_Sha224 sha224;
     wc_Sha224 temp;
 
@@ -7932,6 +7896,8 @@ static int test_wc_Sha224Copy (void)
     return flag;
 
 } /* END test_wc_Sha224Copy */
+
+
 /*
  * Testing wc_InitRipeMd()
  */
@@ -7964,7 +7930,6 @@ static int test_wc_InitRipeMd (void)
     return flag;
 
 } /* END test_wc_InitRipeMd */
-
 
 /*
  * Testing wc_RipeMdUpdate()
@@ -8066,8 +8031,6 @@ static int test_wc_RipeMdUpdate (void)
 
 } /* END test_wc_RipeMdUdpate */
 
-
-
 /*
  * Unit test function for wc_RipeMdFinal()
  */
@@ -8131,13 +8094,9 @@ static int test_wc_RipeMdFinal (void)
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
-
 #endif
     return flag;
 } /* END test_wc_RipeMdFinal */
-
-
-
 
 
 /*
