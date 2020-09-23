@@ -37636,7 +37636,6 @@ void ApiTest(void)
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
 
     AssertIntEQ(test_wc_CheckProbablePrime (), 0);
-    //AssertIntEQ(test_wc_CheckProbablePrime_ex (), 0);
     AssertIntEQ(test_wc_RsaPSS_Verify (), 0);
     AssertIntEQ(test_wc_RsaPSS_VerifyCheck (), 0);
     AssertIntEQ(test_wc_RsaPSS_VerifyCheckInline (), 0);
