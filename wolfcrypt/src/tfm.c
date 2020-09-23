@@ -103,7 +103,7 @@ word32 CheckRunTimeFastMath(void)
 
 /* Functions */
 
-static int fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
+static fp_digit fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
 {
   int i;
   fp_digit r = FP_EQ;
@@ -120,7 +120,7 @@ static int fp_cmp_mag_ct(fp_int *a, fp_int *b, int len)
     mask &= (ad < bd) - 1;
   }
 
-  return (int)r;
+  return r;
 }
 
 int fp_add(fp_int *a, fp_int *b, fp_int *c)
@@ -1599,7 +1599,7 @@ int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   fp_digit mask;
   int i;
 
-  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == FP_LT);
+  mask = 0 - (fp_cmp_mag_ct(a, b, c->used + 1) == (fp_digit)FP_LT);
   for (i = 0; i < c->used + 1; i++) {
       fp_digit mask_a = 0 - (i < a->used);
 
@@ -1625,7 +1625,7 @@ int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   int i;
 
   s_fp_add(a, b, d);
-  mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != FP_LT);
+  mask = 0 - (fp_cmp_mag_ct(d, c, c->used + 1) != (fp_digit)FP_LT);
   for (i = 0; i < c->used; i++) {
       w        += c->dp[i] & mask;
       w         = d->dp[i] - w;
