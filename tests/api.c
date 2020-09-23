@@ -6473,7 +6473,8 @@ static int test_wc_Sha256Final (void)
 static int test_wc_Sha256FinalRaw (void)
 {
     int flag = 0;
-#ifndef NO_SHA256
+#if !defined(NO_SHA256) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     wc_Sha256 sha256;
     byte* hash_test[3];
     byte hash1[WC_SHA256_DIGEST_SIZE];
@@ -6919,7 +6920,8 @@ static int test_wc_Sha512GetFlags (void)
 static int test_wc_Sha512FinalRaw (void)
 {
     int flag = 0;
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     wc_Sha512 sha512;
     byte* hash_test[3];
     byte hash1[WC_SHA512_DIGEST_SIZE];
@@ -7340,7 +7342,8 @@ static int test_wc_Sha384GetFlags (void)
 static int test_wc_Sha384FinalRaw (void)
 {
     int flag = 0;
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     wc_Sha384 sha384;
     byte* hash_test[3];
     byte hash1[WC_SHA384_DIGEST_SIZE];
