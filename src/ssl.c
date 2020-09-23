@@ -37724,9 +37724,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             goto cleanup;
         }
 
-        XSTRNCPY(tmp->staticName, cert.subject, ASN_NAME_MAX);
-        tmp->staticName[ASN_NAME_MAX - 1] = '\0';
-        tmp->sz = (int)XSTRLEN(tmp->staticName) + 1;
+        if (wolfSSL_X509_NAME_copy((WOLFSSL_X509_NAME*)cert.subjectName,
+                    tmp) != WOLFSSL_SUCCESS) {
+            wolfSSL_X509_NAME_free(tmp);
+            tmp = NULL;
+            goto cleanup;
+        }
 
         if (name)
             *name = tmp;
@@ -38735,7 +38738,7 @@ err:
 
         WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry()");
 
-        if (name == NULL || entry == NULL) {
+        if (name == NULL || entry == NULL || entry->value == NULL) {
             WOLFSSL_MSG("NULL argument passed in");
             return WOLFSSL_FAILURE;
         }
@@ -38762,11 +38765,6 @@ err:
                 WOLFSSL_MSG("No spot found for name entry");
                 return WOLFSSL_FAILURE;
             }
-        }
-
-        if (wolfSSL_ASN1_STRING_length(entry->value) == 0) {
-            WOLFSSL_MSG("Entry to add was empty");
-            return WOLFSSL_FAILURE;
         }
 
         current = &(name->entry[i]);

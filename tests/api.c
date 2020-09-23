@@ -23837,6 +23837,13 @@ static void test_wolfSSL_X509_NAME(void)
     int sz;
     unsigned char* tmp;
     char file[] = "./certs/ca-cert.der";
+    byte empty[] = { /* CN=empty emailAddress= */
+        0x30, 0x21, 0x31, 0x0E, 0x30, 0x0C, 0x06, 0x03,
+        0x55, 0x04, 0x03, 0x0C, 0x05, 0x65, 0x6D, 0x70,
+        0x74, 0x79, 0x31, 0x0F, 0x30, 0x0D, 0x06, 0x09,
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09,
+        0x01, 0x16, 0x00
+    };
 
     printf(testingFmt, "wolfSSL_X509_NAME()");
 
@@ -23884,6 +23891,23 @@ static void test_wolfSSL_X509_NAME(void)
     X509_NAME_free(d2i_name);
 
     X509_free(x509);
+
+    /* test with an empty domain component */
+    tmp = empty;
+    sz  = sizeof(empty);
+    AssertNotNull(d2i_name = d2i_X509_NAME(NULL, &tmp, sz));
+    AssertIntEQ(X509_NAME_entry_count(d2i_name), 2);
+
+    /* size of empty emailAddress will be 0 */
+    tmp = buf;
+    AssertIntEQ(X509_NAME_get_text_by_NID(d2i_name, NID_emailAddress,
+                (char*)tmp, sizeof(buf)), 0);
+
+    /* should contain no organization name */
+    tmp = buf;
+    AssertIntEQ(X509_NAME_get_text_by_NID(d2i_name, NID_organizationName,
+                (char*)tmp, sizeof(buf)), -1);
+    X509_NAME_free(d2i_name);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
