@@ -24,19 +24,14 @@
     #include <config.h>
 #endif
 
-#ifndef WOLFSSL_USER_SETTINGS
-    #include <wolfssl/options.h>
-#endif
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/test.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
 WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack = NULL;
-WOLFSSL_API     THREAD_LS_T size_t StackSizeCheck_stackSize = 0;
-WOLFSSL_API     THREAD_LS_T size_t StackSizeCheck_stackSizeHWM = 0;
-WOLFSSL_API     THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr = 0;
-WOLFSSL_API     THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
+WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize = 0;
+WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSizeHWM = 0;
+WOLFSSL_API THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr = 0;
+WOLFSSL_API THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
 #endif
