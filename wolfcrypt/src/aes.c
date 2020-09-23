@@ -4195,15 +4195,6 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     ForceZero(local, sizeof(local));
 #endif
-
-#ifdef WOLFSSL_IMXRT_DCP
-    ret = 0;
-    if (len == 16)
-        ret = DCPAesSetKey(aes, key, len, iv, AES_ENCRYPTION);
-    if (ret != 0)
-        return WC_HW_E;
-#endif
-
     return ret;
 }
 
@@ -7644,6 +7635,9 @@ void wc_AesFree(Aes* aes)
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
     ForceZero((byte*)aes->devKey, AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE);
+#endif
+#if defined(WOLFSSL_IMXRT_DCP)
+    DCPAesFree(aes);
 #endif
 }
 

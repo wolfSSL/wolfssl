@@ -1621,6 +1621,12 @@ extern void uITRON4_free(void *p) ;
 #endif
 #endif
 
+/* If DCP is used without SINGLE_THREADED, enforce WOLFSSL_CRYPT_HW_MUTEX */
+#if defined(WOLFSSL_IMXRT_DCP) && !defined(SINGLE_THREADED)
+    #undef WOLFSSL_CRYPT_HW_MUTEX
+    #define WOLFSSL_CRYPT_HW_MUTEX 1
+#endif
+
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_OVERRIDE)

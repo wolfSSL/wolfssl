@@ -36,7 +36,11 @@
 #include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
+int wc_dcp_init(void);
+
 int  DCPAesInit(Aes* aes);
+void DCPAesFree(Aes *aes);
+
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir);
 int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
