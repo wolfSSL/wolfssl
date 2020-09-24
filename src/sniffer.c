@@ -677,14 +677,7 @@ void ssl_FreeSniffer(void)
     wc_LockMutex(&ServerListMutex);
     wc_LockMutex(&SessionMutex);
 
-    srv = ServerList;
-    while (srv) {
-        removeServer = srv;
-        srv = srv->next;
-        FreeSnifferServer(removeServer);
-    }
-    ServerList = NULL;
-
+    /* Free sessions (wolfSSL objects) first */
     for (i = 0; i < HASH_SIZE; i++) {
         session = SessionTable[i];
         while (session) {
@@ -694,6 +687,15 @@ void ssl_FreeSniffer(void)
         }
     }
     SessionCount = 0;
+
+    /* Then server (wolfSSL_CTX) */
+    srv = ServerList;
+    while (srv) {
+        removeServer = srv;
+        srv = srv->next;
+        FreeSnifferServer(removeServer);
+    }
+    ServerList = NULL;    
 
     wc_UnLockMutex(&SessionMutex);
     wc_UnLockMutex(&ServerListMutex);
@@ -3465,6 +3467,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
     int  size;
     int  ret = 0;
     WOLFSSL* ssl;
+    int startBytes;
 
     (void)rhSize;
 
@@ -3494,6 +3497,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
 
     input     += HANDSHAKE_HEADER_SZ;
     *sslBytes -= HANDSHAKE_HEADER_SZ;
+    startBytes = *sslBytes;
 
     if (*sslBytes < size) {
         Trace(SPLIT_HANDSHAKE_MSG_STR);
@@ -3665,6 +3669,8 @@ exit:
         session->tlsFragBuf = NULL;
     }
 #endif
+
+    *sslBytes = startBytes - size;  /* actual bytes of full process */
 
     return ret;
 }
@@ -4933,18 +4939,21 @@ doPart:
     switch ((enum ContentType)rh.type) {
         case handshake:
             {
-                int inOutIdx = sslBytes;
+                int startIdx = sslBytes;
+                int used;
+
                 Trace(GOT_HANDSHAKE_STR);
-                ret = DoHandShake(sslFrame, &inOutIdx, session, error, rhSize);
-                if (ret != 0) {
+                ret = DoHandShake(sslFrame, &sslBytes, session, error, rhSize);
+                if (ret != 0 || sslBytes > startIdx) {
                     if (session->flags.fatalError == 0)
                         SetError(BAD_HANDSHAKE_STR, error, session,
                                  FATAL_ERROR_STATE);
                     return -1;
                 }
 
-                sslFrame += rhSize;
-                sslBytes -= rhSize;
+                /* DoHandShake now fully decrements sslBytes to remaining */
+                used = startIdx - sslBytes;
+                sslFrame += used;
                 if (decrypted)
                     sslFrame += ssl->keys.padSz;
             }
