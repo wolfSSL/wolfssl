@@ -1748,6 +1748,45 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+int hash2mgf(enum wc_HashType hType)
+{
+    switch (hType) {
+#ifndef NO_SHA
+    case WC_HASH_TYPE_SHA:
+        return WC_MGF1SHA1;
+#endif
+#ifndef NO_SHA256
+#ifdef WOLFSSL_SHA224
+    case WC_HASH_TYPE_SHA224:
+        return WC_MGF1SHA224;
+#endif
+    case WC_HASH_TYPE_SHA256:
+        return WC_MGF1SHA256;
+#endif
+#ifdef WOLFSSL_SHA384
+    case WC_HASH_TYPE_SHA384:
+        return WC_MGF1SHA384;
+#endif
+#ifdef WOLFSSL_SHA512
+    case WC_HASH_TYPE_SHA512:
+        return WC_MGF1SHA512;
+#endif
+    case WC_HASH_TYPE_NONE:
+    case WC_HASH_TYPE_MD2:
+    case WC_HASH_TYPE_MD4:
+    case WC_HASH_TYPE_MD5:
+    case WC_HASH_TYPE_MD5_SHA:
+    case WC_HASH_TYPE_SHA3_224:
+    case WC_HASH_TYPE_SHA3_256:
+    case WC_HASH_TYPE_SHA3_384:
+    case WC_HASH_TYPE_SHA3_512:
+    case WC_HASH_TYPE_BLAKE2B:
+    case WC_HASH_TYPE_BLAKE2S:
+    default:
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
+    }
+}
 
 #ifdef WC_RSA_NONBLOCK
 static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
@@ -3209,11 +3248,12 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
-    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key , WC_RSA_PKCSV15_PAD);
+    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key , WC_RSA_PKCSV15_PAD,
+            WC_HASH_TYPE_NONE);
 }
 
 int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
-                         RsaKey* key, int pad_type)
+                         RsaKey* key, int pad_type, enum wc_HashType hash)
 {
     WC_RNG* rng;
 
@@ -3229,7 +3269,7 @@ int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
-        WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+        hash, hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
 }
 #endif
 
