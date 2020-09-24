@@ -30972,6 +30972,28 @@ int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
             ret = wc_Sha512Copy(&src->hash.sha512, &des->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
+#ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
+            ret = wc_Sha3_224_Copy(&src->hash.sha3, &des->hash.sha3);
+            break;
+    #endif /* WOLFSSL_NO_SHA3_224 */
+    #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
+            ret = wc_Sha3_256_Copy(&src->hash.sha3, &des->hash.sha3);
+            break;
+    #endif /* WOLFSSL_NO_SHA3_256 */
+    #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
+            ret = wc_Sha3_384_Copy(&src->hash.sha3, &des->hash.sha3);
+            break;
+    #endif /* WOLFSSL_NO_SHA3_384 */
+    #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
+            ret = wc_Sha3_512_Copy(&src->hash.sha3, &des->hash.sha3);
+            break;
+    #endif /* WOLFSSL_NO_SHA3_512 */
+#endif /* WOLFSSL_SHA3 */
 
         default:
             return WOLFSSL_FAILURE;
@@ -31159,6 +31181,34 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
         else
 #endif
+#ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
+            WOLFSSL_MSG("sha3_224 hmac");
+            ctx->type = WC_SHA3_224;
+        }
+        else
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
+            WOLFSSL_MSG("sha3_256 hmac");
+            ctx->type = WC_SHA3_256;
+        } 
+        else
+    #endif
+        if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
+            WOLFSSL_MSG("sha3_384 hmac");
+            ctx->type = WC_SHA3_384;
+        }
+        else
+    #ifndef WOLFSSL_NOSHA3_512
+        if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
+            WOLFSSL_MSG("sha3_512 hmac");
+            ctx->type = WC_SHA3_512;
+        }
+        else
+    #endif
+#endif
 
 #ifndef NO_SHA
         /* has to be last since would pick or 256, 384, or 512 too */
@@ -31300,6 +31350,29 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
                 *len = WC_SHA512_DIGEST_SIZE;
                 break;
             #endif
+
+        #ifdef WOLFSSL_SHA3
+            #ifndef WOLFSSL_NOSHA3_224
+            case WC_SHA3_224:
+                *len = WC_SHA3_224_DIGEST_SIZE;
+                break;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_256
+            case WC_SHA3_256:
+                *len = WC_SHA3_256_DIGEST_SIZE;
+                break;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_384
+            case WC_SHA3_384:
+                *len = WC_SHA3_384_DIGEST_SIZE;
+                break;
+            #endif
+            #ifndef WOLFSSL_NOSHA3_512
+            case WC_SHA3_512:
+                *len = WC_SHA3_512_DIGEST_SIZE;
+                break;
+            #endif
+        #endif
 
             default:
                 WOLFSSL_MSG("bad hmac type");

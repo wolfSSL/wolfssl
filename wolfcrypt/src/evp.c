@@ -1939,7 +1939,9 @@ static const struct s_ent {
 #ifndef WOLFSSL_NOSHA3_256
     {WC_HASH_TYPE_SHA3_256, NID_sha3_256, "SHA3_256"},
 #endif
+#ifndef WOLFSSL_NOSHA3_384
     {WC_HASH_TYPE_SHA3_384, NID_sha3_384, "SHA3_384"},
+#endif
 #ifndef WOLFSSL_NOSHA3_512
     {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3_512"},
 #endif
@@ -2160,6 +2162,26 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
             hashType = WC_SHA512;
         }
     #endif
+#ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
+        else if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
+            hashType = WC_SHA3_224;
+        }
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        else if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
+            hashType = WC_SHA3_256;
+        }
+    #endif
+        else if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
+            hashType = WC_SHA3_384;
+        }
+    #ifndef WOLFSSL_NOSHA3_512
+        else if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
+            hashType = WC_SHA3_512;
+        }
+    #endif
+#endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
             hashType = WC_MD5;
@@ -2168,7 +2190,7 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
-             hashType = WC_SHA;
+            hashType = WC_SHA;
         }
     #endif /* NO_SHA */
         else
@@ -2300,6 +2322,29 @@ static int wolfssl_mac_len(unsigned char macType)
             hashLen = BLAKE2B_OUTBYTES;
             break;
     #endif /* HAVE_BLAKE2 */
+
+    #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+        case WC_SHA3_224:
+            hashLen = WC_SHA3_224_DIGEST_SIZE;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+        case WC_SHA3_256:
+            hashLen = WC_SHA3_256_DIGEST_SIZE;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        case WC_SHA3_384:
+            hashLen = WC_SHA3_384_DIGEST_SIZE;
+            break;
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        case WC_SHA3_512:
+            hashLen = WC_SHA3_512_DIGEST_SIZE;
+            break;
+        #endif
+    #endif
 
         default:
             hashLen = 0;
