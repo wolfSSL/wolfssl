@@ -34,7 +34,9 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 
-#include <string.h>
+#ifndef WOLFSSL_LINUXKM
+    #include <string.h>
+#endif
 
 #ifdef HAVE_CRL_MONITOR
     #if (defined(__MACH__) || defined(__FreeBSD__) || defined(__linux__))

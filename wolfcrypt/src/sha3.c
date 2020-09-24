@@ -639,7 +639,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, byte l)
 {
     byte i;
-    byte *s8 = (byte *)sha3->s;
+    byte *state = (byte *)sha3->s;
 
     sha3->t[p * 8 - 1]  = 0x00;
 #ifdef WOLFSSL_HASH_FLAGS
@@ -658,7 +658,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, byte l)
     ByteReverseWords64(sha3->s, sha3->s, ((l+7)/8)*8);
 #endif
     for (i = 0; i < l; i++)
-        hash[i] = s8[i];
+        hash[i] = state[i];
 
     return 0;
 }

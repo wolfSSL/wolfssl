@@ -3222,77 +3222,89 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
     #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     {
-        RsaKey rsa;
+        RsaKey *rsa = (RsaKey *)XMALLOC(sizeof *rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rsa == NULL)
+            return MEMORY_E;
 
-        wc_InitRsaKey(&rsa, heap);
-        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+        wc_InitRsaKey(rsa, heap);
+        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, rsa, keySz) == 0) {
             *algoID = RSAk;
         }
         else {
             WOLFSSL_MSG("Not RSA DER key");
         }
-        wc_FreeRsaKey(&rsa);
+        wc_FreeRsaKey(rsa);
+        XFREE(rsa, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
     #if defined(HAVE_ECC) && !defined(NO_ASN_CRYPT)
     if (*algoID == 0) {
-        ecc_key ecc;
+        ecc_key *ecc = (ecc_key *)XMALLOC(sizeof *ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ecc == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
-        if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
+        wc_ecc_init_ex(ecc, heap, INVALID_DEVID);
+        if (wc_EccPrivateKeyDecode(key, &tmpIdx, ecc, keySz) == 0) {
             *algoID = ECDSAk;
 
             /* now find oid */
-            if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
+            if (wc_ecc_get_oid(ecc->dp->oidSum, curveOID, oidSz) < 0) {
                 WOLFSSL_MSG("Error getting ECC curve OID");
-                wc_ecc_free(&ecc);
+                wc_ecc_free(ecc);
+                XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return BAD_FUNC_ARG;
             }
         }
         else {
             WOLFSSL_MSG("Not ECC DER key either");
         }
-        wc_ecc_free(&ecc);
+        wc_ecc_free(ecc);
+        XFREE(ecc, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ECC && !NO_ASN_CRYPT */
 #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk) {
-        ed25519_key ed25519;
+        ed25519_key *ed25519 = (ed25519_key *)XMALLOC(sizeof *ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ed25519 == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ed25519_init(&ed25519) == 0) {
-            if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, &ed25519, keySz)
-                                                                         == 0) {
+        if (wc_ed25519_init(ed25519) == 0) {
+            if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, ed25519, keySz) == 0) {
                 *algoID = ED25519k;
             }
             else {
                 WOLFSSL_MSG("Not ED25519 DER key");
             }
-            wc_ed25519_free(&ed25519);
+            wc_ed25519_free(ed25519);
         }
         else {
             WOLFSSL_MSG("GetKeyOID wc_ed25519_init failed");
         }
+        XFREE(ed25519, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
 #if defined(HAVE_ED448) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk && *algoID != ED25519k) {
-        ed448_key ed448;
+        ed448_key *ed448 = (ed448_key *)XMALLOC(sizeof *ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ed448 == NULL)
+            return MEMORY_E;
 
         tmpIdx = 0;
-        if (wc_ed448_init(&ed448) == 0) {
-            if (wc_Ed448PrivateKeyDecode(key, &tmpIdx, &ed448, keySz) == 0) {
+        if (wc_ed448_init(ed448) == 0) {
+            if (wc_Ed448PrivateKeyDecode(key, &tmpIdx, ed448, keySz) == 0) {
                 *algoID = ED448k;
             }
             else {
                 WOLFSSL_MSG("Not ED448 DER key");
             }
-            wc_ed448_free(&ed448);
+            wc_ed448_free(ed448);
         }
         else {
             WOLFSSL_MSG("GetKeyOID wc_ed448_init failed");
         }
+        XFREE(ed448, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* HAVE_ED448 && !NO_ASN_CRYPT */
 
@@ -6108,6 +6120,25 @@ static WC_INLINE int GetTime(int* value, const byte* date, int* idx)
     return 0;
 }
 
+#ifdef WOLFSSL_LINUXKM
+static WC_INLINE int GetTime_Long(long* value, const byte* date, int* idx)
+{
+    int i = *idx;
+
+    if (date[i] < 0x30 || date[i] > 0x39 || date[i+1] < 0x30 ||
+                                                             date[i+1] > 0x39) {
+        return ASN_PARSE_E;
+    }
+
+    *value += (long)btoi(date[i++]) * 10;
+    *value += (long)btoi(date[i++]);
+
+    *idx = i;
+
+    return 0;
+}
+#endif
+
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
 {
@@ -6120,7 +6151,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
             certTime->tm_year = 2000;
     }
     else  { /* format == GENERALIZED_TIME */
+#ifdef WOLFSSL_LINUXKM
+        if (GetTime_Long(&certTime->tm_year, date, idx) != 0) return 0;
+#else
         if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+#endif
         certTime->tm_year *= 100;
     }
 
@@ -6135,7 +6170,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     int tm_min  = certTime->tm_min;
     int tm_sec  = certTime->tm_sec;
 
+#ifdef WOLFSSL_LINUXKM
+    if (GetTime_Long(&tm_year, date, idx) != 0) return 0;
+#else
     if (GetTime(&tm_year, date, idx) != 0) return 0;
+#endif
     if (GetTime(&tm_mon , date, idx) != 0) return 0;
     if (GetTime(&tm_mday, date, idx) != 0) return 0;
     if (GetTime(&tm_hour, date, idx) != 0) return 0;
@@ -6151,7 +6190,11 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     certTime->tm_sec  = tm_sec;
 #else
     /* adjust tm_year, tm_mon */
+#ifdef WOLFSSL_LINUXKM
+    if (GetTime_Long(&certTime->tm_year, date, idx) != 0) return 0;
+#else
     if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+#endif
     certTime->tm_year -= 1900;
     if (GetTime(&certTime->tm_mon , date, idx) != 0) return 0;
     certTime->tm_mon  -= 1;
@@ -6203,7 +6246,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     idx = 4; /* use idx now for char buffer */
 
     XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
-              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
+              t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, (int)t.tm_year + 1900);
 
     return 1;
 }

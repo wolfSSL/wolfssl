@@ -32,7 +32,6 @@
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
-#include <stdint.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

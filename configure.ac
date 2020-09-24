@@ -141,6 +141,51 @@ then
 fi
 
 
+# Linux Kernel Module
+AC_ARG_ENABLE([linuxkm],
+    [AS_HELP_STRING([--enable-linuxkm],[Enable Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM=$enableval],
+    [ENABLED_LINUXKM=no]
+    )
+
+AC_ARG_WITH([linux-source],
+    [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
+    [KERNEL_ROOT=$withval],
+    [KERNEL_ROOT=""])
+
+AC_ARG_WITH([linux-arch],
+    [AS_HELP_STRING([--with-linux-arch=arch],[built arch (SRCARCH) of Linux kernel build tree])],
+    [KERNEL_ARCH=$withval],
+    [KERNEL_ARCH=""])
+
+if test "x$ENABLED_LINUXKM" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LINUXKM"
+    ENABLED_NO_LIBRARY=yes
+
+    if test "$KERNEL_ROOT" = ""; then
+        AC_PATH_DEFAULT_KERNEL_SOURCE
+        KERNEL_ROOT="$DEFAULT_KERNEL_ROOT"
+    fi
+    AC_SUBST([KERNEL_ROOT])
+
+    if test "$KERNEL_ARCH" = ""; then
+        AC_DEFAULT_KERNEL_ARCH
+        KERNEL_ARCH="$DEFAULT_KERNEL_ARCH"
+    fi
+    AC_SUBST([KERNEL_ARCH])
+
+    if test "${KERNEL_ROOT}" = ""; then
+        AC_MSG_ERROR([Linux kernel source root not found -- supply with --with-linux-source=PATH.])
+    fi
+    if test "${KERNEL_ARCH}" = ""; then
+        AC_MSG_ERROR([Linux kernel target architecture for build tree ${KERNEL_ROOT} could not be determined.  Is target kernel configured?])
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
+fi
+
+
 # ALL FEATURES
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
@@ -279,6 +324,7 @@ if test "$ENABLED_ASM" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DTFM_NO_ASM -DWOLFSSL_NO_ASM"
 fi
+AC_SUBST([ENABLED_ASM])
 
 
 # SINGLE THREADED
@@ -1917,11 +1963,32 @@ AC_ARG_ENABLE([stacksize],
     [ ENABLED_STACKSIZE=no ]
     )
 
+# verbose, per-test stack size info, currently only implemented in testwolfcrypt
+AC_ARG_ENABLE([stacksize-verbose],
+    [AS_HELP_STRING([--enable-stacksize-verbose],[Enable verbose stack size info on testwolfcrypt (default: disabled)])],
+    [ ENABLED_STACKSIZE_VERBOSE=$enableval ],
+    [ ENABLED_STACKSIZE_VERBOSE=no ]
+    )
+
+if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
+then
+    ENABLED_STACKSIZE=yes
+fi
+
 if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
+fi
+
+if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
+then
+    if test "$thread_ls_on" != "yes"
+    then
+        AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE_VERBOSE"
 fi
 
 
@@ -2730,10 +2797,16 @@ fi
 
 
 # Filesystem Build
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_FILESYSTEM_DEFAULT=no
+else
+    ENABLED_FILESYSTEM_DEFAULT=yes
+fi
 AC_ARG_ENABLE([filesystem],
     [AS_HELP_STRING([--enable-filesystem],[Enable Filesystem support (default: enabled)])],
     [ ENABLED_FILESYSTEM=$enableval ],
-    [ ENABLED_FILESYSTEM=yes ]
+    [ ENABLED_FILESYSTEM=$ENABLED_FILESYSTEM_DEFAULT ]
     )
 
 if test "$ENABLED_FILESYSTEM" = "no"
@@ -2741,7 +2814,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
 else
     # turn off filesystem if leanpsk on
-    if test "$ENABLED_LEANPSK" = "yes"
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LINUXKM" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
         ENABLED_FILESYSTEM=no
@@ -3335,12 +3408,17 @@ then
 fi
 
 
-
 # Small Stack - Cache on object
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
+else
+    ENABLED_SMALL_STACK_CACHE_DEFAULT=no
+fi
 AC_ARG_ENABLE([smallstackcache],
     [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
     [ ENABLED_SMALL_STACK_CACHE=$enableval ],
-    [ ENABLED_SMALL_STACK_CACHE=no ]
+    [ ENABLED_SMALL_STACK_CACHE=$ENABLED_SMALL_STACK_CACHE_DEFAULT ]
     )
 
 if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
@@ -3349,10 +3427,16 @@ then
 fi
 
 # Small Stack
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SMALL_STACK_DEFAULT=yes
+else
+    ENABLED_SMALL_STACK_DEFAULT=no
+fi
 AC_ARG_ENABLE([smallstack],
     [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
     [ ENABLED_SMALL_STACK=$enableval ],
-    [ ENABLED_SMALL_STACK=no ]
+    [ ENABLED_SMALL_STACK=$ENABLED_SMALL_STACK_DEFAULT ]
     )
 
 if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
@@ -3983,6 +4067,10 @@ if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     FASTMATH_DEFAULT=yes
 fi
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    FASTMATH_DEFAULT=no
+fi
 if test "$ENABLED_SP_MATH" = "yes"
 then
     FASTMATH_DEFAULT=no
@@ -4040,10 +4128,16 @@ fi
 
 
 # Enable Examples, used to disable examples
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_EXAMPLES_DEFAULT=no
+else
+    ENABLED_EXAMPLES_DEFAULT=yes
+fi
 AC_ARG_ENABLE([examples],
     [AS_HELP_STRING([--enable-examples],[Enable Examples  (default: enabled)])],
     [ ENABLED_EXAMPLES=$enableval ],
-    [ ENABLED_EXAMPLES=yes ]
+    [ ENABLED_EXAMPLES=$ENABLED_EXAMPLES_DEFAULT ]
     )
 
 AS_IF([test "x$ENABLED_FILESYSTEM" = "xno"], [ENABLED_EXAMPLES="no"])
@@ -4052,11 +4146,18 @@ AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 
 
 # Enable wolfCrypt test and benchmark
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_CRYPT_TESTS_DEFAULT=no
+else
+    ENABLED_CRYPT_TESTS_DEFAULT=yes
+fi
 AC_ARG_ENABLE([crypttests],
     [AS_HELP_STRING([--enable-crypttests],[Enable Crypt Bench/Test  (default: enabled)])],
     [ ENABLED_CRYPT_TESTS=$enableval ],
-    [ ENABLED_CRYPT_TESTS=yes ]
+    [ ENABLED_CRYPT_TESTS=$ENABLED_CRYPT_TESTS_DEFAULT ]
     )
+AC_SUBST([ENABLED_CRYPT_TESTS])
 
 
 # LIBZ
@@ -4289,10 +4390,16 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
 
 
 # Single Precision maths implementation
+if test "$ENABLED_LINUXKM" = "yes"
+then
+    ENABLED_SP_DEFAULT=small
+else
+    ENABLED_SP_DEFAULT=no
+fi
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
     [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=no ],
+    [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
 
 ENABLED_SP_RSA=no
@@ -4541,10 +4648,16 @@ if test "$ENABLED_SP_ASM" = "yes"; then
   esac
 fi
 
+if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_SP" != "no"
+then
+    ENABLED_SP_MATH_DEFAULT=yes
+else
+    ENABLED_SP_MATH_DEFAULT=no
+fi
 AC_ARG_ENABLE([sp-math],
     [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
     [ ENABLED_SP_MATH=$enableval ],
-    [ ENABLED_SP_MATH=no ],
+    [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
@@ -5251,6 +5364,78 @@ case $host_os in
         fi ;;
 esac
 
+if test "x$ENABLED_LINUXKM" = "xyes"; then
+    AX_SIMD_CC_COMPILER_FLAGS
+    AC_SUBST([CFLAGS_FPU_DISABLE])
+    AC_SUBST([CFLAGS_FPU_ENABLE])
+    AC_SUBST([CFLAGS_SIMD_DISABLE])
+    AC_SUBST([CFLAGS_SIMD_ENABLE])
+    AC_SUBST([CFLAGS_AUTO_VECTORIZE_DISABLE])
+    AC_SUBST([CFLAGS_AUTO_VECTORIZE_ENABLE])
+    AC_SUBST([ASFLAGS_FPU_DISABLE_SIMD_ENABLE])
+    AC_SUBST([ASFLAGS_FPU_ENABLE_SIMD_DISABLE])
+    AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
+    AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
+
+    if test "$ENABLED_FILESYSTEM" = "yes"; then
+        AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_AFALG" = "yes"; then
+        AC_MSG_ERROR([--enable-afalg is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_DEVCRYPTO" = "yes"; then
+        AC_MSG_ERROR([--enable-devcrypto is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_PKCS11" = "yes"; then
+        AC_MSG_ERROR([--enable-pkcs11 is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_JNI" = "yes"; then
+        AC_MSG_ERROR([--enable-jni is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_16BIT" = "yes"; then
+        AC_MSG_ERROR([--enable-16bit is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SINGLETHREADED" = "yes"; then
+        AC_MSG_ERROR([--enable-singlethreaded is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_VALGRIND" = "yes"; then
+        AC_MSG_ERROR([--enable-valgrind is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_FASTMATH" = "yes"; then
+        AC_MSG_ERROR([--enable-fastmath is incompatible with --enable-linuxkm (exceeds stack limit).])
+    fi
+    if test "$ENABLED_FAST_RSA" = "yes"; then
+        AC_MSG_ERROR([--enable-fastrsa is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_LIBZ_RSA" = "yes"; then
+        AC_MSG_ERROR([--with-libz is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_IOPOOL" = "yes"; then
+        AC_MSG_ERROR([--enable-iopool is incompatible with --enable-linuxkm.])
+    fi
+    #FIPS currently depends on thread-local storage
+    if test "$ENABLED_FIPS" = "yes"; then
+        AC_MSG_ERROR([--enable-fips is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_EXAMPLES" = "yes"; then
+        AC_MSG_ERROR([--enable-examples is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SMALL_STACK" != "yes"; then
+        AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
+    fi
+    if test "$ENABLED_SMALL_STACK_CACHE" != "yes"; then
+        AC_MSG_ERROR([--enable-smallstackcache is required for --enable-linuxkm.])
+    fi
+    if test "$ENABLED_STACKSIZE" = "yes"; then
+        AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_STACKLOG" = "yes"; then
+        AC_MSG_ERROR([--enable-stacklog is incompatible with --enable-linuxkm.])
+    fi
+    if test "$ENABLED_COMPKEY" = "yes"; then
+        AC_MSG_ERROR([--enable-compkey is incompatible with --enable-linuxkm.])
+    fi
+fi
 
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
 # Some of these affect build targets and objects, some trigger different
@@ -5369,6 +5554,9 @@ AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
+AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
+AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
+AM_CONDITIONAL([BUILD_DEBUG],[test "$ax_enable_debug" = "yes" || test "$ENABLED_STACKSIZE" = "yes"])
 
 
 CREATE_HEX_VERSION
@@ -5500,6 +5688,21 @@ echo "   * C++ Flags:                  $CXXFLAGS"
 echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
+
+test "$ENABLED_LINUXKM" = "yes" && \
+echo "   * Linux Kernel Build Root:    $KERNEL_ROOT" && \
+echo "   * Linux Kernel Build Arch:    $KERNEL_ARCH" && \
+echo "   * fpu disable C flags:        $CFLAGS_FPU_DISABLE" && \
+echo "   * fpu enable C flags:         $CFLAGS_FPU_ENABLE" && \
+echo "   * SIMD disable C flags:       $CFLAGS_SIMD_DISABLE" && \
+echo "   * SIMD enable C flags:        $CFLAGS_SIMD_ENABLE" && \
+echo "   * No-auto-vectorize C flags:  $CFLAGS_AUTO_VECTORIZE_DISABLE" && \
+echo "   * Auto-vectorize C flags:     $CFLAGS_AUTO_VECTORIZE_ENABLE" && \
+echo "   * SIMD enable as flags:       $ASFLAGS_FPU_DISABLE_SIMD_ENABLE" && \
+echo "   * FPU enable as flags:        $ASFLAGS_FPU_ENABLE_SIMD_DISABLE" && \
+echo "   * SIMD+FPU disable as flags:  $ASFLAGS_FPUSIMD_DISABLE" && \
+
+echo "   * SIMD+FPU enable as flags:   $ASFLAGS_FPUSIMD_ENABLE"
 echo "   * Debug enabled:              $ax_enable_debug"
 echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
@@ -5630,9 +5833,12 @@ echo "   * wolfSSH                     $ENABLED_WOLFSSH"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
+echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"
 echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
+echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
+echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
@@ -5679,4 +5885,3 @@ if test "$MINGW_LIB_WARNING" = "yes"
 then
     AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
 fi
-

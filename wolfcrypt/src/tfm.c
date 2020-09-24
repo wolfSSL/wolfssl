@@ -753,7 +753,12 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
       fp_word tmp;
       tmp = ((fp_word) x->dp[i]) << ((fp_word) DIGIT_BIT);
       tmp |= ((fp_word) x->dp[i - 1]);
+#ifdef WOLFSSL_LINUXKM
+      /* Linux kernel macro for in-place 64 bit integer division. */
+      do_div(tmp, (fp_word)y->dp[t]);
+#else
       tmp /= ((fp_word)y->dp[t]);
+#endif
       q->dp[i - t - 1] = (fp_digit) (tmp);
     }
 
@@ -4560,7 +4565,13 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      w = (w << ((fp_word)DIGIT_BIT)) | ((fp_word)a->dp[ix]);
 
      if (w >= b) {
+#ifdef WOLFSSL_LINUXKM
+        t = (fp_digit)w;
+	/* Linux kernel macro for in-place 64 bit integer division. */
+        do_div(t, b);
+#else
         t = (fp_digit)(w / b);
+#endif
         w -= ((fp_word)t) * ((fp_word)b);
       } else {
         t = 0;

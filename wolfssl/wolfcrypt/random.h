@@ -149,6 +149,23 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
+#ifdef HAVE_HASHDRBG
+struct DRBG_internal {
+    word32 reseedCtr;
+    word32 lastBlock;
+    byte V[DRBG_SEED_LEN];
+    byte C[DRBG_SEED_LEN];
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+    void* heap;
+    int devId;
+#endif
+    byte   matchCount;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256 sha256;
+#endif
+};
+#endif
+
 /* RNG context */
 struct WC_RNG {
     OS_Seed seed;
@@ -157,18 +174,7 @@ struct WC_RNG {
     /* Hash-based Deterministic Random Bit Generator */
     struct DRBG* drbg;
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-    #define DRBG_STRUCT_SZ ((sizeof(word32)*3) + (DRBG_SEED_LEN*2))
-    #ifdef WOLFSSL_SMALL_STACK_CACHE
-        #define DRBG_STRUCT_SZ_SHA256 (sizeof(wc_Sha256))
-    #else
-        #define DRBG_STRUCT_SZ_SHA256 0
-    #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
-        #define DRBG_STRUCT_SZ_ASYNC (sizeof(void*) + sizeof(int))
-    #else
-        #define DRBG_STRUCT_SZ_ASYNC 0
-    #endif
-    byte drbg_data[DRBG_STRUCT_SZ + DRBG_STRUCT_SZ_SHA256 + DRBG_STRUCT_SZ_ASYNC];
+    struct DRBG_internal drbg_data;
 #endif
     byte status;
 #endif

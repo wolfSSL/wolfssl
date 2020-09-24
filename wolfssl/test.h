@@ -2002,12 +2002,121 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
 typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 #define STACK_CHECK_VAL 0x01
 
+struct stack_size_debug_context {
+  unsigned char *myStack;
+  size_t stackSize;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+  size_t *stackSizeHWM_ptr;
+  thread_func fn;
+  void *args;
+#endif
+};
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+
+/* per-subtest stack high water mark tracking.
+ *
+ * enable with
+ *
+ * CFLAGS='-g -DHAVE_STACK_SIZE_VERBOSE' ./configure --enable-stacksize [...]
+ */
+
+extern THREAD_LS_T unsigned char *StackSizeCheck_myStack;
+extern THREAD_LS_T size_t StackSizeCheck_stackSize;
+extern THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
+extern THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
+extern THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
+
+static void *debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
+  StackSizeCheck_myStack = shim_args->myStack;
+  StackSizeCheck_stackSize = shim_args->stackSize;
+  StackSizeCheck_stackSizeHWM_ptr = shim_args->stackSizeHWM_ptr;
+  return shim_args->fn(shim_args->args);
+}
+
+static WC_INLINE int StackSizeSetOffset(const char *funcname, void *p)
+{
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    StackSizeCheck_stackOffsetPointer = p;
+
+    printf("setting stack relative offset reference mark in %s to +%ld\n", funcname, (char *)(StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)p);
+
+    return 0;
+}
+
+static WC_INLINE ssize_t StackSizeHWM(void)
+{
+    size_t i;
+    ssize_t used;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = 0; i < StackSizeCheck_stackSize; i++) {
+        if (StackSizeCheck_myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    used = StackSizeCheck_stackSize - i;
+    if ((ssize_t)*StackSizeCheck_stackSizeHWM_ptr < used)
+      *StackSizeCheck_stackSizeHWM_ptr = used;
+
+    return used;
+}
+
+static WC_INLINE ssize_t StackSizeHWM_OffsetCorrected(void)
+{
+    ssize_t used = StackSizeHWM();
+    if (used < 0)
+        return used;
+    if (StackSizeCheck_stackOffsetPointer)
+        used -= (ssize_t)(((char *)StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)StackSizeCheck_stackOffsetPointer);
+    return used;
+}
+
+static
+#ifdef __GNUC__
+__attribute__((unused)) __attribute__((noinline))
+#endif
+int StackSizeHWMReset(void)
+{
+    volatile ssize_t i;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = (ssize_t)((char *)&i - (char *)StackSizeCheck_myStack) - (ssize_t)sizeof i - 1; i >= 0; --i)
+    {
+        StackSizeCheck_myStack[i] = STACK_CHECK_VAL;
+    }
+
+    return 0;
+}
+
+#define STACK_SIZE_CHECKPOINT(...) ({  \
+    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    int _ret = (__VA_ARGS__); \
+    printf("relative stack used = %ld\n", HWM); \
+    StackSizeHWMReset();               \
+    _ret;                       \
+    })
+
+#ifdef __GNUC__
+#define STACK_SIZE_INIT() (void)StackSizeSetOffset(__FUNCTION__, __builtin_frame_address(0))
+#endif
+
+#endif /* HAVE_STACK_SIZE_VERBOSE */
+
 static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 {
-    int            ret, i, used;
+    size_t         i;
+    int            ret;
     void*          status;
     unsigned char* myStack = NULL;
-    int            stackSize = 1024*176;
+    size_t         stackSize = 1024*1024;
     pthread_attr_t myAttr;
     pthread_t      threadId;
 
@@ -2030,7 +2139,20 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     if (ret != 0)
         err_sys("attr_setstackaddr failed");
 
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    StackSizeCheck_stackSizeHWM = 0;
+    {
+      struct stack_size_debug_context shim_args;
+      shim_args.myStack = myStack;
+      shim_args.stackSize = stackSize;
+      shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+      shim_args.fn = tf;
+      shim_args.args = args;
+      ret = pthread_create(&threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)&shim_args);
+    }
+#else
     ret = pthread_create(&threadId, &myAttr, tf, args);
+#endif
     if (ret != 0) {
         perror("pthread_create failed");
         exit(EXIT_FAILURE);
@@ -2047,9 +2169,95 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     }
 
     free(myStack);
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i) ? StackSizeCheck_stackSizeHWM : (stackSize - i));
+#else
+    {
+      size_t used = stackSize - i;
+      printf("stack used = %lu\n", used);
+    }
+#endif
 
-    used = stackSize - i;
-    printf("stack used = %d\n", used);
+    return (int)((size_t)status);
+}
+
+static WC_INLINE int StackSizeCheck_launch(func_args* args, thread_func tf, pthread_t *threadId, void **stack_context)
+{
+    int ret;
+    unsigned char* myStack = NULL;
+    size_t stackSize = 1024*1024;
+    pthread_attr_t myAttr;
+
+#ifdef PTHREAD_STACK_MIN
+    if (stackSize < PTHREAD_STACK_MIN)
+        stackSize = PTHREAD_STACK_MIN;
+#endif
+
+    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)malloc(sizeof *shim_args);
+    if (! shim_args) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
+    if (ret != 0 || myStack == NULL)
+        err_sys_with_errno("posix_memalign failed\n");
+
+    XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
+
+    ret = pthread_attr_init(&myAttr);
+    if (ret != 0)
+        err_sys("attr_init failed");
+
+    ret = pthread_attr_setstack(&myAttr, myStack, stackSize);
+    if (ret != 0)
+        err_sys("attr_setstackaddr failed");
+
+    shim_args->myStack = myStack;
+    shim_args->stackSize = stackSize;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    shim_args->stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    shim_args->fn = tf;
+    shim_args->args = args;
+    ret = pthread_create(threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)shim_args);
+#else
+    ret = pthread_create(threadId, &myAttr, tf, args);
+#endif
+    if (ret != 0) {
+        fprintf(stderr,"pthread_create failed: %s",strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+    *stack_context = (void *)shim_args;
+
+    return 0;
+}
+
+static WC_INLINE int StackSizeCheck_reap(pthread_t threadId, void *stack_context)
+{
+    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)stack_context;
+    size_t i;
+    void *status;
+    int ret = pthread_join(threadId, &status);
+    if (ret != 0)
+        err_sys("pthread_join failed");
+
+    for (i = 0; i < shim_args->stackSize; i++) {
+        if (shim_args->myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    free(shim_args->myStack);
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    printf("stack used = %lu\n", *shim_args->stackSizeHWM_ptr > (shim_args->stackSize - i) ? *shim_args->stackSizeHWM_ptr : (shim_args->stackSize - i));
+#else
+    {
+      size_t used = shim_args->stackSize - i;
+      printf("stack used = %lu\n", used);
+    }
+#endif
+    free(shim_args);
 
     return (int)((size_t)status);
 }
@@ -2057,6 +2265,12 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
 #endif /* HAVE_STACK_SIZE */
 
+#ifndef STACK_SIZE_CHECKPOINT
+#define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
+#endif
+#ifndef STACK_SIZE_INIT
+#define STACK_SIZE_INIT()
+#endif
 
 #ifdef STACK_TRAP
 

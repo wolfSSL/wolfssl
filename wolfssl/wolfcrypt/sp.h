@@ -28,14 +28,18 @@
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
+#ifndef WOLFSSL_LINUXKM
 #include <stdint.h>
+#endif
 
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/sp_int.h>
 
 #include <wolfssl/wolfcrypt/ecc.h>
 
-#if defined(_MSC_VER)
+#ifdef noinline
+    #define SP_NOINLINE noinline
+#elif defined(_MSC_VER)
     #define SP_NOINLINE __declspec(noinline)
 #elif defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
     #define SP_NOINLINE _Pragma("inline = never")

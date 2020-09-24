@@ -23551,8 +23551,13 @@ static void test_wc_PKCS7_BER(void)
     pkcs7->privateKey   = der;
     pkcs7->privateKeySz = derSz;
 #ifndef NO_RSA
+#ifdef WOLFSSL_SP_MATH
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
+        sizeof(berContent), decoded, sizeof(decoded)), WC_KEY_SIZE_E);
+#else
     AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), 0);
+#endif
 #else
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), NOT_COMPILED_IN);

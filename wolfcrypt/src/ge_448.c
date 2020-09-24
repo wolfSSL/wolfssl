@@ -10655,7 +10655,7 @@ static void slide(int8_t *r, const uint8_t *a)
     }
 }
 
-/* Perform a scalar multplication of the base point and public point.
+/* Perform a scalar multiplication of the base point and public point.
  *   r = a * p + b * base
  * Uses a sliding window of 5 bits.
  * Not constant time.
@@ -10666,11 +10666,43 @@ static void slide(int8_t *r, const uint8_t *a)
 int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
                                     const ge448_p2 *p, const uint8_t *b)
 {
-    int8_t       aslide[448];
-    int8_t       bslide[448];
+#define GE448_WINDOW_BUF_SIZE 448
+
+#if !defined(WOLFSSL_SMALL_STACK) || (defined(WOLFSSL_NO_MALLOC) && !defined(XMALLOC_USER))
+    int8_t       aslide[GE448_WINDOW_BUF_SIZE];
+    int8_t       bslide[GE448_WINDOW_BUF_SIZE];
     ge448_p2     pi[16]; /* p,3p,..,31p */
-    ge448_p2     p2;
+    ge448_p2     p2_data, *p2 = &p2_data;
     int          i;
+
+#else
+    int8_t       *aslide = NULL;
+    int8_t       *bslide = NULL;
+    ge448_p2     *pi = NULL; /* p,3p,..,31p */
+    ge448_p2     *p2 = NULL;
+    int          i, ret;
+
+    aslide = (int8_t *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (! aslide) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    bslide = (int8_t *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (! bslide) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    pi = (ge448_p2 *)XMALLOC(16 * sizeof *pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (! pi) {
+        ret = MEMORY_E;
+        goto out;
+    }
+    p2 = (ge448_p2 *)XMALLOC(sizeof *p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (! p2) {
+        ret = MEMORY_E;
+        goto out;
+    }
+#endif
 
     slide(aslide, a);
     slide(bslide, b);
@@ -10678,22 +10710,22 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
     fe448_copy(pi[0].X, p->X);
     fe448_copy(pi[0].Y, p->Y);
     fe448_copy(pi[0].Z, p->Z);
-    ge448_dbl(&p2, p);
-    ge448_add(&pi[1], &p2, &pi[0]);
-    ge448_add(&pi[2], &p2, &pi[1]);
-    ge448_add(&pi[3], &p2, &pi[2]);
-    ge448_add(&pi[4], &p2, &pi[3]);
-    ge448_add(&pi[5], &p2, &pi[4]);
-    ge448_add(&pi[6], &p2, &pi[5]);
-    ge448_add(&pi[7], &p2, &pi[6]);
-    ge448_add(&pi[8], &p2, &pi[7]);
-    ge448_add(&pi[9], &p2, &pi[8]);
-    ge448_add(&pi[10], &p2, &pi[9]);
-    ge448_add(&pi[11], &p2, &pi[10]);
-    ge448_add(&pi[12], &p2, &pi[11]);
-    ge448_add(&pi[13], &p2, &pi[12]);
-    ge448_add(&pi[14], &p2, &pi[13]);
-    ge448_add(&pi[15], &p2, &pi[14]);
+    ge448_dbl(p2, p);
+    ge448_add(&pi[1], p2, &pi[0]);
+    ge448_add(&pi[2], p2, &pi[1]);
+    ge448_add(&pi[3], p2, &pi[2]);
+    ge448_add(&pi[4], p2, &pi[3]);
+    ge448_add(&pi[5], p2, &pi[4]);
+    ge448_add(&pi[6], p2, &pi[5]);
+    ge448_add(&pi[7], p2, &pi[6]);
+    ge448_add(&pi[8], p2, &pi[7]);
+    ge448_add(&pi[9], p2, &pi[8]);
+    ge448_add(&pi[10], p2, &pi[9]);
+    ge448_add(&pi[11], p2, &pi[10]);
+    ge448_add(&pi[12], p2, &pi[11]);
+    ge448_add(&pi[13], p2, &pi[12]);
+    ge448_add(&pi[14], p2, &pi[13]);
+    ge448_add(&pi[15], p2, &pi[14]);
 
     ge448_0(r);
 
@@ -10710,7 +10742,7 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
         if (aslide[i] > 0)
             ge448_add(r, r, &pi[aslide[i]/2]);
         else if (aslide[i] < 0)
-            ge448_sub(r, r ,&pi[(-aslide[i])/2]);
+            ge448_sub(r, r, &pi[(-aslide[i])/2]);
 
         if (bslide[i] > 0)
             ge448_madd(r, r, &base_i[bslide[i]/2]);
@@ -10718,7 +10750,26 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const uint8_t *a,
             ge448_msub(r, r, &base_i[(-bslide[i])/2]);
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !(defined(WOLFSSL_NO_MALLOC) && !defined(XMALLOC_USER))
+    ret = 0;
+
+  out:
+
+    if (aslide)
+        XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (bslide)
+        XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pi)
+        XFREE(pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p2)
+        XFREE(p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+#else
     return 0;
+#endif
+
+#undef GE448_WINDOW_BUF_SIZE
 }
 
 /* Convert compressed point to negative of affine point.

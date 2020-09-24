@@ -7647,6 +7647,14 @@ ProtocolVersion MakeDTLSv1_2(void)
         return k_uptime_get() / 1000;
     }
 
+#elif defined(WOLFSSL_LINUXKM)
+    #include <linux/time.h>
+    #include <linux/ktime.h>
+    word32 LowResTimer(void)
+    {
+        return (word32)ktime_get_real_ns();
+    }
+
 #else
     /* Posix style time */
     #if !defined(USER_TIME) && !defined(USE_WOLF_TM)
@@ -9349,10 +9357,13 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
     }
 
     while (altName) {
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+        char name[WOLFSSL_MAX_IPSTR] = {0};
+#endif
+
         WOLFSSL_MSG("\tindividual AltName check");
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-        char name[WOLFSSL_MAX_IPSTR] = {0};
         /* check if alt name is stored as IP addr octet */
         if (altName->type == ASN_IP_TYPE) {
             char tmp[4];
