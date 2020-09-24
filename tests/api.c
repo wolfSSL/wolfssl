@@ -26646,6 +26646,7 @@ static void test_wolfSSL_EVP_MD_rsa_signing(void)
                                                   defined(USE_CERT_BUFFERS_2048)
     WOLFSSL_EVP_PKEY* privKey;
     WOLFSSL_EVP_PKEY* pubKey;
+    WOLFSSL_EVP_PKEY_CTX* keyCtx;
     const char testData[] = "Hi There";
     WOLFSSL_EVP_MD_CTX mdCtx;
     size_t checkSz = -1;
@@ -26653,6 +26654,12 @@ static void test_wolfSSL_EVP_MD_rsa_signing(void)
     const unsigned char* cp;
     const unsigned char* p;
     unsigned char check[2048/8];
+    size_t i;
+    int paddings[] = {
+            RSA_PKCS1_PADDING,
+            RSA_PKCS1_PSS_PADDING,
+    };
+
 
     printf(testingFmt, "wolfSSL_EVP_MD_rsa_signing()");
 
@@ -26706,6 +26713,32 @@ static void test_wolfSSL_EVP_MD_rsa_signing(void)
                 1);
     AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    /* Check all signing padding types */
+    for (i = 0; i < sizeof(paddings)/sizeof(int); i++) {
+        wolfSSL_EVP_MD_CTX_init(&mdCtx);
+        AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, &keyCtx,
+                wolfSSL_EVP_sha256(), NULL, privKey), 1);
+        AssertIntEQ(wolfSSL_EVP_PKEY_CTX_set_rsa_padding(keyCtx,
+                paddings[i]), 1);
+        AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData,
+                (unsigned int)XSTRLEN(testData)), 1);
+        AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+        AssertIntEQ((int)checkSz, sz);
+        AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+        AssertIntEQ((int)checkSz,sz);
+        AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+        wolfSSL_EVP_MD_CTX_init(&mdCtx);
+        AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, &keyCtx,
+                wolfSSL_EVP_sha256(), NULL, pubKey), 1);
+        AssertIntEQ(wolfSSL_EVP_PKEY_CTX_set_rsa_padding(keyCtx,
+                paddings[i]), 1);
+        AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData,
+                (unsigned int)XSTRLEN(testData)), 1);
+        AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
+        AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+    }
 
     wolfSSL_EVP_PKEY_free(pubKey);
     wolfSSL_EVP_PKEY_free(privKey);

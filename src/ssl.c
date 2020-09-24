@@ -30805,39 +30805,7 @@ static void show(const char *title, const unsigned char *out, unsigned int outle
 #define show(a,b,c)
 #endif
 
-/* return SSL_SUCCESS on ok, 0 otherwise */
-int wolfSSL_RSA_sign(int type, const unsigned char* m,
-                           unsigned int mLen, unsigned char* sigRet,
-                           unsigned int* sigLen, WOLFSSL_RSA* rsa)
-{
-    return wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, sigLen, rsa, 1);
-}
-
-int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
-                           unsigned int mLen, unsigned char* sigRet,
-                           unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag)
-{
-    word32  outLen;
-    word32  signSz;
-    int     initTmpRng = 0;
-    WC_RNG* rng        = NULL;
-    int     ret        = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRNG     = NULL;
-    byte*   encodedSig = NULL;
-#else
-    WC_RNG  tmpRNG[1];
-    byte    encodedSig[MAX_ENCODED_SIG_SZ];
-#endif
-
-    WOLFSSL_ENTER("wolfSSL_RSA_sign");
-
-    if (m == NULL || sigRet == NULL || sigLen == NULL || rsa == NULL) {
-        WOLFSSL_MSG("Bad function arguments");
-        return 0;
-    }
-    show("Message to Sign", m, mLen);
-
+static int nid2HashSum(int type) {
     switch (type) {
     #ifdef WOLFSSL_MD2
         case NID_md2:       type = MD2h;    break;
@@ -30873,6 +30841,43 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
             WOLFSSL_MSG("This NID (md type) not configured or not implemented");
             return 0;
     }
+    return type;
+}
+
+/* return SSL_SUCCESS on ok, 0 otherwise */
+int wolfSSL_RSA_sign(int type, const unsigned char* m,
+                           unsigned int mLen, unsigned char* sigRet,
+                           unsigned int* sigLen, WOLFSSL_RSA* rsa)
+{
+    return wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, sigLen, rsa, 1,
+            RSA_PKCS1_PADDING);
+}
+
+int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
+                           unsigned int mLen, unsigned char* sigRet,
+                           unsigned int* sigLen, WOLFSSL_RSA* rsa, int flag,
+                           int padding)
+{
+    word32  outLen;
+    word32  signSz;
+    int     initTmpRng = 0;
+    WC_RNG* rng        = NULL;
+    int     ret        = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRNG     = NULL;
+    byte*   encodedSig = NULL;
+#else
+    WC_RNG  tmpRNG[1];
+    byte    encodedSig[MAX_ENCODED_SIG_SZ];
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_RSA_sign");
+
+    if (m == NULL || sigRet == NULL || sigLen == NULL || rsa == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return 0;
+    }
+    show("Message to Sign", m, mLen);
 
     if (rsa->inSet == 0)
     {
@@ -30883,6 +30888,8 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
             return 0;
         }
     }
+
+    type = nid2HashSum(type);
 
     outLen = (word32)wolfSSL_BN_num_bytes(rsa->n);
 
@@ -30915,32 +30922,71 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
     }
 
     if (rng) {
-
-        signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
-        if (signSz == 0) {
-            WOLFSSL_MSG("Bad Encode Signature");
-        }
-        else {
-            show("Encoded Message", encodedSig, signSz);
-            if (flag != 0) {
+        if (flag != 0) {
+            switch (padding) {
+#ifdef WC_RSA_NO_PADDING
+            case RSA_NO_PADDING:
+                WOLFSSL_MSG("RSA_NO_PADDING not supported for signing");
+                ret = BAD_FUNC_ARG;
+                break;
+#endif
+#ifdef WC_RSA_PSS
+            case RSA_PKCS1_PSS_PADDING:
+            {
+                enum wc_HashType hType = wc_OidGetHash(type);
+                ret = wc_RsaPSS_Sign(m, mLen, sigRet, outLen,
+                        hType, hash2mgf(hType), (RsaKey*)rsa->internal, rng);
+                break;
+            }
+#endif
+#ifndef WC_NO_RSA_OAEP
+            case RSA_PKCS1_OAEP_PADDING:
+            {
+                WOLFSSL_MSG("RSA_PKCS1_OAEP_PADDING not supported for signing");
+                ret = BAD_FUNC_ARG;
+                break;
+            }
+#endif
+            case RSA_PKCS1_PADDING:
+            default:
+                signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
+                if (signSz == 0) {
+                    WOLFSSL_MSG("Bad Encode Signature");
+                }
+                show("Encoded Message", encodedSig, signSz);
                 ret = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
                                 (RsaKey*)rsa->internal, rng);
-                if (ret <= 0) {
-                    WOLFSSL_MSG("Bad Rsa Sign");
-                    ret = 0;
+            }
+            if (ret <= 0) {
+                WOLFSSL_MSG("Bad Rsa Sign");
+                ret = 0;
+            }
+            else {
+                *sigLen = (unsigned int)ret;
+                ret = SSL_SUCCESS;
+                show("Signature", sigRet, *sigLen);
+            }
+        } else {
+            switch (padding) {
+            case RSA_NO_PADDING:
+            case RSA_PKCS1_PSS_PADDING:
+            case RSA_PKCS1_OAEP_PADDING:
+                ret = SSL_SUCCESS;
+                XMEMCPY(sigRet, m, mLen);
+                *sigLen = mLen;
+                break;
+            case RSA_PKCS1_PADDING:
+            default:
+                signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
+                if (signSz == 0) {
+                    WOLFSSL_MSG("Bad Encode Signature");
                 }
-                else {
-                    *sigLen = (unsigned int)ret;
-                    ret = SSL_SUCCESS;
-                    show("Signature", sigRet, *sigLen);
-                }
-            } else {
                 ret = SSL_SUCCESS;
                 XMEMCPY(sigRet, encodedSig, signSz);
                 *sigLen = signSz;
+                break;
             }
         }
-
     }
 
     if (initTmpRng)
@@ -30959,65 +31005,87 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
     return ret;
 }
 
-
 /* returns WOLFSSL_SUCCESS on successful verify and WOLFSSL_FAILURE on fail */
 int wolfSSL_RSA_verify(int type, const unsigned char* m,
                                unsigned int mLen, const unsigned char* sig,
                                unsigned int sigLen, WOLFSSL_RSA* rsa)
 {
+    return wolfSSL_RSA_verify_ex(type, m, mLen, sig, sigLen, rsa, RSA_PKCS1_PADDING);
+}
+
+#define wolfSSL_RSA_verify_ex_return(msg, ret_code) {               \
+        WOLFSSL_MSG(msg);                                           \
+        if (sigRet)                                                 \
+            XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);           \
+        if (sigDec)                                                 \
+            XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);           \
+        return ret_code;                                            \
+}
+
+/* returns WOLFSSL_SUCCESS on successful verify and WOLFSSL_FAILURE on fail */
+int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
+                               unsigned int mLen, const unsigned char* sig,
+                               unsigned int sigLen, WOLFSSL_RSA* rsa,
+                               int padding) {
+
     int     ret;
-    unsigned char *sigRet ;
-    unsigned char *sigDec ;
+    unsigned char *sigRet = NULL;
+    unsigned char *sigDec = NULL;
     unsigned int   len;
+    int hSum = nid2HashSum(type);
+    enum wc_HashType hType;
 
     WOLFSSL_ENTER("wolfSSL_RSA_verify");
     if ((m == NULL) || (sig == NULL)) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FAILURE;
     }
-
-    sigRet = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (sigRet == NULL) {
-        WOLFSSL_MSG("Memory failure");
-        return WOLFSSL_FAILURE;
-    }
     sigDec = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (sigDec == NULL) {
-        WOLFSSL_MSG("Memory failure");
-        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+        wolfSSL_RSA_verify_ex_return("Memory failure", WOLFSSL_FAILURE);
     }
-    /* get non-encrypted signature to be compared with decrypted signature */
-    ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0);
-    if (ret <= 0) {
-        WOLFSSL_MSG("Message Digest Error");
-        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
-    show("Encoded Message", sigRet, len);
-    /* decrypt signature */
-    ret = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen,
-        (RsaKey*)rsa->internal);
-    if (ret <= 0) {
-        WOLFSSL_MSG("RSA Decrypt error");
-        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
-    show("Decrypted Signature", sigDec, ret);
-
-    if ((int)len == ret && XMEMCMP(sigRet, sigDec, ret) == 0) {
-        WOLFSSL_MSG("wolfSSL_RSA_verify success");
-        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_SUCCESS;
+    if (padding != RSA_PKCS1_PSS_PADDING) {
+        sigRet = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (sigRet == NULL) {
+            wolfSSL_RSA_verify_ex_return("Memory failure", WOLFSSL_FAILURE);
+        }
+        /* get non-encrypted signature to be compared with decrypted signature */
+        ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0, padding);
+        if (ret <= 0) {
+            wolfSSL_RSA_verify_ex_return("Message Digest Error", WOLFSSL_FAILURE);
+        }
+        show("Encoded Message", sigRet, len);
     }
     else {
-        WOLFSSL_MSG("wolfSSL_RSA_verify failed");
-        XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+        show("Encoded Message", m, mLen);
+    }
+    /* decrypt signature */
+    hType = wc_OidGetHash(hSum);
+    ret = wc_RsaSSL_Verify_ex(sig, sigLen, (unsigned char *)sigDec, sigLen,
+        (RsaKey*)rsa->internal, padding, hType);
+    if (ret <= 0) {
+        wolfSSL_RSA_verify_ex_return("RSA Decrypt error", WOLFSSL_FAILURE);
+    }
+    show("Decrypted Signature", sigDec, ret);
+    if (padding == RSA_PKCS1_PSS_PADDING) {
+        if ((ret = wc_RsaPSS_CheckPadding_ex(m, mLen, sigDec, ret,
+                hType, RSA_PSS_SALT_LEN_DEFAULT,
+                mp_count_bits(&((RsaKey*)rsa->internal)->n))) == 0) {
+            wolfSSL_RSA_verify_ex_return("wolfSSL_RSA_verify success",
+                    WOLFSSL_SUCCESS);
+        }
+        else {
+            wolfSSL_RSA_verify_ex_return("wolfSSL_RSA_verify failed",
+                    WOLFSSL_FAILURE);
+        }
+    }
+    else if ((int)len == ret && XMEMCMP(sigRet, sigDec, ret) == 0) {
+        wolfSSL_RSA_verify_ex_return("wolfSSL_RSA_verify success",
+                WOLFSSL_SUCCESS);
+    }
+    else {
+        wolfSSL_RSA_verify_ex_return("wolfSSL_RSA_verify failed",
+                WOLFSSL_FAILURE);
     }
 }
 
@@ -45872,7 +45940,8 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
 
     /* size of 'to' buffer must be size of RSA key */
     tlen = wc_RsaSSL_Verify_ex(from, flen, to, wolfSSL_RSA_size(rsa),
-                               (RsaKey*)rsa->internal, pad_type);
+                               (RsaKey*)rsa->internal, pad_type,
+                               WC_HASH_TYPE_NONE);
     if (tlen <= 0)
         WOLFSSL_MSG("wolfSSL_RSA_public_decrypt failed");
     else {
