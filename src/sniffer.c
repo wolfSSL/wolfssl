@@ -2066,6 +2066,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 {
     word32 idx = 0;
     int ret;
+#ifdef HAVE_ECC
+    int useEccCurveId = ECC_CURVE_DEF;
+    if (ksInfo && ksInfo->curve_id != 0)
+        useEccCurveId = ksInfo->curve_id;
+#endif
 
 #ifndef NO_RSA
     /* Static RSA */
@@ -2085,6 +2090,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 SetError(RSA_DECODE_STR, error, session, 0);
             #endif
             }
+        #ifdef HAVE_ECC
+            else {
+                useEccCurveId = -1; /* don't try loading ECC */
+            }
+        #endif
         }
 
         if (ret == 0) {
@@ -2135,7 +2145,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 #endif /* !NO_RSA */
 
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
-    /* Static Ephemeral DH Key */
+    /* Static DH Key */
     if (ksInfo && ksInfo->dh_key_bits != 0) {
         DhKey dhKey;
         const DhParams* params;
@@ -2223,8 +2233,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA */
 
 #ifdef HAVE_ECC
-    /* Static Ephemeral ECC Key */
-    if (ksInfo && ksInfo->curve_id != 0) {
+    /* Static ECC Key */
+    if (useEccCurveId >= ECC_CURVE_DEF) {
         ecc_key key;
         ecc_key pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
@@ -2235,6 +2245,15 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             keyInit = 1;
             ret = wc_ecc_init(&pubKey);
         }
+
+    #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+        !defined(HAVE_SELFTEST)
+        if (ret == 0) {
+            ret = wc_ecc_set_rng(&key, session->sslServer->rng);
+        }
+    #endif
+
         if (ret == 0) {
             pubKeyInit = 1;
             ret = wc_EccPrivateKeyDecode(keyBuf->buffer, &idx, &key, keyBuf->length);
@@ -2258,7 +2277,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
         }
 
         if (ret == 0) {
-            ret = wc_ecc_import_x963_ex(input, length, &pubKey, ksInfo->curve_id);
+            ret = wc_ecc_import_x963_ex(input, length, &pubKey, useEccCurveId);
             if (ret != 0) {
                 SetError(ECC_PUB_DECODE_STR, error, session, FATAL_ERROR_STATE);
             }
