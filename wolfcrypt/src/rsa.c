@@ -1751,25 +1751,40 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 int hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
-#ifndef NO_SHA
     case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
         return WC_MGF1SHA1;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
-#ifndef NO_SHA256
-#ifdef WOLFSSL_SHA224
     case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
         return WC_MGF1SHA224;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
     case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
         return WC_MGF1SHA256;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
-#ifdef WOLFSSL_SHA384
     case WC_HASH_TYPE_SHA384:
+#ifdef WOLFSSL_SHA384
         return WC_MGF1SHA384;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
-#ifdef WOLFSSL_SHA512
     case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
         return WC_MGF1SHA512;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
     case WC_HASH_TYPE_NONE:
     case WC_HASH_TYPE_MD2:
