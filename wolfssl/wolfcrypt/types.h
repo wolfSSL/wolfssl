@@ -494,7 +494,37 @@ decouple library dependencies with standard string, memory and so on.
                    for snprintf */
                 #include <stdio.h>
             #endif
-            #define XSNPRINTF snprintf
+            #if defined(WOLFSSL_ESPIDF) && \
+                (!defined(NO_ASN_TIME) && defined(HAVE_PKCS7))
+                    #include<stdarg.h>
+                    /* later gcc than 7.1 introduces -Wformat-truncation    */
+                    /* In cases when truncation is expected the caller needs*/
+                    /* to check the return value from the function so that  */
+                    /* compiler doesn't complain.                           */
+                    /* xtensa-esp32-elf v8.2.0 warns trancation at          */
+                    /* GetAsnTimeString()                                   */
+                    static WC_INLINE
+                    int _xsnprintf_(char *s, size_t n, const char *format, ...)
+                    {
+                        va_list ap;
+                        int ret;
+                        
+                        if ((int)n <= 0) return -1;
+                        
+                        va_start(ap, format);
+                        
+                        ret = vsnprintf(s, n, format, ap);
+                        if (ret < 0)
+                            ret = -1;
+                            
+                        va_end(ap);
+                        
+                        return ret;
+                    }
+                #define XSNPRINTF _xsnprintf_
+            #else
+                #define XSNPRINTF snprintf
+            #endif
             #endif
         #else
             #if defined(_MSC_VER) || defined(__CYGWIN__) || defined(__MINGW32__)

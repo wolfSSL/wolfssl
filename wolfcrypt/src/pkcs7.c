@@ -11853,7 +11853,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
     byte *tmpIv = tmpIvBuf;
 
     int encryptedContentSz = 0;
-    byte padLen;
+    byte padLen = 0;
     byte* encryptedContent = NULL;
 
     byte* pkiMsg = in;
