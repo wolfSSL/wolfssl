@@ -572,72 +572,26 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
     int ret = 0;
 
     *outl = inl;
-    if (ctx->enc) {
-        if (out) {
-            if (ctx->gcmAuthIn) {
-                /* authenticated, non-confidential data */
-                XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-                ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                          ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                          ctx->gcmAuthIn, ctx->gcmAuthInSz);
-                /* Reset partial authTag error for AAD*/
-                if (ret == AES_GCM_AUTH_E)
-                    ret = 0;
-                if (ret == 0) {
-                    XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                    ctx->gcmAuthIn = NULL;
-                    ctx->gcmAuthInSz = 0;
-                }
+    if (out) {
+        /* Buffer input for one-shot API */
+        if (ret == 0) {
+            byte* tmp;
+            tmp = (byte*)XREALLOC(ctx->gcmBuffer,
+                    ctx->gcmBufferLen + inl, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (tmp) {
+                XMEMCPY(tmp + ctx->gcmBufferLen, in, inl);
+                ctx->gcmBufferLen += inl;
+                ctx->gcmBuffer = tmp;
+                *outl = 0;
             }
-
-            /* encrypt confidential data*/
-            if (ret == 0)
-                ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out, in, inl,
-                          ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                          NULL, 0);
-        }
-        else {
-            ret = wolfSSL_EVP_CipherUpdate_GCM_AAD(ctx, in, inl);
+            else {
+                ret = MEMORY_E;
+            }
         }
     }
     else {
-        if (out) {
-            byte* tmp;
-
-            if (ctx->gcmAuthIn) {
-                /* authenticated, non-confidential data*/
-                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                          ctx->iv, ctx->ivSz,
-                          ctx->authTag, ctx->authTagSz,
-                          ctx->gcmAuthIn, ctx->gcmAuthInSz);
-                /* Reset partial authTag error for AAD*/
-                if (ret == AES_GCM_AUTH_E)
-                    ret = 0;
-                if (ret == 0) {
-                    XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                    ctx->gcmAuthIn = NULL;
-                    ctx->gcmAuthInSz = 0;
-                }
-            }
-
-            if (ret == 0) {
-                tmp = (byte*)XREALLOC(ctx->gcmDecryptBuffer,
-                        ctx->gcmDecryptBufferLen + inl, NULL,
-                        DYNAMIC_TYPE_OPENSSL);
-                if (tmp) {
-                    XMEMCPY(tmp + ctx->gcmDecryptBufferLen, in, inl);
-                    ctx->gcmDecryptBufferLen += inl;
-                    ctx->gcmDecryptBuffer = tmp;
-                    *outl = 0;
-                }
-                else {
-                    ret = MEMORY_E;
-                }
-            }
-        }
-        else {
-            ret = wolfSSL_EVP_CipherUpdate_GCM_AAD(ctx, in, inl);
-        }
+        ret = wolfSSL_EVP_CipherUpdate_GCM_AAD(ctx, in, inl);
     }
 
     if (ret != 0) {
@@ -810,25 +764,51 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            if (!ctx->enc && ctx->gcmDecryptBuffer &&
-                    ctx->gcmDecryptBufferLen > 0) {
-                /* decrypt confidential data*/
-                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
-                        ctx->gcmDecryptBuffer, ctx->gcmDecryptBufferLen,
-                        ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                        NULL, 0);
+            if (ctx->gcmBuffer &&
+                    ctx->gcmBufferLen > 0) {
+                if (ctx->gcmAuthIn) {
+                    /* authenticated, non-confidential data*/
+                    if (ctx->enc) {
+                        XMEMSET(ctx->authTag, 0, ctx->authTagSz);
+                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                                  ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                                  ctx->gcmAuthIn, ctx->gcmAuthInSz);
+                    }
+                    else {
+                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                                  ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                                  ctx->gcmAuthIn, ctx->gcmAuthInSz);
+                        /* Reset partial authTag error for AAD*/
+                        if (ret == AES_GCM_AUTH_E)
+                            ret = 0;
+                    }
+                }
+
+                if (ctx->enc)
+                    /* encrypt confidential data*/
+                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out,
+                            ctx->gcmBuffer, ctx->gcmBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                            NULL, 0);
+                else
+                    /* decrypt confidential data*/
+                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                            ctx->gcmBuffer, ctx->gcmBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                            NULL, 0);
+
                 if (ret == 0) {
                     ret = WOLFSSL_SUCCESS;
-                    *outl = ctx->gcmDecryptBufferLen;
+                    *outl = ctx->gcmBufferLen;
                 }
                 else {
                     ret = WOLFSSL_FAILURE;
                     *outl = 0;
                 }
 
-                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->gcmDecryptBuffer = NULL;
-                ctx->gcmDecryptBufferLen = 0;
+                XFREE(ctx->gcmBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmBuffer = NULL;
+                ctx->gcmBufferLen = 0;
             }
             else {
                 *outl = 0;
@@ -4156,11 +4136,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
 #ifdef HAVE_AESGCM
-            if (ctx->gcmDecryptBuffer) {
-                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->gcmDecryptBuffer = NULL;
+            if (ctx->gcmBuffer) {
+                XFREE(ctx->gcmBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmBuffer = NULL;
             }
-            ctx->gcmDecryptBufferLen = 0;
+            ctx->gcmBufferLen = 0;
             if (ctx->gcmAuthIn) {
                 XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
                 ctx->gcmAuthIn = NULL;
