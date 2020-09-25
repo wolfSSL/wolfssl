@@ -10503,7 +10503,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* dsaKey = CERT_ROOT "dsa2048.der";
     #endif
 #endif /* !USE_CERT_BUFFER_* */
-#if !defined(USE_CERT_BUFFERS_256)
+#if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ECC256)
     #ifdef HAVE_ECC
         /* cert files to be used in rsa cert gen test, check if RSA enabled */
         #ifdef HAVE_ECC_KEY_IMPORT
@@ -18239,6 +18239,8 @@ static int x963kdf_test(void)
         #define ECC_KEYGEN_SIZE 48
     #elif defined(HAVE_ECC224)
         #define ECC_KEYGEN_SIZE 28
+    #elif defined(HAVE_ECC521)
+        #define ECC_KEYGEN_SIZE 66
     #else
         #error No ECC keygen size defined for test
     #endif
@@ -18796,9 +18798,6 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #ifdef HAVE_ECC_VERIFY
     int verify = 0;
 #endif
-#ifndef USE_CERT_BUFFERS_256
-    XFILE file;
-#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((key == NULL) ||
@@ -18822,13 +18821,15 @@ static int ecc_test_make_pub(WC_RNG* rng)
     XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
     tmpSz = (size_t)sizeof_ecc_key_der_256;
 #else
-    file = XFOPEN(eccKeyDerFile, "rb");
-    if (!file) {
-        ERROR_OUT(-9617, done);
-    }
+    {
+        XFILE file = XFOPEN(eccKeyDerFile, "rb");
+        if (!file) {
+            ERROR_OUT(-9617, done);
+        }
 
-    tmpSz = (word32)XFREAD(tmp, 1, ECC_BUFSIZE, file);
-    XFCLOSE(file);
+        tmpSz = (word32)XFREAD(tmp, 1, ECC_BUFSIZE, file);
+        XFCLOSE(file);
+    }
 #endif /* USE_CERT_BUFFERS_256 */
 
     /* import private only then test with */
