@@ -30,8 +30,26 @@
     extern "C" {
 #endif
 
+enum {
+    RC2_MAX_KEY_SIZE = 128, /* max effective key size, octets */
+    RC2_BLOCK_SIZE   = 8
+};
 
+/* RC2 encryption and decryption */
+typedef struct RC2 {
+    word32 keylen;
+    ALIGN16 word16 key[RC2_MAX_KEY_SIZE/2];
+} RC2;
 
+WOLFSSL_API int wc_Rc2SetKey(RC2*, const byte*, word32, word32);
+WOLFSSL_API int wc_Rc2EcbEncrypt(RC2* rc2, byte* out,
+                                 const byte* in, word32 sz);
+WOLFSSL_API int wc_Rc2EcbDecrypt(RC2* rc2, byte* out,
+                                 const byte* in, word32 sz);
+WOLFSSL_API int wc_Rc2CbcEncrypt(RC2* rc2, byte* out,
+                                 const byte* in, word32 sz);
+WOLFSSL_API int wc_Rc2CbcDecrypt(RC2* rc2, byte* out,
+                                 const byte* in, word32 sz);
 
 #ifdef __cplusplus
     } /* extern "C" */
