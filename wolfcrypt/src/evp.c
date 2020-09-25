@@ -1150,7 +1150,7 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case AES_256_OFB_TYPE:
           return 1;
   #endif
-  #if defined(HAVE_AES_XTS)
+  #if defined(WOLFSSL_AES_XTS)
       case AES_128_XTS_TYPE:
       case AES_256_XTS_TYPE:
           return 1;
