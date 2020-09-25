@@ -267,8 +267,11 @@ static int myWatchCb(void* vSniffer,
         certName = DEFAULT_SERVER_KEY_ECC;
     }
 
-    if (certName == NULL)
-        return -1;
+    if (certName == NULL) {
+        /* don't return error if key is not loaded */
+        printf("Warning: No matching key found for cert hash\n");
+        return 0;
+    }
 
     return ssl_SetWatchKey_file(vSniffer, certName, FILETYPE_PEM, NULL, error);
 }
