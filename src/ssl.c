@@ -10357,6 +10357,30 @@ void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 #endif
 }
 
+/* For TLS v1.3 perform rehandshake. Returns 1=WOLFSSL_SUCCESS or 0=WOLFSSL_FAILURE */
+int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl)
+{
+    int ret = NOT_COMPILED_IN;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
+    #ifndef NO_WOLFSSL_SERVER
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ret = wolfSSL_request_certificate(ssl);
+    }
+    #endif
+    #ifndef NO_WOLFSSL_CLIENT
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        ret = wolfSSL_allow_post_handshake_auth(ssl);
+    }
+    #endif
+#else
+    (void)ssl;
+#endif
+    ret = (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    
+    return ret;
+}
+
 /* store user ctx for verify callback */
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 {

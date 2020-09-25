@@ -974,6 +974,8 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 
 WOLFSSL_API void wolfSSL_set_verify(WOLFSSL*, int, VerifyCallback verify_callback);
 WOLFSSL_API void wolfSSL_set_verify_result(WOLFSSL*, long);
+WOLFSSL_API int  wolfSSL_verify_client_post_handshake(WOLFSSL*);
+
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL*, void*);
 
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL*);
