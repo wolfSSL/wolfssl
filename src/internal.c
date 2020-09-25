@@ -12282,7 +12282,7 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("Duplicate Finished received");
                 return DUPLICATE_MSG_E;
             }
-#ifdef HAVE_DTLS
+#ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
                 if (ssl->keys.curEpoch == 0) {
                     WOLFSSL_MSG("Finished received with epoch 0");
