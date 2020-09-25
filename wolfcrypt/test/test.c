@@ -139,6 +139,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 #if defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/integer.h>
@@ -308,6 +309,7 @@ static int  hmac_sha3_test(void);
 static int  hkdf_test(void);
 static int  x963kdf_test(void);
 static int  arc4_test(void);
+static int  rc2_test(void);
 static int  hc128_test(void);
 static int  rabbit_test(void);
 static int  chacha_test(void);
@@ -827,6 +829,13 @@ initDefaultName();
         return err_sys("GMAC     test failed!\n", ret);
     else
         test_pass("GMAC     test passed!\n");
+#endif
+
+#ifdef WC_RC2
+    if ( (ret = rc2_test()) != 0)
+        return err_sys("RC2      test failed!\n", ret);
+    else
+        test_pass("RC2      test passed!\n");
 #endif
 
 #ifndef NO_RC4
@@ -4251,6 +4260,146 @@ static int hmac_sha3_test(void)
             if (ret != hashSz[j])
                 return -4105;
         #endif
+        }
+    }
+
+    return 0;
+}
+#endif
+
+
+#ifdef WC_RC2
+typedef struct rc2TestVector {
+    const char* input;
+    const char* output;
+    const char* key;
+    int inLen;
+    int outLen;
+    int keyLen;
+    int effectiveKeyBits;
+} rc2TestVector;
+
+int rc2_test(void)
+{
+    int ret = 0;
+    byte cipher[RC2_BLOCK_SIZE];
+    byte plain[RC2_BLOCK_SIZE];
+
+    rc2TestVector a, b, c, d, e, f, g, h;
+    rc2TestVector test_rc2[8];
+
+    int times = sizeof(test_rc2) / sizeof(rc2TestVector), i;
+
+    a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    a.output = "\xeb\xb7\x73\xf9\x93\x27\x8e\xff";
+    a.key    = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    a.inLen  = RC2_BLOCK_SIZE;
+    a.outLen = RC2_BLOCK_SIZE;
+    a.keyLen = 8;
+    a.effectiveKeyBits = 63;
+
+    b.input  = "\xff\xff\xff\xff\xff\xff\xff\xff";
+    b.output = "\x27\x8b\x27\xe4\x2e\x2f\x0d\x49";
+    b.key    = "\xff\xff\xff\xff\xff\xff\xff\xff";
+    b.inLen  = RC2_BLOCK_SIZE;
+    b.outLen = RC2_BLOCK_SIZE;
+    b.keyLen = 8;
+    b.effectiveKeyBits = 64;
+
+    c.input  = "\x10\x00\x00\x00\x00\x00\x00\x01";
+    c.output = "\x30\x64\x9e\xdf\x9b\xe7\xd2\xc2";
+    c.key    = "\x30\x00\x00\x00\x00\x00\x00\x00";
+    c.inLen  = RC2_BLOCK_SIZE;
+    c.outLen = RC2_BLOCK_SIZE;
+    c.keyLen = 8;
+    c.effectiveKeyBits = 64;
+
+    d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    d.output = "\x61\xa8\xa2\x44\xad\xac\xcc\xf0";
+    d.key    = "\x88";
+    d.inLen  = RC2_BLOCK_SIZE;
+    d.outLen = RC2_BLOCK_SIZE;
+    d.keyLen = 1;
+    d.effectiveKeyBits = 64;
+
+    e.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    e.output = "\x6c\xcf\x43\x08\x97\x4c\x26\x7f";
+    e.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a";
+    e.inLen  = RC2_BLOCK_SIZE;
+    e.outLen = RC2_BLOCK_SIZE;
+    e.keyLen = 7;
+    e.effectiveKeyBits = 64;
+
+    f.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    f.output = "\x1a\x80\x7d\x27\x2b\xbe\x5d\xb1";
+    f.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2";
+    f.inLen  = RC2_BLOCK_SIZE;
+    f.outLen = RC2_BLOCK_SIZE;
+    f.keyLen = 16;
+    f.effectiveKeyBits = 64;
+
+    g.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    g.output = "\x22\x69\x55\x2a\xb0\xf8\x5c\xa6";
+    g.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2";
+    g.inLen  = RC2_BLOCK_SIZE;
+    g.outLen = RC2_BLOCK_SIZE;
+    g.keyLen = 16;
+    g.effectiveKeyBits = 128;
+
+    h.input  = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    h.output = "\x5b\x78\xd3\xa4\x3d\xff\xf1\xf1";
+    h.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2"
+               "\x16\xf8\x0a\x6f\x85\x92\x05\x84"
+               "\xc4\x2f\xce\xb0\xbe\x25\x5d\xaf"
+               "\x1e";
+    h.inLen  = RC2_BLOCK_SIZE;
+    h.outLen = RC2_BLOCK_SIZE;
+    h.keyLen = 33;
+    h.effectiveKeyBits = 129;
+
+    test_rc2[0] = a;
+    test_rc2[1] = b;
+    test_rc2[2] = c;
+    test_rc2[3] = d;
+    test_rc2[4] = e;
+    test_rc2[5] = f;
+    test_rc2[6] = g;
+    test_rc2[7] = h;
+
+    for (i = 0; i < times; ++i) {
+        RC2 enc;
+
+        XMEMSET(cipher, 0, RC2_BLOCK_SIZE);
+        XMEMSET(plain, 0, RC2_BLOCK_SIZE);
+
+        ret = wc_Rc2SetKey(&enc, (byte*)test_rc2[i].key, test_rc2[i].keyLen,
+                           test_rc2[i].effectiveKeyBits);
+        if (ret != 0) {
+            return -4106;
+        }
+
+        /* ECB encrypt */
+        ret = wc_Rc2EcbEncrypt(&enc, cipher, (byte*)test_rc2[i].input,
+                               (word32)test_rc2[i].outLen);
+        if (ret != 0) {
+            return -4107;
+        }
+
+        if (XMEMCMP(cipher, test_rc2[i].output, test_rc2[i].outLen)) {
+            return -4108;
+        }
+
+        /* ECB decrypt */
+        ret = wc_Rc2EcbDecrypt(&enc, plain, cipher, RC2_BLOCK_SIZE);
+        if (ret != 0) {
+            return -4109;
+        }
+
+        if (XMEMCMP(plain, test_rc2[i].input, RC2_BLOCK_SIZE)) {
+            return -4110;
         }
     }
 

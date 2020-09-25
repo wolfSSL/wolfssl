@@ -97,6 +97,23 @@ masking and clearing memory logic.
 
 #endif
 
+#ifdef WC_RC2
+
+/* This routine performs a left circular arithmetic shift of <x> by <y> value */
+WC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
+{
+    return (x << y) | (x >> (sizeof(y) * 8 - y));
+}
+
+
+/* This routine performs a right circular arithmetic shift of <x> by <y> value */
+WC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
+{
+    return (x >> y) | (x << (sizeof(y) * 8 - y));
+}
+
+#endif /* WC_RC2 */
+
 /* This routine performs a byte swap of 32-bit word value. */
 WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 {
