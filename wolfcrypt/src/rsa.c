@@ -3282,9 +3282,15 @@ int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
     rng = NULL;
 #endif
 
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
         hash, hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
+#else
+    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
+        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
+        hash, hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DISCOVER, rng);
+#endif
 }
 #endif
 
