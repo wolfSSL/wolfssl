@@ -11460,7 +11460,7 @@ static int test_wc_Des3_EcbEncrypt (void)
     if (ret == 0) {
         ret = wc_Des3_EcbEncrypt(&des, cipher, vector, cipherSz);
     }
-
+    wc_Des3Free(&des);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
