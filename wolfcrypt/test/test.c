@@ -14913,7 +14913,8 @@ static int dh_test(void)
 #endif
 
     /* Test DH key import / export */
-#ifdef WOLFSSL_DH_EXTRA
+#if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
