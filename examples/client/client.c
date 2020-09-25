@@ -3095,25 +3095,33 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     err = wolfSSL_get_error(ssl, 0);
                     if (err == WOLFSSL_ERROR_WANT_READ ||
                             err == WOLFSSL_ERROR_WANT_WRITE) {
-                        (void)ClientWrite(ssl,
+                        ret = ClientWrite(ssl,
                                 "msg sent during renegotiation",
                          sizeof("msg sent during renegotiation") - 1,
                                 "", 1);
-                        do {
-                            if (err == APP_DATA_READY) {
-                                if ((ret = wolfSSL_read(ssl, reply, sizeof(reply)-1)) < 0) {
-                                    err_sys("APP DATA should be present but error returned");
+                        if (ret != 0) {
+                            ret = WOLFSSL_FAILURE;
+                        }
+                        else {
+                            do {
+                                if (err == APP_DATA_READY) {
+                                    if ((ret = wolfSSL_read(ssl, reply,
+                                            sizeof(reply)-1)) < 0) {
+                                        err_sys("APP DATA should be present "
+                                                "but error returned");
+                                    }
+                                    printf("Received message: %s\n", reply);
                                 }
-                                printf("Received message: %s\n", reply);
-                            }
-                            err = 0;
-                            if ((ret = wolfSSL_connect(ssl)) != WOLFSSL_SUCCESS) {
-                                err = wolfSSL_get_error(ssl, ret);
-                            }
-                        } while (ret != WOLFSSL_SUCCESS &&
-                                (err == WOLFSSL_ERROR_WANT_READ ||
+                                err = 0;
+                                if ((ret = wolfSSL_connect(ssl))
+                                        != WOLFSSL_SUCCESS) {
+                                    err = wolfSSL_get_error(ssl, ret);
+                                }
+                            } while (ret != WOLFSSL_SUCCESS &&
+                                    (err == WOLFSSL_ERROR_WANT_READ ||
                                         err == WOLFSSL_ERROR_WANT_WRITE ||
                                         err == APP_DATA_READY));
+                        }
 
                         if (ret != WOLFSSL_SUCCESS) {
                             err = wolfSSL_get_error(ssl, 0);

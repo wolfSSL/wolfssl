@@ -17870,6 +17870,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 startScr:
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
         int ret;
+        WOLFSSL_MSG("Need to start scr, server requested");
         ret = wolfSSL_Rehandshake(ssl);
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
         if (ret != WOLFSSL_SUCCESS)
