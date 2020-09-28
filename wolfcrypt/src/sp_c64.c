@@ -9903,7 +9903,7 @@ static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -10915,7 +10915,7 @@ static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.

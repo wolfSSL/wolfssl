@@ -1777,7 +1777,7 @@ static WC_INLINE sp_digit sp_2048_div_word_45(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -2728,7 +2728,7 @@ static WC_INLINE sp_digit sp_2048_div_word_90(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -6605,7 +6605,7 @@ static WC_INLINE sp_digit sp_3072_div_word_134(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -9682,7 +9682,7 @@ static WC_INLINE sp_digit sp_4096_div_word_98(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -10646,7 +10646,7 @@ static WC_INLINE sp_digit sp_4096_div_word_196(sp_digit d1, sp_digit d0,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
