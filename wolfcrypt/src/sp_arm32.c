@@ -4773,7 +4773,7 @@ static int32_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -7005,7 +7005,7 @@ static int32_t sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -7057,7 +7057,7 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a, const sp_dig
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -15587,7 +15587,7 @@ static int32_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -18619,7 +18619,7 @@ static int32_t sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -18671,7 +18671,7 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a, const sp_dig
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -26639,7 +26639,7 @@ static int32_t sp_4096_cmp_128(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -26691,7 +26691,7 @@ static WC_INLINE int sp_4096_mod_128(sp_digit* r, const sp_digit* a, const sp_di
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -35906,7 +35906,7 @@ static void sp_256_mask_8(sp_digit* r, const sp_digit* a, sp_digit m)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -45104,7 +45104,7 @@ static void sp_384_mask_12(sp_digit* r, const sp_digit* a, sp_digit m)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
