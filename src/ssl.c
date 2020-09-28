@@ -31584,6 +31584,20 @@ void *wolfSSL_OPENSSL_malloc(size_t a)
   return XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+int wolfSSL_OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
+{
+    (void)opts;
+    (void)settings;
+    return wolfSSL_library_init();
+}
+
+int wolfSSL_OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS* settings)
+{
+    (void)opts;
+    (void)settings;
+    return wolfSSL_library_init();
+}
+
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
 
 static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
