@@ -11346,7 +11346,89 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
 #endif
     return ret;
 } /* END test_wc_Des3_CbcEncryptDecryptWithKey */
+/*
+ *  Unit test for wc_Des3_EcbEncrypt
+ */
+static int test_wc_Des3_EcbEncrypt (void)
+{
+    int ret = 0;
+#if !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
 
+    Des3    des;
+    byte    cipher[24];
+    word32  cipherSz = sizeof(cipher);
+
+    const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+
+    const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+    };
+
+    const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+
+    printf(testingFmt, "wc_Des3_EcbEncrypt()");
+
+    ret = wc_Des3Init(&des, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        return ret;
+    }
+    if (ret == 0 ) {
+        ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
+    }
+    /* Bad Cases */
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(NULL, cipher, vector, cipherSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(&des, 0, vector, cipherSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(&des, cipher, NULL, cipherSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(&des, cipher, vector, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(NULL, 0, NULL, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    /* Good Cases */
+    if (ret == 0) {
+        ret = wc_Des3_EcbEncrypt(&des, cipher, vector, cipherSz);
+    }
+    wc_Des3Free(&des);
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_Des3_EcbEncrypt */
 
 /*
  * Testing wc_Chacha_SetKey() and wc_Chacha_SetIV()
@@ -37518,6 +37600,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Des3_SetKey(), 0);
     AssertIntEQ(test_wc_Des3_CbcEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Des3_CbcEncryptDecryptWithKey(), 0);
+    AssertIntEQ(test_wc_Des3_EcbEncrypt(), 0);
     AssertIntEQ(test_wc_IdeaSetKey(), 0);
     AssertIntEQ(test_wc_IdeaSetIV(), 0);
     AssertIntEQ(test_wc_IdeaCipher(), 0);
