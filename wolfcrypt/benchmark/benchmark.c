@@ -5236,6 +5236,8 @@ void bench_ntruKeyGen(void)
         #define BENCH_ECC_SIZE 48
     #elif defined(HAVE_ECC224)
         #define BENCH_ECC_SIZE 28
+    #elif defined(HAVE_ECC521)
+        #define BENCH_ECC_SIZE 66
     #else
         #error No ECC keygen size defined for benchmark
     #endif
