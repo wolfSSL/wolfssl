@@ -628,178 +628,180 @@ static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 
 /* Square a and put result in r. (r = a * a)
  *
+ * All registers version.
+ *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
 {
     __asm__ __volatile__ (
-        "ldp       x22, x23, [%[a], 0]\n\t"
-        "ldp       x24, x25, [%[a], 16]\n\t"
-        "ldp       x26, x27, [%[a], 32]\n\t"
-        "ldp       x28, x29, [%[a], 48]\n\t"
+        "ldp       x21, x22, [%[a], 0]\n\t"
+        "ldp       x23, x24, [%[a], 16]\n\t"
+        "ldp       x25, x26, [%[a], 32]\n\t"
+        "ldp       x27, x28, [%[a], 48]\n\t"
         "#  A[0] * A[1]\n\t"
-        "mul	x3, x22, x23\n\t"
-        "umulh	x7, x22, x23\n\t"
+        "mul	x6, x21, x22\n\t"
+        "umulh	x7, x21, x22\n\t"
         "#  A[0] * A[2]\n\t"
-        "mul	x4, x22, x24\n\t"
-        "umulh	x5, x22, x24\n\t"
+        "mul	x4, x21, x23\n\t"
+        "umulh	x5, x21, x23\n\t"
         "adds	x7, x7, x4\n\t"
         "#  A[0] * A[3]\n\t"
-        "mul	x4, x22, x25\n\t"
+        "mul	x4, x21, x24\n\t"
         "adc	x8, xzr, x5\n\t"
-        "umulh	x5, x22, x25\n\t"
+        "umulh	x5, x21, x24\n\t"
         "adds	x8, x8, x4\n\t"
         "#  A[1] * A[2]\n\t"
-        "mul	x4, x23, x24\n\t"
+        "mul	x4, x22, x23\n\t"
         "adc	x9, xzr, x5\n\t"
-        "umulh	x5, x23, x24\n\t"
+        "umulh	x5, x22, x23\n\t"
         "adds	x8, x8, x4\n\t"
         "#  A[0] * A[4]\n\t"
-        "mul	x4, x22, x26\n\t"
+        "mul	x4, x21, x25\n\t"
         "adcs	x9, x9, x5\n\t"
-        "umulh	x5, x22, x26\n\t"
+        "umulh	x5, x21, x25\n\t"
         "adc	x10, xzr, xzr\n\t"
         "adds	x9, x9, x4\n\t"
         "#  A[1] * A[3]\n\t"
-        "mul	x4, x23, x25\n\t"
+        "mul	x4, x22, x24\n\t"
         "adc	x10, x10, x5\n\t"
-        "umulh	x5, x23, x25\n\t"
+        "umulh	x5, x22, x24\n\t"
         "adds	x9, x9, x4\n\t"
         "#  A[0] * A[5]\n\t"
-        "mul	x4, x22, x27\n\t"
+        "mul	x4, x21, x26\n\t"
         "adcs	x10, x10, x5\n\t"
-        "umulh	x5, x22, x27\n\t"
+        "umulh	x5, x21, x26\n\t"
         "adc	x11, xzr, xzr\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[1] * A[4]\n\t"
-        "mul	x4, x23, x26\n\t"
+        "mul	x4, x22, x25\n\t"
         "adc	x11, x11, x5\n\t"
-        "umulh	x5, x23, x26\n\t"
+        "umulh	x5, x22, x25\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[2] * A[3]\n\t"
-        "mul	x4, x24, x25\n\t"
+        "mul	x4, x23, x24\n\t"
         "adcs	x11, x11, x5\n\t"
-        "umulh	x5, x24, x25\n\t"
+        "umulh	x5, x23, x24\n\t"
         "adc	x12, xzr, xzr\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[0] * A[6]\n\t"
-        "mul	x4, x22, x28\n\t"
+        "mul	x4, x21, x27\n\t"
         "adcs	x11, x11, x5\n\t"
-        "umulh	x5, x22, x28\n\t"
+        "umulh	x5, x21, x27\n\t"
         "adc	x12, x12, xzr\n\t"
         "adds	x11, x11, x4\n\t"
         "#  A[1] * A[5]\n\t"
-        "mul	x4, x23, x27\n\t"
+        "mul	x4, x22, x26\n\t"
         "adcs	x12, x12, x5\n\t"
-        "umulh	x5, x23, x27\n\t"
+        "umulh	x5, x22, x26\n\t"
         "adc	x13, xzr, xzr\n\t"
         "adds	x11, x11, x4\n\t"
         "#  A[2] * A[4]\n\t"
-        "mul	x4, x24, x26\n\t"
+        "mul	x4, x23, x25\n\t"
         "adcs	x12, x12, x5\n\t"
-        "umulh	x5, x24, x26\n\t"
+        "umulh	x5, x23, x25\n\t"
         "adc	x13, x13, xzr\n\t"
         "adds	x11, x11, x4\n\t"
         "#  A[0] * A[7]\n\t"
-        "mul	x4, x22, x29\n\t"
+        "mul	x4, x21, x28\n\t"
         "adcs	x12, x12, x5\n\t"
-        "umulh	x5, x22, x29\n\t"
+        "umulh	x5, x21, x28\n\t"
         "adc	x13, x13, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[1] * A[6]\n\t"
-        "mul	x4, x23, x28\n\t"
+        "mul	x4, x22, x27\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x23, x28\n\t"
+        "umulh	x5, x22, x27\n\t"
         "adc	x14, xzr, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[2] * A[5]\n\t"
-        "mul	x4, x24, x27\n\t"
+        "mul	x4, x23, x26\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x24, x27\n\t"
+        "umulh	x5, x23, x26\n\t"
         "adc	x14, x14, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[3] * A[4]\n\t"
-        "mul	x4, x25, x26\n\t"
+        "mul	x4, x24, x25\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x25, x26\n\t"
+        "umulh	x5, x24, x25\n\t"
         "adc	x14, x14, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[1] * A[7]\n\t"
-        "mul	x4, x23, x29\n\t"
+        "mul	x4, x22, x28\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x23, x29\n\t"
+        "umulh	x5, x22, x28\n\t"
         "adc	x14, x14, xzr\n\t"
         "adds	x13, x13, x4\n\t"
         "#  A[2] * A[6]\n\t"
-        "mul	x4, x24, x28\n\t"
+        "mul	x4, x23, x27\n\t"
         "adcs	x14, x14, x5\n\t"
-        "umulh	x5, x24, x28\n\t"
+        "umulh	x5, x23, x27\n\t"
         "adc	x15, xzr, xzr\n\t"
         "adds	x13, x13, x4\n\t"
         "#  A[3] * A[5]\n\t"
-        "mul	x4, x25, x27\n\t"
+        "mul	x4, x24, x26\n\t"
         "adcs	x14, x14, x5\n\t"
-        "umulh	x5, x25, x27\n\t"
+        "umulh	x5, x24, x26\n\t"
         "adc	x15, x15, xzr\n\t"
         "adds	x13, x13, x4\n\t"
         "#  A[2] * A[7]\n\t"
-        "mul	x4, x24, x29\n\t"
+        "mul	x4, x23, x28\n\t"
         "adcs	x14, x14, x5\n\t"
-        "umulh	x5, x24, x29\n\t"
+        "umulh	x5, x23, x28\n\t"
         "adc	x15, x15, xzr\n\t"
         "adds	x14, x14, x4\n\t"
         "#  A[3] * A[6]\n\t"
-        "mul	x4, x25, x28\n\t"
+        "mul	x4, x24, x27\n\t"
         "adcs	x15, x15, x5\n\t"
-        "umulh	x5, x25, x28\n\t"
+        "umulh	x5, x24, x27\n\t"
         "adc	x16, xzr, xzr\n\t"
         "adds	x14, x14, x4\n\t"
         "#  A[4] * A[5]\n\t"
-        "mul	x4, x26, x27\n\t"
+        "mul	x4, x25, x26\n\t"
         "adcs	x15, x15, x5\n\t"
-        "umulh	x5, x26, x27\n\t"
+        "umulh	x5, x25, x26\n\t"
         "adc	x16, x16, xzr\n\t"
         "adds	x14, x14, x4\n\t"
         "#  A[3] * A[7]\n\t"
-        "mul	x4, x25, x29\n\t"
+        "mul	x4, x24, x28\n\t"
         "adcs	x15, x15, x5\n\t"
-        "umulh	x5, x25, x29\n\t"
+        "umulh	x5, x24, x28\n\t"
         "adc	x16, x16, xzr\n\t"
         "adds	x15, x15, x4\n\t"
         "#  A[4] * A[6]\n\t"
-        "mul	x4, x26, x28\n\t"
+        "mul	x4, x25, x27\n\t"
         "adcs	x16, x16, x5\n\t"
-        "umulh	x5, x26, x28\n\t"
+        "umulh	x5, x25, x27\n\t"
         "adc	x17, xzr, xzr\n\t"
         "adds	x15, x15, x4\n\t"
         "#  A[4] * A[7]\n\t"
-        "mul	x4, x26, x29\n\t"
+        "mul	x4, x25, x28\n\t"
         "adcs	x16, x16, x5\n\t"
-        "umulh	x5, x26, x29\n\t"
+        "umulh	x5, x25, x28\n\t"
         "adc	x17, x17, xzr\n\t"
         "adds	x16, x16, x4\n\t"
         "#  A[5] * A[6]\n\t"
-        "mul	x4, x27, x28\n\t"
+        "mul	x4, x26, x27\n\t"
         "adcs	x17, x17, x5\n\t"
-        "umulh	x5, x27, x28\n\t"
+        "umulh	x5, x26, x27\n\t"
         "adc	x19, xzr, xzr\n\t"
         "adds	x16, x16, x4\n\t"
         "#  A[5] * A[7]\n\t"
-        "mul	x4, x27, x29\n\t"
+        "mul	x4, x26, x28\n\t"
         "adcs	x17, x17, x5\n\t"
-        "umulh	x5, x27, x29\n\t"
+        "umulh	x5, x26, x28\n\t"
         "adc	x19, x19, xzr\n\t"
         "adds	x17, x17, x4\n\t"
         "#  A[6] * A[7]\n\t"
-        "mul	x4, x28, x29\n\t"
+        "mul	x4, x27, x28\n\t"
         "adcs	x19, x19, x5\n\t"
-        "umulh	x5, x28, x29\n\t"
+        "umulh	x5, x27, x28\n\t"
         "adc	x20, xzr, xzr\n\t"
         "adds	x19, x19, x4\n\t"
         "adc	x20, x20, x5\n\t"
         "# Double\n\t"
-        "adds	x3, x3, x3\n\t"
+        "adds	x6, x6, x6\n\t"
         "adcs	x7, x7, x7\n\t"
         "adcs	x8, x8, x8\n\t"
         "adcs	x9, x9, x9\n\t"
@@ -813,47 +815,47 @@ static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
         "adcs	x17, x17, x17\n\t"
         "adcs	x19, x19, x19\n\t"
         "#  A[0] * A[0]\n\t"
-        "mul	x2, x22, x22\n\t"
+        "mul	x5, x21, x21\n\t"
         "adcs	x20, x20, x20\n\t"
-        "umulh	x4, x22, x22\n\t"
+        "umulh	x2, x21, x21\n\t"
         "cset  x21, cs\n\t"
         "#  A[1] * A[1]\n\t"
-        "mul	x5, x23, x23\n\t"
-        "adds	x3, x3, x4\n\t"
-        "umulh	x6, x23, x23\n\t"
-        "adcs	x7, x7, x5\n\t"
+        "mul	x3, x22, x22\n\t"
+        "adds	x6, x6, x2\n\t"
+        "umulh	x4, x22, x22\n\t"
+        "adcs	x7, x7, x3\n\t"
         "#  A[2] * A[2]\n\t"
-        "mul	x4, x24, x24\n\t"
-        "adcs	x8, x8, x6\n\t"
-        "umulh	x5, x24, x24\n\t"
-        "adcs	x9, x9, x4\n\t"
+        "mul	x2, x23, x23\n\t"
+        "adcs	x8, x8, x4\n\t"
+        "umulh	x3, x23, x23\n\t"
+        "adcs	x9, x9, x2\n\t"
         "#  A[3] * A[3]\n\t"
-        "mul	x6, x25, x25\n\t"
-        "adcs	x10, x10, x5\n\t"
-        "umulh	x4, x25, x25\n\t"
-        "adcs	x11, x11, x6\n\t"
+        "mul	x4, x24, x24\n\t"
+        "adcs	x10, x10, x3\n\t"
+        "umulh	x2, x24, x24\n\t"
+        "adcs	x11, x11, x4\n\t"
         "#  A[4] * A[4]\n\t"
-        "mul	x5, x26, x26\n\t"
-        "adcs	x12, x12, x4\n\t"
-        "umulh	x6, x26, x26\n\t"
-        "adcs	x13, x13, x5\n\t"
+        "mul	x3, x25, x25\n\t"
+        "adcs	x12, x12, x2\n\t"
+        "umulh	x4, x25, x25\n\t"
+        "adcs	x13, x13, x3\n\t"
         "#  A[5] * A[5]\n\t"
-        "mul	x4, x27, x27\n\t"
-        "adcs	x14, x14, x6\n\t"
-        "umulh	x5, x27, x27\n\t"
-        "adcs	x15, x15, x4\n\t"
+        "mul	x2, x26, x26\n\t"
+        "adcs	x14, x14, x4\n\t"
+        "umulh	x3, x26, x26\n\t"
+        "adcs	x15, x15, x2\n\t"
         "#  A[6] * A[6]\n\t"
-        "mul	x6, x28, x28\n\t"
-        "adcs	x16, x16, x5\n\t"
-        "umulh	x4, x28, x28\n\t"
-        "adcs	x17, x17, x6\n\t"
+        "mul	x4, x27, x27\n\t"
+        "adcs	x16, x16, x3\n\t"
+        "umulh	x2, x27, x27\n\t"
+        "adcs	x17, x17, x4\n\t"
         "#  A[7] * A[7]\n\t"
-        "mul	x5, x29, x29\n\t"
-        "adcs	x19, x19, x4\n\t"
-        "umulh	x6, x29, x29\n\t"
-        "adcs	x20, x20, x5\n\t"
-        "stp	x2, x3, [%[r], 0]\n\t"
-        "adc	x21, x21, x6\n\t"
+        "mul	x3, x28, x28\n\t"
+        "adcs	x19, x19, x2\n\t"
+        "umulh	x4, x28, x28\n\t"
+        "adcs	x20, x20, x3\n\t"
+        "stp	x5, x6, [%[r], 0]\n\t"
+        "adc	x21, x21, x4\n\t"
         "stp	x7, x8, [%[r], 16]\n\t"
         "stp	x9, x10, [%[r], 32]\n\t"
         "stp	x11, x12, [%[r], 48]\n\t"
@@ -863,7 +865,7 @@ static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
         "stp	x20, x21, [%[r], 112]\n\t"
         :
         : [r] "r" (r), [a] "r" (a)
-        : "memory", "x4", "x5", "x6", "x2", "x3", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29"
+        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
     );
 }
 
@@ -3092,7 +3094,7 @@ static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -4356,7 +4358,7 @@ static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -4544,7 +4546,7 @@ static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -5444,6 +5446,7 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 #ifdef HAVE_FFDHE_2048
 static void sp_2048_lshift_32(sp_digit* r, sp_digit* a, byte n)
 {
+    word64 n64 = n;
     __asm__ __volatile__ (
         "mov	x6, 63\n\t"
         "sub	x6, x6, %[n]\n\t"
@@ -5640,7 +5643,7 @@ static void sp_2048_lshift_32(sp_digit* r, sp_digit* a, byte n)
         "str	x2, [%[r]]\n\t"
         "str	x3, [%[r], 8]\n\t"
         :
-        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n64)
         : "memory", "x2", "x3", "x4", "x5", "x6"
     );
 }
@@ -10488,7 +10491,7 @@ static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -12080,7 +12083,7 @@ static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -12308,7 +12311,7 @@ static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -13236,6 +13239,7 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 #ifdef HAVE_FFDHE_3072
 static void sp_3072_lshift_48(sp_digit* r, sp_digit* a, byte n)
 {
+    word64 n64 = n;
     __asm__ __volatile__ (
         "mov	x6, 63\n\t"
         "sub	x6, x6, %[n]\n\t"
@@ -13528,7 +13532,7 @@ static void sp_3072_lshift_48(sp_digit* r, sp_digit* a, byte n)
         "str	x4, [%[r]]\n\t"
         "str	x2, [%[r], 8]\n\t"
         :
-        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n64)
         : "memory", "x2", "x3", "x4", "x5", "x6"
     );
 }
@@ -17004,7 +17008,7 @@ static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -17272,7 +17276,7 @@ static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -18228,6 +18232,7 @@ int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 #ifdef HAVE_FFDHE_4096
 static void sp_4096_lshift_64(sp_digit* r, sp_digit* a, byte n)
 {
+    word64 n64 = n;
     __asm__ __volatile__ (
         "mov	x6, 63\n\t"
         "sub	x6, x6, %[n]\n\t"
@@ -18616,7 +18621,7 @@ static void sp_4096_lshift_64(sp_digit* r, sp_digit* a, byte n)
         "str	x3, [%[r]]\n\t"
         "str	x4, [%[r], 8]\n\t"
         :
-        : [r] "r" (r), [a] "r" (a), [n] "r" (n)
+        : [r] "r" (r), [a] "r" (a), [n] "r" (n64)
         : "memory", "x2", "x3", "x4", "x5", "x6"
     );
 }
@@ -36663,7 +36668,7 @@ static void sp_256_mask_4(sp_digit* r, const sp_digit* a, sp_digit m)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
@@ -39179,99 +39184,101 @@ static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
 #else
 /* Square a and put result in r. (r = a * a)
  *
+ * All registers version.
+ *
  * r  A single precision integer.
  * a  A single precision integer.
  */
 static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
 {
     __asm__ __volatile__ (
-        "ldp       x17, x19, [%[a], 0]\n\t"
-        "ldp       x20, x21, [%[a], 16]\n\t"
-        "ldp       x22, x23, [%[a], 32]\n\t"
+        "ldp       x16, x17, [%[a], 0]\n\t"
+        "ldp       x19, x20, [%[a], 16]\n\t"
+        "ldp       x21, x22, [%[a], 32]\n\t"
         "#  A[0] * A[1]\n\t"
-        "mul	x3, x17, x19\n\t"
-        "umulh	x7, x17, x19\n\t"
+        "mul	x6, x16, x17\n\t"
+        "umulh	x7, x16, x17\n\t"
         "#  A[0] * A[2]\n\t"
-        "mul	x4, x17, x20\n\t"
-        "umulh	x5, x17, x20\n\t"
+        "mul	x4, x16, x19\n\t"
+        "umulh	x5, x16, x19\n\t"
         "adds	x7, x7, x4\n\t"
         "#  A[0] * A[3]\n\t"
-        "mul	x4, x17, x21\n\t"
+        "mul	x4, x16, x20\n\t"
         "adc	x8, xzr, x5\n\t"
-        "umulh	x5, x17, x21\n\t"
+        "umulh	x5, x16, x20\n\t"
         "adds	x8, x8, x4\n\t"
         "#  A[1] * A[2]\n\t"
-        "mul	x4, x19, x20\n\t"
+        "mul	x4, x17, x19\n\t"
         "adc	x9, xzr, x5\n\t"
-        "umulh	x5, x19, x20\n\t"
+        "umulh	x5, x17, x19\n\t"
         "adds	x8, x8, x4\n\t"
         "#  A[0] * A[4]\n\t"
-        "mul	x4, x17, x22\n\t"
+        "mul	x4, x16, x21\n\t"
         "adcs	x9, x9, x5\n\t"
-        "umulh	x5, x17, x22\n\t"
+        "umulh	x5, x16, x21\n\t"
         "adc	x10, xzr, xzr\n\t"
         "adds	x9, x9, x4\n\t"
         "#  A[1] * A[3]\n\t"
-        "mul	x4, x19, x21\n\t"
+        "mul	x4, x17, x20\n\t"
         "adc	x10, x10, x5\n\t"
-        "umulh	x5, x19, x21\n\t"
+        "umulh	x5, x17, x20\n\t"
         "adds	x9, x9, x4\n\t"
         "#  A[0] * A[5]\n\t"
-        "mul	x4, x17, x23\n\t"
+        "mul	x4, x16, x22\n\t"
         "adcs	x10, x10, x5\n\t"
-        "umulh	x5, x17, x23\n\t"
+        "umulh	x5, x16, x22\n\t"
         "adc	x11, xzr, xzr\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[1] * A[4]\n\t"
-        "mul	x4, x19, x22\n\t"
+        "mul	x4, x17, x21\n\t"
         "adc	x11, x11, x5\n\t"
-        "umulh	x5, x19, x22\n\t"
+        "umulh	x5, x17, x21\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[2] * A[3]\n\t"
-        "mul	x4, x20, x21\n\t"
+        "mul	x4, x19, x20\n\t"
         "adcs	x11, x11, x5\n\t"
-        "umulh	x5, x20, x21\n\t"
+        "umulh	x5, x19, x20\n\t"
         "adc	x12, xzr, xzr\n\t"
         "adds	x10, x10, x4\n\t"
         "#  A[1] * A[5]\n\t"
-        "mul	x4, x19, x23\n\t"
+        "mul	x4, x17, x22\n\t"
         "adcs	x11, x11, x5\n\t"
-        "umulh	x5, x19, x23\n\t"
+        "umulh	x5, x17, x22\n\t"
         "adc	x12, x12, xzr\n\t"
         "adds	x11, x11, x4\n\t"
         "#  A[2] * A[4]\n\t"
-        "mul	x4, x20, x22\n\t"
+        "mul	x4, x19, x21\n\t"
         "adcs	x12, x12, x5\n\t"
-        "umulh	x5, x20, x22\n\t"
+        "umulh	x5, x19, x21\n\t"
         "adc	x13, xzr, xzr\n\t"
         "adds	x11, x11, x4\n\t"
         "#  A[2] * A[5]\n\t"
-        "mul	x4, x20, x23\n\t"
+        "mul	x4, x19, x22\n\t"
         "adcs	x12, x12, x5\n\t"
-        "umulh	x5, x20, x23\n\t"
+        "umulh	x5, x19, x22\n\t"
         "adc	x13, x13, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[3] * A[4]\n\t"
-        "mul	x4, x21, x22\n\t"
+        "mul	x4, x20, x21\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x21, x22\n\t"
+        "umulh	x5, x20, x21\n\t"
         "adc	x14, xzr, xzr\n\t"
         "adds	x12, x12, x4\n\t"
         "#  A[3] * A[5]\n\t"
-        "mul	x4, x21, x23\n\t"
+        "mul	x4, x20, x22\n\t"
         "adcs	x13, x13, x5\n\t"
-        "umulh	x5, x21, x23\n\t"
+        "umulh	x5, x20, x22\n\t"
         "adc	x14, x14, xzr\n\t"
         "adds	x13, x13, x4\n\t"
         "#  A[4] * A[5]\n\t"
-        "mul	x4, x22, x23\n\t"
+        "mul	x4, x21, x22\n\t"
         "adcs	x14, x14, x5\n\t"
-        "umulh	x5, x22, x23\n\t"
+        "umulh	x5, x21, x22\n\t"
         "adc	x15, xzr, xzr\n\t"
         "adds	x14, x14, x4\n\t"
         "adc	x15, x15, x5\n\t"
         "# Double\n\t"
-        "adds	x3, x3, x3\n\t"
+        "adds	x6, x6, x6\n\t"
         "adcs	x7, x7, x7\n\t"
         "adcs	x8, x8, x8\n\t"
         "adcs	x9, x9, x9\n\t"
@@ -39281,37 +39288,37 @@ static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
         "adcs	x13, x13, x13\n\t"
         "adcs	x14, x14, x14\n\t"
         "#  A[0] * A[0]\n\t"
-        "mul	x2, x17, x17\n\t"
+        "mul	x5, x16, x16\n\t"
         "adcs	x15, x15, x15\n\t"
-        "umulh	x4, x17, x17\n\t"
+        "umulh	x2, x16, x16\n\t"
         "cset  x16, cs\n\t"
         "#  A[1] * A[1]\n\t"
-        "mul	x5, x19, x19\n\t"
-        "adds	x3, x3, x4\n\t"
-        "umulh	x6, x19, x19\n\t"
-        "adcs	x7, x7, x5\n\t"
+        "mul	x3, x17, x17\n\t"
+        "adds	x6, x6, x2\n\t"
+        "umulh	x4, x17, x17\n\t"
+        "adcs	x7, x7, x3\n\t"
         "#  A[2] * A[2]\n\t"
-        "mul	x4, x20, x20\n\t"
-        "adcs	x8, x8, x6\n\t"
-        "umulh	x5, x20, x20\n\t"
-        "adcs	x9, x9, x4\n\t"
+        "mul	x2, x19, x19\n\t"
+        "adcs	x8, x8, x4\n\t"
+        "umulh	x3, x19, x19\n\t"
+        "adcs	x9, x9, x2\n\t"
         "#  A[3] * A[3]\n\t"
-        "mul	x6, x21, x21\n\t"
-        "adcs	x10, x10, x5\n\t"
-        "umulh	x4, x21, x21\n\t"
-        "adcs	x11, x11, x6\n\t"
+        "mul	x4, x20, x20\n\t"
+        "adcs	x10, x10, x3\n\t"
+        "umulh	x2, x20, x20\n\t"
+        "adcs	x11, x11, x4\n\t"
         "#  A[4] * A[4]\n\t"
-        "mul	x5, x22, x22\n\t"
-        "adcs	x12, x12, x4\n\t"
-        "umulh	x6, x22, x22\n\t"
-        "adcs	x13, x13, x5\n\t"
+        "mul	x3, x21, x21\n\t"
+        "adcs	x12, x12, x2\n\t"
+        "umulh	x4, x21, x21\n\t"
+        "adcs	x13, x13, x3\n\t"
         "#  A[5] * A[5]\n\t"
-        "mul	x4, x23, x23\n\t"
-        "adcs	x14, x14, x6\n\t"
-        "umulh	x5, x23, x23\n\t"
-        "adcs	x15, x15, x4\n\t"
-        "stp	x2, x3, [%[r], 0]\n\t"
-        "adc	x16, x16, x5\n\t"
+        "mul	x2, x22, x22\n\t"
+        "adcs	x14, x14, x4\n\t"
+        "umulh	x3, x22, x22\n\t"
+        "adcs	x15, x15, x2\n\t"
+        "stp	x5, x6, [%[r], 0]\n\t"
+        "adc	x16, x16, x3\n\t"
         "stp	x7, x8, [%[r], 16]\n\t"
         "stp	x9, x10, [%[r], 32]\n\t"
         "stp	x11, x12, [%[r], 48]\n\t"
@@ -39319,7 +39326,7 @@ static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
         "stp	x15, x16, [%[r], 80]\n\t"
         :
         : [r] "r" (r), [a] "r" (a)
-        : "memory", "x4", "x5", "x6", "x2", "x3", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23"
+        : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x16", "x17", "x19", "x20", "x21", "x22"
     );
 }
 
@@ -43213,7 +43220,7 @@ static void sp_384_mask_6(sp_digit* r, const sp_digit* a, sp_digit m)
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
- * a  Nmber to be divided.
+ * a  Number to be divided.
  * d  Number to divide with.
  * m  Multiplier result.
  * r  Remainder from the division.
