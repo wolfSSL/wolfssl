@@ -17,44 +17,48 @@
     Use on the xcode project in IDE/iOS/wolfssl.xcodeproj
     There is a README in IDE/iOS with more information
 
-3. Building on Windows
+3. Building for Apple ARM64
+
+    When building for an Apple ARM64 platform, ensure the host CPU type is detected as "aarch64" during configure, if not, pass --host=aarch64-apple-darwin to configure.
+
+4. Building on Windows
 
     Use the 32bit Visual Studio Solution wolfssl.sln
     For a 64bit solution please use wolfssl64.sln
 
-4. Building with IAR
+5. Building with IAR
 
     Please see the README in IDE/IAR-EWARM for detailed instructions
 
-5. Building with Keil
+6. Building with Keil
 
     Please see the Keil Projects in IDE/MDK5-ARM/Projects
 
-6. Building with Microchip tools
+7. Building with Microchip tools
 
     Please see the README in mplabx
 
-7. Building with Freescale MQX
+8. Building with Freescale MQX
 
     Please see the README in mqx
 
-8. Building with Rowley CrossWorks for ARM
+9. Building with Rowley CrossWorks for ARM
 
     Use the CrossWorks project in IDE/ROWLEY-CROSSWORKS-ARM/wolfssl.hzp
     There is a README.md in IDE/ROWLEY-CROSSWORKS-ARM with more information
 
-9. Building with Arduino
+10. Building with Arduino
 
     Use the script IDE/ARDUINO/wolfssl-arduino.sh to reformat the wolfSSL
     library for compatibility with the Arduino IDE. There is a README.md in
     IDE/ARDUINO for detailed instructions.
 
-10. Building for Android with Visual Studio 2017
+11. Building for Android with Visual Studio 2017
 
     Please see the README in IDE/VS-ARM.
     Use the Visual Studio solution IDE/VS-ARM/wolfssl.sln.
 
-11. Building for Yocto Project or OpenEmbedded
+12. Building for Yocto Project or OpenEmbedded
 
     Please see the README in the "meta-wolfssl" repository. This repository
     holds wolfSSL's Yocto and OpenEmbedded layer, which contains recipes
@@ -68,12 +72,12 @@
 
     https://github.com/openembedded/meta-openembedded
 
-12. Porting to a new platform
+13. Porting to a new platform
 
     Please see section 2.4 in the manual:
     http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
 
-13. Building with CMake
+14. Building with CMake
     Note: Primary development uses automake (./configure). The support for CMake is minimal.
 
     Internally cmake is setup to do the following:
