@@ -1083,8 +1083,14 @@ then
     *)
         case $host_cpu in
         *aarch64*)
-            # +crypto needed for hardware acceleration
-            AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+            case $host_os in
+            *darwin*)
+                ;;
+            *)
+                # +crypto needed for hardware acceleration
+                AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+                ;;
+            esac
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
 
