@@ -158,8 +158,8 @@
 #else /* ! WOLFSSL_LINUXKM */
 
     #ifdef BUILDING_WOLFSSL
-        #define SAVE_VECTOR_REGISTERS() ({})
-        #define RESTORE_VECTOR_REGISTERS() ({})
+        #define SAVE_VECTOR_REGISTERS() do{}while(0)
+        #define RESTORE_VECTOR_REGISTERS() do{}while(0)
     #endif
 
 #endif /* WOLFSSL_LINUXKM */
