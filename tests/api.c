@@ -36004,6 +36004,116 @@ static void test_wolfSSL_PEM_read(void)
 #endif
 }
 
+static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    const byte iv[12] = { 0 };
+    const byte key[16] = { 0 };
+    const byte cleartext[16] = { 0 };
+    const byte aad[] = {0x01, 0x10, 0x00, 0x2a, 0x08, 0x00, 0x04, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0xdc, 0x4d,
+            0xad, 0x6b, 0x06, 0x93, 0x4f};
+    byte out1Part[16];
+    byte outTag1Part[16];
+    byte out2Part[16];
+    byte outTag2Part[16];
+    byte decryptBuf[16];
+    int len;
+    EVP_CIPHER_CTX* ctx = NULL;
+
+    printf(testingFmt, "wolfssl_EVP_aes_gcm_AAD_2_parts");
+
+    /* ENCRYPT */
+    /* Send AAD and data in 1 part */
+    AssertNotNull(ctx = EVP_CIPHER_CTX_new());
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad, sizeof(aad)), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out1Part, &len, cleartext, sizeof(cleartext)), 1);
+    AssertIntEQ(EVP_EncryptFinal_ex(ctx, out1Part, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, outTag1Part), 1);
+    EVP_CIPHER_CTX_free(ctx);
+
+    /* DECRYPT */
+    /* Send AAD and data in 1 part */
+    AssertNotNull(ctx = EVP_CIPHER_CTX_new());
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad, sizeof(aad)), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part, sizeof(cleartext)), 1);
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, outTag1Part), 1);
+    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+    EVP_CIPHER_CTX_free(ctx);
+
+    AssertIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
+
+    /* ENCRYPT */
+    /* Send AAD and data in 2 parts */
+    AssertNotNull(ctx = EVP_CIPHER_CTX_new());
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad, 1), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out2Part, &len, cleartext, 1), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out2Part, &len, cleartext + 1,
+                                  sizeof(cleartext) - 1), 1);
+    AssertIntEQ(EVP_EncryptFinal_ex(ctx, out2Part, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, outTag2Part), 1);
+
+    AssertIntEQ(XMEMCMP(out1Part, out2Part, sizeof(out1Part)), 0);
+    AssertIntEQ(XMEMCMP(outTag1Part, outTag2Part, sizeof(outTag1Part)), 0);
+
+    /* Test AAD re-use */
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out1Part, &len, cleartext, sizeof(cleartext)), 1);
+    AssertIntEQ(EVP_EncryptFinal_ex(ctx, out1Part, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, outTag1Part), 1);
+    EVP_CIPHER_CTX_free(ctx);
+
+    AssertIntEQ(XMEMCMP(out1Part, out2Part, sizeof(out1Part)), 0);
+    AssertIntEQ(XMEMCMP(outTag1Part, outTag2Part, sizeof(outTag1Part)), 0);
+
+    /* DECRYPT */
+    /* Send AAD and data in 2 parts */
+    AssertNotNull(ctx = EVP_CIPHER_CTX_new());
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad, 1), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part, 1), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part + 1,
+                                  sizeof(cleartext) - 1), 1);
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, outTag1Part), 1);
+    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+
+    AssertIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
+
+    /* Test AAD re-use */
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part, 1), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part + 1,
+                                  sizeof(cleartext) - 1), 1);
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, outTag1Part), 1);
+    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf, &len), 1);
+    AssertIntEQ(len, sizeof(cleartext));
+
+    AssertIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
+
+    /* Test AAD re-use */
+    EVP_CIPHER_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfssl_EVP_aes_gcm(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
@@ -36065,6 +36175,7 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(1, EVP_EncryptFinal_ex(&en[i], ciphertxt, &len));
         ciphertxtSz += len;
         AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_GCM_GET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
@@ -36107,6 +36218,7 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
         AssertIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         AssertIntEQ(0, len);
+        AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
     }
     printf(resultFmt, passed);
 
@@ -37399,6 +37511,7 @@ void ApiTest(void)
     test_wolfSSL_DC_cert();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
+    test_wolfssl_EVP_aes_gcm_AAD_2_parts();
     test_wolfssl_EVP_aes_gcm();
     test_wolfSSL_PKEY_up_ref();
     test_wolfSSL_i2d_PrivateKey();
