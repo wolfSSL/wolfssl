@@ -4798,6 +4798,14 @@ int wolfSSL_Init(void)
             return WC_INIT_E;
         }
 
+#if defined(OPENSSL_EXTRA) || \
+    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+        if (wc_InitMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex rng");
+            return BAD_MUTEX_E;
+        }
+#endif
+
 #ifdef OPENSSL_EXTRA
         if (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
@@ -4815,14 +4823,6 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad Init Mutex count");
             return BAD_MUTEX_E;
         }
-
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-        if (wc_InitMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Init Mutex rng");
-            return BAD_MUTEX_E;
-        }
-#endif
     }
 
     if (wc_LockMutex(&count_mutex) != 0) {
