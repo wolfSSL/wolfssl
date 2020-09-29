@@ -26657,7 +26657,9 @@ static void test_wolfSSL_EVP_MD_rsa_signing(void)
     size_t i;
     int paddings[] = {
             RSA_PKCS1_PADDING,
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(WC_RSA_PSS)
             RSA_PKCS1_PSS_PADDING,
+#endif
     };
 
 

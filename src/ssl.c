@@ -30949,7 +30949,7 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
                 ret = BAD_FUNC_ARG;
                 break;
 #endif
-#ifdef WC_RSA_PSS
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(WC_RSA_PSS)
             case RSA_PKCS1_PSS_PADDING:
             {
                 enum wc_HashType hType = wc_OidGetHash(type);
@@ -30977,7 +30977,6 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
             }
 #endif
             case RSA_PKCS1_PADDING:
-            default:
                 signSz = wc_EncodeSignature(encodedSig, m, mLen, type);
                 if (signSz == 0) {
                     WOLFSSL_MSG("Bad Encode Signature");
@@ -30985,6 +30984,11 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
                 DEBUG_SIGN_msg("Encoded Message", encodedSig, signSz);
                 ret = wc_RsaSSL_Sign(encodedSig, signSz, sigRet, outLen,
                                 (RsaKey*)rsa->internal, rng);
+                break;
+            default:
+                WOLFSSL_MSG("Unsupported padding");
+                ret = BAD_FUNC_ARG;
+                break;
             }
             if (ret <= 0) {
                 WOLFSSL_MSG("Bad Rsa Sign");
@@ -31050,10 +31054,12 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
     int     ret = WOLFSSL_FAILURE;
     unsigned char *sigRet = NULL;
     unsigned char *sigDec = NULL;
-    unsigned int   len;
-     int   verLen;
+    unsigned int   len = 0;
+    int verLen;
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     int hSum = nid2HashSum(type);
     enum wc_HashType hType;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_RSA_verify");
     if ((m == NULL) || (sig == NULL)) {
@@ -31083,22 +31089,35 @@ int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
         DEBUG_SIGN_msg("Encoded Message", m, mLen);
     }
     /* decrypt signature */
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     hType = wc_OidGetHash(hSum);
     if ((verLen = wc_RsaSSL_Verify_ex(sig, sigLen, (unsigned char *)sigDec,
             sigLen, (RsaKey*)rsa->internal, padding, hType)) <= 0) {
         WOLFSSL_MSG("RSA Decrypt error");
         goto cleanup;
     }
+#else
+    verLen = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen,
+        (RsaKey*)rsa->internal);
+#endif
     DEBUG_SIGN_msg("Decrypted Signature", sigDec, ret);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(WC_RSA_PSS)
     if (padding == RSA_PKCS1_PSS_PADDING) {
         if (wc_RsaPSS_CheckPadding_ex(m, mLen, sigDec, verLen,
-                hType, RSA_PSS_SALT_LEN_DEFAULT,
+                hType,
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+                RSA_PSS_SALT_LEN_DEFAULT,
+#else
+                RSA_PSS_SALT_LEN_DISCOVER,
+#endif
                 mp_count_bits(&((RsaKey*)rsa->internal)->n)) != 0) {
             WOLFSSL_MSG("wolfSSL_RSA_verify failed");
             goto cleanup;
         }
     }
-    else if ((int)len != verLen || XMEMCMP(sigRet, sigDec, verLen) != 0) {
+    else
+#endif /* !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) */
+    if ((int)len != verLen || XMEMCMP(sigRet, sigDec, verLen) != 0) {
         WOLFSSL_MSG("wolfSSL_RSA_verify failed");
         goto cleanup;
     }
