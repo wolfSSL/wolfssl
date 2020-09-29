@@ -92,6 +92,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 
     XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
 
+    ctx->left = 0;
     ctx->X[CHACHA_IV_BYTES+0] = counter;           /* block counter */
     ctx->X[CHACHA_IV_BYTES+1] = LITTLE32(temp[0]); /* fixed variable from nonce */
     ctx->X[CHACHA_IV_BYTES+2] = LITTLE32(temp[1]); /* counter from nonce */
@@ -166,6 +167,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->X[ 1] = constants[1];
     ctx->X[ 2] = constants[2];
     ctx->X[ 3] = constants[3];
+    ctx->left = 0;
 
     return 0;
 }
@@ -1673,7 +1675,7 @@ static WC_INLINE int wc_Chacha_encrypt_128(const word32 input[CHACHA_CHUNK_WORDS
 }
 
 static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
-                                           byte* c, word32 bytes)
+                                           byte* c, word32 bytes, byte* over)
 {
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_64 with %d bytes\n", bytes);
@@ -2154,6 +2156,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "B      L_chacha20_arm64_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm64_64_lt_64_%=: \n\t"
+        "ST1	{v0.4s-v3.4s}, [%[over]]\n\t"
         "CMP    %[bytes], #32 \n\t"
         "BLT    L_chacha20_arm64_64_lt_32_%= \n\t"
         "LD1    {v4.4S, v5.4S}, [%[m]], #32 \n\t"
@@ -2199,7 +2202,8 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
     "L_chacha20_arm64_64_done_%=: \n\t"
         : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes64)
         : [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8),
-          [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word)
+          [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word),
+          [over] "r" (over)
         : "memory", "x4", "x5", "x6", "x7", "v0", "v1", "v2", "v3",
           "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
     );
@@ -2719,6 +2723,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "B          L_chacha20_arm32_64_done_%= \n\t"
         "\n"
     "L_chacha20_arm32_64_lt_64_%=: \n\t"
+        "VSTM       %[over], {q0-q3}     \n\t"
         /* XOR 32 bytes */
         "CMP        %[bytes], #32        \n\t"
         "BLT        L_chacha20_arm32_64_lt_32_%= \n\t"
@@ -2785,12 +2790,15 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "\n"
     "L_chacha20_arm32_64_done_%=: \n\t"
         : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes)
-        : [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word)
+        : [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word),
+          [over] "r" (over)
         : "memory", "cc",
           "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q14", "r12", "r14"
     );
 #endif /* __aarch64__ */
 }
+
+
 
 /**
   * Encrypt a stream of bytes
@@ -2830,9 +2838,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         ctx->X[CHACHA_IV_BYTES] = PLUS(ctx->X[CHACHA_IV_BYTES], processed / CHACHA_CHUNK_BYTES);
     }
     if (bytes > 0) {
-        wc_Chacha_encrypt_64(ctx->X, m, c, bytes);
+        wc_Chacha_encrypt_64(ctx->X, m, c, bytes, (byte*)ctx->over);
         if (bytes > 64)
             ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        else
+            ctx->left = CHACHA_CHUNK_BYTES - bytes;
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
     }
 }
@@ -2845,6 +2855,26 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 {
     if (ctx == NULL || output == NULL || input == NULL)
         return BAD_FUNC_ARG;
+
+    /* handle left overs */
+    if (msglen > 0 && ctx->left > 0) {
+        byte*  out;
+        word32 i;
+
+        out = (byte*)ctx->over + CHACHA_CHUNK_BYTES - ctx->left;
+        for (i = 0; i < msglen && i < ctx->left; i++) {
+            output[i] = (byte)(input[i] ^ out[i]);
+        }
+        ctx->left -= i;
+
+        msglen -= i;
+        output += i;
+        input += i;
+    }
+
+    if (msglen == 0) {
+        return 0;
+    }
 
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 

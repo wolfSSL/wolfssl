@@ -79,7 +79,7 @@ typedef struct ChaCha {
     byte extra[12];
 #endif
     word32 left;                            /* number of bytes leftover */
-#ifdef USE_INTEL_CHACHA_SPEEDUP
+#if defined(USE_INTEL_CHACHA_SPEEDUP) || defined(WOLFSSL_ARMASM)
     word32 over[CHACHA_CHUNK_WORDS];
 #endif
 } ChaCha;
