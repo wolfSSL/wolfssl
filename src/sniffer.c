@@ -2607,8 +2607,8 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     else
 #endif /* WOLFSSL_TLS13 */
     {
-        /* make sure ticket id isn't too long */
-        if (len > ID_LEN) {
+        /* capture last part of sessionID as macID (32 bytes) */
+        if (len < ID_LEN) {
             SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
