@@ -35514,6 +35514,7 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(1, EVP_EncryptFinal_ex(&en[i], ciphertxt, &len));
         ciphertxtSz += len;
         AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_GCM_GET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
@@ -35556,6 +35557,7 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
         AssertIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         AssertIntEQ(0, len);
+        AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
     }
     printf(resultFmt, passed);
 
