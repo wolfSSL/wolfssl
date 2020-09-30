@@ -419,6 +419,7 @@ then
     enable_xts=yes
     enable_hc128=yes
     enable_rabbit=yes
+    enable_xchacha=yes
     enable_ocsp=yes
     enable_ocspstapling=yes
     enable_ocspstapling2=yes
