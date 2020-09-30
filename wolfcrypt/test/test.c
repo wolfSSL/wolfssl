@@ -4272,14 +4272,15 @@ static int hmac_sha3_test(void)
 typedef struct rc2TestVector {
     const char* input;
     const char* output;
-    const char* key;
+    const char* key;        /* Key, variable up to 128 bytes */
+    const char* iv;         /* IV, 8-bytes */
     int inLen;
     int outLen;
     int keyLen;
-    int effectiveKeyBits;
+    int effectiveKeyBits;   /* Up to 1024 bits supported */
 } rc2TestVector;
 
-int rc2_test(void)
+static int rc2_ecb_test(void)
 {
     int ret = 0;
     byte cipher[RC2_BLOCK_SIZE];
@@ -4376,7 +4377,7 @@ int rc2_test(void)
         XMEMSET(plain, 0, RC2_BLOCK_SIZE);
 
         ret = wc_Rc2SetKey(&enc, (byte*)test_rc2[i].key, test_rc2[i].keyLen,
-                           test_rc2[i].effectiveKeyBits);
+                           NULL, test_rc2[i].effectiveKeyBits);
         if (ret != 0) {
             return -4106;
         }
@@ -4404,6 +4405,200 @@ int rc2_test(void)
     }
 
     return 0;
+}
+
+static int rc2_cbc_test(void)
+{
+    int ret = 0;
+    byte cipher[128];
+    byte plain[128];
+
+    rc2TestVector a, b, c, d, e, f, g, h, i;
+    rc2TestVector test_rc2[9];
+
+    int times = sizeof(test_rc2) / sizeof(rc2TestVector), j;
+
+    /* key length = 7, effective key bits = 63 */
+    a.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    a.output = "\xEB\xB7\x73\xF9\x93\x27\x8E\xFF"
+               "\xF0\x51\x77\x8B\x65\xDB\x13\x57";
+    a.key    = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    a.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    a.inLen  = RC2_BLOCK_SIZE*2;
+    a.outLen = RC2_BLOCK_SIZE*2;
+    a.keyLen = 8;
+    a.effectiveKeyBits = 63;
+
+    /* key length = 8, effective key bits = 64, all 0xFF */
+    b.input  = "\xff\xff\xff\xff\xff\xff\xff\xff"
+               "\xff\xff\xff\xff\xff\xff\xff\xff";
+    b.output = "\xA3\xA1\x12\x65\x4F\x81\xC5\xCD"
+               "\xB6\x94\x3E\xEA\x3E\x8B\x9D\x1F";
+    b.key    = "\xff\xff\xff\xff\xff\xff\xff\xff";
+    b.iv     = "\xff\xff\xff\xff\xff\xff\xff\xff";
+    b.inLen  = RC2_BLOCK_SIZE*2;
+    b.outLen = RC2_BLOCK_SIZE*2;
+    b.keyLen = 8;
+    b.effectiveKeyBits = 64;
+
+    /* key length = 8, effective key bits = 64 */
+    c.input  = "\x10\x00\x00\x00\x00\x00\x00\x01"
+               "\x10\x00\x00\x00\x00\x00\x00\x01";
+    c.output = "\x30\x64\x9e\xdf\x9b\xe7\xd2\xc2";
+    c.output = "\xB5\x70\x14\xA2\x5F\x40\xE3\x6D"
+               "\x81\x99\x8D\xE0\xB5\xD5\x3A\x05";
+    c.key    = "\x30\x00\x00\x00\x00\x00\x00\x00";
+    c.iv     = "\x30\x00\x00\x00\x00\x00\x00\x00";
+    c.inLen  = RC2_BLOCK_SIZE*2;
+    c.outLen = RC2_BLOCK_SIZE*2;
+    c.keyLen = 8;
+    c.effectiveKeyBits = 64;
+
+    /* key length = 1, effective key bits = 64 */
+    d.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    d.output = "\x61\xA8\xA2\x44\xAD\xAC\xCC\xF0"
+               "\x6D\x19\xE8\xF1\xFC\xE7\x38\x87";
+    d.key    = "\x88";
+    d.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    d.inLen  = RC2_BLOCK_SIZE*2;
+    d.outLen = RC2_BLOCK_SIZE*2;
+    d.keyLen = 1;
+    d.effectiveKeyBits = 64;
+
+    /* key length = 7, effective key bits = 64 */
+    e.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    e.output = "\x6C\xCF\x43\x08\x97\x4C\x26\x7F"
+               "\xCC\x3C\x53\x57\x7C\xA1\xA4\x4B";
+    e.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a";
+    e.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    e.inLen  = RC2_BLOCK_SIZE*2;
+    e.outLen = RC2_BLOCK_SIZE*2;
+    e.keyLen = 7;
+    e.effectiveKeyBits = 64;
+
+    /* key length = 16, effective key bits = 64 */
+    f.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    f.output = "\x1A\x80\x7D\x27\x2B\xBE\x5D\xB1"
+               "\x64\xEF\xE1\xC3\xB8\xAD\xFB\xBA";
+    f.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2";
+    f.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    f.inLen  = RC2_BLOCK_SIZE*2;
+    f.outLen = RC2_BLOCK_SIZE*2;
+    f.keyLen = 16;
+    f.effectiveKeyBits = 64;
+
+    /* key length = 16, effective bits = 128 */
+    g.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    g.output = "\x22\x69\x55\x2A\xB0\xF8\x5C\xA6"
+               "\x53\x6E\xFD\x2D\x89\xE1\x2A\x73";
+    g.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2";
+    g.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    g.inLen  = RC2_BLOCK_SIZE*2;
+    g.outLen = RC2_BLOCK_SIZE*2;
+    g.keyLen = 16;
+    g.effectiveKeyBits = 128;
+
+    /* key length = 33, effective bits = 129 */
+    h.input  = "\x00\x00\x00\x00\x00\x00\x00\x00"
+               "\x00\x00\x00\x00\x00\x00\x00\x00";
+    h.output = "\x5B\x78\xD3\xA4\x3D\xFF\xF1\xF1"
+               "\x45\x30\xA8\xD5\xC7\x7C\x46\x19";
+    h.key    = "\x88\xbc\xa9\x0e\x90\x87\x5a\x7f"
+               "\x0f\x79\xc3\x84\x62\x7b\xaf\xb2"
+               "\x16\xf8\x0a\x6f\x85\x92\x05\x84"
+               "\xc4\x2f\xce\xb0\xbe\x25\x5d\xaf"
+               "\x1e";
+    h.iv     = "\x00\x00\x00\x00\x00\x00\x00\x00";
+    h.inLen  = RC2_BLOCK_SIZE*2;
+    h.outLen = RC2_BLOCK_SIZE*2;
+    h.keyLen = 33;
+    h.effectiveKeyBits = 129;
+
+    /* key length = 10, effective bits = 40 */
+    i.input  = "\x11\x22\x33\x44\x55\x66\x77\x88"
+               "\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00"
+               "\x11\x22\x33\x44\x55\x66\x77\x88"
+               "\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00";
+    i.output = "\x71\x2D\x11\x99\xC9\xA0\x78\x4F"
+               "\xCD\xF1\x1E\x3D\xFD\x21\x7E\xDB"
+               "\xB2\x6E\x0D\xA4\x72\xBC\x31\x51"
+               "\x48\xEF\x4E\x68\x3B\xDC\xCD\x7D";
+    i.key    = "\x26\x1E\x57\x8E\xC9\x62\xBF\xB8"
+               "\x3E\x96";
+    i.iv     = "\x01\x02\x03\x04\x05\x06\x07\x08";
+    i.inLen  = RC2_BLOCK_SIZE*4;
+    i.outLen = RC2_BLOCK_SIZE*4;
+    i.keyLen = 10;
+    i.effectiveKeyBits = 40;
+
+    test_rc2[0] = a;
+    test_rc2[1] = b;
+    test_rc2[2] = c;
+    test_rc2[3] = d;
+    test_rc2[4] = e;
+    test_rc2[5] = f;
+    test_rc2[6] = g;
+    test_rc2[7] = h;
+    test_rc2[8] = i;
+
+    for (j = 0; j < times; ++j) {
+        RC2 rc2;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        XMEMSET(plain, 0, sizeof(plain));
+
+        ret = wc_Rc2SetKey(&rc2, (byte*)test_rc2[j].key, test_rc2[j].keyLen,
+                           (byte*)test_rc2[j].iv, test_rc2[j].effectiveKeyBits);
+        if (ret != 0) {
+            return -4111;
+        }
+
+        ret = wc_Rc2CbcEncrypt(&rc2, cipher, (byte*)test_rc2[j].input,
+                               test_rc2[j].inLen);
+        if (ret != 0) {
+            return -4112;
+        }
+
+        if (XMEMCMP(cipher, (byte*)test_rc2[j].output, test_rc2[j].outLen)) {
+            return -4113;
+        }
+
+        /* reset IV for decrypt, since overriden by encrypt operation */
+        ret = wc_Rc2SetIV(&rc2, (byte*)test_rc2[j].iv);
+        if (ret != 0) {
+            return -4114;
+        }
+
+        ret = wc_Rc2CbcDecrypt(&rc2, plain, cipher, test_rc2[j].outLen);
+        if (ret != 0) {
+            return -4115;
+        }
+
+        if (XMEMCMP(plain, (byte*)test_rc2[j].input, test_rc2[j].inLen)) {
+            return -4116;
+        }
+    }
+
+    return 0;
+}
+
+int rc2_test(void)
+{
+    int ret = 0;
+
+    ret = rc2_ecb_test();
+    if (ret != 0) {
+        return ret;
+    }
+
+    return rc2_cbc_test();
 }
 #endif
 
