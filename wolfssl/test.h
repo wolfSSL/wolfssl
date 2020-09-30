@@ -505,6 +505,17 @@ err_sys(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
+/**
+ *
+ * @param argc Number of argv strings
+ * @param argv Array of string arguments
+ * @param optstring String containing the supported alphanumeric arguments.
+ *                  A ':' following a character means that it requires a
+ *                  value in myoptarg to be set. A ';' means that the
+ *                  myoptarg is optional. myoptarg is set to "" if not
+ *                  present.
+ * @return Option letter in argument
+ */
 static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
 {
     static char* next = NULL;
@@ -554,7 +565,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     /* The C++ strchr can return a different value */
     cp = (char*)strchr(optstring, c);
 
-    if (cp == NULL || c == ':')
+    if (cp == NULL || c == ':' || 'c' == ';')
         return '?';
 
     cp++;
@@ -570,6 +581,20 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
         }
         else
             return '?';
+    }
+    else if (*cp == ';') {
+        myoptarg = (char*)"";
+        if (*next != '\0') {
+            myoptarg = next;
+            next     = NULL;
+        }
+        else if (myoptind < argc) {
+            /* Check if next argument is not a parameter argument */
+            if (argv[myoptind] && argv[myoptind][0] != '-') {
+                myoptarg = argv[myoptind];
+                myoptind++;
+            }
+        }
     }
 
     return c;

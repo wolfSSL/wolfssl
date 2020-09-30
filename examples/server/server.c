@@ -470,16 +470,23 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         err = 0; /* reset error */
         ret = SSL_read(ssl, input, inputLen);
         if (ret < 0) {
-            err = SSL_get_error(ssl, 0);
+            err = SSL_get_error(ssl, ret);
 
         #ifdef HAVE_SECURE_RENEGOTIATION
             if (err == APP_DATA_READY) {
+                /* If we receive a message during renegotiation
+                 * then just print it. We return the message sent
+                 * after the renegotiation. */
                 ret = SSL_read(ssl, input, inputLen);
                 if (ret >= 0) {
                     /* null terminate message */
                     input[ret] = '\0';
-                    printf("Client message: %s\n", input);
-                    return;
+                    printf("Client message received during "
+                           "secure renegotiation: %s\n", input);
+                    err = WOLFSSL_ERROR_WANT_READ;
+                }
+                else {
+                    err = SSL_get_error(ssl, ret);
                 }
             }
         #endif
@@ -2442,14 +2449,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (echoData == 0 && throughput == 0) {
             ServerRead(ssl, input, sizeof(input)-1);
             err = SSL_get_error(ssl, 0);
-#ifdef HAVE_SECURE_RENEGOTIATION
-            if (err == APP_DATA_READY) {
-                /* Data was sent during SCR so let's get the message
-                 * after the SCR as well */
-                ServerRead(ssl, input, sizeof(input)-1);
-                err = SSL_get_error(ssl, 0);
-            }
-#endif
         }
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && \
