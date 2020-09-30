@@ -13782,15 +13782,15 @@ static int test_wc_CheckProbablePrime (void)
     WC_RNG              rng;
     byte                e[3];
     word32              eSz = (word32)sizeof(e);
-    byte                n[512]; /* size of RSA_TEST_BYTES */
+    byte                n[1024]; /* size of RSA_TEST_BYTES */
     word32              nSz = (word32)sizeof(n);
-    byte                d[512];
+    byte                d[1024];
     word32              dSz = (word32)sizeof(d);
-    byte                p[512/2];
+    byte                p[1024/2];
     word32              pSz = (word32)sizeof(p);
-    byte                q[512/2];
+    byte                q[1024/2];
     word32              qSz = (word32)sizeof(q);
-    int                 nlen = 1024;
+    int                 nlen = 2048;
     int*                isPrime;
     int                 test[5];
     isPrime = test;
@@ -13807,7 +13807,7 @@ static int test_wc_CheckProbablePrime (void)
         ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
-            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
         ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
@@ -13906,9 +13906,9 @@ static int test_wc_RsaPSS_Verify (void)
         ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
-            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
     }
-    
+
     if (ret == 0) {
         ret = wc_RsaPSS_Sign((byte*)szMessage, (word32)XSTRLEN(szMessage)+1,
                 pSignature, sizeof(pSignature),
@@ -13972,13 +13972,13 @@ static int test_wc_RsaPSS_VerifyCheck (void)
  !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
     RsaKey              key;
     WC_RNG              rng;
-    int                 sz = 128; /* 1024/8 */
+    int                 sz = 256; /* 2048/8 */
     byte*               pt;
     byte                digest[32];
     word32              digestSz;
-    unsigned char       pSignature[1024/8]; /* 2048 is RSA_KEY_SIZE */
+    unsigned char       pSignature[2048/8]; /* 2048 is RSA_KEY_SIZE */
     word32              pSignatureSz = sizeof(pSignature);
-    unsigned char       pDecrypted[1024/8];
+    unsigned char       pDecrypted[2048/8];
     word32              outLen = sizeof(pDecrypted);
     pt = pDecrypted;
 
@@ -13996,7 +13996,7 @@ static int test_wc_RsaPSS_VerifyCheck (void)
         ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
-            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
         digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
@@ -14090,7 +14090,7 @@ static int test_wc_RsaPSS_VerifyCheckInline (void)
         ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
-            ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
         digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
@@ -31718,7 +31718,7 @@ static void test_wolfSSL_DC_cert(void)
 #else
     AssertIntEQ(wc_InitRng(&rng), 0);
 #endif
-    AssertIntEQ(wc_MakeRsaKey(&key, 1024, 3, &rng), 0);
+    AssertIntEQ(wc_MakeRsaKey(&key, 2048, 3, &rng), 0);
 
 
     XMEMSET(&cert, 0 , sizeof(Cert));
