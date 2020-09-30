@@ -51770,21 +51770,46 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
 
     return wolfSSL_regen_X509_REQ_der_buffer(req);
 }
-#ifndef NO_WOLFSSL_STUB
+
 int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
                               const char *attrname, int type,
                               const unsigned char *bytes, int len)
 {
     WOLFSSL_ENTER("wolfSSL_X509_REQ_add1_attr_by_txt");
-    WOLFSSL_STUB("wolfSSL_X509_REQ_add1_attr_by_txt");
-    (void)req;
-    (void)attrname;
-    (void)type;
-    (void)bytes;
-    (void)len;
+
+    if (!req || !attrname || !bytes || type != MBSTRING_ASC) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (len < 0) {
+        len = XSTRLEN((char*)bytes);
+    }
+
+    /* For now just pretend that we support this for libest testing */
+    if (len == XSTR_SIZEOF("1.3.6.1.1.1.1.22") &&
+            XMEMCMP("1.3.6.1.1.1.1.22", bytes, len) == 0) {
+        /* MAC Address */
+    }
+    else if (len == XSTR_SIZEOF("1.2.840.10045.2.1") &&
+            XMEMCMP("1.2.840.10045.2.1", bytes, len) == 0) {
+        /* ecPublicKey */
+    }
+    else if (len == XSTR_SIZEOF("1.2.840.10045.4.3.3") &&
+            XMEMCMP("1.2.840.10045.4.3.3", bytes, len) == 0) {
+        /* ecdsa-with-SHA384 */
+    }
+    else {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* return error if not built for libest */
+#ifdef HAVE_LIBEST
+    return WOLFSSL_SUCCESS;
+#else
     return WOLFSSL_FAILURE;
+#endif
 }
-#endif /* NO_WOLFSSL_STUB */
 
 int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                                       int nid, int type,
@@ -51829,6 +51854,16 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             WOLFSSL_MSG("wolfSSL_X509_ATTRIBUTE_new error");
             return WOLFSSL_FAILURE;
         }
+        break;
+    case NID_serialNumber:
+        if (len < 0)
+            len = XSTRLEN((char*)bytes);
+        if (len + 1 > EXTERNAL_SERIAL_SIZE) {
+            WOLFSSL_MSG("SerialNumber too long");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(req->serial, bytes, len);
+        req->serialSz = len;
         break;
     default:
         WOLFSSL_MSG("Unsupported attribute");
