@@ -4857,7 +4857,7 @@ static int chacha_test(void)
     }
 
     /* Streaming test */
-    for (i = 1; i <= (int)CHACHA_CHUNK_BYTES; i++) {
+    for (i = 1; i <= (int)CHACHA_CHUNK_BYTES + 1; i++) {
         int j, rem;
 
         ret = wc_Chacha_SetKey(&enc, keys[0], keySz);
