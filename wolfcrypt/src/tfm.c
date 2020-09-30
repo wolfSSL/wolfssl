@@ -272,7 +272,7 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
     yy = MIN(A->used, B->used);
 
     /* fail if we are out of range */
-    if (y + yy > FP_SIZE) {
+    if (y + yy >= FP_SIZE) {
        ret = FP_VAL;
        goto clean;
     }
@@ -1435,6 +1435,10 @@ int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp)
   fp_int* pre;
 #endif
 
+  if ((a->used * 2 > FP_MAX_BITS) || (b->used * 2 > FP_MAX_BITS)) {
+    return FP_VAL;
+  }
+
 #ifdef WOLFSSL_SMALL_STACK
   t = (fp_int*)XMALLOC(sizeof(fp_int) * (2 + CT_INV_MOD_PRE_CNT), NULL,
                                                            DYNAMIC_TYPE_BIGINT);
@@ -1834,13 +1838,17 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
 
   case TFM_EXPTMOD_NB_SQR:
   #ifdef WC_NO_CACHE_RESISTANT
-    fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
+    err = fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
   #else
     fp_copy((fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
                         ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ),
             &nb->R[2]);
-    fp_sqr(&nb->R[2], &nb->R[2]);
+    err = fp_sqr(&nb->R[2], &nb->R[2]);
   #endif /* WC_NO_CACHE_RESISTANT */
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
 
     nb->state = TFM_EXPTMOD_NB_SQR_RED;
     break;
@@ -2131,7 +2139,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    * squaring M[1] (winsize-1) times */
   fp_copy (&M[1], &M[(word32)(1 << (winsize - 1))]);
   for (x = 0; x < (winsize - 1); x++) {
-    fp_sqr (&M[(word32)(1 << (winsize - 1))], &M[(word32)(1 << (winsize - 1))]);
+    err = fp_sqr (&M[(word32)(1 << (winsize - 1))],
+                  &M[(word32)(1 << (winsize - 1))]);
+    if (err != FP_OKAY) {
+#ifndef WOLFSSL_NO_MALLOC
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+      return err;
+    }
     err = fp_montgomery_reduce_ex(&M[(word32)(1 << (winsize - 1))], P, mp, 0);
     if (err != FP_OKAY) {
 #ifndef WOLFSSL_NO_MALLOC
@@ -2944,9 +2959,9 @@ int fp_sqr(fp_int *A, fp_int *B)
     oldused = B->used;
     y = A->used;
 
-    /* call generic if we're out of range */
-    if (y + y > FP_SIZE) {
-       err = fp_sqr_comba(A, B);
+    /* error if we're out of range */
+    if (y + y >= FP_SIZE) {
+       err = FP_VAL;
        goto clean;
     }
 
@@ -4691,7 +4706,9 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
     j = 1;
     /* while j <= s-1 and y != n1 */
     while ((j <= (s - 1)) && fp_cmp (y, n1) != FP_EQ) {
-      fp_sqrmod (y, a, y);
+      err = fp_sqrmod (y, a, y);
+      if (err != FP_OKAY)
+         return err;
 
       /* if y == 1 then composite */
       if (fp_cmp_d (y, 1) == FP_EQ) {
