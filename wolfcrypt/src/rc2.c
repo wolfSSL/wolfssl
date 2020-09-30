@@ -80,6 +80,25 @@ static const byte pitable[256] = {
 };
 
 /**
+  Sets RC2 IV, for use with CBC mode.
+  rc2       RC2 structure to load IV into
+  iv        IV, of size RC2_BLOCK_SIZE octets
+  return    0 on success, negative on error
+*/
+int wc_Rc2SetIV(RC2* rc2, const byte* iv)
+{
+    if (rc2 == NULL)
+        return BAD_FUNC_ARG;
+
+    if (iv)
+        XMEMCPY(rc2->reg, iv, RC2_BLOCK_SIZE);
+    else
+        XMEMSET(rc2->reg,  0, RC2_BLOCK_SIZE);
+
+    return 0;
+}
+
+/**
    Set RC2 key, performing key expansion operation
    rc2      RC2 structure to load expanded key into
    key      User key, up to 64 bytes
@@ -87,7 +106,8 @@ static const byte pitable[256] = {
    bits     Effective RC2 key length in bits (max 1024 bits)
    return   0 on success, negative on error
  */
-int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length, word32 bits)
+int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length,
+                 const byte* iv, word32 bits)
 {
     int i;
     unsigned int T8, TM;
@@ -102,6 +122,8 @@ int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length, word32 bits)
     }
 
     rc2->keylen = length;
+    rc2->bits   = bits;
+
     L = (byte*)rc2->key;
     XMEMCPY(L, key, length);
 
@@ -127,7 +149,7 @@ int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length, word32 bits)
        rc2->key[i] = (word16)L[2*i] + ((word16)L[2*i+1] << 8);
     }
 
-    return 0;
+    return wc_Rc2SetIV(rc2, iv);
 }
 
 /**
@@ -260,21 +282,51 @@ int wc_Rc2EcbDecrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
 
 int wc_Rc2CbcEncrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
 {
-    /* STUB */
-    (void)rc2;
-    (void)out;
-    (void)in;
-    (void)sz;
+    word32 blocks = (sz / RC2_BLOCK_SIZE);
+
+    if (rc2 == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        return 0;
+    }
+
+    while (blocks--) {
+        xorbuf((byte*)rc2->reg, in, RC2_BLOCK_SIZE);
+        wc_Rc2EcbEncrypt(rc2, (byte*)rc2->reg, (byte*)rc2->reg, RC2_BLOCK_SIZE);
+        XMEMCPY(out, rc2->reg, RC2_BLOCK_SIZE);
+
+        out += RC2_BLOCK_SIZE;
+        in  += RC2_BLOCK_SIZE;
+    }
+
     return 0;
 }
 
 int wc_Rc2CbcDecrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
 {
-    /* STUB */
-    (void)rc2;
-    (void)out;
-    (void)in;
-    (void)sz;
+    word32 blocks = (sz / RC2_BLOCK_SIZE);
+
+    if (rc2 == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        return 0;
+    }
+
+    while (blocks--) {
+        XMEMCPY(rc2->tmp, in, RC2_BLOCK_SIZE);
+        wc_Rc2EcbDecrypt(rc2, out, (byte*)rc2->tmp, RC2_BLOCK_SIZE);
+        xorbuf(out, (byte*)rc2->reg, RC2_BLOCK_SIZE);
+        /* store iv for next call */
+        XMEMCPY(rc2->reg, rc2->tmp, RC2_BLOCK_SIZE);
+
+        out += RC2_BLOCK_SIZE;
+        in  += RC2_BLOCK_SIZE;
+    }
+
     return 0;
 }
 

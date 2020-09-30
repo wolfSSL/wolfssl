@@ -37,15 +37,24 @@ enum {
 
 /* RC2 encryption and decryption */
 typedef struct RC2 {
-    word32 keylen;
+    word32 keylen;      /* key length, octets */
+    word32 bits;        /* effective key length, bits */
     ALIGN16 word16 key[RC2_MAX_KEY_SIZE/2];
+    ALIGN16 word32 reg[RC2_BLOCK_SIZE / sizeof(word32)];    /* for CBC mode */
+    ALIGN16 word32 tmp[RC2_BLOCK_SIZE / sizeof(word32)];    /* same         */
 } RC2;
 
-WOLFSSL_API int wc_Rc2SetKey(RC2*, const byte*, word32, word32);
+WOLFSSL_API int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length,
+                             const byte* iv, word32 bits);
+WOLFSSL_API int wc_Rc2SetIV(RC2* rc2, const byte* iv);
+
+/* RC2-ECB */
 WOLFSSL_API int wc_Rc2EcbEncrypt(RC2* rc2, byte* out,
                                  const byte* in, word32 sz);
 WOLFSSL_API int wc_Rc2EcbDecrypt(RC2* rc2, byte* out,
                                  const byte* in, word32 sz);
+
+/* RC2-CBC */
 WOLFSSL_API int wc_Rc2CbcEncrypt(RC2* rc2, byte* out,
                                  const byte* in, word32 sz);
 WOLFSSL_API int wc_Rc2CbcDecrypt(RC2* rc2, byte* out,
