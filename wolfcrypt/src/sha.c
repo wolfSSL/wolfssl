@@ -679,7 +679,6 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        ret = 0; /* reset ret */
         /* fall-through when unavailable */
     }
 #endif
