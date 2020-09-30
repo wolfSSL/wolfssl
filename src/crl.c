@@ -1099,7 +1099,17 @@ static void* DoMonitor(void* arg)
         }
 
         if (FD_ISSET(crl->mfd, &readfds)) {
+            word64 r64;
+            int    rlen;
+
             WOLFSSL_MSG("got custom shutdown event, breaking out");
+
+            /* read out the bytes written to the event to clean up */
+            rlen = (int) read(crl->mfd, &r64, sizeof(r64));
+            if (rlen < 0) {
+                WOLFSSL_MSG("read custom event failure");
+            }
+
             break;
         }
 

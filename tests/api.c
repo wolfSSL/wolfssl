@@ -27490,10 +27490,11 @@ static void test_wolfSSL_either_side(void)
     XMEMSET(&client_cb, 0, sizeof(callback_functions));
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
 
-    /* Use same CTX for both client and server */
+    /* Use different CTX for client and server */
     client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_method());
     AssertNotNull(client_cb.ctx);
-    server_cb.ctx = client_cb.ctx;
+    server_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_method());
+    AssertNotNull(server_cb.ctx);
     /* we are responsible for free'ing WOLFSSL_CTX */
     server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
@@ -27511,6 +27512,7 @@ static void test_wolfSSL_either_side(void)
 #endif
 
     wolfSSL_CTX_free(client_cb.ctx);
+    wolfSSL_CTX_free(server_cb.ctx);
     FreeTcpReady(&ready);
 
 #ifndef SINGLE_THREADED
@@ -27558,10 +27560,11 @@ static void test_wolfSSL_DTLS_either_side(void)
     XMEMSET(&client_cb, 0, sizeof(callback_functions));
     XMEMSET(&server_cb, 0, sizeof(callback_functions));
 
-    /* Use same CTX for both client and server */
+    /* Use different CTX for client and server */
     client_cb.ctx = wolfSSL_CTX_new(wolfDTLS_method());
     AssertNotNull(client_cb.ctx);
-    server_cb.ctx = client_cb.ctx;
+    server_cb.ctx = wolfSSL_CTX_new(wolfDTLS_method());
+    AssertNotNull(server_cb.ctx);
     /* we are responsible for free'ing WOLFSSL_CTX */
     server_cb.isSharedCtx = client_cb.isSharedCtx = 1;
 
@@ -27579,6 +27582,7 @@ static void test_wolfSSL_DTLS_either_side(void)
 #endif
 
     wolfSSL_CTX_free(client_cb.ctx);
+    wolfSSL_CTX_free(server_cb.ctx);
     FreeTcpReady(&ready);
 
 #ifndef SINGLE_THREADED
