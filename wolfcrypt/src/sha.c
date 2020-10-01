@@ -328,6 +328,9 @@
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 
+#elif defined(WOLFSSL_IMXRT_DCP)
+    /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+
 #else
     /* Software implementation */
     #define USE_SHA_SOFTWARE_IMPL
@@ -793,6 +796,9 @@ void wc_ShaFree(wc_Sha* sha)
         XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha->msg = NULL;
     }
+#endif
+#ifdef WOLFSSL_IMXRT_DCP
+    DCPShaFree(sha);
 #endif
 }
 
