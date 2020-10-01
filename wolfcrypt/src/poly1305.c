@@ -700,8 +700,6 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
     }
     printf("\n");
 #endif
-    if (ctx == NULL || (m == NULL && bytes > 0))
-        return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
@@ -836,6 +834,30 @@ int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz, word32 dataSz)
 
     return ret;
 }
+
+#ifdef WORD64_AVAILABLE
+int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz)
+{
+    int ret;
+    word64 little64[2];
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef BIG_ENDIAN_ORDER
+    little64[0] = ByteReverseWord64(aadSz);
+    little64[1] = ByteReverseWord64(dataSz);
+#else
+    little64[0] = aadSz;
+    little64[1] = dataSz;
+#endif
+
+    ret = wc_Poly1305Update(ctx, (byte *)little64, sizeof(little64));
+
+    return ret;
+}
+#endif
 
 /*  Takes in an initialized Poly1305 struct that has a key loaded and creates
     a MAC (tag) using recent TLS AEAD padding scheme.

@@ -232,6 +232,72 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     }
 }
 
+
+#ifdef HAVE_XCHACHA
+
+/*
+ * wc_HChacha_block - half a ChaCha block, for XChaCha
+ *
+ * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
+ */
+static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], int nrounds) {
+    word32 x[CHACHA_CHUNK_WORDS];
+    word32 i;
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        x[i] = ctx->X[i];
+    }
+
+    for (i = nrounds; i > 0; i -= 2) {
+        QUARTERROUND(0, 4,  8, 12)
+        QUARTERROUND(1, 5,  9, 13)
+        QUARTERROUND(2, 6, 10, 14)
+        QUARTERROUND(3, 7, 11, 15)
+        QUARTERROUND(0, 5, 10, 15)
+        QUARTERROUND(1, 6, 11, 12)
+        QUARTERROUND(2, 7,  8, 13)
+        QUARTERROUND(3, 4,  9, 14)
+    }
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS/4; ++i)
+        stream[i] = x[i];
+    for (i = CHACHA_CHUNK_WORDS/4; i < CHACHA_CHUNK_WORDS/2; ++i)
+        stream[i] = x[i + CHACHA_CHUNK_WORDS/2];
+}
+
+/* XChaCha -- https://tools.ietf.org/html/draft-arciszewski-xchacha-03 */
+int wc_XChaCha_init(ChaCha *ctx, const byte *key, word32 keySz, const byte *nonce, word32 nonceSz) {
+    word32 k[CHACHA_MAX_KEY_SZ];
+    byte iv[CHACHA_IV_BYTES];
+    int ret;
+
+    if (nonceSz < 24)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(iv, 0, 4);
+    XMEMCPY(iv + 4, nonce + 16, 8);
+
+    if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0)
+        return ret;
+
+    if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0)
+        return ret;
+
+    wc_HChacha_block(ctx, k, 20);
+
+    XMEMCPY(&ctx->X[4], k, 8 * sizeof(word32));
+    if ((ret = wc_Chacha_SetIV(ctx, iv, 0)) < 0)
+        return ret;
+
+    XMEMSET(k, 0, sizeof k);
+    XMEMSET(iv, 0, sizeof iv);
+
+    return 0;
+}
+
+#endif /* HAVE_XCHACHA */
+
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -301,7 +367,6 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     }
 }
 
-
 /**
   * API to encrypt/decrypt a message of any size.
   */
@@ -359,6 +424,18 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 
     return 0;
+}
+
+void wc_ChaCha_purge_current_block(ChaCha* ctx) {
+    if (ctx->left > 0) {
+#ifndef USE_INTEL_CHACHA_SPEEDUP
+        /* the algorithms in chacha_asm.S increment the counter for partial
+         * blocks, but wc_Chacha_encrypt_bytes() defers.
+         */
+        ctx->X[CHACHA_MATRIX_CNT_IV] = PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
+#endif
+        ctx->left = 0;
+    }
 }
 
 #endif /* HAVE_CHACHA*/

@@ -314,6 +314,7 @@ then
     enable_webserver=yes
     enable_hc128=yes
     enable_rabbit=yes
+    enable_xchacha=yes
     enable_ocsp=yes
     enable_ocspstapling=yes
     enable_ocspstapling2=yes
@@ -2995,6 +2996,23 @@ fi
 if test "$ENABLED_CHACHA" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CHACHA"
+fi
+
+
+# XCHACHA
+AC_ARG_ENABLE([xchacha],
+    [AS_HELP_STRING([--enable-xchacha],[Enable XCHACHA (default: disabled).])],
+    [ ENABLED_XCHACHA=$enableval ],
+    [ ENABLED_XCHACHA=no]
+    )
+
+if test "$ENABLED_XCHACHA" = "yes"
+then
+    if test "$ENABLED_CHACHA" = "no"
+    then
+        AC_MSG_ERROR([XChaCha (--enable-xchacha) depends on ChaCha (--enable-chacha)])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_XCHACHA"
 fi
 
 
@@ -5698,6 +5716,7 @@ AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_SHA3],[test "x$ENABLED_SHA3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_POLY1305],[test "x$ENABLED_POLY1305" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CHACHA],[test "x$ENABLED_CHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_XCHACHA],[test "x$ENABLED_XCHACHA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_INLINE],[test "x$ENABLED_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP],[test "x$ENABLED_OCSP" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_OCSP_STAPLING],[test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"])
@@ -5938,6 +5957,7 @@ echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * SHAKE256:                   $ENABLED_SHAKE256"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
+echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
@@ -5947,6 +5967,7 @@ echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
+echo "   * XCHACHA:                    $ENABLED_XCHACHA"
 echo "   * Hash DRBG:                  $ENABLED_HASHDRBG"
 echo "   * PWDBASED:                   $ENABLED_PWDBASED"
 echo "   * scrypt:                     $ENABLED_SCRYPT"
