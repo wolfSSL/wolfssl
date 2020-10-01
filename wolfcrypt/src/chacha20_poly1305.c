@@ -312,7 +312,10 @@ int wc_XChaCha20Poly1305_Init(
         (nonce_len != XCHACHA20_POLY1305_AEAD_NONCE_SIZE))
         return BAD_FUNC_ARG;
 
-    if ((ret = wc_XChaCha_init(&aead->chacha, key, key_len, nonce, nonce_len)) < 0)
+    if ((ret = wc_XChacha_SetKey(&aead->chacha,
+                                 key, key_len,
+                                 nonce, nonce_len,
+                                 0 /* counter */)) < 0)
         return ret;
 
     XMEMSET(authKey, 0, sizeof authKey);
@@ -322,7 +325,7 @@ int wc_XChaCha20Poly1305_Init(
                                  (word32)sizeof authKey)) < 0)
         return ret;
     /* advance to start of the next ChaCha block. */
-    wc_ChaCha_purge_current_block(&aead->chacha);
+    wc_Chacha_purge_current_block(&aead->chacha);
 
     /* Initialize Poly1305 context */
     if ((ret = wc_Poly1305SetKey(&aead->poly, authKey,

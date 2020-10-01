@@ -10110,7 +10110,7 @@ static int XChaCha_test(void) {
     byte buf2[sizeof Plaintext];
 #endif
 
-    ret = wc_XChaCha_init(chacha, Key, sizeof Key, IV, sizeof IV);
+    ret = wc_XChacha_SetKey(chacha, Key, sizeof Key, IV, sizeof IV, 0);
     if (ret < 0)
         ERROR_OUT(-4770, out);
 
@@ -10121,7 +10121,7 @@ static int XChaCha_test(void) {
     if (XMEMCMP(buf1, Ciphertext, sizeof Plaintext))
         ERROR_OUT(-4772, out);
 
-    ret = wc_XChaCha_init(chacha, Key, sizeof Key, IV, sizeof IV);
+    ret = wc_XChacha_SetKey(chacha, Key, sizeof Key, IV, sizeof IV, 0);
     if (ret < 0)
         ERROR_OUT(-4773, out);
 
