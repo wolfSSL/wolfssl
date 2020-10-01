@@ -315,7 +315,6 @@ then
     enable_nullcipher=yes
     enable_blake2=yes
     enable_blake2s=yes
-    enable_certgencache=yes
     enable_md4=yes
     enable_postauth=yes
     enable_hrrcookie=yes
@@ -435,7 +434,6 @@ then
     enable_nullcipher=yes
     enable_blake2=yes
     enable_blake2s=yes
-    enable_certgencache=yes
     enable_md4=yes
     enable_cryptocb=yes
     enable_anon=yes
