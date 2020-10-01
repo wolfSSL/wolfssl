@@ -11460,6 +11460,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else {
                             ssl->peerEccDsaKeyPresent = 1;
                     #ifdef HAVE_PK_CALLBACKS
+                            if (ssl->buffers.peerEccDsaKey.buffer)
+                                XFREE(ssl->buffers.peerEccDsaKey.buffer,
+                                      ssl->heap, DYNAMIC_TYPE_ECC);
                             ssl->buffers.peerEccDsaKey.buffer =
                                    (byte*)XMALLOC(args->dCert->pubKeySize,
                                            ssl->heap, DYNAMIC_TYPE_ECC);
@@ -21132,9 +21135,20 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
 
     ssl->buffers.weOwnDH = 1;
 
-    ssl->buffers.serverDH_P.buffer = NULL;
-    ssl->buffers.serverDH_G.buffer = NULL;
-    ssl->buffers.serverDH_Pub.buffer = NULL;
+    if (ssl->buffers.serverDH_P.buffer) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
+    }
+
+    if (ssl->buffers.serverDH_G.buffer) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_G.buffer = NULL;
+    }
+
+    if (ssl->buffers.serverDH_Pub.buffer) {
+        XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_Pub.buffer = NULL;
+    }
 
     /* p */
     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
