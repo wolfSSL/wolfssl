@@ -266,7 +266,10 @@ static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_W
 }
 
 /* XChaCha -- https://tools.ietf.org/html/draft-arciszewski-xchacha-03 */
-int wc_XChaCha_init(ChaCha *ctx, const byte *key, word32 keySz, const byte *nonce, word32 nonceSz) {
+int wc_XChacha_SetKey(ChaCha *ctx,
+                      const byte *key, word32 keySz,
+                      const byte *nonce, word32 nonceSz,
+                      word32 counter) {
     word32 k[CHACHA_MAX_KEY_SZ];
     byte iv[CHACHA_IV_BYTES];
     int ret;
@@ -286,7 +289,7 @@ int wc_XChaCha_init(ChaCha *ctx, const byte *key, word32 keySz, const byte *nonc
     wc_HChacha_block(ctx, k, 20);
 
     XMEMCPY(&ctx->X[4], k, 8 * sizeof(word32));
-    if ((ret = wc_Chacha_SetIV(ctx, iv, 0)) < 0)
+    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
         return ret;
 
     XMEMSET(k, 0, sizeof k);
@@ -426,15 +429,10 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     return 0;
 }
 
-void wc_ChaCha_purge_current_block(ChaCha* ctx) {
+void wc_Chacha_purge_current_block(ChaCha* ctx) {
     if (ctx->left > 0) {
-#ifndef USE_INTEL_CHACHA_SPEEDUP
-        /* the algorithms in chacha_asm.S increment the counter for partial
-         * blocks, but wc_Chacha_encrypt_bytes() defers.
-         */
-        ctx->X[CHACHA_MATRIX_CNT_IV] = PLUSONE(ctx->X[CHACHA_MATRIX_CNT_IV]);
-#endif
-        ctx->left = 0;
+        byte scratch[CHACHA_CHUNK_BYTES];
+        (void)wc_Chacha_Process(ctx, scratch, scratch, CHACHA_CHUNK_BYTES - ctx->left);
     }
 }
 
