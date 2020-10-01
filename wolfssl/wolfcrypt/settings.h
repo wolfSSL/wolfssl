@@ -2124,10 +2124,18 @@ extern void uITRON4_free(void *p) ;
     #define SIZEOF_LONG         8
     #define SIZEOF_LONG_LONG    8
     #define CHAR_BIT            8
-    #define WOLFSSL_SP_DIV_64
-    #define WOLFSSL_SP_DIV_WORD_HALF
-    #define SP_HALF_SIZE        32
-    #define SP_HALF_MAX         4294967295U
+    #ifndef WOLFSSL_SP_DIV_64
+        #define WOLFSSL_SP_DIV_64
+    #endif
+    #ifndef WOLFSSL_SP_DIV_WORD_HALF
+        #define WOLFSSL_SP_DIV_WORD_HALF
+    #endif
+    #ifndef SP_HALF_SIZE
+        #define SP_HALF_SIZE        32
+    #endif
+    #ifndef SP_HALF_MAX
+        #define SP_HALF_MAX         4294967295U
+    #endif
 #endif
 
 
