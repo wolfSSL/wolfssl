@@ -13778,19 +13778,22 @@ static int test_wc_CheckProbablePrime (void)
     int ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_SELFTEST) && \
  !defined(HAVE_FIPS) && defined(WC_RSA_BLINDING)
+
+#define CHECK_PROBABLE_PRIME_KEY_BITS 2048
+
     RsaKey              key;
     WC_RNG              rng;
     byte                e[3];
     word32              eSz = (word32)sizeof(e);
-    byte                n[1024]; /* size of RSA_TEST_BYTES */
+    byte                n[CHECK_PROBABLE_PRIME_KEY_BITS / 8]; /* size of RSA_TEST_BYTES */
     word32              nSz = (word32)sizeof(n);
-    byte                d[1024];
+    byte                d[CHECK_PROBABLE_PRIME_KEY_BITS / 8];
     word32              dSz = (word32)sizeof(d);
-    byte                p[1024/2];
+    byte                p[CHECK_PROBABLE_PRIME_KEY_BITS / 8 / 2];
     word32              pSz = (word32)sizeof(p);
-    byte                q[1024/2];
+    byte                q[CHECK_PROBABLE_PRIME_KEY_BITS / 8 / 2];
     word32              qSz = (word32)sizeof(q);
-    int                 nlen = 2048;
+    int                 nlen = CHECK_PROBABLE_PRIME_KEY_BITS;
     int*                isPrime;
     int                 test[5];
     isPrime = test;
@@ -13807,7 +13810,7 @@ static int test_wc_CheckProbablePrime (void)
         ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, CHECK_PROBABLE_PRIME_KEY_BITS, WC_RSA_EXPONENT, &rng);
     }
     if (ret == 0) {
         ret = wc_RsaExportKey(&key, e, &eSz, n, &nSz, d, &dSz,
@@ -13873,6 +13876,9 @@ static int test_wc_CheckProbablePrime (void)
     wc_FreeRng(&rng);
 
     printf(resultFmt, ret == 0 ? passed : failed);
+
+#undef CHECK_PROBABLE_PRIME_KEY_BITS
+
 #endif
 
     return ret;
