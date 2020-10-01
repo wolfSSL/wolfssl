@@ -421,6 +421,8 @@ void file_test(const char* file, byte* check)
     }
 
     ret = wc_Sha256Final(&sha256, shasum);
+    wc_Sha256Free(&sha256);
+
     if (ret != 0) {
         printf("Can't wc_Sha256Final %d\n", ret);
         fclose(f);

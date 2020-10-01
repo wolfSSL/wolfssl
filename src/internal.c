@@ -27132,13 +27132,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = wc_HmacSetKey(&cookieHmac, cookieType,
                                 ssl->buffers.dtlsCookieSecret.buffer,
                                 ssl->buffers.dtlsCookieSecret.length);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
             ret = wc_HmacUpdate(&cookieHmac,
                                 (const byte*)ssl->buffers.dtlsCtx.peer.sa,
                                 ssl->buffers.dtlsCtx.peer.sz);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
             ret = wc_HmacUpdate(&cookieHmac, input + i, OPAQUE16_LEN);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
         i += OPAQUE16_LEN;
@@ -27158,11 +27158,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
-                return VERSION_ERROR;
+                ret = VERSION_ERROR;
+                goto out;
             }
             if (pv.minor < ssl->options.minDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
-                return VERSION_ERROR;
+                ret = VERSION_ERROR;
+                goto out;
             }
 
             if (pv.minor == SSLv3_MINOR) {
@@ -27231,12 +27233,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->version.minor == SSLv3_MINOR &&
                 (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
                 WOLFSSL_MSG("\tError, option set to not allow SSLv3");
-                return VERSION_ERROR;
+                ret = VERSION_ERROR;
+                goto out;
             }
 
             if (ssl->version.minor < ssl->options.minDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
-                return VERSION_ERROR;
+                ret = VERSION_ERROR;
+                goto out;
             }
 
             if (reset) {
@@ -27268,7 +27272,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl) && !ssl->options.resuming) {
             ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
         i += RAN_LEN;
@@ -27294,15 +27298,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
         if (b == ID_LEN || bogusID) {
-            if ((i - begin) + b > helloSz)
-                return BUFFER_ERROR;
+            if ((i - begin) + b > helloSz) {
+                ret = BUFFER_ERROR;
+                goto out;
+            }
 
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl) && !IsSCR(ssl) &&
                     !ssl->options.resuming) {
                 ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
-                if (ret != 0) return ret;
+                if (ret != 0) goto out;
             }
 #endif /* WOLFSSL_DTLS */
             ssl->arrays->sessionIDSz = b;
@@ -27312,24 +27318,31 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else if (b) {
             WOLFSSL_MSG("Invalid session ID size");
-            return BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
+            ret = BUFFER_ERROR; /* session ID nor 0 neither 32 bytes long */
+            goto out;
         }
 
         #ifdef WOLFSSL_DTLS
             /* cookie */
             if (ssl->options.dtls) {
 
-                if ((i - begin) + OPAQUE8_LEN > helloSz)
-                    return BUFFER_ERROR;
+                if ((i - begin) + OPAQUE8_LEN > helloSz) {
+                    ret = BUFFER_ERROR;
+                    goto out;
+                }
 
                 peerCookieSz = input[i++];
 
                 if (peerCookieSz) {
-                    if (peerCookieSz > MAX_COOKIE_LEN)
-                        return BUFFER_ERROR;
+                    if (peerCookieSz > MAX_COOKIE_LEN) {
+                        ret = BUFFER_ERROR;
+                        goto out;
+                    }
 
-                    if ((i - begin) + peerCookieSz > helloSz)
-                        return BUFFER_ERROR;
+                    if ((i - begin) + peerCookieSz > helloSz) {
+                        ret = BUFFER_ERROR;
+                        goto out;
+                    }
 
                     XMEMCPY(peerCookie, input + i, peerCookieSz);
 
@@ -27339,22 +27352,30 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
 
         /* suites */
-        if ((i - begin) + OPAQUE16_LEN > helloSz)
-            return BUFFER_ERROR;
+        if ((i - begin) + OPAQUE16_LEN > helloSz) {
+            ret = BUFFER_ERROR;
+            goto out;
+        }
 
         ato16(&input[i], &clSuites.suiteSz);
         i += OPAQUE16_LEN;
 
         /* Cipher suite lists are always multiples of two in length. */
-        if (clSuites.suiteSz % 2 != 0)
-            return BUFFER_ERROR;
+        if (clSuites.suiteSz % 2 != 0) {
+            ret = BUFFER_ERROR;
+            goto out;
+        }
 
         /* suites and compression length check */
-        if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz)
-            return BUFFER_ERROR;
+        if ((i - begin) + clSuites.suiteSz + OPAQUE8_LEN > helloSz) {
+            ret = BUFFER_ERROR;
+            goto out;
+        }
 
-        if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ)
-            return BUFFER_ERROR;
+        if (clSuites.suiteSz > WOLFSSL_MAX_SUITE_SZ) {
+            ret = BUFFER_ERROR;
+            goto out;
+        }
 
         XMEMCPY(clSuites.suites, input + i, clSuites.suiteSz);
 
@@ -27366,7 +27387,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
-                return ret;
+                goto out;
 
             extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
             if (extension) {
@@ -27383,7 +27404,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->ctx->method->version.minor > pv.minor) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
                 SendAlert(ssl, alert_fatal, inappropriate_fallback);
-                return VERSION_ERROR;
+                ret = VERSION_ERROR;
+                goto out;
             }
         }
 #endif
@@ -27393,7 +27415,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
                                     clSuites.suiteSz + OPAQUE16_LEN);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
         i += clSuites.suiteSz;
@@ -27402,15 +27424,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* compression length */
         b = input[i++];
 
-        if ((i - begin) + b > helloSz)
-            return BUFFER_ERROR;
+        if ((i - begin) + b > helloSz) {
+            ret = BUFFER_ERROR;
+            goto out;
+        }
 
         if (b == 0) {
             WOLFSSL_MSG("No compression types in list");
 #ifdef WOLFSSL_EXTRA_ALERTS
             SendAlert(ssl, alert_fatal, decode_error);
 #endif
-            return COMPRESSION_ERROR;
+            ret = COMPRESSION_ERROR;
+            goto out;
         }
 
 #ifdef WOLFSSL_DTLS
@@ -27419,9 +27444,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 byte newCookie[MAX_COOKIE_LEN];
 
                 ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
-                if (ret != 0) return ret;
+                if (ret != 0) goto out;
                 ret = wc_HmacFinal(&cookieHmac, newCookie);
-                if (ret != 0) return ret;
+                if (ret != 0) goto out;
 
                 /* If a cookie callback is set, call it to overwrite the cookie.
                  * This should be deprecated. The code now calculates the cookie
@@ -27429,7 +27454,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (ssl->ctx->CBIOCookie != NULL &&
                     ssl->ctx->CBIOCookie(ssl, newCookie, cookieSz,
                                                  ssl->IOCB_CookieCtx) != cookieSz) {
-                    return COOKIE_ERROR;
+                    ret = COOKIE_ERROR;
+                    goto out;
                 }
 
                 /* Check the cookie, see if we progress the state machine. */
@@ -27442,14 +27468,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     ssl->keys.dtls_handshake_number = 0;
                     ssl->keys.dtls_expected_peer_handshake_number = 0;
                     *inOutIdx += helloSz;
-                    return SendHelloVerifyRequest(ssl, newCookie, cookieSz);
+                    ret = SendHelloVerifyRequest(ssl, newCookie, cookieSz);
+                    goto out;
                 }
             }
 
             /* This was skipped in the DTLS case so we could handle the hello
              * verify request. */
             ret = HashInput(ssl, input + *inOutIdx, helloSz);
-            if (ret != 0) return ret;
+            if (ret != 0) goto out;
         }
 #endif /* WOLFSSL_DTLS */
 
@@ -27481,7 +27508,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_EXTRA_ALERTS
                 SendAlert(ssl, alert_fatal, illegal_parameter);
 #endif
-                return COMPRESSION_ERROR;
+                ret = COMPRESSION_ERROR;
+                goto out;
             }
         }
 
@@ -27504,34 +27532,39 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_TLS_EXTENSIONS
                 /* auto populate extensions supported unless user defined */
                 if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
-                    return ret;
+                    goto out;
 #endif
 
-                if ((i - begin) + OPAQUE16_LEN > helloSz)
-                    return BUFFER_ERROR;
+                if ((i - begin) + OPAQUE16_LEN > helloSz) {
+                    ret = BUFFER_ERROR;
+                    goto out;
+                }
 
                 ato16(&input[i], &totalExtSz);
                 i += OPAQUE16_LEN;
 
-                if ((i - begin) + totalExtSz > helloSz)
-                    return BUFFER_ERROR;
+                if ((i - begin) + totalExtSz > helloSz) {
+                    ret = BUFFER_ERROR;
+                    goto out;
+                }
 
 #ifdef HAVE_TLS_EXTENSIONS
                 /* tls extensions */
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz,
                                       client_hello, &clSuites)))
-                    return ret;
+                    goto out;
     #ifdef WOLFSSL_TLS13
                 if (TLSX_Find(ssl->extensions,
                                              TLSX_SUPPORTED_VERSIONS) != NULL) {
                     WOLFSSL_MSG(
                             "Client attempting to connect with higher version");
-                    return VERSION_ERROR;
+                    ret = VERSION_ERROR;
+                    goto out;
                 }
     #endif
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 if((ret=SNI_Callback(ssl)))
-                    return ret;
+                    goto out;
                 ssl->options.side = WOLFSSL_SERVER_END;
     #endif
 
@@ -27540,16 +27573,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 while (totalExtSz) {
                     word16 extId, extSz;
 
-                    if (OPAQUE16_LEN + OPAQUE16_LEN > totalExtSz)
-                        return BUFFER_ERROR;
+                    if (OPAQUE16_LEN + OPAQUE16_LEN > totalExtSz) {
+                        ret = BUFFER_ERROR;
+                        goto out;
+                    }
 
                     ato16(&input[i], &extId);
                     i += OPAQUE16_LEN;
                     ato16(&input[i], &extSz);
                     i += OPAQUE16_LEN;
 
-                    if (OPAQUE16_LEN + OPAQUE16_LEN + extSz > totalExtSz)
-                        return BUFFER_ERROR;
+                    if (OPAQUE16_LEN + OPAQUE16_LEN + extSz > totalExtSz) {
+                        ret = BUFFER_ERROR;
+                        goto out;
+                    }
 
                     if (extId == HELLO_EXT_SIG_ALGO) {
                         word16 hashSigAlgoSz;
@@ -27557,11 +27594,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ato16(&input[i], &hashSigAlgoSz);
                         i += OPAQUE16_LEN;
 
-                        if (OPAQUE16_LEN + hashSigAlgoSz > extSz)
-                            return BUFFER_ERROR;
+                        if (OPAQUE16_LEN + hashSigAlgoSz > extSz) {
+                            ret = BUFFER_ERROR;
+                            goto out;
+                        }
 
-                        if (hashSigAlgoSz % 2 != 0)
-                            return BUFFER_ERROR;
+                        if (hashSigAlgoSz % 2 != 0) {
+                            ret = BUFFER_ERROR;
+                            goto out;
+                        }
 
                         clSuites.hashSigAlgoSz = hashSigAlgoSz;
                         if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
@@ -27598,7 +27639,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.resuming) {
             ret = HandleTlsResumption(ssl, bogusID, &clSuites);
             if (ret != 0)
-                return ret;
+                goto out;
 
             #ifdef HAVE_SECURE_RENEGOTIATION
             if (ssl->secure_renegotiation &&
@@ -27608,13 +27649,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
-            #ifdef WOLFSSL_DTLS
-                wc_HmacFree(&cookieHmac);
-            #endif
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
-                return ret;
+                goto out;
             }
         }
 
@@ -27625,7 +27663,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
              * present and no matches in the server's list. */
             ret = TLSX_SupportedFFDHE_Set(ssl);
             if (ret != 0)
-                return ret;
+                goto out;
         }
     #endif
 #endif
@@ -27645,13 +27683,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 #ifdef WOLFSSL_DTLS
-        wc_HmacFree(&cookieHmac);
-
         if (ret == 0 && ssl->options.dtls)
             DtlsMsgPoolReset(ssl);
 #endif
         WOLFSSL_LEAVE("DoClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
+
+      out:
+
+#ifdef WOLFSSL_DTLS
+        wc_HmacFree(&cookieHmac);
+#endif
 
         return ret;
     }
