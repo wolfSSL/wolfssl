@@ -331,27 +331,23 @@ then
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
 
+    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
+
+    # Enable ECC Key Gen checks
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+
+    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+    fi
+
     if test "$ENABLED_SP_MATH" = "no"
     then
-        # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
-
-        # Enable ECC Key Gen / Import checks
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
     else
-        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
-        then
-            # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
-        else
-            # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
-        fi
-
-        # sp-math is incompatible with opensslextra, ECC custom curves, DSA, and WOLFSSL_VALIDATE_ECC_IMPORT:
-
-        # Enable ECC Key Gen
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+        # sp-math is incompatible with opensslextra, ECC custom curves, and DSA:
 
         enable_openssh=no
         enable_opensslextra=no
@@ -406,7 +402,6 @@ then
     enable_certext=yes
     enable_sep=yes
     enable_hkdf=yes
-    enable_compkey=yes
     enable_curve25519=yes
     enable_curve448=yes
     enable_ed448=yes
@@ -445,6 +440,11 @@ then
     enable_cryptocb=yes
     enable_anon=yes
 
+    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    then
+        enable_compkey=yes
+    fi
+
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD"
 
@@ -454,23 +454,16 @@ then
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
 
+    # Enable ECC Key Gen checks
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+
     if test "$ENABLED_SP_MATH" = "no"
     then
         enable_dsa=yes
         enable_ecccustcurves=yes
 
-        # Enable ECC Key Gen / Import checks
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN -DWOLFSSL_VALIDATE_ECC_IMPORT"
-    else
-        # sp-math is incompatible with opensslextra, ECC custom curves, DSA, and WOLFSSL_VALIDATE_ECC_IMPORT:
-
-        # Enable ECC Key Gen checks
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
-
-        if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-        then
-            enable_compkey=no
-        fi
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
     fi
 fi
 
