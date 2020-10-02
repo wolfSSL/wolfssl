@@ -10217,10 +10217,8 @@ static int XChaCha20Poly1305_test(void) {
                                        IV, sizeof IV,
                                        Key, sizeof Key);
 
-    if (ret < 0) {
-        printf("wc_XChaCha20Poly1305_decrypt_oneshot failed: %s\n",wc_GetErrorString(ret));
+    if (ret < 0)
         ERROR_OUT(-4763, out);
-    }
 
     if (XMEMCMP(buf2, Plaintext, sizeof Plaintext))
         ERROR_OUT(-4764, out);
