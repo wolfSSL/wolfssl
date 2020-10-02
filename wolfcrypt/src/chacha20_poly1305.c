@@ -352,7 +352,6 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     const byte *key, const size_t key_len,
     int isEncrypt)
 {
-    ChaChaPoly_Aead aead;
     int ret;
     ssize_t dst_len = isEncrypt ?
         (ssize_t)src_len + POLY1305_DIGEST_SIZE :
@@ -360,14 +359,26 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     const byte *src_i;
     byte *dst_i;
     size_t src_len_rem;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    ChaChaPoly_Aead *aead = XMALLOC(sizeof *aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if ((dst == NULL) || (src == NULL))
-        return BAD_FUNC_ARG;
+    if (aead == NULL)
+        return MEMORY_E;
+#else
+    ChaChaPoly_Aead aead_buf, *aead = &aead_buf;
+#endif
 
-    if ((ssize_t)dst_space < dst_len)
-        return BUFFER_E;
+    if ((dst == NULL) || (src == NULL)) {
+        ret = BAD_FUNC_ARG;
+        goto out;
+    }
 
-    if ((ret = wc_XChaCha20Poly1305_Init(&aead, ad, (word32)ad_len,
+    if ((ssize_t)dst_space < dst_len) {
+        ret = BUFFER_E;
+        goto out;
+    }
+
+    if ((ret = wc_XChaCha20Poly1305_Init(aead, ad, (word32)ad_len,
                                          nonce, (word32)nonce_len,
                                          key, (word32)key_len, 1)) < 0)
         goto out;
@@ -375,18 +386,19 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     /* process the input in 16k pieces to accommodate src_lens that don't fit in a word32,
      * and to exploit hot cache for the input data.
      */
-    for (src_i = src, src_len_rem = isEncrypt ? src_len : (size_t)dst_len, dst_i = dst;
-         src_len_rem > 0;
-        ) {
+    src_i = src;
+    src_len_rem = isEncrypt ? src_len : (size_t)dst_len;
+    dst_i = dst;
+    while (src_len_rem > 0) {
         word32 this_src_len =
             (src_len_rem > 16384) ?
             16384 :
             (word32)src_len_rem;
 
-        if ((ret = wc_Chacha_Process(&aead.chacha, dst_i, src_i, this_src_len)) < 0)
+        if ((ret = wc_Chacha_Process(&aead->chacha, dst_i, src_i, this_src_len)) < 0)
             goto out;
 
-        if ((ret = wc_Poly1305Update(&aead.poly, isEncrypt ? dst_i : src_i, this_src_len)) < 0)
+        if ((ret = wc_Poly1305Update(&aead->poly, isEncrypt ? dst_i : src_i, this_src_len)) < 0)
             goto out;
 
         src_len_rem -= (size_t)this_src_len;
@@ -394,25 +406,25 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
         dst_i += this_src_len;
     }
 
-    if (aead.poly.leftover) {
-        if ((ret = wc_Poly1305_Pad(&aead.poly, (word32)aead.poly.leftover)) < 0)
+    if (aead->poly.leftover) {
+        if ((ret = wc_Poly1305_Pad(&aead->poly, (word32)aead->poly.leftover)) < 0)
             return ret;
     }
 
 #ifdef WORD64_AVAILABLE
-    ret = wc_Poly1305_EncodeSizes64(&aead.poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+    ret = wc_Poly1305_EncodeSizes64(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
 #else
-    ret = wc_Poly1305_EncodeSizes(&aead.poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
+    ret = wc_Poly1305_EncodeSizes(&aead->poly, ad_len, isEncrypt ? src_len : (size_t)dst_len);
 #endif
     if (ret < 0)
         goto out;
 
     if (isEncrypt)
-        ret = wc_Poly1305Final(&aead.poly, dst + src_len);
+        ret = wc_Poly1305Final(&aead->poly, dst + src_len);
     else {
         byte outAuthTag[POLY1305_DIGEST_SIZE];
 
-        if ((ret = wc_Poly1305Final(&aead.poly, outAuthTag)) < 0)
+        if ((ret = wc_Poly1305Final(&aead->poly, outAuthTag)) < 0)
             goto out;
 
         if (ConstantCompare(outAuthTag, src + dst_len, POLY1305_DIGEST_SIZE) != 0) {
@@ -423,7 +435,10 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
 
   out:
 
-    XMEMSET(&aead, 0, sizeof aead);
+    XMEMSET(aead, 0, sizeof *aead);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
