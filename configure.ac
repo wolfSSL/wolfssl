@@ -302,7 +302,6 @@ then
     enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
-    enable_apachehttpd=yes
     enable_openvpn=yes
     enable_asio=yes
     enable_libwebsockets=yes
@@ -325,7 +324,6 @@ then
     enable_hrrcookie=yes
     enable_cryptocb=yes
     enable_fallback_scsv=yes
-    enable_secure_renegotiation=yes
     enable_anon=yes
     enable_mcast=yes
 
@@ -370,11 +368,11 @@ then
         enable_asio=no
         enable_libwebsockets=no
         enable_qt=no
+    fi
 
-        if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-        then
-            enable_compkey=no
-        fi
+    if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+    then
+        enable_compkey=no
     fi
 fi
 
