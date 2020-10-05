@@ -9913,6 +9913,33 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
     return wolfSSL_X509_add_altname_ex(x509, name, nameSz, type);
 }
 
+/**
+ * @param str String to copy
+ * @param buf Output buffer. If this contains a pointer then it is free'd
+ *            with the DYNAMIC_TYPE_X509_EXT hint.
+ * @param len Output length
+ * @return WOLFSSL_SUCCESS on sucess and WOLFSSL_FAILURE on error
+ */
+static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
+        word32* len, void* heap) {
+    if (!str || !buf || !len) {
+        return WOLFSSL_FAILURE;
+    }
+    if (str->data && str->length > 0) {
+        if (*buf)
+            XFREE(*buf, heap, DYNAMIC_TYPE_X509_EXT);
+        *len = 0;
+        *buf = (byte*)XMALLOC(str->length, heap,
+                DYNAMIC_TYPE_X509_EXT);
+        if (!*buf) {
+            WOLFSSL_MSG("malloc error");
+            return WOLFSSL_FAILURE;
+        }
+        *len = str->length;
+        XMEMCPY(*buf, str->data, str->length);
+    }
+    return WOLFSSL_SUCCESS;
+}
 
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
 {
@@ -9924,6 +9951,22 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
     }
 
     switch (ext->obj->type) {
+    case NID_authority_key_identifier:
+        if (asn1_string_copy_to_buffer(&ext->value, &x509->authKeyId,
+                &x509->authKeyIdSz, x509->heap) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("asn1_string_copy_to_buffer error");
+            return WOLFSSL_FAILURE;
+        }
+        x509->authKeyIdCrit = ext->crit;
+        break;
+    case NID_subject_key_identifier:
+        if (asn1_string_copy_to_buffer(&ext->value, &x509->subjKeyId,
+                &x509->subjKeyIdSz, x509->heap) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("asn1_string_copy_to_buffer error");
+            return WOLFSSL_FAILURE;
+        }
+        x509->subjKeyIdCrit = ext->crit;
+        break;
     case NID_subject_alt_name:
     {
         WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
@@ -50686,6 +50729,7 @@ PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
 PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
 {
     WOLFSSL_PKCS7* pkcs7;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_d2i_PKCS7_bio");
 
@@ -50702,10 +50746,12 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
         return NULL;
     }
 
-    if (wolfSSL_BIO_read(bio, pkcs7->data, pkcs7->len) != pkcs7->len) {
+    if ((ret = wolfSSL_BIO_read(bio, pkcs7->data, pkcs7->len)) <= 0) {
         wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }
+    /* pkcs7->len may change if using b64 for example */
+    pkcs7->len = ret;
 
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len) != 0) {
         return NULL;
