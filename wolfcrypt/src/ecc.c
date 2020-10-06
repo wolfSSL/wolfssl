@@ -5654,6 +5654,44 @@ int wc_ecc_free(ecc_key* key)
     return 0;
 }
 
+#ifndef WOLFSSL_SP_MATH
+/* Handles add failure cases:
+ *
+ * Case 1: A and B are the same point (maybe different z)
+ *         (Result was: x == y == z == 0)
+ *         Need to double instead.
+ *
+ * Case 2: A + B = <infinity> = 0.
+ *         (Result was: z == 0, x and/or y not 0)
+ *         Need to set point to infinity.
+ */
+int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
+    mp_int* a, mp_int* modulus, mp_digit mp, int* infinity)
+{
+    int err;
+
+    err = ecc_projective_add_point(A, B, R, a, modulus, mp);
+    if ((err == MP_OKAY) && mp_iszero(R->z)) {
+        /* When all zero then should have done an add */
+        if (mp_iszero(R->x) && mp_iszero(R->y)) {
+            err = ecc_projective_dbl_point(B, R, a, modulus, mp);
+        }
+        /* When only Z zero then result is infinity */
+        else {
+            err = mp_set(R->x, 0);
+            if (err == MP_OKAY)
+                err = mp_set(R->y, 0);
+            if (err == MP_OKAY)
+                err = mp_set(R->z, 1);
+            if ((err == MP_OKAY) && (infinity != NULL))
+                *infinity = 1;
+        }
+    }
+
+    return err;
+}
+#endif
+
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(WOLFSSL_CRYPTOCELL)
 #ifdef ECC_SHAMIR
@@ -5836,28 +5874,33 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   #endif
   }
 
-  if (err == MP_OKAY)
+  if (err == MP_OKAY) {
     /* precomp [i,0](A + B) table */
     err = ecc_projective_dbl_point(precomp[1], precomp[2], a, modulus, mp);
+  }
+  if (err == MP_OKAY) {
+    err = ecc_projective_add_point_safe(precomp[1], precomp[2], precomp[3],
+                                                          a, modulus, mp, NULL);
+  }
 
-  if (err == MP_OKAY)
-    err = ecc_projective_add_point(precomp[1], precomp[2], precomp[3],
-                                   a, modulus, mp);
-  if (err == MP_OKAY)
+  if (err == MP_OKAY) {
     /* precomp [0,i](A + B) table */
-    err = ecc_projective_dbl_point(precomp[1<<2], precomp[2<<2], a, modulus, mp);
-
-  if (err == MP_OKAY)
-    err = ecc_projective_add_point(precomp[1<<2], precomp[2<<2], precomp[3<<2],
-                                   a, modulus, mp);
+    err = ecc_projective_dbl_point(precomp[1<<2], precomp[2<<2], a, modulus,
+                                                                            mp);
+  }
+  if (err == MP_OKAY) {
+    err = ecc_projective_add_point_safe(precomp[1<<2], precomp[2<<2],
+                                           precomp[3<<2], a, modulus, mp, NULL);
+  }
 
   if (err == MP_OKAY) {
     /* precomp [i,j](A + B) table (i != 0, j != 0) */
     for (x = 1; x < 4; x++) {
       for (y = 1; y < 4; y++) {
         if (err == MP_OKAY) {
-          err = ecc_projective_add_point(precomp[x], precomp[(y<<2)],
-                                             precomp[x+(y<<2)], a, modulus, mp);
+          err = ecc_projective_add_point_safe(precomp[x], precomp[(y<<2)],
+                                                  precomp[x+(y<<2)], a, modulus,
+                                                  mp, NULL);
         }
       }
     }
@@ -5920,32 +5963,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
             } else {
                 /* if not first, add from table */
                 if (err == MP_OKAY)
-                    err = ecc_projective_add_point(C, precomp[nA + (nB<<2)], C,
-                                                   a, modulus, mp);
+                    err = ecc_projective_add_point_safe(C,
+                                                        precomp[nA + (nB<<2)],
+                                                        C, a, modulus, mp,
+                                                        &first);
                 if (err != MP_OKAY)
                     break;
-                if (mp_iszero(C->z)) {
-                    /* When all zero then should have done an add */
-                    if (mp_iszero(C->x) && mp_iszero(C->y)) {
-                        err = ecc_projective_dbl_point(precomp[nA + (nB<<2)], C,
-                                                       a, modulus, mp);
-                        if (err != MP_OKAY)
-                            break;
-                    }
-                    /* When only Z zero then result is infinity */
-                    else {
-                        err = mp_set(C->x, 0);
-                        if (err != MP_OKAY)
-                            break;
-                        err = mp_set(C->y, 0);
-                        if (err != MP_OKAY)
-                            break;
-                        err = mp_set(C->z, 1);
-                        if (err != MP_OKAY)
-                            break;
-                        first = 1;
-                    }
-                }
             }
         }
     }
@@ -6542,23 +6565,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
             /* add them */
             if (err == MP_OKAY)
-                err = ecc_projective_add_point(mQ, mG, mG, curve->Af,
-                                                              curve->prime, mp);
-            if (err == MP_OKAY && mp_iszero(mG->z)) {
-                /* When all zero then should have done an add */
-                if (mp_iszero(mG->x) && mp_iszero(mG->y)) {
-                    err = ecc_projective_dbl_point(mQ, mG, curve->Af,
-                                                              curve->prime, mp);
-                }
-                /* When only Z zero then result is infinity */
-                else {
-                    err = mp_set(mG->x, 0);
-                    if (err == MP_OKAY)
-                        err = mp_set(mG->y, 0);
-                    if (err == MP_OKAY)
-                        err = mp_set(mG->z, 1);
-                }
-            }
+                err = ecc_projective_add_point_safe(mQ, mG, mG, curve->Af,
+                                                        curve->prime, mp, NULL);
         }
         else {
             /* compute 0*mG + u2*mQ = mG */
@@ -9264,7 +9272,8 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
    unsigned char kb[KB_SIZE];
 #endif
    int      x, err;
-   unsigned y, z = 0, bitlen, bitpos, lut_gap, first;
+   unsigned y, z = 0, bitlen, bitpos, lut_gap;
+   int first;
    mp_int   tk, order;
 
    if (mp_init_multi(&tk, &order, NULL, NULL, NULL, NULL) != MP_OKAY)
@@ -9359,34 +9368,9 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
           /* add if not first, otherwise copy */
           if (!first && z) {
-             if ((err = ecc_projective_add_point(R, fp_cache[idx].LUT[z], R, a,
-                                                     modulus, mp)) != MP_OKAY) {
+             if ((err = ecc_projective_add_point_safe(R, fp_cache[idx].LUT[z],
+                                       R, a, modulus, mp, &first)) != MP_OKAY) {
                 break;
-             }
-             if (mp_iszero(R->z)) {
-                 /* When all zero then should have done an add */
-                 if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                     if ((err = ecc_projective_dbl_point(fp_cache[idx].LUT[z],
-                                               R, a, modulus, mp)) != MP_OKAY) {
-                         break;
-                     }
-                 }
-                 /* When only Z zero then result is infinity */
-                 else {
-                    err = mp_set(R->x, 0);
-                    if (err != MP_OKAY) {
-                       break;
-                    }
-                    err = mp_set(R->y, 0);
-                    if (err != MP_OKAY) {
-                       break;
-                    }
-                    err = mp_copy(&fp_cache[idx].mu, R->z);
-                    if (err != MP_OKAY) {
-                       break;
-                    }
-                    first = 1;
-                 }
              }
           } else if (z) {
              if ((mp_copy(fp_cache[idx].LUT[z]->x, R->x) != MP_OKAY) ||
@@ -9443,7 +9427,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
    unsigned char kb[2][KB_SIZE];
 #endif
    int      x, err;
-   unsigned y, z, bitlen, bitpos, lut_gap, first, zA, zB;
+   unsigned y, z, bitlen, bitpos, lut_gap, zA, zB;
+   int first;
    mp_int tka, tkb, order;
 
    if (mp_init_multi(&tka, &tkb, &order, NULL, NULL, NULL) != MP_OKAY)
@@ -9595,68 +9580,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
              /* add if not first, otherwise copy */
              if (zA) {
-                if ((err = ecc_projective_add_point(R, fp_cache[idx1].LUT[zA],
-                                               R, a, modulus, mp)) != MP_OKAY) {
+                if ((err = ecc_projective_add_point_safe(R,
+                                             fp_cache[idx1].LUT[zA], R, a,
+                                             modulus, mp, &first)) != MP_OKAY) {
                    break;
-                }
-                if (mp_iszero(R->z)) {
-                    /* When all zero then should have done an add */
-                    if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                        if ((err = ecc_projective_dbl_point(
-                                                  fp_cache[idx1].LUT[zA], R,
-                                                  a, modulus, mp)) != MP_OKAY) {
-                            break;
-                        }
-                    }
-                    /* When only Z zero then result is infinity */
-                    else {
-                       err = mp_set(R->x, 0);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       err = mp_set(R->y, 0);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       err = mp_copy(&fp_cache[idx1].mu, R->z);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       first = 1;
-                    }
                 }
              }
 
              if (zB) {
-                if ((err = ecc_projective_add_point(R, fp_cache[idx2].LUT[zB],
-                                               R, a, modulus, mp)) != MP_OKAY) {
+                if ((err = ecc_projective_add_point_safe(R,
+                                             fp_cache[idx2].LUT[zB], R, a,
+                                             modulus, mp, &first)) != MP_OKAY) {
                    break;
-                }
-                if (mp_iszero(R->z)) {
-                    /* When all zero then should have done an add */
-                    if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                        if ((err = ecc_projective_dbl_point(
-                                                  fp_cache[idx2].LUT[zB], R,
-                                                  a, modulus, mp)) != MP_OKAY) {
-                            break;
-                        }
-                    }
-                    /* When only Z zero then result is infinity */
-                    else {
-                       err = mp_set(R->x, 0);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       err = mp_set(R->y, 0);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       err = mp_copy(&fp_cache[idx2].mu, R->z);
-                       if (err != MP_OKAY) {
-                          break;
-                       }
-                       first = 1;
-                    }
                 }
              }
           } else {
@@ -9671,35 +9606,10 @@ static int accel_fp_mul2add(int idx1, int idx2,
              }
              if (zB && first == 0) {
                 if (zB) {
-                   if ((err = ecc_projective_add_point(R,
-                        fp_cache[idx2].LUT[zB], R, a, modulus, mp)) != MP_OKAY){
+                   if ((err = ecc_projective_add_point_safe(R,
+                                              fp_cache[idx2].LUT[zB], R, a,
+                                              modulus, mp, &first)) != MP_OKAY){
                       break;
-                   }
-                   if (mp_iszero(R->z)) {
-                       /* When all zero then should have done an add */
-                       if (mp_iszero(R->x) && mp_iszero(R->y)) {
-                           if ((err = ecc_projective_dbl_point(
-                                                  fp_cache[idx2].LUT[zB], R,
-                                                  a, modulus, mp)) != MP_OKAY) {
-                               break;
-                           }
-                       }
-                       /* When only Z zero then result is infinity */
-                       else {
-                          err = mp_set(R->x, 0);
-                          if (err != MP_OKAY) {
-                             break;
-                          }
-                          err = mp_set(R->y, 0);
-                          if (err != MP_OKAY) {
-                             break;
-                          }
-                          err = mp_copy(&fp_cache[idx2].mu, R->z);
-                          if (err != MP_OKAY) {
-                             break;
-                          }
-                          first = 1;
-                       }
                    }
                 }
              } else if (zB && first == 1) {

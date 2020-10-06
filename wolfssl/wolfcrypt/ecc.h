@@ -471,6 +471,10 @@ ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
                                      mp_int* modulus, mp_digit mp);
 
+WOLFSSL_LOCAL
+int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
+    mp_int* a, mp_int* modulus, mp_digit mp, int* infinity);
+
 #endif
 
 WOLFSSL_API
