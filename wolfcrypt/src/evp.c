@@ -3122,75 +3122,6 @@ void wolfSSL_EVP_init(void)
 }
 
 #if !defined(NO_PWDBASED)
-int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
-    int* pHash, int* pHashSz)
-{
-    enum wc_HashType hash = WC_HASH_TYPE_NONE;
-    int hashSz;
-
-    if (XSTRLEN(evp) < 3) {
-        /* do not try comparing strings if size is too small */
-        return WOLFSSL_FAILURE;
-    }
-
-    if (XSTRNCMP("SHA", evp, 3) == 0) {
-        if (XSTRLEN(evp) > 3) {
-        #ifndef NO_SHA256
-            if (XSTRNCMP("SHA256", evp, 6) == 0) {
-                hash = WC_HASH_TYPE_SHA256;
-            }
-            else
-        #endif
-        #ifdef WOLFSSL_SHA384
-            if (XSTRNCMP("SHA384", evp, 6) == 0) {
-                hash = WC_HASH_TYPE_SHA384;
-            }
-            else
-        #endif
-        #ifdef WOLFSSL_SHA512
-            if (XSTRNCMP("SHA512", evp, 6) == 0) {
-                hash = WC_HASH_TYPE_SHA512;
-            }
-            else
-        #endif
-            {
-                WOLFSSL_MSG("Unknown SHA hash");
-            }
-        }
-        else {
-            hash = WC_HASH_TYPE_SHA;
-        }
-    }
-#ifdef WOLFSSL_MD2
-    else if (XSTRNCMP("MD2", evp, 3) == 0) {
-        hash = WC_HASH_TYPE_MD2;
-    }
-#endif
-#ifndef NO_MD4
-    else if (XSTRNCMP("MD4", evp, 3) == 0) {
-        hash = WC_HASH_TYPE_MD4;
-    }
-#endif
-#ifndef NO_MD5
-    else if (XSTRNCMP("MD5", evp, 3) == 0) {
-        hash = WC_HASH_TYPE_MD5;
-    }
-#endif
-
-    if (pHash)
-        *pHash = hash;
-
-    hashSz = wc_HashGetDigestSize(hash);
-    if (pHashSz)
-        *pHashSz = hashSz;
-
-    if (hashSz < 0) {
-        return WOLFSSL_FAILURE;
-    }
-
-    return WOLFSSL_SUCCESS;
-}
-
 /* this function makes the assumption that out buffer is big enough for digest*/
 int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
                               unsigned int* outSz, const WOLFSSL_EVP_MD* evp,
@@ -6606,7 +6537,7 @@ int wolfSSL_EVP_PKEY_assign_DH(EVP_PKEY* pkey, WOLFSSL_DH* key)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Subset of OPENSSL_EXTRA for PKEY operations PKEY free is needed by the
  * subset of X509 API */
 
@@ -6719,6 +6650,77 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
     }
 }
 
-#endif /* OPENSSL_EXTRA_X509_SMALL */
+#if !defined(NO_PWDBASED)
+int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
+    int* pHash, int* pHashSz)
+{
+    enum wc_HashType hash = WC_HASH_TYPE_NONE;
+    int hashSz;
+
+    if (XSTRLEN(evp) < 3) {
+        /* do not try comparing strings if size is too small */
+        return WOLFSSL_FAILURE;
+    }
+
+    if (XSTRNCMP("SHA", evp, 3) == 0) {
+        if (XSTRLEN(evp) > 3) {
+        #ifndef NO_SHA256
+            if (XSTRNCMP("SHA256", evp, 6) == 0) {
+                hash = WC_HASH_TYPE_SHA256;
+            }
+            else
+        #endif
+        #ifdef WOLFSSL_SHA384
+            if (XSTRNCMP("SHA384", evp, 6) == 0) {
+                hash = WC_HASH_TYPE_SHA384;
+            }
+            else
+        #endif
+        #ifdef WOLFSSL_SHA512
+            if (XSTRNCMP("SHA512", evp, 6) == 0) {
+                hash = WC_HASH_TYPE_SHA512;
+            }
+            else
+        #endif
+            {
+                WOLFSSL_MSG("Unknown SHA hash");
+            }
+        }
+        else {
+            hash = WC_HASH_TYPE_SHA;
+        }
+    }
+#ifdef WOLFSSL_MD2
+    else if (XSTRNCMP("MD2", evp, 3) == 0) {
+        hash = WC_HASH_TYPE_MD2;
+    }
+#endif
+#ifndef NO_MD4
+    else if (XSTRNCMP("MD4", evp, 3) == 0) {
+        hash = WC_HASH_TYPE_MD4;
+    }
+#endif
+#ifndef NO_MD5
+    else if (XSTRNCMP("MD5", evp, 3) == 0) {
+        hash = WC_HASH_TYPE_MD5;
+    }
+#endif
+
+    if (pHash)
+        *pHash = hash;
+
+    hashSz = wc_HashGetDigestSize(hash);
+    if (pHashSz)
+        *pHashSz = hashSz;
+
+    if (hashSz < 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !defined(NO_PWDBASED) */
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #endif /* WOLFSSL_EVP_INCLUDED */
