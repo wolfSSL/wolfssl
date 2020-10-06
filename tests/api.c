@@ -25924,6 +25924,38 @@ static void test_wolfSSL_certs(void)
 #endif /* OPENSSL_EXTRA && !NO_CERTS */
 }
 
+static void test_wolfSSL_X509_check_private_key(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+        defined(USE_CERT_BUFFERS_2048)
+    X509*  x509;
+    EVP_PKEY* pkey;
+    const byte* key;
+
+    printf(testingFmt, "wolfSSL_X509_check_private_key()");
+
+    /* Check with correct key */
+    AssertNotNull((x509 = X509_load_certificate_file(cliCertFile,
+                                                     SSL_FILETYPE_PEM)));
+    key = client_key_der_2048;
+    AssertNotNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+                &key, (long)sizeof_client_key_der_2048));
+    AssertIntEQ(X509_check_private_key(x509, pkey), 1);
+    EVP_PKEY_free(pkey);
+
+    /* Check with wrong key */
+    key = server_key_der_2048;
+    AssertNotNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+                &key, (long)sizeof_server_key_der_2048));
+    AssertIntEQ(X509_check_private_key(x509, pkey), 0);
+    EVP_PKEY_free(pkey);
+
+
+    X509_free(x509);
+    printf(resultFmt, passed);
+#endif
+}
+
 
 static void test_wolfSSL_ASN1_TIME_print(void)
 {
@@ -39558,6 +39590,7 @@ void ApiTest(void)
     test_wolfSSL_X509_check_host();
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+    test_wolfSSL_X509_check_private_key();
     test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_ASN1_UTCTIME_print();
     test_wolfSSL_ASN1_GENERALIZEDTIME_free();

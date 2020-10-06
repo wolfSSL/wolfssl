@@ -42326,7 +42326,7 @@ err:
 
         /* If s is numerical value, try to sum oid */
         ret = EncodePolicyOID(out, &outSz, s, NULL);
-        if (ret == 0) {
+        if (ret == 0 && outSz > 0) {
             /* If numerical encode succeeded then just
              * create object from that because sums are
              * not unique and can cause confusion. */
@@ -42448,15 +42448,49 @@ err:
 
 #ifdef OPENSSL_EXTRA
 
-#ifndef NO_WOLFSSL_STUB
     int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key)
     {
-        (void) x509;
-        (void) key;
-        WOLFSSL_ENTER("wolfSSL_X509_check_private_key");
-        WOLFSSL_STUB("X509_check_private_key");
+        DecodedCert dc;
+        byte* der;
+        int derSz;
+        int ret;
 
-        return WOLFSSL_SUCCESS;
+        WOLFSSL_ENTER("wolfSSL_X509_check_private_key");
+
+        if (!x509 || !key) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+
+        der = (byte*)wolfSSL_X509_get_der(x509, &derSz);
+        if (der == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509_get_der error");
+            return WOLFSSL_FAILURE;
+        }
+
+        InitDecodedCert(&dc, der, derSz, x509->heap);
+
+        if (ParseCertRelative(&dc, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+            FreeDecodedCert(&dc);
+            return WOLFSSL_FAILURE;
+        }
+
+        der = (byte*)key->pkey.ptr;
+        derSz = key->pkey_sz;
+        ret = wc_CheckPrivateKey(der, derSz, &dc);
+        FreeDecodedCert(&dc);
+        return ret == 1 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    }
+
+#ifndef NO_WOLFSSL_STUB
+    WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list(
+        WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
+    {
+        (void) sk;
+        WOLFSSL_ENTER("wolfSSL_dup_CA_list");
+        WOLFSSL_STUB("SSL_dup_CA_list");
+
+        return NULL;
     }
 #endif
 
