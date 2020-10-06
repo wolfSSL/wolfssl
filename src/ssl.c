@@ -44134,6 +44134,24 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
 #endif /* OCSP */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX  || WOLFSSL_HAPROXY */
 
+#ifdef HAVE_OCSP
+int wolfSSL_get_ocsp_producedDate(WOLFSSL *ssl, struct tm *producedTime) {
+    int idx = 0;
+
+    if ((producedTime == NULL) || (ssl->ocspProducedDate == NULL))
+        return BAD_FUNC_ARG;
+    if ((ssl->ocspProducedDateFormat != ASN_UTC_TIME) &&
+        (ssl->ocspProducedDateFormat != ASN_GENERALIZED_TIME))
+        return BAD_FUNC_ARG;
+
+    if (ExtractDate(ssl->ocspProducedDate, ssl->ocspProducedDateFormat, producedTime, &idx))
+        return 0;
+    else
+        return ASN_PARSE_E;
+}
+#endif
+
+
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)

@@ -3007,6 +3007,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     showPeerEx(ssl, lng_index);
 
+#ifdef HAVE_OCSP
+    {
+        struct tm tm;
+        char date[32];
+        ret = wolfSSL_get_ocsp_producedDate(ssl, &tm);
+        if ((ret == 0) && (strftime(date, sizeof date, "%Y-%m-%d %H:%M:%S %z",&tm) > 0))
+            printf("OCSP response timestamp: %s\n",date);
+    }
+#endif
+
 #ifdef OPENSSL_EXTRA
     printf("Session timeout set to %ld seconds\n", wolfSSL_get_timeout(ssl));
     {
