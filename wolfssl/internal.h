@@ -4172,6 +4172,8 @@ struct WOLFSSL {
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef HAVE_OCSP
         void*       ocspIOCtx;
+        byte ocspProducedDate[MAX_DATE_SZ];
+        int ocspProducedDateFormat;
     #ifdef OPENSSL_EXTRA
         byte*       ocspResp;
         int         ocspRespSz;
