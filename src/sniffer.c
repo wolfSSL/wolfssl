@@ -2769,11 +2769,13 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                 /* indicates we want to use resumption */
                 session->sslServer->options.resuming = 1;
                 session->sslClient->options.resuming = 1;
+            #ifdef WOLFSSL_TLS13
                 /* default nonce to len = 1, data = 0 */
                 session->sslServer->session.ticketNonce.len = 1;
                 session->sslServer->session.ticketNonce.data[0] = 0;
                 session->sslClient->session.ticketNonce.len = 1;
                 session->sslClient->session.ticketNonce.data[0] = 0;
+            #endif
                 break;
         #endif
         #ifdef HAVE_MAX_FRAGMENT
