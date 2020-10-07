@@ -538,7 +538,9 @@ enum Extensions_Sum {
     POLICY_CONST_OID          = 150,
     ISSUE_ALT_NAMES_OID       = 132,
     TLS_FEATURE_OID           = 92,  /* id-pe 24 */
-    NETSCAPE_CT_OID           = 753  /* 2.16.840.1.113730.1.1 */
+    NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
+    OCSP_NOCHECK_OID          = 121  /* 1.3.6.1.5.5.7.48.1.5
+                                         id-pkix-ocsp-nocheck */
 };
 
 enum CertificatePolicy_Sum {
@@ -909,6 +911,9 @@ struct DecodedCert {
     byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
     byte extKeyUsageSet : 1;
     byte extExtKeyUsageSet : 1;    /* Extended Key Usage set */
+#ifdef HAVE_OCSP
+    byte ocspNoCheckSet : 1;       /* id-pkix-ocsp-nocheck set */
+#endif
     byte extCRLdistSet : 1;
     byte extAuthInfoSet : 1;
     byte extBasicConstSet : 1;
