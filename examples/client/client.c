@@ -3011,7 +3011,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     {
         struct tm tm;
         char date[32];
-        ret = wolfSSL_get_ocsp_producedDate(ssl, &tm);
+        ret = wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
         if ((ret == 0) && (strftime(date, sizeof date, "%Y-%m-%d %H:%M:%S %z",&tm) > 0))
             printf("OCSP response timestamp: %s\n",date);
     }

@@ -3735,6 +3735,16 @@ WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #endif
 
+#ifdef HAVE_OCSP
+    WOLFSSL_API int wolfSSL_get_ocsp_producedDate(
+        WOLFSSL *ssl,
+        byte *producedDate,
+        size_t producedDate_space,
+        int *producedDateFormat);
+    WOLFSSL_API int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl,
+        struct tm *produced_tm);
+#endif
+
 #if defined(OPENSSL_ALL) \
     || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) \
@@ -3789,10 +3799,6 @@ WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp,
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *, int (*)(
     WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
     WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc));
-#endif
-
-#ifdef HAVE_OCSP
-    WOLFSSL_API int wolfSSL_get_ocsp_producedDate(WOLFSSL *ssl, struct tm *producedTime);
 #endif
 
 #if defined(HAVE_OCSP) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
