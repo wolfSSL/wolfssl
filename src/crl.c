@@ -703,6 +703,11 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             return WOLFSSL_FAILURE;
         }
         store->crl = store->cm->crl = crl;
+        if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
+                != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_CertManagerEnableCRL error");
+            return WOLFSSL_FAILURE;
+        }
         return WOLFSSL_SUCCESS;
     }
 
@@ -728,6 +733,12 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
             tail->next = toAdd;
         }
         wc_UnLockMutex(&crl->crlLock);
+    }
+
+    if (wolfSSL_CertManagerEnableCRL(store->cm, WOLFSSL_CRL_CHECKALL)
+            != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_CertManagerEnableCRL error");
+        return WOLFSSL_FAILURE;
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_STORE_add_crl", WOLFSSL_SUCCESS);
