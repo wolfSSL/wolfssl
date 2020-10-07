@@ -16230,6 +16230,41 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
             return BAD_FUNC_ARG;
     }
 
+    switch (version) {
+#ifdef WOLFSSL_TLS13
+    case TLS1_3_VERSION:
+        wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_2);
+        FALL_THROUGH;
+#else
+        WOLFSSL_MSG("wolfSSL TLS1.3 support not compiled in");
+        return WOLFSSL_FAILURE;
+#endif
+    case TLS1_2_VERSION:
+        wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_1);
+        FALL_THROUGH;
+    case TLS1_1_VERSION:
+        wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1);
+        FALL_THROUGH;
+    case TLS1_VERSION:
+        wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_SSLv3);
+        FALL_THROUGH;
+    case SSL3_VERSION:
+        FALL_THROUGH;
+    case SSL2_VERSION:
+        /* Nothing to do here */
+        break;
+#ifdef WOLFSSL_DTLS
+#ifndef NO_OLD_TLS
+    case DTLS1_VERSION:
+#endif
+    case DTLS1_2_VERSION:
+        break;
+#endif
+    default:
+        WOLFSSL_MSG("Unrecognized protocol version");
+        return WOLFSSL_FAILURE;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -16237,7 +16272,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
 
-    if (!ctx) {
+    if (!ctx || !ctx->method) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
@@ -16263,6 +16298,13 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         /* Nothing to do here */
 #endif
         break;
+#ifdef WOLFSSL_DTLS
+#ifndef NO_OLD_TLS
+    case DTLS1_VERSION:
+#endif
+    case DTLS1_2_VERSION:
+        break;
+#endif
     default:
         WOLFSSL_MSG("Unrecognized protocol version");
         return WOLFSSL_FAILURE;

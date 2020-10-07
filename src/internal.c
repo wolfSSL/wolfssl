@@ -5266,6 +5266,44 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    ssl->options.mask = ctx->mask;
+#endif
+#ifdef OPENSSL_EXTRA
+    if (ssl->version.minor == TLSv1_3_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.3, Downgrading");
+        ssl->version.minor = TLSv1_2_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_2_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+        ssl->version.minor = TLSv1_1_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_1_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+        ssl->options.tls1_1 = 0;
+        ssl->version.minor = TLSv1_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_MINOR &&
+        (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+        ssl->options.tls    = 0;
+        ssl->options.tls1_1 = 0;
+        ssl->version.minor = SSLv3_MINOR;
+    }
+    if (ssl->version.minor == SSLv3_MINOR &&
+        (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+        WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+        return VERSION_ERROR;
+    }
+
+    if (ssl->version.minor < ssl->options.minDowngrade) {
+        WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+        return VERSION_ERROR;
+    }
+#endif
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
@@ -5273,10 +5311,6 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     ssl->pkCurveOID = ctx->pkCurveOID;
-#endif
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-    ssl->options.mask = ctx->mask;
 #endif
 #ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
