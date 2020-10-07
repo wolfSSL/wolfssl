@@ -5296,13 +5296,13 @@ static int fp_read_radix_16(fp_int *a, const char *str)
       else
           return FP_VAL;
 
+      k += j == DIGIT_BIT;
+      j &= DIGIT_BIT - 1;
       if (k >= FP_SIZE)
           return FP_VAL;
 
       a->dp[k] |= ((fp_digit)ch) << j;
       j += 4;
-      k += j == DIGIT_BIT;
-      j &= DIGIT_BIT - 1;
   }
 
   a->used = k + 1;
