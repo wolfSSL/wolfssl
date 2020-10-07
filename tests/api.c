@@ -13785,7 +13785,7 @@ static int test_wc_CheckProbablePrime (void)
     WC_RNG              rng;
     byte                e[3];
     word32              eSz = (word32)sizeof(e);
-    byte                n[CHECK_PROBABLE_PRIME_KEY_BITS / 8]; /* size of RSA_TEST_BYTES */
+    byte                n[CHECK_PROBABLE_PRIME_KEY_BITS / 8];
     word32              nSz = (word32)sizeof(n);
     byte                d[CHECK_PROBABLE_PRIME_KEY_BITS / 8];
     word32              dSz = (word32)sizeof(d);

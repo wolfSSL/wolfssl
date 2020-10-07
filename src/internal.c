@@ -27689,7 +27689,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_LEAVE("DoClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
-      out:
+    out:
 
 #ifdef WOLFSSL_DTLS
         wc_HmacFree(&cookieHmac);
