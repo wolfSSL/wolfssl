@@ -43,8 +43,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#define MAX_EC_PARAM_LEN   16
-
 #if defined(NO_PKCS11_RSA) && !defined(NO_RSA)
     #define NO_RSA
 #endif
@@ -68,43 +66,58 @@
 #endif
 
 
+/* Maximim lenght of the EC parameter string. */
+#define MAX_EC_PARAM_LEN   16
+
+
 #if defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH)
+/* Pointer to false required for templates. */
 static CK_BBOOL ckFalse = CK_FALSE;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
+/* Pointer to true required for templates. */
 static CK_BBOOL ckTrue  = CK_TRUE;
 #endif
 
 #ifndef NO_RSA
+/* Pointer to RSA key type required for templates. */
 static CK_KEY_TYPE rsaKeyType  = CKK_RSA;
 #endif
 #ifdef HAVE_ECC
+/* Pointer to EC key type required for templates. */
 static CK_KEY_TYPE ecKeyType   = CKK_EC;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC)
+/* Pointer to public key class required for templates. */
 static CK_OBJECT_CLASS pubKeyClass     = CKO_PUBLIC_KEY;
+/* Pointer to private key class required for templates. */
 static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 #endif
 #if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
             !defined(NO_HMAC) || (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH))
+/* Pointer to secret key class required for templates. */
 static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #endif
 
 #ifdef WOLFSSL_DEBUG_PKCS11
+/* Formats of template items - used to instruct how to log information. */
 enum PKCS11_TYPE_FORMATS {
     PKCS11_FMT_BOOLEAN,
     PKCS11_FMT_CLASS,
     PKCS11_FMT_KEY_TYPE,
     PKCS11_FMT_STRING,
     PKCS11_FMT_NUMBER,
-    PKCS11_FMT_ATTRIBUTES,
     PKCS11_FMT_DATA,
     PKCS11_FMT_POINTER
 };
+/* Information for logging a template item. */
 static struct PKCS11_TYPE_STR {
+    /** Attribute type in template. */
     CK_ATTRIBUTE_TYPE type;
+    /** String to log corresponding to attribute type. */
     const char* str;
+    /** Format of data associated with template item. */
     int format;
 } typeStr[] = {
     { CKA_CLASS,            "CKA_CLASS",              PKCS11_FMT_CLASS      },
@@ -134,8 +147,17 @@ static struct PKCS11_TYPE_STR {
     { CKA_EC_PARAMS,        "CKA_EC_PARAMS",          PKCS11_FMT_DATA       },
     { CKA_EC_POINT,         "CKA_EC_POINT",           PKCS11_FMT_DATA       },
 };
+/* Count of known attribute types for logging. */
 #define PKCS11_TYPE_STR_CNT  ((int)(sizeof(typeStr) / sizeof(*typeStr)))
 
+/*
+ * Dump/log the PKCS #11 template.
+ *
+ * This is only for debugging purposes. Only the values needed are recognised.
+ *
+ * @param  [in]  templ  PKCS #11 template to dump.
+ * @param  [in]  cnt    Count of template entries.
+ */
 static void pkcs11_dump_template(CK_ATTRIBUTE* templ, int cnt)
 {
     int i;
@@ -305,7 +327,6 @@ static void pkcs11_dump_template(CK_ATTRIBUTE* templ, int cnt)
                 WOLFSSL_MSG(line);
             }
             break;
-        case PKCS11_FMT_ATTRIBUTES:
         case PKCS11_FMT_POINTER:
             XSNPRINTF(line, sizeof(line), "%25s: %p %ld", type, templ[i].pValue,
                       templ[i].ulValueLen);
@@ -315,6 +336,14 @@ static void pkcs11_dump_template(CK_ATTRIBUTE* templ, int cnt)
     }
 }
 
+/*
+ * Log a PKCS #11 return value with the name of function called.
+ *
+ * This is only for debugging purposes. Only the values needed are recognised.
+ *
+ * @param  [in]  op  PKCS #11 operation that was attempted.
+ * @param  [in]  rv  PKCS #11 return value.
+ */
 static void pkcs11_rv(const char* op, CK_RV rv)
 {
     char line[80];
@@ -339,13 +368,13 @@ static void pkcs11_rv(const char* op, CK_RV rv)
 /**
  * Load library, get function list and initialize PKCS#11.
  *
- * @param  dev     [in]  Device object.
- * @param  library [in]  Library name including path.
+ * @param  [in]  dev      Device object.
+ * @param  [in]  library  Library name including path.
  * @return  BAD_FUNC_ARG when dev or library are NULL pointers.
- *          BAD_PATH_ERROR when dynamic library cannot be opened.
- *          WC_INIT_E when the initialization PKCS#11 fails.
- *          WC_HW_E when unable to get PKCS#11 function list.
- *          0 on success.
+ * @return  BAD_PATH_ERROR when dynamic library cannot be opened.
+ * @return  WC_INIT_E when the initialization PKCS#11 fails.
+ * @return  WC_HW_E when unable to get PKCS#11 function list.
+ * @return  0 on success.
  */
 int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
@@ -392,7 +421,7 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 /**
  * Close the Pkcs#11 library.
  *
- * @param  dev  [in]  Device object.
+ * @param  [in]  dev  Device object.
  */
 void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 {
@@ -409,17 +438,17 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 /**
  * Set up a token for use.
  *
- * @param  token      [in]  Token object.
- * @param  dev        [in]  PKCS#11 device object.
- * @param  slotId     [in]  Slot number of the token.<br>
+ * @param  [in]  token      Token object.
+ * @param  [in]  dev        PKCS#11 device object.
+ * @param  [in]  slotId     Slot number of the token.<br>
  *                          Passing -1 uses the first available slot.
- * @param  tokenName  [in]  Name of token to initialize.
- * @param  userPin    [in]  PIN to use to login as user.
- * @param  userPinSz  [in]  Number of bytes in PIN.
+ * @param  [in]  tokenName  Name of token to initialize.
+ * @param  [in]  userPin    PIN to use to login as user.
+ * @param  [in]  userPinSz  Number of bytes in PIN.
  * @return  BAD_FUNC_ARG when token, dev and/or tokenName is NULL.
- *          WC_INIT_E when initializing token fails.
- *          WC_HW_E when another PKCS#11 library call fails.
- *          -1 when no slot available.
+ * @return  WC_INIT_E when initializing token fails.
+ * @return  WC_HW_E when another PKCS#11 library call fails.
+ * @return  -1 when no slot available.
  *          0 on success.
  */
 int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
@@ -484,7 +513,7 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
  * Finalize token.
  * Closes all sessions on token.
  *
- * @param  token  [in]  Token object.
+ * @param  [in]  token  Token object.
  */
 void wc_Pkcs11Token_Final(Pkcs11Token* token)
 {
@@ -498,12 +527,12 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
 /**
  * Open a session on a token.
  *
- * @param  token      [in]  Token object.
- * @param  session    [in]  Session object.
- * @param  readWrite  [in]  Boolean indicating to open session for Read/Write.
+ * @param  [in]  token      Token object.
+ * @param  [in]  session    Session object.
+ * @param  [in]  readWrite  Boolean indicating to open session for Read/Write.
  * @return  BAD_FUNC_ARG when token or session is NULL.
- *          WC_HW_E when opening the session fails.
- *          0 on success.
+ * @return  WC_HW_E when opening the session fails.
+ * @return  0 on success.
  */
 static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
                              int readWrite)
@@ -557,8 +586,8 @@ static int Pkcs11OpenSession(Pkcs11Token* token, Pkcs11Session* session,
  * Close a session on a token.
  * Won't close a session created externally.
  *
- * @param  token    [in]  Token object.
- * @param  session  [in]  Session object.
+ * @param  [in]  token    Token object.
+ * @param  [in]  session  Session object.
  */
 static void Pkcs11CloseSession(Pkcs11Token* token, Pkcs11Session* session)
 {
@@ -572,11 +601,11 @@ static void Pkcs11CloseSession(Pkcs11Token* token, Pkcs11Session* session)
 /**
  * Open a session on the token to be used for all operations.
  *
- * @param  token      [in]  Token object.
- * @param  readWrite  [in]  Boolean indicating to open session for Read/Write.
+ * @param  [in]  token      Token object.
+ * @param  [in]  readWrite  Boolean indicating to open session for Read/Write.
  * @return  BAD_FUNC_ARG when token is NULL.
- *          WC_HW_E when opening the session fails.
- *          0 on success.
+ * @return  WC_HW_E when opening the session fails.
+ * @return  0 on success.
  */
 int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite)
 {
@@ -598,7 +627,7 @@ int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite)
  * Close the token's session.
  * All object, like keys, will be destroyed.
  *
- * @param  token    [in]  Token object.
+ * @param  [in]  token  Token object.
  */
 void wc_Pkcs11Token_Close(Pkcs11Token* token)
 {
@@ -615,6 +644,19 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token)
 
 #if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
                                                                !defined(NO_HMAC)
+/*
+ * Create a secret key.
+ *
+ * @param  [out]  key      Handle to key object.
+ * @param  [in]   session  Session object.
+ * @param  [in]   keyType  Type of secret key to create.
+ * @param  [in]   data     Data of the secret key.
+ * @param  [in]   len      Length of data in bytes.
+ * @param  [in]   id       Identifier to set against key.
+ * @param  [in]   idLen    Length of identifier.
+ * @return   WC_HW_E when another PKCS#11 library call fails.
+ * @return   0 on success.
+ */
 static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
                                  CK_KEY_TYPE keyType, unsigned char* data,
                                  int len, unsigned char* id, int idLen)
@@ -661,11 +703,11 @@ static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
 /**
  * Create a PKCS#11 object containing the RSA private key data.
  *
- * @param  privateKey [out]  Henadle to private key object.
- * @param  session    [in]   Session object.
- * @param  rsaKey     [in]   RSA key with private key data.
+ * @param  [out]  privateKey  Henadle to private key object.
+ * @param  [in]   session     Session object.
+ * @param  [in]   rsaKey      RSA key with private key data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
                                      Pkcs11Session* session,
@@ -727,11 +769,11 @@ static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
 /**
  * Set the ECC parameters into the template.
  *
- * @param  key   [in]  ECC key.
- * @param  tmpl  [in]  PKCS#11 template.
- * @param  idx   [in]  Index of template to put parameters into.
- * @return NOT_COMPILE_IN when the EC parameters are not known.
- *         0 on success.
+ * @param  [in]  key   ECC key.
+ * @param  [in]  tmpl  PKCS#11 template.
+ * @param  [in]  idx   Index of template to put parameters into.
+ * @return  NOT_COMPILED_IN when the EC parameters are not known.
+ * @return  0 on success.
  */
 static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
 {
@@ -759,7 +801,7 @@ static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
  * @param  private_key  [in]   ECC private key.
  * @param  operation    [in]   Cryptographic operation key is to be used for.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
                                      Pkcs11Session* session,
@@ -806,10 +848,10 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
 /**
  * Check if mechanism is available in session on token.
  *
- * @param  session  [in]  Session object.
- * @param  mech     [in]  Mechanism to look for.
+ * @param  [in]  session  Session object.
+ * @param  [in]  mech     Mechanism to look for.
  * @return  NOT_COMPILED_IN when mechanism not available.
- *          0 when mechanism is available.
+ * @return  0 when mechanism is available.
  */
 static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech)
 {
@@ -833,11 +875,11 @@ static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech)
 /**
  * Return the mechanism type and key type for the digest type when using HMAC.
  *
- * @param  macType   [in]  Digest type - e.g. WC_SHA256.
- * @param  mechType  [in]  Mechanism type - e.g. CKM_SHA256_HMAC.
- * @param  keyType   [in]  Key type - e.g. CKK_SHA256_HMAC.
+ * @param  [in]  macType   Digest type - e.g. WC_SHA256.
+ * @param  [in]  mechType  Mechanism type - e.g. CKM_SHA256_HMAC.
+ * @param  [in]  keyType   Key type - e.g. CKK_SHA256_HMAC.
  * @return  NOT_COMPILED_IN if the digest algorithm isn't recognised.
- *          0 otherwise.
+ * @return  0 otherwise.
  */
 static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
 {
@@ -893,12 +935,12 @@ static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
 /**
  * Store the private key on the token in the session.
  *
- * @param  token  [in]  Token to store private key on.
- * @param  type   [in]  Key type.
- * @param  clear  [in]  Clear out the private data from software key.
- * @param  key    [in]  Key type specific object.
+ * @param  [in]  token  Token to store private key on.
+ * @param  [in]  type   Key type.
+ * @param  [in]  clear  Clear out the private data from software key.
+ * @param  [in]  key    Key type specific object.
  * @return  NOT_COMPILED_IN when mechanism not available.
- *          0 on success.
+ * @return  0 on success.
  */
 int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 {
@@ -1037,34 +1079,28 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
            (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
+
 /**
- * Find the PKCS#11 object containing the RSA public or private key data with
- * the modulus specified.
+ * Find the PKCS#11 object containing key data using template.
  *
- * @param  key       [out]  Henadle to key object.
- * @param  keyClass  [in]   Public or private key class.
- * @param  keyType   [in]   Type of key.
- * @param  session   [in]   Session object.
- * @param  id        [in]   Identifier set against a key.
- * @param  idLen     [in]   Length of identifier.
+ * @param  [out]  key          Handle to key object.
+ * @param  [in]   session      Session object.
+ * @param  [in]   keyTemplate  PKCS #11 template to use in search.
+ * @param  [in]   keyTmplCnt   Count of entries in PKCS #11 template.
+ * @param  [out]  count        Number of keys matching template.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
-static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
-                             CK_KEY_TYPE keyType, Pkcs11Session* session,
-                             byte* id, int idLen)
+static int Pkcs11FindKeyByTemplate(CK_OBJECT_HANDLE* key,
+                                   Pkcs11Session* session,
+                                   CK_ATTRIBUTE *keyTemplate,
+                                   CK_ULONG keyTmplCnt,
+                                   CK_ULONG *count)
 {
     int             ret = 0;
     CK_RV           rv;
-    CK_ULONG        count;
-    CK_ATTRIBUTE    keyTemplate[] = {
-        { CKA_CLASS,           &keyClass, sizeof(keyClass) },
-        { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
-        { CKA_ID,              id,        (CK_ULONG)idLen  }
-    };
-    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
-    WOLFSSL_MSG("PKCS#11: Find Key By Id");
+    WOLFSSL_MSG("PKCS#11: Find Key By Template");
 
 #ifdef WOLFSSL_DEBUG_PKCS11
     WOLFSSL_MSG("Find Key");
@@ -1079,7 +1115,7 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         ret = WC_HW_E;
     }
     if (ret == 0) {
-        rv = session->func->C_FindObjects(session->handle, key, 1, &count);
+        rv = session->func->C_FindObjects(session->handle, key, 1, count);
 #ifdef WOLFSSL_DEBUG_PKCS11
         pkcs11_rv("C_FindObjects", rv);
 #endif
@@ -1094,6 +1130,39 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
             ret = WC_HW_E;
         }
     }
+    return ret;
+}
+
+/**
+ * Find the PKCS#11 object containing the RSA public or private key data with
+ * the modulus specified.
+ *
+ * @param  [out]  key       Handle to key object.
+ * @param  [in]   keyClass  Public or private key class.
+ * @param  [in]   keyType   Type of key.
+ * @param  [in]   session   Session object.
+ * @param  [in]   id        Identifier set against a key.
+ * @param  [in]   idLen     Length of identifier.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  0 on success.
+ */
+static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
+                             CK_KEY_TYPE keyType, Pkcs11Session* session,
+                             byte* id, int idLen)
+{
+    int             ret = 0;
+    CK_ULONG        count;
+    CK_ATTRIBUTE    keyTemplate[] = {
+        { CKA_CLASS,           &keyClass, sizeof(keyClass) },
+        { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
+        { CKA_ID,              id,        (CK_ULONG)idLen  }
+    };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
+
+    WOLFSSL_MSG("PKCS#11: Find Key By Id");
+
+    ret = Pkcs11FindKeyByTemplate(key, session, keyTemplate, keyTmplCnt,
+                                                                        &count);
     if (ret == 0 && count == 0)
         ret = WC_HW_E;
 
@@ -1106,18 +1175,16 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
  * Find the PKCS#11 object containing the RSA public or private key data with
  * the modulus specified.
  *
- * @param  key       [out]  Henadle to key object.
- * @param  keyClass  [in]   Public or private key class.
- * @param  session   [in]   Session object.
- * @param  rsaKey    [in]   RSA key with modulus to search on.
+ * @param  [out]  key       Handle to key object.
+ * @param  [in]   keyClass  Public or private key class.
+ * @param  [in]   session   Session object.
+ * @param  [in]   rsaKey    RSA key with modulus to search on.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11FindRsaKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
                             Pkcs11Session* session, RsaKey* rsaKey)
 {
-    int             ret = 0;
-    CK_RV           rv;
     CK_ULONG        count;
     CK_ATTRIBUTE    keyTemplate[] = {
         { CKA_CLASS,           &keyClass,   sizeof(keyClass)   },
@@ -1130,44 +1197,16 @@ static int Pkcs11FindRsaKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     keyTemplate[2].pValue     = rsaKey->n.raw.buf;
     keyTemplate[2].ulValueLen = rsaKey->n.raw.len;
 
-#ifdef WOLFSSL_DEBUG_PKCS11
-    WOLFSSL_MSG("Find RSA Key");
-    pkcs11_dump_template(keyTemplate, keyTmplCnt);
-#endif
-    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate,
-                                                                    keyTmplCnt);
-#ifdef WOLFSSL_DEBUG_PKCS11
-    pkcs11_rv("C_FindObjectsInit", rv);
-#endif
-    if (rv != CKR_OK) {
-        ret = WC_HW_E;
-    }
-    if (ret == 0) {
-        rv = session->func->C_FindObjects(session->handle, key, 1, &count);
-#ifdef WOLFSSL_DEBUG_PKCS11
-        pkcs11_rv("C_FindObjects", rv);
-#endif
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
-        }
-        rv = session->func->C_FindObjectsFinal(session->handle);
-#ifdef WOLFSSL_DEBUG_PKCS11
-        pkcs11_rv("C_FindObjectsFinal", rv);
-#endif
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
-        }
-    }
-
-    return ret;
+    return Pkcs11FindKeyByTemplate(key, session, keyTemplate, keyTmplCnt,
+                                                                        &count);
 }
 
 /**
  * Exponentiate the input with the public part of the RSA key.
  * Used in public encrypt and decrypt.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  *          0 on success.
  */
@@ -1262,10 +1301,10 @@ static int Pkcs11RsaPublic(Pkcs11Session* session, wc_CryptoInfo* info)
  * Exponentiate the input with the private part of the RSA key.
  * Used in private encrypt and decrypt.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11RsaPrivate(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -1336,10 +1375,10 @@ static int Pkcs11RsaPrivate(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Perform an RSA operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -1383,12 +1422,12 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Get the RSA public key data from the PKCS#11 object.
  *
- * @param  key      [in]  RSA key to put the data into.
- * @param  session  [in]  Session object.
- * @param  pubkey   [in]  Public key object.
+ * @param  [in]  key      RSA key to put the data into.
+ * @param  [in]  session  Session object.
+ * @param  [in]  pubkey   Public key object.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
                                  CK_OBJECT_HANDLE pubKey)
@@ -1471,10 +1510,10 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
  * Perform an RSA key generation operation.
  * The private key data stays on the device.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -1559,13 +1598,13 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
  * Find the PKCS#11 object containing the ECC public or private key data with
  * the modulus specified.
  *
- * @param  key       [out]  Henadle to key object.
- * @param  keyClass  [in]   Public or private key class.
- * @param  session   [in]   Session object.
- * @param  eccKey    [in]   ECC key with parameters.
+ * @param  [out]  key       Henadle to key object.
+ * @param  [in]   keyClass  Public or private key class.
+ * @param  [in]   session   Session object.
+ * @param  [in]   eccKey    ECC key with parameters.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
                             Pkcs11Session* session, ecc_key* eccKey)
@@ -1648,13 +1687,13 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
  * Create a PKCS#11 object containing the ECC public key data.
  * Encode the public key as an OCTET_STRING of the encoded point.
  *
- * @param  publicKey    [out]  Henadle to public key object.
- * @param  session      [in]   Session object.
- * @param  public_key   [in]   ECC public key.
- * @param  operation    [in]   Cryptographic operation key is to be used for.
+ * @param  [out]  publicKey    Henadle to public key object.
+ * @param  [in]   session      Session object.
+ * @param  [in]   public_key   ECC public key.
+ * @param  [in]   operation    Cryptographic operation key is to be used for.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
                                     Pkcs11Session* session,
@@ -1722,12 +1761,12 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
 /**
  * Gets the public key data from the PKCS#11 object and puts into the ECC key.
  *
- * @param  key      [in]  ECC public key.
- * @param  session  [in]  Session object.
- * @param  pubKey   [in]  ECC public key PKCS#11 object.
+ * @param  [in]  key      ECC public key.
+ * @param  [in]  session  Session object.
+ * @param  [in]  pubKey   ECC public key PKCS#11 object.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
                                  CK_OBJECT_HANDLE pubKey)
@@ -1813,10 +1852,10 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
  * Perform an ECC key generation operation.
  * The private key data stays on the device.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -1902,13 +1941,13 @@ static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Extracts the secret key data from the PKCS#11 object.
  *
- * @param  session  [in]      Session object.
- * @param  secret   [in]      PKCS#11 object with the secret key data.
- * @param  out      [in]      Buffer to hold secret data.
- * @param  outLen   [in,out]  On in, length of buffer.
+ * @param  [in]      session  Session object.
+ * @param  [in]      secret   PKCS#11 object with the secret key data.
+ * @param  [in]      out      Buffer to hold secret data.
+ * @param  [in,out]  outLen   On in, length of buffer.
  *                            On out, the length of data in buffer.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
     byte* out, word32* outLen)
@@ -1967,8 +2006,8 @@ static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
 /**
  * Performs the ECDH secret generation operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
  *          0 on success.
  */
@@ -2075,8 +2114,8 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
  * Encode, in place, the ECDSA signature.
  * Two fixed width values into ASN.1 DER encoded SEQ { INT, INT }
  *
- * @param  sig  [in,out]  Signature data.
- * @param  sz   [in]      Size of original signature data.
+ * @param  [in,out]  sig  Signature data.
+ * @param  [in]      sz   Size of original signature data.
  * @return  Length of the ASN.1 DER enencoded signature.
  */
 static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
@@ -2134,12 +2173,12 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
  * Decode the ECDSA signature.
  * ASN.1 DER encode SEQ { INT, INT } converted to two fixed with values.
  *
- * @param  in    [in]  ASN.1 DER encoded signature.
- * @param  inSz  [in]  Size of ASN.1 signature.
- * @param  sig   [in]  Output buffer.
- * @param  sz    [in]  Size of output buffer.
+ * @param  [in]  in    ASN.1 DER encoded signature.
+ * @param  [in]  inSz  Size of ASN.1 signature.
+ * @param  [in]  sig   Output buffer.
+ * @param  [in]  sz    Size of output buffer.
  * @return  ASN_PARSE_E when the ASN.1 encoding is invalid.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
                                  word32 sz)
@@ -2219,11 +2258,11 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 /**
  * Get the parameters from the private key on the device.
  *
- * @param  session  [in]  Session object.
- * @param  privKey  [in]  PKCS #11 object handle of private key..
- * @param  key      [in]  Ecc key to set parameters against.
+ * @param  [in]  session  Session object.
+ * @param  [in]  privKey  PKCS #11 object handle of private key..
+ * @param  [in]  key      Ecc key to set parameters against.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
                               ecc_key* key)
@@ -2271,7 +2310,7 @@ static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
  * @param  session  [in]  Session object.
  * @param  info     [in]  Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2366,11 +2405,11 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs the ECDSA verification operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2458,11 +2497,11 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs the AES-GCM encryption operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11AesGcmEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2556,11 +2595,11 @@ static int Pkcs11AesGcmEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs the AES-GCM decryption operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2672,11 +2711,11 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs the AES-CBC encryption operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2750,11 +2789,11 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs the AES-CBC decryption operation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          MEMORY_E when a memory allocation fails.
- *          0 on success.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
  */
 static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2829,10 +2868,10 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Updates or calculates the HMAC of the data.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2966,10 +3005,10 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Performs random number generation.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11RandomBlock(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -2991,10 +3030,10 @@ static int Pkcs11RandomBlock(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Generates entropy (seed) data.
  *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 static int Pkcs11RandomSeed(Pkcs11Session* session, wc_CryptoInfo* info)
 {
@@ -3016,11 +3055,11 @@ static int Pkcs11RandomSeed(Pkcs11Session* session, wc_CryptoInfo* info)
 /**
  * Perform a cryptographic operation using PKCS#11 device.
  *
- * @param  devId  [in]  Device identifier.
- * @param  info   [in]  Cryptographic operation data.
- * @param  ctx    [in]  Context data for device - the token object.
+ * @param  [in]  devId  Device identifier.
+ * @param  [in]  info   Cryptographic operation data.
+ * @param  [in]  ctx    Context data for device - the token object.
  * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
+ * @return  0 on success.
  */
 int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 {
