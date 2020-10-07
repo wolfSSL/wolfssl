@@ -148,6 +148,17 @@ AC_ARG_ENABLE([linuxkm],
     [ENABLED_LINUXKM=no]
     )
 
+AC_ARG_ENABLE([linuxkm-defaults],
+    [AS_HELP_STRING([--enable-linuxkm-defaults],[Enable feature defaults for Linux Kernel Module (default: disabled)])],
+    [ENABLED_LINUXKM_DEFAULTS=$enableval],
+    [ENABLED_LINUXKM_DEFAULTS=$ENABLED_LINUXKM]
+    )
+
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_OLD_PRIME_CHECK -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DSP_HALF_SIZE=32 -DSP_HALF_MAX=4294967295U"
+fi
+
 AC_ARG_WITH([linux-source],
     [AS_HELP_STRING([--with-linux-source=PATH],[PATH to root of Linux kernel build tree])],
     [KERNEL_ROOT=$withval],
@@ -184,6 +195,34 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DNO_DEV_RANDOM -DNO_WRITEV -DNO_STDIO_FILESYSTEM -DWOLFSSL_NO_SOCK -DWOLFSSL_USER_IO"
 fi
+
+
+# Single Precision maths implementation
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+then
+    ENABLED_SP_DEFAULT=small
+else
+    ENABLED_SP_DEFAULT=no
+fi
+AC_ARG_ENABLE([sp],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
+    [ ENABLED_SP=$enableval ],
+    [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
+    )
+
+
+# Single Precision maths exclusively (no fastmath)
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no"
+then
+    ENABLED_SP_MATH_DEFAULT=yes
+else
+    ENABLED_SP_MATH_DEFAULT=no
+fi
+AC_ARG_ENABLE([sp-math],
+    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
+    [ ENABLED_SP_MATH=$enableval ],
+    [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
+    )
 
 
 # ALL FEATURES
@@ -274,19 +313,159 @@ then
     enable_indef=yes
     enable_enckeys=yes
     enable_hashflags=yes
-    enable_dhdefaultparams=yes
-
-    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+    enable_defaultdhparams=yes
+    enable_arc4=yes
+    enable_des3=yes
+    enable_nullcipher=yes
+    enable_blake2=yes
+    enable_blake2s=yes
+    enable_md4=yes
+    enable_postauth=yes
+    enable_hrrcookie=yes
+    enable_cryptocb=yes
+    enable_fallback_scsv=yes
+    enable_anon=yes
+    enable_mcast=yes
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
 
-    # Enable ECC Key Gen / Import checks
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+    # Enable multiple attribute additions such as DC
+    AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+
+    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
+
+    # Enable ECC Key Gen checks
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+
+    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+    fi
+
+    if test "$ENABLED_SP_MATH" = "no"
+    then
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    else
+        # sp-math is incompatible with opensslextra, ECC custom curves, and DSA:
+
+        enable_openssh=no
+        enable_opensslextra=no
+        enable_opensslall=no
+        enable_dsa=no
+        enable_ecccustcurves=no
+        enable_srp=no
+        enable_certservice=no
+        enable_jni=no
+        enable_lighty=no
+        enable_haproxy=no
+        enable_stunnel=no
+        enable_nginx=no
+        enable_apachehttpd=no
+        enable_openvpn=no
+        enable_asio=no
+        enable_libwebsockets=no
+        enable_qt=no
+    fi
+
+    if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
+    then
+        enable_compkey=no
+    fi
+fi
+
+
+# ALL CRYPTO FEATURES
+AC_ARG_ENABLE([all-crypto],
+    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
+    [ ENABLED_ALL_CRYPT=$enableval ],
+    [ ENABLED_ALL_CRYPT=no ]
+    )
+if test "$ENABLED_ALL_CRYPT" = "yes"
+then
+    enable_atomicuser=yes
+    enable_pkcallbacks=yes
+    enable_aesgcm=yes
+    enable_aesccm=yes
+    enable_aesctr=yes
+    enable_aesofb=yes
+    enable_aescfb=yes
+    enable_camellia=yes
+    enable_ripemd=yes
+    enable_sha512=yes
+    enable_sha224=yes
+    enable_sha3=yes
+    enable_sessioncerts=yes
+    enable_keygen=yes
+    enable_certgen=yes
+    enable_certreq=yes
+    enable_certext=yes
+    enable_sep=yes
+    enable_hkdf=yes
+    enable_curve25519=yes
+    enable_curve448=yes
+    enable_ed448=yes
+    enable_ed25519=yes
+    enable_fpecc=yes
+    enable_eccencrypt=yes
+    enable_psk=yes
+    enable_idea=yes
+    enable_cmac=yes
+    enable_xts=yes
+    enable_hc128=yes
+    enable_rabbit=yes
+    enable_xchacha=yes
+    enable_ocsp=yes
+    enable_ocspstapling=yes
+    enable_ocspstapling2=yes
+    enable_crl=yes
+    enable_supportedcurves=yes
+    enable_tlsx=yes
+    enable_pkcs7=yes
+    enable_pwdbased=yes
+    enable_aeskeywrap=yes
+    enable_x963kdf=yes
+    enable_scrypt=yes
+    enable_indef=yes
+    enable_enckeys=yes
+    enable_hashflags=yes
+    enable_defaultdhparams=yes
+    enable_arc4=yes
+    enable_des3=yes
+    enable_nullcipher=yes
+    enable_blake2=yes
+    enable_blake2s=yes
+    enable_md4=yes
+    enable_cryptocb=yes
+    enable_anon=yes
+
+    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    then
+        enable_compkey=yes
+    fi
+
+    # Enable AES Decrypt, AES ECB, Alt Names, DER Load
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD"
+
+    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
 
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+
+    # Enable ECC Key Gen checks
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
+
+    if test "$ENABLED_SP_MATH" = "no"
+    then
+        enable_dsa=yes
+        enable_ecccustcurves=yes
+
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    fi
 fi
 
 
@@ -3415,7 +3594,7 @@ fi
 
 
 # Small Stack - Cache on object
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
 else
@@ -3433,7 +3612,7 @@ then
 fi
 
 # Small Stack
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     ENABLED_SMALL_STACK_DEFAULT=yes
 else
@@ -4073,7 +4252,7 @@ if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     FASTMATH_DEFAULT=yes
 fi
-if test "$ENABLED_LINUXKM" = "yes"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     FASTMATH_DEFAULT=no
 fi
@@ -4395,19 +4574,6 @@ AS_IF([test "x$ENABLED_INTEL_QA" = "xyes" || test "x$ENABLED_INTEL_QA_SYNC" = "x
 ])
 
 
-# Single Precision maths implementation
-if test "$ENABLED_LINUXKM" = "yes"
-then
-    ENABLED_SP_DEFAULT=small
-else
-    ENABLED_SP_DEFAULT=no
-fi
-AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
-    [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
-    )
-
 ENABLED_SP_RSA=no
 ENABLED_SP_DH=no
 ENABLED_SP_FF_2048=no
@@ -4654,17 +4820,6 @@ if test "$ENABLED_SP_ASM" = "yes"; then
   esac
 fi
 
-if test "$ENABLED_LINUXKM" = "yes" && test "$ENABLED_SP" != "no"
-then
-    ENABLED_SP_MATH_DEFAULT=yes
-else
-    ENABLED_SP_MATH_DEFAULT=no
-fi
-AC_ARG_ENABLE([sp-math],
-    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
-    [ ENABLED_SP_MATH=$enableval ],
-    [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
-    )
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
         AC_MSG_ERROR([Must have SP enabled: --enable-sp])
@@ -5429,8 +5584,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_SMALL_STACK_CACHE" != "yes"; then
-        AC_MSG_ERROR([--enable-smallstackcache is required for --enable-linuxkm.])
+    if test "$ENABLED_SP_MATH" = "no"; then
+        AC_MSG_ERROR([--enable-sp-math is required for --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" = "yes"; then
         AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])

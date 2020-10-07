@@ -7328,10 +7328,12 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         if (err == MP_OKAY && !wc_ecc_point_is_at_infinity(inf))
             err = ECC_INF_E;
 #else
+        {
             (void)a;
             (void)prime;
 
             err = WC_KEY_SIZE_E;
+        }
 #endif
     }
 
