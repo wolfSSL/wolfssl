@@ -3730,17 +3730,27 @@ static int Decrypt(WOLFSSL* ssl, byte* output, const byte* input, word32 sz)
             break;
         #endif
 
-        #ifdef HAVE_AESGCM
+        #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         case wolfssl_aes_gcm:
-            if (sz >= (word32)(AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size))
-            {
-                /* scratch buffer, sniffer ignores auth tag*/
+        case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
+            if (sz >= (word32)(AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size)) {
+                /* scratch buffer, sniffer ignores auth tag */
+                wc_AesAuthEncryptFunc aes_auth_fn;
                 byte authTag[WOLFSSL_MIN_AUTH_TAG_SZ];
                 byte nonce[AESGCM_NONCE_SZ];
                 XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
                 XMEMCPY(nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
 
-                if (wc_AesGcmEncrypt(ssl->decrypt.aes,
+                /* use encrypt because we don't care about authtag */
+            #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
+                aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
+                                ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
+            #elif defined(BUILD_AESGCM)
+                aes_auth_fn = wc_AesGcmEncrypt;
+            #else
+                aes_auth_fn = wc_AesCcmEncrypt;
+            #endif
+                if (aes_auth_fn(ssl->decrypt.aes,
                             output,
                             input + AESGCM_EXP_IV_SZ,
                             sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
