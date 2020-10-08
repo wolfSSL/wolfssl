@@ -1,46 +1,41 @@
-wolfSSL for Renesas RA Evaluation Kit (EK-RA6M3G)
+wolfSSL for Alpha Project AP-RA6M-0A Setup Guide
 =================================================
 
 ## Description
 
-This directory contains e2studio projects targeted at the Renesas RA 32-bit MCUs.\
-The example projects include a wolfSSL TLS client and server.\
-They also include benchmark and cryptography tests for the wolfCrypt library.
+This directory contains e2studio projects targeted at the Alpha Project AP-RA6M-0A board including the Renesas RA 32-bit MCUs.
+The example projects include a wolfSSL TLS client and server. They also include benchmark and cryptography tests for the wolfCrypt library.
 
-The wolfssl project contains both the wolfSSL and wolfCrypt libraries.\
-It is built as a `Renesas RA C Library Project` and contains the Renesas RA\
-configuration.
+The wolfssl project contains both the wolfSSL and wolfCrypt libraries. It is built as a `Renesas RA C Library Project` and contains the Renesas RA configuration.
 
-The other projects (benchmark, client, server and test) are built as a\
-`Renesas RA C Project Using RA Library`, where the RA library is the wolfssl project.\
+The other projects (benchmark, client, server and test) are built as a `Renesas RA C Project Using RA Library`, where the RA library is the wolfssl project.
 The wolfssl Project Summary is listed below and is relevant for every project.
 
 ### Project Summary
 |Item|Name/Version|
-|:--|:--|
-|Board|EK-RA6M3G|
-|Device|R7FA6M3AH3CFC|
-|Toolchain|GCC ARM Embedded|
-|FSP Version|0.8.0|
+|:--|:----|
+|e2studio|2020-07|
+|Board    |AP-RA6M-0A   |
+|Device   |R7FA6M3AH3CFC|
+|Toolchain|GCC ARM Embedded
+|FSP Version|1.3.0|
 
-#### Selected software components
-
-|Components|Version|
-|:--|:--|
-|Board Support Package Common Files|v0.8.0`|
-|Arm CMSIS Version 5 - Core (M)|v5.5.1|
-|Amazon FreeRTOS|v0.8.0|
-|RA6M3G-EK Board Support Files|v0.8.0|
-|Board support package for R7FA6M3AH3CFC|v0.8.0|
-|Board support package for RA6M3|v0.8.0|
-|Board support package for RA6M3|v0.8.0|
-|Amazon FreeRTOS - Memory Management - Heap 4|v0.8.0|
-|r_ether to FreeRTOS+TCP Wrapper|v0.8.0|
-|Ethernet|v0.8.0|
-|Ethernet PHY|v0.8.0|
-|FreeRTOS+TCP|v0.8.0|
-|Amazon FreeRTOS - Buffer Allocation 2|v0.8.0|
-
+### Selected software components
+|Component|Version|
+|:--|:---|
+|Board Support Package Common Files|v1.3.0|
+|Arm CMSIS Version 5 - Core (M) |v5.7.0|
+|Board support package for R7FA6M3AH3CFC |v1.3.0|
+|Board support package for RA6M3|v1.3.0  |
+|Board support package for RA6M3 - FSP Data|v1.3.0|
+|FreeRTOS|v1.3.0|
+|FreeRTOS - Buffer Allocation 2 |v1.3.0|
+|FreeRTOS+TCP|v1.3.0|
+|r_ether to FreeRTOS+TCP Wrapper|v1.3.0|
+|Ethernet |v1.3.0   |
+|Ethernet PHY|v1.3.0|
+|I/O Port|v1.3.0    |
+|BSP-Board|v1.2.0   |
 
 ## Setup Steps
 
@@ -48,67 +43,79 @@ The project directories are missing files necessary to build the project.\
 These files can be generated when creating a new Renesas RA Project.\
 The following steps explain how to generate the missing files and where to place them.
 
-1.) Create a 'dummy' Renesas RA C Library Project.
+1.) Download Alpha project example program from [Alpha Project Home Page](https://www.apnet.co.jp/product/ra/ap-ra6m-0a.html)
+
++ Unzip the downloaded example project
+
+2.) Create a 'dummy' Renesas RA C Library Project on e2studio
 
 + Click File->New->`RA C/C++ Project`
-+ Click `Renesas RA C Library Project`. Click Next
 + Enter `dummy_library` as the project name. Click Next.
-+ Under `Board: Custom User Board`, select `EK-RA6M3G`.
-+ Under `RTOS: No RTOS`, select `Amazon FreeRTOS`.
-+ Click Next. Select `Amazon FreeRTOS - Minimal - Static Allocation`
++ Select `Board: Custom User Board`.
++ Select `R7FA6M3AH3CFC
++ Under `RTOS: No RTOS`, select `FreeRTOS`.
++ Click Next. Select `FreeRTOS - Minimal - Static Allocation`
++ Click `Renesas RA C Library Project`. Click Next
 + Click Finish.
 
-2.) Create a 'dummy' Renesas RA C Project Using RA Library.
+3.) Create a 'dummy' Renesas RA C Project Using RA Library  on e2studio
 
 + Click File->New->`RA C/C++ Project`
-+ Click `Renesas RA C Project Using RA Library`. Click Next
 + Enter `dummy_app` as the project name. Click Next.
 + Under `RA library project`, select `dummy_library`.
++ Click `Executable Using an RA Static Library`. Click Next
 + Click Finish.
++ Enter `dummy_app` as Project name
++ Select RA library project `dummy_library`
 
-3.) Import all the wolfSSL Projects into e2studio workspace.
+4.) Import all the wolfSSL Projects into e2studio workspace.
 
 + Click File->`Open Projects from File System`
 + Click `Directory...` to the right of Import source
-+ Select the RA6M3G folder location that contains the projects\
++ Select the RA6M3G folder location that contains the projects
    example path: wolfssl/IDE/Renesas/e2studio/RA6M3
-+ Deselect the Non-Eclipse project, RA6M3G, by clicking the checkbox\
++ Deselect the Non-Eclipse project, RA6M3G, by clicking the checkbox
    Only the folders with 'Eclipse project' under 'Import as' need to be selected.
 + Click Finish.
 
-4.) Copy files from `dummy_library` into `wolfSSL_RA6M3G`
+5.) Copy files from `dummy_library` into `wolfSSL_RA6M3G`
 
-+ Expand the dummy_library and wolfSSL_RA6M3G projects\
++ Expand the dummy_library and wolfSSL_RA6M3G projects
   (Click the drop-down arrow to the left of the project name.)
-+ Select and Copy the following folders/files inside dummy_library\
++ Select and Copy the following folders/files inside dummy_library
 
-  `ra/`\
-  `ra_gen/`\
-  `ra_cfg/`\
-  `script/`\
-  `R7FA6M3AH3CFC.pincfg`\
-  `RA6M3G-EK.pingcfg`
+    `ra/`  
+    `ra_gen/`  
+    `ra_cfg/`  
+    `script/`
 
 + Paste the copied folders/files into wolfSSL_RA6M3G
 + The `dummy_library` project can now be deleted.
++ Copy `APRA6M0A.pincfg` from ap_ra6m_0a_sample\sample\ap_ra6m_0a_ether_sample to wolfSSL_RA6M3G
++ Delete `R7FA6M3AH3CFC.pincfg` from wolfSSL_RA6M3G
 + Generate Project Content.
+
   + Click `Open RA Configuration` in the top bar (Grey Settings Cog)
+  + Go to `BSP` tab and import CMSIS pack file, AP.APRA6M0A.x.x.x.pack, from ap_ra6m_0a_sample\sample folder
+  + Select APRA6M0A as Board
+  + Go to `Pins` tab and select APRA6M0A.pincfg
+  + Go to `Stacks` tab and add Heap 4 stack from New Stack(+ Icon)
   + Click `Generate Project Content` at top right (Green Icon)
 + Build wolfSSL_RA6M3G.
 
-5.) Copy files from `dummy_app` into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`\
+6.) Copy files from `dummy_app` into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`
     **NOTE:** This may need to be done outside of the e2studio environment (e.g. File Explorer).
 
-+ Select and Copy the followng folder inside dummy_app\
-  
-  `src/`\
-  `script/`
++ Select and Copy the followng folder inside dummy_app
 
-+ Paste the copied folders into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`\
-  `(The test, benchmark, client and server projects link to this folder.)`
+    `src/`  
+    `script/`
+
++ Paste the copied folders into `./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`
+`(The test, benchmark, client and server projects link to this folder.)`
 + The `dummy_app` project can now be deleted.
 
-6.) Setup Network Environment
+7.) Setup Network Environment
 
         The client and server projects have defines inside their wolfssl_thread_entry.h.
         These defines (ucIPAddress ... ucDNSServerAddress) may need to be changed
@@ -125,17 +132,17 @@ Right-Click each Project and select Build.
 
 ### Run wolfCrypt Test and Benchmark
 
-1.) Right-Click the Project name.\
-2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`\
-3.) Select J-Link ARM. Click OK.\
+1.) Right-Click the Project name.  
+2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`  
+3.) Select J-Link ARM. Click OK.  
 4.) Select R7Fa6M3AH. Click OK.
 
 ### Run the wolfSSL TLS Server Example.
 
-1.) Right-Click the Project name.\
-2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`\
-3.) Select J-Link ARM. Click OK.\
-4.) Select R7Fa6M3AH. Click OK.\
+1.) Right-Click the Project name.  
+2.) Select `Debug As` -> `Renesas GDB Hardware Debugging`  
+3.) Select J-Link ARM. Click OK.  
+4.) Select R7Fa6M3AH. Click OK.  
 5.) Run the following wolfSSL example client command inside the base of the wolfssl directory.
 
 ```
@@ -152,7 +159,8 @@ Right-Click each Project and select Build.
 ./examples/server/server -v 4 -b -d -p 11111 -c ./certs/1024/server-cert.pem -k ./certs/1024/server-key.pem
 ```
 
-  **NOTE:** The port 11111 is the DEFAULT_PORT inside wolfssl_thread_entry.h.\
+   **NOTE:** The port 11111 is the DEFAULT_PORT inside wolfssl_thread_entry.h.
+   If DEFAULT_PORT was changed then the above command will need to match it.
 
  2.) Right-Click the Project name.\
  3.) Select `Debug As` -> `Renesas GDB Hardware Debugging`\
@@ -164,7 +172,7 @@ Right-Click each Project and select Build.
 + The commands for the example client/server assumes it is being run from the
   base directory of wolfssl.
 
-+ Enter "#define DEBUG_WOLFSSL" inside user_settings.h or wolfssl_thread_entry.c\
++ Enter "#define DEBUG_WOLFSSL" inside user_settings.h or wolfssl_thread_entry.c
    to enable wolfssl debug messages to the Renesas Virtual Debug Console.
 
 + Some linking errors can be caused by the e2studio project files needing to be rebuilt and freshened.
