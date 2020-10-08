@@ -28279,22 +28279,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         }
 
-        /* build external */
-        XMEMCPY(et->enc_ticket, &it, sizeof(InternalTicket));
-
         /* encrypt */
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
         if (ssl->ctx->ticketEncCb == NULL) {
             ret = WOLFSSL_TICKET_RET_FATAL;
         }
         else {
+            /* build external */
+            XMEMCPY(et->enc_ticket, &it, sizeof(InternalTicket));
+
             ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen, ssl->ctx->ticketEncCtx);
+            if (ret != WOLFSSL_TICKET_RET_OK) {
+                ForceZero(et->enc_ticket, sizeof(it));
+            }
         }
         if (ret == WOLFSSL_TICKET_RET_OK) {
             if (encLen < (int)sizeof(InternalTicket) ||
                 encLen > WOLFSSL_TICKET_ENC_SZ) {
+                ForceZero(&it, sizeof(it));
+                ForceZero(et->enc_ticket, sizeof(it));
                 WOLFSSL_MSG("Bad user ticket encrypt size");
                 return BAD_TICKET_KEY_CB_SZ;
             }
@@ -28303,10 +28308,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             /* internal ticket can't be the same if encrypted */
             if (XMEMCMP(et->enc_ticket, &it, sizeof(InternalTicket)) == 0) {
+                ForceZero(&it, sizeof(it));
+                ForceZero(et->enc_ticket, sizeof(it));
                 WOLFSSL_MSG("User ticket encrypt didn't encrypt");
                 return BAD_TICKET_ENCRYPT;
             }
 
+            ForceZero(&it, sizeof(it));
             XMEMSET(zeros, 0, sizeof(zeros));
 
             /* name */
@@ -28344,7 +28352,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len)
     {
         ExternalTicket* et;
-        InternalTicket* it;
+        InternalTicket  it;
         int             ret;
         int             outLen;
         word16          inLen;
@@ -28358,7 +28366,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         et = (ExternalTicket*)input;
-        it = (InternalTicket*)et->enc_ticket;
 
         /* decrypt */
         ato16(et->enc_len, &inLen);
@@ -28382,54 +28389,64 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BAD_TICKET_KEY_CB_SZ;
         }
 
+        /* copy the decrypted ticket to avoid alignment issues */
+        XMEMCPY(&it, et->enc_ticket, sizeof(InternalTicket));
+        ForceZero(et->enc_ticket, sizeof(it));
+
         /* get master secret */
         if (ret == WOLFSSL_TICKET_RET_OK || ret == WOLFSSL_TICKET_RET_CREATE) {
-            if (ssl->version.minor < it->pv.minor) {
+            if (ssl->version.minor < it.pv.minor) {
+                ForceZero(&it, sizeof(it));
                 WOLFSSL_MSG("Ticket has greater version");
                 return VERSION_ERROR;
             }
-            else if (ssl->version.minor > it->pv.minor) {
+            else if (ssl->version.minor > it.pv.minor) {
                 if (!ssl->options.downgrade) {
+                    ForceZero(&it, sizeof(it));
                     WOLFSSL_MSG("Ticket has lesser version");
                     return VERSION_ERROR;
                 }
 
                 WOLFSSL_MSG("Downgrading protocol due to ticket");
 
-                if (it->pv.minor < ssl->options.minDowngrade)
+                if (it.pv.minor < ssl->options.minDowngrade) {
+                    ForceZero(&it, sizeof(it));
                     return VERSION_ERROR;
-                ssl->version.minor = it->pv.minor;
+                }
+                ssl->version.minor = it.pv.minor;
             }
 
 
             if (!IsAtLeastTLSv1_3(ssl->version)) {
-                XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
+                XMEMCPY(ssl->arrays->masterSecret, it.msecret, SECRET_LEN);
                 /* Copy the haveExtendedMasterSecret property from the ticket to
                  * the saved session, so the property may be checked later. */
-                ssl->session.haveEMS = it->haveEMS;
+                ssl->session.haveEMS = it.haveEMS;
             #ifndef NO_RESUME_SUITE_CHECK
-                ssl->session.cipherSuite0 = it->suite[0];
-                ssl->session.cipherSuite = it->suite[1];
+                ssl->session.cipherSuite0 = it.suite[0];
+                ssl->session.cipherSuite = it.suite[1];
             #endif
             }
             else {
 #ifdef WOLFSSL_TLS13
                 /* Restore information to renegotiate. */
-                ssl->session.ticketSeen = it->timestamp;
-                ssl->session.ticketAdd = it->ageAdd;
-                ssl->session.cipherSuite0 = it->suite[0];
-                ssl->session.cipherSuite = it->suite[1];
+                ssl->session.ticketSeen = it.timestamp;
+                ssl->session.ticketAdd = it.ageAdd;
+                ssl->session.cipherSuite0 = it.suite[0];
+                ssl->session.cipherSuite = it.suite[1];
     #ifdef WOLFSSL_EARLY_DATA
-                ssl->session.maxEarlyDataSz = it->maxEarlyDataSz;
+                ssl->session.maxEarlyDataSz = it.maxEarlyDataSz;
     #endif
                 /* Resumption master secret. */
-                XMEMCPY(ssl->session.masterSecret, it->msecret, SECRET_LEN);
-                XMEMCPY(&ssl->session.ticketNonce, &it->ticketNonce,
+                XMEMCPY(ssl->session.masterSecret, it.msecret, SECRET_LEN);
+                XMEMCPY(&ssl->session.ticketNonce, &it.ticketNonce,
                                                            sizeof(TicketNonce));
-                ssl->session.namedGroup = it->namedGroup;
+                ssl->session.namedGroup = it.namedGroup;
 #endif
             }
         }
+
+        ForceZero(&it, sizeof(it));
 
         WOLFSSL_LEAVE("DoClientTicket", ret);
         WOLFSSL_END(WC_FUNC_TICKET_DO);
