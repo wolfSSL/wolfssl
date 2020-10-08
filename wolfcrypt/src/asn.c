@@ -10672,7 +10672,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 #ifndef NO_DES3
                     if (info->cipherType == WC_CIPHER_DES3) {
                         /* Assuming there is padding:
-                         *      (der->length > 0 &&
+                         *      (der->length > 0 && der->length > DES_BLOCK_SIZE &&
                          *       (der->length % DES_BLOCK_SIZE) != 0)
                          * and assuming the last value signifies the number of
                          * padded bytes IE if last value is 0x08 then there are
@@ -10682,9 +10682,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                          * der->length -= padVal;
                          */
                         if (der->length > 0 &&
+                            der->length > DES_BLOCK_SIZE &&
                             (der->length % DES_BLOCK_SIZE) != 0) {
                             padVal = der->buffer[der->length-1];
-                            if (padVal <= DES_BLOCK_SIZE) {
+                            if (padVal < DES_BLOCK_SIZE) {
                                 der->length -= padVal;
                             }
                         }
