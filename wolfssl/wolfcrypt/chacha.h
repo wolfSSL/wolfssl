@@ -55,6 +55,9 @@ Block counter is located at index 12.
 
 /* Size of IV in bytes*/
 #define CHACHA_IV_BYTES 12
+#ifdef HAVE_XCHACHA
+#define XCHACHA_NONCE_BYTES 24
+#endif
 
 /* Size of ChaCha chunks */
 #define CHACHA_CHUNK_WORDS 16
