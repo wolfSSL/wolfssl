@@ -2839,10 +2839,10 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     }
     if (bytes > 0) {
         wc_Chacha_encrypt_64(ctx->X, m, c, bytes, (byte*)ctx->over);
-        if (bytes > 64)
+        if (bytes > CHACHA_CHUNK_BYTES)
             ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
-        else
-            ctx->left = CHACHA_CHUNK_BYTES - bytes;
+        ctx->left = CHACHA_CHUNK_BYTES - (bytes & (CHACHA_CHUNK_BYTES - 1));
+        ctx->left &= CHACHA_CHUNK_BYTES - 1;
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
     }
 }
