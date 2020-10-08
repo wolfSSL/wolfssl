@@ -13119,7 +13119,7 @@ static int rsa_test(void)
 #ifdef WOLFSSL_SMALL_STACK
     RsaKey *caKey = (RsaKey *)XMALLOC(sizeof *caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    RsaKey caKey_buf, caKey = &caKey_buf;
+    RsaKey caKey_buf, *caKey = &caKey_buf;
 #endif
 #endif
 #if !defined(NO_ASN) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) \
