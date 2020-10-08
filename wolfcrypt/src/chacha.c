@@ -240,7 +240,8 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
  *
  * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
  */
-static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], int nrounds) {
+static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], int nrounds)
+{
     word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
 
@@ -274,26 +275,36 @@ int wc_XChacha_SetKey(ChaCha *ctx,
     byte iv[CHACHA_IV_BYTES];
     int ret;
 
-    if (nonceSz < 24)
+    if (nonceSz != XCHACHA_NONCE_BYTES)
         return BAD_FUNC_ARG;
-
-    XMEMSET(iv, 0, 4);
-    XMEMCPY(iv + 4, nonce + 16, 8);
 
     if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0)
         return ret;
 
+    /* form a first chacha IV from the first 16 bytes of the nonce.
+     * the first word is supplied in the "counter" arg, and
+     * the result is a full 128 bit nonceful IV for the one-time block
+     * crypto op that follows.
+     */
     if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0)
         return ret;
 
-    wc_HChacha_block(ctx, k, 20);
+    wc_HChacha_block(ctx, k, 20); /* 20 rounds, but keeping half the output. */
 
+    /* the HChacha output is used as a 256 bit key for the main cipher. */
     XMEMCPY(&ctx->X[4], k, 8 * sizeof(word32));
+
+    /* use 8 bytes from the end of the 24 byte nonce, padded up to 12 bytes,
+     * to form the IV for the main cipher.
+     */
+    XMEMSET(iv, 0, 4);
+    XMEMCPY(iv + 4, nonce + 16, 8);
+
     if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
         return ret;
 
-    XMEMSET(k, 0, sizeof k);
-    XMEMSET(iv, 0, sizeof iv);
+    ForceZero(k, sizeof k);
+    ForceZero(iv, sizeof iv);
 
     return 0;
 }
