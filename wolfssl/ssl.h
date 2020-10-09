@@ -3735,7 +3735,7 @@ WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #endif
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
     WOLFSSL_API int wolfSSL_get_ocsp_producedDate(
         WOLFSSL *ssl,
         byte *producedDate,
