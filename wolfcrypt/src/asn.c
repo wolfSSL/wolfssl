@@ -13435,7 +13435,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
 
 /* encode info from cert into DER encoded format */
 static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
-                      WC_RNG* rng, const byte* ntruKey, word16 ntruSz,
+                      WC_RNG* rng, const byte* ntruKey, word16 ntruSz, DsaKey* dsaKey,
                       ed25519_key* ed25519Key, ed448_key* ed448Key)
 {
     int ret;
@@ -13445,7 +13445,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* make sure at least one key type is provided */
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
-                                          ed448Key == NULL && ntruKey == NULL) {
+            dsaKey == NULL && ed448Key == NULL && ntruKey == NULL) {
         return PUBLIC_KEY_E;
     }
 
@@ -13490,6 +13490,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (eccKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey, 1);
+    }
+#endif
+
+#ifndef NO_DSA
+    if (cert->keyType == DSA_KEY) {
+        if (dsaKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = wc_SetDsaPublicKey(der->publicKey, dsaKey,
+                                           sizeof(der->publicKey), 1);
     }
 #endif
 
@@ -13997,7 +14006,7 @@ int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
 /* Make an x509 Certificate v3 any key type from cert input, write to buffer */
 static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
                        RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng,
-                       const byte* ntruKey, word16 ntruSz,
+                       DsaKey* dsaKey, const byte* ntruKey, word16 ntruSz,
                        ed25519_key* ed25519Key, ed448_key* ed448Key)
 {
     int ret;
@@ -14007,12 +14016,23 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
     DerCert der[1];
 #endif
 
-    if (derBuffer == NULL) {
+    if (derBuffer == NULL)
         return BAD_FUNC_ARG;
-    }
 
-    cert->keyType = eccKey ? ECC_KEY : (rsaKey ? RSA_KEY :
-            (ed25519Key ? ED25519_KEY : (ed448Key ? ED448_KEY : NTRU_KEY)));
+    if (eccKey)
+        cert->keyType = ECC_KEY;
+    else if (rsaKey)
+        cert->keyType = RSA_KEY;
+    else if (dsaKey)
+        cert->keyType = DSA_KEY;
+    else if (ed25519Key)
+        cert->keyType = ED25519_KEY;
+    else if (ed448Key)
+        cert->keyType = ED448_KEY;
+    else if (ntruKey)
+        cert->keyType = NTRU_KEY;
+    else
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
     der = (DerCert*)XMALLOC(sizeof(DerCert), cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14020,7 +14040,7 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         return MEMORY_E;
 #endif
 
-    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz,
+    ret = EncodeCert(cert, der, rsaKey, eccKey, rng, ntruKey, ntruSz, dsaKey,
                      ed25519Key, ed448Key);
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
@@ -14042,12 +14062,15 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
                    void* key, WC_RNG* rng)
 {
     RsaKey*      rsaKey = NULL;
+    DsaKey*      dsaKey = NULL;
     ecc_key*     eccKey = NULL;
     ed25519_key* ed25519Key = NULL;
     ed448_key*   ed448Key = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
+    else if (keyType == DSA_TYPE)
+        dsaKey = (DsaKey*)key;
     else if (keyType == ECC_TYPE)
         eccKey = (ecc_key*)key;
     else if (keyType == ED25519_TYPE)
@@ -14055,14 +14078,14 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
 
-    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, 0,
-                       ed25519Key, ed448Key);
+    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, dsaKey,
+                       NULL, 0, ed25519Key, ed448Key);
 }
 /* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
 int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
              ecc_key* eccKey, WC_RNG* rng)
 {
-    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, 0,
+    return MakeAnyCert(cert, derBuffer, derSz, rsaKey, eccKey, rng, NULL, NULL, 0,
                        NULL, NULL);
 }
 
@@ -14072,7 +14095,7 @@ int wc_MakeCert(Cert* cert, byte* derBuffer, word32 derSz, RsaKey* rsaKey,
 int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
                   const byte* ntruKey, word16 keySz, WC_RNG* rng)
 {
-    return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng,
+    return MakeAnyCert(cert, derBuffer, derSz, NULL, NULL, rng, NULL,
             ntruKey, keySz, NULL, NULL);
 }
 
@@ -14161,8 +14184,8 @@ static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
 
 /* encode info from cert into DER encoded format */
 static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
-                         ecc_key* eccKey, ed25519_key* ed25519Key,
-                         ed448_key* ed448Key)
+                         DsaKey* dsaKey, ecc_key* eccKey,
+                         ed25519_key* ed25519Key, ed448_key* ed448Key)
 {
     (void)eccKey;
     (void)ed25519Key;
@@ -14172,7 +14195,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
         return BAD_FUNC_ARG;
 
     if (rsaKey == NULL && eccKey == NULL && ed25519Key == NULL &&
-                                                             ed448Key == NULL) {
+            dsaKey == NULL && ed448Key == NULL) {
             return PUBLIC_KEY_E;
     }
 
@@ -14215,6 +14238,15 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
         if (rsaKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = SetRsaPublicKey(der->publicKey, rsaKey,
+                                           sizeof(der->publicKey), 1);
+    }
+#endif
+
+#ifndef NO_DSA
+    if (cert->keyType == DSA_KEY) {
+        if (dsaKey == NULL)
+            return PUBLIC_KEY_E;
+        der->publicKeySz = wc_SetDsaPublicKey(der->publicKey, dsaKey,
                                            sizeof(der->publicKey), 1);
     }
 #endif
@@ -14434,8 +14466,8 @@ static int WriteCertReqBody(DerCert* der, byte* buf)
 
 
 static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
-                   RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
-                   ed448_key* ed448Key)
+                   RsaKey* rsaKey, DsaKey* dsaKey, ecc_key* eccKey,
+                   ed25519_key* ed25519Key, ed448_key* ed448Key)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -14444,8 +14476,18 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     DerCert der[1];
 #endif
 
-    cert->keyType = eccKey ? ECC_KEY : (ed25519Key ? ED25519_KEY :
-                                       (ed448Key ? ED448_KEY: RSA_KEY));
+    if (eccKey)
+        cert->keyType = ECC_KEY;
+    else if (rsaKey)
+        cert->keyType = RSA_KEY;
+    else if (dsaKey)
+        cert->keyType = DSA_KEY;
+    else if (ed25519Key)
+        cert->keyType = ED25519_KEY;
+    else if (ed448Key)
+        cert->keyType = ED448_KEY;
+    else
+        return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
     der = (DerCert*)XMALLOC(sizeof(DerCert), cert->heap,
@@ -14454,7 +14496,7 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         return MEMORY_E;
 #endif
 
-    ret = EncodeCertReq(cert, der, rsaKey, eccKey, ed25519Key, ed448Key);
+    ret = EncodeCertReq(cert, der, rsaKey, dsaKey, eccKey, ed25519Key, ed448Key);
 
     if (ret == 0) {
         if (der->total + MAX_SEQ_SZ * 2 > (int)derSz)
@@ -14474,12 +14516,15 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
                       void* key)
 {
     RsaKey*      rsaKey = NULL;
+    DsaKey*      dsaKey = NULL;
     ecc_key*     eccKey = NULL;
     ed25519_key* ed25519Key = NULL;
     ed448_key*   ed448Key = NULL;
 
     if (keyType == RSA_TYPE)
         rsaKey = (RsaKey*)key;
+    else if (keyType == DSA_TYPE)
+        dsaKey = (DsaKey*)key;
     else if (keyType == ECC_TYPE)
         eccKey = (ecc_key*)key;
     else if (keyType == ED25519_TYPE)
@@ -14487,14 +14532,14 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
     else if (keyType == ED448_TYPE)
         ed448Key = (ed448_key*)key;
 
-    return MakeCertReq(cert, derBuffer, derSz, rsaKey, eccKey, ed25519Key,
+    return MakeCertReq(cert, derBuffer, derSz, rsaKey, dsaKey, eccKey, ed25519Key,
                        ed448Key);
 }
 
 int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
                    RsaKey* rsaKey, ecc_key* eccKey)
 {
-    return MakeCertReq(cert, derBuffer, derSz, rsaKey, eccKey, NULL, NULL);
+    return MakeCertReq(cert, derBuffer, derSz, rsaKey, NULL, eccKey, NULL, NULL);
 }
 #endif /* WOLFSSL_CERT_REQ */
 

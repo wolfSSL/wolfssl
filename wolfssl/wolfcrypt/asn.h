@@ -1247,7 +1247,8 @@ enum cert_enums {
     NTRU_KEY        = 11,
     ECC_KEY         = 12,
     ED25519_KEY     = 13,
-    ED448_KEY       = 14
+    ED448_KEY       = 14,
+    DSA_KEY         = 15
 };
 
 #endif /* WOLFSSL_CERT_GEN */
