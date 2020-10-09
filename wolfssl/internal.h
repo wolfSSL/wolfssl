@@ -3238,6 +3238,8 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+    byte               side;                      /* Either WOLFSSL_CLIENT_END or
+                                                     WOLFSSL_SERVER_END */
 };
 
 

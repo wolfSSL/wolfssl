@@ -13165,7 +13165,8 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         }
 
         current = &SessionCache[row].Sessions[idx];
-        if (XMEMCMP(current->sessionID, id, ID_LEN) == 0) {
+        if (XMEMCMP(current->sessionID, id, ID_LEN) == 0 &&
+                current->side == ssl->options.side) {
             WOLFSSL_MSG("Found a session match");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");
@@ -13250,6 +13251,7 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
+    copyInto->side           = copyFrom->side;
     XMEMCPY(&copyInto->ticketNonce, &copyFrom->ticketNonce,
                                                            sizeof(TicketNonce));
 #ifdef WOLFSSL_EARLY_DATA
@@ -13434,7 +13436,8 @@ int AddSession(WOLFSSL* ssl)
         }
 
         for (i=0; i<SESSIONS_PER_ROW; i++) {
-            if (XMEMCMP(id, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+            if (XMEMCMP(id, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0 &&
+                    SessionCache[row].Sessions[i].side == ssl->options.side) {
                 WOLFSSL_MSG("Session already exists. Overwriting.");
                 overwrite = 1;
                 idx = i;
@@ -13450,6 +13453,8 @@ int AddSession(WOLFSSL* ssl)
 #endif
         session = &SessionCache[row].Sessions[idx];
     }
+
+    session->side = ssl->options.side;
 
 #ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
@@ -29615,9 +29620,10 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         return BAD_FUNC_ARG;
     }
 
-    /* bornOn | timeout | sessionID len | sessionID | masterSecret | haveEMS */
-    size += OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE8_LEN + sess->sessionIDSz +
-            SECRET_LEN + OPAQUE8_LEN;
+    /* side | bornOn | timeout | sessionID len | sessionID | masterSecret |
+     * haveEMS  */
+    size += OPAQUE8_LEN + OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE8_LEN +
+            sess->sessionIDSz + SECRET_LEN + OPAQUE8_LEN;
 #ifdef SESSION_CERTS
     /* Peer chain */
     size += OPAQUE8_LEN;
@@ -29669,6 +29675,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
             return 0;
         data = *p;
 
+        data[idx++] = sess->side;
         c32toa(sess->bornOn, data + idx); idx += OPAQUE32_LEN;
         c32toa(sess->timeout, data + idx); idx += OPAQUE32_LEN;
         data[idx++] = sess->sessionIDSz;
@@ -29787,11 +29794,12 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     idx = 0;
     data = (byte*)*p;
 
-    /* bornOn | timeout | sessionID len */
-    if (i < OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE8_LEN) {
+    /* side | bornOn | timeout | sessionID len */
+    if (i < OPAQUE8_LEN + OPAQUE32_LEN + OPAQUE32_LEN + OPAQUE8_LEN) {
         ret = BUFFER_ERROR;
         goto end;
     }
+    s->side = data[idx++];
     ato32(data + idx, &s->bornOn); idx += OPAQUE32_LEN;
     ato32(data + idx, &s->timeout); idx += OPAQUE32_LEN;
     s->sessionIDSz = data[idx++];
