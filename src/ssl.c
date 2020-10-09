@@ -43504,6 +43504,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 static WC_INLINE int SKIP_SUITE(byte suite0, byte suite)
 {
+    (void)suite0;
+    (void)suite;
 #ifdef HAVE_RENEGOTIATION_INDICATION
     if (suite0 == CIPHER_BYTE && suite == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
         return 1;
