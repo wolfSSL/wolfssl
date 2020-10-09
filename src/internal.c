@@ -19059,7 +19059,7 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     n3 = n[3];
     n4 = n[4];
 
-#if HAVE_NTRU
+#ifdef HAVE_NTRU
     if (XSTRNCMP(n0,"NTRU",4) == 0)
         return "NTRU";
 #endif
