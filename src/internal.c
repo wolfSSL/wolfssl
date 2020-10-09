@@ -19059,6 +19059,11 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     n3 = n[3];
     n4 = n[4];
 
+#if HAVE_NTRU
+    if (XSTRNCMP(n0,"NTRU",4) == 0)
+        return "NTRU";
+#endif
+
     if (XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
         keaStr = "ECDHEPSK";
     else if (XSTRNCMP(n0,"ECDH",4) == 0)
@@ -19093,6 +19098,11 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
     n0 = n[0];
     n1 = n[1];
     n2 = n[2];
+
+#ifdef HAVE_NTRU
+    if (XSTRNCMP(n0,"NTRU",4) == 0)
+        return "NTRU";
+#endif
 
     if ((XSTRNCMP(n0,"AES128",6) == 0) || (XSTRNCMP(n0,"AES256",6) == 0)  ||
         ((XSTRNCMP(n0,"TLS13",5) == 0) && ((XSTRNCMP(n1,"AES128",6) == 0) ||
@@ -19158,10 +19168,13 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     else if ((XSTRNCMP(n0,"CAMELLIA128",11) == 0) ||
              (XSTRNCMP(n2,"CAMELLIA128",11) == 0))
         encStr = "CAMELLIA(128)";
-    else if ((XSTRNCMP(n0,"RC4",3) == 0) || (XSTRNCMP(n2,"RC4",3) == 0))
+    else if ((XSTRNCMP(n0,"RC4",3) == 0) || (XSTRNCMP(n1,"RC4",3) == 0) ||
+            (XSTRNCMP(n2,"RC4",3) == 0))
         encStr = "RC4";
-    else if (((XSTRNCMP(n0,"DES",3) == 0)  || (XSTRNCMP(n2,"DES",3) == 0)) &&
-             ((XSTRNCMP(n1,"CBC3",4) == 0) || (XSTRNCMP(n3,"CBC3",4) == 0)))
+    else if (((XSTRNCMP(n0,"DES",3) == 0)  || (XSTRNCMP(n1,"DES",3) == 0) ||
+              (XSTRNCMP(n2,"DES",3) == 0)) &&
+             ((XSTRNCMP(n1,"CBC3",4) == 0) || (XSTRNCMP(n2,"CBC3",4) == 0) ||
+              (XSTRNCMP(n3,"CBC3",4) == 0)))
         encStr = "3DES";
     else if ((XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
              (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
