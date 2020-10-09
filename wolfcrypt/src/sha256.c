@@ -130,6 +130,8 @@ where 0 <= L < 2^64.
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
 
+#elif defined(WOLFSSL_IMXRT_DCP)
+
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
 
