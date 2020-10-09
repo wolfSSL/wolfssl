@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_FILESYSTEM)
 #ifdef WOLFSSL_SNIFFER
 
 #include <assert.h>

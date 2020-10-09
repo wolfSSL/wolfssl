@@ -37,6 +37,15 @@
         #include "rl_net.h"
 #endif
 
+#ifdef NO_FILESYSTEM
+    #ifdef NO_RSA
+    #error currently the example only tries to load in a RSA buffer
+    #endif
+    #undef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+    #include <wolfssl/certs_test.h>
+#endif
+
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/test.h>
 #ifdef WOLFSSL_DTLS
@@ -1712,7 +1721,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && !(loadCertKeyIntoSSLObj == 1)) {
-    #ifndef TEST_LOAD_BUFFER
+    #ifdef NO_FILESYSTEM
+        if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, server_cert_der_2048,
+            sizeof_server_cert_der_2048) != WOLFSSL_SUCCESS)
+            err_sys_ex(catastrophic, "can't load server cert buffer");
+    #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert file, check file "
@@ -1759,7 +1772,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         && !pkCallbacks
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
     ) {
-    #ifndef TEST_LOAD_BUFFER
+    #ifdef NO_FILESYSTEM
+        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_cert_der_2048,
+            sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+            err_sys_ex(catastrophic, "can't load server private key buffer");
+    #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key file, "
@@ -1961,7 +1978,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Support for loading private key and cert using WOLFSSL object */
 #if !defined(NO_CERTS)
     if ((!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj) {
-    #ifndef TEST_LOAD_BUFFER
+    #ifdef NO_FILESYSTEM
+        if (wolfSSL_use_certificate_chain_buffer(ssl, server_cert_der_2048,
+            sizeof_server_cert_der_2048) != WOLFSSL_SUCCESS)
+            err_sys_ex(catastrophic, "can't load server cert buffer");
+    #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_use_certificate_chain_file(ssl, ourCert)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server cert file, check file "
@@ -1978,7 +1999,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         && !pkCallbacks
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
     ) {
-    #ifndef TEST_LOAD_BUFFER
+    #if defined(NO_FILESYSTEM)
+        if (wolfSSL_use_PrivateKey_buffer(ssl, server_key_der_2048,
+            sizeof_server_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+            err_sys_ex(catastrophic, "can't load server private key buffer");
+    #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key file, check"
