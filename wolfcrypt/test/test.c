@@ -27522,8 +27522,14 @@ static int pkcs7compressed_test(void)
     int i, testSz;
     int compressedSz, decodedSz;
     PKCS7* pkcs7;
+#ifdef WOLFSSL_SMALL_STACK
     byte  *compressed;
     byte  *decoded;
+#else
+    byte  compressed[PKCS7_BUF_SIZE];
+    byte  decoded[PKCS7_BUF_SIZE];
+#endif
+
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     XFILE pkcs7File;
 #endif
@@ -27541,11 +27547,13 @@ static int pkcs7compressed_test(void)
             "pkcs7compressedData_firmwarePkgData_zlib.der"},
     };
 
-    enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+    compressed = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if ((! enveloped) || (! decoded)) {
+    if ((! compressed) || (! decoded)) {
         ERROR_OUT(MEMORY_E, out);
     }
+#endif
 
     testSz = sizeof(testVectors) / sizeof(pkcs7CompressedVector);
 
@@ -27561,7 +27569,7 @@ static int pkcs7compressed_test(void)
 
         /* encode compressedData */
         compressedSz = wc_PKCS7_EncodeCompressedData(pkcs7, compressed,
-                                                   sizeof(compressed));
+                                                   PKCS7_BUF_SIZE);
         if (compressedSz <= 0) {
             wc_PKCS7_Free(pkcs7);
             ERROR_OUT(-12101, out);
@@ -27607,10 +27615,13 @@ static int pkcs7compressed_test(void)
     }
 
   out:
-    if (enveloped)
-        XFREE(enveloped, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (compressed)
+        XFREE(compressed, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded)
         XFREE(decoded, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 } /* pkcs7compressed_test() */
