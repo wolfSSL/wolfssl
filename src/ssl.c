@@ -43501,6 +43501,21 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
+
+static WC_INLINE int SKIP_SUITE(byte suite0, byte suite)
+{
+#ifdef HAVE_RENEGOTIATION_INDICATION
+    if (suite0 == CIPHER_BYTE && suite == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
+        return 1;
+#endif
+#ifdef BUILD_TLS_QSH
+    if (suite0 == QSH_BYTE && suite == TLS_QSH)
+        return 1;
+#endif
+    return 0;
+}
+
+
 /* returns a pointer to internal cipher suite list. Should not be free'd by
  * caller.
  */
@@ -43532,7 +43547,15 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
         int j;
 #endif
         for (i = 0; i < suites->suiteSz; i+=2) {
-            WOLFSSL_STACK* add = wolfSSL_sk_new_node(ssl->heap);
+            WOLFSSL_STACK* add;
+
+            /* A couple of suites are placeholders for special options,
+             * skip those. */
+            if (SKIP_SUITE(suites->suites[i], suites->suites[i+1])) {
+                continue;
+            }
+
+            add = wolfSSL_sk_new_node(ssl->heap);
             if (add != NULL) {
                 add->type = STACK_TYPE_CIPHER;
                 add->data.cipher.cipherSuite0 = suites->suites[i];
