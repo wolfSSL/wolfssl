@@ -33329,8 +33329,7 @@ static void test_wolfSSL_X509V3_EXT_print(void)
         };
         int* n;
 
-        printf(testingFmt, "wolfSSL_X509V3_EXT_print");
-        AssertNotNull(bio = BIO_new_fp(stderr, BIO_NOCLOSE));
+        AssertNotNull(bio = BIO_new_fp(stdout, BIO_NOCLOSE));
 
         AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFileExt,
             WOLFSSL_FILETYPE_PEM));
