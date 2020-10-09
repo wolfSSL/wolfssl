@@ -50,6 +50,15 @@
 
 #ifndef NO_WOLFSSL_SERVER
 
+#ifdef NO_FILESYSTEM
+#ifdef NO_RSA
+#error currently the example only tries to load in a RSA buffer
+#endif
+#undef USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_2048
+#include <wolfssl/certs_test.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -226,8 +235,15 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     } /* doPSK */
 #elif !defined(NO_CERTS)
     if (!doPSK) {
-        load_buffer(ctx, svrCertFile, WOLFSSL_CERT);
-        load_buffer(ctx, svrKeyFile,  WOLFSSL_KEY);
+        if (CyaSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
+            sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1)
+            != WOLFSSL_SUCCESS)
+            err_sys("can't load server cert buffer");
+
+        if (CyaSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
+            sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1)
+            != WOLFSSL_SUCCESS)
+            err_sys("can't load server key buffer");
     }
 #endif
 

@@ -47,6 +47,16 @@
 
 #ifndef NO_WOLFSSL_CLIENT
 
+
+#ifdef NO_FILESYSTEM
+#ifdef NO_RSA
+#error currently the example only tries to load in a RSA buffer
+#endif
+#undef USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_2048
+#include <wolfssl/certs_test.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -150,7 +160,9 @@ void echoclient_test(void* args)
     #endif
 #elif !defined(NO_CERTS)
     if (!doPSK)
-        load_buffer(ctx, caCertFile, WOLFSSL_CA);
+        if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert_der_2048,
+            sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+            err_sys("can't load ca buffer");
 #endif
 
 #if defined(CYASSL_SNIFFER)
