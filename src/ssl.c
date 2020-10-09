@@ -31182,6 +31182,8 @@ WOLFSSL_DH* wolfSSL_DH_new(void)
         return NULL;
     }
     external->internal = key;
+    external->priv_key = wolfSSL_BN_new();
+    external->pub_key = wolfSSL_BN_new();
 
     return external;
 }
@@ -31995,8 +31997,6 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     wolfSSL_BN_free(dh->p);
     wolfSSL_BN_free(dh->q);
     wolfSSL_BN_free(dh->g);
-    wolfSSL_BN_free(dh->pub_key);
-    wolfSSL_BN_free(dh->priv_key);
 
     dh->p = p;
     dh->q = q;
@@ -39822,6 +39822,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     #ifdef HAVE_ECC
         ecc_key ecc;
     #endif
+    #ifndef NO_DSA
+        DsaKey dsa;
+    #endif
         WC_RNG rng;
         word32 idx = 0;
 
@@ -39877,6 +39880,21 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 return ret;
             }
             key = (void*)&ecc;
+        }
+    #endif
+    #ifndef NO_DSA
+        if (x509->pubKeyOID == DSAk) {
+            type = DSA_TYPE;
+            ret = wc_InitDsaKey(&dsa);
+            if (ret != 0)
+                return ret;
+            ret = wc_DsaPublicKeyDecode(x509->pubKey.buffer, &idx, &dsa,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_FreeDsaKey(&dsa);
+                return ret;
+            }
+            key = (void*)&dsa;
         }
     #endif
         if (key == NULL) {
@@ -51676,6 +51694,8 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
         cert->pubKeyOID = RSAk;
     else if (pkey->type == EVP_PKEY_EC)
         cert->pubKeyOID = ECDSAk;
+    else if (pkey->type == EVP_PKEY_DSA)
+        cert->pubKeyOID = DSAk;
     else
         return WOLFSSL_FAILURE;
 
