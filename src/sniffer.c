@@ -2268,7 +2268,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             length = wc_ecc_size(&key) * 2 + 1;
             /* The length should be 2 times the key size (x and y), plus 1
              * for the type byte. */
-            if (IsTLS(session->sslServer) && !IsAtLeastTLSv1_3(session->sslServer->version)) {
+            if (!IsAtLeastTLSv1_3(session->sslServer->version)) {
                 input += 1; /* Don't include the TLS length for the key. */
             }
 
