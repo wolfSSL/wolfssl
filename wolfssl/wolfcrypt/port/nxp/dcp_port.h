@@ -38,6 +38,7 @@
 
 int wc_dcp_init(void);
 
+#ifndef NO_AES
 int  DCPAesInit(Aes* aes);
 void DCPAesFree(Aes *aes);
 
@@ -45,6 +46,7 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir);
 int  DCPAesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 int  DCPAesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+#endif
 
 #ifdef HAVE_AES_ECB
 int  DCPAesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
