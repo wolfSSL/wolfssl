@@ -3007,14 +3007,24 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     showPeerEx(ssl, lng_index);
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+#ifdef HAVE_STRFTIME
     {
         struct tm tm;
         char date[32];
         ret = wolfSSL_get_ocsp_producedDate_tm(ssl, &tm);
-        if ((ret == 0) && (strftime(date, sizeof date, "%Y-%m-%d %H:%M:%S %z",&tm) > 0))
-            printf("OCSP response timestamp: %s\n",date);
+        if ((ret == 0) && (strftime(date, sizeof date, "%Y-%m-%d %H:%M:%S %z", &tm) > 0))
+            printf("OCSP response timestamp: %s\n", date);
     }
+#else
+    {
+        byte date[MAX_DATE_SIZE];
+        int asn_date_format;
+        ret = wolfSSL_get_ocsp_producedDate(ssl, date, sizeof date, &asn_date_format);
+        if (ret == 0)
+            printf("OCSP response timestamp: %s (ASN.1 type %d)\n", (char *)date, asn_date_format);
+    }
+#endif
 #endif
 
 #ifdef OPENSSL_EXTRA

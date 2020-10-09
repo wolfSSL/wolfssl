@@ -44134,7 +44134,7 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
 #endif /* OCSP */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX  || WOLFSSL_HAPROXY */
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
 int wolfSSL_get_ocsp_producedDate(
     WOLFSSL *ssl,
     byte *producedDate,
