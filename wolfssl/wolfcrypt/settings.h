@@ -1091,7 +1091,9 @@ extern void uITRON4_free(void *p) ;
 
     /* random seed */
     #define NO_OLD_RNGNAME
-    #if defined(FSL_FEATURE_SOC_TRNG_COUNT) && (FSL_FEATURE_SOC_TRNG_COUNT > 0)
+    #if   defined(FREESCALE_NO_RNG)
+        /* nothing to define */
+    #elif defined(FSL_FEATURE_SOC_TRNG_COUNT) && (FSL_FEATURE_SOC_TRNG_COUNT > 0)
         #define FREESCALE_KSDK_2_0_TRNG
     #elif defined(FSL_FEATURE_SOC_RNG_COUNT) && (FSL_FEATURE_SOC_RNG_COUNT > 0)
         #ifdef FREESCALE_KSDK_1_3

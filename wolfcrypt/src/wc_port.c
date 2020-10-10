@@ -356,7 +356,7 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
         return BAD_PATH_ERROR;
     }
 
-    XFSEEK(f, 0, SEEK_END);
+    XFSEEK(f, 0, XSEEK_END);
     fileSz = XFTELL(f);
     XREWIND(f);
     if (fileSz > 0) {
