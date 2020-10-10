@@ -145,6 +145,9 @@
         #include <netdb.h>
     #endif
 #endif
+    #ifdef FREESCALE_MQX
+        typedef int socklen_t ;
+    #endif
     #define SOCKET_T int
     #ifndef SO_NOSIGPIPE
         #include <signal.h>  /* ignore SIGPIPE */
@@ -243,7 +246,7 @@
         #define WOLFSSL_THREAD
         #define INFINITE -1
         #define WAIT_OBJECT_0 0L
-    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
+    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
         #define WOLFSSL_THREAD
