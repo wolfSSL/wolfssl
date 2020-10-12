@@ -11087,7 +11087,7 @@ static int decodedCertCache_test(void)
         /* load cert.der */
         file = XFOPEN(certDerFile, "rb");
         if (file != NULL) {
-            derSz = XFREAD(der, 1, FOURK_BUF, file);
+            derSz = (word32)XFREAD(der, 1, FOURK_BUF, file);
             XFCLOSE(file);
         }
         else
