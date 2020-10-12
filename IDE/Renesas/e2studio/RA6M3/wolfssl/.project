@@ -31,11 +31,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>src/bio.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/src/bio.c</locationURI>
-		</link>
-		<link>
 			<name>src/crl.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/src/crl.c</locationURI>
@@ -196,11 +191,6 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/error.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/evp.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/evp.c</locationURI>
-		</link>
-		<link>
 			<name>wolfcrypt/fe_low_mem.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/fe_low_mem.c</locationURI>
@@ -274,11 +264,6 @@
 			<name>wolfcrypt/memory.c</name>
 			<type>1</type>
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/memory.c</locationURI>
-		</link>
-		<link>
-			<name>wolfcrypt/misc.c</name>
-			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/misc.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/pkcs12.c</name>
