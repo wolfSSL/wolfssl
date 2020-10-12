@@ -7463,7 +7463,12 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         /* If the authTag check fails, don't keep the decrypted data.
          * Unfortunately, you need the decrypted data to calculate the
          * check value. */
-        XMEMSET(out, 0, inSz);
+        #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2) && \
+            defined(ACVP_VECTOR_TESTING)
+            WOLFSSL_MSG("Preserve output for vector responses");
+        #else
+            XMEMSET(out, 0, inSz);
+        #endif
         result = AES_CCM_AUTH_E;
     }
 
