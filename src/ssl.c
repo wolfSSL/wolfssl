@@ -44161,6 +44161,47 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
 #endif /* OCSP */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX  || WOLFSSL_HAPROXY */
 
+#if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
+int wolfSSL_get_ocsp_producedDate(
+    WOLFSSL *ssl,
+    byte *producedDate,
+    size_t producedDate_space,
+    int *producedDateFormat)
+{
+    if ((ssl->ocspProducedDateFormat != ASN_UTC_TIME) &&
+        (ssl->ocspProducedDateFormat != ASN_GENERALIZED_TIME))
+        return BAD_FUNC_ARG;
+
+    if ((producedDate == NULL) || (producedDateFormat == NULL))
+        return BAD_FUNC_ARG;
+
+    if (XSTRLEN((char *)ssl->ocspProducedDate) >= producedDate_space)
+        return BUFFER_E;
+
+    XSTRNCPY((char *)producedDate, (const char *)ssl->ocspProducedDate, producedDate_space);
+    *producedDateFormat = ssl->ocspProducedDateFormat;
+
+    return 0;
+}
+
+int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
+    int idx = 0;
+
+    if ((ssl->ocspProducedDateFormat != ASN_UTC_TIME) &&
+        (ssl->ocspProducedDateFormat != ASN_GENERALIZED_TIME))
+        return BAD_FUNC_ARG;
+
+    if (produced_tm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ExtractDate(ssl->ocspProducedDate, ssl->ocspProducedDateFormat, produced_tm, &idx))
+        return 0;
+    else
+        return ASN_PARSE_E;
+}
+#endif
+
+
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)

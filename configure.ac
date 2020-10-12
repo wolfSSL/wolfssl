@@ -67,10 +67,45 @@ AC_CHECK_SIZEOF([long long])
 AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([__uint128_t])
-AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset socket])
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
+
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
+
+# check if functions of interest are linkable, but also check if
+# they're declared by the expected headers, and if not, supersede the
+# unusable positive from AC_CHECK_FUNCS().
+AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset socket strftime])
+AC_CHECK_DECLS([gethostbyname, getaddrinfo, gettimeofday, gmtime_r, inet_ntoa, memset, socket, strftime], [], [
+if test "$(eval echo \$"$(eval 'echo ac_cv_func_${as_decl_name}')")" = "yes"
+then
+    echo "    note: earlier check for $(eval 'echo ${as_decl_name}') superseded."
+    eval "$(eval 'echo ac_cv_func_${as_decl_name}=no')"
+    _mask_varname=HAVE_`eval "echo '${as_decl_name}'" | tr 'a-z' 'A-Z'`
+    echo "g/#define $_mask_varname 1/s//\/* #undef $_mask_varname *\//
+wq
+." | ed -s confdefs.h
+fi
+], [[
+#ifdef HAVE_SYS_SOCKET_H
+    #include <sys/socket.h>
+#endif
+#ifdef HAVE_STRING_H
+    #include <string.h>
+#endif
+#ifdef HAVE_NETDB_H
+    #include <netdb.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+    #include <arpa/inet.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+    #include <sys/time.h>
+#endif
+#ifdef HAVE_TIME_H
+    #include <time.h>
+#endif
+]])
 
 AC_PROG_INSTALL
 AC_TYPE_SIZE_T
@@ -2163,7 +2198,9 @@ fi
 if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
+    AC_CHECK_DECL([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
+    AC_CHECK_DECL([pthread_attr_setstack], [], [AC_MSG_ERROR(stacksize needs pthread_attr_setstack)], [[#include <pthread.h>]])
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
 fi
 

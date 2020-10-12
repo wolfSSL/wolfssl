@@ -9857,6 +9857,11 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     else if (response->status->status != CERT_GOOD)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
+    else {
+        XMEMCPY(ssl->ocspProducedDate, response->producedDate, sizeof ssl->ocspProducedDate);
+        ssl->ocspProducedDateFormat = response->producedDateFormat;
+    }
+
     *inOutIdx += status_length;
 
     #ifdef WOLFSSL_SMALL_STACK
