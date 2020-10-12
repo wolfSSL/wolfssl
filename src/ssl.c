@@ -43502,7 +43502,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 
-static WC_INLINE int SKIP_SUITE(byte suite0, byte suite)
+/* Is the specified cipher suite a fake one used an an extension proxy? */
+static WC_INLINE int SCSV_Check(byte suite0, byte suite)
 {
     (void)suite0;
     (void)suite;
@@ -43511,6 +43512,7 @@ static WC_INLINE int SKIP_SUITE(byte suite0, byte suite)
         return 1;
 #endif
 #ifdef BUILD_TLS_QSH
+    /* This isn't defined as a SCSV, but it acts like one. */
     if (suite0 == QSH_BYTE && suite == TLS_QSH)
         return 1;
 #endif
@@ -43553,7 +43555,7 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 
             /* A couple of suites are placeholders for special options,
              * skip those. */
-            if (SKIP_SUITE(suites->suites[i], suites->suites[i+1])) {
+            if (SCSV_Check(suites->suites[i], suites->suites[i+1])) {
                 continue;
             }
 
