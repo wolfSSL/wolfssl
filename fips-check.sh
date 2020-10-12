@@ -36,6 +36,7 @@ Platform is one of:
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
     solaris
+    linuxv3 (FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -265,6 +266,15 @@ solaris)
   FIPS_OPTION=v2
   MAKE=gmake
   ;;
+linuxv3)
+  FIPS_REPO='/Users/john/src/fips'
+  CRYPT_REPO='/Users/john/src/wolfssl'
+  CRYPT_INC_PATH='wolfssl/wolfcrypt'
+  CRYPT_SRC_PATH='wolfcrypt/src'
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION='v3'
+  ;;
 *)
   Usage
   exit 1
@@ -319,20 +329,30 @@ then
 elif [ "x$FIPS_OPTION" == "xready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
+elif [ "x$FIPS_OPTION" == "xv3" ]
+then
+    echo "Don't need to copy anything in particular for FIPS 140-3, yet."
 else
     echo "fips-check: Invalid FIPS option."
     exit 1
 fi
 
 # clone the FIPS repository
-if [ "x$FIPS_OPTION" != "xready" ]
+if [ "x$FIPS_OPTION" = "xready" ]
 then
-    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
-        echo "fips-check: Couldn't checkout the FIPS repository."
+    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+        echo "fips-check: Couldn't checkout the FIPS repository for FIPS Ready."
+        exit 1
+    fi
+    FIPS_OPTION="v2"
+elif test "x$FIPS_OPTION" = "xv3"
+then
+    if ! $GIT clone $FIPS_REPO fips; then
+        echo "fips-check: Couldn't checkout the FIPS repository FIPS 140-3."
         exit 1
     fi
 else
-    if ! $GIT clone --depth 1 $FIPS_REPO fips; then
+    if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
         echo "fips-check: Couldn't checkout the FIPS repository."
         exit 1
     fi
