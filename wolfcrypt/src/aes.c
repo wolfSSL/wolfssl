@@ -2820,6 +2820,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         default:
             return BAD_FUNC_ARG;
         } /* switch */
+        ForceZero(&temp, sizeof(temp));
 
     #if defined(HAVE_AES_DECRYPT)
         if (dir == AES_DECRYPTION) {
@@ -2833,6 +2834,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 temp = rk[i + 2]; rk[i + 2] = rk[j + 2]; rk[j + 2] = temp;
                 temp = rk[i + 3]; rk[i + 3] = rk[j + 3]; rk[j + 3] = temp;
             }
+            ForceZero(&temp, sizeof(temp));
         #if !defined(WOLFSSL_AES_SMALL_TABLES)
             /* apply the inverse MixColumn transform to all round keys but the
                first and the last: */
@@ -5035,6 +5037,7 @@ static void AES_GCM_encrypt(const unsigned char *in,
     T = _mm_xor_si128(X, T);
     /*_mm_storeu_si128((__m128i*)tag, T);*/
     XMEMCPY(tag, &T, tbytes);
+    ForceZero(&lastKey, sizeof(lastKey));
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -5365,6 +5368,7 @@ static void AES_GCM_decrypt(const unsigned char *in,
         *res = 0; /* in case the authentication failed */
     else
         *res = 1; /* when successful returns 1 */
+    ForceZero(&lastKey, sizeof(lastKey));
 }
 
 #endif /* HAVE_AES_DECRYPT */
