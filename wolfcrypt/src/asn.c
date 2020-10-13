@@ -1616,8 +1616,9 @@ static const byte wrapPwriKekOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 16, 3,9};
 
 /* ocspType */
 #ifdef HAVE_OCSP
-    static const byte ocspBasicOid[] = {43, 6, 1, 5, 5, 7, 48, 1, 1};
-    static const byte ocspNonceOid[] = {43, 6, 1, 5, 5, 7, 48, 1, 2};
+    static const byte ocspBasicOid[]    = {43, 6, 1, 5, 5, 7, 48, 1, 1};
+    static const byte ocspNonceOid[]    = {43, 6, 1, 5, 5, 7, 48, 1, 2};
+    static const byte ocspNoCheckOid[]  = {43, 6, 1, 5, 5, 7, 48, 1, 5};
 #endif /* HAVE_OCSP */
 
 /* certExtType */
@@ -1655,7 +1656,6 @@ static const byte extExtKeyUsageCodeSigningOid[]  = {43, 6, 1, 5, 5, 7, 3, 3};
 static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
-
 /* kdfType */
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
 
@@ -2035,6 +2035,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case NAME_CONS_OID:
                     oid = extNameConsOid;
                     *oidSz = sizeof(extNameConsOid);
+                    break;
+            #endif
+            #ifdef HAVE_OCSP
+                case OCSP_NOCHECK_OID:
+                    oid = ocspNoCheckOid;
+                    *oidSz = sizeof(ocspNoCheckOid);
                     break;
             #endif
             }
@@ -4440,7 +4446,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 
 #ifndef NO_DH
 /* Supports either:
- * - DH params G/P (PKCS#3 DH) file or 
+ * - DH params G/P (PKCS#3 DH) file or
  * - DH key file (if WOLFSSL_DH_EXTRA enabled) */
 /* The wc_DhParamsLoad function also loads DH params, but directly into buffers, not DhKey */
 int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
@@ -8875,7 +8881,14 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 }
                 break;
         #endif
-
+        #ifdef HAVE_OCSP
+            case OCSP_NOCHECK_OID:
+                VERIFY_AND_SET_OID(cert->ocspNoCheckSet);
+                ret = GetASNNull(input, &idx, sz);
+                if (ret != 0)
+                    return ASN_PARSE_E;
+                break;
+        #endif
             default:
             #ifndef WOLFSSL_NO_ASN_STRICT
                 /* While it is a failure to not support critical extensions,
@@ -9347,6 +9360,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     return ret;
             }
 
+        #ifdef HAVE_OCSP
+            /* trust for the lifetime of the responder's cert*/
+            if (cert->ocspNoCheckSet && verify == VERIFY_OCSP)
+                verify = NO_VERIFY;
+        #endif
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
         }
@@ -9871,7 +9889,7 @@ void wc_FreeDer(DerBuffer** pDer)
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
-/* Note: If items added make sure MAX_X509_HEADER_SZ is 
+/* Note: If items added make sure MAX_X509_HEADER_SZ is
     updated to reflect maximum length */
 wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
 wcchar END_CERT             = "-----END CERTIFICATE-----";
@@ -17248,7 +17266,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         WOLFSSL_MSG("\tReq missing");
         return -1;
     }
-    if (resp == NULL || resp->issuerHash == NULL || 
+    if (resp == NULL || resp->issuerHash == NULL ||
             resp->issuerKeyHash == NULL || resp->status == NULL) {
         WOLFSSL_MSG("\tResp missing");
         return 1;

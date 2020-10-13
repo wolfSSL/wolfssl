@@ -849,7 +849,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     return WOLFSSL_SUCCESS;
 }
 
-static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str, 
+static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str,
     int exitWithRet)
 {
     int ret, err;
@@ -1099,6 +1099,9 @@ static const char* client_usage_msg[][66] = {
 #endif
 #ifdef HAVE_CURVE448
         "-8          Use X448 for key exchange\n",                      /* 65 */
+#endif
+#ifdef HAVE_CRL
+        "-C          Disable CRL\n",
 #endif
         NULL,
     },
@@ -2553,7 +2556,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-    if (useVerifyCb || myVerifyAction == VERIFY_FORCE_FAIL || 
+    if (useVerifyCb || myVerifyAction == VERIFY_FORCE_FAIL ||
             myVerifyAction == VERIFY_USE_PREVERFIY) {
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
     }
