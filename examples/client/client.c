@@ -46,6 +46,8 @@
 #ifdef NO_RSA
 #error currently the example only tries to load in a RSA buffer
 #endif
+#undef USE_CERT_BUFFERS_256
+#define USE_CERT_BUFFERS_256
 #undef USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_2048
 #include <wolfssl/certs_test.h>
@@ -2487,8 +2489,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     ) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_cert_der_2048,
-            sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_key_der_2048,
+            sizeof_client_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys("can't load server private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
@@ -2755,8 +2757,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     ) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_cert_der_2048,
-            sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_key_der_2048,
+            sizeof_client_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys("can't load client private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (wolfSSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)

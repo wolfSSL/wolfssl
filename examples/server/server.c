@@ -1773,8 +1773,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
     ) {
     #ifdef NO_FILESYSTEM
-        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_cert_der_2048,
-            sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
+            sizeof_server_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
             err_sys_ex(catastrophic, "can't load server private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
