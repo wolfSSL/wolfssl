@@ -21180,21 +21180,24 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     int             group = 0;
 #endif
 
-    ssl->buffers.weOwnDH = 1;
+    if (ssl->buffers.weOwnDH) {
+        if (ssl->buffers.serverDH_P.buffer) {
+            XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
+            ssl->buffers.serverDH_P.buffer = NULL;
+        }
 
-    if (ssl->buffers.serverDH_P.buffer) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_P.buffer = NULL;
-    }
+        if (ssl->buffers.serverDH_G.buffer) {
+            XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
+            ssl->buffers.serverDH_G.buffer = NULL;
+        }
 
-    if (ssl->buffers.serverDH_G.buffer) {
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_G.buffer = NULL;
-    }
-
-    if (ssl->buffers.serverDH_Pub.buffer) {
-        XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_Pub.buffer = NULL;
+        if (ssl->buffers.serverDH_Pub.buffer) {
+            XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
+            ssl->buffers.serverDH_Pub.buffer = NULL;
+        }
     }
 
     /* p */
@@ -21206,6 +21209,9 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     args->idx += OPAQUE16_LEN;
 
     if ((args->idx - args->begin) + length > size) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
     }
 
@@ -21237,6 +21243,9 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
 
     /* g */
     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
     }
 
@@ -21244,6 +21253,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     args->idx += OPAQUE16_LEN;
 
     if ((args->idx - args->begin) + length > size) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_G.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
     }
 
@@ -21253,6 +21268,9 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ssl->buffers.serverDH_G.length = length;
     }
     else {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
         ERROR_OUT(MEMORY_ERROR, exit_gdpk);
     }
 
@@ -21262,6 +21280,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
 
     /* pub */
     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_G.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
     }
 
@@ -21278,11 +21302,18 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ssl->buffers.serverDH_Pub.length = length;
     }
     else {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.buffer = NULL;
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_G.buffer = NULL;
         ERROR_OUT(MEMORY_ERROR, exit_gdpk);
     }
 
     XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + args->idx,
                                                         length);
+    ssl->buffers.weOwnDH = 1;
     args->idx += length;
 
 #ifdef HAVE_FFDHE
