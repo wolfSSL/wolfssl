@@ -42037,6 +42037,10 @@ err:
         int ret;
 
         WOLFSSL_ENTER("wolfSSL_CTX_use_certificate");
+        if (!ctx || !x || !x->derCert) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
 
         FreeDer(&ctx->certificate); /* Make sure previous is free'd */
         ret = AllocDer(&ctx->certificate, x->derCert->length, CERT_TYPE,
