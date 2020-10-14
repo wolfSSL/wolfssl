@@ -1267,8 +1267,10 @@ struct CertStatus {
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
-};
 
+    /* option bits - using 32-bit for alignment */
+    word32 isDynamic:1; /* was allocated cert status */
+};
 
 struct OcspResponse {
     int     responseStatus;  /* return code from Responder */
@@ -1300,6 +1302,7 @@ struct OcspResponse {
 #ifdef OPENSSL_EXTRA
     int     verifyError;
 #endif
+    void*  heap;
 };
 
 
@@ -1337,7 +1340,8 @@ struct OcspEntry
     int totalStatus;                      /* number on list         */
 };
 
-WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
+WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32, void*);
+WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse*);
 WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap, int);
 
 WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
