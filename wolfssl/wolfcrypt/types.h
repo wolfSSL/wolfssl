@@ -154,6 +154,7 @@ decouple library dependencies with standard string, memory and so on.
         #ifdef WORD64_AVAILABLE
             #define WOLFCRYPT_SLOW_WORD64
         #endif
+        #define WC_32BIT_CPU
     #endif
 
 #elif defined(WC_16BIT_CPU)
@@ -167,6 +168,7 @@ decouple library dependencies with standard string, memory and so on.
         typedef word32 wolfssl_word;
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
                              mp_digit, no 64 bit type so make mp_digit 16 bit */
+        #define WC_32BIT_CPU
 #endif
 
     enum {
