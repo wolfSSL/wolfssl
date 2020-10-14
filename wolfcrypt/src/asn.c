@@ -16531,146 +16531,119 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
 
 
 static int DecodeSingleResponse(byte* source,
-                            word32* ioIndex, OcspResponse* resp, word32 size)
+            word32* ioIndex, OcspResponse* resp, word32 size, CertStatus* cs)
 {
-    word32 idx = *ioIndex, prevIndex, oid, localIdx;
-    int length, wrapperSz;
-    CertStatus* cs = resp->status;
+    word32 idx = *ioIndex, oid, localIdx;
+    int length;
     int ret;
     byte tag;
 
     WOLFSSL_ENTER("DecodeSingleResponse");
 
-    /* Outer wrapper of the SEQUENCE OF Single Responses. */
-    if (GetSequence(source, &idx, &wrapperSz, size) < 0)
+    /* Wrapper around the Single Response */
+    if (GetSequence(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    prevIndex = idx;
+    /* Wrapper around the CertID */
+    if (GetSequence(source, &idx, &length, size) < 0)
+        return ASN_PARSE_E;
+    /* Skip the hash algorithm */
+    if (GetAlgoId(source, &idx, &oid, oidIgnoreType, size) < 0)
+        return ASN_PARSE_E;
+    /* Save reference to the hash of CN */
+    ret = GetOctetString(source, &idx, &length, size);
+    if (ret < 0)
+        return ret;
+    resp->issuerHash = source + idx;
+    idx += length;
+    /* Save reference to the hash of the issuer public key */
+    ret = GetOctetString(source, &idx, &length, size);
+    if (ret < 0)
+        return ret;
+    resp->issuerKeyHash = source + idx;
+    idx += length;
 
-    /* wolfSSL only requests one status for one certificate at a time but
-       some OCSP responders can reply with multiple SingleResponse items.
-       Expect to handle one SingleResponse. Otherwise, we can process the
-       responses but only the last entry in the list is verified. */
+    /* Get serial number */
+    if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
+        return ASN_PARSE_E;
 
-    while ((idx-prevIndex) < (word32)wrapperSz) {
-        /* Wrapper around the Single Response */
-        if (GetSequence(source, &idx, &length, size) < 0)
-            return ASN_PARSE_E;
+    if ( idx >= size )
+        return BUFFER_E;
 
-        /* Wrapper around the CertID */
-        if (GetSequence(source, &idx, &length, size) < 0)
-            return ASN_PARSE_E;
-        /* Skip the hash algorithm */
-        if (GetAlgoId(source, &idx, &oid, oidIgnoreType, size) < 0)
-            return ASN_PARSE_E;
-        /* Save reference to the hash of CN */
-        ret = GetOctetString(source, &idx, &length, size);
-        if (ret < 0)
-            return ret;
-        resp->issuerHash = source + idx;
-        idx += length;
-        /* Save reference to the hash of the issuer public key */
-        ret = GetOctetString(source, &idx, &length, size);
-        if (ret < 0)
-            return ret;
-        resp->issuerKeyHash = source + idx;
-        idx += length;
-
-        /* Get serial number */
-        if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
-            return ASN_PARSE_E;
-
-        if ( idx >= size )
-            return BUFFER_E;
-
-        /* CertStatus */
-        switch (source[idx++])
-        {
-            case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
-                cs->status = CERT_GOOD;
-                idx++;
-                break;
-            case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
-                cs->status = CERT_REVOKED;
-                if (GetLength(source, &idx, &length, size) < 0)
-                    return ASN_PARSE_E;
-                idx += length;
-                break;
-            case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
-                cs->status = CERT_UNKNOWN;
-                idx++;
-                break;
-            default:
-                return ASN_PARSE_E;
-        }
-
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        cs->thisDateAsn = source + idx;
-        localIdx = 0;
-        if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
-                        (byte*)&cs->thisDateParsed.type,
-                        &cs->thisDateParsed.length, size) < 0)
-            return ASN_PARSE_E;
-        XMEMCPY(cs->thisDateParsed.data,
-                cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
-                cs->thisDateParsed.length);
-    #endif
-        if (GetBasicDate(source, &idx, cs->thisDate,
-                                                    &cs->thisDateFormat, size) < 0)
-            return ASN_PARSE_E;
-
-    #ifndef NO_ASN_TIME
-    #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-        if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
-            return ASN_BEFORE_DATE_E;
-    #endif
-    #endif
-
-
-        /* The following items are optional. Only check for them if there is more
-         * unprocessed data in the singleResponse wrapper. */
-
-        localIdx = idx;
-        if (((int)(idx - prevIndex) < wrapperSz) &&
-            GetASNTag(source, &localIdx, &tag, size) == 0 &&
-            tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-        {
+    /* CertStatus */
+    switch (source[idx++])
+    {
+        case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
+            cs->status = CERT_GOOD;
             idx++;
+            break;
+        case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
+            cs->status = CERT_REVOKED;
             if (GetLength(source, &idx, &length, size) < 0)
                 return ASN_PARSE_E;
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-            cs->nextDateAsn = source + idx;
-            localIdx = 0;
-            if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
-                            (byte*)&cs->nextDateParsed.type,
-                            &cs->nextDateParsed.length, size) < 0)
-                return ASN_PARSE_E;
-            XMEMCPY(cs->nextDateParsed.data,
-                    cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
-                    cs->nextDateParsed.length);
-    #endif
-            if (GetBasicDate(source, &idx, cs->nextDate,
-                                                    &cs->nextDateFormat, size) < 0)
-                return ASN_PARSE_E;
+            idx += length;
+            break;
+        case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
+            cs->status = CERT_UNKNOWN;
+            idx++;
+            break;
+        default:
+            return ASN_PARSE_E;
+    }
 
-    #ifndef NO_ASN_TIME
-    #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-            if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
-                return ASN_AFTER_DATE_E;
-    #endif
-    #endif
-        }
-    } /* while, process multiple SingleResponse items */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    cs->thisDateAsn = source + idx;
+    localIdx = 0;
+    if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
+                    (byte*)&cs->thisDateParsed.type,
+                    &cs->thisDateParsed.length, size) < 0)
+        return ASN_PARSE_E;
+    XMEMCPY(cs->thisDateParsed.data,
+            cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
+            cs->thisDateParsed.length);
+#endif
+    if (GetBasicDate(source, &idx, cs->thisDate,
+                                                &cs->thisDateFormat, size) < 0)
+        return ASN_PARSE_E;
 
+#ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+    if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
+        return ASN_BEFORE_DATE_E;
+#endif
+#endif
+
+    /* The following items are optional. Only check for them if there is more
+     * unprocessed data in the singleResponse wrapper. */
     localIdx = idx;
-    if (((int)(idx - prevIndex) < wrapperSz) &&
+    if (idx < size &&
         GetASNTag(source, &localIdx, &tag, size) == 0 &&
-        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
-        idx += length;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+        cs->nextDateAsn = source + idx;
+        localIdx = 0;
+        if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
+                        (byte*)&cs->nextDateParsed.type,
+                        &cs->nextDateParsed.length, size) < 0)
+            return ASN_PARSE_E;
+        XMEMCPY(cs->nextDateParsed.data,
+                cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
+                cs->nextDateParsed.length);
+#endif
+        if (GetBasicDate(source, &idx, cs->nextDate,
+                                                &cs->nextDateFormat, size) < 0)
+            return ASN_PARSE_E;
+
+#ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+        if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
+            return ASN_AFTER_DATE_E;
+#endif
+#endif
     }
 
     *ioIndex = idx;
@@ -16765,6 +16738,8 @@ static int DecodeResponseData(byte* source,
     int version;
     int ret;
     byte tag;
+    int wrapperSz;
+    CertStatus* cs;
 
     WOLFSSL_ENTER("DecodeResponseData");
 
@@ -16806,8 +16781,26 @@ static int DecodeResponseData(byte* source,
                                         &resp->producedDateFormat, size) < 0)
         return ASN_PARSE_E;
 
-    if ((ret = DecodeSingleResponse(source, &idx, resp, size)) < 0)
-        return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
+    /* Outer wrapper of the SEQUENCE OF Single Responses. */
+    if (GetSequence(source, &idx, &wrapperSz, size) < 0)
+        return ASN_PARSE_E;
+
+    localIdx = idx;
+    cs = resp->status;
+    while (idx - localIdx < (word32)wrapperSz) {
+        if ((ret = DecodeSingleResponse(source, &idx, resp, localIdx + wrapperSz, cs)) < 0)
+            return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
+        if (idx - localIdx < (word32)wrapperSz) {
+            cs->next = (CertStatus*)XMALLOC(sizeof(CertStatus), resp->heap, 
+                DYNAMIC_TYPE_OCSP_STATUS);
+            if (cs->next == NULL) {
+                return MEMORY_E;
+            }
+            cs = cs->next;
+            XMEMSET(cs, 0, sizeof(CertStatus));
+            cs->isDynamic = 1;
+        }
+    }
 
     /*
      * Check the length of the ResponseData against the current index to
@@ -16980,7 +16973,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
 
 void InitOcspResponse(OcspResponse* resp, CertStatus* status,
-                                                    byte* source, word32 inSz)
+                                        byte* source, word32 inSz, void* heap)
 {
     WOLFSSL_ENTER("InitOcspResponse");
 
@@ -16991,6 +16984,17 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
     resp->status         = status;
     resp->source         = source;
     resp->maxIdx         = inSz;
+    resp->heap           = heap;
+}
+
+void FreeOcspResponse(OcspResponse* resp)
+{
+    CertStatus *status, *next;
+    for (status = resp->status; status; status = next) {
+        next = status->next;
+        if (status->isDynamic)
+            XFREE(status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
+    }
 }
 
 
@@ -17265,6 +17269,7 @@ void FreeOcspRequest(OcspRequest* req)
 int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
     int cmp;
+    CertStatus *status, *next, *prev, *top;
 
     WOLFSSL_ENTER("CompareOcspReqResp");
 
@@ -17310,13 +17315,27 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         return cmp;
     }
 
-    cmp = req->serialSz - resp->status->serialSz;
-    if (cmp != 0) {
-        WOLFSSL_MSG("\tserialSz mismatch");
-        return cmp;
+    /* match based on found status and return */
+    for (status = resp->status; status; status = next) {
+        cmp = req->serialSz - status->serialSz;
+        if (cmp == 0) {
+            cmp = XMEMCMP(req->serial, status->serial, req->serialSz);
+            if (cmp == 0) {
+                /* match found */
+                if (resp->status != status && prev) {
+                    /* move to top of list */
+                    top = resp->status;
+                    resp->status = status;
+                    prev->next = status->next;
+                    status->next = top;
+                }
+                break;
+            }
+        }
+        next = status->next;
+        prev = status;
     }
 
-    cmp = XMEMCMP(req->serial, resp->status->serial, req->serialSz);
     if (cmp != 0) {
         WOLFSSL_MSG("\tserial mismatch");
         return cmp;

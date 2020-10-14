@@ -9844,7 +9844,7 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     #endif
 
-    InitOcspResponse(response, status, input +*inOutIdx, status_length);
+    InitOcspResponse(response, status, input +*inOutIdx, status_length, ssl->heap);
 
     if (OcspResponseDecode(response, ssl->ctx->cm, ssl->heap, 0) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -9864,6 +9864,7 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     *inOutIdx += status_length;
 
+    FreeOcspResponse(response);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
         XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
@@ -11835,7 +11836,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 if (status_length) {
                     InitOcspResponse(response, status, input +*inOutIdx,
-                                                                 status_length);
+                                                    status_length, ssl->heap);
 
                     if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap,
                                                                         0) != 0)
@@ -11854,6 +11855,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else if (idx == 1) /* server cert must be OK */
                             ret = BAD_CERTIFICATE_STATUS_ERROR;
                     }
+                    FreeOcspResponse(response);
 
                     *inOutIdx   += status_length;
                     list_length -= status_length;
