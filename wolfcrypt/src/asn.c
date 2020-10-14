@@ -17273,7 +17273,7 @@ void FreeOcspRequest(OcspRequest* req)
 int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
     int cmp;
-    CertStatus *status, *next, *prev, *top;
+    CertStatus *status, *next, *prev = NULL, *top;
 
     WOLFSSL_ENTER("CompareOcspReqResp");
 
