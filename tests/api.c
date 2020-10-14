@@ -185,6 +185,9 @@
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
+#ifdef WC_RC2
+    #include <wolfssl/wolfcrypt/rc2.h>
+#endif
 
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -11814,6 +11817,348 @@ static int test_wc_ChaCha20Poly1305_aead (void)
     return ret;
 
 } /* END test-wc_ChaCha20Poly1305_EncryptDecrypt */
+
+
+/*
+ * Testing function for wc_Rc2SetKey().
+ */
+static int test_wc_Rc2SetKey(void)
+{
+    int     ret = 0;
+#ifdef WC_RC2
+    RC2     rc2;
+    byte    key40[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+    byte    iv[]    = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+
+    printf(testingFmt, "wc_Rc2SetKey()");
+
+    /* valid key and IV */
+    ret = wc_Rc2SetKey(&rc2, key40, (word32) sizeof(key40) / sizeof(byte),
+                       iv, 40);
+    if (ret == 0) {
+        /* valid key, no IV */
+        ret = wc_Rc2SetKey(&rc2, key40, (word32) sizeof(key40) / sizeof(byte),
+                           NULL, 40);
+    }
+
+    /* bad arguments  */
+    if (ret == 0) {
+        /* null RC2 struct */
+        ret = wc_Rc2SetKey(NULL, key40, (word32) sizeof(key40) / sizeof(byte),
+                           iv, 40);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null key */
+        ret = wc_Rc2SetKey(&rc2, NULL, (word32) sizeof(key40) / sizeof(byte),
+                           iv, 40);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* key size == 0 */
+        ret = wc_Rc2SetKey(&rc2, key40, 0, iv, 40);
+        if (ret == WC_KEY_SIZE_E) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* key size > 128 */
+        ret = wc_Rc2SetKey(&rc2, key40, 129, iv, 40);
+        if (ret == WC_KEY_SIZE_E) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* effective bits == 0 */
+        ret = wc_Rc2SetKey(&rc2, key40, (word32)sizeof(key40) / sizeof(byte),
+                           iv, 0);
+        if (ret == WC_KEY_SIZE_E) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* effective bits > 1024 */
+        ret = wc_Rc2SetKey(&rc2, key40, (word32)sizeof(key40) / sizeof(byte),
+                           iv, 1025);
+        if (ret == WC_KEY_SIZE_E) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_Rc2SetKey */
+
+/*
+ * Testing function for wc_Rc2SetIV().
+ */
+static int test_wc_Rc2SetIV(void)
+{
+    int     ret = 0;
+#ifdef WC_RC2
+    RC2     rc2;
+    byte    iv[]    = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+
+    printf(testingFmt, "wc_Rc2SetIV()");
+
+    /* valid IV */
+    ret = wc_Rc2SetIV(&rc2, iv);
+    if (ret == 0) {
+        /* valid NULL IV */
+        ret = wc_Rc2SetIV(&rc2, NULL);
+    }
+
+    /* bad arguments */
+    if (ret == 0) {
+        ret = wc_Rc2SetIV(NULL, iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_Rc2SetKey */
+
+/*
+ * Testing function for wc_Rc2EcbEncrypt().
+ */
+static int test_wc_Rc2EcbEncryptDecrypt(void)
+{
+    int     ret = 0;
+#ifdef WC_RC2
+    RC2     rc2;
+    int effectiveKeyBits = 63;
+
+    byte cipher[RC2_BLOCK_SIZE];
+    byte plain[RC2_BLOCK_SIZE];
+
+    byte key[]    = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    byte input[]  = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    byte output[] = { 0xeb, 0xb7, 0x73, 0xf9, 0x93, 0x27, 0x8e, 0xff };
+
+    printf(testingFmt, "wc_Rc2EcbEncryptDecrypt()");
+
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ret = wc_Rc2SetKey(&rc2, key, (word32) sizeof(key) / sizeof(byte),
+                       NULL, effectiveKeyBits);
+    if (ret == 0) {
+        ret = wc_Rc2EcbEncrypt(&rc2, cipher, input, RC2_BLOCK_SIZE);
+        if (ret != 0 || XMEMCMP(cipher, output, RC2_BLOCK_SIZE) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+
+        if (ret == 0) {
+            ret = wc_Rc2EcbDecrypt(&rc2, plain, cipher, RC2_BLOCK_SIZE);
+            if (ret != 0 || XMEMCMP(plain, input, RC2_BLOCK_SIZE) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Rc2EcbEncrypt bad arguments */
+    if (ret == 0) {
+        /* null RC2 struct */
+        ret = wc_Rc2EcbEncrypt(NULL, cipher, input, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null out buffer */
+        ret = wc_Rc2EcbEncrypt(&rc2, NULL, input, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null input buffer */
+        ret = wc_Rc2EcbEncrypt(&rc2, cipher, NULL, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* output buffer sz != RC2_BLOCK_SIZE (8) */
+        ret = wc_Rc2EcbEncrypt(&rc2, cipher, input, 7);
+        if (ret == BUFFER_E) {
+            ret = 0;
+        }
+    }
+
+    /* Rc2EcbDecrypt bad arguments */
+    if (ret == 0) {
+        /* null RC2 struct */
+        ret = wc_Rc2EcbDecrypt(NULL, plain, output, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null out buffer */
+        ret = wc_Rc2EcbDecrypt(&rc2, NULL, output, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null input buffer */
+        ret = wc_Rc2EcbDecrypt(&rc2, plain, NULL, RC2_BLOCK_SIZE);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* output buffer sz != RC2_BLOCK_SIZE (8) */
+        ret = wc_Rc2EcbDecrypt(&rc2, plain, output, 7);
+        if (ret == BUFFER_E) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_Rc2SetKey */
+
+/*
+ * Testing function for wc_Rc2CbcEncrypt().
+ */
+static int test_wc_Rc2CbcEncryptDecrypt(void)
+{
+    int     ret = 0;
+#ifdef WC_RC2
+    RC2     rc2;
+    int effectiveKeyBits = 63;
+
+    byte cipher[RC2_BLOCK_SIZE*2];
+    byte plain[RC2_BLOCK_SIZE*2];
+
+    /* vector taken from test.c */
+    byte key[]    = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    byte iv[] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    byte input[]  = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    byte output[] = {
+        0xeb, 0xb7, 0x73, 0xf9, 0x93, 0x27, 0x8e, 0xff,
+        0xf0, 0x51, 0x77, 0x8b, 0x65, 0xdb, 0x13, 0x57
+    };
+
+    printf(testingFmt, "wc_Rc2CbcEncryptDecrypt()");
+
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    ret = wc_Rc2SetKey(&rc2, key, (word32) sizeof(key) / sizeof(byte),
+                       iv, effectiveKeyBits);
+    if (ret == 0) {
+        ret = wc_Rc2CbcEncrypt(&rc2, cipher, input, sizeof(input));
+        if (ret != 0 || XMEMCMP(cipher, output, sizeof(output)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            /* reset IV for decrypt */
+            ret = wc_Rc2SetIV(&rc2, iv);
+        }
+
+        if (ret == 0) {
+            ret = wc_Rc2CbcDecrypt(&rc2, plain, cipher, sizeof(cipher));
+            if (ret != 0 || XMEMCMP(plain, input, sizeof(input)) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Rc2CbcEncrypt bad arguments */
+    if (ret == 0) {
+        /* null RC2 struct */
+        ret = wc_Rc2CbcEncrypt(NULL, cipher, input, sizeof(input));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null out buffer */
+        ret = wc_Rc2CbcEncrypt(&rc2, NULL, input, sizeof(input));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null input buffer */
+        ret = wc_Rc2CbcEncrypt(&rc2, cipher, NULL, sizeof(input));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    /* Rc2CbcDecrypt bad arguments */
+    if (ret == 0) {
+        /* in size is 0 */
+        ret = wc_Rc2CbcDecrypt(&rc2, plain, output, 0);
+        if (ret != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        /* null RC2 struct */
+        ret = wc_Rc2CbcDecrypt(NULL, plain, output, sizeof(output));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null out buffer */
+        ret = wc_Rc2CbcDecrypt(&rc2, NULL, output, sizeof(output));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        /* null input buffer */
+        ret = wc_Rc2CbcDecrypt(&rc2, plain, NULL, sizeof(output));
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+} /* END test_wc_Rc2SetKey */
 
 
 /*
@@ -37743,6 +38088,11 @@ void ApiTest(void)
 
     AssertIntEQ(test_wc_Arc4SetKey(), 0);
     AssertIntEQ(test_wc_Arc4Process(), 0);
+
+    AssertIntEQ(test_wc_Rc2SetKey(), 0);
+    AssertIntEQ(test_wc_Rc2SetIV(), 0);
+    AssertIntEQ(test_wc_Rc2EcbEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_Rc2CbcEncryptDecrypt(), 0);
 
     AssertIntEQ(test_wc_AesSetKey(), 0);
     AssertIntEQ(test_wc_AesSetIV(), 0);
