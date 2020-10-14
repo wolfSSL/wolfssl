@@ -1206,27 +1206,9 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" != "no"
+if test "$ENABLED_AESGCM" = "yes" && test "$ac_cv_c_bigendian" != "yes"
 then
-    if test "$ENABLED_AESGCM" = "word32"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
-        ENABLED_AESGCM=yes
-    fi
-
-    if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
-        ENABLED_AESGCM=yes
-    fi
-
-    if test "$ENABLED_AESGCM" = "table"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
-        ENABLED_AESGCM=yes
-    fi
-
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+    ENABLED_AESGCM="4bit"
 fi
 
 
@@ -5155,6 +5137,11 @@ then
         # These flags are already implied by --enable-aesctr
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
     fi
+    if test "x$ENABLED_AESGCM" != "xyes" && test "x$ENABLED_AESGCM" != "xno"
+    then
+        # Use the smaller object size implementation
+        ENABLED_AESGCM=yes
+    fi
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
@@ -5517,6 +5504,35 @@ else
         AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
         ENABLED_DES3=no
     fi
+fi
+
+if test "$ENABLED_AESGCM" != "no"
+then
+    if test "$ENABLED_AESGCM" = "word32"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "table"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "4bit"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE_4BIT"
+        ENABLED_AESGCM=yes
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
 fi
 
 
