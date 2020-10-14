@@ -689,6 +689,8 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
 
     leadingBit = mp_leading_bit(n);
     length = mp_unsigned_bin_size(n);
+    if (maxSz >= 0 && (1 + length + (leadingBit ? 1 : 0)) > maxSz)
+        return BUFFER_E;
     idx = SetASNInt(length, leadingBit ? 0x80 : 0x00, output);
     if (maxSz >= 0 && (idx + length) > maxSz)
         return BUFFER_E;
@@ -15408,13 +15410,13 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     idx = SetSequence(rLen + rLeadingZero + sLen+sLeadingZero + headerSz, out);
 
     /* store r */
-    rSz = SetASNIntMP(r, -1, &out[idx]);
+    rSz = SetASNIntMP(r, *outLen - idx, &out[idx]);
     if (rSz < 0)
         return rSz;
     idx += rSz;
 
     /* store s */
-    sSz = SetASNIntMP(s, -1, &out[idx]);
+    sSz = SetASNIntMP(s, *outLen - idx, &out[idx]);
     if (sSz < 0)
         return sSz;
     idx += sSz;
