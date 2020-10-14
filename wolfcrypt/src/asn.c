@@ -16531,14 +16531,17 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
 
 
 static int DecodeSingleResponse(byte* source,
-            word32* ioIndex, OcspResponse* resp, word32 size, CertStatus* cs)
+    word32* ioIndex, OcspResponse* resp, word32 size, int wrapperSz, 
+    CertStatus* cs)
 {
-    word32 idx = *ioIndex, oid, localIdx;
+    word32 idx = *ioIndex, prevIndex, oid, localIdx;
     int length;
     int ret;
     byte tag;
 
     WOLFSSL_ENTER("DecodeSingleResponse");
+
+    prevIndex = idx;
 
     /* Wrapper around the Single Response */
     if (GetSequence(source, &idx, &length, size) < 0)
@@ -16616,7 +16619,7 @@ static int DecodeSingleResponse(byte* source,
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
     localIdx = idx;
-    if (idx < size &&
+    if (((int)(idx - prevIndex) < wrapperSz) &&
         GetASNTag(source, &localIdx, &tag, size) == 0 &&
         tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
@@ -16788,7 +16791,8 @@ static int DecodeResponseData(byte* source,
     localIdx = idx;
     cs = resp->status;
     while (idx - localIdx < (word32)wrapperSz) {
-        if ((ret = DecodeSingleResponse(source, &idx, resp, localIdx + wrapperSz, cs)) < 0)
+        ret = DecodeSingleResponse(source, &idx, resp, size, wrapperSz, cs);
+        if (ret < 0)
             return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
         if (idx - localIdx < (word32)wrapperSz) {
             cs->next = (CertStatus*)XMALLOC(sizeof(CertStatus), resp->heap, 
