@@ -1748,43 +1748,38 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
-int hash2mgf(enum wc_HashType hType)
+int wc_hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
     case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
         return WC_MGF1SHA1;
 #else
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
 #endif
     case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
         return WC_MGF1SHA224;
 #else
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
 #endif
     case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
         return WC_MGF1SHA256;
 #else
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
 #endif
     case WC_HASH_TYPE_SHA384:
 #ifdef WOLFSSL_SHA384
         return WC_MGF1SHA384;
 #else
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
 #endif
     case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
         return WC_MGF1SHA512;
 #else
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
 #endif
     case WC_HASH_TYPE_NONE:
     case WC_HASH_TYPE_MD2:
@@ -1798,9 +1793,10 @@ int hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     default:
-        WOLFSSL_MSG("Unrecognized or unsupported hash function");
-        return WC_MGF1NONE;
+        break;
     }
+    WOLFSSL_MSG("Unrecognized or unsupported hash function");
+    return WC_MGF1NONE;
 }
 
 #ifdef WC_RSA_NONBLOCK
@@ -3263,11 +3259,17 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
-    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key , WC_RSA_PKCSV15_PAD,
-            WC_HASH_TYPE_NONE);
+    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key, WC_RSA_PKCSV15_PAD);
 }
 
 int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
+                         RsaKey* key, int pad_type)
+{
+    return wc_RsaSSL_Verify_ex2(in, inLen, out, outLen, key, pad_type,
+            WC_HASH_TYPE_NONE);
+}
+
+int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out, word32 outLen,
                          RsaKey* key, int pad_type, enum wc_HashType hash)
 {
     WC_RNG* rng;
@@ -3285,11 +3287,11 @@ int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
-        hash, hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
+        hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
 #else
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
-        hash, hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DISCOVER, rng);
+        hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DISCOVER, rng);
 #endif
 }
 #endif

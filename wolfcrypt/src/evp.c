@@ -2519,8 +2519,8 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
             int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
             if (nid < 0)
                 break;
-            ret = wolfSSL_RSA_sign_ex(nid, digest, hashLen, sig, &sigSz,
-                    ctx->pctx->pkey->rsa, 1, ctx->pctx->padding);
+            ret = wolfSSL_RSA_sign_generic_padding(nid, digest, hashLen,
+                    sig, &sigSz, ctx->pctx->pkey->rsa, 1, ctx->pctx->padding);
             if (ret >= 0)
                 *siglen = sigSz;
             break;

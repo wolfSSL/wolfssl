@@ -245,6 +245,8 @@ WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out,
+                              word32 outLen, RsaKey* key, int pad_type);
+WOLFSSL_API int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key, int pad_type,
                               enum wc_HashType hash);
 WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
@@ -368,7 +370,7 @@ WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** ou
                                    int mgf, byte* optLabel, word32 labelLen, int saltLen,
                                    int bits, void* heap);
 
-WOLFSSL_LOCAL int hash2mgf(enum wc_HashType hType);
+WOLFSSL_LOCAL int wc_hash2mgf(enum wc_HashType hType);
 
 #endif /* HAVE_USER_RSA */
 
