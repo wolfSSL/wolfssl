@@ -13728,3 +13728,27 @@ WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, con
  \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
  */
 WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);
+
+/*!
+ \ingroup SSL
+ \brief Sign a message with the chosen message digest, padding, and RSA key
+ \return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
+ \param type      Hash NID
+ \param m         Message to sign. Most likely this will be the digest of
+                  the message to sign
+ \param mLen      Length of message to sign
+ \param sigRet    Output buffer
+ \param sigLen    On Input: length of sigRet buffer
+                  On Output: length of data written to sigRet
+ \param rsa       RSA key used to sign the input
+ \param flag      1: Output the signature
+                  0: Output the value that the unpadded signature should be
+                     compared to. Note: for RSA_PKCS1_PSS_PADDING the
+                     wc_RsaPSS_CheckPadding_ex function should be used to check
+                     the output of a *Verify* function.
+ \param padding   Padding to use. Only RSA_PKCS1_PSS_PADDING and
+                  RSA_PKCS1_PADDING are currently supported for signing.
+ */
+WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
+                               unsigned int mLen, unsigned char* sigRet,
+                               unsigned int* sigLen, WOLFSSL_RSA*, int, int);
