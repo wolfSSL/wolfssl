@@ -8885,6 +8885,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
             case OCSP_NOCHECK_OID:
                 VERIFY_AND_SET_OID(cert->ocspNoCheckSet);
                 ret = GetASNNull(input, &idx, sz);
+                length = 0; /* idx is already incremented, reset length to 0 */
                 if (ret != 0)
                     return ASN_PARSE_E;
                 break;
@@ -16546,115 +16547,120 @@ static int DecodeSingleResponse(byte* source,
 
     prevIndex = idx;
 
-    /* When making a request, we only request one status on one certificate
-     * at a time. There should only be one SingleResponse */
+    /* wolfSSL only requests one status for one certificate at a time but
+       some OCSP responders can reply with multiple SingleResponse items.
+       Expect to handle one SingleResponse. Otherwise, we can process the
+       responses but only the last entry in the list is verified. */
 
-    /* Wrapper around the Single Response */
-    if (GetSequence(source, &idx, &length, size) < 0)
-        return ASN_PARSE_E;
+    while ((idx-prevIndex) < (word32)wrapperSz) {
+        /* Wrapper around the Single Response */
+        if (GetSequence(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
 
-    /* Wrapper around the CertID */
-    if (GetSequence(source, &idx, &length, size) < 0)
-        return ASN_PARSE_E;
-    /* Skip the hash algorithm */
-    if (GetAlgoId(source, &idx, &oid, oidIgnoreType, size) < 0)
-        return ASN_PARSE_E;
-    /* Save reference to the hash of CN */
-    ret = GetOctetString(source, &idx, &length, size);
-    if (ret < 0)
-        return ret;
-    resp->issuerHash = source + idx;
-    idx += length;
-    /* Save reference to the hash of the issuer public key */
-    ret = GetOctetString(source, &idx, &length, size);
-    if (ret < 0)
-        return ret;
-    resp->issuerKeyHash = source + idx;
-    idx += length;
+        /* Wrapper around the CertID */
+        if (GetSequence(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
+        /* Skip the hash algorithm */
+        if (GetAlgoId(source, &idx, &oid, oidIgnoreType, size) < 0)
+            return ASN_PARSE_E;
+        /* Save reference to the hash of CN */
+        ret = GetOctetString(source, &idx, &length, size);
+        if (ret < 0)
+            return ret;
+        resp->issuerHash = source + idx;
+        idx += length;
+        /* Save reference to the hash of the issuer public key */
+        ret = GetOctetString(source, &idx, &length, size);
+        if (ret < 0)
+            return ret;
+        resp->issuerKeyHash = source + idx;
+        idx += length;
 
-    /* Get serial number */
-    if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
-        return ASN_PARSE_E;
+        /* Get serial number */
+        if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
+            return ASN_PARSE_E;
 
-    if ( idx >= size )
-        return BUFFER_E;
+        if ( idx >= size )
+            return BUFFER_E;
 
-    /* CertStatus */
-    switch (source[idx++])
-    {
-        case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
-            cs->status = CERT_GOOD;
+        /* CertStatus */
+        switch (source[idx++])
+        {
+            case (ASN_CONTEXT_SPECIFIC | CERT_GOOD):
+                cs->status = CERT_GOOD;
+                idx++;
+                break;
+            case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
+                cs->status = CERT_REVOKED;
+                if (GetLength(source, &idx, &length, size) < 0)
+                    return ASN_PARSE_E;
+                idx += length;
+                break;
+            case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
+                cs->status = CERT_UNKNOWN;
+                idx++;
+                break;
+            default:
+                return ASN_PARSE_E;
+        }
+
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+        cs->thisDateAsn = source + idx;
+        localIdx = 0;
+        if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
+                        (byte*)&cs->thisDateParsed.type,
+                        &cs->thisDateParsed.length, size) < 0)
+            return ASN_PARSE_E;
+        XMEMCPY(cs->thisDateParsed.data,
+                cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
+                cs->thisDateParsed.length);
+    #endif
+        if (GetBasicDate(source, &idx, cs->thisDate,
+                                                    &cs->thisDateFormat, size) < 0)
+            return ASN_PARSE_E;
+
+    #ifndef NO_ASN_TIME
+    #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+        if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
+            return ASN_BEFORE_DATE_E;
+    #endif
+    #endif
+
+
+        /* The following items are optional. Only check for them if there is more
+         * unprocessed data in the singleResponse wrapper. */
+
+        localIdx = idx;
+        if (((int)(idx - prevIndex) < wrapperSz) &&
+            GetASNTag(source, &localIdx, &tag, size) == 0 &&
+            tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        {
             idx++;
-            break;
-        case (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CERT_REVOKED):
-            cs->status = CERT_REVOKED;
             if (GetLength(source, &idx, &length, size) < 0)
                 return ASN_PARSE_E;
-            idx += length;
-            break;
-        case (ASN_CONTEXT_SPECIFIC | CERT_UNKNOWN):
-            cs->status = CERT_UNKNOWN;
-            idx++;
-            break;
-        default:
-            return ASN_PARSE_E;
-    }
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+            cs->nextDateAsn = source + idx;
+            localIdx = 0;
+            if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
+                            (byte*)&cs->nextDateParsed.type,
+                            &cs->nextDateParsed.length, size) < 0)
+                return ASN_PARSE_E;
+            XMEMCPY(cs->nextDateParsed.data,
+                    cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
+                    cs->nextDateParsed.length);
+    #endif
+            if (GetBasicDate(source, &idx, cs->nextDate,
+                                                    &cs->nextDateFormat, size) < 0)
+                return ASN_PARSE_E;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    cs->thisDateAsn = source + idx;
-    localIdx = 0;
-    if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
-                    (byte*)&cs->thisDateParsed.type,
-                    &cs->thisDateParsed.length, size) < 0)
-        return ASN_PARSE_E;
-    XMEMCPY(cs->thisDateParsed.data,
-            cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
-            cs->thisDateParsed.length);
-#endif
-    if (GetBasicDate(source, &idx, cs->thisDate,
-                                                &cs->thisDateFormat, size) < 0)
-        return ASN_PARSE_E;
-
-#ifndef NO_ASN_TIME
-#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-    if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
-        return ASN_BEFORE_DATE_E;
-#endif
-#endif
-
-    /* The following items are optional. Only check for them if there is more
-     * unprocessed data in the singleResponse wrapper. */
-
-    localIdx = idx;
-    if (((int)(idx - prevIndex) < wrapperSz) &&
-        GetASNTag(source, &localIdx, &tag, size) == 0 &&
-        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-    {
-        idx++;
-        if (GetLength(source, &idx, &length, size) < 0)
-            return ASN_PARSE_E;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        cs->nextDateAsn = source + idx;
-        localIdx = 0;
-        if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
-                        (byte*)&cs->nextDateParsed.type,
-                        &cs->nextDateParsed.length, size) < 0)
-            return ASN_PARSE_E;
-        XMEMCPY(cs->nextDateParsed.data,
-                cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
-                cs->nextDateParsed.length);
-#endif
-        if (GetBasicDate(source, &idx, cs->nextDate,
-                                                &cs->nextDateFormat, size) < 0)
-            return ASN_PARSE_E;
-
-#ifndef NO_ASN_TIME
-#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-        if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
-            return ASN_AFTER_DATE_E;
-#endif
-#endif
-    }
+    #ifndef NO_ASN_TIME
+    #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
+            if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
+                return ASN_AFTER_DATE_E;
+    #endif
+    #endif
+        }
+    } /* while, process multiple SingleResponse items */
 
     localIdx = idx;
     if (((int)(idx - prevIndex) < wrapperSz) &&
