@@ -4440,6 +4440,41 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 
 #endif /* WOLFSSL_KEYGEN || HAVE_ECC */
 
+static int fp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
+{
+    int i;
+    mp_digit mask = (mp_digit)0 - m;
+#ifndef WOLFSSL_SMALL_STACK
+    fp_int  t[1];
+#else
+    fp_int* t;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+    t->used = (a->used ^ b->used) & mask;
+    for (i = 0; i < c; i++) {
+        t->dp[i] = (a->dp[i] ^ b->dp[i]) & mask;
+    }
+    a->used ^= t->used;
+    for (i = 0; i < c; i++) {
+        a->dp[i] ^= t->dp[i];
+    }
+    b->used ^= t->used;
+    for (i = 0; i < c; i++) {
+        b->dp[i] ^= t->dp[i];
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+    return FP_OKAY;
+}
+
 
 #if defined(WC_MP_TO_RADIX) || !defined(NO_DH) || !defined(NO_DSA) || \
     !defined(NO_RSA)
@@ -4995,6 +5030,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 }
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
+
+int mp_cond_swap_ct(mp_int * a, mp_int * b, int c, int m)
+{
+    return fp_cond_swap_ct(a, b, c, m);
+}
 
 #ifdef WOLFSSL_KEY_GEN
 
