@@ -6293,6 +6293,48 @@ int wolfSSL_CertManagerDisableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
+/* require OCSP stapling response */
+int wolfSSL_CertManagerEnableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerEnableOCSPMustStaple");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #ifndef NO_WOLFSSL_CLIENT
+        cm->ocspMustStaple = 1;
+    #endif
+#else
+    ret = NOT_COMPILED_IN;
+#endif
+
+    return ret;
+}
+
+int wolfSSL_CertManagerDisableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerDisableOCSPMustStaple");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #ifndef NO_WOLFSSL_CLIENT
+        cm->ocspMustStaple = 0;
+    #endif
+#else
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+
 #ifdef HAVE_OCSP
 /* check CRL if enabled, WOLFSSL_SUCCESS  */
 int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
@@ -6510,6 +6552,24 @@ int wolfSSL_CTX_DisableOCSPStapling(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_DisableOCSPStapling");
     if (ctx)
         return wolfSSL_CertManagerDisableOCSPStapling(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+int wolfSSL_CTX_EnableOCSPMustStaple(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_EnableOCSPMustStaple");
+    if (ctx)
+        return wolfSSL_CertManagerEnableOCSPMustStaple(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+int wolfSSL_CTX_DisableOCSPMustStaple(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_DisableOCSPMustStaple");
+    if (ctx)
+        return wolfSSL_CertManagerDisableOCSPMustStaple(ctx->cm);
     else
         return BAD_FUNC_ARG;
 }
