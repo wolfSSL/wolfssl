@@ -114,7 +114,3 @@ include certs/test/include.am
 include certs/test-pathlen/include.am
 include certs/intermediate/include.am
 
-if BUILD_FIPS_V2
-else
-noinst_DATA += certs/check_dates.sh
-endif

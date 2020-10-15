@@ -29,10 +29,3 @@ EXTRA_DIST += \
          certs/p521/server-p521-priv.der \
          certs/p521/server-p521-priv.pem
 
-if BUILD_FIPS_V2
-else
-noinst_DATA+= \
-         certs/p521/gen-p521-certs.sh \
-         certs/p521/gen-p521-keys.sh
-endif
-
