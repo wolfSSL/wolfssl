@@ -302,12 +302,16 @@
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_RSAKEY_BITS 2048
 #else
+    #ifndef DEFAULT_MIN_RSAKEY_BITS
     #define DEFAULT_MIN_RSAKEY_BITS 1024
+    #endif
 #endif
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_ECCKEY_BITS 256
 #else
+    #ifndef DEFAULT_MIN_ECCKEY_BITS
     #define DEFAULT_MIN_ECCKEY_BITS 224
+    #endif
 #endif
 
 /* all certs relative to wolfSSL home directory now */
