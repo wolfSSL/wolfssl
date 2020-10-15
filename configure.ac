@@ -354,6 +354,7 @@ then
     enable_nullcipher=yes
     enable_blake2=yes
     enable_blake2s=yes
+    enable_md2=yes
     enable_md4=yes
     enable_postauth=yes
     enable_hrrcookie=yes
@@ -472,6 +473,7 @@ then
     enable_nullcipher=yes
     enable_blake2=yes
     enable_blake2s=yes
+    enable_md2=yes
     enable_md4=yes
     enable_cryptocb=yes
     enable_anon=yes
@@ -1586,7 +1588,7 @@ fi
 AC_ARG_ENABLE([blake2s],
     [AS_HELP_STRING([--enable-blake2s],[Enable wolfSSL BLAKE2s support (default: disabled)])],
     [ ENABLED_BLAKE2S=$enableval ],
-    [ ENABLED_BLAKE2S=Sno ]
+    [ ENABLED_BLAKE2S=no ]
     )
 
 if test "$ENABLED_BLAKE2S" = "yes"
@@ -3290,7 +3292,7 @@ then
         AC_MSG_ERROR([cannot enable qsh without NTRU])
     fi
 
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_QSH"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_QSH -DWOLFSSL_STATIC_DH -DWOLFSSL_STATIC_PSK"
 fi
 
 
@@ -5931,6 +5933,8 @@ echo "   * DES3:                       $ENABLED_DES3"
 echo "   * IDEA:                       $ENABLED_IDEA"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
 echo "   * NULL Cipher:                $ENABLED_NULL_CIPHER"
+echo "   * MD2:                        $ENABLED_MD2"
+echo "   * MD4:                        $ENABLED_MD4"
 echo "   * MD5:                        $ENABLED_MD5"
 echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
