@@ -334,6 +334,58 @@ if [ $? -ne 0 ]; then
     printf '%s\n\n' "Test successfully REVOKED!"
 fi
 
+# need a unique port since may run the same time as testsuite
+generate_port() {
+    port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+}
+
+# Start OpenSSL server that has no OCSP responses to return
+generate_port
+openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
+openssl_pid=$!
+sleep 0.1
+
+printf '%s\n\n' "------------- TEST CASE 5 SHOULD PASS ----------------------"
+# client asks for OCSP staple but doesn't fail when none returned
+./examples/client/client -p $port -g -v 3 -W 1
+
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 5 failed" && exit 1
+printf '%s\n\n' "Test PASSED!"
+
+printf '%s\n\n' "------------- TEST CASE 6 SHOULD UNKNOWN -------------------"
+# client asks for OCSP staple but doesn't fail when none returned
+./examples/client/client -p $port -g -v 3 -W 1m
+
+RESULT=$?
+[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 6 succeeded $RESULT" \
+                  && exit 1
+printf '%s\n\n' "Test PASSED!"
+
+openssl ciphers -tls1_3
+openssl_tls13=$?
+./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
+wolfssl_not_tls13=$?
+if [ "$openssl_tls13" = "0" -a "wolfssl_not_tls13" != "0" ]; then
+    printf '%s\n\n' "------------- TEST CASE 7 SHOULD PASS --------------------"
+    # client asks for OCSP staple but doesn't fail when none returned
+    ./examples/client/client -p $port -g -v 4 -W 1
+
+    RESULT=$?
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 7 failed" && exit 1
+    printf '%s\n\n' "Test PASSED!"
+
+    printf '%s\n\n' "------------- TEST CASE 8 SHOULD UNKNOWN -----------------"
+    # client asks for OCSP staple but doesn't fail when none returned
+    ./examples/client/client -p $port -g -v 4 -W 1m
+
+    RESULT=$?
+    [ $RESULT -ne 1 ] \
+                  && printf '\n\n%s\n' "Client connection 8 succeeded $RESULT" \
+                  && exit 1
+    printf '%s\n\n' "Test PASSED!"
+fi
+
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 
 exit 0
