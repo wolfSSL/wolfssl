@@ -33391,9 +33391,15 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 {
 #if defined(OPENSSL_ALL)
 
-    byte key[AES_BLOCK_SIZE] = {0};
+    /* This is large enough to be used for all key sizes */
+    byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     int i, enumlen;
+    EVP_CIPHER_CTX *ctx;
+    const EVP_CIPHER *init;
+
+
+
 
     int enumArray[] = {
 
@@ -33409,8 +33415,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #ifndef NO_DES3
          NID_des_cbc,
     #endif
-    #ifndef NO_DES3
-         NID_des_cbc,
+    #ifndef WOLFSSL_DES_ECB
          NID_des_ede3_ecb,
     #endif
     #ifdef HAVE_IDEA
@@ -33431,14 +33436,11 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #ifndef NO_DES3
          8,
     #endif
-    #ifndef NO_DES3
-         8,
-    #endif
     #ifdef WOLFSSL_DES_ECB
-         0,
+         8,
     #endif
     #ifdef HAVE_IDEA
-         8,
+         16,
     #endif
     };
 
@@ -33447,16 +33449,15 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     enumlen = (sizeof(enumArray)/sizeof(int));
     for(i = 0; i < enumlen; i++)
     {
-        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        const EVP_CIPHER *init = wolfSSL_EVP_get_cipherbynid(enumArray[i]);
+        ctx = EVP_CIPHER_CTX_new();
+        init = wolfSSL_EVP_get_cipherbynid(enumArray[i]);
 
         wolfSSL_EVP_CIPHER_CTX_init(ctx);
         AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
-
         AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_iv_length(ctx), iv_lengths[i]);
 
-
+//wolfSSL_EVP_CIPHER_CTX_cleanup
         EVP_CIPHER_CTX_free(ctx);
     }
 
@@ -33466,7 +33467,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 static void test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_DES3)
-    byte key[AES_BLOCK_SIZE] = {0};
+    byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
 
     printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_key_length");
@@ -33486,7 +33487,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 static void test_wolfSSL_EVP_CIPHER_CTX_set_key_length(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_DES3)
-    byte key[AES_BLOCK_SIZE] = {0};
+    byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     int keylen;
 
@@ -33511,8 +33512,8 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3) &&\
    !defined(NO_DES3)
-    byte key[AES_BLOCK_SIZE] = {0};
-    byte iv[AES_BLOCK_SIZE] = {0};
+    byte key[DES3_KEY_SIZE] = {0};
+    byte iv[DES_IV_SIZE] = {0};
     int ivLen, keyLen;
 
     printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_set_iv");
@@ -33591,7 +33592,7 @@ static void test_wolfSSL_EVP_rc2_cbc(void)
 }
 static void test_wolfSSL_EVP_mdc2(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_mdc2");
 
@@ -33677,8 +33678,8 @@ static void test_wolfSSL_EVP_X_STATE(void)
 {
 #if defined(OPENSSL_ALL)  && !defined(NO_DES3) 
 
-    byte key[AES_BLOCK_SIZE] = {0};
-    byte iv[AES_BLOCK_SIZE] = {0};
+    byte key[DES3_KEY_SIZE] = {0};
+    byte iv[DES_IV_SIZE] = {0};
     EVP_CIPHER_CTX *ctx;
     const EVP_CIPHER *init;
 
@@ -33713,8 +33714,8 @@ static void test_wolfSSL_EVP_X_STATE_LEN(void)
 {
 #if defined(OPENSSL_ALL)  && !defined(NO_DES3)
 
-    byte key[AES_BLOCK_SIZE] = {0};
-    byte iv[AES_BLOCK_SIZE] = {0};
+    byte key[DES3_KEY_SIZE] = {0};
+    byte iv[DES_IV_SIZE] = {0};
     EVP_CIPHER_CTX *ctx;
     const EVP_CIPHER *init;
 
@@ -33773,6 +33774,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
         NID_aes_256_gcm,
     #endif
     #ifdef WOLFSSL_AES_COUNTER
+    #ifdef WOLFSSL_AES_128
          NID_aes_128_ctr,
     #endif
     #ifdef WOLFSSL_AES_192
@@ -33780,6 +33782,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifdef WOLFSSL_AES_256
         NID_aes_256_ctr,
+    #endif
     #endif
     #ifndef NO_DES3
          NID_des_cbc,
@@ -33809,6 +33812,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
             12,
     #endif
     #ifdef WOLFSSL_AES_COUNTER
+    #ifdef WOLFSSL_AES_128
             16,
     #endif
     #ifdef WOLFSSL_AES_192
@@ -33816,6 +33820,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifdef WOLFSSL_AES_256
             16,
+    #endif
     #endif
     #ifndef NO_DES3
             8,
@@ -33952,8 +33957,8 @@ static void test_IncCtr(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3) &&\
    !defined(NO_DES3)
-    byte key[AES_BLOCK_SIZE] = {0};
-    byte iv[AES_BLOCK_SIZE] = {0};
+    byte key[DES3_KEY_SIZE] = {0};
+    byte iv[DES_IV_SIZE] = {0};
     int type = EVP_CTRL_GCM_IV_GEN;
     int arg = 0;
     void *ptr;
