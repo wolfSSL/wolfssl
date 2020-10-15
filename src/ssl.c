@@ -15739,13 +15739,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_BIO_set_fd");
 
         if (b != NULL) {
-            if (b->type == WOLFSSL_BIO_FILE) {
-                b->ptr = XFDOPEN(fd, "rw");
-                if (!b->ptr) {
-                    WOLFSSL_MSG("Error opening file descriptor");
-                    return WOLFSSL_FAILURE;
-                }
-            }
             b->num = fd;
             b->shutdown = (byte)closeF;
         }
@@ -15890,6 +15883,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (bio->type == WOLFSSL_BIO_FILE && bio->shutdown == BIO_CLOSE) {
                 if (bio->ptr) {
                     XFCLOSE((XFILE)bio->ptr);
+                }
+                else {
+                    XCLOSE(bio->num);
                 }
             }
         #endif
@@ -19733,7 +19729,7 @@ int wolfSSL_NCONF_get_number(const CONF *conf, const char *group,
     char *str;
     WOLFSSL_ENTER("wolfSSL_NCONF_get_number");
 
-    if (!conf || !group || !name || !result) {
+    if (!conf || !name || !result) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
     }
@@ -19803,7 +19799,8 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                 char prevValue;
 
                 if (*startIdx == '{') {
-                    /* First read the section. Ex: ${ENV::COUNT} */
+                    /* First read the section.
+                     * format: ${section_name::var_name} */
                     s = ++startIdx;
                     while (*strIdx && *strIdx != ':') strIdx++;
                     if (!strIdx || s == strIdx || strIdx[1] != ':') {
@@ -19812,10 +19809,10 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                         goto expand_cleanup;
                     }
                     *strIdx = '\0';
-                    *strIdx += 2;
+                    strIdx += 2;
                     startIdx = strIdx;
                 }
-                while (*strIdx && (XISALPHA(*strIdx) || *strIdx == '_'))
+                while (*strIdx && (XISALNUM(*strIdx) || *strIdx == '_'))
                     strIdx++;
                 endIdx = strIdx;
                 if (startIdx == endIdx) {
@@ -19987,7 +19984,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
             value = idx;
             /* Find end of value */
             idx = maxIdx-1;
-            while (*idx == ' ' || *idx == '\t')
+            while (idx >= value && (*idx == ' ' || *idx == '\t'))
                 idx--;
             valueLen = idx - value + 1;
 
@@ -20041,6 +20038,7 @@ void wolfSSL_NCONF_free(WOLFSSL_CONF *conf)
     WOLFSSL_ENTER("wolfSSL_NCONF_free");
     if (conf) {
         wolfSSL_sk_CONF_VALUE_free(conf->data);
+        XFREE(conf, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
 
@@ -21628,7 +21626,7 @@ error:
     return ret;
 }
 
-long wolfSSL_TXT_DB_write(WOLFSSL_BIO  *out, WOLFSSL_TXT_DB *db)
+long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
 {
     const WOLF_STACK_OF(WOLFSSL_STRING)* data;
     long totalLen = 0;
@@ -21743,10 +21741,9 @@ int wolfSSL_TXT_DB_create_index(WOLFSSL_TXT_DB *db, int field,
 WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
         WOLFSSL_STRING *value)
 {
-    WOLF_STACK_OF(WOLFSSL_STRING)* data;
     WOLFSSL_ENTER("wolfSSL_TXT_DB_get_by_index");
 
-    if (!db || idx < 0 || idx >= db->num_fields) {
+    if (!db || !db->data || idx < 0 || idx >= db->num_fields) {
         WOLFSSL_MSG("Bad parameter");
         return NULL;
     }
@@ -21756,17 +21753,22 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
         return NULL;
     }
 
-    /* Set the hash and comp functions */
-    data = db->data;
-    while (data) {
-        if (data->comp != db->comp[idx] || data->hash_fn != db->hash_fn[idx]) {
-            data->comp = db->comp[idx];
-            data->hash_fn = db->hash_fn[idx];
-            data->hash = 0;
+    /* If first data struct has correct hash and cmp function then
+     * assume others do too */
+    if (db->data->hash_fn != db->hash_fn[idx] ||
+            db->data->comp != db->comp[idx]) {
+        /* Set the hash and comp functions */
+        WOLF_STACK_OF(WOLFSSL_STRING)* data = db->data;
+        while (data) {
+            if (data->comp != db->comp[idx] ||
+                    data->hash_fn != db->hash_fn[idx]) {
+                data->comp = db->comp[idx];
+                data->hash_fn = db->hash_fn[idx];
+                data->hash = 0;
+            }
+            data= data->next;
         }
-        data= data->next;
     }
-
     return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
 }
 #endif
@@ -23357,9 +23359,11 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
             const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig)
     {
+        (void)sig;
+
         WOLFSSL_ENTER("wolfSSL_X509_signature_print");
 
-        if (!bp || !sigalg || !sig) {
+        if (!bp || !sigalg) {
             WOLFSSL_MSG("Bad parameter");
             return WOLFSSL_FAILURE;
         }
@@ -27704,7 +27708,7 @@ WOLFSSL_ASN1_OBJECT *wolfSSL_d2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
  * @param class Class of parsed ASN1 object
  * @param inLen Length of *in buffer
  * @return int  Depends on which bits are set in the returned int:
- *              0x80 an error occured during parsing
+ *              0x80 an error occurred during parsing
  *              0x20 parsed object is constructed
  *              0x01 the parsed object length is infinite
  */
@@ -50854,8 +50858,10 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
 
 int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 {
-    byte* output;
+    byte* output = NULL;
     int len;
+    WC_RNG rng;
+    int ret = WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
 
     if (!bio || !p7) {
@@ -50863,31 +50869,45 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
         return WOLFSSL_FAILURE;
     }
 
+    if (!p7->rng) {
+        if (wc_InitRng(&rng) != 0) {
+            WOLFSSL_MSG("wc_InitRng error");
+            return WOLFSSL_FAILURE;
+        }
+        p7->rng = &rng;
+    }
+
     if ((len = wc_PKCS7_EncodeSignedData(p7, NULL, 0)) < 0) {
         WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
     output = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!output) {
         WOLFSSL_MSG("malloc error");
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
     if ((len = wc_PKCS7_EncodeSignedData(p7, output, len)) < 0) {
         WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
-        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
     if (wolfSSL_BIO_write(bio, output, len) <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_write error");
-        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
+        goto cleanup;
     }
 
-    XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return WOLFSSL_SUCCESS;
+    ret = WOLFSSL_SUCCESS;
+cleanup:
+    if (p7->rng == &rng) {
+        wc_FreeRng(&rng);
+        p7->rng = NULL;
+    }
+    if (output) {
+        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
 }
 
 int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
@@ -50934,14 +50954,19 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
     return WOLFSSL_SUCCESS;
 }
 
+/**
+ * This API was added as a helper function for libest. It
+ * encodes a stack of certificates to pkcs7 format.
+ * @param pkcs7 PKCS7 parameter object
+ * @param certs WOLFSSL_STACK_OF(WOLFSSL_X509)*
+ * @param out   Output bio
+ * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
 int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
                                WOLFSSL_BIO* out)
 {
     int ret;
     WOLFSSL_PKCS7* p7;
-    WC_RNG rng;
-    byte cleanRng = 0;
-
     WOLFSSL_ENTER("wolfSSL_PKCS7_encode_certs");
 
     if (!pkcs7 || !certs || !out) {
@@ -51000,26 +51025,18 @@ int wolfSSL_PKCS7_encode_certs(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return WOLFSSL_FAILURE;
     }
 
-    if (!pkcs7->rng) {
-        if (wc_InitRng(&rng) != 0) {
-            WOLFSSL_MSG("wc_InitRng error");
-            return WOLFSSL_FAILURE;
-        }
-        pkcs7->rng = &rng;
-        cleanRng = 1;
-    }
-
     ret = wolfSSL_i2d_PKCS7_bio(out, pkcs7);
-
-    if (cleanRng) {
-        wc_FreeRng(&rng);
-        pkcs7->rng = NULL;
-    }
 
     return ret;
 }
 #endif /* !NO_BIO */
 
+/**
+ * This API was added as a helper functio for libest. It
+ * extracts a stack of certificates from the pkcs7 object.
+ * @param pkcs7 PKCS7 parameter object
+ * @return WOLFSSL_STACK_OF(WOLFSSL_X509)*
+ */
 WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
 {
     int i;
@@ -51037,7 +51054,8 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         return p7->certs;
 
     for (i = 0; i < MAX_PKCS7_CERTS && p7->pkcs7.cert[i]; i++) {
-        WOLFSSL_X509* x509 = wolfSSL_X509_d2i(NULL, p7->pkcs7.cert[i], p7->pkcs7.certSz[i]);
+        WOLFSSL_X509* x509 = wolfSSL_X509_d2i(NULL, p7->pkcs7.cert[i],
+                                              p7->pkcs7.certSz[i]);
         if (!ret)
             ret = wolfSSL_sk_X509_new();
         if (x509) {

@@ -615,6 +615,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
+        #define XWRITE      write
+        #define XREAD       read
+        #define XCLOSE      close
     #endif
 #endif
 

@@ -652,8 +652,8 @@ decouple library dependencies with standard string, memory and so on.
 	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
             defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
             #define XTOUPPER(c)     toupper((c))
-            #define XISALPHA(c)     isalpha((c))
         #endif
+        #define XISALNUM(c)     isalnum((c))
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
     #endif

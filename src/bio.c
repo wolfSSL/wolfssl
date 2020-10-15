@@ -229,7 +229,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 
     #ifndef NO_FILESYSTEM
         if (bio && bio->type == WOLFSSL_BIO_FILE) {
-            ret = (int)XFREAD(buf, 1, len, (XFILE)bio->ptr);
+            if (bio->ptr)
+                ret = (int)XFREAD(buf, 1, len, (XFILE)bio->ptr);
+            else
+                ret = XREAD(bio->num, buf, len);
         }
     #endif
 
@@ -580,8 +583,11 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         }
 
     #ifndef NO_FILESYSTEM
-        if (bio->type == WOLFSSL_BIO_FILE) {
-            ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
+        if (bio && bio->type == WOLFSSL_BIO_FILE) {
+            if (bio->ptr)
+                ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
+            else
+                ret = XWRITE(bio->num, data, len);
         }
     #endif
 
