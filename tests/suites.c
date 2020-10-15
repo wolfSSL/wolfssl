@@ -882,11 +882,23 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
-#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && \
-                                                         defined(WOLFSSL_SHA512)
+#if defined(HAVE_ECC) && defined(WOLFSSL_SHA512) && \
+    (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES))
     /* add P-521 certificate cipher suite tests */
     strcpy(argv0[1], "tests/test-p521.conf");
     printf("starting P-521 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_CUSTOM_CURVES) && \
+    defined(HAVE_ECC_KOBLITZ) && defined(HAVE_ECC_BRAINPOOL)
+    /* TLS non-NIST curves (Koblitz / Brainpool) */
+    strcpy(argv0[1], "tests/test-ecc-cust-curves.conf");
+    printf("starting TLS test of non-NIST curves (Koblitz / Brainpool)\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
