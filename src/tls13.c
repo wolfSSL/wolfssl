@@ -3369,7 +3369,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                                      diff - MAX_TICKET_AGE_SECS * 1000 > 1000) {
                 /* Invalid difference, fallback to full handshake. */
                 ssl->options.resuming = 0;
-                break;
+                /* Hash the rest of the ClientHello. */
+                return HashRaw(ssl, input + helloSz - bindersLen, bindersLen);
             }
 
             /* Check whether resumption is possible based on suites in SSL and
