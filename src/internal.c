@@ -21114,7 +21114,7 @@ exit_dpk:
         int ret = ECC_CURVE_ERROR;
 
         switch (tlsCurveId) {
-    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1: return ECC_SECP160R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21125,7 +21125,7 @@ exit_dpk:
             case WOLFSSL_ECC_SECP160K1: return ECC_SECP160K1_OID;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP192R1: return ECC_SECP192R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -24763,7 +24763,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* returns the WOLFSSL_* version of the curve from the OID sum */
     word16 GetCurveByOID(int oidSum) {
         switch(oidSum) {
-    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
         #ifndef NO_ECC_SECP
             case ECC_SECP160R1_OID:
                 return WOLFSSL_ECC_SECP160R1;
@@ -24777,7 +24777,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_SECP160K1;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
         #ifndef NO_ECC_SECP
             case ECC_SECP192R1_OID:
                 return WOLFSSL_ECC_SECP192R1;

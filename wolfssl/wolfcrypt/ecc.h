@@ -93,7 +93,7 @@
     #define MAX_ECC_BITS    256
 #elif defined(HAVE_ECC239)
     #define MAX_ECC_BITS    239
-#elif defined(HAVE_ECC224)
+#elif defined(HAVE_ECC224) && !defined(ECC_WEAK_CURVES)
     #define MAX_ECC_BITS    224
 #elif defined(HAVE_ECC192)
     #define MAX_ECC_BITS    192
