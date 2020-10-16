@@ -4371,7 +4371,7 @@ static int rc2_ecb_test(void)
     test_rc2[7] = h;
 
     for (i = 0; i < times; ++i) {
-        RC2 enc;
+        Rc2 enc;
 
         XMEMSET(cipher, 0, RC2_BLOCK_SIZE);
         XMEMSET(plain, 0, RC2_BLOCK_SIZE);
@@ -4549,7 +4549,7 @@ static int rc2_cbc_test(void)
     test_rc2[8] = i;
 
     for (j = 0; j < times; ++j) {
-        RC2 rc2;
+        Rc2 rc2;
 
         XMEMSET(cipher, 0, sizeof(cipher));
         XMEMSET(plain, 0, sizeof(plain));

@@ -85,7 +85,7 @@ static const byte pitable[256] = {
   iv        IV, of size RC2_BLOCK_SIZE octets
   return    0 on success, negative on error
 */
-int wc_Rc2SetIV(RC2* rc2, const byte* iv)
+int wc_Rc2SetIV(Rc2* rc2, const byte* iv)
 {
     if (rc2 == NULL)
         return BAD_FUNC_ARG;
@@ -106,7 +106,7 @@ int wc_Rc2SetIV(RC2* rc2, const byte* iv)
    bits     Effective RC2 key length in bits (max 1024 bits)
    return   0 on success, negative on error
  */
-int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length,
+int wc_Rc2SetKey(Rc2* rc2, const byte* key, word32 length,
                  const byte* iv, word32 bits)
 {
     int i;
@@ -160,7 +160,7 @@ int wc_Rc2SetKey(RC2* rc2, const byte* key, word32 length,
    sz       Size of the output buffer, out
    return   0 on success, negative on error
 */
-int wc_Rc2EcbEncrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
+int wc_Rc2EcbEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
     int i, j = 0;
     word16 r10, r32, r54, r76;
@@ -225,7 +225,7 @@ int wc_Rc2EcbEncrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
    sz       Size of the output buffer, out
    return   0 on success, negative on error
 */
-int wc_Rc2EcbDecrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
+int wc_Rc2EcbDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
     int i, j = 63;
     word16 r0, r1, r2, r3;
@@ -280,7 +280,7 @@ int wc_Rc2EcbDecrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
     return 0;
 }
 
-int wc_Rc2CbcEncrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
+int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = (sz / RC2_BLOCK_SIZE);
 
@@ -304,7 +304,7 @@ int wc_Rc2CbcEncrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
     return 0;
 }
 
-int wc_Rc2CbcDecrypt(RC2* rc2, byte* out, const byte* in, word32 sz)
+int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = (sz / RC2_BLOCK_SIZE);
 

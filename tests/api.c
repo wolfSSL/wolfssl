@@ -11866,7 +11866,7 @@ static int test_wc_Rc2SetKey(void)
 {
     int     ret = 0;
 #ifdef WC_RC2
-    RC2     rc2;
+    Rc2     rc2;
     byte    key40[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
     byte    iv[]    = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
@@ -11883,7 +11883,7 @@ static int test_wc_Rc2SetKey(void)
 
     /* bad arguments  */
     if (ret == 0) {
-        /* null RC2 struct */
+        /* null Rc2 struct */
         ret = wc_Rc2SetKey(NULL, key40, (word32) sizeof(key40) / sizeof(byte),
                            iv, 40);
         if (ret == BAD_FUNC_ARG) {
@@ -11947,7 +11947,7 @@ static int test_wc_Rc2SetIV(void)
 {
     int     ret = 0;
 #ifdef WC_RC2
-    RC2     rc2;
+    Rc2     rc2;
     byte    iv[]    = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
     printf(testingFmt, "wc_Rc2SetIV()");
@@ -11980,7 +11980,7 @@ static int test_wc_Rc2EcbEncryptDecrypt(void)
 {
     int     ret = 0;
 #ifdef WC_RC2
-    RC2     rc2;
+    Rc2     rc2;
     int effectiveKeyBits = 63;
 
     byte cipher[RC2_BLOCK_SIZE];
@@ -12013,7 +12013,7 @@ static int test_wc_Rc2EcbEncryptDecrypt(void)
 
     /* Rc2EcbEncrypt bad arguments */
     if (ret == 0) {
-        /* null RC2 struct */
+        /* null Rc2 struct */
         ret = wc_Rc2EcbEncrypt(NULL, cipher, input, RC2_BLOCK_SIZE);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -12046,7 +12046,7 @@ static int test_wc_Rc2EcbEncryptDecrypt(void)
 
     /* Rc2EcbDecrypt bad arguments */
     if (ret == 0) {
-        /* null RC2 struct */
+        /* null Rc2 struct */
         ret = wc_Rc2EcbDecrypt(NULL, plain, output, RC2_BLOCK_SIZE);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -12090,7 +12090,7 @@ static int test_wc_Rc2CbcEncryptDecrypt(void)
 {
     int     ret = 0;
 #ifdef WC_RC2
-    RC2     rc2;
+    Rc2     rc2;
     int effectiveKeyBits = 63;
 
     byte cipher[RC2_BLOCK_SIZE*2];
@@ -12138,7 +12138,7 @@ static int test_wc_Rc2CbcEncryptDecrypt(void)
 
     /* Rc2CbcEncrypt bad arguments */
     if (ret == 0) {
-        /* null RC2 struct */
+        /* null Rc2 struct */
         ret = wc_Rc2CbcEncrypt(NULL, cipher, input, sizeof(input));
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -12171,7 +12171,7 @@ static int test_wc_Rc2CbcEncryptDecrypt(void)
     }
 
     if (ret == 0) {
-        /* null RC2 struct */
+        /* null Rc2 struct */
         ret = wc_Rc2CbcDecrypt(NULL, plain, output, sizeof(output));
         if (ret == BAD_FUNC_ARG) {
             ret = 0;

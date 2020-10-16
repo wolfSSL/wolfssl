@@ -650,7 +650,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #ifdef WC_RC2
         case PBE_SHA1_40RC2_CBC:
         {
-            RC2 rc2;
+            Rc2 rc2;
             /* effective key size for RC2-40-CBC is 40 bits */
             ret = wc_Rc2SetKey(&rc2, key, derivedLen, cbcIv, 40);
             if (ret == 0) {
@@ -665,7 +665,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #endif
                 return ret;
             }
-            ForceZero(&rc2, sizeof(RC2));
+            ForceZero(&rc2, sizeof(Rc2));
             break;
         }
 #endif
