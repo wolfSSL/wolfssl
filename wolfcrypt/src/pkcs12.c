@@ -630,7 +630,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     int size    = 0;
     int version = 0;
 
-    WOLFSSL_ENTER("wolfSSL_d2i_PKCS12_bio");
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS12");
 
     if (der == NULL || pkcs12 == NULL) {
         return BAD_FUNC_ARG;
