@@ -14986,6 +14986,11 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
         ERROR_OUT(-7835, done);
 #endif
 
+    pubSz = FFDHE_KEY_SIZE;
+    pubSz2 = FFDHE_KEY_SIZE;
+    privSz = FFDHE_KEY_SIZE;
+    privSz2 = FFDHE_KEY_SIZE;
+
     XMEMSET(key, 0, sizeof *key);
     XMEMSET(key2, 0, sizeof *key2);
 
@@ -15107,8 +15112,8 @@ static int dh_test(void)
     byte *agree2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     if ((tmp == NULL) || (priv == NULL) || (pub == NULL) ||
-	(priv2 == NULL) || (pub2 == NULL) || (agree == NULL) ||
-	(agree2 == NULL))
+        (priv2 == NULL) || (pub2 == NULL) || (agree == NULL) ||
+        (agree2 == NULL))
         ERROR_OUT(-7960, done);
 #else
     DhKey  key_buf, *key = &key_buf;
@@ -15153,6 +15158,11 @@ static int dh_test(void)
     (void)idx;
     (void)tmp;
     (void)bytes;
+
+    pubSz = DH_TEST_BUF_SIZE;
+    pubSz2 = DH_TEST_BUF_SIZE;
+    privSz = DH_TEST_BUF_SIZE;
+    privSz2 = DH_TEST_BUF_SIZE;
 
     XMEMSET(&rng, 0, sizeof(rng));
     /* Use API for coverage. */
