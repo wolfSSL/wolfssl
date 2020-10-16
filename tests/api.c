@@ -4819,6 +4819,9 @@ static void test_wolfSSL_PKCS12(void)
     byte buffer[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
+#ifdef WC_RC2
+    char rc2p12[] = "./certs/test-servercert-rc2.p12";
+#endif
     char pass[] = "a password";
 #ifdef HAVE_ECC
     WOLFSSL_X509_NAME* subject;
@@ -5061,6 +5064,43 @@ static void test_wolfSSL_PKCS12(void)
 
     PKCS12_free(pkcs12);
 #endif /* HAVE_ECC */
+
+#ifdef WC_RC2
+    /* test PKCS#12 with RC2 encryption */
+    f = XFOPEN(rc2p12, "rb");
+    AssertTrue(f != XBADFILE);
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
+
+    /* check verify MAC fail case */
+    ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
+    AssertIntEQ(ret, 0);
+    AssertNull(pkey);
+    AssertNull(cert);
+
+    /* check parse iwth not extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, NULL);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+
+    /* check parse with extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, &ca);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+    AssertNotNull(ca);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_X509_free(cert);
+    sk_X509_free(ca);
+
+    BIO_free(bio);
+    PKCS12_free(pkcs12);
+#endif /* WC_RC2 */
 
     /* Test i2d_PKCS12_bio */
     f = XFOPEN(file, "rb");
