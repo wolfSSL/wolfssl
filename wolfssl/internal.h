@@ -4380,13 +4380,6 @@ extern const WOLF_EC_NIST_NAME kNistCurves[];
 #define kNistCurves_MAX_NAME_LEN 7
 #endif
 
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-extern WC_RNG globalRNG;
-extern int initGlobalRNG;
-extern wolfSSL_Mutex globalRNGMutex;
-#endif
-
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL*);
 WOLFSSL_LOCAL int SendTicket(WOLFSSL*);

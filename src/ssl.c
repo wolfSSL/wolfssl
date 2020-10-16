@@ -4786,6 +4786,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
 #endif /* NO_SESSION_CACHE */
 
+#if defined(OPENSSL_EXTRA) || \
+    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+static WC_RNG globalRNG;
+static int initGlobalRNG = 0;
+static wolfSSL_Mutex globalRNGMutex;
+#endif
+
 WOLFSSL_ABI
 int wolfSSL_Init(void)
 {
@@ -28330,12 +28337,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 #define WOLFSSL_OBJECT_INFO_SZ \
                 (sizeof(wolfssl_object_info) / sizeof(*wolfssl_object_info))
 const size_t wolfssl_object_info_sz = WOLFSSL_OBJECT_INFO_SZ;
-#endif
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-WC_RNG globalRNG;
-int initGlobalRNG = 0;
-wolfSSL_Mutex globalRNGMutex;
 #endif
 #if defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
