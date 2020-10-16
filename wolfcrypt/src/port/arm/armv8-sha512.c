@@ -28,6 +28,10 @@
 #ifdef WOLFSSL_ARMASM
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
+#ifdef HAVE_FIPS
+#undef HAVE_FIPS
+#endif
+
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
