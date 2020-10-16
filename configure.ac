@@ -1880,6 +1880,19 @@ then
 fi
 
 
+# ECC Weak Key Sizes (224-bit equiv to RSA 2048 - by default disable < 224 bit ECC)
+AC_ARG_ENABLE([eccweakcurves],
+    [AS_HELP_STRING([--enable-eccweakcurves],[Enable ECC curves less than 224 bit (default: disabled)])],
+    [ ENABLED_ECCWEAKCURVES=$enableval ],
+    [ ENABLED_ECCWEAKCURVES=no ]
+    )
+
+if test "$ENABLED_ECCWEAKCURVES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DECC_WEAK_CURVES"
+fi
+
+
 # Compressed Key
 AC_ARG_ENABLE([compkey],
     [AS_HELP_STRING([--enable-compkey],[Enable compressed keys support (default: disabled)])],
@@ -6042,6 +6055,7 @@ echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
 echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Weak Curves             $ENABLED_ECCWEAKCURVES"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"

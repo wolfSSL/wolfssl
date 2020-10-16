@@ -75,6 +75,7 @@ ECC Curve Types:
 ECC Curve Sizes:
  * ECC_USER_CURVES: Allows custom combination of key sizes below
  * HAVE_ALL_CURVES: Enable all key sizes (on unless ECC_USER_CURVES is defined)
+ * ECC_WEAK_CURVES: Enable support for weak keys < 224 bits
  * HAVE_ECC112: 112 bit key
  * HAVE_ECC128: 128 bit key
  * HAVE_ECC160: 160 bit key
@@ -179,16 +180,16 @@ enum {
 */
 
 /* 256-bit curve on by default whether user curves or not */
-#if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     #define ECC112
 #endif
-#if defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     #define ECC128
 #endif
-#if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     #define ECC160
 #endif
-#if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     #define ECC192
 #endif
 #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)

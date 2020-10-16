@@ -1749,6 +1749,13 @@ extern void uITRON4_free(void *p) ;
         #define HAVE_ALL_CURVES
     #endif
 #endif
+#ifndef ECC_WEAK_CURVES
+    /* if building TLS to enable < 224 then allow weak curves */
+    /* Note: ECC 224-bit is equiv to RSA 2048 bit */
+    #if defined(WOLFSSL_MIN_ECC_BITS) && WOLFSSL_MIN_ECC_BITS < 224
+        #define ECC_WEAK_CURVES
+    #endif
+#endif
 
 /* ECC Configs */
 #ifdef HAVE_ECC
