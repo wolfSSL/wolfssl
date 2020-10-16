@@ -29398,6 +29398,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->arrays->preMasterSz = private_key->dp->size;
 
                         ssl->peerEccKeyPresent = 1;
+                        
+                    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+                        /* client_hello may have sent FFEDH2048, which sets namedGroup, 
+                            but that is not being used, so clear it */
+                        /* resolves issue with server side wolfSSL_get_curve_name */
+                        ssl->namedGroup = 0;
+                    #endif
                 #endif /* HAVE_ECC */
 
                         break;
