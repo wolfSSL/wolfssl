@@ -73,6 +73,7 @@ ASN Options:
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/rc2.h>
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
@@ -3141,6 +3142,13 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
             *id = PBE_SHA1_DES;
             *version = PKCS12v1;
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
+            return 0;
+    #endif
+    #ifdef WC_RC2
+        case PBE_SHA1_40RC2_CBC:
+            *id = PBE_SHA1_40RC2_CBC;
+            *version = PKCS12v1;
+            if (blockSz) *blockSz = RC2_BLOCK_SIZE;
             return 0;
     #endif
 #endif /* !NO_SHA */

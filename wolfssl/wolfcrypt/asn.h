@@ -1416,12 +1416,13 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 #endif
 
 enum PBESTypes {
-    PBE_MD5_DES      = 0,
-    PBE_SHA1_RC4_128 = 1,
-    PBE_SHA1_DES     = 2,
-    PBE_SHA1_DES3    = 3,
-    PBE_AES256_CBC   = 4,
-    PBE_AES128_CBC   = 5,
+    PBE_MD5_DES        = 0,
+    PBE_SHA1_RC4_128   = 1,
+    PBE_SHA1_DES       = 2,
+    PBE_SHA1_DES3      = 3,
+    PBE_AES256_CBC     = 4,
+    PBE_AES128_CBC     = 5,
+    PBE_SHA1_40RC2_CBC = 6,
 
     PBE_SHA1_RC4_128_SUM = 657,
     PBE_SHA1_DES3_SUM    = 659,
