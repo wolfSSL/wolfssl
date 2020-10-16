@@ -1209,7 +1209,11 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
             #endif
         }
 
-        ret = wc_RNG_GenerateBlock(rng, priv, sz);
+        if (sz > *privSz)
+            ret = WC_KEY_SIZE_E;
+
+        if (ret == 0)
+            ret = wc_RNG_GenerateBlock(rng, priv, sz);
 
         if (ret == 0) {
             priv[0] |= 0x0C;
@@ -1241,6 +1245,7 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     mp_int y[1];
 #endif
 #endif
+    word32 binSz;
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
@@ -1282,11 +1287,18 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     if (ret == 0 && mp_exptmod(&key->g, x, &key->p, y) != MP_OKAY)
         ret = MP_EXPTMOD_E;
 
+    if (ret == 0) {
+        binSz = mp_unsigned_bin_size(y);
+        if (binSz > *pubSz) {
+            ret = WC_KEY_SIZE_E;
+        }
+    }
+
     if (ret == 0 && mp_to_unsigned_bin(y, pub) != MP_OKAY)
         ret = MP_TO_E;
 
     if (ret == 0)
-        *pubSz = mp_unsigned_bin_size(y);
+        *pubSz = binSz;
 
     mp_clear(y);
     mp_clear(x);
