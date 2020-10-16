@@ -29,6 +29,10 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
 
+#ifdef HAVE_FIPS
+#undef HAVE_FIPS
+#endif
+
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
