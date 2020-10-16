@@ -260,6 +260,18 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
     #define HEAP_HINT NULL
 #endif /* WOLFSSL_STATIC_MEMORY */
 
+#if !defined(NO_FILESYSTEM) && defined(HAVE_TMPFILE)
+    XFILE CERT_FILE_RSA = XBADFILE;
+    XFILE CERT_FILE_RSA_OTHER = XBADFILE;
+    XFILE CERT_FILE_ECC = XBADFILE;
+    typedef XFILE XTESTFILE;
+#else
+    typedef void* XFILE;
+    XFILE CERT_FILE_RSA = NULL;
+    XFILE CERT_FILE_RSA_OTHER = NULL;
+    XFILE CERT_FILE_ECC = NULL;
+#endif
+
 /* these cases do not have intermediate hashing support */
 #if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP)) \
         && !defined(WOLFSSL_XILINX_CRYPT)
@@ -1247,6 +1259,15 @@ initDefaultName();
     wc_ecc_fp_free();
 #endif
 
+#if !defined(NO_FILESYSTEM) && defined(HAVE_TMPFILE)
+    if (CERT_FILE_RSA != NULL)
+        XFCLOSE(CERT_FILE_RSA);
+    if (CERT_FILE_RSA_OTHER != NULL)
+        XFCLOSE(CERT_FILE_RSA_OTHER);
+    if (CERT_FILE_ECC != NULL)
+        XFCLOSE(CERT_FILE_ECC);
+#endif
+
     if (args)
         ((func_args*)args)->return_code = ret;
 
@@ -1334,24 +1355,40 @@ initDefaultName();
     (!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))))
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-#define SaveDerAndPem(d, dSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, fD, fP, pT, eB)
+#define SaveDerAndPem(d, dSz, fD, fP, pT, eB, sF) \
+    _SaveDerAndPem(d, dSz, fD, fP, pT, eB, sF)
 #else
-#define SaveDerAndPem(d, dSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, NULL, NULL, pT, eB)
+#define SaveDerAndPem(d, dSz, fD, fP, pT, eB, sF) \
+    _SaveDerAndPem(d, dSz, NULL, NULL, pT, eB, NULL)
 #endif
 
 static int _SaveDerAndPem(const byte* der, int derSz,
-    const char* fileDer, const char* filePem, int pemType, int errBase)
+    const char* fileDer, const char* filePem, int pemType, int errBase,
+    XFILE* saveFile)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     int ret;
     XFILE derFile;
 
+#ifndef HAVE_TMPFILE
     derFile = XFOPEN(fileDer, "wb");
+#else
+    derFile = tmpfile();
+    if (saveFile != NULL) {
+        *saveFile = derFile;
+    }
+#endif
     if (!derFile) {
         return errBase + 0;
     }
     ret = (int)XFWRITE(der, 1, derSz, derFile);
+#ifndef HAVE_TMPFILE
     XFCLOSE(derFile);
+#else
+    if (saveFile == NULL) {
+        XFCLOSE(derFile);
+    }
+#endif
     if (ret != derSz) {
         return errBase + 1;
     }
@@ -1381,7 +1418,11 @@ static int _SaveDerAndPem(const byte* der, int derSz,
             return errBase + 2;
         }
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+#ifndef HAVE_TMPFILE
         pemFile = XFOPEN(filePem, "wb");
+#else
+        pemFile = tmpfile();
+#endif
         if (!pemFile) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return errBase + 3;
@@ -1404,6 +1445,7 @@ static int _SaveDerAndPem(const byte* der, int derSz,
     (void)fileDer;
     (void)pemType;
     (void)errBase;
+    (void)saveFile;
 
     return 0;
 }
@@ -11471,14 +11513,21 @@ static int certext_test(void)
         return -7300;
 
     /* load othercert.der (Cert signed by an authority) */
+#ifndef HAVE_TMPFILE
     file = XFOPEN(otherCertDerFile, "rb");
+#else
+    file = CERT_FILE_RSA_OTHER;
+    XREWIND(file);
+#endif
     if (!file) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -7301;
     }
 
     bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+#ifndef HAVE_TMPFILE
     XFCLOSE(file);
+#endif
 
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
@@ -11517,15 +11566,22 @@ static int certext_test(void)
     FreeDecodedCert(&cert);
 
 #ifdef HAVE_ECC
+#ifndef HAVE_TMPFILE
     /* load certecc.der (Cert signed by our ECC CA test in ecc_test_cert_gen) */
     file = XFOPEN(certEccDerFile, "rb");
+#else
+    file = CERT_FILE_ECC;
+    XREWIND(file);
+#endif
     if (!file) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -7310;
     }
 
     bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+#ifndef HAVE_TMPFILE
     XFCLOSE(file);
+#endif
 
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
@@ -11565,15 +11621,22 @@ static int certext_test(void)
     FreeDecodedCert(&cert);
 #endif /* HAVE_ECC */
 
+#ifndef HAVE_TMPFILE
     /* load cert.der (self signed certificate) */
     file = XFOPEN(certDerFile, "rb");
+#else
+    file = CERT_FILE_RSA;
+    XREWIND(file);
+#endif
     if (!file) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return -7319;
     }
 
     bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+#ifndef HAVE_TMPFILE
     XFCLOSE(file);
+#endif
 
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
 
@@ -11636,10 +11699,17 @@ static int decodedCertCache_test(void)
 
     if (ret == 0) {
         /* load cert.der */
+#ifndef HAVE_TMPFILE
         file = XFOPEN(certDerFile, "rb");
+#else
+        file = CERT_FILE_RSA;
+        XREWIND(file);
+#endif
         if (file != NULL) {
             derSz = (word32)XFREAD(der, 1, FOURK_BUF, file);
+#ifndef HAVE_TMPFILE
             XFCLOSE(file);
+#endif
         }
         else
             ret = -7401;
@@ -13125,7 +13195,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 #endif
 
     ret = SaveDerAndPem(der, certSz, certDerFile, certPemFile,
-        CERT_TYPE, -5578);
+        CERT_TYPE, -5578, &CERT_FILE_RSA);
     if (ret != 0) {
         goto exit_rsa;
     }
@@ -13288,7 +13358,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 #endif
 
     ret = SaveDerAndPem(der, certSz, otherCertDerFile, otherCertPemFile,
-        CERT_TYPE, -5598);
+        CERT_TYPE, -5598, &CERT_FILE_RSA_OTHER);
     if (ret != 0) {
         goto exit_rsa;
     }
@@ -13509,7 +13579,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
 #endif
 
     ret = SaveDerAndPem(der, certSz, certEccRsaDerFile, certEccRsaPemFile,
-        CERT_TYPE, -5616);
+        CERT_TYPE, -5616, NULL);
     if (ret != 0) {
         goto exit_rsa;
     }
@@ -13608,7 +13678,7 @@ static int rsa_keygen_test(WC_RNG* rng)
     }
 
     ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile,
-        PRIVATEKEY_TYPE, -5555);
+        PRIVATEKEY_TYPE, -5555, NULL);
     if (ret != 0) {
         goto exit_rsa;
     }
@@ -14595,7 +14665,7 @@ static int rsa_test(void)
     #endif
 
         ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem",
-            CERT_TYPE, -5637);
+            CERT_TYPE, -5637, NULL);
         if (ret != 0) {
             goto exit_rsa;
         }
@@ -14703,7 +14773,7 @@ static int rsa_test(void)
         derSz = ret;
 
         ret = SaveDerAndPem(der, derSz, certReqDerFile, certReqPemFile,
-            CERTREQ_TYPE, -5650);
+            CERTREQ_TYPE, -5650, NULL);
         if (ret != 0) {
             goto exit_rsa;
         }
@@ -15684,7 +15754,7 @@ static int dsa_test(void)
     }
 
     ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile,
-        DSA_PRIVATEKEY_TYPE, -5814);
+        DSA_PRIVATEKEY_TYPE, -5814, NULL);
     if (ret != 0) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
@@ -19732,7 +19802,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     }
 
     ret = SaveDerAndPem(der, derSz, eccCaKeyTempFile, eccCaKeyPemFile,
-        ECC_PRIVATEKEY_TYPE, -8347);
+        ECC_PRIVATEKEY_TYPE, -8347, NULL);
     if (ret != 0) {
         goto done;
     }
@@ -19746,7 +19816,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-9640, done);
     }
 
-    ret = SaveDerAndPem(der, derSz, eccPubKeyDerFile, NULL, 0, -8348);
+    ret = SaveDerAndPem(der, derSz, eccPubKeyDerFile, NULL, 0, -8348, NULL);
     if (ret != 0) {
         goto done;
     }
@@ -19763,7 +19833,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-9641, done);
     }
 
-    ret = SaveDerAndPem(der, derSz, eccPkcs8KeyDerFile, NULL, 0, -8349);
+    ret = SaveDerAndPem(der, derSz, eccPkcs8KeyDerFile, NULL, 0, -8349, NULL);
     if (ret != 0) {
         goto done;
     }
@@ -21350,7 +21420,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
 #endif
 
     ret = SaveDerAndPem(der, certSz, certEccDerFile, certEccPemFile,
-        CERT_TYPE, -6735);
+        CERT_TYPE, -6735, &CERT_FILE_ECC);
     if (ret != 0) {
         goto exit;
     }
