@@ -56,8 +56,9 @@
     #ifndef ECC_PRIV_KEY_BUF
         #define ECC_PRIV_KEY_BUF 66  /* For non user defined curves. */
     #endif
-    #ifdef HAVE_ALL_CURVES
-        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
+    /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64 */
+    /* logic to choose right key ECC size */
+    #if defined(HAVE_ALL_CURVES) && defined(ECC_WEAK_CURVES)
         #ifndef KEY14
             #define KEY14 14
         #endif
@@ -70,6 +71,21 @@
         #if !defined(KEY24)
             #define KEY24 24
         #endif
+    #else
+        #ifndef KEY14
+            #define KEY14 32
+        #endif
+        #if !defined(KEY16)
+            #define KEY16 32
+        #endif
+        #if !defined(KEY20)
+            #define KEY20 32
+        #endif
+        #if !defined(KEY24)
+            #define KEY24 32
+        #endif
+    #endif
+    #ifdef HAVE_ALL_CURVES
         #if !defined(KEY28)
             #define KEY28 28
         #endif
@@ -88,20 +104,7 @@
         #if !defined(KEY64)
             #define KEY64 64
         #endif
-    #else
-        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
-        #ifndef KEY14
-            #define KEY14 32
-        #endif
-        #if !defined(KEY16)
-            #define KEY16 32
-        #endif
-        #if !defined(KEY20)
-            #define KEY20 32
-        #endif
-        #if !defined(KEY24)
-            #define KEY24 32
-        #endif
+    #else        
         #if !defined(KEY28)
             #define KEY28 32
         #endif

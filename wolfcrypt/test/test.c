@@ -21868,31 +21868,31 @@ static int ecc_test(void)
         return -9900;
 #endif
 
-#if defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     ret = ecc_test_curve(&rng, 14);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC112 */
-#if defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     ret = ecc_test_curve(&rng, 16);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC128 */
-#if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     ret = ecc_test_curve(&rng, 20);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC160 */
-#if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC192 */
-#if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
     ret = ecc_test_curve(&rng, 28);
     if (ret < 0) {
         goto done;
