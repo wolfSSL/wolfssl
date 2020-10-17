@@ -4340,7 +4340,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
         /* find supported curve */
         switch (curve->name) {
 #ifdef HAVE_ECC
-    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 160
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1:
                 pkOid = oid = ECC_SECP160R1_OID;
@@ -4360,7 +4360,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
         #endif
-    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 192
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP192R1:
                 pkOid = oid = ECC_SECP192R1_OID;
@@ -4374,7 +4374,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 224
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP224R1:
                 pkOid = oid = ECC_SECP224R1_OID;
@@ -4388,7 +4388,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 256
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
                 pkOid = oid = ECC_SECP256R1_OID;
@@ -4409,7 +4409,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_CURVE25519 */
 #ifdef HAVE_ECC
-    #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+    #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 256
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP256K1:
                 pkOid = oid = ECC_SECP256K1_OID;
@@ -4436,7 +4436,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_CURVE448 */
 #ifdef HAVE_ECC
-    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP384R1:
                 pkOid = oid = ECC_SECP384R1_OID;
@@ -4450,7 +4450,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP512R1:
                 pkOid = oid = ECC_BRAINPOOLP512R1_OID;
@@ -4458,7 +4458,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP521R1:
                 pkOid = oid = ECC_SECP521R1_OID;
@@ -9847,21 +9847,21 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         /* list in order by strength, since not all servers choose by strength */
-        #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+        #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 521
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP521R1, ssl->heap);
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
-        #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+        #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 512
             #ifdef HAVE_ECC_BRAINPOOL
                 ret = TLSX_UseSupportedCurve(extensions,
                                         WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
-        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+        #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 384
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP384R1, ssl->heap);
@@ -9884,7 +9884,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif /* HAVE_FIPS */
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+        #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 256
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP256R1, ssl->heap);
@@ -9912,7 +9912,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif /* HAVE_FIPS */
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-        #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+        #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 224
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP224R1, ssl->heap);
@@ -9926,7 +9926,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
 
     #ifndef HAVE_FIPS
-        #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+        #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 192
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP192R1, ssl->heap);
@@ -9938,7 +9938,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
-        #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+        #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 160
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
                                               WOLFSSL_ECC_SECP160R1, ssl->heap);
