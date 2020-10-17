@@ -21868,43 +21868,43 @@ static int ecc_test(void)
         return -9900;
 #endif
 
-#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 112
     ret = ecc_test_curve(&rng, 14);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC112 */
-#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 128
     ret = ecc_test_curve(&rng, 16);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC128 */
-#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 160
     ret = ecc_test_curve(&rng, 20);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC160 */
-#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 192
     ret = ecc_test_curve(&rng, 24);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC192 */
-#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_WEAK_CURVES)
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 224
     ret = ecc_test_curve(&rng, 28);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC224 */
-#if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 239
     ret = ecc_test_curve(&rng, 30);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC239 */
-#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 256
     ret = ecc_test_curve(&rng, 32);
     if (ret < 0) {
         goto done;
@@ -21921,25 +21921,25 @@ static int ecc_test(void)
         goto done;
     }
 #endif /* !NO_ECC256 */
-#if defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 320
     ret = ecc_test_curve(&rng, 40);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC320 */
-#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 384
     ret = ecc_test_curve(&rng, 48);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC384 */
-#if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 512
     ret = ecc_test_curve(&rng, 64);
     if (ret < 0) {
         goto done;
     }
 #endif /* HAVE_ECC512 */
-#if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 521
     ret = ecc_test_curve(&rng, 66);
     if (ret < 0) {
         goto done;

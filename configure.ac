@@ -1880,18 +1880,14 @@ then
 fi
 
 
-# ECC Weak Key Sizes (224-bit equiv to RSA 2048 - by default disable < 224 bit ECC)
-AC_ARG_ENABLE([eccweakcurves],
-    [AS_HELP_STRING([--enable-eccweakcurves],[Enable ECC curves less than 224 bit (default: disabled)])],
-    [ ENABLED_ECCWEAKCURVES=$enableval ],
-    [ ENABLED_ECCWEAKCURVES=no ]
-    )
-
-if test "$ENABLED_ECCWEAKCURVES" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DECC_WEAK_CURVES"
-fi
-
+# ECC Minimum Key Size
+AC_ARG_WITH([eccminsz],
+    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
+    [
+        ENABLED_ECCMINSZ=$withval
+        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
+    ]
+)
 
 # Compressed Key
 AC_ARG_ENABLE([compkey],
