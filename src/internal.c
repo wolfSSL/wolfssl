@@ -21272,7 +21272,6 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
                 DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
-        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
         ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
     args->idx += OPAQUE16_LEN;
