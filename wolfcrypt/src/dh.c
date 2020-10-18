@@ -1237,6 +1237,7 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 {
     int ret = 0;
 #ifndef WOLFSSL_SP_MATH
+    word32 binSz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* x;
     mp_int* y;
@@ -1245,7 +1246,6 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     mp_int y[1];
 #endif
 #endif
-    word32 binSz;
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
