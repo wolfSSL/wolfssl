@@ -45,6 +45,7 @@ EXTRA_DIST += \
 	     certs/test-degenerate.p7b \
 	     certs/test-ber-exp02-05-2022.p7b \
 	     certs/test-servercert.p12 \
+	     certs/test-servercert-rc2.p12 \
 	     certs/ecc-rsa-server.p12 \
 	     certs/dsaparams.pem \
 	     certs/ecc-privOnlyKey.pem \
