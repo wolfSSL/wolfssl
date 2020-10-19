@@ -145,12 +145,12 @@
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
+#ifndef WOLFCRYPT_ONLY
+
 #ifdef OPENSSL_EXTRA
 /* Global pointer to constant BN on */
 static WOLFSSL_BIGNUM* bn_one = NULL;
 #endif
-
-#ifndef WOLFCRYPT_ONLY
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -28029,7 +28029,6 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 }
 #endif
 #endif /* OPENSSL_EXTRA */
-#endif /* !WOLFCRYPT_ONLY */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 #ifndef NO_CERTS
@@ -28385,7 +28384,6 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
     return rng;
 }
 #endif
-#ifndef WOLFCRYPT_ONLY
 
 #ifdef OPENSSL_EXTRA
 
@@ -44645,8 +44643,6 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 #endif /* HAVE_ALPN */
 #endif
 
-#endif /* WOLFCRYPT_ONLY */
-
 #if defined(OPENSSL_EXTRA)
 
 #define WOLFSSL_BIO_INCLUDED
@@ -48524,3 +48520,5 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 }
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
+
+#endif /* WOLFCRYPT_ONLY */
