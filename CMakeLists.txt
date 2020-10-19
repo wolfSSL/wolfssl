@@ -16,14 +16,18 @@
 # To build with debugging use:
 # $ cmake .. -DCMAKE_BUILD_TYPE=Debug
 
-
-cmake_minimum_required (VERSION 2.6)
-
 ####################################################
 # Project
 ####################################################
+
+cmake_minimum_required(VERSION 2.6)
 project(wolfssl)
-find_package (Threads)
+
+####################################################
+# Dependencies
+####################################################
+
+find_package(Threads)
 
 ####################################################
 # Compiler
@@ -32,10 +36,10 @@ find_package (Threads)
 
 if(APPLE)
     # Silence ranlib warning "has no symbols"
-    SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-    SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-    SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-    SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+    set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+    set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
 ####################################################
@@ -55,45 +59,49 @@ endif()
 ####################################################
 # Build Options
 ####################################################
-SET(BUILD_TESTS YES CACHE BOOL "Build test applications")
+
+option(BUILD_TESTS "Build test applications" YES)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/options.h")
     # Copy generated ./options.h
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/options.h 
-                   ${CMAKE_CURRENT_BINARY_DIR}/user_settings.h)
+                   ${CMAKE_CURRENT_SOURCE_DIR}/user_settings.h)
 else()
    # Use template
    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/options.h.in 
-                  ${CMAKE_CURRENT_BINARY_DIR}/user_settings.h)
+                  ${CMAKE_CURRENT_SOURCE_DIR}/user_settings.h)
 endif()
 
 add_definitions(-DWOLFSSL_USER_SETTINGS)
 add_definitions(-DWOLFSSL_IGNORE_FILE_WARN)
-if(CMAKE_HAVE_PTHREAD_H)
+if(CMAKE_USE_PTHREADS_INIT)
   add_definitions(-DHAVE_PTHREAD)
 endif()
 
 ####################################################
-# Source Files
+# Library Target and Source Files
 ####################################################
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/.)
 
 file(GLOB LIB_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/*.c)
 
-file(GLOB TEST_SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
-
-####################################################
-# Output Files
-####################################################
-
-# Build wolfssl library
 add_library(wolfssl ${LIB_SOURCE_FILES})
+
+####################################################
+# Include Directories
+####################################################
+
+target_include_directories(wolfssl
+    PUBLIC
+        $<INSTALL_INTERFACE:wolfssl>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wolfssl>
+        ${CMAKE_CURRENT_SOURCE_DIR}/. # Needed for user_settings.h to be visible
+)
+
+####################################################
+# Link Libraries
+####################################################
 
 if(WIN32)
     # For Windows link ws2_32
@@ -102,6 +110,10 @@ else()
     # DH requires math (m) library
     target_link_libraries(wolfssl PUBLIC m)
 endif()
+
+####################################################
+# Tests and Examples
+####################################################
 
 # Optionally build example and test applications
 if(BUILD_TESTS)
@@ -140,6 +152,11 @@ if(BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c)
     target_link_libraries(tls_bench wolfssl)
     target_link_libraries(tls_bench Threads::Threads)
+
+    file(GLOB TEST_SOURCE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
 
     # Build Unit Tests
     add_executable(unit_test
