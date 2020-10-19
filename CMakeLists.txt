@@ -20,7 +20,7 @@
 # Project
 ####################################################
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.0)
 project(wolfssl)
 
 ####################################################
@@ -79,14 +79,100 @@ if(CMAKE_USE_PTHREADS_INIT)
 endif()
 
 ####################################################
-# Library Target and Source Files
+# Library Target
 ####################################################
 
-file(GLOB LIB_SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/wolfcrypt/src/*.c)
-
-add_library(wolfssl ${LIB_SOURCE_FILES})
+add_library(wolfssl
+    src/bio.c
+    src/crl.c
+    src/internal.c
+    src/keys.c
+    src/ocsp.c
+    src/sniffer.c
+    src/ssl.c
+    src/tls.c
+    src/tls13.c
+    src/wolfio.c
+    wolfcrypt/src/aes.c
+    wolfcrypt/src/arc4.c
+    wolfcrypt/src/asm.c
+    wolfcrypt/src/asn.c
+    wolfcrypt/src/async.c
+    wolfcrypt/src/blake2b.c
+    wolfcrypt/src/blake2s.c
+    wolfcrypt/src/camellia.c
+    wolfcrypt/src/chacha.c
+    wolfcrypt/src/chacha20_poly1305.c
+    wolfcrypt/src/cmac.c
+    wolfcrypt/src/coding.c
+    wolfcrypt/src/compress.c
+    wolfcrypt/src/cpuid.c
+    wolfcrypt/src/cryptocb.c
+    wolfcrypt/src/curve25519.c
+    wolfcrypt/src/curve448.c
+    wolfcrypt/src/debug.c
+    wolfcrypt/src/des3.c
+    wolfcrypt/src/dh.c
+    wolfcrypt/src/dsa.c
+    wolfcrypt/src/ecc.c
+    wolfcrypt/src/ecc_fp.c
+    wolfcrypt/src/ed25519.c
+    wolfcrypt/src/ed448.c
+    wolfcrypt/src/error.c
+    wolfcrypt/src/evp.c
+    wolfcrypt/src/fe_448.c
+    wolfcrypt/src/fe_low_mem.c
+    wolfcrypt/src/fe_operations.c
+    wolfcrypt/src/fips.c
+    wolfcrypt/src/fips_test.c
+    wolfcrypt/src/ge_448.c
+    wolfcrypt/src/ge_low_mem.c
+    wolfcrypt/src/ge_operations.c
+    wolfcrypt/src/hash.c
+    wolfcrypt/src/hc128.c
+    wolfcrypt/src/hmac.c
+    wolfcrypt/src/idea.c
+    wolfcrypt/src/integer.c
+    wolfcrypt/src/logging.c
+    wolfcrypt/src/md2.c
+    wolfcrypt/src/md4.c
+    wolfcrypt/src/md5.c
+    wolfcrypt/src/memory.c
+    wolfcrypt/src/misc.c
+    wolfcrypt/src/pkcs12.c
+    wolfcrypt/src/pkcs7.c
+    wolfcrypt/src/poly1305.c
+    wolfcrypt/src/pwdbased.c
+    wolfcrypt/src/rabbit.c
+    wolfcrypt/src/random.c
+    wolfcrypt/src/ripemd.c
+    wolfcrypt/src/rsa.c
+    wolfcrypt/src/selftest.c
+    wolfcrypt/src/sha.c
+    wolfcrypt/src/sha256.c
+    wolfcrypt/src/sha3.c
+    wolfcrypt/src/sha512.c
+    wolfcrypt/src/signature.c
+    wolfcrypt/src/sp_arm32.c
+    wolfcrypt/src/sp_arm64.c
+    wolfcrypt/src/sp_armthumb.c
+    wolfcrypt/src/sp_c32.c
+    wolfcrypt/src/sp_c64.c
+    wolfcrypt/src/sp_cortexm.c
+    wolfcrypt/src/sp_dsp32.c
+    wolfcrypt/src/sp_int.c
+    wolfcrypt/src/sp_x86_64.c
+    wolfcrypt/src/srp.c
+    wolfcrypt/src/tfm.c
+    wolfcrypt/src/wc_dsp.c
+    wolfcrypt/src/wc_encrypt.c
+    wolfcrypt/src/wc_pkcs11.c
+    wolfcrypt/src/wc_port.c
+    wolfcrypt/src/wolfcrypt_first.c
+    wolfcrypt/src/wolfcrypt_last.c
+    wolfcrypt/src/wolfevent.c
+    wolfcrypt/src/wolfmath.c
+)
 
 ####################################################
 # Include Directories
@@ -153,15 +239,17 @@ if(BUILD_TESTS)
     target_link_libraries(tls_bench wolfssl)
     target_link_libraries(tls_bench Threads::Threads)
 
-    file(GLOB TEST_SOURCE_FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/server/server.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/examples/client/client.c)
-
     # Build Unit Tests
     add_executable(unit_test
-        ${TEST_SOURCE_FILES})
-    set_target_properties( unit_test PROPERTIES COMPILE_FLAGS "-DNO_MAIN_DRIVER" )
+        tests/api.c
+        tests/hash.c
+        tests/srp.c
+        tests/suites.c
+        tests/unit.c
+        examples/server/server.c
+        examples/client/client.c
+    )
+    target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
     target_link_libraries(unit_test wolfssl)
     target_link_libraries(unit_test Threads::Threads)
 endif()
