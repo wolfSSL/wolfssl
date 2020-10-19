@@ -2835,7 +2835,7 @@ static const struct cipher{
     #endif
     #endif
 
-    #ifdef HAVE_AES_GCM
+    #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     {AES_128_GCM_TYPE, EVP_AES_128_GCM, NID_aes_128_gcm},
     #endif
