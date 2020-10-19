@@ -786,7 +786,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef BUILDING_WOLFSSL
 
     /* includes are all above, with incompatible warnings masked out. */
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
     typedef __kernel_time_t time_t;
     #else
     typedef __kernel_time64_t time_t;
