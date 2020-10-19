@@ -352,3 +352,8 @@ IDE/XCODE/Index
 
 # Emacs
 *~
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
