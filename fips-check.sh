@@ -344,7 +344,6 @@ then
         echo "fips-check: Couldn't checkout the FIPS repository for FIPS Ready."
         exit 1
     fi
-    FIPS_OPTION="v2"
 elif test "x$FIPS_OPTION" = "xv3"
 then
     if ! $GIT clone $FIPS_REPO fips; then
