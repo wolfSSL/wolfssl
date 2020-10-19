@@ -21231,9 +21231,6 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     }
 
     ato16(input + args->idx, &length);
-    if (length < MIN_DHKEY_SZ || length > MAX_DHKEY_SZ) {
-        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
-    }
     args->idx += OPAQUE16_LEN;
 
     if ((args->idx - args->begin) + length > size) {
@@ -21278,12 +21275,6 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     }
 
     ato16(input + args->idx, &length);
-    if (length > MAX_DHKEY_SZ) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
-                DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_P.buffer = NULL;
-        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
-    }
     args->idx += OPAQUE16_LEN;
 
     if ((args->idx - args->begin) + length > size) {
@@ -21294,6 +21285,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
                 DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    if (length > ssl->options.maxDhKeySz) {
+        WOLFSSL_MSG("Server using a DH key generator that is too big");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
 
     ssl->buffers.serverDH_G.buffer =
@@ -21324,19 +21321,21 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     }
 
     ato16(input + args->idx, &length);
-    if (length < MIN_DHKEY_SZ || length > MAX_DHKEY_SZ) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
-                DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_P.buffer = NULL;
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
-                DYNAMIC_TYPE_PUBLIC_KEY);
-        ssl->buffers.serverDH_G.buffer = NULL;
-        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
-    }
     args->idx += OPAQUE16_LEN;
 
     if ((args->idx - args->begin) + length > size) {
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    if (length < ssl->options.minDhKeySz) {
+        WOLFSSL_MSG("Server using a public DH key that is too small");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
+    }
+    if (length > ssl->options.maxDhKeySz) {
+        WOLFSSL_MSG("Server using a public DH key that is too big");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
 
     ssl->buffers.serverDH_Pub.buffer =
