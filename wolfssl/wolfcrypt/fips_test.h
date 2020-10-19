@@ -81,6 +81,7 @@ WOLFSSL_LOCAL int DoIntegrityTest(char*, int);
 WOLFSSL_API int wc_GetCastStatus_fips(int);
 WOLFSSL_LOCAL int DoPOST(char*, int);
 WOLFSSL_LOCAL int DoCAST(int);
+WOLFSSL_LOCAL int DoKnownAnswerTests(char*, int); /* FIPSv1 and FIPSv2 */
 
 
 #ifdef __cplusplus
