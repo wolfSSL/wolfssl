@@ -296,7 +296,7 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
 #endif
     XMEMSET(newStatus, 0, sizeof(CertStatus));
 
-    InitOcspResponse(ocspResponse, newStatus, response, responseSz);
+    InitOcspResponse(ocspResponse, newStatus, response, responseSz, ocsp->cm->heap);
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
     if (ret != 0) {
         ocsp->error = ret;
@@ -378,6 +378,7 @@ end:
         ret = OCSP_LOOKUP_FAIL;
     }
 
+    FreeOcspResponse(ocspResponse);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);

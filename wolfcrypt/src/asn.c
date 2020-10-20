@@ -8887,6 +8887,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
             case OCSP_NOCHECK_OID:
                 VERIFY_AND_SET_OID(cert->ocspNoCheckSet);
                 ret = GetASNNull(input, &idx, sz);
+                length = 0; /* idx is already incremented, reset length to 0 */
                 if (ret != 0)
                     return ASN_PARSE_E;
                 break;
@@ -16533,24 +16534,17 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
 
 
 static int DecodeSingleResponse(byte* source,
-                            word32* ioIndex, OcspResponse* resp, word32 size)
+    word32* ioIndex, OcspResponse* resp, word32 size, int wrapperSz, 
+    CertStatus* cs)
 {
     word32 idx = *ioIndex, prevIndex, oid, localIdx;
-    int length, wrapperSz;
-    CertStatus* cs = resp->status;
+    int length;
     int ret;
     byte tag;
 
     WOLFSSL_ENTER("DecodeSingleResponse");
 
-    /* Outer wrapper of the SEQUENCE OF Single Responses. */
-    if (GetSequence(source, &idx, &wrapperSz, size) < 0)
-        return ASN_PARSE_E;
-
     prevIndex = idx;
-
-    /* When making a request, we only request one status on one certificate
-     * at a time. There should only be one SingleResponse */
 
     /* Wrapper around the Single Response */
     if (GetSequence(source, &idx, &length, size) < 0)
@@ -16627,7 +16621,6 @@ static int DecodeSingleResponse(byte* source,
 
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
-
     localIdx = idx;
     if (((int)(idx - prevIndex) < wrapperSz) &&
         GetASNTag(source, &localIdx, &tag, size) == 0 &&
@@ -16657,17 +16650,6 @@ static int DecodeSingleResponse(byte* source,
             return ASN_AFTER_DATE_E;
 #endif
 #endif
-    }
-
-    localIdx = idx;
-    if (((int)(idx - prevIndex) < wrapperSz) &&
-        GetASNTag(source, &localIdx, &tag, size) == 0 &&
-        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
-    {
-        idx++;
-        if (GetLength(source, &idx, &length, size) < 0)
-            return ASN_PARSE_E;
-        idx += length;
     }
 
     *ioIndex = idx;
@@ -16762,6 +16744,8 @@ static int DecodeResponseData(byte* source,
     int version;
     int ret;
     byte tag;
+    int wrapperSz;
+    CertStatus* cs;
 
     WOLFSSL_ENTER("DecodeResponseData");
 
@@ -16803,8 +16787,27 @@ static int DecodeResponseData(byte* source,
                                         &resp->producedDateFormat, size) < 0)
         return ASN_PARSE_E;
 
-    if ((ret = DecodeSingleResponse(source, &idx, resp, size)) < 0)
-        return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
+    /* Outer wrapper of the SEQUENCE OF Single Responses. */
+    if (GetSequence(source, &idx, &wrapperSz, size) < 0)
+        return ASN_PARSE_E;
+
+    localIdx = idx;
+    cs = resp->status;
+    while (idx - localIdx < (word32)wrapperSz) {
+        ret = DecodeSingleResponse(source, &idx, resp, size, wrapperSz, cs);
+        if (ret < 0)
+            return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
+        if (idx - localIdx < (word32)wrapperSz) {
+            cs->next = (CertStatus*)XMALLOC(sizeof(CertStatus), resp->heap, 
+                DYNAMIC_TYPE_OCSP_STATUS);
+            if (cs->next == NULL) {
+                return MEMORY_E;
+            }
+            cs = cs->next;
+            XMEMSET(cs, 0, sizeof(CertStatus));
+            cs->isDynamic = 1;
+        }
+    }
 
     /*
      * Check the length of the ResponseData against the current index to
@@ -16977,7 +16980,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
 
 void InitOcspResponse(OcspResponse* resp, CertStatus* status,
-                                                    byte* source, word32 inSz)
+                                        byte* source, word32 inSz, void* heap)
 {
     WOLFSSL_ENTER("InitOcspResponse");
 
@@ -16988,6 +16991,17 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
     resp->status         = status;
     resp->source         = source;
     resp->maxIdx         = inSz;
+    resp->heap           = heap;
+}
+
+void FreeOcspResponse(OcspResponse* resp)
+{
+    CertStatus *status, *next;
+    for (status = resp->status; status; status = next) {
+        next = status->next;
+        if (status->isDynamic)
+            XFREE(status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
+    }
 }
 
 
@@ -17262,6 +17276,7 @@ void FreeOcspRequest(OcspRequest* req)
 int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
     int cmp;
+    CertStatus *status, *next, *prev = NULL, *top;
 
     WOLFSSL_ENTER("CompareOcspReqResp");
 
@@ -17307,13 +17322,27 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
         return cmp;
     }
 
-    cmp = req->serialSz - resp->status->serialSz;
-    if (cmp != 0) {
-        WOLFSSL_MSG("\tserialSz mismatch");
-        return cmp;
+    /* match based on found status and return */
+    for (status = resp->status; status; status = next) {
+        cmp = req->serialSz - status->serialSz;
+        if (cmp == 0) {
+            cmp = XMEMCMP(req->serial, status->serial, req->serialSz);
+            if (cmp == 0) {
+                /* match found */
+                if (resp->status != status && prev) {
+                    /* move to top of list */
+                    top = resp->status;
+                    resp->status = status;
+                    prev->next = status->next;
+                    status->next = top;
+                }
+                break;
+            }
+        }
+        next = status->next;
+        prev = status;
     }
 
-    cmp = XMEMCMP(req->serial, resp->status->serial, req->serialSz);
     if (cmp != 0) {
         WOLFSSL_MSG("\tserial mismatch");
         return cmp;
