@@ -21164,11 +21164,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
             ssl->buffers.serverDH_G.buffer = NULL;
         }
 
-        if (ssl->buffers.serverDH_Pub.buffer) {
-            XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap,
-                    DYNAMIC_TYPE_PUBLIC_KEY);
-            ssl->buffers.serverDH_Pub.buffer = NULL;
-        }
+    }
+
+    if (ssl->buffers.serverDH_Pub.buffer) {
+        XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap,
+                DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_Pub.buffer = NULL;
     }
 
     /* p */
@@ -21227,6 +21228,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
     }
 
+    if (length > ssl->options.maxDhKeySz) {
+        WOLFSSL_MSG("Server using a DH key generator that is too big");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
+    }
+
     ssl->buffers.serverDH_G.buffer =
         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_G.buffer) {
@@ -21265,6 +21272,17 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
                 DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    if (length < ssl->options.minDhKeySz) {
+        WOLFSSL_MSG("Server using a public DH key that is too small");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
+    }
+    if (length > ssl->options.maxDhKeySz) {
+        WOLFSSL_MSG("Server using a public DH key that is too big");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
     }
 
     ssl->buffers.serverDH_Pub.buffer =
@@ -23219,9 +23237,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     args->output += OPAQUE16_LEN;
                     XMEMCPY(args->output, ssl->arrays->client_identity, esSz);
                     args->output += esSz;
+                    args->length = args->encSz - esSz - OPAQUE16_LEN;
                     args->encSz = esSz + OPAQUE16_LEN;
-
-                    args->length = 0;
 
                     ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
                                             (void**)&ssl->buffers.serverDH_Key);
@@ -25161,6 +25178,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
+                            ssl->buffers.serverDH_Pub.length =
+                                ssl->buffers.serverDH_P.length + OPAQUE16_LEN;
                         }
 
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
@@ -25171,6 +25190,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
+                            ssl->buffers.serverDH_Priv.length =
+                                ssl->buffers.serverDH_P.length + OPAQUE16_LEN;
                         }
 
                         ssl->options.dhKeySz =
