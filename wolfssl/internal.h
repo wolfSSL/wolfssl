@@ -1998,18 +1998,22 @@ struct WOLFSSL_CERT_MANAGER {
 #ifndef NO_WOLFSSL_CM_VERIFY
     VerifyCallback  verifyCallback;      /* Verify callback */
 #endif
-    CallbackCACache caCacheCallback;     /* CA cache addition callback */
-    CbMissingCRL    cbMissingCRL;        /* notify through cb of missing crl */
-    CbOCSPIO        ocspIOCb;            /* I/O callback for OCSP lookup */
-    CbOCSPRespFree  ocspRespFreeCb;      /* Frees OCSP Response from IO Cb */
-    wolfSSL_Mutex   caLock;              /* CA list lock */
-    byte            crlEnabled;          /* is CRL on ? */
-    byte            crlCheckAll;         /* always leaf, but all ? */
-    byte            ocspEnabled;         /* is OCSP on ? */
-    byte            ocspCheckAll;        /* always leaf, but all ? */
-    byte            ocspSendNonce;       /* send the OCSP nonce ? */
-    byte            ocspUseOverrideURL;  /* ignore cert's responder, override */
-    byte            ocspStaplingEnabled; /* is OCSP Stapling on ? */
+    CallbackCACache caCacheCallback;       /* CA cache addition callback */
+    CbMissingCRL    cbMissingCRL;          /* notify thru cb of missing crl */
+    CbOCSPIO        ocspIOCb;              /* I/O callback for OCSP lookup */
+    CbOCSPRespFree  ocspRespFreeCb;        /* Frees OCSP Response from IO Cb */
+    wolfSSL_Mutex   caLock;                /* CA list lock */
+    byte            crlEnabled:1;          /* is CRL on ? */
+    byte            crlCheckAll:1;         /* always leaf, but all ? */
+    byte            ocspEnabled:1;         /* is OCSP on ? */
+    byte            ocspCheckAll:1;        /* always leaf, but all ? */
+    byte            ocspSendNonce:1;       /* send the OCSP nonce ? */
+    byte            ocspUseOverrideURL:1;  /* ignore cert responder, override */
+    byte            ocspStaplingEnabled:1; /* is OCSP Stapling on ? */
+#if !defined(NO_WOLFSSL_CLIENT) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+    byte            ocspMustStaple:1;      /* server must respond with staple */
+#endif
 
 #ifndef NO_RSA
     short           minRsaKeySz;         /* minimum allowed RSA key size */

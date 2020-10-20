@@ -423,6 +423,35 @@ if [ $? -ne 1 ]; then
 fi
 printf '%s\n\n' "Test successfully REVOKED!"
 
+# need a unique port since may run the same time as testsuite
+generate_port() {
+    port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
+}
+
+# Start OpenSSL server that has no OCSP responses to return
+generate_port
+openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
+openssl_pid=$!
+sleep 0.1
+
+printf '%s\n\n' "------------- TEST CASE 9 SHOULD PASS ----------------------"
+# client asks for OCSP staple but doesn't fail when none returned
+./examples/client/client -p $port -g -v 3 -W 2
+
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 9 failed" && exit 1
+printf '%s\n\n' "Test PASSED!"
+
+printf '%s\n\n' "------------- TEST CASE 10 SHOULD UNKNOWN -------------------"
+# client asks for OCSP staple but doesn't fail when none returned
+./examples/client/client -p $port -g -v 3 -W 2m
+
+RESULT=$?
+[ $RESULT -ne 1 ] \
+                 && printf '\n\n%s\n' "Client connection 10 succeeded $RESULT" \
+                 && exit 1
+printf '%s\n\n' "Test PASSED!"
+
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 
 exit 0

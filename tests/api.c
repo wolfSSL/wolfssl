@@ -1581,6 +1581,8 @@ static void test_wolfSSL_CTX_enable_disable(void)
       defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     AssertIntEQ(wolfSSL_CTX_DisableOCSPStapling(ctx), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_DisableOCSPMustStaple(ctx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(ctx), BAD_FUNC_ARG);
   #endif
 
   #ifndef NO_WOLFSSL_CLIENT
@@ -1620,6 +1622,8 @@ static void test_wolfSSL_CTX_enable_disable(void)
       defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     AssertIntEQ(wolfSSL_CTX_DisableOCSPStapling(ctx), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_DisableOCSPMustStaple(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_DisableOCSPMustStaple(ctx), WOLFSSL_SUCCESS);
   #endif
     wolfSSL_CTX_free(ctx);
 #endif /* NO_CERTS */

@@ -11136,7 +11136,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->fatal = TLSX_CSR_InitRequest(ssl->extensions,
                                                     args->dCert, ssl->heap);
                             doLookup = 0;
-                        #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+                        #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
                             if (ssl->options.tls1_3) {
                                 TLSX* ext = TLSX_Find(ssl->extensions,
                                                            TLSX_STATUS_REQUEST);
@@ -11151,6 +11151,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 }
                             }
                         #endif
+                        }
+                        /* Ensure a stapling response was seen */
+                        else if (ssl->options.tls1_3 &&
+                                                 ssl->ctx->cm->ocspMustStaple) {
+                             ret = OCSP_CERT_UNKNOWN;
+                             goto exit_ppc;
                         }
                 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
@@ -12217,6 +12223,22 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         return ret;
                 }
 #endif
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                                     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+                /* Check that a status request extension was seen as the
+                 * CertificateStatus wasn't when an OCSP staple is required.
+                 */
+                if (
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                     !ssl->status_request &&
+    #endif
+    #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+                     !ssl->status_request_v2 &&
+    #endif
+                                                 ssl->ctx->cm->ocspMustStaple) {
+                    return OCSP_CERT_UNKNOWN;
+                }
+                #endif
             }
 
             break;
