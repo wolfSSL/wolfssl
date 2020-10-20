@@ -5030,12 +5030,19 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
             return 0;
         }
 
-        if (length == 0) {
+        if (length > SESSION_TICKET_LEN) {
+            ret = BAD_TICKET_MSG_SZ;
+        } else if (IsAtLeastTLSv1_3(ssl->version)) {
+            WOLFSSL_MSG("Process client ticket rejected, TLS 1.3 no support");
+            ssl->options.rejectTicket = 1;
+            ret = 0;  /* not fatal */
+        } else if (length == 0) {
             /* blank ticket */
             ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);
             if (ret == WOLFSSL_SUCCESS) {
                 ret = 0;
-                TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);  /* send blank ticket */
+                /* send blank ticket */
+                TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);
                 ssl->options.createTicket = 1;  /* will send ticket msg */
                 ssl->options.useTicket    = 1;
                 ssl->options.resuming     = 0;  /* no standard resumption */
@@ -5061,6 +5068,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 }
             } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
                 WOLFSSL_MSG("Process client ticket rejected, not using");
+                ssl->options.rejectTicket = 1;
+                ret = 0;  /* not fatal */
+            } else if (ret == VERSION_ERROR) {
+                WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
             } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {

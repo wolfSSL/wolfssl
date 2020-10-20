@@ -28539,6 +28539,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return VERSION_ERROR;
             }
             else if (ssl->version.minor > it.pv.minor) {
+                if (IsAtLeastTLSv1_3(it.pv) != IsAtLeastTLSv1_3(ssl->version)) {
+                    ForceZero(&it, sizeof(it));
+                    WOLFSSL_MSG("Tickets cannot be shared between "
+                                               "TLS 1.3 and TLS 1.2 and lower");
+                    return VERSION_ERROR;
+                }
+
                 if (!ssl->options.downgrade) {
                     ForceZero(&it, sizeof(it));
                     WOLFSSL_MSG("Ticket has lesser version");
