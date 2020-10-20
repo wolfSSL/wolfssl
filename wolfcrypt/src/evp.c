@@ -624,9 +624,6 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 
     *outl = 0;
-    if (inl == 0) {
-        return WOLFSSL_SUCCESS;
-    }
 
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         switch (ctx->cipherType) {
@@ -645,7 +642,10 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return WOLFSSL_FAILURE;
     }
 
-
+    /* if(inl == 0)wolfSSL_EVP_CipherUpdate_GCM to get tag */ 
+    if (inl == 0) {
+        return WOLFSSL_SUCCESS;
+    }
     if (ctx->bufUsed > 0) { /* concatenate them if there is anything */
         fill = fillBuff(ctx, in, inl);
         inl -= fill;
