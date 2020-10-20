@@ -867,7 +867,8 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
             }
         #endif
         }
-    } while (err == WOLFSSL_ERROR_WANT_WRITE
+    } while (err == WOLFSSL_ERROR_WANT_WRITE ||
+             err == WOLFSSL_ERROR_WANT_READ
     #ifdef WOLFSSL_ASYNC_CRYPT
         || err == WC_PENDING_E
     #endif
@@ -1012,7 +1013,11 @@ static const char* client_usage_msg[][66] = {
         "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",     /* 27 */
 #ifdef HAVE_SECURE_RENEGOTIATION
         "-R          Allow Secure Renegotiation\n",                     /* 28 */
-        "-i          Force client Initiated Secure Renegotiation\n",    /* 29 */
+        "-i <str>    Force client Initiated Secure Renegotiation. If the\n"
+        "            string 'scr-app-data' is passed in as the value and\n"
+        "            Non-blocking sockets are enabled ('-N') then wolfSSL\n"
+        "            sends a test message during the secure renegotiation.\n"
+        "            The string parameter is optional.\n", /* 29 */
 #endif
         "-f          Fewer packets/group messages\n",                   /* 30 */
         "-x          Disable client cert/key loading\n",                /* 31 */
@@ -1178,7 +1183,7 @@ static const char* client_usage_msg[][66] = {
                                               "使用する\n",             /* 27 */
 #ifdef HAVE_SECURE_RENEGOTIATION
         "-R          セキュアな再ネゴシエーションを許可する\n",         /* 28 */
-        "-i          クライアント主導のネゴシエーションを強制する\n",   /* 29 */
+        "-i <str>    クライアント主導のネゴシエーションを強制する\n",   /* 29 */
 #endif
         "-f          より少ないパケット/グループメッセージを使用する\n",/* 30 */
         "-x          クライアントの証明書/鍵のロードを無効する\n",      /* 31 */
@@ -1481,6 +1486,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiated scr */
+    int    scrAppData    = 0;
     int    resumeScr     = 0;    /* use resumption for renegotiation */
 #ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
@@ -1617,6 +1623,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)atomicUser;
     (void)scr;
     (void)forceScr;
+    (void)scrAppData;
     (void)resumeScr;
     (void)ourKey;
     (void)ourCert;
@@ -1643,7 +1650,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifndef WOLFSSL_VXWORKS
     /* Not used: All used */
     while ((ch = mygetopt(argc, argv, "?:"
-            "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
+            "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "01:23:458")) != -1) {
         switch (ch) {
@@ -1882,6 +1889,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #ifdef HAVE_SECURE_RENEGOTIATION
                     scr      = 1;
                     forceScr = 1;
+                    if (XSTRNCMP(myoptarg, "scr-app-data", 12) == 0) {
+                        scrAppData = 1;
+                    }
                 #endif
                 break;
 
@@ -3160,8 +3170,67 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (scr && forceScr) {
         if (nonBlocking) {
-            printf("not doing secure renegotiation on example with"
-                   " nonblocking yet\n");
+            if (!resumeScr) {
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    if (err == WOLFSSL_ERROR_WANT_READ ||
+                            err == WOLFSSL_ERROR_WANT_WRITE) {
+                        if (scrAppData) {
+                            ret = ClientWrite(ssl,
+                                    "msg sent during renegotiation",
+                             sizeof("msg sent during renegotiation") - 1,
+                                    "", 1);
+                        }
+                        else {
+                            ret = 0;
+                        }
+                        if (ret != 0) {
+                            ret = WOLFSSL_FAILURE;
+                        }
+                        else {
+                            do {
+                                if (err == APP_DATA_READY) {
+                                    if ((ret = wolfSSL_read(ssl, reply,
+                                            sizeof(reply)-1)) < 0) {
+                                        err_sys("APP DATA should be present "
+                                                "but error returned");
+                                    }
+                                    printf("Received message during "
+                                           "renegotiation: %s\n", reply);
+                                }
+                                err = 0;
+                                if ((ret = wolfSSL_connect(ssl))
+                                        != WOLFSSL_SUCCESS) {
+                                    err = wolfSSL_get_error(ssl, ret);
+                                }
+                            } while (ret != WOLFSSL_SUCCESS &&
+                                    (err == WOLFSSL_ERROR_WANT_READ ||
+                                        err == WOLFSSL_ERROR_WANT_WRITE ||
+                                        err == APP_DATA_READY));
+                        }
+
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                                wolfSSL_ERR_error_string(err, buffer));
+                            wolfSSL_free(ssl); ssl = NULL;
+                            wolfSSL_CTX_free(ctx); ctx = NULL;
+                            err_sys("non-blocking wolfSSL_Rehandshake failed");
+                        }
+                        printf("NON-BLOCKING RENEGOTIATION SUCCESSFUL\n");
+                    }
+                    else {
+                        printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                            wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_free(ssl); ssl = NULL;
+                        wolfSSL_CTX_free(ctx); ctx = NULL;
+                        err_sys("non-blocking wolfSSL_Rehandshake failed");
+                    }
+                }
+            }
+            else {
+                printf("not doing secure resumption with non-blocking");
+            }
         } else {
             if (!resumeScr) {
                 printf("Beginning secure renegotiation.\n");

@@ -14642,6 +14642,16 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 #endif
 
     *inOutIdx = idx;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (IsSCR(ssl)) {
+        /* Reset the processReply state since
+         * we finished processing this message. */
+        ssl->options.processReply = doProcessInit;
+        /* If we are in a secure renegotiation then APP DATA is treated
+         * differently */
+        return APP_DATA_READY;
+    }
+#endif
     return 0;
 }
 
@@ -14922,6 +14932,9 @@ int ProcessReply(WOLFSSL* ssl)
 #endif
 
     if (ssl->error != 0 && ssl->error != WANT_READ && ssl->error != WANT_WRITE
+    #ifdef HAVE_SECURE_RENEGOTIATION
+        && ssl->error != APP_DATA_READY
+    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         && ssl->error != WC_PENDING_E
     #endif
@@ -17658,14 +17671,15 @@ int DtlsCheckOrder(WOLFSSL* ssl, int order)
 
 /* If secure renegotiation is disabled, this will always return false.
  * Otherwise it checks to see if we are currently renegotiating. */
-static WC_INLINE int IsSCR(WOLFSSL* ssl)
+int IsSCR(WOLFSSL* ssl)
 {
 #ifndef HAVE_SECURE_RENEGOTIATION
     (void)ssl;
 #else /* HAVE_SECURE_RENEGOTIATION */
     if (ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->enabled &&
-            ssl->options.handShakeState != HANDSHAKE_DONE)
+            ssl->secure_renegotiation->enabled &&  /* Is SCR enabled? */
+            ssl->options.handShakeDone && /* At least one handshake done? */
+            ssl->options.handShakeState != HANDSHAKE_DONE) /* Currently handshaking? */
         return 1;
 #endif /* HAVE_SECURE_RENEGOTIATION */
     return 0;
@@ -17874,6 +17888,9 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 #ifdef WOLFSSL_ASYNC_CRYPT
             && ssl->error != WC_PENDING_E
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+            && ssl->error != APP_DATA_READY
+#endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
         return ssl->error;
@@ -17884,28 +17901,43 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-        int err;
-        WOLFSSL_MSG("Handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            /* if async would block return WANT_WRITE */
-            if (ssl->error == WC_PENDING_E) {
-                return WOLFSSL_CBIO_ERR_WANT_READ;
+    {
+        int negotiate = 0;
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
+            if (ssl->options.handShakeState != HANDSHAKE_DONE
+                && ssl->buffers.clearOutputBuffer.length == 0)
+                negotiate = 1;
+        }
+        else
+#endif
+        if (ssl->options.handShakeState != HANDSHAKE_DONE)
+            negotiate = 1;
+
+        if (negotiate) {
+            int err;
+            WOLFSSL_MSG("Handshake not complete, trying to finish");
+            if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                /* if async would block return WANT_WRITE */
+                if (ssl->error == WC_PENDING_E) {
+                    return WOLFSSL_CBIO_ERR_WANT_READ;
+                }
+            #endif
+                return err;
             }
-        #endif
-            return err;
         }
     }
 
 #ifdef HAVE_SECURE_RENEGOTIATION
 startScr:
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
-        int err;
+        int ret;
         WOLFSSL_MSG("Need to start scr, server requested");
-        if ( (err = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS)
-            return err;
+        ret = wolfSSL_Rehandshake(ssl);
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
     }
 #endif
 
@@ -17944,10 +17976,7 @@ startScr:
     #endif
     }
 
-    if (sz < (int)ssl->buffers.clearOutputBuffer.length)
-        size = sz;
-    else
-        size = ssl->buffers.clearOutputBuffer.length;
+    size = min(sz, (int)ssl->buffers.clearOutputBuffer.length);
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 

@@ -169,6 +169,7 @@ enum wolfSSL_ErrorCodes {
     TLS13_SECRET_CB_E            = -438,   /* TLS1.3 secret Cb fcn failure */
     DTLS_SIZE_ERROR              = -439,   /* Trying to send too much data */
     NO_CERT_ERROR                = -440,   /* TLS1.3 - no cert set error */
+    APP_DATA_READY               = -441,   /* DTLS1.2 application data ready for read */
 
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

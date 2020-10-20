@@ -48,9 +48,7 @@
 
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/test.h>
-#ifdef WOLFSSL_DTLS
-    #include <wolfssl/error-ssl.h>
-#endif
+#include <wolfssl/error-ssl.h>
 
 #include "examples/server/server.h"
 
@@ -354,7 +352,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
     return ret;
 }
 
-/* Echo number of bytes specified by -e arg */
+/* Echo number of bytes specified by -B arg */
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                    size_t throughput)
 {
@@ -375,7 +373,10 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
         if (select_ret == TEST_RECV_READY) {
 
-            len = min(block, (int)(throughput - xfer_bytes));
+            if (throughput)
+                len = min(block, (int)(throughput - xfer_bytes));
+            else
+                len = block;
             rx_pos = 0;
 
             if (throughput) {
@@ -395,7 +396,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                     else
                 #endif
                     if (err != WOLFSSL_ERROR_WANT_READ &&
-                                             err != WOLFSSL_ERROR_ZERO_RETURN) {
+                                             err != WOLFSSL_ERROR_ZERO_RETURN &&
+                                             err != APP_DATA_READY) {
                         printf("SSL_read echo error %d\n", err);
                         err_sys_ex(runWithErrors, "SSL_read failed");
                         break;
@@ -407,6 +409,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                 }
                 else {
                     rx_pos += ret;
+                    if (!throughput)
+                        break;
                 }
             }
             if (throughput) {
@@ -417,7 +421,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
             /* Write data */
             do {
                 err = 0; /* reset error */
-                ret = SSL_write(ssl, buffer, len);
+                ret = SSL_write(ssl, buffer, min(len, rx_pos));
                 if (ret <= 0) {
                     err = SSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -428,7 +432,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                 #endif
                 }
             } while (err == WC_PENDING_E);
-            if (ret != len) {
+            if (ret != (int)min(len, rx_pos)) {
                 printf("SSL_write echo error %d\n", err);
                 err_sys_ex(runWithErrors, "SSL_write failed");
             }
@@ -475,8 +479,26 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         err = 0; /* reset error */
         ret = SSL_read(ssl, input, inputLen);
         if (ret < 0) {
-            err = SSL_get_error(ssl, 0);
+            err = SSL_get_error(ssl, ret);
 
+        #ifdef HAVE_SECURE_RENEGOTIATION
+            if (err == APP_DATA_READY) {
+                /* If we receive a message during renegotiation
+                 * then just print it. We return the message sent
+                 * after the renegotiation. */
+                ret = SSL_read(ssl, input, inputLen);
+                if (ret >= 0) {
+                    /* null terminate message */
+                    input[ret] = '\0';
+                    printf("Client message received during "
+                           "secure renegotiation: %s\n", input);
+                    err = WOLFSSL_ERROR_WANT_READ;
+                }
+                else {
+                    err = SSL_get_error(ssl, ret);
+                }
+            }
+        #endif
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
@@ -490,7 +512,11 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             }
             else
         #endif
-            if (err != WOLFSSL_ERROR_WANT_READ) {
+            if (err != WOLFSSL_ERROR_WANT_READ
+        #ifdef HAVE_SECURE_RENEGOTIATION
+                    && err != APP_DATA_READY
+        #endif
+            ) {
                 printf("SSL_read input error %d, %s\n", err,
                                                  ERR_error_string(err, buffer));
                 err_sys_ex(runWithErrors, "SSL_read failed");
@@ -502,7 +528,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
-        input[ret] = 0; /* null terminate message */
+        /* null terminate message */
+        input[ret] = '\0';
         printf("Client message: %s\n", input);
     }
 }
@@ -2455,8 +2482,44 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     defined(HAVE_SERVER_RENEGOTIATION_INFO)
         if (scr && forceScr) {
             if (nonBlocking) {
-                printf("not doing secure renegotiation on example with"
-                       " nonblocking yet\n");
+                if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    if (err == WOLFSSL_ERROR_WANT_READ ||
+                            err == WOLFSSL_ERROR_WANT_WRITE) {
+                        do {
+                            if (err == APP_DATA_READY) {
+                                if ((ret = wolfSSL_read(ssl, input, sizeof(input)-1)) < 0) {
+                                    err_sys("APP DATA should be present but error returned");
+                                }
+                                printf("Received message: %s\n", input);
+                            }
+                            err = 0;
+                            if ((ret = wolfSSL_accept(ssl)) != WOLFSSL_SUCCESS) {
+                                err = wolfSSL_get_error(ssl, ret);
+                            }
+                        } while (ret != WOLFSSL_SUCCESS &&
+                                (err == WOLFSSL_ERROR_WANT_READ ||
+                                        err == WOLFSSL_ERROR_WANT_WRITE ||
+                                        err == APP_DATA_READY));
+
+                        if (ret != WOLFSSL_SUCCESS) {
+                            err = wolfSSL_get_error(ssl, 0);
+                            printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                                wolfSSL_ERR_error_string(err, buffer));
+                            wolfSSL_free(ssl); ssl = NULL;
+                            wolfSSL_CTX_free(ctx); ctx = NULL;
+                            err_sys("non-blocking wolfSSL_Rehandshake failed");
+                        }
+                        printf("NON-BLOCKING RENEGOTIATION SUCCESSFUL\n");
+                    }
+                    else {
+                        printf("wolfSSL_Rehandshake error %d, %s\n", err,
+                            wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_free(ssl); ssl = NULL;
+                        wolfSSL_CTX_free(ctx); ctx = NULL;
+                        err_sys("non-blocking wolfSSL_Rehandshake failed");
+                    }
+                }
             } else {
                 if ((ret = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS) {
 #ifdef WOLFSSL_ASYNC_CRYPT
