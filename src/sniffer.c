@@ -2276,6 +2276,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 SetError(PARTIAL_INPUT_STR, error, session, FATAL_ERROR_STATE);
                 ret = -1;
             }
+
+            /* if curve not provided in key share data, then use private key curve */
+            if (useEccCurveId == ECC_CURVE_DEF && key.dp) {
+                useEccCurveId = key.dp->id;
+            }
         }
 
         if (ret == 0) {
