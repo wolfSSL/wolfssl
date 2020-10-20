@@ -3731,6 +3731,7 @@ struct WOLFSSL_X509 {
     byte             subjAltNameCrit:1;
     byte             authKeyIdSet:1;
     byte             authKeyIdCrit:1;
+    byte             issuerSet:1;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
@@ -3743,7 +3744,11 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_ALGOR algor;
     WOLFSSL_X509_PUBKEY key;
 #endif
-    byte issuerSet:1;
+#if defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
+    byte            notBeforeData[CTC_DATE_SIZE];
+    byte            notAfterData[CTC_DATE_SIZE];
+#endif
 };
 
 
