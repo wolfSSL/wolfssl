@@ -1949,9 +1949,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         Usage();
                         XEXIT_T(MY_EX_USAGE);
                     }
-                    if (myoptarg[XSTRLEN(myoptarg)-1] == 'M' ||
-                                         myoptarg[XSTRLEN(myoptarg)-1] == 'm') {
-                        mustStaple = 1;
+                    {
+                        size_t arglen = XSTRLEN(myoptarg);
+                        if ((arglen > 0) &&
+                            ((myoptarg[arglen-1] == 'M') ||
+                             (myoptarg[arglen-1] == 'm'))) {
+                            mustStaple = 1;
+                        }
                     }
                 #endif
                 break;
