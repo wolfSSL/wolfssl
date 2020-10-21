@@ -78,29 +78,61 @@
     http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
 
 14. Building with CMake
-    Note: Primary development uses automake (./configure). The support for CMake is minimal.
+    Note: Primary development uses automake (./configure). The support for CMake
+    is still under development.
 
-    Internally cmake is setup to do the following:
-    1. Uses the ./configure generated wolfssl/options.h as the build options by coping it to the build directory as user_settings.h.
-    2. Builds wolfSSL as library.
-    3. Builds the examples.
+    For configuring wolfssl using CMake, we recommend downloading the CMake
+    GUI (https://cmake.org/download/). This tool allows you to see all of
+    wolfssl's configuration variables, set them, and view their descriptions.
+    Looking at the GUI or CMakeCache.txt (generated after running cmake once) is
+    the best way to find out what configuration options are available and what
+    they do. You can also invoke CMake from the GUI, which is described in the
+    Windows instructions below. For Unix-based systems, we describe the command
+    line work flow. Regardless of your chosen workflow, cmake will generate
+    a header options.h in the wolfssl directory that contains the options used
+    to configure the build.
 
-    Build Steps:
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ cmake --build .
-    $ cmake --install .
+    Unix-based Platforms
+    ---
+    1) Navigate to the wolfssl root directory containing "CMakeLists.txt".
+    2) Create a directory called "build" and change into it. This is where
+       CMake will store build files.
+    3) Run `cmake ..` to generate the target build files (e.g. UNIX Makefiles).
+       To enable or disable features, set them using -D<option>=[yes/no]. For
+       example, to disable TLS 1.3 support, run cmake .. -DWOLFSSL_TLS13=no
+       (autoconf equivalent: ./configure --disable-tls13) To enable DSA, run
+       cmake .. -DWOLFSSL_DSA=yes (autoconf equivalent: ./configure
+       --enable-dsa). Again, you can find a list of these options and their
+       descriptions either using the CMake GUI or by looking at CMakeCache.txt.
+    5) The build directory should now contain the generated build files. Build
+       with `cmake --build .`. Under the hood, this runs the target build tool
+       (by default, make). You can also invoke the target build tool directly
+       (e.g. make).
 
-    To build library only and not build examples and test apps use:
-    $ cmake .. -DBUILD_TESTS=NO
+       To build with debugging use: `cmake .. -DCMAKE_BUILD_TYPE=Debug`.
 
-    To build with debugging use:
-    $ cmake .. -DCMAKE_BUILD_TYPE=Debug
+    Windows (Visual Studio)
+    ---
+    1) Go to this page, download the appropriate Windows installer, and install
+       to get the CMake GUI: https://cmake.org/download/ Native CMake support in
+       Visual Studio 16 2019 (and possibly older versions) has proven buggy. We
+       recommend using the CMake GUI in concert with Visual Studio, as described
+    in these steps.
+    2) Open CMake.
+    3) Where is the soure code: <root directory of wolfssl containing
+       CMakeLists.txt>
+    4) Where to build the binaries: <build directory, e.g. wolfssl/build>
+    5) Hit Configure. CMake runs the code in CMakeLists.txt and builds up an
+       internal representation of the project.
+    6) Hit Generate. CMake generates the build files. For Windows, this will
+       be Visual Studio project (.vcxproj) and solution (.sln) files.
+    7) Open Visual Studio and select "Open a project or solution".
+    8) Navigate to the build directory and select wolfssl.sln to load the
+       project.
 
-    Make sure and run the built examples and test from the wolfssl-root to properly find the ./certs directory.
-
-    CMake on Windows with Visual Studio
-    1. Open Command Prompt
-    2. Run the Visual Studio batch to setup command line variables: Example: C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
-    3. Then use steps above
+    Windows (command line)
+    ---
+    1) Open Command Prompt
+    2) Run the Visual Studio batch to setup command line variables, e.g. C:\Program Files (x86)\Microsoft Visual   
+       Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+    3) Follow steps in "Unix-based Platforms" above.
