@@ -20,6 +20,7 @@ include IDE/CSBENCH/include.am
 include IDE/ECLIPSE/DEOS/include.am
 include IDE/ECLIPSE/MICRIUM/include.am
 include IDE/ECLIPSE/SIFIVE/include.am
+include IDE/MQX/include.am
 include IDE/mynewt/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/cs+/Projects/include.am
