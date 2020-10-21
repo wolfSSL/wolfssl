@@ -133,14 +133,14 @@ WOLFSSL_API int wc_XChaCha20Poly1305_Init(
     const byte *inIV, word32 inIVSz,
     int isEncrypt);
 
-WOLFSSL_API int wc_XChaCha20Poly1305_encrypt_oneshot(
+WOLFSSL_API int wc_XChaCha20Poly1305_Encrypt(
     byte *dst, const size_t dst_space,
     const byte *src, const size_t src_len,
     const byte *ad, const size_t ad_len,
     const byte *nonce, const size_t nonce_len,
     const byte *key, const size_t key_len);
 
-WOLFSSL_API int wc_XChaCha20Poly1305_decrypt_oneshot(
+WOLFSSL_API int wc_XChaCha20Poly1305_Decrypt(
     byte *dst, const size_t dst_space,
     const byte *src, const size_t src_len,
     const byte *ad, const size_t ad_len,

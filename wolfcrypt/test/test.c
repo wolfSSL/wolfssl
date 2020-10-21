@@ -10194,16 +10194,14 @@ static int XChaCha20Poly1305_test(void) {
     byte buf2[sizeof Plaintext];
 #endif
 
-    ret = wc_XChaCha20Poly1305_encrypt_oneshot(buf1, sizeof Ciphertext + sizeof Tag,
+    ret = wc_XChaCha20Poly1305_Encrypt(buf1, sizeof Ciphertext + sizeof Tag,
                                        Plaintext, sizeof Plaintext,
                                        AAD, sizeof AAD,
                                        IV, sizeof IV,
                                        Key, sizeof Key);
 
-    if (ret < 0) {
-        printf("wc_XChaCha20Poly1305_encrypt_oneshot failed: %s\n",wc_GetErrorString(ret));
+    if (ret < 0)
         ERROR_OUT(-4760, out);
-    }
 
     if (XMEMCMP(buf1, Ciphertext, sizeof Plaintext))
         ERROR_OUT(-4761, out);
@@ -10211,7 +10209,7 @@ static int XChaCha20Poly1305_test(void) {
     if (XMEMCMP(buf1 + sizeof Plaintext, Tag, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE))
         ERROR_OUT(-4762, out);
 
-    ret = wc_XChaCha20Poly1305_decrypt_oneshot(buf2, sizeof Plaintext,
+    ret = wc_XChaCha20Poly1305_Decrypt(buf2, sizeof Plaintext,
                                  buf1, sizeof Plaintext + sizeof Tag,
                                        AAD, sizeof AAD,
                                        IV, sizeof IV,
