@@ -5625,27 +5625,47 @@ int wc_ecc_free(ecc_key* key)
 #ifndef WOLFSSL_SP_MATH
 /* Handles add failure cases:
  *
- * Case 1: A and B are the same point (maybe different z)
- *         (Result was: x == y == z == 0)
- *         Need to double instead.
+ * Before add:
+ *   Case 1: A is infinity
+ *        -> Copy B into result.
+ *   Case 2: B is infinity
+ *        -> Copy A into result.
+ *   Case 3: x and z are the same in A and B (same x value in affine)
+ *     Case 3a: y values the same - same point
+ *           -> Double instead of add.
+ *     Case 3b: y values different - negative of the other when points on curve
+ *           -> Need to set result to infinity.
  *
- * Case 2: A + B = <infinity> = 0.
- *         (Result was: z == 0, x and/or y not 0)
- *         Need to set point to infinity.
+ * After add:
+ *   Case 1: A and B are the same point (maybe different z)
+ *           (Result was: x == y == z == 0)
+ *        -> Need to double instead.
+ *
+ *   Case 2: A + B = <infinity> = 0.
+ *           (Result was: z == 0, x and/or y not 0)
+ *        -> Need to set result to infinity.
  */
 int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
     mp_int* a, mp_int* modulus, mp_digit mp, int* infinity)
 {
     int err;
 
-    err = ecc_projective_add_point(A, B, R, a, modulus, mp);
-    if ((err == MP_OKAY) && mp_iszero(R->z)) {
-        /* When all zero then should have done a double */
-        if (mp_iszero(R->x) && mp_iszero(R->y)) {
+    if (mp_iszero(A->x) && mp_iszero(A->y)) {
+        /* A is infinity. */
+        err = wc_ecc_copy_point(B, R);
+    }
+    else if (mp_iszero(B->x) && mp_iszero(B->y)) {
+        /* B is infinity. */
+        err = wc_ecc_copy_point(A, R);
+    }
+    else if ((mp_cmp(A->x, B->x) == MP_EQ) && (mp_cmp(A->z, B->z) == MP_EQ)) {
+        /* x ordinattes the same. */
+        if (mp_cmp(A->y, B->y) == MP_EQ) {
+            /* A = B */
             err = ecc_projective_dbl_point(B, R, a, modulus, mp);
         }
-        /* When only Z zero then result is infinity */
         else {
+            /* A = -B */
             err = mp_set(R->x, 0);
             if (err == MP_OKAY)
                 err = mp_set(R->y, 0);
@@ -5653,6 +5673,25 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
                 err = mp_set(R->z, 1);
             if ((err == MP_OKAY) && (infinity != NULL))
                 *infinity = 1;
+        }
+    }
+    else {
+        err = ecc_projective_add_point(A, B, R, a, modulus, mp);
+        if ((err == MP_OKAY) && mp_iszero(R->z)) {
+            /* When all zero then should have done a double */
+            if (mp_iszero(R->x) && mp_iszero(R->y)) {
+                err = ecc_projective_dbl_point(B, R, a, modulus, mp);
+            }
+            /* When only Z zero then result is infinity */
+            else {
+                err = mp_set(R->x, 0);
+                if (err == MP_OKAY)
+                    err = mp_set(R->y, 0);
+                if (err == MP_OKAY)
+                    err = mp_set(R->z, 1);
+                if ((err == MP_OKAY) && (infinity != NULL))
+                    *infinity = 1;
+            }
         }
     }
 
@@ -5915,24 +5954,24 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
         /* if not both zero */
         if ((nA != 0) || (nB != 0)) {
+            int i = nA + (nB<<2);
             if (first == 1) {
                 /* if first, copy from table */
                 first = 0;
                 if (err == MP_OKAY)
-                    err = mp_copy(precomp[nA + (nB<<2)]->x, C->x);
+                    err = mp_copy(precomp[i]->x, C->x);
 
                 if (err == MP_OKAY)
-                    err = mp_copy(precomp[nA + (nB<<2)]->y, C->y);
+                    err = mp_copy(precomp[i]->y, C->y);
 
                 if (err == MP_OKAY)
-                    err = mp_copy(precomp[nA + (nB<<2)]->z, C->z);
+                    err = mp_copy(precomp[i]->z, C->z);
                 else
                     break;
             } else {
                 /* if not first, add from table */
                 if (err == MP_OKAY)
-                    err = ecc_projective_add_point_safe(C,
-                                                        precomp[nA + (nB<<2)],
+                    err = ecc_projective_add_point_safe(C, precomp[i],
                                                         C, a, modulus, mp,
                                                         &first);
                 if (err != MP_OKAY)
