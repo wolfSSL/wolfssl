@@ -4563,14 +4563,14 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
                     if (ret == 0) {
                         idx += length;
-
-                        pkiMsg2   = pkiMsg;
-                        pkiMsg2Sz = pkiMsgSz;
-                    #ifndef NO_PKCS7_STREAM
-                        pkcs7->stream->varOne = pkiMsg2Sz;
-                        pkcs7->stream->flagOne = 1;
-                    #endif
                     }
+
+                    pkiMsg2   = pkiMsg;
+                    pkiMsg2Sz = pkiMsgSz;
+                #ifndef NO_PKCS7_STREAM
+                    pkcs7->stream->varOne = pkiMsg2Sz;
+                    pkcs7->stream->flagOne = 1;
+                #endif
                 }
             }
             else {
