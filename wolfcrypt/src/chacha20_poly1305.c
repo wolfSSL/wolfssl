@@ -443,7 +443,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     return ret;
 }
 
-int wc_XChaCha20Poly1305_encrypt_oneshot(
+int wc_XChaCha20Poly1305_Encrypt(
     byte *dst, const size_t dst_space,
     const byte *src, const size_t src_len,
     const byte *ad, const size_t ad_len,
@@ -453,7 +453,7 @@ int wc_XChaCha20Poly1305_encrypt_oneshot(
     return wc_XChaCha20Poly1305_crypt_oneshot(dst, dst_space, src, src_len, ad, ad_len, nonce, nonce_len, key, key_len, 1);
 }
 
-int wc_XChaCha20Poly1305_decrypt_oneshot(
+int wc_XChaCha20Poly1305_Decrypt(
     byte *dst, const size_t dst_space,
     const byte *src, const size_t src_len,
     const byte *ad, const size_t ad_len,
