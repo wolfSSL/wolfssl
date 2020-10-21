@@ -33398,9 +33398,6 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     EVP_CIPHER_CTX *ctx;
     const EVP_CIPHER *init;
 
-
-
-
     int enumArray[] = {
 
     #ifdef HAVE_AES_CBC
@@ -33414,9 +33411,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #endif
     #ifndef NO_DES3
          NID_des_cbc,
-    #endif
-    #ifndef WOLFSSL_DES_ECB
-         NID_des_ede3_ecb,
+         NID_des_ede3_cbc,
     #endif
     #ifdef HAVE_IDEA
          NID_idea_cbc,
@@ -33425,22 +33420,20 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     int iv_lengths[] = {
 
     #ifdef HAVE_AES_CBC
-         16,
+         AES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_AESGCM
-         12,
+         GCM_NONCE_MID_SZ,
     #endif
     #ifdef WOLFSSL_AES_COUNTER
-         16,
+         AES_BLOCK_SIZE,
     #endif
     #ifndef NO_DES3
-         8,
-    #endif
-    #ifdef WOLFSSL_DES_ECB
-         8,
+         DES_BLOCK_SIZE,
+         DES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_IDEA
-         16,
+         IDEA_BLOCK_SIZE,
     #endif
     };
 
@@ -33457,7 +33450,6 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
 
         AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_iv_length(ctx), iv_lengths[i]);
 
-//wolfSSL_EVP_CIPHER_CTX_cleanup
         EVP_CIPHER_CTX_free(ctx);
     }
 
@@ -33547,12 +33539,13 @@ static void test_wolfSSL_EVP_PKEY_CTX_new_id(void)
 #if defined(OPENSSL_ALL)
     WOLFSSL_ENGINE* e = 0;
     int id = 0;
+    EVP_PKEY_CTX *ctx;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_CTX_new_id");
 
-    AssertNotNull(wolfSSL_EVP_PKEY_CTX_new_id(id, e));
+    AssertNotNull(ctx = wolfSSL_EVP_PKEY_CTX_new_id(id, e));
 
-
+    EVP_PKEY_CTX_free(ctx);
 
     printf(resultFmt, passed);
 #endif
@@ -33786,7 +33779,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifndef NO_DES3
          NID_des_cbc,
-         NID_des_ede3_ecb,
+         NID_des_ede3_cbc,
     #endif
     #ifdef HAVE_IDEA
          NID_idea_cbc, 
@@ -33794,40 +33787,40 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     };
     int iv_lengths[] = {
     #ifdef HAVE_AES_CBC
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #ifdef WOLFSSL_AES_192
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #ifdef WOLFSSL_AES_256
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_AESGCM
-            12,
+            GCM_NONCE_MID_SZ,
     #endif
     #ifdef WOLFSSL_AES_192
-            12,
+            GCM_NONCE_MID_SZ,
     #endif
     #ifdef WOLFSSL_AES_256
-            12,
+            GCM_NONCE_MID_SZ,
     #endif
     #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #ifdef WOLFSSL_AES_192
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #ifdef WOLFSSL_AES_256
-            16,
+            AES_BLOCK_SIZE,
     #endif
     #endif
     #ifndef NO_DES3
-            8,
-            0,
+            DES_BLOCK_SIZE,
+            DES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_IDEA
-            8,
+            IDEA_BLOCK_SIZE,
     #endif
     };
 
