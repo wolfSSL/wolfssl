@@ -1944,15 +1944,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'W' :
                 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
                  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+                {
+                    word32 myoptargSz;
+
                     statusRequest = atoi(myoptarg);
                     if (statusRequest > OCSP_STAPLING_OPT_MAX) {
                         Usage();
                         XEXIT_T(MY_EX_USAGE);
                     }
-                    if (myoptarg[XSTRLEN(myoptarg)-1] == 'M' ||
-                                         myoptarg[XSTRLEN(myoptarg)-1] == 'm') {
+
+                    myoptargSz = (word32)XSTRLEN(myoptarg);
+                    if (myoptargSz > 0 &&
+                            XTOUPPER(myoptarg[myoptargSz-1]) == 'M') {
                         mustStaple = 1;
                     }
+                }
                 #endif
                 break;
 
