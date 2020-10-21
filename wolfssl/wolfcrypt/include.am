@@ -173,3 +173,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/iotsafe/iotsafe.h
 if BUILD_FIPS_V3
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
+
+if BUILD_FIPS_V4
+nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
+endif

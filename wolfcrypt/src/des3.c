@@ -31,8 +31,8 @@
 
 #ifndef NO_DES3
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+    (HAVE_FIPS_VERSION == 2 || HAVE_FIPS_VERSION == 3)
 
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS

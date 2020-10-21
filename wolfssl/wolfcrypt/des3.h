@@ -30,15 +30,15 @@
 
 #ifndef NO_DES3
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2)
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION == 2 || HAVE_FIPS_VERSION == 3)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-/* included for fips @wc_fips */
-#include <cyassl/ctaocrypt/des3.h>
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    /* included for fips @wc_fips */
+    #include <cyassl/ctaocrypt/des3.h>
 #endif
 
 #ifdef __cplusplus
@@ -54,8 +54,8 @@ enum {
 
 
 /* avoid redefinition of structs */
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 2))
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION == 2 || HAVE_FIPS_VERSION == 3))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -117,7 +117,7 @@ struct Des3 {
     typedef struct Des3 Des3;
     #define WC_DES3_TYPE_DEFINED
 #endif
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && HAVE_FIPS_VERSION >= 2 */
 
 
 WOLFSSL_API int  wc_Des_SetKey(Des* des, const byte* key,

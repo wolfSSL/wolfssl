@@ -268,12 +268,12 @@ solaris)
   ;;
 linuxv3)
   FIPS_REPO='/Users/john/src/fips'
-  CRYPT_REPO='/Users/john/src/wolfssl'
+  CRYPT_REPO='/Users/john/src/wolfssl/FIPS-3'
   CRYPT_INC_PATH='wolfssl/wolfcrypt'
   CRYPT_SRC_PATH='wolfcrypt/src'
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
-  FIPS_OPTION='v3'
+  FIPS_OPTION='v4'
   ;;
 *)
   Usage
@@ -329,7 +329,7 @@ then
 elif [ "x$FIPS_OPTION" == "xready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
-elif [ "x$FIPS_OPTION" == "xv3" ]
+elif [ "x$FIPS_OPTION" == "xv4" ]
 then
     echo "Don't need to copy anything in particular for FIPS 140-3, yet."
 else
@@ -344,7 +344,7 @@ then
         echo "fips-check: Couldn't checkout the FIPS repository for FIPS Ready."
         exit 1
     fi
-elif test "x$FIPS_OPTION" = "xv3"
+elif test "x$FIPS_OPTION" = "xv4"
 then
     if ! $GIT clone $FIPS_REPO fips; then
         echo "fips-check: Couldn't checkout the FIPS repository FIPS 140-3."
