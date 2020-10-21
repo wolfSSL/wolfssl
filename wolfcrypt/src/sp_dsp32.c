@@ -117,7 +117,6 @@ static const sp_point p256_base __attribute__((aligned(128))) = {
 static int sp_ecc_point_new_ex(void* heap, sp_point* sp, sp_point** p)
 {
     int ret = MP_OKAY;
-    (void)heap;
 
     if (p == NULL) {
         ret = MEMORY_E;
@@ -125,8 +124,16 @@ static int sp_ecc_point_new_ex(void* heap, sp_point* sp, sp_point** p)
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
         (void)sp;
         *p = (sp_point*)XMALLOC(sizeof(sp_point), heap, DYNAMIC_TYPE_ECC);
+        if (*p == NULL) {
+            ret = MEMORY_E;
+        }
 #else
-        *p = sp;
+        (void)heap;
+        if (sp == NULL) {
+            ret = MEMORY_E;
+        } else {
+            *p = sp;
+        }
 #endif
     }
 
