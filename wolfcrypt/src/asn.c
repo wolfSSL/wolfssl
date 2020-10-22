@@ -15428,7 +15428,51 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 }
 
 
-/* Der Decode ECC-DSA Signature, r & s stored as big ints */
+/* Der Decode ECC-DSA Signature with R/S as unsigned bin */
+int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
+    byte* s, word32* sLen)
+{
+    int    ret;
+    word32 idx = 0;
+    int    len = 0;
+
+    if (GetSequence(sig, &idx, &len, sigLen) < 0) {
+        return ASN_ECC_KEY_E;
+    }
+
+#ifndef NO_STRICT_ECDSA_LEN
+    /* enable strict length checking for signature */
+    if (sigLen != idx + (word32)len) {
+        return ASN_ECC_KEY_E;
+    }
+#else
+    /* allow extra signature bytes at end */
+    if ((word32)len > (sigLen - idx)) {
+        return ASN_ECC_KEY_E;
+    }
+#endif
+
+    ret = GetASNInt(sig, &idx, &len, sigLen);
+    if (ret != 0)
+        return ret;
+    if (rLen)
+        *rLen = len;
+    if (r)
+        XMEMCPY(r, (byte*)sig + idx, len);
+    idx += len;
+
+    ret = GetASNInt(sig, &idx, &len, sigLen);
+    if (ret != 0)
+        return ret;
+    if (sLen)
+        *sLen = len;
+    if (s)
+        XMEMCPY(s, (byte*)sig + idx, len);
+
+    return ret;
+}
+
+
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;

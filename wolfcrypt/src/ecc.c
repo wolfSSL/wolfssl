@@ -8040,69 +8040,10 @@ int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
 int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
                      byte* s, word32* sLen)
 {
-    int err;
-    int tmp_valid = 0;
-    word32 x = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* rtmp = NULL;
-    mp_int* stmp = NULL;
-#else
-    mp_int  rtmp[1];
-    mp_int  stmp[1];
-#endif
-
     if (sig == NULL || r == NULL || rLen == NULL || s == NULL || sLen == NULL)
         return ECC_BAD_ARG_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    rtmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (rtmp == NULL)
-        return MEMORY_E;
-    stmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (stmp == NULL) {
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-        return MEMORY_E;
-    }
-#endif
-
-    err = DecodeECC_DSA_Sig(sig, sigLen, rtmp, stmp);
-
-    /* rtmp and stmp are initialized */
-    if (err == MP_OKAY) {
-        tmp_valid = 1;
-
-        /* extract r */
-        x = mp_unsigned_bin_size(rtmp);
-        if (*rLen < x)
-            err = BUFFER_E;
-    }
-    if (err == MP_OKAY) {
-        *rLen = x;
-        err = mp_to_unsigned_bin(rtmp, r);
-    }
-
-    /* extract s */
-    if (err == MP_OKAY) {
-        x = mp_unsigned_bin_size(stmp);
-        if (*sLen < x)
-            err = BUFFER_E;
-
-        if (err == MP_OKAY) {
-            *sLen = x;
-            err = mp_to_unsigned_bin(stmp, s);
-        }
-    }
-
-    if (tmp_valid) {
-        mp_clear(rtmp);
-        mp_clear(stmp);
-    }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    return err;
+    return DecodeECC_DSA_Sig_Bin(sig, sigLen, r, rLen, s, sLen);
 }
 #endif /* !NO_ASN */
 
