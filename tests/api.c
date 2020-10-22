@@ -33403,9 +33403,12 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #ifdef HAVE_AES_CBC
          NID_aes_128_cbc,
     #endif
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
          NID_aes_128_gcm,
     #endif
+    #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
     #ifdef WOLFSSL_AES_COUNTER
          NID_aes_128_ctr,
     #endif
@@ -33422,9 +33425,12 @@ static void test_wolfSSL_EVP_CIPHER_CTX_iv_length(void)
     #ifdef HAVE_AES_CBC
          AES_BLOCK_SIZE,
     #endif
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
          GCM_NONCE_MID_SZ,
     #endif
+    #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
     #ifdef WOLFSSL_AES_COUNTER
          AES_BLOCK_SIZE,
     #endif
@@ -33757,15 +33763,20 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifdef WOLFSSL_AES_256
         NID_aes_256_cbc,
     #endif
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
-         NID_aes_128_gcm,
-    #endif
-    #ifdef WOLFSSL_AES_192
-        NID_aes_192_gcm,
-    #endif
-    #ifdef WOLFSSL_AES_256
-        NID_aes_256_gcm,
-    #endif
+        #ifdef WOLFSSL_AES_128
+            NID_aes_128_gcm,
+        #endif
+        #ifdef WOLFSSL_AES_192
+            NID_aes_192_gcm,
+        #endif
+        #ifdef WOLFSSL_AES_256
+            NID_aes_256_gcm,
+        #endif
+    #endif /* HAVE_AESGCM */
+    #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
     #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
          NID_aes_128_ctr,
@@ -33795,15 +33806,20 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #ifdef WOLFSSL_AES_256
             AES_BLOCK_SIZE,
     #endif
+    #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
             GCM_NONCE_MID_SZ,
-    #endif
-    #ifdef WOLFSSL_AES_192
+        #endif
+        #ifdef WOLFSSL_AES_192
             GCM_NONCE_MID_SZ,
-    #endif
-    #ifdef WOLFSSL_AES_256
+        #endif
+        #ifdef WOLFSSL_AES_256
             GCM_NONCE_MID_SZ,
-    #endif
+        #endif
+    #endif /* HAVE_AESGCM */
+    #endif /* (HAVE_FIPS && !HAVE_SELFTEST) || HAVE_FIPS_VERSION > 2 */
     #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
             AES_BLOCK_SIZE,
