@@ -571,22 +571,22 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         }
 
         /* write bios */
-        if (bio && bio->type == WOLFSSL_BIO_BIO) {
+        if (bio->type == WOLFSSL_BIO_BIO) {
             ret = wolfSSL_BIO_BIO_write(bio, data, len);
         }
 
-        if (bio && bio->type == WOLFSSL_BIO_MEMORY) {
+        if (bio->type == WOLFSSL_BIO_MEMORY) {
             ret = wolfSSL_BIO_MEMORY_write(bio, data, len);
         }
 
     #ifndef NO_FILESYSTEM
-        if (bio && bio->type == WOLFSSL_BIO_FILE) {
+        if (bio->type == WOLFSSL_BIO_FILE) {
             ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
         }
     #endif
 
     #ifndef WOLFCRYPT_ONLY
-        if (bio && bio->type == WOLFSSL_BIO_SSL) {
+        if (bio->type == WOLFSSL_BIO_SSL) {
             /* already got eof, again is error */
             if (front->eof) {
                 ret = SSL_FATAL_ERROR;
@@ -596,7 +596,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             }
         }
 
-        if (bio && bio->type == WOLFSSL_BIO_MD) {
+        if (bio->type == WOLFSSL_BIO_MD) {
             if (bio->next != NULL) { /* data passing through MD BIO */
                 ret = wolfSSL_BIO_MD_write(bio, data, len);
             }

@@ -9985,7 +9985,13 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                                                         ProcPeerCertArgs* args)
 {
     int verify_ok = 0, use_cb = 0;
-    void *heap = (ssl != NULL) ? ssl->heap : cm->heap;
+    void *heap;
+
+    if (cm == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    heap = (ssl != NULL) ? ssl->heap : cm->heap;
 
     /* Determine if verify was okay */
     if (ret == 0) {
@@ -10190,7 +10196,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         }
     #ifndef NO_WOLFSSL_CM_VERIFY
         /* non-zero return code indicates failure override */
-        if ((cm != NULL) && (cm->verifyCallback != NULL)) {
+        if (cm->verifyCallback != NULL) {
             store->userCtx = cm;
             if (cm->verifyCallback(verify_ok, store)) {
                 if (ret != 0) {
@@ -11038,9 +11044,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* check if fatal error */
                     if (args->verifyErr) {
                         args->fatal = 1;
-                        if (ret == 0) {
-                            ret = args->lastErr;
-                        }
+                        ret = args->lastErr;
                     }
                     else {
                         args->fatal = 0;

@@ -2269,13 +2269,15 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
      redux = fast_mp_montgomery_reduce;
   } else
 #endif
-  {
 #ifdef BN_MP_MONTGOMERY_REDUCE_C
+  {
      /* use slower baseline Montgomery method */
      redux = mp_montgomery_reduce;
-#else
-     return MP_VAL;
+  }
 #endif
+
+  if (redux == NULL) {
+      return MP_VAL;
   }
 
 #ifdef WOLFSSL_SMALL_STACK
