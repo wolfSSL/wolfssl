@@ -964,7 +964,7 @@ do
             if [ "$wolf_rsa" != "" ]
             then
                 port=$wolfssl_port
-                openssl_psk="-psk=1a2b3c4d"
+                openssl_psk="-psk 1a2b3c4d"
                 do_openssl_client
             fi
             ;;
@@ -977,7 +977,7 @@ do
             psk="-s"
             do_wolfssl_client
             port=$wolfssl_port
-            openssl_psk="-psk=1a2b3c4d"
+            openssl_psk="-psk 1a2b3c4d"
             do_openssl_client
             ;;
         *ADH*)
@@ -1026,7 +1026,7 @@ do
                 psk="-s"
                 do_wolfssl_client
                 psk=""
-                openssl_psk="-psk=0123456789abcdef0123456789abcdef"
+                openssl_psk="-psk 0123456789abcdef0123456789abcdef"
                 open_temp_cases_total=$((open_temp_cases_total + 1))
                 port=$wolfssl_port
                 do_openssl_client
