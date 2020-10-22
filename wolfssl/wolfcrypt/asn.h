@@ -1164,6 +1164,8 @@ WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
                                       mp_int* s);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
+    WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, 
+        byte* r, word32* rLen, byte* s, word32* sLen);
 #endif
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_API int EccEnumToNID(int n);
