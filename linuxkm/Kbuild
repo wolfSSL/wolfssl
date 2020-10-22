@@ -83,9 +83,9 @@ $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLF
 		awk '/^ *[0-9]+: / {							\
 		  if ($$8 !~ /^(wc_|wolf)/){next;}					\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
-		    print "EXPORT_SYMBOL(" $$8 ");";	      	      		  	\
+		    print "EXPORT_SYMBOL_NS(" $$8 ", WOLFSSL);";    		  	\
 		  }									\
 		}' >> $@
-	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL(wolfcrypt_test);\n#endif' >> $@
+	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
 
 clean-files := module_exports.c
