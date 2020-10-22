@@ -37,11 +37,11 @@ enum {
 
 /* RC2 encryption and decryption */
 typedef struct Rc2 {
-    word32 keylen;      /* key length, octets */
-    word32 bits;        /* effective key length, bits */
     ALIGN16 word16 key[RC2_MAX_KEY_SIZE/2];
     ALIGN16 word32 reg[RC2_BLOCK_SIZE / sizeof(word32)];    /* for CBC mode */
     ALIGN16 word32 tmp[RC2_BLOCK_SIZE / sizeof(word32)];    /* same         */
+    word32 keylen;      /* key length, octets */
+    word32 bits;        /* effective key length, bits */
 } Rc2;
 
 WOLFSSL_API int wc_Rc2SetKey(Rc2* rc2, const byte* key, word32 length,
