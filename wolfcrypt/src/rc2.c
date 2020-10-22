@@ -282,6 +282,7 @@ int wc_Rc2EcbDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 
 int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
+    int ret;
     word32 blocks = (sz / RC2_BLOCK_SIZE);
 
     if (rc2 == NULL || out == NULL || in == NULL) {
@@ -294,7 +295,11 @@ int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 
     while (blocks--) {
         xorbuf((byte*)rc2->reg, in, RC2_BLOCK_SIZE);
-        wc_Rc2EcbEncrypt(rc2, (byte*)rc2->reg, (byte*)rc2->reg, RC2_BLOCK_SIZE);
+        ret = wc_Rc2EcbEncrypt(rc2, (byte*)rc2->reg, (byte*)rc2->reg,
+                               RC2_BLOCK_SIZE);
+        if (ret != 0) {
+            return ret;
+        }
         XMEMCPY(out, rc2->reg, RC2_BLOCK_SIZE);
 
         out += RC2_BLOCK_SIZE;
@@ -306,6 +311,7 @@ int wc_Rc2CbcEncrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 
 int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 {
+    int ret;
     word32 blocks = (sz / RC2_BLOCK_SIZE);
 
     if (rc2 == NULL || out == NULL || in == NULL) {
@@ -318,7 +324,10 @@ int wc_Rc2CbcDecrypt(Rc2* rc2, byte* out, const byte* in, word32 sz)
 
     while (blocks--) {
         XMEMCPY(rc2->tmp, in, RC2_BLOCK_SIZE);
-        wc_Rc2EcbDecrypt(rc2, out, (byte*)rc2->tmp, RC2_BLOCK_SIZE);
+        ret = wc_Rc2EcbDecrypt(rc2, out, (byte*)rc2->tmp, RC2_BLOCK_SIZE);
+        if (ret != 0) {
+            return ret;
+        }
         xorbuf(out, (byte*)rc2->reg, RC2_BLOCK_SIZE);
         /* store iv for next call */
         XMEMCPY(rc2->reg, rc2->tmp, RC2_BLOCK_SIZE);
