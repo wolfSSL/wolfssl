@@ -7798,8 +7798,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                                  int curve_id)
 {
     int ret;
-#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+#ifdef WOLFSSL_CRYPTOCELL
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
 #endif
@@ -7830,10 +7829,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     if (ret != 0)
         return ret;
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
-    /* Hardware does not support loading private keys */
-    return NOT_COMPILED_IN;
-#elif defined(WOLFSSL_CRYPTOCELL)
+#ifdef WOLFSSL_CRYPTOCELL
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(curve_id));
 
     if (pub != NULL && pub[0] != '\0') {
@@ -7877,8 +7873,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #endif /* HAVE_WOLF_BIGINT */
 
-
-#endif /* WOLFSSL_ATECC508A */
+#endif /* WOLFSSL_CRYPTOCELL */
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if ((pub != NULL) && (ret == MP_OKAY))
