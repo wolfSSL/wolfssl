@@ -15474,7 +15474,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int    curve_id = ECC_CURVE_DEF;
 #ifdef WOLFSSL_SMALL_STACK
     byte* priv;
-    byte* pub;
+    byte* pub = NULL;
 #else
     byte priv[ECC_MAXSIZE+1];
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
@@ -15507,15 +15507,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    priv = (byte*)XMALLOC(ECC_MAXSIZE+1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (byte*)XMALLOC(length+1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL)
         return MEMORY_E;
-
-    pub = (byte*)XMALLOC(2*(ECC_MAXSIZE+1), key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
 #endif
 
     /* priv key */
@@ -15563,10 +15557,20 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             if (ret == 0) {
                 /* pub key */
                 pubSz = length;
-                if (pubSz < 2*(ECC_MAXSIZE+1)) {
-                    XMEMCPY(pub, &input[*inOutIdx], pubSz);
-                    *inOutIdx += length;
-                    pubData = pub;
+                if (pubSz <= 2*ECC_MAXSIZE) {
+            #ifdef WOLFSSL_SMALL_STACK
+                    pub = (byte*)XMALLOC(pubSz+1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (pub == NULL) {
+                        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        ret = MEMORY_E;
+                    }
+                    else
+            #endif
+                    {
+                        XMEMCPY(pub, &input[*inOutIdx], pubSz);
+                        *inOutIdx += length;
+                        pubData = pub;
+                    }
                 }
                 else
                     ret = BUFFER_E;
