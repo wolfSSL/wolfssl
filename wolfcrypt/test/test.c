@@ -3457,7 +3457,7 @@ static int hash_test(void)
     if (ret != BAD_FUNC_ARG)
         return -3392;
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_ASN)
 #if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST)
     ret = wc_GetCTC_HashOID(MD2);
     if (ret == 0)
