@@ -7609,10 +7609,35 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
         ret = BUFFER_E;
 
     if (ret == 0)
-        ret  = wc_AesInit(aes, heap, devId);
+        ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
         XMEMCPY(aes->id, id, len);
         aes->idLen = len;
+        aes->labelLen = 0;
+    }
+
+    return ret;
+}
+
+int wc_AesInit_Label(Aes* aes, char* label, void* heap, int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if (aes == NULL || label == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0) {
+        labelLen = XSTRLEN(label);
+        if (labelLen == 0 || labelLen > AES_MAX_LABEL_LEN)
+            ret = BUFFER_E;
+    }
+
+    if (ret == 0)
+        ret = wc_AesInit(aes, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(aes->label, label, labelLen);
+        aes->labelLen = labelLen;
+        aes->idLen = 0;
     }
 
     return ret;

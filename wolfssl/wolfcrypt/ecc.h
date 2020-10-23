@@ -154,6 +154,7 @@ enum {
 
 #ifdef HAVE_PKCS11
     ECC_MAX_ID_LEN    = 32,
+    ECC_MAX_LABEL_LEN = 32,
 #endif
 };
 
@@ -410,6 +411,8 @@ struct ecc_key {
 #ifdef HAVE_PKCS11
     byte id[ECC_MAX_ID_LEN];
     int  idLen;
+    char label[ECC_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 #if defined(WOLFSSL_CRYPTOCELL)
     ecc_context_t ctx;
@@ -545,6 +548,8 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 WOLFSSL_API
 int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId);
+WOLFSSL_API
+int wc_ecc_init_label(ecc_key* key, char* label, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL

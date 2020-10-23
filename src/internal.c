@@ -5343,6 +5343,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.key      = ctx->privateKey;
     ssl->buffers.keyType  = ctx->privateKeyType;
     ssl->buffers.keyId    = ctx->privateKeyId;
+    ssl->buffers.keyLabel = ctx->privateKeyLabel;
     ssl->buffers.keySz    = ctx->privateKeySz;
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #endif
@@ -19910,7 +19911,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     }
 
 #ifdef HAVE_PKCS11
-    if (ssl->buffers.keyDevId != INVALID_DEVID && ssl->buffers.keyId) {
+    if (ssl->buffers.keyDevId != INVALID_DEVID && (ssl->buffers.keyId ||
+                                                       ssl->buffers.keyLabel)) {
         if (ssl->buffers.keyType == rsa_sa_algo)
             ssl->hsType = DYNAMIC_TYPE_RSA;
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo)
@@ -19922,9 +19924,17 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
         if (ssl->buffers.keyType == rsa_sa_algo) {
     #ifndef NO_RSA
-            ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
-                             ssl->buffers.key->buffer, ssl->buffers.key->length,
-                             ssl->heap, ssl->buffers.keyDevId);
+            if (ssl->buffers.keyLabel) {
+                ret = wc_InitRsaKey_Label((RsaKey*)ssl->hsKey,
+                                          (char*)ssl->buffers.key->buffer,
+                                          ssl->heap, ssl->buffers.keyDevId);
+            }
+            else if (ssl->buffers.keyId) {
+                ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
+                                       ssl->buffers.key->buffer,
+                                       ssl->buffers.key->length, ssl->heap,
+                                       ssl->buffers.keyDevId);
+            }
             if (ret == 0) {
                 if (ssl->buffers.keySz < ssl->options.minRsaKeySz) {
                     WOLFSSL_MSG("RSA key size too small");
@@ -19940,9 +19950,17 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
     #ifdef HAVE_ECC
-            ret = wc_ecc_init_id((ecc_key*)ssl->hsKey, ssl->buffers.key->buffer,
-                                 ssl->buffers.key->length, ssl->heap,
-                                 ssl->buffers.keyDevId);
+            if (ssl->buffers.keyLabel) {
+                ret = wc_ecc_init_label((ecc_key*)ssl->hsKey,
+                                        (char*)ssl->buffers.key->buffer,
+                                        ssl->heap, ssl->buffers.keyDevId);
+            }
+            else if (ssl->buffers.keyId) {
+                ret = wc_ecc_init_id((ecc_key*)ssl->hsKey,
+                                     ssl->buffers.key->buffer,
+                                     ssl->buffers.key->length, ssl->heap,
+                                     ssl->buffers.keyDevId);
+            }
             if (ret == 0) {
                 if (ssl->buffers.keySz < ssl->options.minEccKeySz) {
                     WOLFSSL_MSG("ECC key size too small");

@@ -14100,6 +14100,29 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ret;
     }
+
+    int wolfSSL_CTX_use_PrivateKey_label(WOLFSSL_CTX* ctx, const char* label,
+                                         int devId, long keySz)
+    {
+        int ret = WOLFSSL_FAILURE;
+        word32 sz = XSTRLEN(label) + 1;
+
+        FreeDer(&ctx->privateKey);
+        if (AllocDer(&ctx->privateKey, (word32)sz, PRIVATEKEY_TYPE,
+                                                              ctx->heap) == 0) {
+            XMEMCPY(ctx->privateKey->buffer, label, sz);
+            ctx->privateKeyLabel = 1;
+            ctx->privateKeySz = (word32)keySz;
+            if (devId != INVALID_DEVID)
+                ctx->privateKeyDevId = devId;
+            else
+                ctx->privateKeyDevId = ctx->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
 #endif
 
     int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
@@ -14257,6 +14280,31 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             XMEMCPY(ssl->buffers.key->buffer, id, sz);
             ssl->buffers.weOwnKey = 1;
             ssl->buffers.keyId = 1;
+            ssl->buffers.keySz = (word32)keySz;
+            if (devId != INVALID_DEVID)
+                ssl->buffers.keyDevId = devId;
+            else
+                ssl->buffers.keyDevId = ssl->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
+
+    int wolfSSL_use_PrivateKey_label(WOLFSSL* ssl, const char* label, int devId,
+                                     long keySz)
+    {
+        int ret = WOLFSSL_FAILURE;
+        word32 sz = XSTRLEN(label) + 1;
+
+        if (ssl->buffers.weOwnKey)
+            FreeDer(&ssl->buffers.key);
+        if (AllocDer(&ssl->buffers.key, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ssl->heap) == 0) {
+            XMEMCPY(ssl->buffers.key->buffer, label, sz);
+            ssl->buffers.weOwnKey = 1;
+            ssl->buffers.keyLabel = 1;
             ssl->buffers.keySz = (word32)keySz;
             if (devId != INVALID_DEVID)
                 ssl->buffers.keyDevId = devId;
