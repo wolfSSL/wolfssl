@@ -33675,7 +33675,7 @@ static void test_wolfSSL_EVP_PKEY_get0_EC_KEY(void)
 }
 static void test_wolfSSL_EVP_X_STATE(void)
 {
-#if defined(OPENSSL_ALL)  && !defined(NO_DES3) 
+#if defined(OPENSSL_ALL)  && !defined(NO_DES3)  && !defined(NO_RC4)
 
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
@@ -33711,7 +33711,7 @@ static void test_wolfSSL_EVP_X_STATE(void)
 }
 static void test_wolfSSL_EVP_X_STATE_LEN(void)
 {
-#if defined(OPENSSL_ALL)  && !defined(NO_DES3)
+#if defined(OPENSSL_ALL)  && !defined(NO_DES3)  && !defined(NO_RC4)
 
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
@@ -33888,7 +33888,8 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 }
 static void test_wolfSSL_EVP_PKEY_assign_DH(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DH)
+#if defined(OPENSSL_ALL) && !defined(NO_DH) && \
+ !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE*                   f = NULL;
     unsigned char           buf[4096];
     const unsigned char*    pt = buf;
