@@ -315,12 +315,8 @@ endif !BUILD_FIPS_RAND
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_port.c \
-               wolfcrypt/src/error.c
-
-if BUILD_DEBUG
-src_libwolfssl_la_SOURCES += \
+               wolfcrypt/src/error.c \
                wolfcrypt/src/debug.c
-endif
 
 if !BUILD_FIPS_RAND
 src_libwolfssl_la_SOURCES += \

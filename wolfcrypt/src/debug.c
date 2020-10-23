@@ -27,6 +27,23 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/options.h>
+
+WOLFSSL_API const char *libwolfssl_configure_args(void) {
+#ifdef LIBWOLFSSL_CONFIGURE_ARGS
+  return " " LIBWOLFSSL_CONFIGURE_ARGS " ";
+#else
+  return NULL;
+#endif
+}
+
+WOLFSSL_API const char *libwolfssl_global_cflags(void) {
+#ifdef LIBWOLFSSL_GLOBAL_CFLAGS
+  return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";
+#else
+  return NULL;
+#endif
+}
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
 WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack = NULL;

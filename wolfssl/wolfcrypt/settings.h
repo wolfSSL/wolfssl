@@ -221,6 +221,9 @@
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
+WOLFSSL_API const char *libwolfssl_configure_args(void);
+WOLFSSL_API const char *libwolfssl_global_cflags(void);
+
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
 #elif defined(USE_HAL_DRIVER) && !defined(HAVE_CONFIG_H)
