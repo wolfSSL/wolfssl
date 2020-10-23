@@ -68,7 +68,7 @@ AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([__uint128_t])
 
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h stdio.h])
 AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
 
@@ -104,6 +104,9 @@ fi
 #endif
 #ifdef HAVE_TIME_H
     #include <time.h>
+#endif
+#ifdef HAVE_STDIO_H
+    #include <stdio.h>
 #endif
 ]])
 
