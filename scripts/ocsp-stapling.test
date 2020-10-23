@@ -16,6 +16,13 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+    LOCALHOST='::1'
+    V4V6=-6
+else
+    LOCALHOST='127.0.0.1'
+    V4V6=-4
+fi
 
 PARENTDIR="$PWD"
 
@@ -71,7 +78,7 @@ remove_single_rF(){
 
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
-    printf '%s\n' "Random Port Selected: $RPORTSELECTED"
+    printf '%s\n' "Random Port Selected: $1"
 
     printf '%s\n' "#" > $test_cnf
     printf '%s\n' "# openssl configuration file for OCSP certificates" >> $test_cnf
@@ -183,7 +190,7 @@ get_first_free_port() {
 	if [[ "$ret" -ge 65536 ]]; then
 	    ret=1024
 	fi
-	if ! nc -z 127.0.0.1 "$ret"; then
+	if ! nc -z $V4V6 $LOCALHOST "$ret"; then
 	    break
 	fi
 	ret=$((ret+1))
@@ -201,7 +208,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  $ready_file"
-./examples/server/server -b -p $port1 -o -R $ready_file &
+./examples/server/server -p $port1 -o -R $ready_file &
 wolf_pid=$!
 wait_for_readyFile $ready_file $wolf_pid $port1
 if [ ! -f $ready_file ]; then
@@ -209,7 +216,7 @@ if [ ! -f $ready_file ]; then
     exit 1
 else
     # should fail if ocspstapling is also enabled
-    echo "hi" | openssl s_client -status -connect 127.0.0.1:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+    echo "hi" | openssl s_client -status -connect [${LOCALHOST}]:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
     if [ $? -eq 0 ]; then
         printf '%s\n' "Succeeded when should have failed"
         remove_single_rF $ready_file
@@ -225,7 +232,7 @@ fi
 
 
 # create a port to use with openssl ocsp responder
-./examples/server/server -b -p $port2 -R $ready_file &
+./examples/server/server -p $port2 -R $ready_file &
 wolf_pid2=$!
 wait_for_readyFile $ready_file $wolf_pid2 $port2
 if [ ! -f $ready_file ]; then
@@ -247,10 +254,13 @@ server=login.live.com
 #ca=certs/external/baltimore-cybertrust-root.pem
 ca=certs/external/ca_collection.pem
 
-./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
-RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
-
+if [[ "$V4V6" == "-4" ]]; then
+    ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+else
+    echo "Skipping OCSP test on $server (IPv6 test client)"
+fi
 
 # Test with example server
 
@@ -341,7 +351,7 @@ generate_port() {
 
 # Start OpenSSL server that has no OCSP responses to return
 generate_port
-openssl s_server -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
+openssl s_server $V4V6 -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
 openssl_pid=$!
 sleep 0.1
 
