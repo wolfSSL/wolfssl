@@ -50,8 +50,6 @@ typedef WOLFSSL_CONF_VALUE CONF_VALUE;
 typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
 
 WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new(void);
-WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
-        char* name, char* value);
 WOLFSSL_API int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
         WOLFSSL_CONF_VALUE *section, WOLFSSL_CONF_VALUE *value);
 WOLFSSL_API void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val);

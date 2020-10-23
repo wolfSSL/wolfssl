@@ -2442,7 +2442,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
                                                 flatSignedAttribsSz, esd);
         if (ret < 0) {
-            if (pkcs7->signedAttribsSz != 0)
+            if (flatSignedAttribs)
                 XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2507,7 +2507,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     /* if using header/footer, we are not returning the content */
     if (output2 && output2Sz) {
         if (total2Sz > *output2Sz) {
-            if (pkcs7->signedAttribsSz != 0)
+            if (flatSignedAttribs)
                 XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2530,7 +2530,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     if (totalSz > *outputSz) {
-        if (pkcs7->signedAttribsSz != 0)
+        if (flatSignedAttribs)
             XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2543,7 +2543,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     if (output == NULL) {
-        if (pkcs7->signedAttribsSz != 0)
+        if (flatSignedAttribs)
             XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4915,9 +4915,15 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
 
                     if (ret == 0) {
+                        byte isDynamic = pkcs7->isDynamic;
                     #ifndef NO_PKCS7_STREAM
                         PKCS7State* stream = pkcs7->stream;
+                        pkcs7->stream = NULL;
                     #endif
+                        /* Free pkcs7 resources but not the structure itself */
+                        pkcs7->isDynamic = 0;
+                        wc_PKCS7_Free(pkcs7);
+                        pkcs7->isDynamic = isDynamic;
                         /* This will reset PKCS7 structure and then set the
                          * certificate */
                         ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);

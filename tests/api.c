@@ -25933,7 +25933,7 @@ static void test_wolfSSL_X509_check_private_key(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         defined(USE_CERT_BUFFERS_2048)
     X509*  x509;
-    EVP_PKEY* pkey;
+    EVP_PKEY* pkey = NULL;
     const byte* key;
 
     printf(testingFmt, "wolfSSL_X509_check_private_key()");
@@ -25946,6 +25946,7 @@ static void test_wolfSSL_X509_check_private_key(void)
                 &key, (long)sizeof_client_key_der_2048));
     AssertIntEQ(X509_check_private_key(x509, pkey), 1);
     EVP_PKEY_free(pkey);
+    pkey = NULL;
 
     /* Check with wrong key */
     key = server_key_der_2048;
@@ -27698,10 +27699,10 @@ static void test_wolfSSL_PKCS7_certs(void)
 
         if (i == 0) {
             PKCS7_free(p7);
-            /* Reset certs to force p7 to regenerate them */
-            ((WOLFSSL_PKCS7*)p7)->certs = NULL;
             AssertNotNull(d2i_PKCS7(&p7, &p, buflen));
-            /* p7 free's the certs */
+            /* Reset certs to force wolfSSL_PKCS7_to_stack to regenerate them */
+            ((WOLFSSL_PKCS7*)p7)->certs = NULL;
+            /* PKCS7_free free's the certs */
             AssertNotNull(wolfSSL_PKCS7_to_stack(p7));
         }
 
@@ -27746,6 +27747,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
+    sk_X509_free(sk);
     X509_STORE_free(str);
     X509_free(x509);
 
@@ -27774,7 +27776,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_free(str);
     /* CTX certs not freed yet */
     X509_free(x5092);
-    /* sk2 freed as part of X509_STORE_CTX_free(), sk3 is dup so free here */
+    sk_X509_free(sk);
+    /* sk3 is dup so free here */
     sk_X509_free(sk3);
 #endif
 
@@ -29682,7 +29685,6 @@ static void test_wolfSSL_X509_sign(void)
 #endif
 
     EVP_MD_CTX_free(mctx);
-    X509_NAME_free(name);
     EVP_PKEY_free(priv);
     EVP_PKEY_free(pub);
     X509_free(x509);
@@ -29839,6 +29841,7 @@ static void test_wolfSSL_X509_PUBKEY(void)
 
     X509_PUBKEY_free(pubKey2);
     X509_free(x509);
+    EVP_PKEY_free(evpKey);
 
     printf(resultFmt, passed);
 #endif
@@ -34963,6 +34966,7 @@ static void test_wolfSSL_TXT_DB(void)
         "unknown",
         "/CN=rsa doe",
     };
+    char** fields_copy;
 
     printf(testingFmt, "wolfSSL_TXT_DB");
 
@@ -34970,7 +34974,10 @@ static void test_wolfSSL_TXT_DB(void)
     AssertNotNull(bio = BIO_new(BIO_s_file()));
     AssertIntGT(BIO_read_filename(bio, "./tests/TXT_DB.txt"), 0);
     AssertNotNull(db = TXT_DB_read(bio, columns));
-    AssertIntEQ(TXT_DB_insert(db, (WOLFSSL_STRING*)fields), 1);
+    AssertNotNull(fields_copy = (char**)XMALLOC(sizeof(fields), NULL,
+            DYNAMIC_TYPE_OPENSSL));
+    XMEMCPY(fields_copy, fields, sizeof(fields));
+    AssertIntEQ(TXT_DB_insert(db, fields_copy), 1);
     BIO_free(bio);
 
     /* Test write */
@@ -38178,6 +38185,7 @@ static void test_wolfSSL_d2i_X509_REQ(void)
 
         X509_free(req);
         BIO_free(bio);
+        EVP_PKEY_free(pub_key);
     }
     {
         AssertNotNull(bio = BIO_new_file(csrPopFile, "rb"));
@@ -38200,6 +38208,7 @@ static void test_wolfSSL_d2i_X509_REQ(void)
 
         X509_free(req);
         BIO_free(bio);
+        EVP_PKEY_free(pub_key);
     }
     {
         AssertNotNull(bio = BIO_new_file(csrDsaFile, "rb"));
@@ -38217,6 +38226,7 @@ static void test_wolfSSL_d2i_X509_REQ(void)
 
         X509_free(req);
         BIO_free(bio);
+        EVP_PKEY_free(pub_key);
     }
 }
 

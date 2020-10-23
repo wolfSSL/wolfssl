@@ -1854,10 +1854,6 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfSSL_CertManagerFree(ctx->cm);
     ctx->cm = NULL;
     #ifdef OPENSSL_EXTRA
-    /* ctx->cm was free'd so cm of x509 store should now be NULL */
-        if (ctx->x509_store_pt != NULL) {
-            ctx->x509_store_pt->cm = NULL;
-        }
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
         while (ctx->ca_names != NULL) {
             WOLFSSL_STACK *next = ctx->ca_names->next;
@@ -3461,6 +3457,11 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif /* OPENSSL_ALL */
+    #ifdef WOLFSSL_CERT_REQ
+        if (x509->challengePwAttr) {
+            wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+        }
+    #endif /* WOLFSSL_CERT_REQ */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
