@@ -5783,9 +5783,7 @@ AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
-AM_CONDITIONAL([BUILD_DEBUG],[test "$ax_enable_debug" = "yes" || test "$ENABLED_STACKSIZE" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
-
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
@@ -5835,6 +5833,11 @@ echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
+
+echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> $OPTION_FILE
+echo >> $OPTION_FILE
+echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> $OPTION_FILE
+echo >> $OPTION_FILE
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
     defonly=`echo $option | sed 's/^-D//'`
