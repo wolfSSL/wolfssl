@@ -18297,12 +18297,14 @@ static int ecc_test_vector_item(const eccVector* vector)
 #ifdef WOLFSSL_SMALL_STACK
     ecc_key *userA = (ecc_key *)XMALLOC(sizeof *userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    ecc_key userA_buf, *userA = &userA_buf;
+    ecc_key userA[1];
 #endif
     DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
-    word32  sigRawSz;
+    word32  sigRawSz, rSz = MAX_ECC_BYTES, sSz = MAX_ECC_BYTES;
     DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
+    DECLARE_VAR(r, byte, MAX_ECC_BYTES, HEAP_HINT);
+    DECLARE_VAR(s, byte, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
@@ -18341,9 +18343,17 @@ static int ecc_test_vector_item(const eccVector* vector)
                                                              sigRaw, &sigRawSz);
     if (ret != 0)
         goto done;
-
     if (sigSz != sigRawSz || XMEMCMP(sig, sigRaw, sigSz) != 0) {
         ret = -9608;
+        goto done;
+    }
+
+    ret = wc_ecc_sig_to_rs(sig, sigSz, r, &rSz, s, &sSz);
+    if (ret != 0)
+        goto done;
+    if (rSz != vector->rSz || XMEMCMP(r, vector->r, rSz) != 0 ||
+        sSz != vector->sSz || XMEMCMP(s, vector->s, sSz) != 0) {
+        ret = -9613;
         goto done;
     }
 #endif
@@ -18376,6 +18386,8 @@ done:
 
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
     FREE_VAR(sigRaw, HEAP_HINT);
+    FREE_VAR(r, HEAP_HINT);
+    FREE_VAR(s, HEAP_HINT);
 #endif
     FREE_VAR(sig, HEAP_HINT);
 
@@ -18598,20 +18610,20 @@ static int ecc_test_vector(int keySize)
         vec.S   = "019cd2c5c3f9870ecdeb9b323abdf3a98cd5e231d85c6ddc5b71ab190739f7f226e6b134ba1d5889ddeb2751dabd97911dff90c34684cdbe7bb669b6c3d22f2480c";
         vec.curveName = "SECP521R1";
     #ifndef NO_ASN
-        vec.r   = (byte*)"\x00\xbd\x11\x7b\x48\x07\x71\x08\x98\xf9\xdd\x77"
-                         "\x78\x05\x64\x85\x77\x76\x68\xf0\xe7\x8e\x6d\xdf"
-                         "\x5b\x00\x03\x56\x12\x1e\xb7\xa2\x20\xe9\x49\x3c"
-                         "\x7f\x9a\x57\xc0\x77\x94\x7f\x89\xac\x45\xd5\xac"
-                         "\xb6\x66\x1b\xbc\xd1\x7a\xbb\x3f\xae\xa1\x49\xba"
-                         "\x0a\xa3\xbb\x15\x21\xbe";
-        vec.rSz = 66;
-        vec.s   = (byte*)"\x00\x19\xcd\x2c\x5c\x3f\x98\x70\xec\xde\xb9\xb3"
-                         "\x23\xab\xdf\x3a\x98\xcd\x5e\x23\x1d\x85\xc6\xdd"
-                         "\xc5\xb7\x1a\xb1\x90\x73\x9f\x7f\x22\x6e\x6b\x13"
-                         "\x4b\xa1\xd5\x88\x9d\xde\xb2\x75\x1d\xab\xd9\x79"
-                         "\x11\xdf\xf9\x0c\x34\x68\x4c\xdb\xe7\xbb\x66\x9b"
-                         "\x6c\x3d\x22\xf2\x48\x0c";
-        vec.sSz = 66;
+        vec.r   = (byte*)"\xbd\x11\x7b\x48\x07\x71\x08\x98\xf9\xdd\x77\x78"
+                         "\x05\x64\x85\x77\x76\x68\xf0\xe7\x8e\x6d\xdf\x5b"
+                         "\x00\x03\x56\x12\x1e\xb7\xa2\x20\xe9\x49\x3c\x7f"
+                         "\x9a\x57\xc0\x77\x94\x7f\x89\xac\x45\xd5\xac\xb6"
+                         "\x66\x1b\xbc\xd1\x7a\xbb\x3f\xae\xa1\x49\xba\x0a"
+                         "\xa3\xbb\x15\x21\xbe";
+        vec.rSz = 65;
+        vec.s   = (byte*)"\x19\xcd\x2c\x5c\x3f\x98\x70\xec\xde\xb9\xb3\x23"
+                         "\xab\xdf\x3a\x98\xcd\x5e\x23\x1d\x85\xc6\xdd\xc5"
+                         "\xb7\x1a\xb1\x90\x73\x9f\x7f\x22\x6e\x6b\x13\x4b"
+                         "\xa1\xd5\x88\x9d\xde\xb2\x75\x1d\xab\xd9\x79\x11"
+                         "\xdf\xf9\x0c\x34\x68\x4c\xdb\xe7\xbb\x66\x9b\x6c"
+                         "\x3d\x22\xf2\x48\x0c";
+        vec.sSz = 65;
     #endif
         break;
 #endif /* HAVE_ECC521 */

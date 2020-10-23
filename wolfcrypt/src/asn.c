@@ -15427,6 +15427,66 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     return 0;
 }
 
+/* determine if leading bit is set and trim leading zeros */
+static int is_leading_bit_set(const byte** input, word32 *sz)
+{
+    int i;
+    word32 leadingZeroCount = 0;
+    const byte* tmp = *input;
+    byte c = 0;
+    for (i=0; i<(int)*sz; i++) {
+        c = tmp[i];
+        if (c != 0)
+            break;
+        leadingZeroCount++;
+    }
+    *input += leadingZeroCount;
+    *sz -= leadingZeroCount;
+    return (c & 0x80) != 0;
+}
+
+/* Der Encode r & s ints into out, outLen is (in/out) size */
+int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen, 
+    const byte* s, word32 sLen)
+{
+    int ret;
+    word32 idx;
+    word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
+    int rAddLeadZero, sAddLeadZero;
+
+    /* If the leading bit on the INTEGER is a 1, add a leading zero */
+    /* Add leading zero if MSB is set */
+    /* Trim leading zeros */
+    rAddLeadZero = is_leading_bit_set(&r, &rLen);
+    sAddLeadZero = is_leading_bit_set(&s, &sLen);
+
+    if (*outLen < (rLen + rAddLeadZero + sLen + sAddLeadZero +
+                   headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
+        return BUFFER_E;
+
+    idx = SetSequence(rLen+rAddLeadZero + sLen+sAddLeadZero + headerSz, out);
+
+    /* store r */
+    ret = SetASNInt(rLen, rAddLeadZero ? 0x80 : 0x00, &out[idx]);
+    if (ret < 0)
+        return ret;
+    idx += ret;
+    XMEMCPY(&out[idx], r, rLen);
+    idx += rLen;
+
+    /* store s */
+    ret = SetASNInt(sLen, sAddLeadZero ? 0x80 : 0x00, &out[idx]);
+    if (ret < 0)
+        return ret;
+    idx += ret;
+    XMEMCPY(&out[idx], s, sLen);
+    idx += sLen;
+
+    *outLen = idx;
+
+    return 0;
+}
+
 
 /* Der Decode ECC-DSA Signature with R/S as unsigned bin */
 int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
@@ -15546,18 +15606,18 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 
     if (GetLength(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
+    privSz = length;
 
-    if (length > ECC_MAXSIZE)
+    if (privSz > ECC_MAXSIZE)
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    priv = (byte*)XMALLOC(length+1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (byte*)XMALLOC(privSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL)
         return MEMORY_E;
 #endif
 
     /* priv key */
-    privSz = length;
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
 
@@ -15601,13 +15661,13 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
             if (ret == 0) {
                 /* pub key */
                 pubSz = length;
-                if (pubSz <= 2*ECC_MAXSIZE) {
+                if (pubSz > 2*(ECC_MAXSIZE+1))
+                    ret = BUFFER_E;
+                else {
             #ifdef WOLFSSL_SMALL_STACK
-                    pub = (byte*)XMALLOC(pubSz+1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    if (pub == NULL) {
-                        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    pub = (byte*)XMALLOC(pubSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (pub == NULL)
                         ret = MEMORY_E;
-                    }
                     else
             #endif
                     {
@@ -15616,8 +15676,6 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         pubData = pub;
                     }
                 }
-                else
-                    ret = BUFFER_E;
             }
         }
     }

@@ -7972,59 +7972,11 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
     byte* out, word32* outlen)
 {
-    int err;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* rtmp = NULL;
-    mp_int* stmp = NULL;
-#else
-    mp_int  rtmp[1];
-    mp_int  stmp[1];
-#endif
-
     if (r == NULL || s == NULL || out == NULL || outlen == NULL)
         return ECC_BAD_ARG_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    rtmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (rtmp == NULL)
-        return MEMORY_E;
-    stmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (stmp == NULL) {
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-        return MEMORY_E;
-    }
-#endif
-
-    err = mp_init_multi(rtmp, stmp, NULL, NULL, NULL, NULL);
-    if (err != MP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-    #endif
-        return err;
-    }
-
-    err = mp_read_unsigned_bin(rtmp, r, rSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(stmp, s, sSz);
-
     /* convert mp_ints to ECDSA sig, initializes rtmp and stmp internally */
-    if (err == MP_OKAY)
-        err = StoreECC_DSA_Sig(out, outlen, rtmp, stmp);
-
-    if (err == MP_OKAY) {
-        if (mp_iszero(rtmp) == MP_YES || mp_iszero(stmp) == MP_YES)
-            err = MP_ZERO_E;
-    }
-
-    mp_clear(rtmp);
-    mp_clear(stmp);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    return err;
+    return StoreECC_DSA_Sig_Bin(out, outlen, r, rSz, s, sSz);
 }
 
 /**
