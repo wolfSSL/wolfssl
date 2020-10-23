@@ -31,6 +31,7 @@
 
 WOLFSSL_API const char *libwolfssl_configure_args(void) {
 #ifdef LIBWOLFSSL_CONFIGURE_ARGS
+  /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_CONFIGURE_ARGS " ";
 #else
   return NULL;
@@ -39,6 +40,7 @@ WOLFSSL_API const char *libwolfssl_configure_args(void) {
 
 WOLFSSL_API const char *libwolfssl_global_cflags(void) {
 #ifdef LIBWOLFSSL_GLOBAL_CFLAGS
+  /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";
 #else
   return NULL;
