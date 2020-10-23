@@ -1655,7 +1655,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:458")) != -1) {
+            "01:23:458"
+            "@#")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -2121,6 +2122,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     #endif
                 #endif
                 break;
+
+            case '@' :
+            {
+                const char *conf_args = libwolfssl_configure_args();
+                printf("%s\n", conf_args ? conf_args : "configure args not compiled in");
+                XEXIT_T(EXIT_SUCCESS);
+            }
+
+            case '#' :
+            {
+                const char *cflags = libwolfssl_global_cflags();
+                printf("%s\n", cflags ? cflags : "CFLAGS not compiled in");
+                XEXIT_T(EXIT_SUCCESS);
+            }
 
             default:
                 Usage();
