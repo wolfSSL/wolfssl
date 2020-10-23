@@ -435,7 +435,8 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
 
   out:
 
-    XMEMSET(aead, 0, sizeof *aead);
+    ForceZero(aead, sizeof *aead);
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
