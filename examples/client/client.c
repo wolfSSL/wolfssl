@@ -24,6 +24,9 @@
         #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+        #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/ssl.h>
@@ -2125,16 +2128,36 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case '@' :
             {
+#ifdef HAVE_WC_INTROSPECTION
                 const char *conf_args = libwolfssl_configure_args();
-                printf("%s\n", conf_args ? conf_args : "configure args not compiled in");
-                XEXIT_T(EXIT_SUCCESS);
+                if (conf_args) {
+                    puts(conf_args);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("configure args not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
             }
 
             case '#' :
             {
+#ifdef HAVE_WC_INTROSPECTION
                 const char *cflags = libwolfssl_global_cflags();
-                printf("%s\n", cflags ? cflags : "CFLAGS not compiled in");
-                XEXIT_T(EXIT_SUCCESS);
+                if (cflags) {
+                    puts(cflags);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("CFLAGS not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
             }
 
             default:

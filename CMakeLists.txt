@@ -110,7 +110,7 @@ add_library(wolfssl
     wolfcrypt/src/cryptocb.c
     wolfcrypt/src/curve25519.c
     wolfcrypt/src/curve448.c
-    wolfcrypt/src/debug.c
+    wolfcrypt/src/wc_debug.c
     wolfcrypt/src/des3.c
     wolfcrypt/src/dh.c
     wolfcrypt/src/dsa.c
