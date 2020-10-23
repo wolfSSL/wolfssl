@@ -1,4 +1,4 @@
-/* debug.c
+/* wc_debug.c
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *
@@ -24,10 +24,12 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/options.h>
+
+#ifdef HAVE_WC_INTROSPECTION
 
 WOLFSSL_API const char *libwolfssl_configure_args(void) {
 #ifdef LIBWOLFSSL_CONFIGURE_ARGS
@@ -47,10 +49,12 @@ WOLFSSL_API const char *libwolfssl_global_cflags(void) {
 #endif
 }
 
+#endif /* HAVE_WC_INTROSPECTION */
+
 #ifdef HAVE_STACK_SIZE_VERBOSE
 WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack = NULL;
 WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize = 0;
 WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSizeHWM = 0;
 WOLFSSL_API THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr = 0;
 WOLFSSL_API THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
-#endif
+#endif /* HAVE_STACK_SIZE_VERBOSE */

@@ -5785,6 +5785,18 @@ AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 
+if test "$ax_enable_debug" = "yes" ||
+	test "$ENABLED_STACKSIZE" = "yes" ||
+	(test "$ENABLED_LEANTLS" = "no" &&
+	     test "$ENABLED_LEANPSK" = "no" &&
+	     test "$ENABLED_LOWRESOURCE" = "no")
+then
+    WC_INTROSPECTION=yes
+else
+    WC_INTROSPECTION=no
+fi
+AM_CONDITIONAL([BUILD_WC_DEBUG],[test "$WC_INTROSPECTION" = "yes"])
+
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
@@ -5838,6 +5850,12 @@ echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> $OPTION_FILE
 echo >> $OPTION_FILE
 echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> $OPTION_FILE
 echo >> $OPTION_FILE
+
+if test "$WC_INTROSPECTION" = "yes"
+then
+    echo "#define HAVE_WC_INTROSPECTION" >> $OPTION_FILE
+    echo >> $OPTION_FILE
+fi
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
     defonly=`echo $option | sed 's/^-D//'`

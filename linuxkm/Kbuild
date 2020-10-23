@@ -76,12 +76,12 @@ $(obj)/wolfcrypt/src/aes_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/aes_gcm_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
-# exclude symbols that don't match wc_* or wolf*.
+# exclude symbols that don't match wc_*, wolf*, or libwolf*.
 $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
 	@cp $< $@
 	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
 		awk '/^ *[0-9]+: / {							\
-		  if ($$8 !~ /^(wc_|wolf)/){next;}					\
+		  if ($$8 !~ /^(wc_|wolf|libwolf)/){next;}					\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
 		    print "EXPORT_SYMBOL_NS(" $$8 ", WOLFSSL);";    		  	\
 		  }									\

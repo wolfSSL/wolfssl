@@ -221,9 +221,6 @@
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
-WOLFSSL_API const char *libwolfssl_configure_args(void);
-WOLFSSL_API const char *libwolfssl_global_cflags(void);
-
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
 #elif defined(USE_HAL_DRIVER) && !defined(HAVE_CONFIG_H)
@@ -231,6 +228,10 @@ WOLFSSL_API const char *libwolfssl_global_cflags(void);
     #include "wolfSSL.wolfSSL_conf.h"
 #endif
 
+#ifdef HAVE_WC_INTROSPECTION
+WOLFSSL_API const char *libwolfssl_configure_args(void);
+WOLFSSL_API const char *libwolfssl_global_cflags(void);
+#endif
 
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
