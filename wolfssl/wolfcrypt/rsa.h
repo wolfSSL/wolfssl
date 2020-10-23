@@ -143,6 +143,7 @@ enum {
 
 #ifdef HAVE_PKCS11
     RSA_MAX_ID_LEN      = 32,
+    RSA_MAX_LABEL_LEN   = 32,
 #endif
 };
 
@@ -187,6 +188,8 @@ struct RsaKey {
 #ifdef HAVE_PKCS11
     byte id[RSA_MAX_ID_LEN];
     int  idLen;
+    char label[RSA_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || !defined(WOLFSSL_RSA_VERIFY_INLINE)
     byte   dataIsAlloc;
@@ -216,6 +219,8 @@ WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 #ifdef HAVE_PKCS11
 WOLFSSL_API int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len,
                                  void* heap, int devId);
+WOLFSSL_API int wc_InitRsaKey_Label(RsaKey* key, char* label, void* heap,
+                                    int devId);
 #endif
 WOLFSSL_API int  wc_CheckRsaKey(RsaKey* key);
 #ifdef WOLFSSL_XILINX_CRYPT
