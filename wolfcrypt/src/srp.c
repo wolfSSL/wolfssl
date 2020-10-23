@@ -325,12 +325,14 @@ int wc_SrpSetUsername(Srp* srp, const byte* username, word32 size)
     if (!srp || !username)
         return BAD_FUNC_ARG;
 
-    srp->user = (byte*)XMALLOC(size, srp->heap, DYNAMIC_TYPE_SRP);
+    /* +1 for NULL char */
+    srp->user = (byte*)XMALLOC(size + 1, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->user == NULL)
         return MEMORY_E;
 
     srp->userSz = size;
     XMEMCPY(srp->user, username, srp->userSz);
+    srp->user[size] = '\0';
 
     return 0;
 }

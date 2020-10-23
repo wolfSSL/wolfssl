@@ -1904,6 +1904,7 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
                 WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
                 return WOLFSSL_FAILURE;
             }
+            to->ownEcc = 1;
             to->ecc->group->curve_idx = from->ecc->group->curve_idx;
             to->ecc->group->curve_nid = from->ecc->group->curve_nid;
             to->ecc->group->curve_oid = from->ecc->group->curve_oid;
