@@ -29202,7 +29202,6 @@ static int test_wolfSSL_GetLoggingCb (void)
     }
 #endif
     if (ret == 0) {
-        //ret = wolfSSL_SetLoggingCb(Logging_cb);
         if (ret == 0) {
             if (wolfSSL_GetLoggingCb() == NULL) {
                 ret = 0;
@@ -29212,8 +29211,6 @@ static int test_wolfSSL_GetLoggingCb (void)
             }
         }
     }
-
-
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
