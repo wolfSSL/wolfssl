@@ -1756,8 +1756,8 @@ extern void uITRON4_free(void *p) ;
     #ifdef WOLFSSL_MIN_ECC_BITS
         #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
     #else
-        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
-            /* FIPSv2 includes 192-bit support */
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2
+            /* FIPSv2 and ready (for now) includes 192-bit support */
             #define ECC_MIN_KEY_SZ 192
         #else
             #define ECC_MIN_KEY_SZ 224
