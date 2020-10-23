@@ -4397,6 +4397,16 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 /* support using header and footer without content */
                 if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
                     localIdx = 0;
+
+                } else if (pkiMsg2 == NULL && hashBuf == NULL) {
+                    /* header/footer not separate, check content length is
+                     * not larger than total bundle size */
+                    if ((localIdx + length) > pkiMsgSz) {
+                        WOLFSSL_MSG("Content length detected is larger than "
+                                    "total bundle size");
+                        ret = BUFFER_E;
+                        break;
+                    }
                 }
                 idx = localIdx;
             }
