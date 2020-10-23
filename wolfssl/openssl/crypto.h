@@ -39,6 +39,8 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 
 #ifdef OPENSSL_EXTRA
+#include <stdint.h>
+
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 
