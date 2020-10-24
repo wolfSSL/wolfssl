@@ -3472,7 +3472,7 @@ int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
 
     hLen = wc_HashGetDigestSize(hash);
     if (hLen < 0)
-        return hLen;
+        return BAD_FUNC_ARG;
     if ((word32)hLen != digestLen)
         return BAD_FUNC_ARG;
 
