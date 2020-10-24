@@ -11751,10 +11751,10 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("PKCS#7 output buffer too small");
-        if (pkcs7->unprotectedAttribsSz != 0) {
+        if (attribs != NULL)
             XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (flatAttribs != NULL)
             XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        }
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
@@ -11790,10 +11790,12 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += attribsSetSz;
         XMEMCPY(output + idx, flatAttribs, attribsSz);
         idx += attribsSz;
-        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
+    if (attribs != NULL)
+        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (flatAttribs != NULL)
+        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
