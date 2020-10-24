@@ -374,7 +374,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv, int enc, int shaOid)
 {
-    int typeH;
+    int typeH = WC_HASH_TYPE_NONE;
     int derivedLen = 0;
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
