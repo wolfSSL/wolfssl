@@ -3337,7 +3337,7 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
         name->sz = 0;
         name->heap = heap;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XMEMSET(&name->entry, 0, sizeof(name->entry));
+        XMEMSET(name->entry, 0, sizeof(name->entry));
         name->x509 = NULL;
         name->entrySz = 0;
 #endif /* OPENSSL_EXTRA */
@@ -3357,7 +3357,7 @@ void FreeX509Name(WOLFSSL_X509_NAME* name)
             int i;
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
                 if (name->entry[i].set) {
-                    wolfSSL_ASN1_OBJECT_free(&name->entry[i].object);
+                    wolfSSL_ASN1_OBJECT_free(name->entry[i].object);
                     wolfSSL_ASN1_STRING_free(name->entry[i].value);
                 }
             }
