@@ -9359,8 +9359,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->CRLInfo;
                 obj->objSz = x509->CRLInfoSz;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
             }
             else {
                 WOLFSSL_MSG("No CRL dist set");
@@ -9381,8 +9379,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authInfo;
                 obj->objSz = x509->authInfoSz;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
             }
             else {
                 WOLFSSL_MSG("No Auth Info set");
@@ -9409,8 +9405,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authKeyId;
                 obj->objSz = x509->authKeyIdSz;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
                 akey->issuer = obj;
                 return akey;
             }
@@ -9433,8 +9427,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->subjKeyId;
                 obj->objSz = x509->subjKeyIdSz;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
             }
             else {
                 WOLFSSL_MSG("No Subject Key set");
@@ -9472,8 +9464,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     obj->grp   = oidCertExtType;
                     obj->obj   = (byte*)(x509->certPolicies[i]);
                     obj->objSz = MAX_CERTPOL_SZ;
-                    obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                    obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
                     if (wolfSSL_sk_ASN1_OBJECT_push(sk, obj)
                                                            != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("Error pushing ASN1 object onto stack");
@@ -9492,8 +9482,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = (byte*)(x509->certPolicies[i]);
                 obj->objSz = MAX_CERTPOL_SZ;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
             }
             else {
                 WOLFSSL_MSG("No Cert Policy set");
@@ -9510,7 +9498,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 }
                 obj->type  = CERT_POLICY_OID;
                 obj->grp   = oidCertExtType;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
             }
             else {
                 WOLFSSL_MSG("No Cert Policy set");
@@ -9572,8 +9559,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->extKeyUsageSrc;
                 obj->objSz = x509->extKeyUsageSz;
-                obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-                obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
             }
             else {
                 WOLFSSL_MSG("No Extended Key Usage set");
@@ -38692,7 +38677,7 @@ err:
     {
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_free");
         if (ne != NULL) {
-            wolfSSL_ASN1_OBJECT_free(&ne->object);
+            wolfSSL_ASN1_OBJECT_free(ne->object);
             if (ne->value != NULL) {
                 wolfSSL_ASN1_STRING_free(ne->value);
             }
@@ -38747,7 +38732,7 @@ err:
                 }
             }
             ne->nid = nid;
-            wolfSSL_OBJ_nid2obj_ex(nid, &ne->object);
+            wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
             ne->value = wolfSSL_ASN1_STRING_type_new(type);
             if (ne->value != NULL) {
                 wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz);
@@ -38787,7 +38772,7 @@ err:
         }
 
         ne->nid = nid;
-        wolfSSL_OBJ_nid2obj_ex(nid, &ne->object);
+        ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
         ne->value = wolfSSL_ASN1_STRING_type_new(type);
         if (ne->value != NULL) {
             wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz);
@@ -39064,9 +39049,6 @@ err:
                 WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
                 return NULL;
             }
-            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-        } else {
-            obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC;
         }
         obj->type    = id;
         obj->grp     = type;
@@ -39229,9 +39211,9 @@ err:
         for (idx++; idx < MAX_NAME_ENTRIES; idx++) {
             /* Find index of desired name */
             if (name->entry[idx].set) {
-                if (XSTRLEN(obj->sName) == XSTRLEN(name->entry[idx].object.sName) &&
+                if (XSTRLEN(obj->sName) == XSTRLEN(name->entry[idx].object->sName) &&
                     XSTRNCMP((const char*) obj->sName,
-                        name->entry[idx].object.sName, obj->objSz - 1) == 0) {
+                        name->entry[idx].object->sName, obj->objSz - 1) == 0) {
                     return idx;
                 }
             }
@@ -39811,12 +39793,16 @@ err:
     defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
-    WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne) {
+    WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X509_NAME_ENTRY *ne)
+    {
+        WOLFSSL_ASN1_OBJECT* obj = NULL;
+
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
         if (ne == NULL) return NULL;
-        if (wolfSSL_OBJ_nid2obj_ex(ne->nid, &ne->object) != NULL) {
-            ne->object.nid = ne->nid;
-            return &ne->object;
+        obj = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
+        if (obj != NULL) {
+            obj->nid = ne->nid;
+            return obj;
         }
         return NULL;
     }
