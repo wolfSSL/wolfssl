@@ -121,12 +121,7 @@ WOLFSSL_API int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
                                    const byte* pub, word32 pubSz);
 WOLFSSL_API int wc_DhExportKeyPair(DhKey* key, byte* priv, word32* pPrivSz, 
                                    byte* pub, word32* pPubSz);
-#endif /* WOLFSSL_DH_EXTRA */
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst);
-WOLFSSL_LOCAL int wc_DhSetFullKeys(DhKey* key,const byte* priv_key,word32 privSz,
-                                   const byte* pub_key, word32 pubSz);
 #endif
 WOLFSSL_API int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz,
                         const byte* g, word32 gSz, const byte* q, word32 qSz,

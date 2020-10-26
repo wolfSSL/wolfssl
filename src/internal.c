@@ -3457,7 +3457,7 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif /* OPENSSL_ALL */
-    #ifdef WOLFSSL_CERT_REQ
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
         if (x509->challengePwAttr) {
             wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
         }
@@ -9609,6 +9609,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         if (dCert->cPwdLen < CTC_NAME_SIZE) {
             XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
             x509->challengePw[dCert->cPwdLen] = '\0';
+#ifdef OPENSSL_ALL
             if (x509->challengePwAttr) {
                 wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
             }
@@ -9626,6 +9627,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             else {
                 ret = MEMORY_E;
             }
+#endif
         }
         else {
             WOLFSSL_MSG("Challenge password too long");

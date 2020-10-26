@@ -2103,7 +2103,6 @@ WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst)
         return ret;
     }
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
     if ((ret = mp_copy(&src->pub, &dst->pub)) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
         return ret;
@@ -2113,7 +2112,6 @@ WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst)
         WOLFSSL_MSG("mp_copy error");
         return ret;
     }
-#endif
 
     dst->heap = src->heap;
 

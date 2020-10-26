@@ -3767,7 +3767,9 @@ struct WOLFSSL_X509 {
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #ifdef WOLFSSL_CERT_REQ
+#ifdef OPENSSL_ALL
     WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
+#endif
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
 #endif
     WOLFSSL_X509_NAME issuer;
