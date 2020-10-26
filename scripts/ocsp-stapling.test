@@ -16,12 +16,26 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
+    IPV6_SUPPORTED=yes
+else
+    IPV6_SUPPORTED=no
+fi
+
 if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+    if [[ "$IPV6_SUPPORTED" == "no" ]]; then
+        echo 'Skipping IPV6 test in environment lacking IPV6 support.'
+	exit 0
+    fi
     LOCALHOST='::1'
     V4V6=-6
 else
     LOCALHOST='127.0.0.1'
-    V4V6=-4
+    if [[ "$IPV6_SUPPORTED" == "yes" ]]; then
+	V4V6=-4
+    else
+	V4V6=
+    fi
 fi
 
 PARENTDIR="$PWD"
@@ -208,7 +222,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  $ready_file"
-./examples/server/server -p $port1 -o -R $ready_file &
+./examples/server/server -b -p $port1 -o -R $ready_file &
 wolf_pid=$!
 wait_for_readyFile $ready_file $wolf_pid $port1
 if [ ! -f $ready_file ]; then
@@ -232,7 +246,7 @@ fi
 
 
 # create a port to use with openssl ocsp responder
-./examples/server/server -p $port2 -R $ready_file &
+./examples/server/server -b -p $port2 -R $ready_file &
 wolf_pid2=$!
 wait_for_readyFile $ready_file $wolf_pid2 $port2
 if [ ! -f $ready_file ]; then
