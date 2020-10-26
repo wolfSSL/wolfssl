@@ -27,15 +27,19 @@ if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
 	exit 0
     fi
-    LOCALHOST='::1'
-    V4V6=-6
+    LOCALHOST='[::1]'
+    LOCALHOST_FOR_NC='::1'
+    V4V6=6
+    V4V6_FLAG=-6
 else
     LOCALHOST='127.0.0.1'
+    LOCALHOST_FOR_NC='127.0.0.1'
     if [[ "$IPV6_SUPPORTED" == "yes" ]]; then
-	V4V6=-4
+        V4V6_FLAG=-4
     else
-	V4V6=
+        V4V6_FLAG=
     fi
+    V4V6=4
 fi
 
 PARENTDIR="$PWD"
@@ -204,7 +208,7 @@ get_first_free_port() {
 	if [[ "$ret" -ge 65536 ]]; then
 	    ret=1024
 	fi
-	if ! nc -z $V4V6 $LOCALHOST "$ret"; then
+	if ! nc -z $V4V6_FLAG $LOCALHOST_FOR_NC "$ret"; then
 	    break
 	fi
 	ret=$((ret+1))
@@ -230,7 +234,7 @@ if [ ! -f $ready_file ]; then
     exit 1
 else
     # should fail if ocspstapling is also enabled
-    echo "hi" | openssl s_client -status -connect [${LOCALHOST}]:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+    echo "hi" | openssl s_client -status $V4V6_FLAG -connect ${LOCALHOST}:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
     if [ $? -eq 0 ]; then
         printf '%s\n' "Succeeded when should have failed"
         remove_single_rF $ready_file
@@ -268,7 +272,7 @@ server=login.live.com
 #ca=certs/external/baltimore-cybertrust-root.pem
 ca=certs/external/ca_collection.pem
 
-if [[ "$V4V6" == "-4" ]]; then
+if [[ "$V4V6" == "4" ]]; then
     ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
     RESULT=$?
     [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
@@ -365,7 +369,7 @@ generate_port() {
 
 # Start OpenSSL server that has no OCSP responses to return
 generate_port
-openssl s_server $V4V6 -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
+openssl s_server $V4V6_FLAG -cert ./certs/server-cert.pem -key certs/server-key.pem -www -port $port &
 openssl_pid=$!
 sleep 0.1
 
