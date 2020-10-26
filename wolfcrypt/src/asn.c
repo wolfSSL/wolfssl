@@ -5550,7 +5550,13 @@ int wc_OBJ_sn2nid(const char *sn)
     if (XSTRNCMP(sn, "secp384r1", 10) == 0)
         sn = "SECP384R1";
     /* find based on name and return NID */
-    for (i = 0; ecc_sets[i].size != 0 && ecc_sets[i].name != NULL; i++) {
+    for (i = 0;
+#ifndef WOLFSSL_ECC_CURVE_STATIC
+         ecc_sets[i].size != 0 && ecc_sets[i].name != NULL;
+#else
+         ecc_sets[i].size != 0;
+#endif
+         i++) {
         if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
             eccEnum = ecc_sets[i].id;
             /* Convert enum value in ecc_curve_id to OpenSSL NID */
