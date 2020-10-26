@@ -955,7 +955,9 @@ static const char* client_usage_msg[][66] = {
 #ifdef NO_RSA
         "RSA not supported\n",                                      /* 2 */
 #elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
-#ifndef WOLFSSL_SP_NO_3072
+#ifdef WOLFSSL_SP_4096
+        "4096\n",                                                   /* 2 */
+#elif !defined(WOLFSSL_SP_NO_3072)
         "3072\n",                                                   /* 2 */
 #elif !defined(WOLFSSL_SP_NO_2048)
         "2048\n",                                                   /* 2 */
