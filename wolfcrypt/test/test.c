@@ -80,10 +80,15 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
 
     #define printf printk
 #elif defined(MICRIUM)
-    #include <bsp_ser.h>
-    void BSP_Ser_Printf (CPU_CHAR* format, ...);
-    #undef printf
-    #define printf BSP_Ser_Printf
+    #include <os.h>
+    #if (OS_VERSION < 50000)
+        #include <bsp_ser.h>
+        void BSP_Ser_Printf (CPU_CHAR* format, ...);
+        #undef printf
+        #define printf BSP_Ser_Printf
+    #else
+        #include <stdio.h>
+    #endif
 #elif defined(WOLFSSL_PB)
     #include <stdarg.h>
     int wolfssl_pb_print(const char*, ...);
