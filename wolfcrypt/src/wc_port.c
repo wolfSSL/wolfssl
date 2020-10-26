@@ -1232,14 +1232,23 @@ int wolfSSL_CryptHwMutexUnLock(void)
     }
 
 #elif defined(MICRIUM)
+    #if (OS_VERSION < 50000)
+        #define MICRIUM_ERR_TYPE OS_ERR
+        #define MICRIUM_ERR_NONE OS_ERR_NONE
+        #define MICRIUM_ERR_CODE(err) err
+    #else
+        #define MICRIUM_ERR_TYPE RTOS_ERR
+        #define MICRIUM_ERR_NONE RTOS_ERR_NONE
+        #define MICRIUM_ERR_CODE(err)    RTOS_ERR_CODE_GET(err)
+    #endif
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
-        OS_ERR err;
+        MICRIUM_ERR_TYPE err;
 
         OSMutexCreate(m, "wolfSSL Mutex", &err);
 
-        if (err == OS_ERR_NONE)
+        if (MICRIUM_ERR_CODE(err) == MICRIUM_ERR_NONE)
             return 0;
         else
             return BAD_MUTEX_E;
@@ -1248,11 +1257,11 @@ int wolfSSL_CryptHwMutexUnLock(void)
     int wc_FreeMutex(wolfSSL_Mutex* m)
     {
         #if (OS_CFG_MUTEX_DEL_EN == DEF_ENABLED)
-            OS_ERR err;
+            MICRIUM_ERR_TYPE err;
 
             OSMutexDel(m, OS_OPT_DEL_ALWAYS, &err);
 
-            if (err == OS_ERR_NONE)
+            if (MICRIUM_ERR_CODE(err) == MICRIUM_ERR_NONE)
                 return 0;
             else
                 return BAD_MUTEX_E;
@@ -1263,11 +1272,11 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     int wc_LockMutex(wolfSSL_Mutex* m)
     {
-        OS_ERR err;
+        MICRIUM_ERR_TYPE err;
 
         OSMutexPend(m, 0, OS_OPT_PEND_BLOCKING, NULL, &err);
 
-        if (err == OS_ERR_NONE)
+        if (MICRIUM_ERR_CODE(err) == MICRIUM_ERR_NONE)
             return 0;
         else
             return BAD_MUTEX_E;
@@ -1275,11 +1284,11 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
-        OS_ERR err;
+        MICRIUM_ERR_TYPE err;
 
         OSMutexPost(m, OS_OPT_POST_NONE, &err);
 
-        if (err == OS_ERR_NONE)
+        if (MICRIUM_ERR_CODE(err) == MICRIUM_ERR_NONE)
             return 0;
         else
             return BAD_MUTEX_E;
