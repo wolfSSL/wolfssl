@@ -121,6 +121,12 @@ extern int wc_InitRsaHw(RsaKey* key);
 #endif
 #endif
 
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#else
+    typedef void* DsaKey;
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -12365,83 +12371,6 @@ static int CopyValidity(byte* output, Cert* cert)
 
 #endif
 
-
-/* Set Date validity from now until now + daysValid
- * return size in bytes written to output, 0 on error */
-static int SetValidity(byte* output, int daysValid)
-{
-    byte before[MAX_DATE_SIZE];
-    byte  after[MAX_DATE_SIZE];
-
-    int beforeSz;
-    int afterSz;
-    int seqSz;
-
-    time_t now;
-    time_t then;
-    struct tm* tmpTime;
-    struct tm* expandedTime;
-    struct tm localTime;
-
-#if defined(NEED_TMP_TIME)
-    /* for use with gmtime_r */
-    struct tm tmpTimeStorage;
-    tmpTime = &tmpTimeStorage;
-#else
-    tmpTime = NULL;
-#endif
-    (void)tmpTime;
-
-    now = XTIME(0);
-
-    /* before now */
-    before[0] = ASN_GENERALIZED_TIME;
-    beforeSz = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
-
-    /* subtract 1 day of seconds for more compliance */
-    then = now - 86400;
-    expandedTime = XGMTIME(&then, tmpTime);
-    if (expandedTime == NULL) {
-        WOLFSSL_MSG("XGMTIME failed");
-        return 0;   /* error */
-    }
-    localTime = *expandedTime;
-
-    /* adjust */
-    localTime.tm_year += 1900;
-    localTime.tm_mon +=    1;
-
-    SetTime(&localTime, before + beforeSz);
-    beforeSz += ASN_GEN_TIME_SZ;
-
-    after[0] = ASN_GENERALIZED_TIME;
-    afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
-
-    /* add daysValid of seconds */
-    then = now + (daysValid * (time_t)86400);
-    expandedTime = XGMTIME(&then, tmpTime);
-    if (expandedTime == NULL) {
-        WOLFSSL_MSG("XGMTIME failed");
-        return 0;   /* error */
-    }
-    localTime = *expandedTime;
-
-    /* adjust */
-    localTime.tm_year += 1900;
-    localTime.tm_mon  +=    1;
-
-    SetTime(&localTime, after + afterSz);
-    afterSz += ASN_GEN_TIME_SZ;
-
-    /* headers and output */
-    seqSz = SetSequence(beforeSz + afterSz, output);
-    XMEMCPY(output + seqSz, before, beforeSz);
-    XMEMCPY(output + seqSz + beforeSz, after, afterSz);
-
-    return seqSz + beforeSz + afterSz;
-}
-
-
 /* ASN Encoded Name field */
 typedef struct EncodedName {
     int  nameLen;                /* actual string value length */
@@ -13431,6 +13360,81 @@ int SetName(byte* output, word32 outputSz, CertName* name)
 #endif
 
     return totalBytes;
+}
+
+/* Set Date validity from now until now + daysValid
+ * return size in bytes written to output, 0 on error */
+static int SetValidity(byte* output, int daysValid)
+{
+    byte before[MAX_DATE_SIZE];
+    byte  after[MAX_DATE_SIZE];
+
+    int beforeSz;
+    int afterSz;
+    int seqSz;
+
+    time_t now;
+    time_t then;
+    struct tm* tmpTime;
+    struct tm* expandedTime;
+    struct tm localTime;
+
+#if defined(NEED_TMP_TIME)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
+#else
+    tmpTime = NULL;
+#endif
+    (void)tmpTime;
+
+    now = XTIME(0);
+
+    /* before now */
+    before[0] = ASN_GENERALIZED_TIME;
+    beforeSz = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
+
+    /* subtract 1 day of seconds for more compliance */
+    then = now - 86400;
+    expandedTime = XGMTIME(&then, tmpTime);
+    if (expandedTime == NULL) {
+        WOLFSSL_MSG("XGMTIME failed");
+        return 0;   /* error */
+    }
+    localTime = *expandedTime;
+
+    /* adjust */
+    localTime.tm_year += 1900;
+    localTime.tm_mon +=    1;
+
+    SetTime(&localTime, before + beforeSz);
+    beforeSz += ASN_GEN_TIME_SZ;
+
+    after[0] = ASN_GENERALIZED_TIME;
+    afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
+
+    /* add daysValid of seconds */
+    then = now + (daysValid * (time_t)86400);
+    expandedTime = XGMTIME(&then, tmpTime);
+    if (expandedTime == NULL) {
+        WOLFSSL_MSG("XGMTIME failed");
+        return 0;   /* error */
+    }
+    localTime = *expandedTime;
+
+    /* adjust */
+    localTime.tm_year += 1900;
+    localTime.tm_mon  +=    1;
+
+    SetTime(&localTime, after + afterSz);
+    afterSz += ASN_GEN_TIME_SZ;
+
+    /* headers and output */
+    seqSz = SetSequence(beforeSz + afterSz, output);
+    XMEMCPY(output + seqSz, before, beforeSz);
+    XMEMCPY(output + seqSz + beforeSz, after, afterSz);
+
+    return seqSz + beforeSz + afterSz;
 }
 
 /* encode info from cert into DER encoded format */

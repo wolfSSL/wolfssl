@@ -40,7 +40,14 @@
 #define BIO_FLAGS_SHOULD_RETRY WOLFSSL_BIO_FLAG_RETRY
 
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
+#if defined(OPENSSL_ALL) \
+    || defined(HAVE_STUNNEL) \
+    || defined(HAVE_LIGHTY) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+    || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA)
 #define BIO_new_file                    wolfSSL_BIO_new_file
+#endif
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_ctrl                        wolfSSL_BIO_ctrl
 #define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending

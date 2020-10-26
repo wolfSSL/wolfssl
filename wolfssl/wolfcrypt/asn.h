@@ -306,7 +306,7 @@ enum Misc_ASN {
 #endif
     RSA_INTS            =   8,     /* RSA ints in private key */
     DSA_INTS            =   5,     /* DSA ints in private key */
-    MIN_DATE_SIZE       =  13,
+    MIN_DATE_SIZE       =  12,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
 #ifndef NO_RSA
@@ -679,7 +679,7 @@ struct SignatureCtx {
 #ifndef NO_RSA
     byte* out;
 #endif
-#if !defined(NO_RSA) && !defined(NO_DSA)
+#if !(defined(NO_RSA) && defined(NO_DSA))
     byte* sigCpy;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
