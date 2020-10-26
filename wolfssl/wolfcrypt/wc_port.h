@@ -99,15 +99,27 @@
         #else
             #include <asm/simd.h>
         #endif
-        #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
-        #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
+        #ifndef SAVE_VECTOR_REGISTERS
+            #define SAVE_VECTOR_REGISTERS() kernel_fpu_begin()
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS
+            #define RESTORE_VECTOR_REGISTERS() kernel_fpu_end()
+        #endif
     #elif defined(WOLFSSL_ARMASM)
         #include <asm/fpsimd.h>
-        #define SAVE_VECTOR_REGISTERS() ({ preempt_disable(); fpsimd_preserve_current_state(); })
-        #define RESTORE_VECTOR_REGISTERS() ({ fpsimd_restore_current_state(); preempt_enable(); })
+        #ifndef SAVE_VECTOR_REGISTERS
+            #define SAVE_VECTOR_REGISTERS() ({ preempt_disable(); fpsimd_preserve_current_state(); })
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS
+            #define RESTORE_VECTOR_REGISTERS() ({ fpsimd_restore_current_state(); preempt_enable(); })
+        #endif
     #else
-        #define SAVE_VECTOR_REGISTERS() ({})
-        #define RESTORE_VECTOR_REGISTERS() ({})
+        #ifndef SAVE_VECTOR_REGISTERS
+            #define SAVE_VECTOR_REGISTERS() ({})
+        #endif
+        #ifndef RESTORE_VECTOR_REGISTERS
+            #define RESTORE_VECTOR_REGISTERS() ({})
+        #endif
     #endif
 
     _Pragma("GCC diagnostic pop");
@@ -157,8 +169,10 @@
 
 #else /* ! WOLFSSL_LINUXKM */
 
-    #ifdef BUILDING_WOLFSSL
+    #ifndef SAVE_VECTOR_REGISTERS
         #define SAVE_VECTOR_REGISTERS() do{}while(0)
+    #endif
+    #ifndef RESTORE_VECTOR_REGISTERS
         #define RESTORE_VECTOR_REGISTERS() do{}while(0)
     #endif
 
