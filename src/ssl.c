@@ -38732,7 +38732,7 @@ err:
                 }
             }
             ne->nid = nid;
-            wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
+            ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
             ne->value = wolfSSL_ASN1_STRING_type_new(type);
             if (ne->value != NULL) {
                 wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz);
