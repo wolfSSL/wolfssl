@@ -3032,7 +3032,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
             }
             wc_UnLockMutex(&session->context->namedKeysMutex);
         }
-        if (ret > 0) {
+        /* SSLv3 does not support the SNI TLS Extension and may return SNI_UNSUPPORTED */
+        if (ret > 0 || ret == SNI_UNSUPPORTED) {
             /* make sure WOLFSSL_SUCCESS is converted to zero error code */
             ret = 0;
         }
