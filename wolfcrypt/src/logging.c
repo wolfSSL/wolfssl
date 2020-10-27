@@ -24,6 +24,10 @@
     #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -110,6 +114,38 @@ static WC_INLINE double current_time(int reset)
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
 }
 #endif /* WOLFSSL_FUNC_TIME */
+
+#ifdef HAVE_WC_INTROSPECTION
+
+const char *libwolfssl_configure_args(void) {
+#ifdef LIBWOLFSSL_CONFIGURE_ARGS
+  /* the spaces on either side are to make matching simple and efficient. */
+  return " " LIBWOLFSSL_CONFIGURE_ARGS " ";
+#else
+  return NULL;
+#endif
+}
+
+WOLFSSL_API const char *libwolfssl_global_cflags(void) {
+#ifdef LIBWOLFSSL_GLOBAL_CFLAGS
+  /* the spaces on either side are to make matching simple and efficient. */
+  return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";
+#else
+  return NULL;
+#endif
+}
+
+#endif /* HAVE_WC_INTROSPECTION */
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+
+THREAD_LS_T unsigned char *StackSizeCheck_myStack = NULL;
+THREAD_LS_T size_t StackSizeCheck_stackSize = 0;
+THREAD_LS_T size_t StackSizeCheck_stackSizeHWM = 0;
+THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr = 0;
+THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
+
+#endif /* HAVE_STACK_SIZE_VERBOSE */
 
 #ifdef DEBUG_WOLFSSL
 
