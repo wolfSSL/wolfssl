@@ -226,7 +226,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  $ready_file"
-./examples/server/server -b -p $port1 -o -R $ready_file &
+timeout 60 ./examples/server/server -b -p $port1 -o -R $ready_file &
 wolf_pid=$!
 wait_for_readyFile $ready_file $wolf_pid $port1
 if [ ! -f $ready_file ]; then
@@ -234,9 +234,9 @@ if [ ! -f $ready_file ]; then
     exit 1
 else
     # should fail if ocspstapling is also enabled
-    echo "hi" | openssl s_client -status $V4V6_FLAG -connect ${LOCALHOST}:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
-    if [ $? -eq 0 ]; then
-        printf '%s\n' "Succeeded when should have failed"
+    echo "hi" | openssl s_client -status $V4V6_FLAG -connect ${LOCALHOST}:$port1 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem 2>&1 | tee /dev/stderr | fgrep -q 'self signed certificate in certificate chain'
+    if [ $? -neq 0 ]; then
+        printf '%s\n' "Expected verification error from s_client is missing."
         remove_single_rF $ready_file
         exit 1
     fi
