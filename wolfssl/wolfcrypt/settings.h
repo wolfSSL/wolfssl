@@ -228,11 +228,6 @@
     #include "wolfSSL.wolfSSL_conf.h"
 #endif
 
-#ifdef HAVE_WC_INTROSPECTION
-WOLFSSL_API const char *libwolfssl_configure_args(void);
-WOLFSSL_API const char *libwolfssl_global_cflags(void);
-#endif
-
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
     #if !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)
