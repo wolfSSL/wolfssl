@@ -2014,7 +2014,7 @@ WOLFSSL_API long wolfSSL_CTX_set_options(WOLFSSL_CTX*, long);
 WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CHECK_PRIVATE_KEY)
+#if !defined(NO_CHECK_PRIVATE_KEY)
   WOLFSSL_API int  wolfSSL_CTX_check_private_key(const WOLFSSL_CTX*);
 #endif
 WOLFSSL_API void wolfSSL_ERR_free_strings(void);
