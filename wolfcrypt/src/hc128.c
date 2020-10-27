@@ -288,7 +288,7 @@ static WC_INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 }
 
 
-int wc_Hc128_SetHeap(HC128* ctx, void* heap)
+int wc_Hc128Init(HC128* ctx, void* heap, int devId)
 {
     if (ctx == NULL) {
         return BAD_FUNC_ARG;
@@ -298,6 +298,7 @@ int wc_Hc128_SetHeap(HC128* ctx, void* heap)
     ctx->heap = heap;
 #endif
 
+    (void)devId;
     (void)heap;
     return 0;
 }

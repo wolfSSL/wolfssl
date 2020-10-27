@@ -2351,6 +2351,21 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                       (HC128*)XMALLOC(sizeof(HC128), heap, DYNAMIC_TYPE_CIPHER);
         if (dec && dec->hc128 == NULL)
             return MEMORY_E;
+
+        if (enc) {
+            if (wc_Hc128Init(enc->hc128, heap, devId) != 0) {
+                WOLFSSL_MSG("Hc128Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+        if (dec) {
+            if (wc_Hc128Init(dec->hc128, heap, devId) != 0) {
+                WOLFSSL_MSG("Hc128Init failed in SetKeys");
+                return ASYNC_INIT_E;
+            }
+        }
+
+
         if (side == WOLFSSL_CLIENT_END) {
             if (enc) {
                 hcRet = wc_Hc128_SetKey(enc->hc128, keys->client_write_key,

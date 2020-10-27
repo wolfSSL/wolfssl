@@ -15308,7 +15308,45 @@ static int test_wc_Hc128_Process (void)
     return ret;
 
 } /* END test_wc_Hc128_Process */
+/*
+ * Test wc_Hc128Init()
+ */
+static int test_wc_Hc128Init (void)
+{
+    int ret = 0;
+#ifdef HAVE_HC128
+    HC128 ctx;
+    void*       heap = NULL;
+    const char* key = "\x80\x00\x00\x00\x00\x00\x00\x00"
+                      "\x00\x00\x00\x00\x00\x00\x00\x00";
+    const char* iv =  "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
 
+
+    printf(testingFmt, "wc_Hc128Init()");
+
+
+    ret = wc_Hc128_SetKey(&ctx, (byte*)key, (byte*)iv);
+
+    /* Bad case */
+    if (ret == 0) {
+        ret = wc_Hc128Init(NULL, heap, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    /* Good case */
+    if (ret == 0) {
+        ret = wc_Hc128Init(&ctx, heap, 0);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+
+#endif
+    return ret;
+
+} /* END test_wc_Hc128Init */
 
 /*
  * Testing wc_InitDsaKey()
@@ -37783,6 +37821,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Hc128_SetKey(), 0);
     AssertIntEQ(test_wc_Hc128_Process(), 0);
+    AssertIntEQ(test_wc_Hc128Init(), 0);
     AssertIntEQ(test_wc_InitDsaKey(), 0);
     AssertIntEQ(test_wc_DsaSignVerify(), 0);
     AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);

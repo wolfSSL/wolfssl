@@ -56,7 +56,7 @@ typedef struct HC128 {
 WOLFSSL_API int wc_Hc128_Process(HC128*, byte*, const byte*, word32);
 WOLFSSL_API int wc_Hc128_SetKey(HC128*, const byte* key, const byte* iv);
 
-WOLFSSL_LOCAL int wc_Hc128_SetHeap(HC128* ctx, void* heap);
+WOLFSSL_API int wc_Hc128Init(HC128* ctx, void* heap, int devId);
 
 #ifdef __cplusplus
     } /* extern "C" */
