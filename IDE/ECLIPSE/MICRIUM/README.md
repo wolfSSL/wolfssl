@@ -1,7 +1,7 @@
 
 # Micrium μC/OS-III Port
 ## Overview
-You can enable the wolfSSL support for Micrium μC/OS-III RTOS available [here](http://www.micriums.com/) using the define `MICRIUM`.
+You can enable the wolfSSL support for Micrium μC/OS-III RTOS available [here](http://www.micrium.com/) using the define `MICRIUM`.
 
 ## Usage
 
@@ -72,7 +72,7 @@ The test results below were collected from the NXP Kinetis K70 (Freescale TWR-K7
 
 - IAR Embedded Workbench IDE - ARM 8.32.1 (IAR ELF Linker V8.32.1.169/W32 for ARM)
 
-- The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/) but the K70X_FLASH.icf linker script file was slightly modified to configure the stack and heap sizes to 16KB and 20KB. The test was run on a 1 MBytes of program flash and 128 KBytes of static RAM.
+- The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/) but the K70X_FLASH.icf linker script file was slightly modified to configure the stack and heap sizes to 16KB and 20KB. The test was run on a 1 MBytes of program flash and 128 KBytes of static RAM. ([Similar TCP version](https://www.micrium.com/download/twr-k70f120m_os3-tcpip-wifi-lib/))
 
 - wolfssl [latest version](https://github.com/wolfSSL/wolfssl)
 
