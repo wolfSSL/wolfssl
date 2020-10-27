@@ -204,7 +204,7 @@ start_wolfssl_server() {
         echo "# $WOLFSSL_SERVER -p $server_port $wolfssl_cert $wolfssl_key $wolfssl_caCert -g -v d -x -i $psk $crl -l ALL"
         $WOLFSSL_SERVER -p $server_port $wolfssl_cert $wolfssl_key $wolfssl_caCert -g -v d -x -i $psk $crl -l ALL &
         server_pid=$!
-        # wait to see if s_server successfully starts before continuing
+        # wait to see if server successfully starts before continuing
         sleep 0.1
 
         check_process_running
