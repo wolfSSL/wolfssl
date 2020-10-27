@@ -117,7 +117,7 @@ static WC_INLINE double current_time(int reset)
 
 #ifdef HAVE_WC_INTROSPECTION
 
-const char *libwolfssl_configure_args(void) {
+const char *wolfSSL_configure_args(void) {
 #ifdef LIBWOLFSSL_CONFIGURE_ARGS
   /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_CONFIGURE_ARGS " ";
@@ -126,7 +126,7 @@ const char *libwolfssl_configure_args(void) {
 #endif
 }
 
-WOLFSSL_API const char *libwolfssl_global_cflags(void) {
+const char *wolfSSL_global_cflags(void) {
 #ifdef LIBWOLFSSL_GLOBAL_CFLAGS
   /* the spaces on either side are to make matching simple and efficient. */
   return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";

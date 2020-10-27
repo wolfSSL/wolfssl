@@ -2131,7 +2131,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case '@' :
             {
 #ifdef HAVE_WC_INTROSPECTION
-                const char *conf_args = libwolfssl_configure_args();
+                const char *conf_args = wolfSSL_configure_args();
                 if (conf_args) {
                     puts(conf_args);
                     XEXIT_T(EXIT_SUCCESS);
@@ -2148,7 +2148,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case '#' :
             {
 #ifdef HAVE_WC_INTROSPECTION
-                const char *cflags = libwolfssl_global_cflags();
+                const char *cflags = wolfSSL_global_cflags();
                 if (cflags) {
                     puts(cflags);
                     XEXIT_T(EXIT_SUCCESS);
