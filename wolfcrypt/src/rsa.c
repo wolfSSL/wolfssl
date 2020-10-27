@@ -1116,12 +1116,13 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     int   hLen, i, o, maskLen, hiBits;
     byte* m;
     byte* s;
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    byte msg[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
+#else
+    byte* msg = NULL;
+#endif
 #if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
-    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
-        byte salt[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
-    #else
-        byte* salt = NULL;
-    #endif
+    byte* salt;
 #else
     byte salt[WC_MAX_DIGEST_SIZE];
 #endif
@@ -1184,13 +1185,13 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
 #if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-        salt = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + saltLen, heap,
+        msg = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + saltLen, heap,
                                                        DYNAMIC_TYPE_RSA_BUFFER);
-        if (salt == NULL) {
+        if (msg == NULL) {
             return MEMORY_E;
         }
     #endif
-    s = m = salt;
+    salt = s = m = msg;
     XMEMSET(m, 0, RSA_PSS_PAD_SZ);
     m += RSA_PSS_PAD_SZ;
     XMEMCPY(m, input, inputLen);
@@ -1203,7 +1204,20 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
     }
 #else
-    s = m = pkcsBlock;
+    if (pkcsBlockLen < RSA_PSS_PAD_SZ + inputLen + saltLen) {
+    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+        msg = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + saltLen, heap,
+                                                       DYNAMIC_TYPE_RSA_BUFFER);
+        if (msg == NULL) {
+            return MEMORY_E;
+        }
+    #endif
+        m = msg;
+    }
+    else {
+        m = pkcsBlock;
+    }
+    s = m;
     XMEMSET(m, 0, RSA_PSS_PAD_SZ);
     m += RSA_PSS_PAD_SZ;
     XMEMCPY(m, input, inputLen);
@@ -1240,13 +1254,11 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         }
     }
 
-#if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
     #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-        if (salt != NULL) {
-            XFREE(salt, heap, DYNAMIC_TYPE_RSA_BUFFER);
+        if (msg != NULL) {
+            XFREE(msg, heap, DYNAMIC_TYPE_RSA_BUFFER);
         }
     #endif
-#endif
     return ret;
 }
 #endif /* WC_RSA_PSS */
