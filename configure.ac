@@ -1881,6 +1881,7 @@ fi
 
 
 # ECC Minimum Key Size
+ENABLED_ECCMINSZ=224
 AC_ARG_WITH([eccminsz],
     [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
     [
@@ -6051,7 +6052,7 @@ echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
 echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
-echo "   * ECC Weak Curves             $ENABLED_ECCWEAKCURVES"
+echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
