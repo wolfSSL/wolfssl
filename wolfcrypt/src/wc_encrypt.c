@@ -239,7 +239,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 #endif /* !NO_DES3 */
 
 
-#ifdef WOLFSSL_ENCRYPTED_KEYS
+#if !defined(NO_ASN) && defined(WOLFSSL_ENCRYPTED_KEYS)
 
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
@@ -361,7 +361,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     return ret;
 }
 
-#endif /* WOLFSSL_ENCRYPTED_KEYS */
+#endif /* !NO_ASN && WOLFSSL_ENCRYPTED_KEYS */
 
 
 #if !defined(NO_PWDBASED) && !defined(NO_ASN)

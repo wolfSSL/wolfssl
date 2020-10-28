@@ -2169,7 +2169,7 @@ typedef enum {
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_EC_POINT_FORMATS           = 0x000b,
-#if !defined(WOLFSSL_NO_SIGALG)
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
 #endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
@@ -2188,14 +2188,18 @@ typedef enum {
     TLSX_EARLY_DATA                 = 0x002a,
     #endif
     TLSX_SUPPORTED_VERSIONS         = 0x002b,
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
     TLSX_COOKIE                     = 0x002c,
+    #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
     #endif
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
     #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
+    #endif
     TLSX_KEY_SHARE                  = 0x0033,
 #endif
     TLSX_RENEGOTIATION_INFO         = 0xff01

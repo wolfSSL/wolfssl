@@ -181,11 +181,20 @@ void echoclient_test(void* args)
             defaultCipherList = "PSK-NULL-SHA256";
         #elif defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-            defaultCipherList = "TLS13-AES128-GCM-SHA256:"
-                                "DHE-PSK-AES128-GCM-SHA256:";
+            defaultCipherList = "TLS13-AES128-GCM-SHA256"
+                #ifndef WOLFSSL_NO_TLS12
+                                ":DHE-PSK-AES128-GCM-SHA256"
+                #endif
+                ;
             #else
             defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
+        #elif defined(HAVE_AESGCM) && defined(WOLFSSL_TLS13)
+            defaultCipherList = "TLS13-AES128-GCM-SHA256"
+                #ifndef WOLFSSL_NO_TLS12
+                                ":DHE-PSK-AES128-GCM-SHA256"
+                #endif
+                ;
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif

@@ -12072,6 +12072,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("connect state: FIRST_REPLY_SECOND");
             FALL_THROUGH;
 
+    #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
         case FIRST_REPLY_SECOND :
             #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.sendVerify) {
@@ -12119,7 +12120,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case SECOND_REPLY_DONE:
-#ifndef NO_HANDSHAKE_DONE_CB
+        #ifndef NO_HANDSHAKE_DONE_CB
             if (ssl->hsDoneCb) {
                 int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
                 if (cbret < 0) {
@@ -12128,35 +12129,36 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
-#endif /* NO_HANDSHAKE_DONE_CB */
+        #endif /* NO_HANDSHAKE_DONE_CB */
 
             if (!ssl->options.dtls) {
                 if (!ssl->options.keepResources) {
                     FreeHandshakeResources(ssl);
                 }
             }
-#ifdef WOLFSSL_DTLS
+        #ifdef WOLFSSL_DTLS
             else {
                 ssl->options.dtlsHsRetain = 1;
             }
-#endif /* WOLFSSL_DTLS */
+        #endif /* WOLFSSL_DTLS */
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_SECURE_RENEGOTIATION)
             /* This may be necessary in async so that we don't try to
              * renegotiate again */
             if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
                 ssl->secure_renegotiation->startScr = 0;
             }
-#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
+        #endif /* WOLFSSL_ASYNC_CRYPT && HAVE_SECURE_RENEGOTIATION */
 
             WOLFSSL_LEAVE("SSL_connect()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
+    #endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS */
 
         default:
             WOLFSSL_MSG("Unknown connect state ERROR");
             return WOLFSSL_FATAL_ERROR; /* unknown connect state */
         }
-    #endif /* !WOLFSSL_NO_TLS12 */
+    #endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS || !WOLFSSL_TLS13 */
     }
 
 #endif /* NO_WOLFSSL_CLIENT */
@@ -32654,7 +32656,7 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
     return NULL;
 }
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 static int populate_groups(int* groups, int max_count, char *list)
 {
     char *end;
