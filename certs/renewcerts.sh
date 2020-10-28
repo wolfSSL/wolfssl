@@ -542,6 +542,15 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ###### update the test-servercert-rc2.p12 file #############
+    ############################################################
+    echo "Updating test-servercert-rc2.p12 (password is \"wolfSSL test\")"
+    echo ""
+    echo "wolfSSL test" | openssl pkcs12 -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert-rc2.p12 -password stdin
+    check_result $? "Step 1"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ###### calling gen-ext-certs.sh           ##################
     ############################################################
     echo "Calling gen-ext-certs.sh"

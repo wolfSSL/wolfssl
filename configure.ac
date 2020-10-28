@@ -2782,6 +2782,19 @@ else
 fi
 
 
+# RC2
+AC_ARG_ENABLE([rc2],
+    [AS_HELP_STRING([--enable-rc2],[Enable RC2 encryption (default: disabled)])],
+    [ ENABLED_RC2=$enableval ],
+    [ ENABLED_RC2=no ]
+    )
+
+if test "$ENABLED_RC2" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RC2"
+fi
+
+
 # FIPS
 AS_CASE([$FIPS_VERSION],
     ["v2"],[
@@ -5771,6 +5784,7 @@ AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_DEBUG],[test "$ax_enable_debug" = "yes" || test "$ENABLED_STACKSIZE" = "yes"])
+AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 
 
 CREATE_HEX_VERSION
