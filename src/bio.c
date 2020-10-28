@@ -231,8 +231,11 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         if (bio && bio->type == WOLFSSL_BIO_FILE) {
             if (bio->ptr)
                 ret = (int)XFREAD(buf, 1, len, (XFILE)bio->ptr);
+        #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
+            && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
             else
-                ret = XREAD(bio->num, buf, len);
+                ret = (int)XREAD(bio->num, buf, len);
+        #endif
         }
     #endif
 
@@ -586,8 +589,11 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         if (bio && bio->type == WOLFSSL_BIO_FILE) {
             if (bio->ptr)
                 ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
+        #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
+            && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
             else
-                ret = XWRITE(bio->num, data, len);
+                ret = (int)XWRITE(bio->num, data, len);
+        #endif
         }
     #endif
 
@@ -1328,6 +1334,12 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
 }
 
 #ifndef NO_FILESYSTEM
+/**
+ * Creates a new file BIO object
+ * @param fd file descriptor for to use for the new object
+ * @param close_flag BIO_NOCLOSE or BIO_CLOSE
+ * @return New BIO object or NULL on failure
+ */
 WOLFSSL_BIO *wolfSSL_BIO_new_fd(int fd, int close_flag)
 {
     WOLFSSL_BIO* bio;

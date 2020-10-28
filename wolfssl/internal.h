@@ -3637,7 +3637,9 @@ struct WOLFSSL_STACK {
         WOLFSSL_CIPHER         cipher;
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
+#ifdef OPENSSL_EXTRA
         WOLFSSL_CONF_VALUE*    conf;
+#endif
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
@@ -3762,8 +3764,10 @@ struct WOLFSSL_X509 {
     byte             authKeyIdSet:1;
     byte             authKeyIdCrit:1;
     byte             issuerSet:1;
-    byte             isCSR:1;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef WOLFSSL_CERT_REQ
+    byte             isCSR:1;
+#endif
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #ifdef WOLFSSL_CERT_REQ

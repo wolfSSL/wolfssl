@@ -1261,18 +1261,24 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
 
     wc_PKCS7_SignerInfoFree(pkcs7);
     wc_PKCS7_FreeDecodedAttrib(pkcs7->decodedAttrib, pkcs7->heap);
+    pkcs7->decodedAttrib = NULL;
     wc_PKCS7_FreeCertSet(pkcs7);
 
 #ifdef ASN_BER_TO_DER
-    if (pkcs7->der != NULL)
+    if (pkcs7->der != NULL) {
         XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->der = NULL;
+    }
 #endif
-    if (pkcs7->contentDynamic != NULL)
+    if (pkcs7->contentDynamic != NULL) {
         XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->contentDynamic = NULL;
+    }
 
     if (pkcs7->cek != NULL) {
         ForceZero(pkcs7->cek, pkcs7->cekSz);
         XFREE(pkcs7->cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->cek = NULL;
     }
 
     pkcs7->contentTypeSz = 0;
@@ -4909,6 +4915,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     }
         #ifdef ASN_BER_TO_DER
                     der = pkcs7->der;
+                    pkcs7->der = NULL;
         #endif
                     contentDynamic = pkcs7->contentDynamic;
                     version = pkcs7->version;

@@ -650,10 +650,13 @@ decouple library dependencies with standard string, memory and so on.
                 #include <ctype.h>
             #endif
 	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
-            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
+            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
+            defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
         #endif
+        #ifdef OPENSSL_ALL
         #define XISALNUM(c)     isalnum((c))
+        #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
     #endif

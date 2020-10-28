@@ -1377,9 +1377,12 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new_id(int id, WOLFSSL_ENGINE *e)
     if (pkey) {
         pkey->type = id;
         ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
-        if (ctx == NULL) {
-            wolfSSL_EVP_PKEY_free(pkey);
-        }
+        /* wolfSSL_EVP_PKEY_CTX_new calls wolfSSL_EVP_PKEY_up_ref so we need
+         * to always call wolfSSL_EVP_PKEY_free (either to free it if an
+         * error occured in the previous function or to decrease the reference
+         * count so that pkey is actually free'd when wolfSSL_EVP_PKEY_CTX_free
+         * is called) */
+        wolfSSL_EVP_PKEY_free(pkey);
     }
     return ctx;
 }
@@ -1955,8 +1958,9 @@ int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
         WOLFSSL_MSG("Copy parameters not available for this key type");
         return WOLFSSL_FAILURE;
     }
-
+#if defined(HAVE_ECC) || !defined(NO_DSA)
     return WOLFSSL_SUCCESS;
+#endif
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -3260,7 +3264,7 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     const struct s_ent *ent;
 
     for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
-        nameUpper[i] = XTOUPPER(name[i]);
+        nameUpper[i] = (char)XTOUPPER(name[i]);
     }
     if (i < sizeof(nameUpper))
         nameUpper[i] = '\0';

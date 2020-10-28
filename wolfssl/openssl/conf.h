@@ -28,7 +28,8 @@
     extern "C" {
 #endif
 
-#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
 
 typedef struct WOLFSSL_CONF_VALUE {
     char *section;
@@ -36,9 +37,8 @@ typedef struct WOLFSSL_CONF_VALUE {
     char *value;
 } WOLFSSL_CONF_VALUE;
 
-typedef struct WOLFSSL_INIT_SETTINGS {
-    char* appname;
-} WOLFSSL_INIT_SETTINGS;
+/* ssl.h requires WOLFSSL_CONF_VALUE */
+#include <wolfssl/ssl.h>
 
 typedef struct WOLFSSL_CONF {
     void *meth_data;
@@ -47,20 +47,13 @@ typedef struct WOLFSSL_CONF {
 
 typedef WOLFSSL_CONF CONF;
 typedef WOLFSSL_CONF_VALUE CONF_VALUE;
-typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
+
+#ifdef OPENSSL_EXTRA
 
 WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new(void);
 WOLFSSL_API int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
         WOLFSSL_CONF_VALUE *section, WOLFSSL_CONF_VALUE *value);
 WOLFSSL_API void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val);
-
-WOLFSSL_API WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc);
-WOLFSSL_API void wolfSSL_sk_CONF_VALUE_free(struct WOLFSSL_STACK *sk);
-WOLFSSL_API int wolfSSL_sk_CONF_VALUE_num(const WOLFSSL_STACK *sk);
-WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_sk_CONF_VALUE_value(
-        const struct WOLFSSL_STACK *sk, int i);
-WOLFSSL_API int wolfSSL_sk_CONF_VALUE_push(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk,
-        WOLFSSL_CONF_VALUE* val);
 
 WOLFSSL_API WOLFSSL_CONF *wolfSSL_NCONF_new(void *meth);
 WOLFSSL_API char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
@@ -101,6 +94,8 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
 #define CONF_modules_load               wolfSSL_CONF_modules_load
 
 #define X509V3_conf_free                wolfSSL_X509V3_conf_free
+
+#endif /* OPENSSL_EXTRA */
 
 #ifdef  __cplusplus
 } /* extern "C" */
