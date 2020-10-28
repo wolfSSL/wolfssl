@@ -7029,7 +7029,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_DIGEST);
         sigCtx->digest = NULL;
     }
-#if !defined(NO_RSA) && !defined(NO_DSA)
+#if !(defined(NO_RSA) && defined(NO_DSA))
     if (sigCtx->sigCpy) {
         XFREE(sigCtx->sigCpy, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
         sigCtx->sigCpy = NULL;
@@ -7265,7 +7265,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* !NO_RSA */
-            #ifndef NO_DSA
+            #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
                 case DSAk:
                 {
                     word32 idx = 0;
@@ -7317,7 +7317,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
                     break;
                 }
-            #endif /* !NO_DSA */
+            #endif /* !NO_DSA && !HAVE_SELFTEST */
             #ifdef HAVE_ECC
                 case ECDSAk:
                 {
@@ -7458,14 +7458,14 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* !NO_RSA */
-            #ifndef NO_DSA
+            #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
                 case DSAk:
                 {
                     ret = wc_DsaVerify(sigCtx->digest, sigCtx->sigCpy,
                             sigCtx->key.dsa, &sigCtx->verify);
                     break;
                 }
-            #endif /* !NO_DSA */
+            #endif /* !NO_DSA && !HAVE_SELFTEST */
             #if defined(HAVE_ECC)
                 case ECDSAk:
                 {
@@ -7564,7 +7564,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* NO_RSA */
-            #ifndef NO_DSA
+            #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
                 case DSAk:
                 {
                     if (sigCtx->verify == 1) {
@@ -7576,7 +7576,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     }
                     break;
                 }
-            #endif /* !NO_DSA */
+            #endif /* !NO_DSA && !HAVE_SELFTEST */
             #ifdef HAVE_ECC
                 case ECDSAk:
                 {
@@ -13497,7 +13497,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 #endif
 
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
     if (cert->keyType == DSA_KEY) {
         if (dsaKey == NULL)
             return PUBLIC_KEY_E;
@@ -14246,7 +14246,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
 #endif
 
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
     if (cert->keyType == DSA_KEY) {
         if (dsaKey == NULL)
             return PUBLIC_KEY_E;

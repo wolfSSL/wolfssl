@@ -52,7 +52,10 @@ EXTRA_DIST += \
 	     certs/ecc-privOnlyCert.pem \
 	     certs/dh3072.pem \
 	     certs/dh4096.pem \
-	     certs/client-cert-ext.pem
+	     certs/client-cert-ext.pem \
+	     certs/csr.attr.der \
+	     certs/csr.dsa.pem \
+	     certs/csr.signed.der
 
 EXTRA_DIST += \
 	     certs/ca-key.der \

@@ -50,5 +50,7 @@ EXTRA_DIST += tests/test.conf \
               tests/test-trustpeer.conf \
               tests/test-dhprime.conf \
               tests/test-p521.conf \
-              tests/test-ecc-cust-curves.conf
+              tests/test-ecc-cust-curves.conf \
+              tests/NCONF_test.cnf \
+              tests/TXT_DB.txt
 DISTCLEANFILES+= tests/.libs/unit.test

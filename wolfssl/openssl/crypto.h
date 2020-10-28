@@ -33,6 +33,11 @@
 #include "prefix_crypto.h"
 #endif
 
+typedef struct WOLFSSL_INIT_SETTINGS {
+    char* appname;
+} WOLFSSL_INIT_SETTINGS;
+
+typedef WOLFSSL_INIT_SETTINGS OPENSSL_INIT_SETTINGS;
 
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
