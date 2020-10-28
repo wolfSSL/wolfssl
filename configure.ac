@@ -5791,9 +5791,7 @@ if test "$ax_enable_debug" = "yes" ||
 	     test "$ENABLED_LEANPSK" = "no" &&
 	     test "$ENABLED_LOWRESOURCE" = "no")
 then
-    WC_INTROSPECTION=yes
-else
-    WC_INTROSPECTION=no
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
 
 CREATE_HEX_VERSION
@@ -5844,17 +5842,6 @@ echo "#ifdef __cplusplus" >> $OPTION_FILE
 echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
-
-echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> $OPTION_FILE
-echo >> $OPTION_FILE
-echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> $OPTION_FILE
-echo >> $OPTION_FILE
-
-if test "$WC_INTROSPECTION" = "yes"
-then
-    echo "#define HAVE_WC_INTROSPECTION" >> $OPTION_FILE
-    echo >> $OPTION_FILE
-fi
 
 for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
     defonly=`echo $option | sed 's/^-D//'`
@@ -6110,6 +6097,11 @@ echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo ""
 echo "---"
+
+echo >> config.h
+echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
+echo >> config.h
+echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
 
 ################################################################################
 # Show warnings at bottom so they are noticed
