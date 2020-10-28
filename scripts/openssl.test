@@ -133,11 +133,11 @@ start_openssl_server() {
 
         if [ "$cert_file" != "" ]
         then
-            echo "# " $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL"
-            $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" &
+            echo "# " $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         else
-            echo "# " $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL"
-            $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" &
+            echo "# " $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         fi
         server_pid=$!
         # wait to see if s_server successfully starts before continuing
@@ -438,51 +438,64 @@ IFS=$OIFS #restore separator
 # Start OpenSSL servers
 #
 
-# Check if ECC certificates supported in wolfSSL
-wolf_ecc=`$WOLFSSL_CLIENT -A ./certs/ed25519/ca-ecc-cert.pem 2>&1`
-case $wolf_ecc in
-*"ca file"*)
-    wolf_ecc=""
+# Check for cerificate support in wolfSSL
+wolf_certs=`$WOLFSSL_CLIENT -help 2>&1`
+case $wolf_certs in
+*"cert"*)
     ;;
 *)
+    wolf_certs=""
     ;;
 esac
-# Check if Ed25519 certificates supported in wolfSSL
-wolf_ed25519=`$WOLFSSL_CLIENT -A ./certs/ed25519/root-ed25519.pem 2>&1`
-case $wolf_ed25519 in
-*"ca file"*)
-    wolf_ed25519=""
-    ;;
-*)
-    ;;
-esac
-# Check if Ed25519 certificates supported in OpenSSL
-openssl_ed25519=`$OPENSSL s_client -cert ./certs/ed25519/client-ed25519.pem -key ./certs/ed25519/client-ed25519-priv.pem 2>&1`
-case $openssl_ed25519 in
-*"unable to load"*)
-    wolf_ed25519=""
-    ;;
-*)
-    ;;
-esac
-# Check if Ed448 certificates supported in wolfSSL
-wolf_ed448=`$WOLFSSL_CLIENT -A ./certs/ed448/root-ed448.pem 2>&1`
-case $wolf_ed448 in
-*"ca file"*)
-    wolf_ed448=""
-    ;;
-*)
-    ;;
-esac
-# Check if Ed448 certificates supported in OpenSSL
-openssl_ed448=`$OPENSSL s_client -cert ./certs/ed448/client-ed448.pem -key ./certs/ed448/client-ed448-priv.pem 2>&1`
-case $openssl_ed448 in
-*"unable to load"*)
-    wolf_ed448=""
-    ;;
-*)
-    ;;
-esac
+
+if [ "$wolf_certs" != "" ]
+then
+    # Check if ECC certificates supported in wolfSSL
+    wolf_ecc=`$WOLFSSL_CLIENT -A ./certs/ed25519/ca-ecc-cert.pem 2>&1`
+    case $wolf_ecc in
+    *"ca file"*)
+        wolf_ecc=""
+        ;;
+    *)
+        ;;
+    esac
+    # Check if Ed25519 certificates supported in wolfSSL
+    wolf_ed25519=`$WOLFSSL_CLIENT -A ./certs/ed25519/root-ed25519.pem 2>&1`
+    case $wolf_ed25519 in
+    *"ca file"*)
+        wolf_ed25519=""
+        ;;
+    *)
+        ;;
+    esac
+    # Check if Ed25519 certificates supported in OpenSSL
+    openssl_ed25519=`$OPENSSL s_client -cert ./certs/ed25519/client-ed25519.pem -key ./certs/ed25519/client-ed25519-priv.pem 2>&1`
+    case $openssl_ed25519 in
+    *"unable to load"*)
+        wolf_ed25519=""
+        ;;
+    *)
+        ;;
+    esac
+    # Check if Ed448 certificates supported in wolfSSL
+    wolf_ed448=`$WOLFSSL_CLIENT -A ./certs/ed448/root-ed448.pem 2>&1`
+    case $wolf_ed448 in
+    *"ca file"*)
+        wolf_ed448=""
+        ;;
+    *)
+        ;;
+    esac
+    # Check if Ed448 certificates supported in OpenSSL
+    openssl_ed448=`$OPENSSL s_client -cert ./certs/ed448/client-ed448.pem -key ./certs/ed448/client-ed448-priv.pem 2>&1`
+    case $openssl_ed448 in
+    *"unable to load"*)
+        wolf_ed448=""
+        ;;
+    *)
+        ;;
+    esac
+fi
 
 openssl_tls13=`$OPENSSL s_client -help 2>&1`
 case $openssl_tls13 in
@@ -490,6 +503,17 @@ case $openssl_tls13 in
     ;;
 *)
     openssl_tls13=
+    ;;
+esac
+
+# Not all openssl versions support -allow_no_dhe_kex
+openssl_nodhe=`$OPENSSL s_client -help 2>&1`
+case $openssl_nodhe in
+*allow_no_dhe_kex*)
+    openssl_nodhe=-allow_no_dhe_kex
+    ;;
+*)
+    openssl_nodhe=
     ;;
 esac
 
@@ -651,8 +675,7 @@ fi
 
 if [ "$wolf_tls13" != "" -a "$wolf_psk" != "" ]
 then
-    cert_file="./certs/server-cert.pem"
-    key_file="./certs/server-key.pem"
+    cert_file=
 
     psk_hex="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     openssl_suite="TLSv1.3_PSK"
@@ -1015,17 +1038,24 @@ do
                 do_openssl_client
             fi
             # PSK
-            if [ "$wolf_psk" != "" -a $wolfSuite = "TLS13-AES128-GCM-SHA256" ]
+            if [ "$wolf_psk" != "" -a $wolfSuite = "TLS13-AES128-GCM-SHA256" -a "$wolf_ecc" != "" -a $openssl_nodhe != "" ]
             then
-                cert="./certs/client-cert.pem"
-                key="./certs/client-key.pem"
-                caCert="./certs/ca-cert.pem"
+                cert=""
+                key=""
+                caCert=""
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$tls13_psk_openssl_port
                 psk="-s"
+                # OpenSSL doesn't support DH for key exchange so do no PSK
+                # DHE when ECC not supported
+                if [ "$wolf_ecc" = "" ]
+                then
+                    adh="-K"
+                fi
                 do_wolfssl_client
                 psk=""
+                adh=""
                 openssl_psk="-psk 0123456789abcdef0123456789abcdef"
                 open_temp_cases_total=$((open_temp_cases_total + 1))
                 port=$wolfssl_port

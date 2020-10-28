@@ -131,6 +131,11 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+# Start without certificates enabled and enable if a certificate algorithm is
+# enabled
+ENABLED_CERTS="no"
+
+
 
 # FIPS
 AC_ARG_ENABLE([fips],
@@ -933,7 +938,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EITHER_SIDE"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
-    
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD"
     AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
@@ -963,7 +968,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
     enable_lowresource=yes
@@ -1808,6 +1813,8 @@ fi
 if test "$ENABLED_DSA" = "no" && test "$ENABLED_OPENSSH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+else
+    ENABLED_CERTS=yes
 fi
 
 # ECC Shamir
@@ -1848,6 +1855,8 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DWC_ECC_NONBLOCK"
     fi
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -1974,6 +1983,8 @@ then
     ENABLED_FEMATH=yes
     ENABLED_GEMATH=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -2035,6 +2046,8 @@ then
     # EdDSA448 requires SHAKE256 which requires SHA-3
     ENABLED_SHAKE3=yes
     ENABLED_SHAKE256=yes
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -2376,6 +2389,8 @@ else
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
         ENABLED_RSA=no
+     else
+        ENABLED_CERTS=yes
     fi
 fi
 
@@ -2501,7 +2516,7 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN"
     if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
     then
         # DH and ECC need bigint
@@ -2511,7 +2526,7 @@ else
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_BIG_INT"
         ENABLED_ASN=no
     else
         if test "$ENABLED_ASN" = "nocrypt"
@@ -3535,7 +3550,7 @@ then
 fi
 
 # TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448
-if test "x$ENABLED_ECC" = "xno" && \
+if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
     (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
     (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
     (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno")
@@ -3543,9 +3558,14 @@ then
     # disable TLS 1.3
     ENABLED_TLS13=no
 fi
+if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
+    test "x$ENABLED_DH" = "xyes")
+then
+    AM_CFLAGS="-DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+fi
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
 fi
 
 
@@ -5571,6 +5591,10 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
     if test "x$ENABLED_OPENSSLEXTRA" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
     fi
+fi
+
+if test "x$ENABLED_CERTS" = "xno" || test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_ASN" = "xno"; then
+   AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
 fi
 ################################################################################
 
