@@ -9399,6 +9399,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj = wolfSSL_ASN1_OBJECT_new();
                 if (obj == NULL) {
                     WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_AUTHORITY_KEYID_free(akey);
                     return NULL;
                 }
                 obj->type  = AUTH_KEY_OID;
