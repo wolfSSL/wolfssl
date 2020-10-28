@@ -180,37 +180,37 @@ enum {
 */
 
 /* 256-bit curve on by default whether user curves or not */
-#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 112
+#if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 112
     #define ECC112
 #endif
-#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 128
+#if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 128
     #define ECC128
 #endif
-#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 160
+#if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
     #define ECC160
 #endif
-#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 192
+#if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
     #define ECC192
 #endif
-#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 224
+#if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
     #define ECC224
 #endif
-#if (defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 239
+#if (defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 239
     #define ECC239
 #endif
-#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 256
+#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
     #define ECC256
 #endif
-#if (defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 320
+#if (defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 320
     #define ECC320
 #endif
-#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 384
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
     #define ECC384
 #endif
-#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 512
+#if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
     #define ECC512
 #endif
-#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && defined(ECC_MIN_KEY_SZ) && ECC_MIN_KEY_SZ <= 521
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
     #define ECC521
 #endif
 
