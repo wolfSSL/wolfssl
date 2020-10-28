@@ -442,7 +442,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 
 void wc_Chacha_purge_current_block(ChaCha* ctx) {
     if (ctx->left > 0) {
-        byte scratch[CHACHA_CHUNK_BYTES] = {};
+        byte scratch[CHACHA_CHUNK_BYTES] = {0};
         (void)wc_Chacha_Process(ctx, scratch, scratch, CHACHA_CHUNK_BYTES - ctx->left);
     }
 }
