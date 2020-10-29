@@ -15466,13 +15466,13 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
     word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
     int rAddLeadZero, sAddLeadZero;
 
+    /* Trim leading zeros */
+    rLen = trim_leading_zeros(&r, rLen);
+    sLen = trim_leading_zeros(&s, sLen);
     /* If the leading bit on the INTEGER is a 1, add a leading zero */
     /* Add leading zero if MSB is set */
     rAddLeadZero = is_leading_bit_set(r, rLen);
     sAddLeadZero = is_leading_bit_set(s, sLen);
-    /* Trim leading zeros */
-    rLen = trim_leading_zeros(&r, rLen);
-    sLen = trim_leading_zeros(&s, sLen);
 
     if (*outLen < (rLen + rAddLeadZero + sLen + sAddLeadZero +
                    headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
