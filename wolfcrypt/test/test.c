@@ -9044,7 +9044,7 @@ static int aesgcm_test(void)
     byte *large_output = (byte *)XMALLOC(BENCH_AESGCM_LARGE + AES_BLOCK_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     byte *large_outdec = (byte *)XMALLOC(BENCH_AESGCM_LARGE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if ((! large_input) || (! large_input) || (! large_input))
+    if ((! large_input) || (! large_output) || (! large_outdec))
         ERROR_OUT(MEMORY_E, out);
 
     XMEMSET(large_input, 0, BENCH_AESGCM_LARGE);
