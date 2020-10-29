@@ -13810,11 +13810,11 @@ static int rsa_test(void)
 #endif
 #else
     #ifdef USE_CERT_BUFFERS_2048
-        ret = mp_read_unsigned_bin(key.n, &tmp[12], 256);
+        ret = mp_read_unsigned_bin(&key->n, &tmp[12], 256);
         if (ret != 0) {
             ERROR_OUT(-7705, exit_rsa);
         }
-        ret = mp_set_int(key.e, WC_RSA_EXPONENT);
+        ret = mp_set_int(&key->e, WC_RSA_EXPONENT);
         if (ret != 0) {
             ERROR_OUT(-7706, exit_rsa);
         }

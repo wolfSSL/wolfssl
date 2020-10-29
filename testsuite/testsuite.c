@@ -80,6 +80,11 @@ char* myoptarg = NULL;
 #ifdef HAVE_STACK_SIZE
 static void *echoclient_test_wrapper(void* args) {
     echoclient_test(args);
+
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
     return (void *)0;
 }
 #endif
