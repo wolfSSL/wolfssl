@@ -15430,13 +15430,9 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
 /* determine if leading bit is set */
 static int is_leading_bit_set(const byte* input, word32 sz)
 {
-    int i;
     byte c = 0;
-    for (i=0; i<(int)sz; i++) {
-        c = input[i];
-        if (c != 0)
-            break;
-    }
+    if (sz > 0)
+        c = input[0];
     return (c & 0x80) != 0;
 }
 static int trim_leading_zeros(const byte** input, word32 sz)
@@ -15458,6 +15454,7 @@ static int trim_leading_zeros(const byte** input, word32 sz)
 }
 
 /* Der Encode r & s ints into out, outLen is (in/out) size */
+/* All input/outputs are assumed to be big-endian */
 int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen, 
     const byte* s, word32 sLen)
 {
@@ -15501,8 +15498,8 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
     return 0;
 }
 
-
 /* Der Decode ECC-DSA Signature with R/S as unsigned bin */
+/* All input/outputs are assumed to be big-endian */
 int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     byte* s, word32* sLen)
 {
