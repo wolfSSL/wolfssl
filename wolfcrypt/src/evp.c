@@ -4162,6 +4162,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             iv = ctx->iv;
         }
 #endif
+#ifdef HAVE_AESGCM
+        if (ctx->gcmAuthIn) {
+            XFREE(ctx->gcmAuthIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->gcmAuthIn = NULL;
+        }
+        ctx->gcmAuthInSz = 0;
+#endif
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
