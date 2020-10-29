@@ -5697,6 +5697,27 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
 
     return err;
 }
+
+/* Handles when P is the infinity point.
+ *
+ * Double infinity -> infinity.
+ * Otherwise do normal double - which can't lead to infinity as odd order.
+ */
+int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
+                                  mp_int* modulus, mp_digit mp)
+{
+    int err;
+
+    if (mp_iszero(P->x) && mp_iszero(P->y)) {
+        /* P is infinity. */
+        err = wc_ecc_copy_point(P, R);
+    }
+    else {
+        err = ecc_projective_dbl_point(P, R, a, modulus, mp);
+    }
+
+    return err;
+}
 #endif
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
@@ -5945,9 +5966,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         if (first == 0) {
             /* double twice */
             if (err == MP_OKAY)
-                err = ecc_projective_dbl_point(C, C, a, modulus, mp);
+                err = ecc_projective_dbl_point_safe(C, C, a, modulus, mp);
             if (err == MP_OKAY)
-                err = ecc_projective_dbl_point(C, C, a, modulus, mp);
+                err = ecc_projective_dbl_point_safe(C, C, a, modulus, mp);
             else
                 break;
         }
@@ -9369,7 +9390,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
           /* double if not first */
           if (!first) {
-             if ((err = ecc_projective_dbl_point(R, R, a, modulus,
+             if ((err = ecc_projective_dbl_point_safe(R, R, a, modulus,
                                                               mp)) != MP_OKAY) {
                 break;
              }
@@ -9582,7 +9603,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
           /* double if not first */
           if (!first) {
-             if ((err = ecc_projective_dbl_point(R, R, a, modulus,
+             if ((err = ecc_projective_dbl_point_safe(R, R, a, modulus,
                                                               mp)) != MP_OKAY) {
                 break;
              }
