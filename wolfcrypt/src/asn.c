@@ -15427,22 +15427,34 @@ int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r, mp_int* s)
     return 0;
 }
 
-/* determine if leading bit is set and trim leading zeros */
-static int is_leading_bit_set(const byte** input, word32 *sz)
+/* determine if leading bit is set */
+static int is_leading_bit_set(const byte* input, word32 sz)
 {
     int i;
-    word32 leadingZeroCount = 0;
-    const byte* tmp = *input;
     byte c = 0;
-    for (i=0; i<(int)*sz; i++) {
-        c = tmp[i];
+    for (i=0; i<(int)sz; i++) {
+        c = input[i];
         if (c != 0)
+            break;
+    }
+    return (c & 0x80) != 0;
+}
+static int trim_leading_zeros(const byte** input, word32 sz)
+{
+    int i, leadingZeroCount = 0;
+    const byte* tmp = *input;
+    for (i=0; i<(int)sz; i++) {
+        if (tmp[i] != 0)
             break;
         leadingZeroCount++;
     }
+    /* catch all zero case */
+    if (sz > 0 && leadingZeroCount == (int)sz) {
+        leadingZeroCount--;
+    }
     *input += leadingZeroCount;
-    *sz -= leadingZeroCount;
-    return (c & 0x80) != 0;
+    sz -= leadingZeroCount;
+    return sz;
 }
 
 /* Der Encode r & s ints into out, outLen is (in/out) size */
@@ -15456,9 +15468,11 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
 
     /* If the leading bit on the INTEGER is a 1, add a leading zero */
     /* Add leading zero if MSB is set */
+    rAddLeadZero = is_leading_bit_set(r, rLen);
+    sAddLeadZero = is_leading_bit_set(s, sLen);
     /* Trim leading zeros */
-    rAddLeadZero = is_leading_bit_set(&r, &rLen);
-    sAddLeadZero = is_leading_bit_set(&s, &sLen);
+    rLen = trim_leading_zeros(&r, rLen);
+    sLen = trim_leading_zeros(&s, sLen);
 
     if (*outLen < (rLen + rAddLeadZero + sLen + sAddLeadZero +
                    headerSz + 2))  /* SEQ_TAG + LEN(ENUM) */
