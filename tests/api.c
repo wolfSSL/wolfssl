@@ -22059,7 +22059,7 @@ static int test_wc_Ed448PrivateKeyToDer (void)
 static int test_wc_SetSubjectBuffer (void)
 {
     int ret = 0;
-#if defined(WOLFSSL_CERT_GEN)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
     Cert    cert;
     FILE*   file;
     byte*   der;
