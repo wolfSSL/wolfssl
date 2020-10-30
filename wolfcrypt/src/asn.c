@@ -5582,14 +5582,6 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 {
     int ret;
 
-#ifdef WOLF_CRYPTO_CB
-    /* try to use a registered crypto callback */
-    ret = wc_CryptoCb_Sha256Hash(NULL, data, len, hash);
-    if (ret != CRYPTOCB_UNAVAILABLE)
-        return ret;
-    /* fall-through when unavailable */
-#endif
-
 #if defined(NO_SHA) && !defined(NO_SHA256)
     ret = wc_Sha256Hash(data, len, hash);
 #elif !defined(NO_SHA)
