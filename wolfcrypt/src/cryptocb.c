@@ -82,6 +82,16 @@ void wc_CryptoCb_Init(void)
     }
 }
 
+int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
+{
+    int devId = INVALID_DEVID;
+    CryptoCb* dev = wc_CryptoCb_FindDeviceByIndex(startIdx);
+    if (dev) {
+        devId = dev->devId;
+    }
+    return devId;
+}
+
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     /* find existing or new */
