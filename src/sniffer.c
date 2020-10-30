@@ -992,7 +992,10 @@ static void TraceSetNamedServer(const char* name,
     if (TraceOn) {
         fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
         fprintf(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
-                                                      name, srv, port, keyFile);
+		name ? name : "",
+		srv ? srv : "",
+		port,
+		keyFile ? keyFile : "");
     }
 }
 
