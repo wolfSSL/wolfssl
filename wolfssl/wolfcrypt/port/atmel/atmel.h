@@ -29,10 +29,8 @@
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_ATECC_PKCB)
-    #undef  SHA_BLOCK_SIZE
-    #define SHA_BLOCK_SIZE  SHA_BLOCK_SIZE_REMAP
-    #include <cryptoauthlib.h>
     #undef SHA_BLOCK_SIZE
+    #include <cryptoauthlib.h>
 #endif
 
 /* ATECC508A/608A only supports ECC P-256 */
