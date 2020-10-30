@@ -358,12 +358,13 @@
     #define NO_FILESYSTEM
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MAX
     #define NO_BIG_INT
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
+    #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
+
     #ifndef NO_PIC32MZ_CRYPT
         #define WOLFSSL_PIC32MZ_CRYPT
     #endif
