@@ -2524,12 +2524,15 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
                                 SnifferSession* session, char* error)
 {
     word16 len;
+
+#ifdef WOLFSSL_TLS13
     WOLFSSL* ssl;
 
     if (session->flags.side == WOLFSSL_SERVER_END)
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
+#endif
 
     /* make sure can read through hint len */
     if (TICKET_HINT_LEN > *sslBytes) {

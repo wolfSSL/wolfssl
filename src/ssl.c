@@ -36021,9 +36021,12 @@ static int hash2mgf(enum wc_HashType hType)
         return WC_MGF1SHA1;
 #endif
 #ifndef NO_SHA256
-#ifdef WOLFSSL_SHA224
     case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
         return WC_MGF1SHA224;
+#else
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
+        return WC_MGF1NONE;
 #endif
     case WC_HASH_TYPE_SHA256:
         return WC_MGF1SHA256;
