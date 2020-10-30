@@ -770,8 +770,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            if (ctx->gcmBuffer &&
-                    ctx->gcmBufferLen > 0) {
+            if ((ctx->gcmBuffer && ctx->gcmBufferLen > 0)
+             || (ctx->gcmBuffer == NULL && ctx->gcmBufferLen == 0)) {
                 ret = 0;
                 if (ctx->gcmAuthIn) {
                     /* authenticated, non-confidential data*/
