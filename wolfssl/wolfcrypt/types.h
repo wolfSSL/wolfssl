@@ -784,7 +784,7 @@ decouple library dependencies with standard string, memory and so on.
 
     /* hash types */
     enum wc_HashType {
-    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
+    #if defined(HAVE_SELFTEST) || (defined(HAVE_FIPS) && (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION<=2)))
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions.
          * These values are fixed for backwards FIPS compatibility */
