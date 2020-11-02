@@ -2479,6 +2479,8 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     return MP_MEM;
 #endif
 
+  XMEMSET(W, 0, (n->used * 2 + 1) * sizeof(mp_word));
+
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
    */
@@ -2495,11 +2497,6 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     /* copy the digits of a into W[0..a->used-1] */
     for (ix = 0; ix < x->used; ix++) {
       *_W++ = *tmpx++;
-    }
-
-    /* zero the high words of W[a->used..m->used*2] */
-    for (; ix < n->used * 2 + 1; ix++) {
-      *_W++ = 0;
     }
   }
 
