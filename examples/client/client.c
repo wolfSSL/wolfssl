@@ -184,15 +184,15 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         else
 #endif
         {
-        #ifdef WOLFSSL_DTLS
-            currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
-        #endif
             if (error == WOLFSSL_ERROR_WANT_WRITE) {
                 select_ret = tcp_select_tx(sockfd, currTimeout);
 
             }
             else
             {
+            #ifdef WOLFSSL_DTLS
+                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+            #endif
                 select_ret = tcp_select(sockfd, currTimeout);
             }
         }
