@@ -33790,7 +33790,6 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifndef NO_DES3
          NID_des_cbc,
-         NID_des_ede3_cbc,
     #endif
     #ifdef HAVE_IDEA
          NID_idea_cbc, 
@@ -33832,7 +33831,6 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #endif
     #ifndef NO_DES3
-            DES_BLOCK_SIZE,
             DES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_IDEA
