@@ -4755,7 +4755,7 @@ int wc_ecc_init(ecc_key* key)
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
 }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
 int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId)
 {
@@ -4776,7 +4776,7 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
     return ret;
 }
 
-int wc_ecc_init_label(ecc_key* key, char* label, void* heap, int devId)
+int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId)
 {
     int ret = 0;
     int labelLen = 0;
@@ -4784,7 +4784,7 @@ int wc_ecc_init_label(ecc_key* key, char* label, void* heap, int devId)
     if (key == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = XSTRLEN(label);
+        labelLen = (int)XSTRLEN(label);
         if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
