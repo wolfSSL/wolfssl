@@ -1649,6 +1649,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return BAD_MUTEX_E;
     }
 
+#ifndef NO_CERTS
+    ctx->privateKeyDevId = INVALID_DEVID;
+#endif
+
 #ifndef NO_DH
     ctx->minDhKeySz  = MIN_DHKEY_SZ;
     ctx->maxDhKeySz  = MAX_DHKEY_SZ;
@@ -20047,6 +20051,76 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 #endif /* WOLFSSL_CALLBACKS */
 
 #if !defined(NO_CERTS)
+
+#ifdef WOLF_CRYPTO_CB
+/* Create a private key for a device.
+ *
+ * pkey    Key object.
+ * data    Data to identify key.
+ * length  Length of data.
+ * hsType  Type of the key to create.
+ * heap    Custom heap to use for mallocs/frees
+ * devId   Id for device.
+ * return  0 on success.
+ * return  NOT_COMPILED_IN if algorithm type not supported.
+ * return  MEMORY_E on memory allocation failure.
+ * return  other internal error
+ */
+int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
+                        int label, int id, void* heap, int devId)
+{
+    int ret = NOT_COMPILED_IN;
+
+    if (hsType == DYNAMIC_TYPE_RSA) {
+#ifndef NO_RSA
+        RsaKey* rsaKey;
+
+        rsaKey = XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
+        if (rsaKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_InitRsaKey_Label(rsaKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_InitRsaKey_Id(rsaKey, data, length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)rsaKey;
+        }
+        else {
+            XFREE(rsaKey, heap, DYNAMIC_TYPE_EC);
+        }
+#endif
+    }
+    else if (hsType == DYNAMIC_TYPE_ECC) {
+#ifdef HAVE_ECC
+        ecc_key* ecKey;
+
+        ecKey = XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
+        if (ecKey == NULL) {
+            return MEMORY_E;
+        }
+
+        if (label) {
+            ret = wc_ecc_init_label(ecKey, (char*)data, heap, devId);
+        }
+        else if (id) {
+            ret = wc_ecc_init_id(ecKey, data, length, heap, devId);
+        }
+        if (ret == 0) {
+            *pkey = (void*)ecKey;
+        }
+        else {
+            XFREE(ecKey, heap, DYNAMIC_TYPE_EC);
+        }
+#endif
+    }
+
+    return ret;
+}
+#endif
 
 /* Decode the private key - RSA/ECC/Ed25519/Ed448 - and creates a key object.
  * The signature type is set as well.
