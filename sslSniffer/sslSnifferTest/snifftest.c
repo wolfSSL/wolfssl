@@ -528,6 +528,19 @@ int main(int argc, char** argv)
                 printf("Failed loading private key %d\n", ret);
                 exit(EXIT_FAILURE);
             }
+
+            /* Only let through TCP/IP packets */
+            ret = pcap_compile(pcap, &fp, "(ip6 or ip) and tcp", 0, 0);
+            if (ret != 0) {
+                printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+                exit(EXIT_FAILURE);
+            }
+
+            ret = pcap_setfilter(pcap, &fp);
+            if (ret != 0) {
+                printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
+                exit(EXIT_FAILURE);
+            }
         }
     }
     else {
