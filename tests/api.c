@@ -29205,11 +29205,6 @@ static int test_wolfSSL_GetLoggingCb (void)
         if (wolfSSL_GetLoggingCb() == NULL) {
             ret = 0;
         }
-        if (ret == 0) {
-            if (wolfSSL_GetLoggingCb() != NULL) {
-                ret = -1;
-            }
-        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
