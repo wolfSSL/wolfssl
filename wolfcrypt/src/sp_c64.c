@@ -2141,7 +2141,7 @@ static void sp_2048_mont_reduce_36(sp_digit* a, const sp_digit* m, sp_digit mp)
 
     sp_2048_norm_36(a + 36);
 
-#ifdef WOLFSSL_SP_DH
+#ifdef WOLFSSL_HAVE_SP_DH
     if (mp != 1) {
         for (i=0; i<35; i++) {
             mu = (a[i] * mp) & 0x1ffffffffffffffL;
@@ -6329,7 +6329,7 @@ static void sp_3072_mont_reduce_54(sp_digit* a, const sp_digit* m, sp_digit mp)
 
     sp_3072_norm_54(a + 54);
 
-#ifdef WOLFSSL_SP_DH
+#ifdef WOLFSSL_HAVE_SP_DH
     if (mp != 1) {
         for (i=0; i<53; i++) {
             mu = (a[i] * mp) & 0x1ffffffffffffffL;
@@ -10627,7 +10627,7 @@ static void sp_4096_mont_reduce_78(sp_digit* a, const sp_digit* m, sp_digit mp)
 
     sp_4096_norm_78(a + 78);
 
-#ifdef WOLFSSL_SP_DH
+#ifdef WOLFSSL_HAVE_SP_DH
     if (mp != 1) {
         for (i=0; i<77; i++) {
             mu = (a[i] * mp) & 0x1fffffffffffffL;
