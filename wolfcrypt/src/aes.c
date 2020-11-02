@@ -8096,7 +8096,7 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
     return ret;
 }
 
-int wc_AesInit_Label(Aes* aes, char* label, void* heap, int devId)
+int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 {
     int ret = 0;
     int labelLen = 0;
@@ -8104,7 +8104,7 @@ int wc_AesInit_Label(Aes* aes, char* label, void* heap, int devId)
     if (aes == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = XSTRLEN(label);
+        labelLen = (int)XSTRLEN(label);
         if (labelLen == 0 || labelLen > AES_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }

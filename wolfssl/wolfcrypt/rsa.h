@@ -141,7 +141,7 @@ enum {
     RSA_PSS_SALT_LEN_DISCOVER = -2,
 #endif
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
     RSA_MAX_ID_LEN      = 32,
     RSA_MAX_LABEL_LEN   = 32,
 #endif
@@ -185,7 +185,7 @@ struct RsaKey {
     byte*  mod;
     XSecure_Rsa xRsa;
 #endif
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
     byte id[RSA_MAX_ID_LEN];
     int  idLen;
     char label[RSA_MAX_LABEL_LEN];
@@ -216,10 +216,10 @@ struct RsaKey {
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
 WOLFSSL_API int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len,
                                  void* heap, int devId);
-WOLFSSL_API int wc_InitRsaKey_Label(RsaKey* key, char* label, void* heap,
+WOLFSSL_API int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap,
                                     int devId);
 #endif
 WOLFSSL_API int  wc_CheckRsaKey(RsaKey* key);

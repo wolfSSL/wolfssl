@@ -866,6 +866,95 @@ static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
 }
 
 /**
+ * Create a PKCS#11 object containing the ECC public key data.
+ * Encode the public key as an OCTET_STRING of the encoded point.
+ *
+ * @param  [out]  publicKey    Henadle to public key object.
+ * @param  [in]   session      Session object.
+ * @param  [in]   public_key   ECC public key.
+ * @param  [in]   operation    Cryptographic operation key is to be used for.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  0 on success.
+ */
+static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
+                                    Pkcs11Session* session,
+                                    ecc_key* public_key,
+                                    CK_ATTRIBUTE_TYPE operation)
+{
+    int             ret = 0;
+    int             i;
+    unsigned char*  ecPoint = NULL;
+    word32          len;
+    CK_RV           rv;
+    CK_UTF8CHAR     params[MAX_EC_PARAM_LEN];
+    CK_ATTRIBUTE    keyTemplate[] = {
+        { CKA_CLASS,     &pubKeyClass, sizeof(pubKeyClass) },
+        { CKA_KEY_TYPE,  &ecKeyType,   sizeof(ecKeyType)   },
+        { operation,     &ckTrue,      sizeof(ckTrue)      },
+        { CKA_EC_PARAMS, params,       0                   },
+        { CKA_EC_POINT,  NULL,         0                   },
+        { 0,             NULL,         0                   },
+        { 0,             NULL,         0                   }
+    };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
+
+    if (public_key->labelLen > 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_LABEL;
+        keyTemplate[keyTmplCnt].pValue     = public_key->label;
+        keyTemplate[keyTmplCnt].ulValueLen = public_key->labelLen;
+        keyTmplCnt++;
+    }
+    if (public_key->idLen > 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_ID;
+        keyTemplate[keyTmplCnt].pValue     = public_key->id;
+        keyTemplate[keyTmplCnt].ulValueLen = public_key->idLen;
+        keyTmplCnt++;
+    }
+
+    ret = Pkcs11EccSetParams(public_key, keyTemplate, 3);
+    if (ret == 0) {
+        /* ASN1 encoded: OCT + uncompressed point */
+        len = 3 + 1 + 2 * public_key->dp->size;
+        ecPoint = (unsigned char*)XMALLOC(len, public_key->heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (ecPoint == NULL)
+            ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        len -= 3;
+        i = 0;
+        ecPoint[i++] = ASN_OCTET_STRING;
+        if (len >= ASN_LONG_LENGTH)
+            ecPoint[i++] = ASN_LONG_LENGTH | 1;
+        ecPoint[i++] = len;
+        ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
+    }
+    if (ret == 0) {
+        keyTemplate[4].pValue     = ecPoint;
+        keyTemplate[4].ulValueLen = len + i;
+
+#ifdef WOLFSSL_DEBUG_PKCS11
+        WOLFSSL_MSG("Ec Public Key");
+        pkcs11_dump_template(keyTemplate, keyTmplCnt);
+#endif
+        rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                                         keyTmplCnt, publicKey);
+#ifdef WOLFSSL_DEBUG_PKCS11
+        pkcs11_rv("C_CreateObject", rv);
+#endif
+        if (rv != CKR_OK) {
+            ret = WC_HW_E;
+        }
+    }
+
+    if (ecPoint != NULL)
+        XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
+
+    return ret;
+}
+
+/**
  * Create a PKCS#11 object containing the ECC private key data.
  *
  * @param  privateKey   [out]  Henadle to private key object.
@@ -888,9 +977,24 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
         { CKA_KEY_TYPE,  &ecKeyType,    sizeof(ecKeyType)    },
         { operation,     &ckTrue,       sizeof(ckTrue)       },
         { CKA_EC_PARAMS, params,        0                    },
-        { CKA_VALUE,     NULL,          0                    }
+        { CKA_VALUE,     NULL,          0                    },
+        { 0,             NULL,          0                    },
+        { 0,             NULL,          0                    }
     };
-    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate) - 2;
+
+    if (private_key->labelLen > 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_LABEL;
+        keyTemplate[keyTmplCnt].pValue     = private_key->label;
+        keyTemplate[keyTmplCnt].ulValueLen = private_key->labelLen;
+        keyTmplCnt++;
+    }
+    if (private_key->idLen > 0) {
+        keyTemplate[keyTmplCnt].type       = CKA_ID;
+        keyTemplate[keyTmplCnt].pValue     = private_key->id;
+        keyTemplate[keyTmplCnt].ulValueLen = private_key->idLen;
+        keyTmplCnt++;
+    }
 
     ret = Pkcs11EccSetParams(private_key, keyTemplate, 3);
     if (ret == 0) {
@@ -1116,11 +1220,13 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 int      ret2 = NOT_COMPILED_IN;
 
         #ifndef NO_PKCS11_ECDH
-                /* Try ECDH mechanism first. */
-                ret = Pkcs11MechAvail(&session, CKM_ECDH1_DERIVE);
-                if (ret == 0) {
-                    ret = Pkcs11CreateEccPrivateKey(&privKey, &session, eccKey,
-                                                                    CKA_DERIVE);
+                if ((eccKey->flags & WC_ECC_FLAG_DEC_SIGN) == 0) {
+                    /* Try ECDH mechanism first. */
+                    ret = Pkcs11MechAvail(&session, CKM_ECDH1_DERIVE);
+                    if (ret == 0) {
+                        ret = Pkcs11CreateEccPrivateKey(&privKey, &session,
+                                                            eccKey, CKA_DERIVE);
+                    }
                 }
          #endif
                 if (ret == 0 || ret == NOT_COMPILED_IN) {
@@ -1129,6 +1235,12 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                     if (ret2 == 0) {
                         ret2 = Pkcs11CreateEccPrivateKey(&privKey, &session,
                                                               eccKey, CKA_SIGN);
+                        if (ret2 == 0) {
+                            CK_OBJECT_HANDLE pubKey = NULL_PTR;
+                            /* Store public key for validation with cert. */
+                            ret2 = Pkcs11CreateEccPublicKey(&pubKey, &session,
+                                                            eccKey, CKA_VERIFY);
+                        }
                     }
                     /* OK for this to fail if set for ECDH. */
                     if (ret == NOT_COMPILED_IN)
@@ -1733,8 +1845,8 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 
 #ifdef HAVE_ECC
 /**
- * Find the PKCS#11 object containing the ECC public or private key data with
- * the modulus specified.
+ * Find the PKCS#11 object containing the ECC public or private key data.
+ * Search for public key by public point.
  *
  * @param  [out]  key       Henadle to key object.
  * @param  [in]   keyClass  Public or private key class.
@@ -1745,7 +1857,8 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
  * @return  0 on success.
  */
 static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
-                            Pkcs11Session* session, ecc_key* eccKey)
+                            Pkcs11Session* session, ecc_key* eccKey,
+                            int op)
 {
     int             ret = 0;
     int             i;
@@ -1758,9 +1871,10 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         { CKA_CLASS,           &keyClass,  sizeof(keyClass)  },
         { CKA_KEY_TYPE,        &ecKeyType, sizeof(ecKeyType) },
         { CKA_EC_PARAMS,       params,     0                 },
+        { op,                  &ckTrue,    sizeof(ckTrue)    },
         { CKA_EC_POINT,        NULL,       0                 },
     };
-    CK_ULONG        attrCnt = 3;
+    CK_ULONG        attrCnt = 4;
 
     ret = Pkcs11EccSetParams(eccKey, keyTemplate, 2);
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
@@ -1822,81 +1936,6 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     return ret;
 }
 
-/**
- * Create a PKCS#11 object containing the ECC public key data.
- * Encode the public key as an OCTET_STRING of the encoded point.
- *
- * @param  [out]  publicKey    Henadle to public key object.
- * @param  [in]   session      Session object.
- * @param  [in]   public_key   ECC public key.
- * @param  [in]   operation    Cryptographic operation key is to be used for.
- * @return  WC_HW_E when a PKCS#11 library call fails.
- * @return  MEMORY_E when a memory allocation fails.
- * @return  0 on success.
- */
-static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
-                                    Pkcs11Session* session,
-                                    ecc_key* public_key,
-                                    CK_ATTRIBUTE_TYPE operation)
-{
-    int             ret = 0;
-    int             i;
-    unsigned char*  ecPoint = NULL;
-    word32          len;
-    CK_RV           rv;
-    CK_UTF8CHAR     params[MAX_EC_PARAM_LEN];
-    CK_ATTRIBUTE    keyTemplate[] = {
-        { CKA_CLASS,     &pubKeyClass, sizeof(pubKeyClass) },
-        { CKA_KEY_TYPE,  &ecKeyType,   sizeof(ecKeyType)   },
-        { operation,     &ckTrue,      sizeof(ckTrue)      },
-        { CKA_EC_PARAMS, params,       0                   },
-        { CKA_EC_POINT,  NULL,         0                   }
-    };
-    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
-
-    ret = Pkcs11EccSetParams(public_key, keyTemplate, 3);
-    if (ret == 0) {
-        /* ASN1 encoded: OCT + uncompressed point */
-        len = 3 + 1 + 2 * public_key->dp->size;
-        ecPoint = (unsigned char*)XMALLOC(len, public_key->heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (ecPoint == NULL)
-            ret = MEMORY_E;
-    }
-    if (ret == 0) {
-        len -= 3;
-        i = 0;
-        ecPoint[i++] = ASN_OCTET_STRING;
-        if (len >= ASN_LONG_LENGTH)
-            ecPoint[i++] = ASN_LONG_LENGTH | 1;
-        ecPoint[i++] = len;
-        ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
-    }
-    if (ret == 0) {
-        keyTemplate[4].pValue     = ecPoint;
-        keyTemplate[4].ulValueLen = len + i;
-
-#ifdef WOLFSSL_DEBUG_PKCS11
-        WOLFSSL_MSG("Ec Public Key");
-        pkcs11_dump_template(keyTemplate, keyTmplCnt);
-#endif
-        rv = session->func->C_CreateObject(session->handle, keyTemplate,
-                                                         keyTmplCnt, publicKey);
-#ifdef WOLFSSL_DEBUG_PKCS11
-        pkcs11_rv("C_CreateObject", rv);
-#endif
-        if (rv != CKR_OK) {
-            ret = WC_HW_E;
-        }
-    }
-
-    if (ecPoint != NULL)
-        XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
-
-    return ret;
-}
-
-#ifndef NO_PKCS11_EC_KEYGEN
 /**
  * Gets the public key data from the PKCS#11 object and puts into the ECC key.
  *
@@ -1987,6 +2026,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     return ret;
 }
 
+#ifndef NO_PKCS11_EC_KEYGEN
 /**
  * Perform an ECC key generation operation.
  * The private key data stays on the device.
@@ -2189,7 +2229,6 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Derivation Operation");
 
-
         if ((sessionKey = !mp_iszero(&info->pk.ecdh.private_key->k)))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                          info->pk.ecdh.private_key, CKA_DERIVE);
@@ -2206,7 +2245,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         }
         else {
             ret = Pkcs11FindEccKey(&privateKey, CKO_PRIVATE_KEY, session,
-                                                      info->pk.ecdh.public_key);
+                                          info->pk.ecdh.public_key, CKA_DERIVE);
         }
     }
     if (ret == 0) {
@@ -2515,7 +2554,7 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
         }
         else {
             ret = Pkcs11FindEccKey(&privateKey, CKO_PRIVATE_KEY, session,
-                                                          info->pk.eccsign.key);
+                                                info->pk.eccsign.key, CKA_SIGN);
         }
     }
 
@@ -2651,6 +2690,214 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (sig != NULL)
         XFREE(sig, info->pk.eccverify.key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif
+
+#ifndef NO_RSA
+/**
+ * Check the private RSA key matches the public key.
+ *
+ * @param  [in]  priv        RSA private key.
+ * @param  [in]  publicKey   Encoded RSA public key.
+ * @param  [in]  pubKeySize  Length of encoded RSA public key.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MP_CMP_E when the public parts are different.
+ * @return  0 on success.
+ */
+static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
+    const unsigned char* publicKey, word32 pubKeySize)
+{
+    int ret = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        RsaKey* pub = NULL;
+    #else
+        RsaKey pub[1];
+    #endif
+    word32 keyIdx = 0;
+
+    #ifdef WOLFSSL_SMALL_STACK
+        pub = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        if (pub == NULL) {
+            ret = MEMORY_E;
+        }
+    #endif
+
+    if ((ret == 0) && (ret = wc_InitRsaKey(pub, NULL)) == 0) {
+        if (ret == 0) {
+            ret = wc_RsaPublicKeyDecode(publicKey, &keyIdx, pub, pubKeySize);
+        }
+        if (ret == 0) {
+            /* both keys extracted successfully now check n and e
+             * values are the same. This is dereferencing RsaKey */
+            if (mp_cmp(&(priv->n), &(pub->n)) != MP_EQ ||
+                mp_cmp(&(priv->e), &(pub->e)) != MP_EQ) {
+                ret = MP_CMP_E;
+            }
+            else
+                ret = 0;
+        }
+        wc_FreeRsaKey(pub);
+    }
+    #ifdef WOLFSSL_SMALL_STACK
+        if (pub != NULL) {
+            XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
+        }
+    #endif
+
+    return ret;
+}
+
+/**
+ * Checks the RSA private key matches the RSA public key.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MP_CMP_E when the public parts are different.
+ * @return  0 on success.
+ */
+static int Pkcs11RsaCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int ret = 0;
+    CK_OBJECT_HANDLE privateKey;
+    RsaKey* priv = info->pk.rsa_check.key;
+
+    if (mp_iszero(&priv->n) || mp_iszero(&priv->e)) {
+        /* Get the RSA private key object. */
+        if (priv->labelLen > 0) {
+            ret = Pkcs11FindKeyByLabel(&privateKey, CKO_PRIVATE_KEY,
+                                                  CKK_RSA, session, priv->label,
+                                                  priv->labelLen);
+        }
+        else if (info->pk.rsa.key->idLen > 0) {
+            ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_RSA,
+                                    session, priv->id, priv->idLen);
+        }
+        else {
+            ret = Pkcs11FindRsaKey(&privateKey, CKO_PRIVATE_KEY, session, priv);
+        }
+
+        if (ret == 0) {
+            /* Extract the public key components. */
+            ret = Pkcs11GetRsaPublicKey(priv, session, privateKey);
+        }
+    }
+    if (ret == 0) {
+        /* Compare the extracted public parts with the public key. */
+        ret = wc_Pkcs11CheckPrivKey_Rsa(priv, info->pk.rsa_check.pubKey,
+                                                   info->pk.rsa_check.pubKeySz);
+    }
+
+    return ret;
+}
+#endif
+
+#ifdef HAVE_ECC
+/**
+ * Check the private ECC key matches the public key.
+ * Do this by looking up the public key data from the associated public key.
+ * The public key object handle is passed in for the private key.
+ *
+ * @param  [in]  privateKey  Handle to private key object.
+ * @param  [in]  publicKey   Encoded EC public key.
+ * @param  [in]  pubKeySize  Length of encoded EC public key.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MP_CMP_E when the public parts are different.
+ * @return  0 on success.
+ */
+static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
+    const unsigned char* publicKey, word32 pubKeySize)
+{
+    int ret = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        ecc_key* pub = NULL;
+    #else
+        ecc_key pub[1];
+    #endif
+    word32 keyIdx = 0;
+
+    #ifdef WOLFSSL_SMALL_STACK
+        pub = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+        if (pub == NULL) {
+            ret = MEMORY_E;
+        }
+    #endif
+
+    if ((ret == 0) && (ret = wc_ecc_init(pub)) == 0) {
+        ret = wc_EccPublicKeyDecode(publicKey, &keyIdx, pub, pubKeySize);
+        if (ret == 0) {
+            /* both keys extracted successfully now check curve and
+             * pubkey. */
+            if ((pub->idx != priv->idx) || (wc_ecc_cmp_point(&priv->pubkey,
+                                                      &pub->pubkey) != MP_EQ)) {
+                ret = MP_CMP_E;
+            }
+            else {
+                ret = 0;
+            }
+        }
+        wc_ecc_free(pub);
+    }
+    #ifdef WOLFSSL_SMALL_STACK
+        if (pub != NULL) {
+            XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+        }
+    #endif
+
+    return ret;
+}
+
+/**
+ * Checks the ECC private key matches the ECC public key.
+ *
+ * @param  [in]  session  Session object.
+ * @param  [in]  info     Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MEMORY_E when a memory allocation fails.
+ * @return  MP_CMP_E when the public parts are different.
+ * @return  0 on success.
+ */
+static int Pkcs11EccCheckPrivKey(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int ret;
+    ecc_key* priv = info->pk.ecc_check.key;
+    CK_OBJECT_HANDLE privateKey;
+
+    if (mp_iszero(priv->pubkey.x) || mp_iszero(priv->pubkey.y)) {
+        /* Get the public key object as the private key object doesn't have
+         * the public point stored in it.
+         */
+        if (priv->labelLen > 0) {
+            ret = Pkcs11FindKeyByLabel(&privateKey, CKO_PUBLIC_KEY, CKK_EC,
+                                          session, priv->label, priv->labelLen);
+        }
+        else if (priv->idLen > 0) {
+            ret = Pkcs11FindKeyById(&privateKey, CKO_PUBLIC_KEY, CKK_EC,
+                                    session, priv->id, priv->idLen);
+        }
+        else {
+            ret = Pkcs11FindEccKey(&privateKey, CKO_PUBLIC_KEY, session, priv,
+                                                                      CKA_SIGN);
+        }
+        if (ret == 0 && priv->dp == NULL) {
+            /* Extract the group id. */
+            ret = Pkcs11GetEccParams(session, privateKey, priv);
+        }
+        if (ret == 0) {
+            /* Extract the public point. */
+            ret = Pkcs11GetEccPublicKey(priv, session, privateKey);
+       }
+    }
+    if (ret == 0) {
+        /* Compare the extracted public parts with the public key. */
+        ret = wc_Pkcs11CheckPrivKey_Ecc(priv, info->pk.ecc_check.pubKey,
+                                                   info->pk.ecc_check.pubKeySz);
+    }
 
     return ret;
 }
@@ -3276,6 +3523,9 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         ret = Pkcs11RsaKeyGen(&session, info);
                         break;
         #endif
+                    case WC_PK_TYPE_RSA_CHECK_PRIV_KEY:
+                        ret = Pkcs11RsaCheckPrivKey(&session, info);
+                        break;
     #endif
     #ifdef HAVE_ECC
         #ifndef NO_PKCS11_EC_KEYGEN
@@ -3293,6 +3543,9 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         break;
                     case WC_PK_TYPE_ECDSA_VERIFY:
                         ret = Pkcs11ECDSA_Verify(&session, info);
+                        break;
+                    case WC_PK_TYPE_EC_CHECK_PRIV_KEY:
+                        ret = Pkcs11EccCheckPrivKey(&session, info);
                         break;
     #endif
                     default:

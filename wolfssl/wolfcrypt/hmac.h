@@ -180,7 +180,7 @@ WOLFSSL_API int wc_HmacInit(Hmac* hmac, void* heap, int devId);
 #ifdef HAVE_PKCS11
 WOLFSSL_API int wc_HmacInit_Id(Hmac* hmac, byte* id, int len, void* heap,
                                int devId);
-WOLFSSL_API int wc_HmacInit_Label(Hmac* hmac, char* label, void* heap,
+WOLFSSL_API int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap,
                                   int devId);
 #endif
 WOLFSSL_API void wc_HmacFree(Hmac*);

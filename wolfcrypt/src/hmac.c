@@ -1023,7 +1023,7 @@ int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
     return ret;
 }
 
-int wc_HmacInit_Label(Hmac* hmac, char* label, void* heap, int devId)
+int wc_HmacInit_Label(Hmac* hmac, const char* label, void* heap, int devId)
 {
     int ret = 0;
     int labelLen = 0;
@@ -1031,7 +1031,7 @@ int wc_HmacInit_Label(Hmac* hmac, char* label, void* heap, int devId)
     if (hmac == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = XSTRLEN(label);
+        labelLen = (int)XSTRLEN(label);
         if (labelLen == 0 || labelLen > HMAC_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }

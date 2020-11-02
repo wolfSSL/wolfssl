@@ -341,7 +341,7 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
 int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
                      int devId)
 {
@@ -362,7 +362,7 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     return ret;
 }
 
-int wc_InitRsaKey_Label(RsaKey* key, char* label, void* heap, int devId)
+int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
 {
     int ret = 0;
     int labelLen = 0;
@@ -370,7 +370,7 @@ int wc_InitRsaKey_Label(RsaKey* key, char* label, void* heap, int devId)
     if (key == NULL || label == NULL)
         ret = BAD_FUNC_ARG;
     if (ret == 0) {
-        labelLen = XSTRLEN(label);
+        labelLen = (int)XSTRLEN(label);
         if (labelLen == 0 || labelLen > RSA_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
