@@ -3805,8 +3805,48 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    static int wantWriteFlag = 1;
 
+    int sent;
+    int sd = *(int*)ctx;
 
+    (void)ssl;
+
+    if (!wantWriteFlag)
+    {
+        wantWriteFlag = 1;
+
+        sent = wolfIO_Send(sd, buf, sz, 0);
+        if (sent < 0) {
+            int err = errno;
+
+            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+            else if (err == SOCKET_ECONNRESET) {
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            }
+            else if (err == SOCKET_EINTR) {
+                return WOLFSSL_CBIO_ERR_ISR;
+            }
+            else if (err == SOCKET_EPIPE) {
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+            else {
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        return sent;
+    }
+    else
+    {
+        wantWriteFlag = 0;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+}
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)

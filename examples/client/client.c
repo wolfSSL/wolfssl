@@ -184,10 +184,15 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         else
 #endif
         {
-            if (error != WOLFSSL_ERROR_WANT_WRITE) {
-            #ifdef WOLFSSL_DTLS
-                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
-            #endif
+        #ifdef WOLFSSL_DTLS
+            currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+        #endif
+            if (error == WOLFSSL_ERROR_WANT_WRITE) {
+                select_ret = tcp_select_tx(sockfd, currTimeout);
+
+            }
+            else
+            {
                 select_ret = tcp_select(sockfd, currTimeout);
             }
         }
@@ -206,13 +211,6 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         #endif
             error = wolfSSL_get_error(ssl, 0);
             elapsedSec = 0; /* reset elapsed */
-            if (error == WOLFSSL_ERROR_WANT_WRITE) {
-                /* Do a send select here. */
-                select_ret = tcp_select_tx(sockfd, 1);
-                if (select_ret == TEST_TIMEOUT) {
-                    error = WOLFSSL_FATAL_ERROR;
-                }
-            }
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;
@@ -1108,6 +1106,7 @@ static const char* client_usage_msg[][66] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 63 */
 #endif
+        "-6          Simulate WANT_WRITE errors on every other IO send\n",
 #ifdef HAVE_CURVE448
         "-8          Use X448 for key exchange\n",                      /* 66 */
 #endif
@@ -1485,6 +1484,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    matchName = 0;
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
+    int    simulateWantWrite = 0;
     int    resumeSession = 0;
     int    wc_shutdown   = 0;
     int    disableCRL    = 0;
@@ -1660,7 +1660,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:458"
+            "01:23:4568"
             "@#")) != -1) {
         switch (ch) {
             case '?' :
@@ -2116,6 +2116,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif /* HAVE_TRUSTED_CA */
                 break;
 
+            case '6' :
+                nonBlocking = 1;
+                simulateWantWrite = 1;
+                break;
+
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -2386,6 +2391,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (ctx == NULL)
         err_sys("unable to get ctx");
 #endif
+
+    if (simulateWantWrite)
+    {
+        wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
+    }
 
 #ifdef SINGLE_THREADED
     if (wolfSSL_CTX_new_rng(ctx) != WOLFSSL_SUCCESS) {
