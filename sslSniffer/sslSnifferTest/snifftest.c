@@ -519,13 +519,25 @@ int main(int argc, char** argv)
         #endif
             ret = ssl_SetPrivateKey(server, port, argv[2],
                                 FILETYPE_PEM, passwd, err);
+
             if (ret == 0)
                 loadCount++;
-            if (loadCount > 0) {
-                ret = 0;
-            }
-            else {
+
+            if (loadCount == 0) {
                 printf("Failed loading private key %d\n", ret);
+                exit(EXIT_FAILURE);
+            }
+
+            /* Only let through TCP/IP packets */
+            ret = pcap_compile(pcap, &fp, "(ip6 or ip) and tcp", 0, 0);
+            if (ret != 0) {
+                printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+                exit(EXIT_FAILURE);
+            }
+
+            ret = pcap_setfilter(pcap, &fp);
+            if (ret != 0) {
+                printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
                 exit(EXIT_FAILURE);
             }
         }
