@@ -6287,11 +6287,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
+#ifndef NO_BIO
     if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
     wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
     ssl->biowr = NULL;
     ssl->biord = NULL;
+#endif
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
@@ -7935,6 +7937,7 @@ retry:
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
                 #if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+                #ifndef NO_BIO
                     if (ssl->biord) {
                         /* If retry and read flags are set, return WANT_READ */
                         if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
@@ -7942,6 +7945,7 @@ retry:
                             return WANT_READ;
                         }
                     }
+                #endif
                 #endif
                 return -1;
 
