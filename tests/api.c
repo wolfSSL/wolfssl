@@ -33790,6 +33790,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifndef NO_DES3
          NID_des_cbc,
+         NID_des_ede3_cbc,
     #endif
     #ifdef HAVE_IDEA
          NID_idea_cbc, 
@@ -33832,6 +33833,7 @@ static void test_wolfSSL_EVP_CIPHER_iv_length(void)
     #endif
     #ifndef NO_DES3
             DES_BLOCK_SIZE,
+            DES_BLOCK_SIZE,
     #endif
     #ifdef HAVE_IDEA
             IDEA_BLOCK_SIZE,
@@ -33871,15 +33873,23 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 {
 #if defined(OPENSSL_ALL)
     WOLFSSL_EVP_MD_CTX  mdCtx;
-    unsigned int        s = 5;
+    unsigned int        s = 0;
     unsigned char       md;
 
     printf(testingFmt, "wolfSSL_EVP_DigestFinal_ex");
 
+
+    /* Bad Case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, &md, &s), 0);
-
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
+
+    /* Good Case */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, &md, &s), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
+
 
     printf(resultFmt, passed);
 #endif
