@@ -107,6 +107,7 @@ static WC_INLINE int wolfSSL_LastError(int err)
 
 
 #ifdef OPENSSL_EXTRA
+#ifndef NO_BIO
 /* Use the WOLFSSL read BIO for receiving data. This is set by the function
  * wolfSSL_set_bio and can also be set by wolfSSL_CTX_SetIORecv.
  *
@@ -208,7 +209,8 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     return sent;
 }
-#endif
+#endif /* !NO_BIO */
+#endif /* OPENSSL_EXTRA */
 
 
 #ifdef USE_WOLFSSL_IO
