@@ -24,6 +24,24 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
+    IPV6_SUPPORTED=yes
+else
+    IPV6_SUPPORTED=no
+fi
+
+if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
+    if [[ "$IPV6_SUPPORTED" == "no" ]]; then
+        echo 'Skipping IPV6 test in environment lacking IPV6 support.'
+	exit 0
+    fi
+    LOCALHOST='[::1]'
+    LOCALHOST_FOR_NC='-6 ::1'
+else
+    LOCALHOST='127.0.0.1'
+    LOCALHOST_FOR_NC='127.0.0.1'
+fi
+
 PARENTDIR="$PWD"
 
 # create a unique workspace directory ending in PID for the script instance ($$)
@@ -87,7 +105,7 @@ remove_single_rF(){
 
 #create a configure file for cert generation with the port 0 solution
 create_new_cnf() {
-    printf '%s\n' "Random Port Selected: $RPORTSELECTED"
+    printf '%s\n' "Random Ports Selected: $1 $2 $3 $4"
 
     printf '%s\n' "#" > $test_cnf
     printf '%s\n' "# openssl configuration file for OCSP certificates" >> $test_cnf
@@ -209,7 +227,7 @@ get_first_free_port() {
 	if [[ "$ret" -ge 65536 ]]; then
 	    ret=1024
 	fi
-	if ! nc -z 127.0.0.1 "$ret"; then
+	if ! nc -z ${LOCALHOST_FOR_NC} "$ret"; then
 	    break
 	fi
 	ret=$((ret+1))
@@ -396,7 +414,7 @@ remove_single_rF $ready_file5
                          -p $port5 -H loadSSL &
 server_pid5=$!
 wait_for_readyFile $ready_file5 $server_pid5 $port5
-echo "test connection" | openssl s_client -status -connect 127.0.0.1:$port5 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+echo "test connection" | openssl s_client -status -connect ${LOCALHOST}:$port5 -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed $RESULT" && exit 1
 wait $server_pid5
@@ -407,7 +425,7 @@ fi
 printf '%s\n\n' "Test successful"
 printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
-./examples/server/server -c certs/ocsp/server4-cert.pem \
+timeout 60 ./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
 server_pid5=$!

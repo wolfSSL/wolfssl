@@ -23,9 +23,14 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
+
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+
 #include <wolfssl/ssl.h> /* name change portability layer */
 
-#include <wolfssl/wolfcrypt/settings.h>
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
@@ -1152,7 +1157,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:4:58")) != -1) {
+                "01:23:4:58"
+		"@#")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1551,6 +1557,40 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     #endif
                 #endif
                 break;
+
+            case '@' :
+            {
+#ifdef HAVE_WC_INTROSPECTION
+                const char *conf_args = wolfSSL_configure_args();
+                if (conf_args) {
+                    puts(conf_args);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("configure args not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
+            }
+
+            case '#' :
+            {
+#ifdef HAVE_WC_INTROSPECTION
+                const char *cflags = wolfSSL_global_cflags();
+                if (cflags) {
+                    puts(cflags);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("CFLAGS not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
+            }
 
             default:
                 Usage();
