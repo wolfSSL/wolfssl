@@ -11041,6 +11041,19 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
 
+                    /* Check peer's certificate version number. TLS 1.2 / 1.3
+                     * requires the clients certificate be version 3 unless a
+                     * different version has been negotiated using RFC 7250 */
+                    if ((ret == 0) &&
+                            (ssl->options.side == WOLFSSL_SERVER_END)) {
+                        if (args->dCert->version != 2) {
+                            WOLFSSL_MSG("Peers certificate was not version 3!");
+                            args->lastErr = ASN_VERSION_E;
+                            /* setting last error but not considering it fatal
+                             * giving the user a chance to override */
+                        }
+                    }
+
                     /* check if fatal error */
                     if (args->verifyErr) {
                         args->fatal = 1;
