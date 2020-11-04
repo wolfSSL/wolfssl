@@ -321,6 +321,7 @@
     <ClCompile Include="wolfcrypt\src\pwdbased.c" />
     <ClCompile Include="wolfcrypt\src\rabbit.c" />
     <ClCompile Include="wolfcrypt\src\random.c" />
+    <ClCompile Include="wolfcrypt\src\rc2.c" />
     <ClCompile Include="wolfcrypt\src\ripemd.c" />
     <ClCompile Include="wolfcrypt\src\rsa.c" />
     <ClCompile Include="wolfcrypt\src\sha.c" />
