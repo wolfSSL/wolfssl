@@ -2,6 +2,8 @@
 # All paths should be given relative to the root
 
 if BUILD_WOLFCRYPT_TESTS
+if !BUILD_LINUXKM
+
 noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 if BUILD_CRYPTONLY
 check_PROGRAMS+= wolfcrypt/test/testwolfcrypt
@@ -11,7 +13,10 @@ wolfcrypt_test_testwolfcrypt_SOURCES      = wolfcrypt/test/test.c
 wolfcrypt_test_testwolfcrypt_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES = src/libwolfssl.la
 noinst_HEADERS += wolfcrypt/test/test.h
+
 endif
+endif
+
 EXTRA_DIST += wolfcrypt/test/test.sln
 EXTRA_DIST += wolfcrypt/test/test.vcproj
 EXTRA_DIST += wolfcrypt/test/README.md

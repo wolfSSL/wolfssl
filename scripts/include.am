@@ -12,9 +12,6 @@ if BUILD_EXAMPLE_SERVERS
 
 dist_noinst_SCRIPTS+= scripts/resume.test
 
-EXTRA_DIST+= scripts/benchmark.test
-EXTRA_DIST+= scripts/memtest.sh
-
 # The CRL and OCSP tests use RSA certificates.
 if BUILD_RSA
 
@@ -94,7 +91,10 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-tls13-dh.pcap \
                scripts/sniffer-tls13-ecc.pcap \
                scripts/sniffer-tls13-gen.sh \
-               scripts/ping.test
+               scripts/ping.test \
+               scripts/benchmark.test \
+               scripts/memtest.sh
+
 
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test

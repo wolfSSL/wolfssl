@@ -162,21 +162,15 @@ include swig/include.am
 include src/include.am
 include support/include.am
 include wolfcrypt/user-crypto/include.am
-if !BUILD_LINUXKM
 include wolfcrypt/benchmark/include.am
-endif
 include wolfcrypt/src/include.am
-if !BUILD_LINUXKM
 include wolfcrypt/test/include.am
-endif
 include examples/include.am
 include testsuite/include.am
 include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
-if BUILD_LINUXKM
 include linuxkm/include.am
-endif
 
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO
@@ -212,6 +206,16 @@ if BUILD_LINUXKM
         CFLAGS_AUTO_VECTORIZE_DISABLE CFLAGS_AUTO_VECTORIZE_ENABLE \
         ASFLAGS_FPU_DISABLE_SIMD_ENABLE ASFLAGS_FPU_ENABLE_SIMD_DISABLE \
         ASFLAGS_FPUSIMD_DISABLE ASFLAGS_FPUSIMD_ENABLE
+
+module:
+	+make -C linuxkm libwolfssl.ko
+
+clean_module:
+	+make -C linuxkm clean
+
+install_module modules_install:
+	+make -C linuxkm modules_install
+
 endif
 
 if USE_VALGRIND
