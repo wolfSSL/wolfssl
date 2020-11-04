@@ -19746,10 +19746,12 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-9640, done);
     }
 
+#ifndef NO_FILESYSTEM
     ret = SaveDerAndPem(der, derSz, eccPubKeyDerFile, NULL, 0, -8348);
     if (ret != 0) {
         goto done;
     }
+#endif /* NO_FILESYSTEM */
 
 #ifdef HAVE_PKCS8
     /* test export of PKCS#8 unencrypted private key */
@@ -19763,10 +19765,12 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-9641, done);
     }
 
+#ifndef NO_FILESYSTEM
     ret = SaveDerAndPem(der, derSz, eccPkcs8KeyDerFile, NULL, 0, -8349);
     if (ret != 0) {
         goto done;
     }
+#endif /* NO_FILESYSTEM */
 #endif /* HAVE_PKCS8 */
 
 done:
