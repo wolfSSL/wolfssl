@@ -56,14 +56,10 @@ libwolfssl.ko:
 	@mkdir -p linuxkm src wolfcrypt/src wolfcrypt/test
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
 	+make -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP)
-	@echo Linux kernel module build succeeded.
-	@echo Module is libwolfssl.ko in $(MODULE_TOP).
 
-.PHONY: install
-install:
-	@echo Automatic Linux kernel module installation not yet supported.
-	@echo Module is $(MODULE_TOP)/libwolfssl.ko
-	@exit 1
+.PHONY: install modules_install
+install modules_install:
+	+make -C $(KERNEL_ROOT) M=$(MODULE_TOP) src=$(SRC_TOP) INSTALL_MOD_DIR=wolfssl modules_install
 
 .PHONY: clean
 clean:
