@@ -299,6 +299,7 @@ static const char* const msgTable[] =
     "Store data callback failed",
     "Loading chain input",
     "Got encrypted extension",
+    "Got Hello Retry Request",
 };
 
 
@@ -2415,13 +2416,18 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
         /* Named group and public key */
         info->named_group = (word16)((input[index] << 8) | input[index+1]);
         index += OPAQUE16_LEN;
-        info->key_len = (word16)((input[index] << 8) | input[index+1]);
-        index += OPAQUE16_LEN;
-        if (info->key_len == 0 || info->key_len > len - index) {
-            return -1;
+        info->key_len = 0;
+        info->key = NULL;
+        /* If key was provided... (a hello_retry_request will not send a key) */
+        if (index + 2 <= len) {
+            info->key_len = (word16)((input[index] << 8) | input[index+1]);
+            index += OPAQUE16_LEN;
+            if (info->key_len == 0 || info->key_len > len - index) {
+                return -1;
+            }
+            info->key = &input[index];
+            index += info->key_len;
         }
-        info->key = &input[index];
-        index += info->key_len;
 
         switch (info->named_group) {
     #ifndef NO_DH
@@ -2502,13 +2508,14 @@ static int ProcessServerKeyShare(SnifferSession* session, const byte* input, int
     int ret;
 
     if (session->cliKeyShare == NULL || session->cliKeyShareSz == 0) {
-        SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
-        return -1;
+        /* session->cliKeyShareSz could not be provided yet if the client_hello 
+            did not send a key share to force a hello_retry_request */
+        return 0;
     }
 
-    /* Get server_hello key share */
+    /* Get server_hello key share (and key) */
     ret = ProcessKeyShare(&session->srvKs, input, len, 0);
-    if (ret == 0) {
+    if (ret == 0 && session->srvKs.key_len > 0) {
         /* Get client_hello key share */
         ret = ProcessKeyShare(&session->cliKs, session->cliKeyShare,
             session->cliKeyShareSz, session->srvKs.named_group);
@@ -2642,10 +2649,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     byte            b, b0;
     int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume = 0;
+    const byte*     inputHello = input;
     int             initialBytes = *sslBytes;
 
     (void)msgSz;
-    (void)initialBytes;
 
     /* make sure we didn't miss ClientHello */
     if (session->flags.clientHello == 0) {
@@ -2665,6 +2672,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 
     session->sslServer->version = pv;
     session->sslClient->version = pv;
+    if (pv.minor >= TLSv1_MINOR) {
+        session->sslServer->options.tls = 1;
+        session->sslClient->options.tls = 1;
+    }
 
     XMEMCPY(session->sslServer->arrays->serverRandom, input, RAN_LEN);
     XMEMCPY(session->sslClient->arrays->serverRandom, input, RAN_LEN);
@@ -2856,6 +2867,32 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                                                            actual sessionID */
     }
 
+#ifdef WOLFSSL_TLS13
+    /* Is TLS v1.3 hello_retry_request? */
+    if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len == 0) {
+        Trace(GOT_HELLO_RETRY_REQ_STR);
+
+        /* do not compute keys yet */
+        session->flags.serverCipherOn = 0;
+
+        /* make sure the mac and digest size are set */
+        SetCipherSpecs(session->sslServer);
+        SetCipherSpecs(session->sslClient);
+
+        /* reset hashes */
+        RestartHandshakeHash(session->sslServer);
+        RestartHandshakeHash(session->sslClient);
+
+        doResume = 0;
+    }
+#endif
+
+    /* hash server_hello */
+    HashRaw(session->sslServer, inputHello - HANDSHAKE_HEADER_SZ, 
+        initialBytes + HANDSHAKE_HEADER_SZ);
+    HashRaw(session->sslClient, inputHello - HANDSHAKE_HEADER_SZ, 
+        initialBytes + HANDSHAKE_HEADER_SZ);
+
     if (doResume) {
         WOLFSSL_SESSION* resume;
         if (IsAtLeastTLSv1_3(session->sslServer->version)) {
@@ -2950,7 +2987,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 
 #ifdef WOLFSSL_TLS13
     /* Setup handshake keys */
-    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+    if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
         DerBuffer* key = session->sslServer->buffers.key;
     #ifdef WOLFSSL_STATIC_EPHEMERAL
         if (session->sslServer->staticKE.key)
@@ -3321,7 +3358,6 @@ static int KeyWatchCall(SnifferSession* session, const byte* data, int dataSz,
 static int ProcessCertificate(const byte* input, int* sslBytes,
         SnifferSession* session, char* error)
 {
-    const byte* certChain;
     word32 certChainSz;
     word32 certSz;
 
@@ -3334,6 +3370,15 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
+
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+        /* skip 1 byte (Request context len) */
+        input += OPAQUE8_LEN;
+        *sslBytes -= OPAQUE8_LEN;
+    }
+#endif
+
     ato24(input, &certChainSz);
     *sslBytes -= CERT_HEADER_SZ;
     input += CERT_HEADER_SZ;
@@ -3342,7 +3387,6 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
-    certChain = input;
 
     ato24(input, &certSz);
     input += OPAQUE24_LEN;
@@ -3561,12 +3605,13 @@ static int DoHandShake(const byte* input, int* sslBytes,
 #endif
 
 #ifdef WOLFSSL_TLS13
-    if (type != client_hello) {
+    if (type != client_hello && type != server_hello) {
         /* For resumption the hash is before / after client_hello PSK binder */
         /* hash the packet including header */
         /* TLS v1.3 requires the hash for the handshake and transfer key derivation */
         /* we hash even for non TLS v1.3, since we don't know if its actually 
             TLS v1.3 till later at EXT_SUPPORTED_VERSIONS in server_hello */
+        /* hello retry request restarts hash prior to server_hello hash calc */
         HashRaw(session->sslServer, input - HANDSHAKE_HEADER_SZ, size + HANDSHAKE_HEADER_SZ);
         HashRaw(session->sslClient, input - HANDSHAKE_HEADER_SZ, size + HANDSHAKE_HEADER_SZ);
     }
@@ -4983,8 +5028,17 @@ doPart:
             }
             break;
         case change_cipher_spec:
-            if (session->flags.side == WOLFSSL_SERVER_END)
-                session->flags.serverCipherOn = 1;
+            if (session->flags.side == WOLFSSL_SERVER_END) {
+            #ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len == 0) {
+                    session->flags.serverCipherOn = 0;
+                }
+                else
+            #endif
+                {
+                    session->flags.serverCipherOn = 1;
+                }
+            }
             else
                 session->flags.clientCipherOn = 1;
             Trace(GOT_CHANGE_CIPHER_STR);
