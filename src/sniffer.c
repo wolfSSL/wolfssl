@@ -4730,7 +4730,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         word32 i, offset, headerSz, qty, remainder;
 
         Trace(CHAIN_INPUT_STR);
-        headerSz = (word32)*sslFrame - (word32)chain[0].iov_base;
+        headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
         remainder = *sslBytes;
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
