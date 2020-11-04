@@ -10357,29 +10357,33 @@ void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 #endif
 }
 
-/* For TLS v1.3 perform rehandshake. Returns 1=WOLFSSL_SUCCESS or 0=WOLFSSL_FAILURE */
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+/* For TLS v1.3 send handshake messages after handshake completes. */
+/* Returns 1=WOLFSSL_SUCCESS or 0=WOLFSSL_FAILURE */
 int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl)
 {
-    int ret = NOT_COMPILED_IN;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
-    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
-    #ifndef NO_WOLFSSL_SERVER
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ret = wolfSSL_request_certificate(ssl);
-    }
-    #endif
-    #ifndef NO_WOLFSSL_CLIENT
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        ret = wolfSSL_allow_post_handshake_auth(ssl);
-    }
-    #endif
-#else
-    (void)ssl;
-#endif
-    ret = (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-    
-    return ret;
+    int ret = wolfSSL_request_certificate(ssl);
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
+
+void wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
+{
+    int ret = wolfSSL_CTX_allow_post_handshake_auth(ctx);
+    if (ret == 0) {
+        ctx->postHandshakeAuth = (val != 0);
+    }
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+void wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val)
+{
+    int ret = wolfSSL_allow_post_handshake_auth(ssl);
+    if (ret == 0) {
+        ssl->options.postHandshakeAuth = (val != 0);
+    }
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_TLS13 && WOLFSSL_POST_HANDSHAKE_AUTH */
 
 /* store user ctx for verify callback */
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
