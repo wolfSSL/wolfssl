@@ -107,7 +107,8 @@ WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
     to out in outLen.
 
     \return Success Upon successfully encrypting the input message, returns
-    the number bytes written to out
+    0 for success and less than zero for failure. Also returns the number
+    bytes written to out by storing the value in outLen
     \return -1 Returned if there is an error during RSA encryption and
     hardware acceleration via Cavium is enabled
     \return BAD_FUNC_ARG Returned if any of the input parameters are invalid
