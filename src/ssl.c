@@ -41207,12 +41207,12 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
         }
     }
     if (ret && writebuf1) {
-        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio1, writebuf1))) {
+        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio1, (long)writebuf1))) {
             WOLFSSL_MSG("wolfSSL_BIO_set_write_buf() failure");
         }
     }
     if (ret && writebuf2) {
-        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio2, writebuf2))) {
+        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio2, (long)writebuf2))) {
             WOLFSSL_MSG("wolfSSL_BIO_set_write_buf() failure");
         }
     }
