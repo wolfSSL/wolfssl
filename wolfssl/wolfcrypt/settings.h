@@ -1070,7 +1070,9 @@ extern void uITRON4_free(void *p) ;
     #define ECC_TIMING_RESISTANT
 
     #undef  HAVE_ECC
+    #ifndef WOLFCRYPT_FIPS_RAND
     #define HAVE_ECC
+    #endif
     #ifndef NO_AES
         #undef  HAVE_AESCCM
         #define HAVE_AESCCM
@@ -1165,7 +1167,9 @@ extern void uITRON4_free(void *p) ;
         #endif
 
         #if defined(FSL_FEATURE_LTC_HAS_PKHA) && FSL_FEATURE_LTC_HAS_PKHA
+            #ifndef WOLFCRYPT_FIPS_RAND
             #define FREESCALE_LTC_ECC
+            #endif
             #define FREESCALE_LTC_TFM
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
