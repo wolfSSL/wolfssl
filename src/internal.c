@@ -19523,173 +19523,210 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
+static int MatchSigAlgo(WOLFSSL* ssl, int sigAlgo)
+{
+#ifdef HAVE_ED25519
+    if (ssl->pkCurveOID == ECC_ED25519_OID) {
+        /* Certificate has Ed25519 key, only match with Ed25519 sig alg  */
+        return sigAlgo == ed25519_sa_algo;
+    }
+#endif
+#ifdef HAVE_ED448
+    if (ssl->pkCurveOID == ECC_ED448_OID) {
+        /* Certificate has Ed448 key, only match with Ed448 sig alg  */
+        return sigAlgo == ed448_sa_algo;
+    }
+#endif
+#ifdef WC_RSA_PSS
+    /* RSA certificate and PSS sig alg. */
+    if (ssl->suites->sigAlgo == rsa_sa_algo) {
+    #if defined(WOLFSSL_TLS13)
+        /* TLS 1.3 only supports RSA-PSS. */
+        if (IsAtLeastTLSv1_3(ssl->version))
+            return sigAlgo == rsa_pss_sa_algo;
+    #endif
+        /* TLS 1.2 and below - RSA-PSS allowed. */
+        if (sigAlgo == rsa_pss_sa_algo)
+            return 1;
+    }
+#endif
+    /* Signature algorithm matches certificate. */
+    return sigAlgo == ssl->suites->sigAlgo;
+}
+
+#if defined(HAVE_ECC) && defined(WOLFSSL_TLS13) || \
+                                              defined(USE_ECDSA_KEYSZ_HASH_ALGO)
+static int CmpEccStrength(int hashAlgo, int curveSz)
+{
+    int dgstSz = GetMacDigestSize(hashAlgo);
+    if (dgstSz <= 0)
+        return -1;
+    return dgstSz - (curveSz & (~0x3));
+}
+#endif
+
+static byte MinHashAlgo(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        return sha256_mac;
+    }
+#endif
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_ALLOW_TLS_SHA1)
+    if (IsAtLeastTLSv1_2(ssl)) {
+        return sha256_mac;
+    }
+#endif /* WOLFSSL_NO_TLS12 */
+    return sha_mac;
+}
+
 int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 {
     word32 i;
     int ret = MATCH_SUITE_ERROR;
-
-    ssl->suites->sigAlgo = ssl->specs.sig_algo;
+    byte minHash;
 
     /* set defaults */
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        ssl->suites->hashAlgo = sha256_mac;
     #ifndef NO_CERTS
+        /* TLS 1.3 cipher suites don't have public key algorithms in them.
+         * Using the one in the certificate - if any.
+         */
         ssl->suites->sigAlgo = ssl->buffers.keyType;
     #endif
     }
-#ifndef WOLFSSL_NO_TLS12
-    else if (IsAtLeastTLSv1_2(ssl)) {
-    #ifdef WOLFSSL_ALLOW_TLS_SHA1
-        ssl->suites->hashAlgo = sha_mac;
-    #else
-        ssl->suites->hashAlgo = sha256_mac;
-    #endif
+    else
+        ssl->suites->sigAlgo = ssl->specs.sig_algo;
+    if (ssl->suites->sigAlgo == 0) {
+        /* PSK ciphersuite - get digest to use from cipher suite */
+        ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
+        return 0;
     }
-    else {
-        ssl->suites->hashAlgo = sha_mac;
-    }
-#endif
+    ssl->suites->hashAlgo = minHash = MinHashAlgo(ssl);
 
+    /* No list means go with the defaults. */
     if (hashSigAlgoSz == 0)
         return 0;
 
-    /* i+1 since peek a byte ahead for type */
+    /* i+1 since two bytes used to describe hash and signature algorithm */
     for (i = 0; (i+1) < hashSigAlgoSz; i += HELLO_EXT_SIGALGO_SZ) {
         byte hashAlgo = 0, sigAlgo = 0;
 
         DecodeSigAlg(&hashSigAlgo[i], &hashAlgo, &sigAlgo);
+        /* Keep looking if hash algorithm not strong enough. */
+        if (hashAlgo < minHash)
+            continue;
+        /* Keep looking if signature algorithm isn't supported by cert. */
+        if (!MatchSigAlgo(ssl, sigAlgo))
+            continue;
+
     #ifdef HAVE_ED25519
         if (ssl->pkCurveOID == ECC_ED25519_OID) {
-            if (sigAlgo != ed25519_sa_algo)
-                continue;
-            if (sigAlgo == ed25519_sa_algo &&
-                                      ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
-                ssl->suites->sigAlgo = sigAlgo;
-                ssl->suites->hashAlgo = sha512_mac;
-                ret = 0;
-                break;
-            }
+            /* Matched Ed25519 - set chosen and finished. */
+            ssl->suites->sigAlgo = sigAlgo;
+            ssl->suites->hashAlgo = hashAlgo;
+            ret = 0;
+            break;
         }
     #endif
     #ifdef HAVE_ED448
         if (ssl->pkCurveOID == ECC_ED448_OID) {
-            if (sigAlgo != ed448_sa_algo)
-                continue;
-
-            if (sigAlgo == ed448_sa_algo &&
-                                      ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
-                ssl->suites->sigAlgo = sigAlgo;
-                ssl->suites->hashAlgo = sha512_mac;
-                ret = 0;
-                break;
-            }
+            /* Matched Ed448 - set chosen and finished. */
+            ssl->suites->sigAlgo = sigAlgo;
+            ssl->suites->hashAlgo = hashAlgo;
+            ret = 0;
+            break;
         }
     #endif
-    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
-        if (IsAtLeastTLSv1_3(ssl->version) && sigAlgo == ssl->suites->sigAlgo &&
-                                                   sigAlgo == ecc_dsa_sa_algo) {
-            int curveSz = ssl->buffers.keySz & (~0x3);
-            int digestSz = GetMacDigestSize(hashAlgo);
-            if (digestSz <= 0)
+
+    #if defined(WOLFSSL_ECDSA_MATCH_HASH) && defined(USE_ECDSA_KEYSZ_HASH_ALGO)
+        #error "WOLFSSL_ECDSA_MATCH_HASH and USE_ECDSA_KEYSZ_HASH_ALGO cannot "
+               "be used together"
+    #endif
+
+    #if defined(HAVE_ECC) && (defined(WOLFSSL_TLS13) || \
+                                              defined(WOLFSSL_ECDSA_MATCH_HASH))
+        if (sigAlgo == ecc_dsa_sa_algo
+        #ifndef WOLFSSL_ECDSA_MATCH_HASH
+            && IsAtLeastTLSv1_3(ssl->version)
+        #endif
+            ) {
+            /* Must be exact match. */
+            if (CmpEccStrength(hashAlgo, ssl->buffers.keySz) != 0)
                 continue;
 
-            /* TLS 1.3 signature algorithms for ECDSA match hash length with
-             * key size.
-             */
-            if (digestSz != curveSz)
-                continue;
-
+            /* Matched ECDSA exaclty - set chosen and finished. */
             ssl->suites->hashAlgo = hashAlgo;
             ssl->suites->sigAlgo = sigAlgo;
             ret = 0;
-            break; /* done selected sig/hash algorithms */
+            break;
         }
-        else
     #endif
+
     /* For ECDSA the `USE_ECDSA_KEYSZ_HASH_ALGO` build option will choose a hash
      * algorithm that matches the ephemeral ECDHE key size or the next highest
      * available. This workaround resolves issue with some peer's that do not
      * properly support scenarios such as a P-256 key hashed with SHA512.
      */
     #if defined(HAVE_ECC) && defined(USE_ECDSA_KEYSZ_HASH_ALGO)
-        if (sigAlgo == ssl->suites->sigAlgo && sigAlgo == ecc_dsa_sa_algo) {
-            int digestSz = GetMacDigestSize(hashAlgo);
-            if (digestSz <= 0)
+        if (sigAlgo == ecc_dsa_sa_algo) {
+            int cmp = CmpEccStrength(hashAlgo, ssl->eccTempKeySz);
+
+            /* Keep looking if digest not strong enough. */
+            if (cmp < 0)
                 continue;
 
-            /* For ecc_dsa_sa_algo, pick hash algo that is curve size unless
-                algorithm in not compiled in, then choose next highest */
-            if (digestSz == ssl->eccTempKeySz) {
+            /* Looking for exact match or next highest. */
+            if (ret != 0 || hashAlgo <= ssl->suites->hashAlgo) {
                 ssl->suites->hashAlgo = hashAlgo;
                 ssl->suites->sigAlgo = sigAlgo;
             #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                 ssl->namedGroup = 0;
             #endif
                 ret = 0;
-                break; /* done selected sig/hash algorithms */
             }
-            /* not strong enough, so keep checking hashSigAlso list */
-            if (digestSz < ssl->eccTempKeySz)
-                continue;
 
-            /* mark as highest and check remainder of hashSigAlgo list */
-            ssl->suites->hashAlgo = hashAlgo;
-            ssl->suites->sigAlgo = sigAlgo;
-            ret = 0;
-        }
-        else
-    #endif
-    #ifdef WC_RSA_PSS
-        if (IsAtLeastTLSv1_3(ssl->version) &&
-                                          ssl->suites->sigAlgo == rsa_sa_algo &&
-                                          sigAlgo != rsa_pss_sa_algo) {
-            continue;
-        }
-        else if (sigAlgo == ssl->suites->sigAlgo ||
-                                        (sigAlgo == rsa_pss_sa_algo &&
-                                         (ssl->suites->sigAlgo == rsa_sa_algo)))
-    #else
-        if (sigAlgo == ssl->suites->sigAlgo)
-    #endif
-        {
-            /* pick highest available between both server and client */
-            switch (hashAlgo) {
-                case sha_mac:
-            #ifdef WOLFSSL_SHA224
-                case sha224_mac:
-            #endif
-            #ifndef NO_SHA256
-                case sha256_mac:
-            #endif
-            #ifdef WOLFSSL_SHA384
-                case sha384_mac:
-            #endif
-            #ifdef WOLFSSL_SHA512
-                case sha512_mac:
-            #endif
-                    /* not strong enough, so keep checking hashSigAlso list */
-                    if (hashAlgo < ssl->suites->hashAlgo) {
-                        ret = 0;
-                        continue;
-                    }
-                    /* mark as highest and check remainder of hashSigAlgo list */
-                    ssl->suites->hashAlgo = hashAlgo;
-                    ssl->suites->sigAlgo = sigAlgo;
-                    break;
-                default:
-                    continue;
-            }
-            ret = 0;
+            /* Continue looking if not the same strength. */
+            if (cmp > 0)
+                continue;
+            /* Exact match - finished. */
             break;
         }
-#if defined(WOLFSSL_TLS13)
-        else if (ssl->specs.sig_algo == 0 && IsAtLeastTLSv1_3(ssl->version)) {
-        }
-#endif
-        else if (ssl->specs.sig_algo == 0)
-        {
-            ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
-            ret = 0;
+    #endif
+
+        switch (hashAlgo) {
+        #ifndef NO_SHA
+            case sha_mac:
+        #endif
+        #ifdef WOLFSSL_SHA224
+            case sha224_mac:
+        #endif
+        #ifndef NO_SHA256
+            case sha256_mac:
+        #endif
+        #ifdef WOLFSSL_SHA384
+            case sha384_mac:
+        #endif
+        #ifdef WOLFSSL_SHA512
+            case sha512_mac:
+        #endif
+            #ifdef WOLFSSL_STRONGEST_HASH_SIG
+            /* Is hash algorithm weaker than chosen/min? */
+                if (hashAlgo < ssl->suites->hashAlgo)
+                    break;
+            #else
+                /* Is hash algorithm stonger than last chosen? */
+                if (ret == 0 && hashAlgo > ssl->suites->hashAlgo)
+                    break;
+            #endif
+                /* The chosen one - but keep looking. */
+                ssl->suites->hashAlgo = hashAlgo;
+                ssl->suites->sigAlgo = sigAlgo;
+                ret = 0;
+                break;
+            default:
+                /* Support for hash algorithm not compiled in. */
+                break;
         }
     }
 
