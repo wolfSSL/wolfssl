@@ -28207,16 +28207,11 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 }
 #endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx)
+WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
 {
-    (void)ciphers;
-    (void)idx;
-    WOLFSSL_STUB("wolfSSL_sk_SSL_CIPHER_value");
-    return NULL;
+    WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_value");
+    return wolfSSL_sk_value(sk, i);
 }
-#endif
 
 WOLFSSL_API void ERR_load_SSL_strings(void)
 {
@@ -46601,6 +46596,36 @@ static WC_INLINE int SCSV_Check(byte suite0, byte suite)
     return 0;
 }
 
+static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
+        byte suite)
+{
+    const CipherSuiteInfo* cipher_names = GetCipherNames();
+    int cipherSz = GetCipherNamesSize();
+    int i;
+    for (i = 0; i < cipherSz; i++)
+        if (cipher_names[i].cipherSuite0 == suite0 &&
+                cipher_names[i].cipherSuite == suite)
+            break;
+    if (i == cipherSz)
+        return 1;
+    if (cipher_names[i].minor < ssl->options.minDowngrade)
+        return 1;
+    switch (cipher_names[i].minor) {
+    case SSLv3_MINOR :
+        return ssl->options.mask & WOLFSSL_OP_NO_SSLv3;
+    case TLSv1_MINOR :
+        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1;
+    case TLSv1_1_MINOR :
+        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1;
+    case TLSv1_2_MINOR :
+        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2;
+    case TLSv1_3_MINOR :
+        return ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3;
+    default:
+        WOLFSSL_MSG("Unrecognized minor version");
+        return 1;
+    }
+}
 
 /* returns a pointer to internal cipher suite list. Should not be free'd by
  * caller.
@@ -46620,6 +46645,11 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     }
 
     if (ssl->suites != NULL) {
+        if (ssl->suites->suiteSz == 0 &&
+                InitSSL_Suites((WOLFSSL*)ssl) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Suite initialization failure");
+            return NULL;
+        }
         suites = ssl->suites;
     }
     else {
@@ -46637,7 +46667,9 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 
             /* A couple of suites are placeholders for special options,
              * skip those. */
-            if (SCSV_Check(suites->suites[i], suites->suites[i+1])) {
+            if (SCSV_Check(suites->suites[i], suites->suites[i+1])
+                    || sslCipherMinMaxCheck(ssl, suites->suites[i],
+                                            suites->suites[i+1])) {
                 continue;
             }
 
