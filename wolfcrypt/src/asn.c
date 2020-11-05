@@ -15193,6 +15193,7 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
             if ((((DecodedCert*)cert->decodedCert)->subjectRaw) &&
                 (((DecodedCert*)cert->decodedCert)->subjectRawLen <=
                         (int)sizeof(CertName))) {
+                /* Copy the subject to the issuer field */
                 XMEMCPY(cert->issRaw,
                         ((DecodedCert*)cert->decodedCert)->subjectRaw,
                         ((DecodedCert*)cert->decodedCert)->subjectRawLen);
