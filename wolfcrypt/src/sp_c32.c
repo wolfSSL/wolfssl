@@ -1260,31 +1260,40 @@ SP_NOINLINE static void sp_2048_mul_d_90(sp_digit* r, const sp_digit* a,
     r[90] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 88; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 88; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[89];
-    r[89] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    r[90] =  (sp_digit)(t[1] >> 23);
+    t += tb * a[88];
+    r[88] = t & 0x7fffff;
+    t >>= 23;
+    t += tb * a[89];
+    r[89] = t & 0x7fffff;
+    t >>= 23;
+    r[90] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -1626,37 +1635,37 @@ SP_NOINLINE static void sp_2048_mul_d_45(sp_digit* r, const sp_digit* a,
     r[45] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 40; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 44; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[41];
-    r[41] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    t[2] = tb * a[42];
-    r[42] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-    t[3] = tb * a[43];
-    r[43] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-    t[4] = tb * a[44];
-    r[44] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-    r[45] =  (sp_digit)(t[4] >> 23);
+    t += tb * a[44];
+    r[44] = t & 0x7fffff;
+    t >>= 23;
+    r[45] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -2565,35 +2574,34 @@ SP_NOINLINE static void sp_2048_mul_d_180(sp_digit* r, const sp_digit* a,
     r[180] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 176; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 180; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[177];
-    r[177] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    t[2] = tb * a[178];
-    r[178] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-    t[3] = tb * a[179];
-    r[179] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-    r[180] =  (sp_digit)(t[3] >> 23);
+    r[180] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -5143,39 +5151,40 @@ SP_NOINLINE static void sp_3072_mul_d_134(sp_digit* r, const sp_digit* a,
     r[134] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 128; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 132; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[129];
-    r[129] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    t[2] = tb * a[130];
-    r[130] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-    t[3] = tb * a[131];
-    r[131] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-    t[4] = tb * a[132];
-    r[132] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-    t[5] = tb * a[133];
-    r[133] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-    r[134] =  (sp_digit)(t[5] >> 23);
+    t += tb * a[132];
+    r[132] = t & 0x7fffff;
+    t >>= 23;
+    t += tb * a[133];
+    r[133] = t & 0x7fffff;
+    t >>= 23;
+    r[134] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -5509,33 +5518,43 @@ SP_NOINLINE static void sp_3072_mul_d_67(sp_digit* r, const sp_digit* a,
     r[67] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 64; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 64; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[65];
-    r[65] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    t[2] = tb * a[66];
-    r[66] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-    r[67] =  (sp_digit)(t[2] >> 23);
+    t += tb * a[64];
+    r[64] = t & 0x7fffff;
+    t >>= 23;
+    t += tb * a[65];
+    r[65] = t & 0x7fffff;
+    t >>= 23;
+    t += tb * a[66];
+    r[66] = t & 0x7fffff;
+    t >>= 23;
+    r[67] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -6434,35 +6453,34 @@ SP_NOINLINE static void sp_3072_mul_d_268(sp_digit* r, const sp_digit* a,
     r[268] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 264; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    for (i = 0; i < 268; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x7fffff);
+        t >>= 23;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[265];
-    r[265] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    t[2] = tb * a[266];
-    r[266] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-    t[3] = tb * a[267];
-    r[267] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-    r[268] =  (sp_digit)(t[3] >> 23);
+    r[268] = t & 0x7fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -9173,35 +9191,34 @@ SP_NOINLINE static void sp_4096_mul_d_196(sp_digit* r, const sp_digit* a,
     r[196] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x1fffff;
-    for (i = 0; i < 192; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 21) + (t[1] & 0x1fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 21) + (t[2] & 0x1fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 21) + (t[3] & 0x1fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 21) + (t[4] & 0x1fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 21) + (t[5] & 0x1fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 21) + (t[6] & 0x1fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 21) + (t[7] & 0x1fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 21) + (t[0] & 0x1fffff);
+    for (i = 0; i < 196; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[193];
-    r[193] = (sp_digit)(t[0] >> 21) + (t[1] & 0x1fffff);
-    t[2] = tb * a[194];
-    r[194] = (sp_digit)(t[1] >> 21) + (t[2] & 0x1fffff);
-    t[3] = tb * a[195];
-    r[195] = (sp_digit)(t[2] >> 21) + (t[3] & 0x1fffff);
-    r[196] =  (sp_digit)(t[3] >> 21);
+    r[196] = t & 0x1fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -9523,31 +9540,40 @@ SP_NOINLINE static void sp_4096_mul_d_98(sp_digit* r, const sp_digit* a,
     r[98] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x1fffff;
-    for (i = 0; i < 96; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 21) + (t[1] & 0x1fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 21) + (t[2] & 0x1fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 21) + (t[3] & 0x1fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 21) + (t[4] & 0x1fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 21) + (t[5] & 0x1fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 21) + (t[6] & 0x1fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 21) + (t[7] & 0x1fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 21) + (t[0] & 0x1fffff);
+    for (i = 0; i < 96; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 3] = t2;
     }
-    t[1] = tb * a[97];
-    r[97] = (sp_digit)(t[0] >> 21) + (t[1] & 0x1fffff);
-    r[98] =  (sp_digit)(t[1] >> 21);
+    t += tb * a[96];
+    r[96] = t & 0x1fffff;
+    t >>= 21;
+    t += tb * a[97];
+    r[97] = t & 0x1fffff;
+    t >>= 21;
+    r[98] = t & 0x1fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -10485,29 +10511,34 @@ SP_NOINLINE static void sp_4096_mul_d_392(sp_digit* r, const sp_digit* a,
     r[392] = (sp_digit)t;
 #else
     int64_t tb = b;
-    int64_t t[8];
+    int64_t t = 0;
+    sp_digit t2;
+    int64_t p[4];
     int i;
 
-    t[0] = tb * a[0]; r[0] = t[0] & 0x1fffff;
-    for (i = 0; i < 392; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 21) + (t[1] & 0x1fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 21) + (t[2] & 0x1fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 21) + (t[3] & 0x1fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 21) + (t[4] & 0x1fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 21) + (t[5] & 0x1fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 21) + (t[6] & 0x1fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 21) + (t[7] & 0x1fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 21) + (t[0] & 0x1fffff);
+    for (i = 0; i < 392; i += 4) {
+        p[0] = tb * a[i + 0];
+        p[1] = tb * a[i + 1];
+        p[2] = tb * a[i + 2];
+        p[3] = tb * a[i + 3];
+        t += p[0];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 0] = t2;
+        t += p[1];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 1] = t2;
+        t += p[2];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 2] = t2;
+        t += p[3];
+        t2 = (sp_digit)(t & 0x1fffff);
+        t >>= 21;
+        r[i + 3] = t2;
     }
-    r[392] =  (sp_digit)(t[7] >> 21);
+    r[392] = t & 0x1fffff;
 #endif /* WOLFSSL_SP_SMALL */
 }
 
