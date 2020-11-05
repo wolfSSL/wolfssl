@@ -29,8 +29,7 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 #if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
-     defined(WOLFSSL_AESNI) || defined(WOLFSSL_SP_ASM)) && \
-     !defined(WOLFSSL_NO_ASM)
+     defined(WOLFSSL_AESNI)) && !defined(WOLFSSL_NO_ASM)
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */

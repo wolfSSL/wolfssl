@@ -4883,11 +4883,16 @@ if test "$ENABLED_SP_ASM" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
+    if test "x$ENABLED_FASTMATH" = "xno"
+    then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
+    fi
     ;;
   *)
     AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
     ;;
   esac
+
 fi
 
 if test "$ENABLED_SP_MATH" = "yes"; then
