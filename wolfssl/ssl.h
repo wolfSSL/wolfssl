@@ -977,9 +977,9 @@ WOLFSSL_API void wolfSSL_set_verify_result(WOLFSSL*, long);
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-WOLFSSL_API int  wolfSSL_verify_client_post_handshake(WOLFSSL*);
-WOLFSSL_API void wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX*, int);
-WOLFSSL_API void wolfSSL_set_post_handshake_auth(WOLFSSL*, int);
+WOLFSSL_API int wolfSSL_verify_client_post_handshake(WOLFSSL*);
+WOLFSSL_API int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX*, int);
+WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL*, int);
 #endif
 
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL*, void*);
