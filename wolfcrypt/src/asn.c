@@ -15477,6 +15477,9 @@ int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, const byte* r, word32 rLen,
     word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
     int rAddLeadZero, sAddLeadZero;
 
+    if ((out == NULL) || (outLen == NULL) || (r == NULL) || (s == NULL))
+        return BAD_FUNC_ARG;
+
     /* Trim leading zeros */
     rLen = trim_leading_zeros(&r, rLen);
     sLen = trim_leading_zeros(&s, sLen);
