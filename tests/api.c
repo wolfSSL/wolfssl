@@ -29587,9 +29587,6 @@ static int test_wolfSSL_GetLoggingCb (void)
     }
 #endif
     if (ret == 0) {
-        if (wolfSSL_GetLoggingCb() == NULL) {
-            ret = 0;
-        }
         if (wolfSSL_GetLoggingCb() != NULL) {
             ret = -1;
         }
