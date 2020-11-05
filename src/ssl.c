@@ -10367,7 +10367,7 @@ int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl)
     return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
-void wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
+int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
 {
     int ret = wolfSSL_CTX_allow_post_handshake_auth(ctx);
     if (ret == 0) {
@@ -10375,7 +10375,7 @@ void wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
     }
     return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
-void wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val)
+int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val)
 {
     int ret = wolfSSL_allow_post_handshake_auth(ssl);
     if (ret == 0) {
