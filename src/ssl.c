@@ -7956,7 +7956,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             wc_ecc_free(pkey);
         }
         if (pkey != NULL) {
-            XFREE(pkey, ctx->heap, type);
+            XFREE(pkey, ssl->heap, type);
         }
     }
     else
