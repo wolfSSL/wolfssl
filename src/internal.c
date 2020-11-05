@@ -20090,7 +20090,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
             *pkey = (void*)rsaKey;
         }
         else {
-            XFREE(rsaKey, heap, DYNAMIC_TYPE_EC);
+            XFREE(rsaKey, heap, DYNAMIC_TYPE_RSA);
         }
 #endif
     }
@@ -20113,7 +20113,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
             *pkey = (void*)ecKey;
         }
         else {
-            XFREE(ecKey, heap, DYNAMIC_TYPE_EC);
+            XFREE(ecKey, heap, DYNAMIC_TYPE_ECC);
         }
 #endif
     }
