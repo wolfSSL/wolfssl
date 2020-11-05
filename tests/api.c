@@ -33871,23 +33871,35 @@ static void test_wolfSSL_EVP_SignInit_ex(void)
 }
 static void test_wolfSSL_EVP_DigestFinal_ex(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_SHA256)
     WOLFSSL_EVP_MD_CTX  mdCtx;
     unsigned int        s = 0;
-    unsigned char       md;
+    unsigned char       md[WC_SHA256_DIGEST_SIZE];
+    unsigned char       md2[WC_SHA256_DIGEST_SIZE];
+
 
     printf(testingFmt, "wolfSSL_EVP_DigestFinal_ex");
 
 
     /* Bad Case */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, &md, &s), 0);
+    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), 0);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
+
+#else
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
+
+#endif
 
     /* Good Case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, &md, &s), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA256"), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md2, &s), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
 
 
