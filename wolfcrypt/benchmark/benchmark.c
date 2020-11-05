@@ -4857,8 +4857,8 @@ void bench_dh(int doAsync)
 #endif
     word32 pubSz[BENCH_MAX_PENDING];
     word32 privSz[BENCH_MAX_PENDING];
-    word32 pubSz2;
-    word32 privSz2;
+    word32 pubSz2 = BENCH_DH_KEY_SIZE;
+    word32 privSz2 = BENCH_DH_PRIV_SIZE;
     word32 agreeSz[BENCH_MAX_PENDING];
 #ifdef HAVE_FFDHE_2048
     const DhParams *params = NULL;
@@ -4953,7 +4953,8 @@ void bench_dh(int doAsync)
 
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, genTimes, &pending)) {
-                    privSz[i] = 0;
+                    privSz[i] = BENCH_DH_PRIV_SIZE;
+                    pubSz[i] = BENCH_DH_KEY_SIZE;
                     ret = wc_DhGenerateKeyPair(&dhKey[i], &gRng, priv[i], &privSz[i],
                         pub[i], &pubSz[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, &pending)) {
