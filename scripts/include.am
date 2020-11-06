@@ -91,6 +91,7 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/sniffer-tls13-dh.pcap \
                scripts/sniffer-tls13-ecc.pcap \
                scripts/sniffer-tls13-gen.sh \
+               scripts/sniffer-tls13-hrr.pcap \
                scripts/ping.test \
                scripts/benchmark.test \
                scripts/memtest.sh

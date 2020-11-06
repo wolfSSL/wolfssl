@@ -113,6 +113,5 @@ STRINGTABLE
     92, "Store Data callback failed"
     93, "Loading chain input"
     94, "Got encrypted extension"
-    95, "Hello retry request"
+    95, "Got Hello Retry Request"
 }
-
