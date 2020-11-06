@@ -3163,15 +3163,17 @@ int wolfSSL_want_write(WOLFSSL* ssl)
 
 char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
 {
-    static wcchar msg = "Please supply a buffer for error string";
+    static char tmp[WOLFSSL_MAX_ERROR_SZ] = {0};
 
     WOLFSSL_ENTER("ERR_error_string");
     if (data) {
         SetErrorString((int)errNumber, data);
         return data;
     }
-
-    return (char*)msg;
+    else {
+        SetErrorString((int)errNumber, tmp);
+        return tmp;
+    }
 }
 
 
@@ -7662,6 +7664,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
 
                 return pkey;
             }
+            else {
+                WOLFSSL_MSG("RSA wolfSSL_EVP_PKEY_new error");
+            }
         }
         wc_FreeRsaKey(&rsa);
     }
@@ -7705,6 +7710,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 }
 
                 return pkey;
+            }
+            else {
+                WOLFSSL_MSG("ECC wolfSSL_EVP_PKEY_new error");
             }
         }
         wc_ecc_free(&ecc);
@@ -7752,6 +7760,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                 }
 
                 return pkey;
+            }
+            else {
+                WOLFSSL_MSG("DSA wolfSSL_EVP_PKEY_new error");
             }
         }
         wc_FreeDsaKey(&dsa);
@@ -7801,11 +7812,17 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
 
                 return pkey;
             }
+            else {
+                WOLFSSL_MSG("DH wolfSSL_EVP_PKEY_new error");
+            }
         }
         wc_FreeDhKey(&dh);
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
+
+    if (pkey == NULL)
+        WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
 
     return pkey;
 }
@@ -30428,6 +30445,12 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #endif /* HAVE_ECC */
     #ifndef NO_DH
         { NID_dhKeyAgreement, DHk, oidKeyType, "dhKeyAgreement", "dhKeyAgreement"},
+    #endif
+    #ifdef HAVE_ED448
+        { NID_ED448, ED448k,  oidKeyType, "ED448", "ED448"},
+    #endif
+    #ifdef HAVE_ED25519
+        { NID_ED25519, ED25519k,  oidKeyType, "ED25519", "ED25519"},
     #endif
 
         /* oidCurveType */
