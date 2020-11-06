@@ -15190,12 +15190,13 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            if ((((DecodedCert*)cert->decodedCert)->issuerRaw) &&
-                (((DecodedCert*)cert->decodedCert)->issuerRawLen <=
+            if ((((DecodedCert*)cert->decodedCert)->subjectRaw) &&
+                (((DecodedCert*)cert->decodedCert)->subjectRawLen <=
                         (int)sizeof(CertName))) {
+                /* Copy the subject to the issuer field */
                 XMEMCPY(cert->issRaw,
-                        ((DecodedCert*)cert->decodedCert)->issuerRaw,
-                        ((DecodedCert*)cert->decodedCert)->issuerRawLen);
+                        ((DecodedCert*)cert->decodedCert)->subjectRaw,
+                        ((DecodedCert*)cert->decodedCert)->subjectRawLen);
             }
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
