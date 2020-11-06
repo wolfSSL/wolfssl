@@ -79,6 +79,11 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_aes.h>
+#endif
+
+
 #if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -231,6 +236,9 @@ struct Aes {
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     dcp_handle_t handle;
+#endif
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+    silabs_aes_t ctx;
 #endif
     void*  heap; /* memory hint to use */
 };

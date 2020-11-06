@@ -181,7 +181,8 @@ where 0 <= L < 2^64.
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
-    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP)
+    !defined(WOLFSSL_PSOC6_CRYPTO) && !defined(WOLFSSL_IMXRT_DCP) && !defined(WOLFSSL_SILABS_SE_ACCEL)
+
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -717,6 +718,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_IMXRT_DCP)
     #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
     /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -1358,6 +1362,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_DEVCRYPTO_HASH)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
     #define NEED_SOFT_SHA224
@@ -1587,6 +1594,11 @@ void wc_Sha256Free(wc_Sha256* sha256)
         dst->W = NULL;
     #endif
 
+    #ifdef WOLFSSL_SILABS_SE_ACCEL
+        dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+        dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
+    #endif
+
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
     #endif
@@ -1672,6 +1684,11 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha256));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
+#endif
+
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+    dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

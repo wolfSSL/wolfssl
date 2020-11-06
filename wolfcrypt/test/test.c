@@ -8943,6 +8943,7 @@ static int aesgcm_test(void)
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
         !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+        !defined(WOLFSSL_SILABS_SE_ACCEL) && \
         !(defined(WOLF_CRYPTO_CB) && \
             (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
 
@@ -9444,8 +9445,9 @@ static int gmac_test(void)
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
 
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (!defined(HAVE_FIPS) ||                                             \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+
 	/* FIPS builds only allow 16-byte auth tags. */
 	/* This sample uses a 15-byte auth tag. */
     static const byte k2[] =
@@ -9480,8 +9482,9 @@ static int gmac_test(void)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -6400;
 
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (!defined(HAVE_FIPS) ||                                  \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)) )
+
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
