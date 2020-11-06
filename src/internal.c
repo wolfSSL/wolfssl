@@ -10077,6 +10077,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         #endif
         char domain[ASN_NAME_MAX];
     #endif
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        int x509Free = 0;
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK
         store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
@@ -10184,6 +10187,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                 InitX509(x509, 0, heap);
                 if (CopyDecodedToX509(x509, args->dCert) == 0) {
                     store->current_cert = x509;
+                    x509Free = 1;
                 }
                 else {
                     FreeX509(x509);
@@ -10250,8 +10254,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
             args->verifyErr = 1;
         }
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        if (args->certIdx > 0)
+        if (x509Free) {
             FreeX509(x509);
+        }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
         wolfSSL_sk_X509_free(store->chain);
