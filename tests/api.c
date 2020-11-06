@@ -26183,16 +26183,14 @@ static void test_DSA_do_sign_verify(void)
 static void test_wolfSSL_tmp_dh(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_DSA) && !defined(NO_RSA) && !defined(NO_DH)
+    !defined(NO_DSA) && !defined(NO_RSA) && !defined(NO_DH) && !defined(NO_BIO)
     byte buffer[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
-#ifndef NO_BIO
     DSA* dsa;
     DH*  dh;
     BIO*     bio;
-#endif
     SSL*     ssl;
     SSL_CTX* ctx;
 
@@ -26212,7 +26210,6 @@ static void test_wolfSSL_tmp_dh(void)
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
 
-#ifndef NO_BIO
     bio = BIO_new_mem_buf((void*)buffer, bytes);
     AssertNotNull(bio);
 
@@ -26232,7 +26229,6 @@ static void test_wolfSSL_tmp_dh(void)
     BIO_free(bio);
     DSA_free(dsa);
     DH_free(dh);
-#endif /* !NO_BIO */
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 
@@ -29999,7 +29995,9 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 #ifdef WOLFSSL_CERT_REQ
     {
         X509_REQ* req;
+#ifndef NO_BIO
         BIO*      bReq;
+#endif
 
         AssertNotNull(req =
             wolfSSL_X509_load_certificate_file(cliCertFile, SSL_FILETYPE_PEM));
@@ -33075,16 +33073,14 @@ static void test_wolfSSL_CTX_ctrl(void)
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx;
     X509* x509 = NULL;
-#if !defined(NO_DH) && !defined(NO_DSA)
+#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
     byte buf[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
-#ifndef NO_BIO
     BIO* bio;
     DSA* dsa;
     DH*  dh;
-#endif
 #endif
 #ifdef HAVE_ECC
     WOLFSSL_EC_KEY* ecKey;
@@ -33100,14 +33096,13 @@ static void test_wolfSSL_CTX_ctrl(void)
     x509 = wolfSSL_X509_load_certificate_file(clientFile, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
 
-#if !defined(NO_DH) && !defined(NO_DSA)
+#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
     /* Initialize DH */
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-#ifndef NO_BIO
     bio = BIO_new_mem_buf((void*)buf, bytes);
     AssertNotNull(bio);
 
@@ -33116,7 +33111,6 @@ static void test_wolfSSL_CTX_ctrl(void)
 
     dh = wolfSSL_DSA_dup_DH(dsa);
     AssertNotNull(dh);
-#endif
 #endif
 #ifdef HAVE_ECC
     /* Initialize WOLFSSL_EC_KEY */
@@ -33187,7 +33181,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     /* Test with SSL_CTRL_SET_TMP_DH
      * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_dh
      */
-#if !defined(NO_DH) && !defined(NO_DSA)
+#if !defined(NO_DH) && !defined(NO_DSA) && !defined(NO_BIO)
     AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,dh),
                 SSL_SUCCESS);
 #endif
