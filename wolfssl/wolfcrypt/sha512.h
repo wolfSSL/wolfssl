@@ -76,6 +76,10 @@
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT
     #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #endif
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
+#endif
+
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
 #elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
@@ -136,6 +140,10 @@ struct wc_Sha512 {
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     WC_ESP32SHA ctx;
 #endif
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+  wc_silabs_sha_t silabsCtx;
+#endif
+
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif

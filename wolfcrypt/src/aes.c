@@ -2684,6 +2684,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
     /* Software AES - SetKey */
@@ -3625,6 +3628,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #elif defined(WOLFSSL_DEVCRYPTO_CBC)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
 #else
 
@@ -6786,6 +6792,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    return wc_AesGcmEncrypt_silabs(
+        aes, out, in, sz,
+        iv, ivSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+#endif
+
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
         aes, out, in, sz, iv, ivSz,
@@ -7256,6 +7270,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    return wc_AesGcmDecrypt_silabs(
+        aes, out, in, sz, iv, ivSz,
+        authTag, authTagSz, authIn, authInSz);
+
+#endif
 
 #ifdef STM32_CRYPTO_AES_GCM
     /* The STM standard peripheral library API's doesn't support partial blocks */
