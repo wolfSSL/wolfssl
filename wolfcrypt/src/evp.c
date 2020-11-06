@@ -1491,8 +1491,10 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
         }
         if (key) {
             word32 len32 = (word32)len;
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
-                                                         !defined(HAVE_SELFTEST)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+
             WC_RNG rng;
             if (wc_InitRng(&rng) != MP_OKAY) {
                 WOLFSSL_MSG("Init RNG failed");
@@ -1502,8 +1504,9 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
 #endif
             if (*keylen < len32) {
                 WOLFSSL_MSG("buffer too short");
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
-                                                         !defined(HAVE_SELFTEST)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
                 ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
                 wc_FreeRng(&rng);
 #endif
@@ -1513,15 +1516,17 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
                                          (ecc_point*)ctx->peerKey->ecc->pub_key->internal,
                                          key, &len32) != MP_OKAY) {
                 WOLFSSL_MSG("wc_ecc_shared_secret failed");
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
-                                                         !defined(HAVE_SELFTEST)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
                 ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
                 wc_FreeRng(&rng);
 #endif
                 return WOLFSSL_FAILURE;
             }
-#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
-                                                         !defined(HAVE_SELFTEST)
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
+    && (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
             ((ecc_key*)ctx->pkey->ecc->internal)->rng = NULL;
             wc_FreeRng(&rng);
 #endif
