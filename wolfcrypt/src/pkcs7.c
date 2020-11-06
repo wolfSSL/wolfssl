@@ -4375,9 +4375,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     ret = ASN_PARSE_E;
 
                 if (ret == 0) {
-                    /* Use single OCTET_STRING directly. */
-                    if (localIdx - start + length == (word32)contentLen)
+                    /* Use single OCTET_STRING directly, or reset length. */
+                    if (localIdx - start + length == (word32)contentLen) {
                         multiPart = 0;
+                    } else {
+                        /* reset length to outer OCTET_STRING (contentLen) */
+                        length = contentLen;
+                    }
                     localIdx = start;
                 }
             }
