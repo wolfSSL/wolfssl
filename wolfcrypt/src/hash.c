@@ -33,6 +33,7 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -1033,7 +1034,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_InitSha(sha)) != 0) {
+        if ((ret = wc_InitSha_ex(sha, NULL, 
+                wc_CryptoCb_GetDevIdAtIndex(0))) != 0) {
             WOLFSSL_MSG("InitSha failed");
         }
         else {
@@ -1109,7 +1111,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_InitSha256(sha256)) != 0) {
+        if ((ret = wc_InitSha256_ex(sha256, NULL, 
+                wc_CryptoCb_GetDevIdAtIndex(0))) != 0) {
             WOLFSSL_MSG("InitSha256 failed");
         }
         else {
