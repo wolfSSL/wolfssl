@@ -27126,6 +27126,8 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_
 }
 #endif /* !NO_WOLFSSL_STUB */
 
+#ifndef NO_BIO
+
 /* Return the month as a string.
  *
  * n  The number of the month as a two characters (1 based).
@@ -27139,7 +27141,6 @@ static WC_INLINE const char* MonthStr(const char* n)
     return monthStr[(n[0] - '0') * 10 + (n[1] - '0') - 1];
 }
 
-#ifndef NO_BIO
 int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     const WOLFSSL_ASN1_GENERALIZEDTIME* asnTime)
 {
