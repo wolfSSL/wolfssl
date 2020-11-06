@@ -21006,11 +21006,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     {
         WOLFSSL_ENTER("wolfSSL_X509_print_ex");
 
-    #ifndef NO_WOLFSSL_STUB
         /* flags currently not supported */
         (void)nmflags;
         (void)cflag;
-    #endif
 
         if (bio == NULL || x509 == NULL) {
             return WOLFSSL_FAILURE;
