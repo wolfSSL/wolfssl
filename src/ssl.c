@@ -10343,6 +10343,34 @@ void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+/* For TLS v1.3 send handshake messages after handshake completes. */
+/* Returns 1=WOLFSSL_SUCCESS or 0=WOLFSSL_FAILURE */
+int wolfSSL_verify_client_post_handshake(WOLFSSL* ssl)
+{
+    int ret = wolfSSL_request_certificate(ssl);
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+
+int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX* ctx, int val)
+{
+    int ret = wolfSSL_CTX_allow_post_handshake_auth(ctx);
+    if (ret == 0) {
+        ctx->postHandshakeAuth = (val != 0);
+    }
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+int wolfSSL_set_post_handshake_auth(WOLFSSL* ssl, int val)
+{
+    int ret = wolfSSL_allow_post_handshake_auth(ssl);
+    if (ret == 0) {
+        ssl->options.postHandshakeAuth = (val != 0);
+    }
+    return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_TLS13 && WOLFSSL_POST_HANDSHAKE_AUTH */
+
 /* store user ctx for verify callback */
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 {
@@ -31544,6 +31572,20 @@ void wolfSSL_OPENSSL_free(void* p)
 void *wolfSSL_OPENSSL_malloc(size_t a)
 {
   return XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+int wolfSSL_OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
+{
+    (void)opts;
+    (void)settings;
+    return wolfSSL_library_init();
+}
+
+int wolfSSL_OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS* settings)
+{
+    (void)opts;
+    (void)settings;
+    return wolfSSL_library_init();
 }
 
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
