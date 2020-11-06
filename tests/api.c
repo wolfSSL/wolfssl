@@ -33276,7 +33276,7 @@ static void test_wolfSSL_EVP_PKEY_base_id(void)
 
     AssertIntEQ(wolfSSL_EVP_PKEY_base_id(NULL), NID_undef);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_base_id(pkey), 6);
+    AssertIntEQ(wolfSSL_EVP_PKEY_base_id(pkey), EVP_PKEY_RSA);
 
     EVP_PKEY_free(pkey);
 
@@ -33294,7 +33294,7 @@ static void test_wolfSSL_EVP_PKEY_id(void)
 
     AssertIntEQ(wolfSSL_EVP_PKEY_id(NULL), 0);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_id(pkey), 6);
+    AssertIntEQ(wolfSSL_EVP_PKEY_id(pkey), EVP_PKEY_RSA);
 
     EVP_PKEY_free(pkey);
 
@@ -33467,11 +33467,11 @@ static void test_wolfSSL_EVP_CIPHER_CTX_key_length(void)
 #if defined(OPENSSL_ALL) && !defined(NO_DES3)
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    const EVP_CIPHER *init = EVP_des_ede3_cbc();
 
     printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_key_length");
 
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    const EVP_CIPHER *init = EVP_des_ede3_cbc();
 
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
@@ -33488,11 +33488,12 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_key_length(void)
     byte key[AES_256_KEY_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
     int keylen;
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    const EVP_CIPHER *init = EVP_des_ede3_cbc();
 
     printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_set_key_length");
 
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    const EVP_CIPHER *init = EVP_des_ede3_cbc();
+
 
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
@@ -33508,16 +33509,14 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_key_length(void)
 }
 static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3) &&\
-   !defined(NO_DES3)
+#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3)
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
     int ivLen, keyLen;
-
-    printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_set_iv");
-
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     const EVP_CIPHER *init = EVP_des_ede3_cbc();
+
+    printf(testingFmt, "wolfSSL_EVP_CIPHER_CTX_set_iv");
 
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
@@ -33543,7 +33542,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX_set_iv(void)
 static void test_wolfSSL_EVP_PKEY_CTX_new_id(void)
 {
 #if defined(OPENSSL_ALL)
-    WOLFSSL_ENGINE* e = 0;
+    WOLFSSL_ENGINE* e = NULL;
     int id = 0;
     EVP_PKEY_CTX *ctx;
 
@@ -33650,9 +33649,9 @@ static void test_wolfSSL_EVP_get_digestbynid(void)
 
     printf(testingFmt, "wolfSSL_EVP_get_digestbynid");
 
-    AssertNotNull(wolfSSL_EVP_get_digestbynid(4)); /* NID_md5 */
-    AssertNotNull(wolfSSL_EVP_get_digestbynid(64)); /* NID_sha1 */
-    AssertNull(wolfSSL_EVP_get_digestbynid(0)); /* default */
+    AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_md5));
+    AssertNotNull(wolfSSL_EVP_get_digestbynid(NID_sha1));
+    AssertNull(wolfSSL_EVP_get_digestbynid(0));
 
     printf(resultFmt, passed);
 #endif
@@ -33882,7 +33881,7 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 
 
     /* Bad Case */
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
 
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), 0);
@@ -33909,7 +33908,7 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 static void test_wolfSSL_EVP_PKEY_assign_DH(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_DH) && \
- !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+ !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     FILE*                   f = NULL;
     unsigned char           buf[4096];
     const unsigned char*    pt = buf;
@@ -33985,8 +33984,7 @@ static void test_wolfSSL_EVP_BytesToKey(void)
 }
 static void test_IncCtr(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3) &&\
-   !defined(NO_DES3)
+#if defined(OPENSSL_ALL) && defined(HAVE_AESGCM) && !defined(NO_DES3)
     byte key[DES3_KEY_SIZE] = {0};
     byte iv[DES_IV_SIZE] = {0};
     int type = EVP_CTRL_GCM_IV_GEN;
