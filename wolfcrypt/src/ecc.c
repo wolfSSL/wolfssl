@@ -1363,7 +1363,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     if (x == ECC_CURVE_INVALID)
         return ECC_BAD_ARG_E;
 
-#if !defined(SINGLE_THREADED)
+#ifndef SINGLE_THREADED
     ret = wc_LockMutex(&ecc_curve_cache_mutex);
     if (ret != 0) {
         return ret;
@@ -1462,7 +1462,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
 int wc_ecc_curve_cache_init(void)
 {
     int ret = 0;
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+#ifndef SINGLE_THREADED
     ret = wc_InitMutex(&ecc_curve_cache_mutex);
 #endif
     return ret;
@@ -1470,7 +1470,13 @@ int wc_ecc_curve_cache_init(void)
 
 void wc_ecc_curve_cache_free(void)
 {
+    int ret;
     int x;
+
+#ifndef SINGLE_THREADED
+    ret = wc_LockMutex(&ecc_curve_cache_mutex);
+    /* if lock fails here do cleanup anyways */
+#endif
 
     /* free all ECC curve caches */
     for (x = 0; x < (int)ECC_SET_COUNT; x++) {
@@ -1481,7 +1487,9 @@ void wc_ecc_curve_cache_free(void)
         }
     }
 
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+#ifndef SINGLE_THREADED
+    if (ret == 0)
+        wc_UnLockMutex(&ecc_curve_cache_mutex);
     wc_FreeMutex(&ecc_curve_cache_mutex);
 #endif
 }
