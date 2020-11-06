@@ -29556,8 +29556,8 @@ static void Logging_cb(const int logLevel, const char *const logMessage)
 static int test_wolfSSL_GetLoggingCb (void)
 {
     int ret = 0;
-#ifdef DEBUG_WOLFSSL
     printf(testingFmt, "wolfSSL_GetLoggingCb()");
+#ifdef DEBUG_WOLFSSL
 
     /* Testing without wolfSSL_SetLoggingCb() */
     if (ret == 0) {
@@ -29585,8 +29585,15 @@ static int test_wolfSSL_GetLoggingCb (void)
             wolfSSL_SetLoggingCb(NULL);
         }
     }
-    printf(resultFmt, ret == 0 ? passed : failed);
 #endif
+    if (ret == 0) {
+        if (wolfSSL_GetLoggingCb() != NULL) {
+            ret = -1;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
     return ret;
 }/*End test_wolfSSL_GetLoggingCb*/
 
