@@ -6704,6 +6704,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 }
 
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
+    !defined(WOLFSSL_NO_TLS12) || \
     ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
      && defined(HAVE_AEAD))
 
@@ -6827,7 +6828,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
 #endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
-#endif /* !NO_OLD_TLS || WOLFSSL_DTLS ||
+#endif /* !NO_OLD_TLS || WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 ||
         *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM) && HAVE_AEAD) */
 
 #ifdef WOLFSSL_DTLS
@@ -28927,7 +28928,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     ERROR_OUT(OUT_OF_ORDER_E, exit_dcke);
                 }
 
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.verifyPeer && ssl->options.failNoCert) {
                     if (!ssl->options.havePeerCert) {
                         WOLFSSL_MSG("client didn't present peer cert");
@@ -28942,7 +28943,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         return NO_PEER_CERT;
                     }
                 }
-            #endif /* !NO_CERTS */
+            #endif /* !NO_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
 
             #if defined(WOLFSSL_CALLBACKS)
                 if (ssl->hsInfoOn) {
@@ -30115,7 +30116,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 *inOutIdx = args->idx;
 
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.verifyPeer) {
                     ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
                 }
