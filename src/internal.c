@@ -11515,8 +11515,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
 
-                        /* populate curve oid */
-                        if (ssl->options.side == WOLFSSL_CLIENT_END)
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
                             ssl->ecdhCurveOID = args->dCert->pkCurveOID;
                         break;
                     }
@@ -11569,8 +11569,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
 
-                        /* populate curve oid */
-                        if (ssl->options.side == WOLFSSL_CLIENT_END)
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
                             ssl->ecdhCurveOID = ECC_X25519_OID;
                         break;
                     }
@@ -11622,8 +11622,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
 
-                        /* populate curve oid */
-                        if (ssl->options.side == WOLFSSL_CLIENT_END)
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
                             ssl->ecdhCurveOID = ECC_X448_OID;
                         break;
                     }
