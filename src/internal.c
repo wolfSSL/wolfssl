@@ -9378,7 +9378,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
                 XMEMSET(tmp, 0, sizeof(tmp));
                 XSNPRINTF(tmp, sizeof(tmp), (altName->len <= 4) ? "%u" : "%02X",
                         altName->name[i]);
-                idx += XSTRLEN(tmp);
+                idx += (word32)XSTRLEN(tmp);
                 XSTRNCAT(name, tmp, (altName->len <= 4) ? 3 : 2);
                 if ((idx < WOLFSSL_MAX_IPSTR ) && ((i + 1) < altName->len)) {
                     name[idx++] = (altName->len <= 4) ? '.' : ':';
