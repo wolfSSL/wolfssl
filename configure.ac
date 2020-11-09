@@ -719,6 +719,13 @@ AC_ARG_ENABLE([nginx],
     [ ENABLED_NGINX=no ]
     )
 
+# lighty Support
+AC_ARG_ENABLE([lighty],
+    [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
+    [ ENABLED_LIGHTY=$enableval ],
+    [ ENABLED_LIGHTY=no ]
+    )
+
 # haproxy compatibility build
 AC_ARG_ENABLE([haproxy],
     [AS_HELP_STRING([--enable-haproxy],[Enable haproxy (default: disabled)])],
@@ -847,7 +854,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -1656,7 +1663,7 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -3097,7 +3104,7 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ],
     )
 
-if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_OCSP=yes
 fi
@@ -3129,7 +3136,7 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
 fi
@@ -3154,7 +3161,7 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
 fi
@@ -3180,7 +3187,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes" || test "x$ENABLED_WPAS" != "xno" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -3202,7 +3209,13 @@ if test "$ENABLED_CRL_MONITOR" = "yes"
 then
     case $host_os in
     *linux* | *darwin* | *freebsd*)
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR" ;;
+        if test "x$ENABLED_SINGLETHREADED" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_MONITOR"
+        else
+            ENABLED_CRL_MONITOR="no"
+            AC_MSG_ERROR([crl monitor requires threading / pthread])
+        fi
+        ;;
     *)
         if test "x$ENABLED_DISTRO" = "xyes" ; then
             ENABLED_CRL_MONITOR="no"
@@ -3533,7 +3546,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -3562,7 +3575,7 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_SIGNAL" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_SIGNAL" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
     ENABLED_TLSX=yes
 fi
@@ -3891,12 +3904,6 @@ then
     fi
 fi
 
-# lighty Support
-AC_ARG_ENABLE([lighty],
-    [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
-    [ ENABLED_LIGHTY=$enableval ],
-    [ ENABLED_LIGHTY=no ]
-    )
 if test "$ENABLED_LIGHTY" = "yes"
 then
     # Requires opensslextra make sure on
@@ -3906,6 +3913,28 @@ then
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_ALL"
+    # recommended if building wolfSSL specifically for use by lighttpd
+    if test "x$ENABLED_ALL" = "xno"; then
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_COMP"
+        if test "x$ENABLED_SSLV3" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL3"
+            if test "x$ENABLED_TLSV10" = "xno"; then
+                AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
+                ENABLED_OLD_TLS=no
+            fi
+        fi
+        if test "x$ENABLED_CRL_MONITOR" = "xno"; then
+            AM_CFLAGS="$AM_CFLAGS -DSINGLE_THREADED"
+            ENABLED_SINGLETHREADED="yes"
+        fi
+
+        # w/ lighttpd 1.4.56 once wolfSSL updated to expose non-filesystem funcs
+        #AM_CFLAGS="$AM_CFLAGS -DNO_BIO"
+        #AM_CFLAGS="$AM_CFLAGS -DNO_FILESYSTEM"
+        #ENABLED_FILESYSTEM=no
+    fi
 fi
 
 if test "$ENABLED_NGINX" = "yes"

@@ -6287,11 +6287,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
+#ifndef NO_BIO
     if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
     wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
     ssl->biowr = NULL;
     ssl->biord = NULL;
+#endif
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
@@ -7936,6 +7938,7 @@ retry:
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
                 #if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+                #ifndef NO_BIO
                     if (ssl->biord) {
                         /* If retry and read flags are set, return WANT_READ */
                         if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
@@ -7943,6 +7946,7 @@ retry:
                             return WANT_READ;
                         }
                     }
+                #endif
                 #endif
                 return -1;
 
@@ -17193,7 +17197,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
 
@@ -17206,7 +17210,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     /* Certificate Authorities */
     names = ssl->ctx->ca_names;
     while (names != NULL) {
@@ -17275,7 +17279,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     names = ssl->ctx->ca_names;
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
@@ -27699,7 +27703,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     goto out;
                 }
     #endif
-    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
                 if((ret=SNI_Callback(ssl)))
                     goto out;
                 ssl->options.side = WOLFSSL_SERVER_END;
@@ -30158,7 +30162,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY)
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     int SNI_Callback(WOLFSSL* ssl)
     {
         /* Stunnel supports a custom sni callback to switch an SSL's ctx

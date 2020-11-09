@@ -3176,6 +3176,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     #if defined(OPENSSL_ALL)
+    #ifndef NO_BIO
     /* print out session to stdout */
     {
         WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, BIO_NOCLOSE);
@@ -3187,6 +3188,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         wolfSSL_BIO_free(bio);
     }
+    #endif
     #endif
 #endif
 
