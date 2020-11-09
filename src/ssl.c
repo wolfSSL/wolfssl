@@ -4307,10 +4307,12 @@ Signer* GetCA(void* vp, byte* hash)
     WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
     Signer* signers;
-    word32  row = HashSigner(hash);
+    word32  row = 0;
 
-    if (cm == NULL)
+    if (cm == NULL || hash == NULL)
         return NULL;
+
+    row = HashSigner(hash);
 
     if (wc_LockMutex(&cm->caLock) != 0)
         return ret;
