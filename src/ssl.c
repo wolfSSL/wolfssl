@@ -48888,13 +48888,17 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
         return BAD_FUNC_ARG;
     }
 
+    WOLFSSL_ENTER("SetStaticEphemeralKey");
+
     /* if key is already set free it */
 #ifndef NO_DH
-    if (staticKE->dhKey && (ctx == NULL || staticKE->dhKey != ctx->staticKE.dhKey))
+    if (keyAlgo == WC_PK_TYPE_DH && staticKE->dhKey && 
+            (ctx == NULL || staticKE->dhKey != ctx->staticKE.dhKey))
         FreeDer(&staticKE->dhKey);
 #endif
 #ifdef HAVE_ECC
-    if (staticKE->ecKey && (ctx == NULL || staticKE->ecKey != ctx->staticKE.ecKey))
+    if (keyAlgo == WC_PK_TYPE_ECDH && staticKE->ecKey && 
+            (ctx == NULL || staticKE->ecKey != ctx->staticKE.ecKey))
         FreeDer(&staticKE->ecKey);
 #endif
 
@@ -48967,6 +48971,9 @@ static int SetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo,
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
+
+    WOLFSSL_LEAVE("SetStaticEphemeralKey", ret);
+
     return ret;
 }
 
