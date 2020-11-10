@@ -29,9 +29,8 @@
  *    Enables session tickets - required for TLS 1.3 resumption.
  * NO_PSK
  *    Do not enable Pre-Shared Keys.
- * TLS13_SUPPORTS_EXPORTERS
- *    Guard to compile out any code for exporter keys.
- *    Feature not supported yet.
+ * HAVE_KEYING_MATERIAL
+ *    Enables exporting keying material based on section 7.5 of RFC 8446.
  * WOLFSSL_ASYNC_CRYPT
  *    Enables the use of asynchronous cryptographic operations.
  *    This is available for ciphers and certificates.
@@ -515,7 +514,7 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
     return ret;
 }
 
-#ifdef TLS13_SUPPORTS_EXPORTERS
+#ifdef HAVE_KEYING_MATERIAL
 /* The length of the early exporter label. */
 #define EARLY_EXPORTER_LABEL_SZ     12
 /* The early exporter label. */
@@ -688,7 +687,7 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
     return ret;
 }
 
-#ifdef TLS13_SUPPORTS_EXPORTERS
+#ifdef HAVE_KEYING_MATERIAL
 /* The length of the exporter master secret label. */
 #define EXPORTER_MASTER_LABEL_SZ    10
 /* The exporter master secret label. */
@@ -704,7 +703,7 @@ static const byte exporterMasterLabel[EXPORTER_MASTER_LABEL_SZ + 1] =
 static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
 {
     int ret;
-    WOLFSSL_MSG("Derive Exporter Secret");
+    WOLFSSL_ENTER("Derive Exporter Secret");
     if (ssl == NULL || ssl->arrays == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -720,6 +719,104 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
         }
     }
 #endif /* HAVE_SECRET_CALLBACK */
+    return ret;
+}
+
+/* The length of the exporter label. */
+#define EXPORTER_LABEL_SZ    8
+/* The exporter label. */
+static const byte exporterLabel[EXPORTER_LABEL_SZ + 1] =
+    "exporter";
+/* Hash("") */
+#ifndef NO_SHA256
+static const byte emptySHA256Hash[] = {
+    0xE3, 0xB0, 0xC4, 0x42, 0x98, 0xFC, 0x1C, 0x14, 0x9A, 0xFB, 0xF4, 0xC8,
+    0x99, 0x6F, 0xB9, 0x24, 0x27, 0xAE, 0x41, 0xE4, 0x64, 0x9B, 0x93, 0x4C,
+    0xA4, 0x95, 0x99, 0x1B, 0x78, 0x52, 0xB8, 0x55
+};
+#endif
+#ifdef WOLFSSL_SHA384
+static const byte emptySHA384Hash[] = {
+    0x38, 0xB0, 0x60, 0xA7, 0x51, 0xAC, 0x96, 0x38, 0x4C, 0xD9, 0x32, 0x7E,
+    0xB1, 0xB1, 0xE3, 0x6A, 0x21, 0xFD, 0xB7, 0x11, 0x14, 0xBE, 0x07, 0x43,
+    0x4C, 0x0C, 0xC7, 0xBF, 0x63, 0xF6, 0xE1, 0xDA, 0x27, 0x4E, 0xDE, 0xBF,
+    0xE7, 0x6F, 0x65, 0xFB, 0xD5, 0x1A, 0xD2, 0xF1, 0x48, 0x98, 0xB9, 0x5B
+};
+#endif
+#ifdef WOLFSSL_TLS13_SHA512
+static const byte emptySHA512Hash[] = {
+    0xCF, 0x83, 0xE1, 0x35, 0x7E, 0xEF, 0xB8, 0xBD, 0xF1, 0x54, 0x28, 0x50,
+    0xD6, 0x6D, 0x80, 0x07, 0xD6, 0x20, 0xE4, 0x05, 0x0B, 0x57, 0x15, 0xDC,
+    0x83, 0xF4, 0xA9, 0x21, 0xD3, 0x6C, 0xE9, 0xCE, 0x47, 0xD0, 0xD1, 0x3C,
+    0x5D, 0x85, 0xF2, 0xB0, 0xFF, 0x83, 0x18, 0xD2, 0x87, 0x7E, 0xEC, 0x2F,
+    0x63, 0xB9, 0x31, 0xBD, 0x47, 0x41, 0x7A, 0x81, 0xA5, 0x38, 0x32, 0x7A,
+    0xF9, 0x27, 0xDA, 0x3E
+};
+#endif
+/**
+ * Implement section 7.5 of RFC 8446
+ * @return  0 on success
+ *         <0 on failure
+ */
+int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
+        const char *label, size_t labelLen,
+        const unsigned char *context, size_t contextLen)
+{
+    int                 ret;
+    enum wc_HashType    hashType = WC_HASH_TYPE_NONE;
+    int                 hashLen = 0;
+    byte                hashOut[WC_MAX_DIGEST_SIZE];
+    const byte*         emptyHash = NULL;
+    byte                firstExpand[WC_MAX_DIGEST_SIZE];
+    const byte*         protocol = tls13ProtocolLabel;
+    word32              protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+
+    if (ssl->version.minor != TLSv1_3_MINOR)
+        return VERSION_ERROR;
+
+    switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_SHA256
+        case sha256_mac:
+            hashType = WC_SHA256;
+            hashLen = WC_SHA256_DIGEST_SIZE;
+            emptyHash = emptySHA256Hash;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hashType = WC_SHA384;
+            hashLen = WC_SHA384_DIGEST_SIZE;
+            emptyHash = emptySHA384Hash;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_TLS13_SHA512
+        case sha512_mac:
+            hashType = WC_SHA512;
+            hashLen = WC_SHA512_DIGEST_SIZE;
+            emptyHash = emptySHA512Hash;
+            break;
+        #endif
+    }
+
+    /* Derive-Secret(Secret, label, "") */
+    ret = HKDF_Expand_Label(firstExpand, hashLen,
+            ssl->arrays->exporterSecret, hashLen,
+            protocol, protocolLen, (byte*)label, labelLen,
+            emptyHash, hashLen, hashType);
+    if (ret != 0)
+        return ret;
+
+    /* Hash(context_value) */
+    ret = wc_Hash(hashType, context, contextLen, hashOut, WC_MAX_DIGEST_SIZE);
+    if (ret != 0)
+        return ret;
+
+    ret = HKDF_Expand_Label(out, outLen, firstExpand, hashLen,
+            protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
+            hashOut, hashLen, hashType);
+
     return ret;
 }
 #endif
@@ -862,9 +959,19 @@ int DeriveMasterSecret(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    return Tls13_HKDF_Extract(ssl->arrays->masterSecret,
+    ret = Tls13_HKDF_Extract(ssl->arrays->masterSecret,
             key, ssl->specs.hash_size,
             ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+
+#ifdef HAVE_KEYING_MATERIAL
+    if (ret != 0)
+        return ret;
+    /* Calculate exporter secret only when saving arrays */
+    if (ssl->options.saveArrays)
+        ret = DeriveExporterSecret(ssl, ssl->arrays->exporterSecret);
+#endif
+
+    return ret;
 }
 
 #if defined(HAVE_SESSION_TICKET)

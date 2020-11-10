@@ -5766,6 +5766,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
 #endif
 
+#if defined(WOLFSSL_OPENVPN) && defined(HAVE_KEYING_MATERIAL)
+    /* Save arrays by default for OpenVPN */
+    ssl->options.saveArrays = 1;
+#endif
 
     ssl->cipher.ssl = ssl;
 

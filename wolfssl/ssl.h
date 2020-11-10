@@ -1057,6 +1057,20 @@ WOLFSSL_API int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
 
+#ifdef HAVE_KEYING_MATERIAL
+#define TLS_PRF_LABEL_CLIENT_FINISHED     "client finished"
+#define TLS_PRF_LABEL_SERVER_FINISHED     "server finished"
+#define TLS_PRF_LABEL_MASTER_SECRET       "master secret"
+#define TLS_PRF_LABEL_EXT_MASTER_SECRET   "extended master secret"
+#define TLS_PRF_LABEL_KEY_EXPANSION       "key expansion"
+/* Keying Material Exporter for TLS */
+WOLFSSL_API int wolfSSL_export_keying_material(WOLFSSL *ssl,
+        unsigned char *out, size_t outLen,
+        const char *label, size_t labelLen,
+        const unsigned char *context, size_t contextLen,
+        int use_context);
+#endif /* HAVE_KEYING_MATERIAL */
+
 /* Nonblocking DTLS helper functions */
 WOLFSSL_API void wolfSSL_dtls_set_using_nonblock(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);

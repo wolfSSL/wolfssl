@@ -3514,6 +3514,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FALLBACK_SCSV"
 fi
 
+# Exporting Keying Material
+AC_ARG_ENABLE([keying-material],
+    [AS_HELP_STRING([--enable-keying-material],[Enable Keying Material Exporters (default: disabled)])],
+    [ ENABLED_KEYING_MATERIAL=$enableval ],
+    [ ENABLED_KEYING_MATERIAL=no ]
+    )
+
+if test "x$ENABLED_KEYING_MATERIAL" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_KEYING_MATERIAL"
+fi
+
 # Supported Elliptic Curves Extensions
 AC_ARG_ENABLE([supportedcurves],
     [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: enabled)])],
@@ -6415,6 +6427,7 @@ echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
+echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
 echo "   * wolfSSH                     $ENABLED_WOLFSSH"

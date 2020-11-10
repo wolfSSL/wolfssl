@@ -11879,6 +11879,110 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 #endif
 }
 
+#ifdef HAVE_KEYING_MATERIAL
+static const struct ForbiddenLabels {
+    const char* label;
+    size_t labelLen;
+} forbiddenLabels[] = {
+    {TLS_PRF_LABEL_CLIENT_FINISHED, XSTR_SIZEOF(TLS_PRF_LABEL_CLIENT_FINISHED)},
+    {TLS_PRF_LABEL_SERVER_FINISHED, XSTR_SIZEOF(TLS_PRF_LABEL_SERVER_FINISHED)},
+    {TLS_PRF_LABEL_MASTER_SECRET, XSTR_SIZEOF(TLS_PRF_LABEL_MASTER_SECRET)},
+    {TLS_PRF_LABEL_EXT_MASTER_SECRET, XSTR_SIZEOF(TLS_PRF_LABEL_EXT_MASTER_SECRET)},
+    {TLS_PRF_LABEL_KEY_EXPANSION, XSTR_SIZEOF(TLS_PRF_LABEL_KEY_EXPANSION)},
+    {NULL, 0},
+};
+
+/**
+ * Implement RFC 5705
+ * TLS 1.3 uses a different exporter definition (section 7.5 of RFC 8446)
+ * @return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
+ */
+int wolfSSL_export_keying_material(WOLFSSL *ssl,
+        unsigned char *out, size_t outLen,
+        const char *label, size_t labelLen,
+        const unsigned char *context, size_t contextLen,
+        int use_context)
+{
+    byte* seed = NULL;
+    /* clientRandom + serverRandom
+     * OR
+     * clientRandom + serverRandom + ctx len encoding + ctx */
+    word32 seedLen = !use_context ? SEED_LEN : SEED_LEN + 2 + contextLen;
+    const struct ForbiddenLabels* fl;
+
+    WOLFSSL_ENTER("wolfSSL_export_keying_material");
+
+    if (ssl == NULL || out == NULL || label == NULL ||
+            (use_context && contextLen && context == NULL)) {
+        WOLFSSL_MSG("Bad argument");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
+        WOLFSSL_MSG("To export keying material wolfSSL needs to keep handshake "
+                    "data. Call wolfSSL_KeepArrays before attempting to "
+                    "export keyig material.");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* check forbidden labels */
+    for (fl = &forbiddenLabels[0]; fl->label != NULL; fl++) {
+        if (labelLen >= fl->labelLen &&
+                XMEMCMP(label, fl->label, fl->labelLen) == 0) {
+            WOLFSSL_MSG("Forbidden label");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        /* Path for TLS 1.3 */
+        if (!use_context) {
+            contextLen = 0;
+            context = (byte*)""; /* Give valid pointer for 0 length memcpy */
+        }
+
+        if (Tls13_Exporter(ssl, out, outLen, label, labelLen,
+                context, contextLen) != 0) {
+            WOLFSSL_MSG("Tls13_Exporter error");
+            return WOLFSSL_FAILURE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+#endif
+
+    /* Path for <=TLS 1.2 */
+    seed = (byte*)XMALLOC(seedLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (seed == NULL) {
+        WOLFSSL_MSG("malloc error");
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(seed,           ssl->arrays->clientRandom, RAN_LEN);
+    XMEMCPY(seed + RAN_LEN, ssl->arrays->serverRandom, RAN_LEN);
+
+    if (use_context) {
+        /* Encode len in big endian */
+        seed[SEED_LEN    ] = (contextLen >> 8) & 0xFF;
+        seed[SEED_LEN + 1] = (contextLen) & 0xFF;
+        if (contextLen) {
+            /* 0 length context is allowed */
+            XMEMCPY(seed + SEED_LEN + 2, context, contextLen);
+        }
+    }
+
+    if (wc_PRF_TLS(out, outLen, ssl->arrays->masterSecret, SECRET_LEN,
+            (byte*)label, labelLen, seed, seedLen, IsAtLeastTLSv1_2(ssl),
+            ssl->specs.mac_algorithm, ssl->heap, ssl->devId) != 0) {
+        WOLFSSL_MSG("wc_PRF_TLS error");
+        XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return WOLFSSL_SUCCESS;
+}
+#endif /* HAVE_KEYING_MATERIAL */
 
 int wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl)
 {
