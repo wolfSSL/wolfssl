@@ -2625,9 +2625,14 @@ enum SetCBIO {
 #endif
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
+/* contains static ephemeral keys */
 typedef struct {
-    int keyAlgo;
-    DerBuffer* key;
+#ifndef NO_DH
+    DerBuffer* dhKey;
+#endif
+#ifdef HAVE_ECC
+    DerBuffer* ecKey;
+#endif
 } StaticKeyExchangeInfo_t;
 #endif
 

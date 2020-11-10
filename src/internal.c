@@ -1897,9 +1897,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     }
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-    if (ctx->staticKE.key) {
-        FreeDer(&ctx->staticKE.key);
-    }
+    #ifndef NO_DH
+    if (ctx->staticKE.dhKey)
+        FreeDer(&ctx->staticKE.dhKey);
+    #endif
+    #ifdef HAVE_ECC
+    if (ctx->staticKE.ecKey)
+        FreeDer(&ctx->staticKE.ecKey);
+    #endif    
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
@@ -6426,9 +6431,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-    if (ssl->staticKE.key != NULL && ssl->staticKE.key != ssl->ctx->staticKE.key) {
-        FreeDer(&ssl->staticKE.key);
-    }
+    #ifndef NO_DH
+    if (ssl->staticKE.dhKey && ssl->staticKE.dhKey != ssl->ctx->staticKE.dhKey)
+        FreeDer(&ssl->staticKE.dhKey);
+    #endif
+    #ifdef HAVE_ECC
+    if (ssl->staticKE.ecKey && ssl->staticKE.ecKey != ssl->ctx->staticKE.ecKey)
+        FreeDer(&ssl->staticKE.ecKey);
+    #endif
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
