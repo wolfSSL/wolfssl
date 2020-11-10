@@ -5697,6 +5697,27 @@ int ecc_projective_add_point_safe(ecc_point* A, ecc_point* B, ecc_point* R,
 
     return err;
 }
+
+/* Handles when P is the infinity point.
+ *
+ * Double infinity -> infinity.
+ * Otherwise do normal double - which can't lead to infinity as odd order.
+ */
+int ecc_projective_dbl_point_safe(ecc_point *P, ecc_point *R, mp_int* a,
+                                  mp_int* modulus, mp_digit mp)
+{
+    int err;
+
+    if (mp_iszero(P->x) && mp_iszero(P->y)) {
+        /* P is infinity. */
+        err = wc_ecc_copy_point(P, R);
+    }
+    else {
+        err = ecc_projective_dbl_point(P, R, a, modulus, mp);
+    }
+
+    return err;
+}
 #endif
 
 #if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A) && \
@@ -5945,9 +5966,9 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         if (first == 0) {
             /* double twice */
             if (err == MP_OKAY)
-                err = ecc_projective_dbl_point(C, C, a, modulus, mp);
+                err = ecc_projective_dbl_point_safe(C, C, a, modulus, mp);
             if (err == MP_OKAY)
-                err = ecc_projective_dbl_point(C, C, a, modulus, mp);
+                err = ecc_projective_dbl_point_safe(C, C, a, modulus, mp);
             else
                 break;
         }
@@ -7837,8 +7858,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                                  int curve_id)
 {
     int ret;
-#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) && \
-    !defined(WOLFSSL_ATECC608A)
+#ifdef WOLFSSL_CRYPTOCELL
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
 #endif
@@ -7869,10 +7889,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     if (ret != 0)
         return ret;
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
-    /* Hardware does not support loading private keys */
-    return NOT_COMPILED_IN;
-#elif defined(WOLFSSL_CRYPTOCELL)
+#ifdef WOLFSSL_CRYPTOCELL
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(curve_id));
 
     if (pub != NULL && pub[0] != '\0') {
@@ -7916,8 +7933,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     }
 #endif /* HAVE_WOLF_BIGINT */
 
-
-#endif /* WOLFSSL_ATECC508A */
+#endif /* WOLFSSL_CRYPTOCELL */
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if ((pub != NULL) && (ret == MP_OKAY))
@@ -8016,59 +8032,11 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
 int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
     byte* out, word32* outlen)
 {
-    int err;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* rtmp = NULL;
-    mp_int* stmp = NULL;
-#else
-    mp_int  rtmp[1];
-    mp_int  stmp[1];
-#endif
-
     if (r == NULL || s == NULL || out == NULL || outlen == NULL)
         return ECC_BAD_ARG_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    rtmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (rtmp == NULL)
-        return MEMORY_E;
-    stmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (stmp == NULL) {
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-        return MEMORY_E;
-    }
-#endif
-
-    err = mp_init_multi(rtmp, stmp, NULL, NULL, NULL, NULL);
-    if (err != MP_OKAY) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-    #endif
-        return err;
-    }
-
-    err = mp_read_unsigned_bin(rtmp, r, rSz);
-    if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(stmp, s, sSz);
-
     /* convert mp_ints to ECDSA sig, initializes rtmp and stmp internally */
-    if (err == MP_OKAY)
-        err = StoreECC_DSA_Sig(out, outlen, rtmp, stmp);
-
-    if (err == MP_OKAY) {
-        if (mp_iszero(rtmp) == MP_YES || mp_iszero(stmp) == MP_YES)
-            err = MP_ZERO_E;
-    }
-
-    mp_clear(rtmp);
-    mp_clear(stmp);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    return err;
+    return StoreECC_DSA_Sig_Bin(out, outlen, r, rSz, s, sSz);
 }
 
 /**
@@ -8084,69 +8052,10 @@ int wc_ecc_rs_raw_to_sig(const byte* r, word32 rSz, const byte* s, word32 sSz,
 int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
                      byte* s, word32* sLen)
 {
-    int err;
-    int tmp_valid = 0;
-    word32 x = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* rtmp = NULL;
-    mp_int* stmp = NULL;
-#else
-    mp_int  rtmp[1];
-    mp_int  stmp[1];
-#endif
-
     if (sig == NULL || r == NULL || rLen == NULL || s == NULL || sLen == NULL)
         return ECC_BAD_ARG_E;
 
-#ifdef WOLFSSL_SMALL_STACK
-    rtmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (rtmp == NULL)
-        return MEMORY_E;
-    stmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
-    if (stmp == NULL) {
-        XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-        return MEMORY_E;
-    }
-#endif
-
-    err = DecodeECC_DSA_Sig(sig, sigLen, rtmp, stmp);
-
-    /* rtmp and stmp are initialized */
-    if (err == MP_OKAY) {
-        tmp_valid = 1;
-
-        /* extract r */
-        x = mp_unsigned_bin_size(rtmp);
-        if (*rLen < x)
-            err = BUFFER_E;
-    }
-    if (err == MP_OKAY) {
-        *rLen = x;
-        err = mp_to_unsigned_bin(rtmp, r);
-    }
-
-    /* extract s */
-    if (err == MP_OKAY) {
-        x = mp_unsigned_bin_size(stmp);
-        if (*sLen < x)
-            err = BUFFER_E;
-
-        if (err == MP_OKAY) {
-            *sLen = x;
-            err = mp_to_unsigned_bin(stmp, s);
-        }
-    }
-
-    if (tmp_valid) {
-        mp_clear(rtmp);
-        mp_clear(stmp);
-    }
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
-#endif
-
-    return err;
+    return DecodeECC_DSA_Sig_Bin(sig, sigLen, r, rLen, s, sLen);
 }
 #endif /* !NO_ASN */
 
@@ -9369,7 +9278,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
           /* double if not first */
           if (!first) {
-             if ((err = ecc_projective_dbl_point(R, R, a, modulus,
+             if ((err = ecc_projective_dbl_point_safe(R, R, a, modulus,
                                                               mp)) != MP_OKAY) {
                 break;
              }
@@ -9582,7 +9491,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
           /* double if not first */
           if (!first) {
-             if ((err = ecc_projective_dbl_point(R, R, a, modulus,
+             if ((err = ecc_projective_dbl_point_safe(R, R, a, modulus,
                                                               mp)) != MP_OKAY) {
                 break;
              }

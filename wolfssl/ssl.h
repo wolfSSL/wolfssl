@@ -789,6 +789,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*,
 #ifndef WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS
 #define WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS WOLFSSL_LOAD_FLAG_NONE
 #endif
+
+WOLFSSL_API long wolfSSL_get_verify_depth(WOLFSSL* ssl);
+WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
+WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 #endif /* !NO_CERTS */
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
@@ -806,9 +810,6 @@ WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX *,
                                                   const char *file, int format);
 WOLFSSL_API int wolfSSL_CTX_use_RSAPrivateKey_file(WOLFSSL_CTX*, const char*, int);
 
-WOLFSSL_API long wolfSSL_get_verify_depth(WOLFSSL* ssl);
-WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
-WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_use_certificate_file(WOLFSSL*, const char*,
                                                                            int);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_use_PrivateKey_file(WOLFSSL*, const char*,
@@ -974,6 +975,14 @@ WOLFSSL_API void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
 
 WOLFSSL_API void wolfSSL_set_verify(WOLFSSL*, int, VerifyCallback verify_callback);
 WOLFSSL_API void wolfSSL_set_verify_result(WOLFSSL*, long);
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+WOLFSSL_API int wolfSSL_verify_client_post_handshake(WOLFSSL*);
+WOLFSSL_API int wolfSSL_CTX_set_post_handshake_auth(WOLFSSL_CTX*, int);
+WOLFSSL_API int wolfSSL_set_post_handshake_auth(WOLFSSL*, int);
+#endif
+
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL*, void*);
 
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL*);
@@ -2067,7 +2076,7 @@ WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
 #if (defined(HAVE_EX_DATA) || defined(FORTRESS)) && \
-    (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL))
 WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data,
                                             int idx);
 WOLFSSL_API int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx,
@@ -2392,7 +2401,7 @@ WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_METHOD_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
-WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_GetVersion(const WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 
 /* moved to asn.c, old names kept for backwards compatibility */
@@ -2929,7 +2938,7 @@ enum {
     WOLFSSL_MAX_ALPN_NUMBER = 257
 };
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 typedef int (*CallbackALPNSelect)(WOLFSSL* ssl, const unsigned char** out,
     unsigned char* outLen, const unsigned char* in, unsigned int inLen,
     void *arg);
@@ -3767,11 +3776,12 @@ WOLFSSL_LOCAL char* wolfSSL_get_ocsp_url(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url);
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) \
+    || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void *wolfSSL_X509_get_ex_data(WOLFSSL_X509 *x509, int idx);
 WOLFSSL_API int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx,
     void *data);
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)

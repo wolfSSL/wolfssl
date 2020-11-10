@@ -992,7 +992,10 @@ static void TraceSetNamedServer(const char* name,
     if (TraceOn) {
         fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
         fprintf(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
-                                                      name, srv, port, keyFile);
+		name ? name : "",
+		srv ? srv : "",
+		port,
+		keyFile ? keyFile : "");
     }
 }
 
@@ -2524,12 +2527,15 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
                                 SnifferSession* session, char* error)
 {
     word16 len;
+
+#ifdef WOLFSSL_TLS13
     WOLFSSL* ssl;
 
     if (session->flags.side == WOLFSSL_SERVER_END)
         ssl = session->sslServer;
     else
         ssl = session->sslClient;
+#endif
 
     /* make sure can read through hint len */
     if (TICKET_HINT_LEN > *sslBytes) {
@@ -4727,7 +4733,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         word32 i, offset, headerSz, qty, remainder;
 
         Trace(CHAIN_INPUT_STR);
-        headerSz = (word32)*sslFrame - (word32)chain[0].iov_base;
+        headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
         remainder = *sslBytes;
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {

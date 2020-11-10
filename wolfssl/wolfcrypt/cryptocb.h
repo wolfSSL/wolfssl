@@ -212,7 +212,7 @@ typedef struct wc_CryptoInfo {
 typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
 
 WOLFSSL_LOCAL void wc_CryptoCb_Init(void);
-
+WOLFSSL_LOCAL int wc_CryptoCb_GetDevIdAtIndex(int startIdx);
 WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
 
@@ -289,6 +289,10 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
+
+#else
+
+#define wc_CryptoCb_GetDevIdAtIndex(idx) (INVALID_DEVID)
 
 #endif /* WOLF_CRYPTO_CB */
 

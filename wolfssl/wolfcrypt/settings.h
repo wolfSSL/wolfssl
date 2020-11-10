@@ -228,7 +228,6 @@
     #include "wolfSSL.wolfSSL_conf.h"
 #endif
 
-
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
     #if !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)
@@ -358,12 +357,13 @@
     #define NO_FILESYSTEM
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MAX
     #define NO_BIG_INT
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
+    #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
+
     #ifndef NO_PIC32MZ_CRYPT
         #define WOLFSSL_PIC32MZ_CRYPT
     #endif
@@ -1070,7 +1070,9 @@ extern void uITRON4_free(void *p) ;
     #define ECC_TIMING_RESISTANT
 
     #undef  HAVE_ECC
+    #ifndef WOLFCRYPT_FIPS_RAND
     #define HAVE_ECC
+    #endif
     #ifndef NO_AES
         #undef  HAVE_AESCCM
         #define HAVE_AESCCM
@@ -1165,7 +1167,9 @@ extern void uITRON4_free(void *p) ;
         #endif
 
         #if defined(FSL_FEATURE_LTC_HAS_PKHA) && FSL_FEATURE_LTC_HAS_PKHA
+            #ifndef WOLFCRYPT_FIPS_RAND
             #define FREESCALE_LTC_ECC
+            #endif
             #define FREESCALE_LTC_TFM
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.

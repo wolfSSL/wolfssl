@@ -1162,8 +1162,12 @@ WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
     /* ASN sig helpers */
     WOLFSSL_LOCAL int StoreECC_DSA_Sig(byte* out, word32* outLen, mp_int* r,
                                       mp_int* s);
+    WOLFSSL_LOCAL int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, 
+        const byte* r, word32 rLen, const byte* s, word32 sLen);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
+    WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, 
+        byte* r, word32* rLen, byte* s, word32* sLen);
 #endif
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_API int EccEnumToNID(int n);
@@ -1258,7 +1262,7 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     WOLFSSL_ASN1_TIME thisDateParsed;
     WOLFSSL_ASN1_TIME nextDateParsed;
     byte* thisDateAsn;

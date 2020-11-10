@@ -1713,7 +1713,7 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #ifdef WOLFSSL_TLS13
@@ -2648,7 +2648,7 @@ struct WOLFSSL_CTX {
     DerBuffer*  certificate;
     DerBuffer*  certChain;
                  /* chain after self, in DER, with leading size for each cert */
-    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
     #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
@@ -2808,7 +2808,7 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
-#if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
+#if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY))
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
@@ -3633,7 +3633,7 @@ struct WOLFSSL_X509_NAME {
     WOLFSSL_X509_NAME_ENTRY entry[MAX_NAME_ENTRIES]; /* all entries i.e. CN */
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     byte  raw[ASN_NAME_MAX];
     int   rawLen;
 #endif

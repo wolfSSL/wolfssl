@@ -6287,11 +6287,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
+#ifndef NO_BIO
     if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
     wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
     ssl->biowr = NULL;
     ssl->biord = NULL;
+#endif
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
@@ -6704,6 +6706,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 }
 
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
+    !defined(WOLFSSL_NO_TLS12) || \
     ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
      && defined(HAVE_AEAD))
 
@@ -6827,7 +6830,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
 #endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
-#endif /* !NO_OLD_TLS || WOLFSSL_DTLS ||
+#endif /* !NO_OLD_TLS || WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 ||
         *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM) && HAVE_AEAD) */
 
 #ifdef WOLFSSL_DTLS
@@ -7935,6 +7938,7 @@ retry:
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
                 #if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+                #ifndef NO_BIO
                     if (ssl->biord) {
                         /* If retry and read flags are set, return WANT_READ */
                         if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
@@ -7942,6 +7946,7 @@ retry:
                             return WANT_READ;
                         }
                     }
+                #endif
                 #endif
                 return -1;
 
@@ -9373,7 +9378,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
                 XMEMSET(tmp, 0, sizeof(tmp));
                 XSNPRINTF(tmp, sizeof(tmp), (altName->len <= 4) ? "%u" : "%02X",
                         altName->name[i]);
-                idx += XSTRLEN(tmp);
+                idx += (word32)XSTRLEN(tmp);
                 XSTRNCAT(name, tmp, (altName->len <= 4) ? 3 : 2);
                 if ((idx < WOLFSSL_MAX_IPSTR ) && ((i + 1) < altName->len)) {
                     name[idx++] = (altName->len <= 4) ? '.' : ':';
@@ -10077,6 +10082,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         #endif
         char domain[ASN_NAME_MAX];
     #endif
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        int x509Free = 0;
+    #endif
 
     #ifdef WOLFSSL_SMALL_STACK
         store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
@@ -10184,6 +10192,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
                 InitX509(x509, 0, heap);
                 if (CopyDecodedToX509(x509, args->dCert) == 0) {
                     store->current_cert = x509;
+                    x509Free = 1;
                 }
                 else {
                     FreeX509(x509);
@@ -10250,8 +10259,9 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
             args->verifyErr = 1;
         }
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        if (args->certIdx > 0)
+        if (x509Free) {
             FreeX509(x509);
+        }
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
         wolfSSL_sk_X509_free(store->chain);
@@ -17187,7 +17197,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
 
@@ -17200,7 +17210,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     /* Certificate Authorities */
     names = ssl->ctx->ca_names;
     while (names != NULL) {
@@ -17269,7 +17279,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
     names = ssl->ctx->ca_names;
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
@@ -27693,7 +27703,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     goto out;
                 }
     #endif
-    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
                 if((ret=SNI_Callback(ssl)))
                     goto out;
                 ssl->options.side = WOLFSSL_SERVER_END;
@@ -28922,7 +28932,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     ERROR_OUT(OUT_OF_ORDER_E, exit_dcke);
                 }
 
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.verifyPeer && ssl->options.failNoCert) {
                     if (!ssl->options.havePeerCert) {
                         WOLFSSL_MSG("client didn't present peer cert");
@@ -28937,7 +28947,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         return NO_PEER_CERT;
                     }
                 }
-            #endif /* !NO_CERTS */
+            #endif /* !NO_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
 
             #if defined(WOLFSSL_CALLBACKS)
                 if (ssl->hsInfoOn) {
@@ -30110,7 +30120,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 *inOutIdx = args->idx;
 
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.verifyPeer) {
                     ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
                 }
@@ -30152,7 +30162,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY)
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     int SNI_Callback(WOLFSSL* ssl)
     {
         /* Stunnel supports a custom sni callback to switch an SSL's ctx

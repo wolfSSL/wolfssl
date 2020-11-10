@@ -34,6 +34,7 @@
 
 #if defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
     defined(WOLFSSL_AESNI)
+
     #define CPUID_AVX1   0x0001
     #define CPUID_AVX2   0x0002
     #define CPUID_RDRAND 0x0004

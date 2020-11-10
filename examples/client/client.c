@@ -24,6 +24,9 @@
         #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+        #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/ssl.h>
@@ -952,7 +955,9 @@ static const char* client_usage_msg[][66] = {
 #ifdef NO_RSA
         "RSA not supported\n",                                      /* 2 */
 #elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
-#ifndef WOLFSSL_SP_NO_3072
+#ifdef WOLFSSL_SP_4096
+        "4096\n",                                                   /* 2 */
+#elif !defined(WOLFSSL_SP_NO_3072)
         "3072\n",                                                   /* 2 */
 #elif !defined(WOLFSSL_SP_NO_2048)
         "2048\n",                                                   /* 2 */
@@ -1655,7 +1660,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:458")) != -1) {
+            "01:23:458"
+            "@#")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -2121,6 +2127,40 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     #endif
                 #endif
                 break;
+
+            case '@' :
+            {
+#ifdef HAVE_WC_INTROSPECTION
+                const char *conf_args = wolfSSL_configure_args();
+                if (conf_args) {
+                    puts(conf_args);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("configure args not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
+            }
+
+            case '#' :
+            {
+#ifdef HAVE_WC_INTROSPECTION
+                const char *cflags = wolfSSL_global_cflags();
+                if (cflags) {
+                    puts(cflags);
+                    XEXIT_T(EXIT_SUCCESS);
+                } else {
+                    fputs("CFLAGS not compiled in.\n",stderr);
+                    XEXIT_T(MY_EX_USAGE);
+                }
+#else
+                fputs("compiled without BUILD_INTROSPECTION.\n",stderr);
+                XEXIT_T(MY_EX_USAGE);
+#endif
+            }
 
             default:
                 Usage();
@@ -3136,6 +3176,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     #if defined(OPENSSL_ALL)
+    #ifndef NO_BIO
     /* print out session to stdout */
     {
         WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, BIO_NOCLOSE);
@@ -3147,6 +3188,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         wolfSSL_BIO_free(bio);
     }
+    #endif
     #endif
 #endif
 

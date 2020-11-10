@@ -494,7 +494,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 }
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_APACHE_HTTPD)
+    defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIGHTY)
 
 int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_OCSP_CERTID* id, int* status, int* reason,
@@ -644,6 +644,7 @@ void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response)
     XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+#ifndef NO_BIO
 OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
     OcspResponse** response)
 {
@@ -708,6 +709,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
 
     return ret;
 }
+#endif /* !NO_BIO */
 
 OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     const unsigned char** data, int len)
@@ -891,6 +893,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
 #endif
 
 #if defined(OPENSSL_ALL) || defined(APACHE_HTTPD)
+#ifndef NO_BIO
 int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
         WOLFSSL_OCSP_REQUEST *req)
 {
@@ -924,6 +927,7 @@ int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
     XFREE(data, out->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
+#endif /* !NO_BIO */
 #endif /* OPENSSL_ALL || APACHE_HTTPD */
 
 #ifdef OPENSSL_EXTRA
