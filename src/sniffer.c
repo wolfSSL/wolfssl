@@ -2067,11 +2067,26 @@ static void ShowTlsSecrets(SnifferSession* session)
 
 
 /* Process Keys */
+
+/* contains static ephemeral keys */
+typedef struct {
+#ifndef NO_DH
+    DerBuffer* ecKey;
+#endif
+#ifdef HAVE_ECC
+    DerBuffer* dhKey;
+#endif
+#if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
+    DerBuffer* rsaKey;
+#endif
+} KeyBuffers_t;
+
 static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session, 
-    char* error, KeyShareInfo* ksInfo, DerBuffer* keyBuf)
+    char* error, KeyShareInfo* ksInfo, KeyBuffers_t* keys)
 {
     word32 idx = 0;
     int ret;
+    DerBuffer* keyBuf;
 #ifdef HAVE_ECC
     int useEccCurveId = ECC_CURVE_DEF;
     if (ksInfo && ksInfo->curve_id != 0)
@@ -2080,9 +2095,11 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifndef NO_RSA
     /* Static RSA */
-    if (ksInfo == NULL) {
+    if (ksInfo == NULL && keys->rsaKey) {
         RsaKey key;
         int length;
+        
+        keyBuf = keys->rsaKey;
 
         ret = wc_InitRsaKey(&key, 0);
         if (ret == 0) {
@@ -2152,11 +2169,13 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
     /* Static DH Key */
-    if (ksInfo && ksInfo->dh_key_bits != 0) {
+    if (ksInfo && ksInfo->dh_key_bits != 0 && keys->dhKey) {
         DhKey dhKey;
         const DhParams* params;
         word32 privKeySz;
         byte privKey[52]; /* max for TLS */
+        
+        keyBuf = keys->dhKey;
 
         /* get DH params */
         switch (ksInfo->named_group) {
@@ -2240,11 +2259,12 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 
 #ifdef HAVE_ECC
     /* Static ECC Key */
-    if (useEccCurveId >= ECC_CURVE_DEF) {
+    if (useEccCurveId >= ECC_CURVE_DEF && keys->ecKey) {
         ecc_key key;
         ecc_key pubKey;
         int length, keyInit = 0, pubKeyInit = 0;
 
+        keyBuf = keys->ecKey;
         idx = 0;
         ret = wc_ecc_init(&key);
         if (ret == 0) {
@@ -2395,6 +2415,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
 static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                             SnifferSession* session, char* error)
 {
+    KeyBuffers_t keys;
+
     if (session->sslServer->buffers.key == NULL ||
         session->sslServer->buffers.key->buffer == NULL ||
         session->sslServer->buffers.key->length == 0) {
@@ -2403,8 +2425,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         return -1;
     }
 
-    return SetupKeys(input, sslBytes, session, error, NULL, 
-        session->sslServer->buffers.key);
+    XMEMSET(&keys, 0, sizeof(keys));
+    keys.rsaKey = session->sslServer->buffers.key;
+    return SetupKeys(input, sslBytes, session, error, NULL, &keys);
 }
 
 #ifdef WOLFSSL_TLS13
@@ -3012,13 +3035,19 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #ifdef WOLFSSL_TLS13
     /* Setup handshake keys */
     if (IsAtLeastTLSv1_3(session->sslServer->version) && session->srvKs.key_len > 0) {
-        DerBuffer* key = session->sslServer->buffers.key;
+        KeyBuffers_t keys;
+        XMEMSET(&keys, 0, sizeof(keys));
+        keys.rsaKey = session->sslServer->buffers.key;
     #ifdef WOLFSSL_STATIC_EPHEMERAL
-        if (session->sslServer->staticKE.key)
-            key = session->sslServer->staticKE.key;
+        #ifndef NO_DH
+        keys.dhKey = session->sslServer->staticKE.dhKey;
+        #endif
+        #ifdef HAVE_ECC
+        keys.ecKey = session->sslServer->staticKE.ecKey;
+        #endif
     #endif
         ret = SetupKeys(session->cliKs.key, &session->cliKs.key_len, 
-            session, error, &session->cliKs, key);
+            session, error, &session->cliKs, &keys);
         if (ret != 0) {
             SetError(SERVER_HELLO_INPUT_STR, error, session, FATAL_ERROR_STATE);
             return ret;

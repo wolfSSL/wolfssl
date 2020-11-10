@@ -6685,8 +6685,8 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
 #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(WOLFSSL_DH_EXTRA)
-    if (ssl->staticKE.key && ssl->staticKE.keyAlgo == WC_PK_TYPE_DH) {
-        DerBuffer* keyDer = ssl->staticKE.key;
+    if (ssl->staticKE.dhKey) {
+        DerBuffer* keyDer = ssl->staticKE.dhKey;
         word32 idx = 0;
         WOLFSSL_MSG("Using static DH key");
         ret = wc_DhKeyDecode(keyDer->buffer, &idx, dhKey, keyDer->length);
@@ -6971,8 +6971,8 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
-    if (ssl->staticKE.key && ssl->staticKE.keyAlgo == WC_PK_TYPE_ECDH) {
-        DerBuffer* keyDer = ssl->staticKE.key;
+    if (ssl->staticKE.ecKey) {
+        DerBuffer* keyDer = ssl->staticKE.ecKey;
         word32 idx = 0;
         WOLFSSL_MSG("Using static ECDH key");
         ret = wc_EccPrivateKeyDecode(keyDer->buffer, &idx, eccKey, keyDer->length);
