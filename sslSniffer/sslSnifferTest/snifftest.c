@@ -353,6 +353,9 @@ static int load_key(const char* name, const char* server, int port,
             printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
             ret = -1;
         }
+        else {
+            ret = 0;
+        }
 
         keyFile = XSTRTOK(NULL, ",", &ptr);
     }
@@ -530,7 +533,10 @@ int main(int argc, char** argv)
             }
 
             if (server) {
-                load_key(sniName, server, port, keyFiles, NULL, err);
+                ret = load_key(sniName, server, port, keyFiles, NULL, err);
+                if (ret != 0) {
+                    exit(EXIT_FAILURE);
+                }
             }
         }
     }
