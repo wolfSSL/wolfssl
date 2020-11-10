@@ -2666,17 +2666,11 @@ static int DoResume(SnifferSession* session, char* error)
 {
     int ret = 0;
     WOLFSSL_SESSION* resume;
+
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
         resume = GetSession(session->sslServer, 
                             session->sslServer->session.masterSecret, 0);
-        if (resume == NULL) {
-            /* a session id without resume is okay */
-        #ifdef WOLFSSL_SNIFFER_STATS
-            INC_STAT(SnifferStats.sslStandardConns);
-        #endif
-            return 0;
-        }
     }
     else
 #endif
@@ -2684,13 +2678,12 @@ static int DoResume(SnifferSession* session, char* error)
         resume = GetSession(session->sslServer,
                             session->sslServer->arrays->masterSecret, 0);
     }
-
     if (resume == NULL) {
-#ifdef WOLFSSL_SNIFFER_STATS
-        INC_STAT(SnifferStats.sslResumeMisses);
-#endif
-        SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
-        return -1;
+        /* a session id without resume is okay with hello_retry_request */
+    #ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslStandardConns);
+    #endif
+        return 0;
     }
 
     /* make sure client has master secret too */
