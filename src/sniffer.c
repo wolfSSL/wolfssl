@@ -2436,6 +2436,9 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
 {
     int index = 0;
     while (index < len) {
+        /* clear info (reset dh_key_bits and curve_id) */
+        XMEMSET(info, 0, sizeof(KeyShareInfo));
+
         /* Named group and public key */
         info->named_group = (word16)((input[index] << 8) | input[index+1]);
         index += OPAQUE16_LEN;
@@ -2514,15 +2517,15 @@ static int ProcessKeyShare(KeyShareInfo* info, const byte* input, int len,
                 break;
         #endif
             default:
-                /* unsupported curve */
-                return ECC_PEERKEY_ERROR;
+                /* do not throw error here, keep iterating the client key share */
+                break;
         }
 
         if (filter_group == 0 || filter_group == info->named_group) {
             return 0;
         }
     }
-    return -1;
+    return NO_PEER_KEY; /* unsupported key type */
 }
 
 static int ProcessServerKeyShare(SnifferSession* session, const byte* input, int len,
@@ -5017,6 +5020,11 @@ doMessage:
      || (session->flags.side == WOLFSSL_CLIENT_END &&
                                                session->flags.clientCipherOn)) {
         int ivAdvance = 0;  /* TLSv1.1 advance amount */
+
+        /* change_cipher_spec is not encrypted */
+        if (rh.type == change_cipher_spec) {
+            goto doPart;
+        }
         if (ssl->decrypt.setup != 1) {
             SetError(DECRYPT_KEYS_NOT_SETUP, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -5025,6 +5033,7 @@ doMessage:
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance, &rh);
