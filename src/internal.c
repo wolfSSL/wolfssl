@@ -10729,6 +10729,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ssl->options.tls1_3) {
                     word16 extSz;
 
+                    if (args->exts == NULL) {
+                        ERROR_OUT(BUFFER_ERROR, exit_ppc);
+                    }
                     if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz) {
                         ERROR_OUT(BUFFER_ERROR, exit_ppc);
                     }
