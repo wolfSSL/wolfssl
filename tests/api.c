@@ -22397,7 +22397,9 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
     RsaKey          rsaKey;
     int             bits = 2048;
 #endif
+#if defined(HAVE_ECC)
     ecc_key         eccKey;
+#endif
 #if defined(HAVE_ED448)
     ed448_key       ed448Key;
 #endif
@@ -22436,6 +22438,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
         wc_FreeRsaKey(&rsaKey);
     }
 #endif
+#if defined(HAVE_ECC)
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
@@ -22446,6 +22449,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
         }
         wc_ecc_free(&eccKey);
     }
+#endif
 #if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
@@ -22484,7 +22488,9 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
     RsaKey          rsaKey;
     int             bits = 2048;
 #endif
+#if defined(HAVE_ECC)
     ecc_key         eccKey;
+#endif
 #if defined(HAVE_ED448)
     ed448_key       ed448Key;
 #endif
@@ -22523,6 +22529,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
         wc_FreeRsaKey(&rsaKey);
     }
 #endif
+#if defined(HAVE_ECC)
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
@@ -22533,6 +22540,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
         }
         wc_ecc_free(&eccKey);
     }
+#endif
 #if defined(HAVE_ED448) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
 
@@ -29500,7 +29508,9 @@ static void test_wolfSSL_PKCS8_d2i(void)
     XFILE file;
 #ifndef NO_BIO
     BIO* bio;
+    #if defined(HAVE_ECC)
     WOLFSSL_EVP_PKEY* evpPkey = NULL;
+    #endif
 #endif
 #endif
     #ifndef NO_RSA
@@ -35010,6 +35020,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     EVP_PKEY *pkey, *peerkey;
     const unsigned char* key;
 
+#ifndef NO_DH
     /* DH */
     key = dh_key_der_2048;
     AssertNotNull((pkey = d2i_PrivateKey(EVP_PKEY_DH, NULL, &key,
@@ -35030,6 +35041,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     EVP_PKEY_free(peerkey);
     EVP_PKEY_free(pkey);
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
 
 #ifdef HAVE_ECC
     /* ECDH */

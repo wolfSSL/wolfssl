@@ -1432,7 +1432,7 @@ int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(NO_DH) && defined(HAVE_ECC)
+#if !defined(NO_DH) || defined(HAVE_ECC)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION!=2))
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
@@ -1542,7 +1542,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
     return WOLFSSL_SUCCESS;
 }
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif
+#endif /* !NO_DH || HAVE_ECC */
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
  *
