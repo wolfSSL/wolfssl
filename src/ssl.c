@@ -30218,6 +30218,63 @@ int SetDsaInternal(WOLFSSL_DSA* dsa)
 
 #ifdef OPENSSL_EXTRA
 #if !defined(NO_RSA)
+
+/* return wolfSSL native error codes. */
+static int wolfSSL_RSA_generate_key_native(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
+                                void* cb)
+{
+    int ret;
+
+    (void)cb;
+    (void)bn;
+    (void)bits;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_generate_key_native");
+
+    if (rsa == NULL || rsa->internal == NULL) {
+        /* bit size checked during make key call */
+        WOLFSSL_MSG("bad arguments");
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_KEY_GEN
+    {
+    #ifdef WOLFSSL_SMALL_STACK
+        WC_RNG* rng;
+    #else
+        WC_RNG  rng[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (rng == NULL)
+            return MEMORY_E;
+    #endif
+
+        if ((ret = wc_InitRng(rng)) < 0)
+            WOLFSSL_MSG("RNG init failed");
+        else if ((ret = wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
+                    wolfSSL_BN_get_word(bn), rng)) != MP_OKAY)
+            WOLFSSL_MSG("wc_MakeRsaKey failed");
+        else if ((ret = SetRsaExternal(rsa)) != WOLFSSL_SUCCESS)
+            WOLFSSL_MSG("SetRsaExternal failed");
+        else {
+            rsa->inSet = 1;
+	    ret = WOLFSSL_ERROR_NONE;
+        }
+
+        wc_FreeRng(rng);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+    #endif
+    }
+#else
+    WOLFSSL_MSG("No Key Gen built in");
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+
 /* Generates a RSA key of length len
  *
  * len  length of RSA key i.e. 2048
@@ -30263,9 +30320,19 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
         WOLFSSL_MSG("memory error");
     }
     else {
-        if (wolfSSL_RSA_generate_key_ex(rsa, len, bn, NULL) != SSL_SUCCESS){
-            wolfSSL_RSA_free(rsa);
-            rsa = NULL;
+        for (;;) {
+            int gen_ret = wolfSSL_RSA_generate_key_native(rsa, len, bn, NULL);
+            if (gen_ret == WOLFSSL_ERROR_NONE)
+                break;
+#ifdef HAVE_FIPS
+            else if (gen_ret == PRIME_GEN_E)
+                continue;
+#endif
+            else {
+                wolfSSL_RSA_free(rsa);
+                rsa = NULL;
+                break;
+            }
         }
     }
     wolfSSL_BN_free(bn);
@@ -30273,62 +30340,23 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
     return rsa;
 }
 
-
 /* return compliant with OpenSSL
  *   1 if success, 0 if error
  */
 int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
                                 void* cb)
 {
-    int ret = WOLFSSL_FAILURE;
-
-    (void)cb;
-    (void)bn;
-    (void)bits;
-
-    WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
-
-    if (rsa == NULL || rsa->internal == NULL) {
-        /* bit size checked during make key call */
-        WOLFSSL_MSG("bad arguments");
-        return WOLFSSL_FAILURE;
-    }
-
-#ifdef WOLFSSL_KEY_GEN
-    {
-    #ifdef WOLFSSL_SMALL_STACK
-        WC_RNG* rng;
-    #else
-        WC_RNG  rng[1];
-    #endif
-
-    #ifdef WOLFSSL_SMALL_STACK
-        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (rng == NULL)
-            return WOLFSSL_FAILURE;
-    #endif
-
-        if (wc_InitRng(rng) < 0)
-            WOLFSSL_MSG("RNG init failed");
-        else if (wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
-                    wolfSSL_BN_get_word(bn), rng) != MP_OKAY)
-            WOLFSSL_MSG("wc_MakeRsaKey failed");
-        else if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS)
-            WOLFSSL_MSG("SetRsaExternal failed");
-        else {
-            rsa->inSet = 1;
-            ret = WOLFSSL_SUCCESS;
-        }
-
-        wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
-    }
-#else
-    WOLFSSL_MSG("No Key Gen built in");
+    for (;;) {
+        int gen_ret = wolfSSL_RSA_generate_key_native(rsa, bits, bn, cb);
+        if (gen_ret == WOLFSSL_ERROR_NONE)
+            return WOLFSSL_SUCCESS;
+#ifdef HAVE_FIPS
+        else if (gen_ret == PRIME_GEN_E)
+            continue;
 #endif
-    return ret;
+        else
+            return WOLFSSL_FAILURE;
+    }
 }
 #endif /* NO_RSA */
 

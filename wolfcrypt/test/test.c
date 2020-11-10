@@ -26224,7 +26224,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     byte   *enveloped;
     byte   *decoded;
     PKCS7* pkcs7;
+#ifdef ECC_TIMING_RESISTANT
     WC_RNG rng;
+#endif
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     XFILE  pkcs7File;
 #endif
