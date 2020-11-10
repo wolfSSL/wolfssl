@@ -2639,6 +2639,105 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
     return 0;
 }
 
+static int DoResume(SnifferSession* session, char* error)
+{
+    int ret;
+    WOLFSSL_SESSION* resume;
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+        resume = GetSession(session->sslServer, 
+                            session->sslServer->session.masterSecret, 0);
+        if (resume == NULL) {
+            /* a session id without resume is okay */
+        #ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslStandardConns);
+        #endif
+            return 0;
+        }
+    }
+    else
+#endif
+    {
+        resume = GetSession(session->sslServer,
+                            session->sslServer->arrays->masterSecret, 0);
+    }
+
+    if (resume == NULL) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslResumeMisses);
+#endif
+        SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    /* make sure client has master secret too */
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+        XMEMCPY(session->sslClient->session.masterSecret,
+                session->sslServer->session.masterSecret, SECRET_LEN);
+    }
+    else
+#endif
+    {
+        XMEMCPY(session->sslClient->arrays->masterSecret,
+                session->sslServer->arrays->masterSecret, SECRET_LEN);
+    }
+    session->flags.resuming = 1;
+
+    Trace(SERVER_DID_RESUMPTION_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
+    INC_STAT(SnifferStats.sslResumedConns);
+    INC_STAT(SnifferStats.sslResumptionValid);
+#endif
+    if (SetCipherSpecs(session->sslServer) != 0) {
+        SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    if (SetCipherSpecs(session->sslClient) != 0) {
+        SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+#ifdef WOLFSSL_TLS13
+    if (IsAtLeastTLSv1_3(session->sslServer->version)) {
+    #ifdef HAVE_SESSION_TICKET
+        /* Resumption PSK is resumption master secret. */
+        session->sslServer->arrays->psk_keySz = session->sslServer->specs.hash_size;
+        session->sslClient->arrays->psk_keySz = session->sslClient->specs.hash_size;
+        ret  = DeriveResumptionPSK(session->sslServer, session->sslServer->session.ticketNonce.data, 
+            session->sslServer->session.ticketNonce.len, session->sslServer->arrays->psk_key);
+        /* Copy resumption PSK to client */
+        XMEMCPY(session->sslClient->arrays->psk_key, 
+            session->sslServer->arrays->psk_key,
+            session->sslServer->arrays->psk_keySz);
+    #endif
+        /* handshake key setup below and traffic keys done in SetupKeys */
+    }
+    else
+#endif
+    {
+        if (IsTLS(session->sslServer)) {
+            ret =  DeriveTlsKeys(session->sslServer);
+            ret += DeriveTlsKeys(session->sslClient);
+        }
+        else {
+#ifndef NO_OLD_TLS
+            ret =  DeriveKeys(session->sslServer);
+            ret += DeriveKeys(session->sslClient);
+#endif
+        }
+        ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
+        ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
+    }
+
+    if (ret != 0) {
+        SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    return ret;
+}
 
 /* Process Server Hello */
 static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
@@ -2894,84 +2993,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         initialBytes + HANDSHAKE_HEADER_SZ);
 
     if (doResume) {
-        WOLFSSL_SESSION* resume;
-        if (IsAtLeastTLSv1_3(session->sslServer->version)) {
-            resume = GetSession(session->sslServer, 
-                                session->sslServer->session.masterSecret, 0);
-        }
-        else {
-            resume = GetSession(session->sslServer,
-                               session->sslServer->arrays->masterSecret, 0);
-        }
-        if (resume == NULL) {
-#ifdef WOLFSSL_SNIFFER_STATS
-            INC_STAT(SnifferStats.sslResumeMisses);
-#endif
-            SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
-        }
-
-        /* make sure client has master secret too */
-        if (IsAtLeastTLSv1_3(session->sslServer->version)) {
-            XMEMCPY(session->sslClient->session.masterSecret,
-                    session->sslServer->session.masterSecret, SECRET_LEN);
-        }
-        else {
-            XMEMCPY(session->sslClient->arrays->masterSecret,
-                    session->sslServer->arrays->masterSecret, SECRET_LEN);
-        }
-        session->flags.resuming = 1;
-
-        Trace(SERVER_DID_RESUMPTION_STR);
-#ifdef WOLFSSL_SNIFFER_STATS
-        INC_STAT(SnifferStats.sslResumedConns);
-        INC_STAT(SnifferStats.sslResumptionValid);
-#endif
-        if (SetCipherSpecs(session->sslServer) != 0) {
-            SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
-        }
-
-        if (SetCipherSpecs(session->sslClient) != 0) {
-            SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
-        }
-
-    #ifdef WOLFSSL_TLS13
-        if (IsAtLeastTLSv1_3(session->sslServer->version)) {
-        #ifdef HAVE_SESSION_TICKET
-            /* Resumption PSK is resumption master secret. */
-            session->sslServer->arrays->psk_keySz = session->sslServer->specs.hash_size;
-            session->sslClient->arrays->psk_keySz = session->sslClient->specs.hash_size;
-            ret  = DeriveResumptionPSK(session->sslServer, session->sslServer->session.ticketNonce.data, 
-                session->sslServer->session.ticketNonce.len, session->sslServer->arrays->psk_key);
-            /* Copy resumption PSK to client */
-            XMEMCPY(session->sslClient->arrays->psk_key, 
-                session->sslServer->arrays->psk_key,
-                session->sslServer->arrays->psk_keySz);
-        #endif
-            /* handshake key setup below and traffic keys done in SetupKeys */
-        }
-        else
-    #endif
-        {
-            if (IsTLS(session->sslServer)) {
-                ret =  DeriveTlsKeys(session->sslServer);
-                ret += DeriveTlsKeys(session->sslClient);
-            }
-            else {
-    #ifndef NO_OLD_TLS
-                ret =  DeriveKeys(session->sslServer);
-                ret += DeriveKeys(session->sslClient);
-    #endif
-            }
-            ret += SetKeysSide(session->sslServer, ENCRYPT_AND_DECRYPT_SIDE);
-            ret += SetKeysSide(session->sslClient, ENCRYPT_AND_DECRYPT_SIDE);
-        }
-
+        ret = DoResume(session, error);
         if (ret != 0) {
-            SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
-            return -1;
+            return ret;
         }
     }
     else {
