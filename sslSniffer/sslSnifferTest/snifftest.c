@@ -103,7 +103,11 @@ enum {
 #ifndef DEFAULT_SERVER_EPH_KEY
     #if defined(HAVE_ECC) && !defined(NO_ECC_SECP) && \
         (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
-        #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC
+        #if !defined(NO_DH)
+            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC "," DEFAULT_SERVER_EPH_KEY_DH
+        #else
+            #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_ECC
+        #endif
     #elif !defined(NO_DH)
         #define DEFAULT_SERVER_EPH_KEY DEFAULT_SERVER_EPH_KEY_DH
     #endif
@@ -313,38 +317,46 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
 
 /* try and load as both static ephemeral and private key */
 /* only fail if no key is loaded */
+/* Allow comma seperated list of files */
 static int load_key(const char* name, const char* server, int port, 
-    const char* keyFile, const char* passwd, char* err)
+    const char* keyFiles, const char* passwd, char* err)
 {
-    int ret;
+    int ret = -1;
     int loadCount = 0;
+    char *keyFile, *ptr = NULL;
 
+    keyFile = XSTRTOK((char*)keyFiles, ",", &ptr);
+    while (keyFile != NULL) {
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     #ifdef HAVE_SNI
-    ret = ssl_SetNamedEphemeralKey(name, server, port, keyFile,
-                        FILETYPE_PEM, passwd, err);
+        ret = ssl_SetNamedEphemeralKey(name, server, port, keyFile,
+                            FILETYPE_PEM, passwd, err);
     #else
-    ret = ssl_SetEphemeralKey(server, port, keyFile,
-                        FILETYPE_PEM, passwd, err);
+        ret = ssl_SetEphemeralKey(server, port, keyFile,
+                            FILETYPE_PEM, passwd, err);
     #endif
-    if (ret == 0)
-        loadCount++;
+        if (ret == 0)
+            loadCount++;
 #endif
     #ifdef HAVE_SNI
-    ret = ssl_SetNamedPrivateKey(name, server, port, keyFile,
-                        FILETYPE_PEM, passwd, err);
+        ret = ssl_SetNamedPrivateKey(name, server, port, keyFile,
+                            FILETYPE_PEM, passwd, err);
     #else
-    ret = ssl_SetPrivateKey(server, port, keyFile,
-                        FILETYPE_PEM, passwd, err);
+        ret = ssl_SetPrivateKey(server, port, keyFile,
+                            FILETYPE_PEM, passwd, err);
     #endif
+        if (ret == 0)
+            loadCount++;
+        
+        if (loadCount == 0) {
+            printf("Failed loading private key %s: ret %d\n", keyFile, ret);
+            printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
+            ret = -1;
+        }
 
-    if (ret == 0)
-        loadCount++;
-
-    if (loadCount == 0) {
-        printf("Failed loading private key %s: ret %d\n", keyFile, ret);
-        ret = -1;
+        keyFile = XSTRTOK(NULL, ",", &ptr);
     }
+
     (void)name;
     return ret;
 }
@@ -360,8 +372,8 @@ int main(int argc, char** argv)
     int          frame = ETHER_IF_FRAME_LEN;
     char         err[PCAP_ERRBUF_SIZE];
     char         filter[32];
-    const char  *keyFile = NULL;
-    char         keyFileBuf[128];
+    const char  *keyFiles = NULL;
+    char         keyFilesBuf[MAX_FILENAME_SZ];
     const char  *server = NULL;
     const char  *sniName = NULL;
     struct       bpf_program fp;
@@ -478,16 +490,20 @@ int main(int argc, char** argv)
 
         /* optionally enter the private key to use */
     #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(DEFAULT_SERVER_EPH_KEY)
-        keyFile = DEFAULT_SERVER_EPH_KEY;
+        keyFiles = DEFAULT_SERVER_EPH_KEY;
     #else
-        keyFile = DEFAULT_SERVER_KEY;
+        keyFiles = DEFAULT_SERVER_KEY;
     #endif
-        printf("Enter the server key [default: %s]: ", keyFile);
-        XMEMSET(keyFileBuf, 0, sizeof(keyFileBuf));
-        if (XFGETS(keyFileBuf, sizeof(keyFileBuf), stdin)) {
-            if (keyFileBuf[0] != '\r' && keyFileBuf[0] != '\n') {
-                keyFile = keyFileBuf;
+        printf("Enter the server key [default: %s]: ", keyFiles);
+        XMEMSET(keyFilesBuf, 0, sizeof(keyFilesBuf));
+        if (XFGETS(keyFilesBuf, sizeof(keyFilesBuf), stdin)) {
+            if (keyFilesBuf[0] != '\r' && keyFilesBuf[0] != '\n') {
+                keyFiles = keyFilesBuf;
             }
+        }
+        if (keyFiles != keyFilesBuf) {
+            XSTRNCPY(keyFilesBuf, keyFiles, sizeof(keyFilesBuf));
+            keyFiles = keyFilesBuf;
         }
 
         /* optionally enter a named key (SNI) */
@@ -514,7 +530,7 @@ int main(int argc, char** argv)
             }
 
             if (server) {
-                load_key(sniName, server, port, keyFile, NULL, err);
+                load_key(sniName, server, port, keyFiles, NULL, err);
             }
         }
     }
@@ -531,7 +547,7 @@ int main(int argc, char** argv)
             /* defaults for server and port */
             port = 443;
             server = "127.0.0.1";
-            keyFile = argv[2];
+            keyFiles = argv[2];
 
             if (argc >= 4)
                 server = argv[3];
@@ -542,7 +558,7 @@ int main(int argc, char** argv)
             if (argc >= 6)
                 passwd = argv[5];
 
-            ret = load_key(NULL, server, port, keyFile, passwd, err);
+            ret = load_key(NULL, server, port, keyFiles, passwd, err);
             if (ret != 0) {
                 exit(EXIT_FAILURE);
             }
