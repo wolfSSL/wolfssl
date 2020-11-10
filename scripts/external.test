@@ -13,6 +13,12 @@ if [ $? -ne 0 ]; then
 
     # cloudflare seems to change CAs quickly, disabled by default
     if test -n "$WOLFSSL_EXTERNAL_TEST"; then
+
+	if ./examples/client/client '-#' | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
+	    echo 'skipping WOLFSSL_EXTERNAL_TEST because WOLFSSL_SNIFFER configuration of build is incompatible.'
+	    exit 0
+	fi
+
         echo "WOLFSSL_EXTERNAL_TEST set, running test..."
     else
         echo "WOLFSSL_EXTERNAL_TEST NOT set, won't run"
