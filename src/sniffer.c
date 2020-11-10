@@ -2071,10 +2071,10 @@ static void ShowTlsSecrets(SnifferSession* session)
 /* contains static ephemeral keys */
 typedef struct {
 #ifndef NO_DH
-    DerBuffer* ecKey;
+    DerBuffer* dhKey;
 #endif
 #ifdef HAVE_ECC
-    DerBuffer* dhKey;
+    DerBuffer* ecKey;
 #endif
 #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
     DerBuffer* rsaKey;
@@ -2098,7 +2098,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     if (ksInfo == NULL && keys->rsaKey) {
         RsaKey key;
         int length;
-        
+
         keyBuf = keys->rsaKey;
 
         ret = wc_InitRsaKey(&key, 0);
@@ -2664,7 +2664,7 @@ static int ProcessSessionTicket(const byte* input, int* sslBytes,
 
 static int DoResume(SnifferSession* session, char* error)
 {
-    int ret;
+    int ret = 0;
     WOLFSSL_SESSION* resume;
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(session->sslServer->version)) {
