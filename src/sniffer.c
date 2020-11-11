@@ -2426,6 +2426,14 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
     }
 
     XMEMSET(&keys, 0, sizeof(keys));
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    #ifndef NO_DH
+    keys.dhKey = session->sslServer->staticKE.dhKey;
+    #endif
+    #ifdef HAVE_ECC
+    keys.ecKey = session->sslServer->staticKE.ecKey;
+    #endif
+#endif
     keys.rsaKey = session->sslServer->buffers.key;
     return SetupKeys(input, sslBytes, session, error, NULL, &keys);
 }
