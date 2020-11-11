@@ -24894,10 +24894,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
         #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            /* Server Hello should use the same sequence number as the
-             * Client Hello. */
-            ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-            ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+            if (((ssl->keys.dtls_sequence_number_hi == ssl->keys.curSeq_hi &&
+                  ssl->keys.dtls_sequence_number_lo < ssl->keys.curSeq_lo) ||
+                 (ssl->keys.dtls_sequence_number_hi < ssl->keys.curSeq_hi))) {
+                /* Server Hello should use the same sequence number as the
+                 * Client Hello if available. */
+                ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+                ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+            }
             idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
             sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         }
