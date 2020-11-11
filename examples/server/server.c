@@ -2496,7 +2496,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef OPENSSL_EXTRA
     {
-        byte*  rnd;
+        byte*  rnd = NULL;
         byte*  pt;
         size_t size;
 
@@ -2506,8 +2506,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "error getting server random buffer "
                        "size");
         }
+        else {
+            rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
 
-        rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rnd == NULL) {
             err_sys_ex(runWithErrors, "error creating server random buffer");
         }
