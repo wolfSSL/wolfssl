@@ -11046,7 +11046,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      * different version has been negotiated using RFC 7250 */
                     if ((ret == 0) &&
                             (ssl->options.side == WOLFSSL_SERVER_END)) {
-                        if (args->dCert->version != 2) {
+                        if (args->dCert->version != WOLFSSL_X509_V3) {
                             WOLFSSL_MSG("Peers certificate was not version 3!");
                             args->lastErr = ASN_VERSION_E;
                             /* setting last error but not considering it fatal
