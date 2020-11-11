@@ -56,71 +56,55 @@
     #ifndef ECC_PRIV_KEY_BUF
         #define ECC_PRIV_KEY_BUF 66  /* For non user defined curves. */
     #endif
-    #ifdef HAVE_ALL_CURVES
-        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
-        #ifndef KEY14
-            #define KEY14 14
-        #endif
-        #if !defined(KEY16)
-            #define KEY16 16
-        #endif
-        #if !defined(KEY20)
-            #define KEY20 20
-        #endif
-        #if !defined(KEY24)
-            #define KEY24 24
-        #endif
-        #if !defined(KEY28)
-            #define KEY28 28
-        #endif
-        #if !defined(KEY30)
-            #define KEY30 30
-        #endif
-        #if !defined(KEY32)
-            #define KEY32 32
-        #endif
-        #if !defined(KEY40)
-            #define KEY40 40
-        #endif
-        #if !defined(KEY48)
-            #define KEY48 48
-        #endif
-        #if !defined(KEY64)
-            #define KEY64 64
-        #endif
+    /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64 */
+    /* logic to choose right key ECC size */
+    #if (defined(HAVE_ECC112) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 112
+        #define KEY14 14
     #else
-        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
-        #ifndef KEY14
-            #define KEY14 32
-        #endif
-        #if !defined(KEY16)
-            #define KEY16 32
-        #endif
-        #if !defined(KEY20)
-            #define KEY20 32
-        #endif
-        #if !defined(KEY24)
-            #define KEY24 32
-        #endif
-        #if !defined(KEY28)
-            #define KEY28 32
-        #endif
-        #if !defined(KEY30)
-            #define KEY30 32
-        #endif
-        #if !defined(KEY32)
-            #define KEY32 32
-        #endif
-        #if !defined(KEY40)
-            #define KEY40 32
-        #endif
-        #if !defined(KEY48)
-            #define KEY48 32
-        #endif
-        #if !defined(KEY64)
-            #define KEY64 32
-        #endif
+        #define KEY14 32
     #endif
+    #if (defined(HAVE_ECC128) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 128
+        #define KEY16 16
+    #else
+        #define KEY16 32
+    #endif
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
+        #define KEY20 20
+    #else
+        #define KEY20 32
+    #endif
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
+        #define KEY24 24
+    #else
+        #define KEY24 32
+    #endif
+    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+        #define KEY28 28
+    #else
+        #define KEY28 32
+    #endif
+    #if defined(HAVE_ECC239) || defined(HAVE_ALL_CURVES)
+        #define KEY30 30
+    #else
+        #define KEY30 32
+    #endif
+    #define KEY32 32
+    #if defined(HAVE_ECC320) || defined(HAVE_ALL_CURVES)
+        #define KEY40 40
+    #else
+        #define KEY40 32
+    #endif
+    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+        #define KEY48 48
+    #else
+        #define KEY48 32
+    #endif
+    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+        #define KEY64 64
+    #else
+        #define KEY64 32
+    #endif
+
     #if !defined(HAVE_COMP_KEY)
         #if !defined(NOCOMP)
             #define NOCOMP 0

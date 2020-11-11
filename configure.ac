@@ -1880,6 +1880,16 @@ then
 fi
 
 
+# ECC Minimum Key Size
+ENABLED_ECCMINSZ=224
+AC_ARG_WITH([eccminsz],
+    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
+    [
+        ENABLED_ECCMINSZ=$withval
+        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
+    ]
+)
+
 # Compressed Key
 AC_ARG_ENABLE([compkey],
     [AS_HELP_STRING([--enable-compkey],[Enable compressed keys support (default: disabled)])],
@@ -6042,6 +6052,7 @@ echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
 echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"

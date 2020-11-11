@@ -4278,11 +4278,12 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
 #endif
 
     /* get key size */
-    if (peer == NULL) {
+    if (peer == NULL || peer->dp == NULL) {
         keySz = ssl->eccTempKeySz;
     }
     else {
         keySz = peer->dp->size;
+        ecc_curve = peer->dp->id;
     }
 
     /* get curve type */
@@ -11513,6 +11514,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = ECC_KEY_SIZE_E;
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
+
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
+                            ssl->ecdhCurveOID = args->dCert->pkCurveOID;
                         break;
                     }
                 #endif /* HAVE_ECC */
@@ -11563,6 +11568,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = ECC_KEY_SIZE_E;
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
+
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
+                            ssl->ecdhCurveOID = ECC_X25519_OID;
                         break;
                     }
                 #endif /* HAVE_ED25519 */
@@ -11612,6 +11621,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = ECC_KEY_SIZE_E;
                             WOLFSSL_MSG("Peer ECC key is too small");
                         }
+
+                        /* populate curve oid - if missing */
+                        if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->ecdhCurveOID == 0)
+                            ssl->ecdhCurveOID = ECC_X448_OID;
                         break;
                     }
                 #endif /* HAVE_ED448 */
@@ -21101,7 +21114,7 @@ exit_dpk:
         int ret = ECC_CURVE_ERROR;
 
         switch (tlsCurveId) {
-    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1: return ECC_SECP160R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21112,7 +21125,7 @@ exit_dpk:
             case WOLFSSL_ECC_SECP160K1: return ECC_SECP160K1_OID;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP192R1: return ECC_SECP192R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21120,7 +21133,7 @@ exit_dpk:
             case WOLFSSL_ECC_SECP192K1: return ECC_SECP192K1_OID;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP224R1: return ECC_SECP224R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21128,10 +21141,10 @@ exit_dpk:
             case WOLFSSL_ECC_SECP224K1: return ECC_SECP224K1_OID;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-        #ifdef HAVE_CURVE25519
+        #if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
             case WOLFSSL_ECC_X25519: return ECC_X25519_OID;
         #endif
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+    #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1: return ECC_SECP256R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21142,10 +21155,10 @@ exit_dpk:
             case WOLFSSL_ECC_BRAINPOOLP256R1: return ECC_BRAINPOOLP256R1_OID;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-        #ifdef HAVE_CURVE448
+        #if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
             case WOLFSSL_ECC_X448: return ECC_X448_OID;
         #endif
-    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP384R1: return ECC_SECP384R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -21153,12 +21166,12 @@ exit_dpk:
             case WOLFSSL_ECC_BRAINPOOLP384R1: return ECC_BRAINPOOLP384R1_OID;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP512R1: return ECC_BRAINPOOLP512R1_OID;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP521R1: return ECC_SECP521R1_OID;
         #endif /* !NO_ECC_SECP */
@@ -24750,7 +24763,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* returns the WOLFSSL_* version of the curve from the OID sum */
     word16 GetCurveByOID(int oidSum) {
         switch(oidSum) {
-    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 160
         #ifndef NO_ECC_SECP
             case ECC_SECP160R1_OID:
                 return WOLFSSL_ECC_SECP160R1;
@@ -24764,7 +24777,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_SECP160K1;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 192
         #ifndef NO_ECC_SECP
             case ECC_SECP192R1_OID:
                 return WOLFSSL_ECC_SECP192R1;
@@ -24774,7 +24787,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_SECP192K1;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 224
         #ifndef NO_ECC_SECP
             case ECC_SECP224R1_OID:
                 return WOLFSSL_ECC_SECP224R1;
@@ -24784,7 +24797,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_SECP224K1;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+    #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
         #ifndef NO_ECC_SECP
             case ECC_SECP256R1_OID:
                 return WOLFSSL_ECC_SECP256R1;
@@ -24798,7 +24811,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_BRAINPOOLP256R1;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
         #ifndef NO_ECC_SECP
             case ECC_SECP384R1_OID:
                 return WOLFSSL_ECC_SECP384R1;
@@ -24808,13 +24821,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_ECC_BRAINPOOLP384R1;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 512
         #ifdef HAVE_ECC_BRAINPOOL
             case ECC_BRAINPOOLP512R1_OID:
                 return WOLFSSL_ECC_BRAINPOOLP512R1;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
-    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+    #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
         #ifndef NO_ECC_SECP
             case ECC_SECP521R1_OID:
                 return WOLFSSL_ECC_SECP521R1;
@@ -29385,6 +29398,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->arrays->preMasterSz = private_key->dp->size;
 
                         ssl->peerEccKeyPresent = 1;
+                        
+                    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+                        /* client_hello may have sent FFEDH2048, which sets namedGroup, 
+                            but that is not being used, so clear it */
+                        /* resolves issue with server side wolfSSL_get_curve_name */
+                        ssl->namedGroup = 0;
+                    #endif
                 #endif /* HAVE_ECC */
 
                         break;
