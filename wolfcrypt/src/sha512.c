@@ -338,30 +338,25 @@ static int InitSha512(wc_Sha512* sha512)
     static int transform_check = 0;
     static int intel_flags;
     static int Transform_Sha512_is_vectorized = 0;
-#if 0
-    #define Transform_Sha512(sha512)     (*Transform_Sha512_p)(sha512)
-    #define Transform_Sha512_Len(sha512, len) \
-                                          (*Transform_Sha512_Len_p)(sha512, len)
-#endif
 
-    #define Transform_Sha512(sha512) ({                \
-        int _ret;                                      \
-        if (Transform_Sha512_is_vectorized)            \
-            SAVE_VECTOR_REGISTERS();                   \
-        _ret = (*Transform_Sha512_p)(sha512);          \
-        if (Transform_Sha512_is_vectorized)            \
-            RESTORE_VECTOR_REGISTERS();                \
-        _ret;                                          \
-    })
-#define Transform_Sha512_Len(sha512, len) ({           \
-        int _ret;                                      \
-        if (Transform_Sha512_is_vectorized)            \
-            SAVE_VECTOR_REGISTERS();                   \
-        _ret = (*Transform_Sha512_Len_p)(sha512, len); \
-        if (Transform_Sha512_is_vectorized)            \
-            RESTORE_VECTOR_REGISTERS();                \
-        _ret;                                          \
-    })
+    static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
+        int ret;
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha512_p)(sha512);
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+    static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
+        int ret;
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha512_Len_p)(sha512, len);
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
 
     static void Sha512_SetTransform(void)
     {

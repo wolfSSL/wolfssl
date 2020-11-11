@@ -313,24 +313,27 @@ static int InitSha256(wc_Sha256* sha256)
     static word32 intel_flags;
     static int Transform_Sha256_is_vectorized = 0;
 
-    #define XTRANSFORM(S, D) ({                        \
-        int _ret;                                      \
-        if (Transform_Sha256_is_vectorized)            \
-            SAVE_VECTOR_REGISTERS();                   \
-        _ret = (*Transform_Sha256_p)((S),(D));         \
-        if (Transform_Sha256_is_vectorized)            \
-            RESTORE_VECTOR_REGISTERS();                \
-        _ret;                                          \
-    })
-    #define XTRANSFORM_LEN(S, D, L) ({                 \
-        int _ret;                                      \
-        if (Transform_Sha256_is_vectorized)            \
-            SAVE_VECTOR_REGISTERS();                   \
-        _ret = (*Transform_Sha256_Len_p)((S),(D),(L)); \
-        if (Transform_Sha256_is_vectorized)            \
-            RESTORE_VECTOR_REGISTERS();                \
-        _ret;                                          \
-    })
+    static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
+        int ret;
+        if (Transform_Sha256_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha256_p)(S, D);
+        if (Transform_Sha256_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
+
+    static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
+        int ret;
+        if (Transform_Sha256_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha256_Len_p)(S, D, L);
+        if (Transform_Sha256_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
 
     static void Sha256_SetTransform(void)
     {
