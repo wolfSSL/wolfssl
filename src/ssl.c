@@ -28041,8 +28041,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     *p += idx;
 
 end:
-    if (ret != 0 && (sess == NULL || *sess != s))
+    if (ret != 0 && (sess == NULL || *sess != s)) {
         wolfSSL_SESSION_free(s);
+        s = NULL;
+    }
 #endif
     return s;
 }
@@ -29875,8 +29877,14 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
         } else {
             privSz = pubSz;
         }
-        pub   = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        priv  = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (pubSz > 0) {
+            pub = (unsigned char*)XMALLOC(pubSz,
+                    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
+        if (privSz > 0) {
+            priv = (unsigned char*)XMALLOC(privSz,
+                    NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        }
         if (pub == NULL || priv == NULL) {
             WOLFSSL_MSG("Unable to malloc memory");
         }

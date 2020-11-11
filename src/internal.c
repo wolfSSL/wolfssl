@@ -17312,13 +17312,18 @@ int SendCertificateRequest(WOLFSSL* ssl)
     (void)i;
 
         if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
+            byte* input = NULL;
             int   inputSz = i; /* build msg adds rec hdr */
             int   recordHeaderSz = RECORD_HEADER_SZ;
 
             if (ssl->options.dtls)
                 recordHeaderSz += DTLS_RECORD_EXTRA;
             inputSz -= recordHeaderSz;
+
+            if (inputSz <= 0) {
+                WOLFSSL_MSG("Send Cert Req bad inputSz");
+                return BUFFER_E;
+            }
 
             input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
@@ -26691,6 +26696,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
         /* Final cleanup */
+        if (args->input != NULL) {
+            XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            args->input = NULL;
+        }
         FreeSskeArgs(ssl, args);
         FreeKeyExchange(ssl);
 
