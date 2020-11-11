@@ -7875,6 +7875,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             ret = wc_EccPublicKeyDecode(pub, &idx, key, pubSz);
         key->type = ECC_PRIVATEKEY;
     #else
+        (void)pubSz;
         ret = NOT_COMPILED_IN;
     #endif
     }
