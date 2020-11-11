@@ -18450,7 +18450,7 @@ static int pkcs12_test(void)
     if (ret < 0)
         return -9100;
 
-    if ( (ret = XMEMCMP(derived, verify, kLen)) != 0)
+    if (XMEMCMP(derived, verify, kLen) != 0)
         return -9101;
 
     iterations = 1000;
@@ -18464,7 +18464,7 @@ static int pkcs12_test(void)
     if (ret < 0)
         return -9103;
 
-    if ( (ret = XMEMCMP(derived, verify2, 24)) != 0)
+    if (XMEMCMP(derived, verify2, 24) != 0)
         return -9104;
 
     return 0;

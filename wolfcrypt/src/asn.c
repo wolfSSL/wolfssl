@@ -10951,7 +10951,7 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
 
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, 1, sz, file)) != sz) {
+            if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
                 ret = BUFFER_E;
             }
         #ifdef WOLFSSL_PEM_TO_DER
@@ -11031,7 +11031,7 @@ int wc_PemPubKeyToDer(const char* fileName,
                 dynamic = 1;
         }
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, 1, sz, file)) != sz) {
+            if ((size_t)XFREAD(fileBuf, 1, sz, file) != (size_t)sz) {
                 ret = BUFFER_E;
             }
         #ifdef WOLFSSL_PEM_TO_DER
