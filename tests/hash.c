@@ -139,30 +139,34 @@ int HashTest(void)
     #endif
 
     #ifndef NO_SHA
-    if ( (ret = hmac_sha_test()) )
+    if ( (ret = hmac_sha_test()) ) {
         printf( "   HMAC-SHA test failed!\n");
-    else
+        return ret;
+    } else
         printf( "   HMAC-SHA test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA224
-        if ( (ret = hmac_sha224_test()) )
+        if ( (ret = hmac_sha224_test()) ) {
             printf( "   HMAC-SHA224 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA224 test passed!\n");
     #endif
 
     #ifndef NO_SHA256
-        if ( (ret = hmac_sha256_test()) )
+        if ( (ret = hmac_sha256_test()) ) {
             printf( "   HMAC-SHA256 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA256 test passed!\n");
     #endif
 
     #ifdef WOLFSSL_SHA384
-        if ( (ret = hmac_sha384_test()) )
+        if ( (ret = hmac_sha384_test()) ) {
             printf( "   HMAC-SHA384 test failed!\n");
-        else
+            return ret;
+        } else
             printf( "   HMAC-SHA384 test passed!\n");
     #endif
 #endif

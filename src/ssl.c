@@ -545,7 +545,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 
     ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
     if (ssl)
-        if ( (ret = InitSSL(ssl, ctx, 0)) < 0) {
+        if (InitSSL(ssl, ctx, 0) < 0) {
             FreeSSL(ssl, ctx->heap);
             ssl = 0;
         }
@@ -6649,7 +6649,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         dynamic = 1;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
+    if ((size_t)XFREAD(myBuffer, 1, sz, file) != (size_t)sz)
         ret = WOLFSSL_BAD_FILE;
     else {
         /* Try to detect type by parsing cert header and footer */
@@ -6867,7 +6867,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
         dynamic = 1;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
+    if ((size_t)XFREAD(myBuffer, 1, sz, file) != (size_t)sz)
         ret = WOLFSSL_BAD_FILE;
     else
         ret = wolfSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
@@ -7292,7 +7292,7 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         dynamic = 1;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
+    if ((size_t)XFREAD(myBuffer, 1, sz, file) != (size_t)sz)
         ret = WOLFSSL_BAD_FILE;
     else {
         if (ssl)
@@ -22857,7 +22857,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_X509_free(x509);
             }
             else {
-                if ((ret = CopyDecodedToX509(x509, &DeCert)) != 0) {
+                if (CopyDecodedToX509(x509, &DeCert) != 0) {
                     WOLFSSL_MSG("Failed to copy decoded cert");
                     FreeDecodedCert(&DeCert);
                     wolfSSL_X509_free(x509);
@@ -22928,7 +22928,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         if (ParseCertRelative(&DeCert, CERT_TYPE, NO_VERIFY, NULL) != 0) {
             WOLFSSL_MSG("Issue with parsing certificate");
         }
-        if ((ret = CopyDecodedToX509(*cert, &DeCert)) != 0) {
+        if (CopyDecodedToX509(*cert, &DeCert) != 0) {
             WOLFSSL_MSG("Failed to copy decoded cert");
             FreeDecodedCert(&DeCert);
             if (pk != NULL) {
@@ -22981,8 +22981,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
                         return WOLFSSL_FAILURE;
                     }
-                    if ((ret = wolfSSL_RSA_LoadDer_ex((*pkey)->rsa, pk, pkSz,
-                                    WOLFSSL_RSA_LOAD_PRIVATE)) != SSL_SUCCESS) {
+                    if (wolfSSL_RSA_LoadDer_ex((*pkey)->rsa, pk, pkSz,
+                                    WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
                         WOLFSSL_MSG("issue loading RSA key");
                         wolfSSL_X509_free(*cert); *cert = NULL;
                         if (ca != NULL) {
@@ -37962,6 +37962,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Unable to make DER for X509");
             WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
+            (void)ret;
             ret = WOLFSSL_FAILURE;
             goto out;
         }
@@ -40240,13 +40241,13 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
         WOLFSSL_MSG("Not yet supporting call back or password for encrypted PEM");
     }
 
-    if ((ret = PemToDer(buf, (long)bufSz, DSA_PARAM_TYPE, &pDer, NULL, NULL,
-                    NULL)) < 0 ) {
+    if (PemToDer(buf, (long)bufSz, DSA_PARAM_TYPE, &pDer, NULL, NULL,
+                    NULL) < 0 ) {
         WOLFSSL_MSG("Issue converting from PEM to DER");
         return NULL;
     }
 
-    if ((ret = GetSequence(pDer->buffer, &idx, &length, pDer->length)) < 0) {
+    if (GetSequence(pDer->buffer, &idx, &length, pDer->length) < 0) {
         WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_DSAparams", ret);
         FreeDer(&pDer);
         return NULL;

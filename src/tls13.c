@@ -3355,7 +3355,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
     #ifdef HAVE_SESSION_TICKET
         /* Decode the identity. */
-        if ((ret = DoClientTicket(ssl, current->identity, current->identityLen))
+        if (DoClientTicket(ssl, current->identity, current->identityLen)
                                                      == WOLFSSL_TICKET_RET_OK) {
             word32 now;
             int    diff;
