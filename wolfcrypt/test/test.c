@@ -10663,7 +10663,7 @@ static int random_rng_test(void)
 
     if (ret != 0) return ret;
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
     {
         byte nonce[8] = { 0 };
         /* Test dynamic RNG. */
@@ -10834,7 +10834,7 @@ static int simple_mem_test(int sz)
 static int memory_test(void)
 {
     int ret = 0;
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
     byte* b = NULL;
 #endif
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
@@ -10951,7 +10951,7 @@ static int memory_test(void)
     }
 #endif
 
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
     /* realloc test */
     b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (b) {
@@ -19610,6 +19610,7 @@ done:
     return ret;
 }
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 {
     int ret;
@@ -19687,8 +19688,10 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 
     return ret;
 }
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC_KEY_IMPORT */
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
     int    ret = 0;
@@ -19784,6 +19787,7 @@ done:
 
     return ret;
 }
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int curve_id, const ecc_set_type* dp)
@@ -20222,6 +20226,8 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 #endif
 
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(NO_ASN_CRYPT)
     ret = ecc_test_key_decode(rng, keySize);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
@@ -20232,7 +20238,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             return ret;
         }
     }
+#endif
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
     ret = ecc_test_key_gen(rng, keySize);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
@@ -20243,6 +20251,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             return ret;
         }
     }
+#endif
 
     return 0;
 }
