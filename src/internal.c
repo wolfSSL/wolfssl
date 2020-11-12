@@ -18614,19 +18614,49 @@ void SetErrorString(int error, char* str)
     str[WOLFSSL_MAX_ERROR_SZ-1] = 0;
 }
 
-#ifndef NO_ERROR_STRINGS
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u)}
+#ifdef NO_CIPHER_SUITE_ALIASES
+    #ifndef NO_ERROR_STRINGS
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u)
+        #else
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u)
+        #endif
     #else
-        #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w)}
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u)
+        #else
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u)
+        #endif
     #endif
-#else
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u)}
+#else /* !NO_CIPHER_SUITE_ALIASES */
+
+    /* note that the comma is included at the end of the SUITE_ALIAS() macro
+     * definitions, to allow aliases to be gated out by the above null macros
+     * in the NO_CIPHER_SUITE_ALIASES section.
+     */
+
+    #ifndef NO_ERROR_STRINGS
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u) {(x),"",(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
+        #else
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u) {(x),"",(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
+        #endif
     #else
-        #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w)}
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
+        #else
+            #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
+            #define SUITE_ALIAS(x,z,w,v,u) {(x),(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
+        #endif
     #endif
-#endif
+#endif /* NO_CIPHER_SUITE_ALIASES */
 
 static const CipherSuiteInfo cipher_names[] =
 {
@@ -18649,6 +18679,7 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_AES_128_CCM_8_SHA256
     SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256,TLSv1_3_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("TLS13-AES128-CCM8-SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256,TLSv1_3_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_SHA256_SHA256
@@ -18759,10 +18790,12 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CCM_8
     SUITE_INFO("PSK-AES128-CCM-8","TLS_PSK_WITH_AES_128_CCM_8",ECC_BYTE,TLS_PSK_WITH_AES_128_CCM_8,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_ALIAS("PSK-AES128-CCM8",ECC_BYTE,TLS_PSK_WITH_AES_128_CCM_8,TLSv1_MINOR,SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CCM_8
     SUITE_INFO("PSK-AES256-CCM-8","TLS_PSK_WITH_AES_256_CCM_8",ECC_BYTE,TLS_PSK_WITH_AES_256_CCM_8,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_ALIAS("PSK-AES256-CCM8",ECC_BYTE,TLS_PSK_WITH_AES_256_CCM_8,TLSv1_MINOR,SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
@@ -18815,10 +18848,12 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CCM_8
     SUITE_INFO("AES128-CCM-8","TLS_RSA_WITH_AES_128_CCM_8",ECC_BYTE,TLS_RSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("AES128-CCM8",ECC_BYTE,TLS_RSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CCM_8
     SUITE_INFO("AES256-CCM-8","TLS_RSA_WITH_AES_256_CCM_8",ECC_BYTE,TLS_RSA_WITH_AES_256_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("AES256-CCM8",ECC_BYTE,TLS_RSA_WITH_AES_256_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
@@ -18827,10 +18862,12 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
     SUITE_INFO("ECDHE-ECDSA-AES128-CCM-8","TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("ECDHE-ECDSA-AES128-CCM8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
     SUITE_INFO("ECDHE-ECDSA-AES256-CCM-8","TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR),
+    SUITE_ALIAS("ECDHE-ECDSA-AES256-CCM8",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8, TLSv1_2_MINOR, SSLv3_MAJOR)
 #endif
 
 #ifdef BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
@@ -19126,7 +19163,11 @@ const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuit
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
         if ((cipher_names[i].cipherSuite0 == cipherSuite0) &&
-            (cipher_names[i].cipherSuite  == cipherSuite)) {
+            (cipher_names[i].cipherSuite  == cipherSuite)
+#ifndef NO_CIPHER_SUITE_ALIASES
+            && (! (cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+#endif
+            ) {
             nameInternal = cipher_names[i].name;
             break;
         }
@@ -19349,7 +19390,11 @@ const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite)
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
         if ((cipher_names[i].cipherSuite0 == cipherSuite0) &&
-            (cipher_names[i].cipherSuite  == cipherSuite)) {
+            (cipher_names[i].cipherSuite  == cipherSuite)
+#ifndef NO_CIPHER_SUITE_ALIASES
+            && (! (cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+#endif
+            ) {
             nameIana = cipher_names[i].name_iana;
             break;
         }
@@ -19381,7 +19426,7 @@ const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl)
 }
 
 int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                           byte* cipherSuite)
+                           byte* cipherSuite, int* flags)
 {
     int           ret = BAD_FUNC_ARG;
     int           i;
@@ -19396,9 +19441,11 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
         len = (unsigned long)XSTRLEN(name);
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
-        if (XSTRNCMP(name, cipher_names[i].name, len) == 0) {
+        if ((XSTRNCMP(name, cipher_names[i].name, len) == 0) &&
+            (cipher_names[i].name[len] == 0)) {
             *cipherSuite0 = cipher_names[i].cipherSuite0;
             *cipherSuite  = cipher_names[i].cipherSuite;
+            *flags = cipher_names[i].flags;
             ret = 0;
             break;
         }
@@ -19731,7 +19778,11 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         int i;
         int sz = GetCipherNamesSize();
 
-        for (i = 0; i < sz; i++)
+        for (i = 0; i < sz; i++) {
+#ifndef NO_CIPHER_SUITE_ALIASES
+            if (cipher_names[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS)
+                continue;
+#endif
             if (info->ssl->options.cipherSuite ==
                                             (byte)cipher_names[i].cipherSuite) {
                 if (info->ssl->options.cipherSuite0 == ECC_BYTE)
@@ -19740,6 +19791,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                 info->cipherName[MAX_CIPHERNAME_SZ] = '\0';
                 break;
             }
+        }
 
         /* error max and min are negative numbers */
         if (info->ssl->error <= MIN_PARAM_ERR && info->ssl->error >= MAX_PARAM_ERR)

@@ -1156,6 +1156,10 @@ int SuiteTest(int argc, char** argv)
     }
 
 exit:
+
+    if (args.return_code == 0)
+        printf("\n Success -- All results as expected.\n");
+
     printf(" End Cipher Suite Tests\n");
 
     wolfSSL_CTX_free(cipherSuiteCtx);
