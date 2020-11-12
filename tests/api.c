@@ -37303,6 +37303,63 @@ static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+static void test_wolfssl_EVP_aes_gcm_zeroLen()
+{       
+    /* Zero length plain text */
+
+    byte key[] = 
+        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}; /* align */
+    byte iv[]  = 
+        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+                                                            /* align */
+    byte plaintxt[0];
+    int ivSz  = 12;
+    int plaintxtSz = 0;
+    unsigned char tag[16];
+    unsigned char tag_kat[] = 
+        {0x53,0x0f,0x8a,0xfb,0xc7,0x45,0x36,0xb9,
+        0xa9,0x63,0xb4,0xf1,0xc4,0xcb,0x73,0x8b};
+
+    byte ciphertxt[AES_BLOCK_SIZE * 4] = {0};
+    byte decryptedtxt[AES_BLOCK_SIZE * 4] = {0};
+    int ciphertxtSz = 0;
+    int decryptedtxtSz = 0;
+    int len = 0;
+
+    EVP_CIPHER_CTX *en = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *de = EVP_CIPHER_CTX_new();
+
+    AssertIntEQ(1, EVP_EncryptInit_ex(en, EVP_aes_256_gcm(), NULL, key, iv));
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
+    AssertIntEQ(1, EVP_EncryptUpdate(en, NULL, &ciphertxtSz , plaintxt, plaintxtSz));
+    AssertIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
+    ciphertxtSz += len;
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_GET_TAG, 16, tag));
+    AssertIntEQ(1, EVP_CIPHER_CTX_cleanup(en));
+
+    AssertIntEQ(0, ciphertxtSz);
+    AssertIntEQ(0, XMEMCMP(tag, tag_kat, sizeof(tag)));
+    
+    EVP_CIPHER_CTX_init(de);
+    AssertIntEQ(1, EVP_DecryptInit_ex(de, EVP_aes_256_gcm(), NULL, key, iv));
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
+    AssertIntEQ(1, EVP_DecryptUpdate(de, NULL, &len, ciphertxt, len));
+    decryptedtxtSz = len;
+    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(de, EVP_CTRL_GCM_SET_TAG, 16, tag));
+    AssertIntEQ(1, EVP_DecryptFinal_ex(de, decryptedtxt, &len));
+    decryptedtxtSz += len;
+    AssertIntEQ(0, decryptedtxtSz);
+    
+    EVP_CIPHER_CTX_free(en);
+    EVP_CIPHER_CTX_free(de);
+}
+#endif
+
 static void test_wolfssl_EVP_aes_gcm(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
@@ -37409,6 +37466,9 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(0, len);
         AssertIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
     }
+    
+    test_wolfssl_EVP_aes_gcm_zeroLen();
+
     printf(resultFmt, passed);
 
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
