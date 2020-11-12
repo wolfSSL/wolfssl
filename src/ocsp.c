@@ -975,6 +975,87 @@ int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
     return WOLFSSL_FAILURE;
 }
 #endif /* !NO_BIO */
+
+int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
+{
+    if (id == NULL || data == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (*data != NULL) {
+        XMEMCPY(*data, id->rawCertId, id->rawCertIdSize);
+        *data = *data + id->rawCertIdSize;
+    }
+    else {
+        *data = (unsigned char*)XMALLOC(id->rawCertIdSize, NULL, DYNAMIC_TYPE_OPENSSL);
+        XMEMCPY(*data, id->rawCertId, id->rawCertIdSize);
+    }
+
+    return id->rawCertIdSize;
+}
+
+const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(const WOLFSSL_OCSP_SINGLERESP *single)
+{
+    return single;
+}
+
+int wolfSSL_OCSP_single_get0_status(WOLFSSL_OCSP_SINGLERESP *single,
+                                    int *reason,
+                                    WOLFSSL_ASN1_TIME **revtime,
+                                    WOLFSSL_ASN1_TIME **thisupd,
+                                    WOLFSSL_ASN1_TIME **nextupd)
+{
+    if (single == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (thisupd != NULL)
+        *thisupd = &single->status->thisDateParsed;
+    if (nextupd != NULL)
+        *nextupd = &single->status->nextDateParsed;
+
+    if (reason != NULL)
+        *reason = 0;
+    if (revtime != NULL)
+        *revtime = NULL;
+
+    return single->status->status;
+}
+
+int wolfSSL_OCSP_resp_count(WOLFSSL_OCSP_BASICRESP *bs)
+{
+    WOLFSSL_OCSP_SINGLERESP* single;
+    int count = 0;
+
+    if (bs == NULL)
+        return WOLFSSL_FAILURE;
+
+    single = bs->single;
+    while(single != NULL)
+    {
+        ++count;
+        single = single->next;
+    }
+
+    return count;
+}
+
+WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(WOLFSSL_OCSP_BASICRESP *bs, int idx)
+{
+    WOLFSSL_OCSP_SINGLERESP* single;
+    int currIdx = 0;
+
+    if (bs == NULL)
+        return NULL;
+
+    single = bs->single;
+    while(single != NULL && currIdx != idx)
+    {
+        single = single->next;
+        ++currIdx;
+    }
+
+    return single;
+}
+
 #endif /* OPENSSL_ALL || APACHE_HTTPD */
 
 #ifdef OPENSSL_EXTRA
