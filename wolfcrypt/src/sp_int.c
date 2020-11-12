@@ -927,6 +927,9 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
             d = sd;
         }
 
+        if (d->used < 0)
+            err = MP_VAL;
+
         tr->used = sa->used - d->used + 1;
         sp_clear(tr);
         tr->used = sa->used - d->used + 1;
