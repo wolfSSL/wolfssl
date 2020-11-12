@@ -2843,9 +2843,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
@@ -7005,9 +7005,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
@@ -11403,9 +11403,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* d = NULL;
-    sp_digit* a;
-    sp_digit* m;
-    sp_digit* r;
+    sp_digit* a = NULL;
+    sp_digit* m = NULL;
+    sp_digit* r = NULL;
     sp_digit* norm;
     sp_digit e[1] = {0};
     sp_digit mp;
