@@ -6202,7 +6202,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 }
 #else
 {
-   int           err;
+   int           err = NOT_COMPILED_IN;
    word32        keySz;
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
    byte sigRS[ATECC_KEY_SIZE*2];
