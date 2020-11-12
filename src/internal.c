@@ -9828,9 +9828,11 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     #ifdef WOLFSSL_SMALL_STACK
         CertStatus* status;
+        OcspEntry* single;
         OcspResponse* response;
     #else
         CertStatus status[1];
+        OcspEntry single[1];
         OcspResponse response[1];
     #endif
 
@@ -9860,21 +9862,25 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     #ifdef WOLFSSL_SMALL_STACK
         status = (CertStatus*)XMALLOC(sizeof(CertStatus), ssl->heap,
-                                                      DYNAMIC_TYPE_OCSP_STATUS);
+                                                    DYNAMIC_TYPE_OCSP_STATUS);
+        single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), ssl->heap,
+                                                    DYNAMIC_TYPE_OCSP_ENTRY);
         response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), ssl->heap,
-                                                     DYNAMIC_TYPE_OCSP_REQUEST);
+                                                    DYNAMIC_TYPE_OCSP_REQUEST);
 
-        if (status == NULL || response == NULL) {
+        if (status == NULL || single == NULL || response == NULL) {
             if (status)
-                XFREE(status, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+                XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            if (single)
+                XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
             if (response)
-                XFREE(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+                XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
             return MEMORY_ERROR;
         }
     #endif
 
-    InitOcspResponse(response, status, input +*inOutIdx, status_length, ssl->heap);
+    InitOcspResponse(response, single, status, input +*inOutIdx, status_length, ssl->heap);
 
     if (OcspResponseDecode(response, ssl->ctx->cm, ssl->heap, 0) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -9882,9 +9888,9 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = BAD_CERTIFICATE_STATUS_ERROR;
     else if (response->responseStatus != OCSP_SUCCESSFUL)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
-    else if (response->status->status == CERT_REVOKED)
+    else if (response->single->status->status == CERT_REVOKED)
         ret = OCSP_CERT_REVOKED;
-    else if (response->status->status != CERT_GOOD)
+    else if (response->single->status->status != CERT_GOOD)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
     else {
@@ -9894,9 +9900,9 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     *inOutIdx += status_length;
 
-    FreeOcspResponse(response);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+        XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
         XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     #endif
 
@@ -11858,10 +11864,12 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             byte   idx = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
-                CertStatus* status;
+                CertStatus*   status;
+                OcspEntry*    single;
                 OcspResponse* response;
             #else
-                CertStatus status[1];
+                CertStatus   status[1];
+                OcspEntry    single[1];
                 OcspResponse response[1];
             #endif
 
@@ -11877,12 +11885,16 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_SMALL_STACK
                 status = (CertStatus*)XMALLOC(sizeof(CertStatus), ssl->heap,
                                                        DYNAMIC_TYPE_OCSP_STATUS);
+                single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), ssl->heap,
+                                                              DYNAMIC_TYPE_OCSP_ENTRY);
                 response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), ssl->heap,
-                                                       DYNAMIC_TYPE_OCSP_REQUEST);
+                                                             DYNAMIC_TYPE_OCSP_REQUEST);
 
-                if (status == NULL || response == NULL) {
+                if (status == NULL || single == NULL || response == NULL) {
                     if (status)
                         XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+                    if (single)
+                        XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
                     if (response)
                         XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
@@ -11906,13 +11918,13 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
                 if (status_length) {
-                    InitOcspResponse(response, status, input +*inOutIdx,
-                                                    status_length, ssl->heap);
+                    InitOcspResponse(response, single, status, input +*inOutIdx,
+                                     status_length, ssl->heap);
 
                     if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap,
                                                                         0) != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
-                    ||  (response->status->status != CERT_GOOD))
+                    ||  (response->single->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
                     while (ret == 0) {
@@ -11939,6 +11951,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(status,   NULL, DYNAMIC_TYPE_OCSP_STATUS);
+                XFREE(single,   NULL, DYNAMIC_TYPE_OCSP_ENTRY);
                 XFREE(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
             #endif
 

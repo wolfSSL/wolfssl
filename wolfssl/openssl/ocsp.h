@@ -30,6 +30,7 @@
 #define OCSP_REQUEST              OcspRequest
 #define OCSP_RESPONSE             OcspResponse
 #define OCSP_BASICRESP            WOLFSSL_OCSP_BASICRESP
+#define OCSP_SINGLERESP           WOLFSSL_OCSP_SINGLERESP
 #define OCSP_CERTID               WOLFSSL_OCSP_CERTID
 #define OCSP_ONEREQ               WOLFSSL_OCSP_ONEREQ
 

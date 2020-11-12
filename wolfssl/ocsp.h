@@ -41,7 +41,9 @@ typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 typedef struct OcspResponse WOLFSSL_OCSP_BASICRESP;
 
-typedef struct OcspRequest WOLFSSL_OCSP_CERTID;
+typedef struct OcspEntry WOLFSSL_OCSP_CERTID;
+
+typedef struct OcspEntry WOLFSSL_OCSP_SINGLERESP;
 
 typedef struct OcspRequest WOLFSSL_OCSP_ONEREQ;
 
