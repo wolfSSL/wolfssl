@@ -77,6 +77,12 @@
 
 #define i2d_OCSP_REQUEST_bio      wolfSSL_i2d_OCSP_REQUEST_bio
 
+#define i2d_OCSP_CERTID           wolfSSL_i2d_OCSP_CERTID
+#define OCSP_SINGLERESP_get0_id   wolfSSL_OCSP_SINGLERESP_get0_id
+#define OCSP_single_get0_status   wolfSSL_OCSP_single_get0_status
+#define OCSP_resp_count           wolfSSL_OCSP_resp_count
+#define OCSP_resp_get0            wolfSSL_OCSP_resp_get0
+
 #endif /* HAVE_OCSP */
 
 #endif /* WOLFSSL_OCSP_H_ */
