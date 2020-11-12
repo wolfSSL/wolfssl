@@ -2781,7 +2781,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     (void)msgSz;
 
     /* make sure we didn't miss ClientHello */
-    if (session->flags.clientHello == 0) {
+    if (session->flags.clientHello == 0 || session->sslClient->arrays == NULL) {
         SetError(MISSED_CLIENT_HELLO_STR, error, session, FATAL_ERROR_STATE);
         return -1;
     }
