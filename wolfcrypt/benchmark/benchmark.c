@@ -4712,8 +4712,8 @@ void bench_rsa(int doAsync)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                        doAsync ? devId : INVALID_DEVID)) < 0) {
+        if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                        doAsync ? devId : INVALID_DEVID) < 0) {
             goto exit_bench_rsa;
         }
 
@@ -4785,8 +4785,8 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
             if (!isPending[i]) { /* if making the key is pending then just call
                                   * wc_MakeRsaKey again */
                 /* setup an async context for each key */
-                if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                    doAsync ? devId : INVALID_DEVID)) < 0) {
+                if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                     doAsync ? devId : INVALID_DEVID) < 0) {
                     goto exit_bench_rsa_key;
                 }
 
