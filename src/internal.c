@@ -7255,6 +7255,10 @@ int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
         else
             return 0;
     case WOLFSSL_SERVER_END:
+        if (ssl->options.clientState >= CLIENT_HELLO_COMPLETE &&
+                item->type == hello_request)
+            return 1; /* Server can forget HelloRequest if client sent a valid
+                       * ClientHello */
         if (ssl->options.clientState >= CLIENT_FINISHED_COMPLETE &&
                 item->type <= server_hello_done)
             return 1; /* server can forget everything up to ServerHelloDone if
@@ -7282,7 +7286,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
 
     if (pool != NULL) {
         if ((ssl->options.side == WOLFSSL_SERVER_END &&
-             !(ssl->options.acceptState == SERVER_HELLO_DONE ||
+             !(ssl->options.acceptState == ACCEPT_BEGIN_RENEG ||
+               ssl->options.acceptState == SERVER_HELLO_DONE ||
                ssl->options.acceptState == ACCEPT_FINISHED_DONE ||
                ssl->options.acceptState == ACCEPT_THIRD_REPLY_DONE)) ||
             (ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -13279,6 +13284,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             *inOutIdx += ssl->keys.padSz;
             ret = 0;
+            /* If we receive an out of order last flight msg then retransmit */
+            if (type == server_hello_done || type == finished) {
+                ret = DtlsMsgPoolSend(ssl, 0);
+            }
         }
         else {
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
@@ -18013,6 +18022,23 @@ startScr:
             if (ssl->secure_renegotiation &&
                 ssl->secure_renegotiation->startScr) {
                 goto startScr;
+            }
+            if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
+                    ssl->options.handShakeState != HANDSHAKE_DONE
+                    && ssl->buffers.clearOutputBuffer.length == 0) {
+                /* ProcessReply processed a handshake packet and not any APP DATA
+                 * so let's move the handshake along */
+                int err;
+                WOLFSSL_MSG("Handshake not complete, trying to finish");
+                if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* if async would block return WANT_WRITE */
+                    if (ssl->error == WC_PENDING_E) {
+                        return WOLFSSL_CBIO_ERR_WANT_READ;
+                    }
+                #endif
+                    return err;
+                }
             }
         #endif
     #ifdef WOLFSSL_TLS13
@@ -27795,13 +27821,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0)
                 goto out;
 
-            #ifdef HAVE_SECURE_RENEGOTIATION
-            if (ssl->secure_renegotiation &&
-                    ssl->secure_renegotiation->enabled &&
-                    IsEncryptionOn(ssl, 0))
-                ssl->secure_renegotiation->startScr = 1;
-            #endif
-
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
@@ -27830,12 +27849,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             SendAlert(ssl, alert_fatal, handshake_failure);
 #endif
 
-#ifdef HAVE_SECURE_RENEGOTIATION
-        if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
-                IsEncryptionOn(ssl, 0)) {
-            ssl->secure_renegotiation->startScr = 1;
-        }
-#endif
 #ifdef WOLFSSL_DTLS
         if (ret == 0 && ssl->options.dtls)
             DtlsMsgPoolReset(ssl);
@@ -28766,6 +28779,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return MEMORY_E;
 
             XMEMCPY(input, output + recordHeaderSz, inputSz);
+            #ifdef WOLFSSL_DTLS
+            if (IsDtlsNotSctpMode(ssl) &&
+                    (ret = DtlsMsgPoolSave(ssl, input, inputSz, hello_request)) != 0) {
+                XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+                return ret;
+            }
+            #endif
             sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                   handshake, 0, 0, 0, CUR_ORDER);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);

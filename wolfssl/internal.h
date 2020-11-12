@@ -4086,6 +4086,9 @@ struct WOLFSSL {
     int             dtls_timeout_init;  /* starting timeout value */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
+#ifndef NO_ASN_TIME
+    word32          dtls_start_timeout;
+#endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
     DtlsMsg*        dtls_tx_msg_list;
