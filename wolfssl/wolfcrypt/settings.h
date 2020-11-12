@@ -1398,6 +1398,7 @@ extern void uITRON4_free(void *p) ;
     #endif
     #include <lib_mem.h>
     #include <lib_math.h>
+    #include <lib_str.h>
     #include <string.h>
 
     #define USE_FAST_MATH

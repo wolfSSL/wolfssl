@@ -1266,6 +1266,7 @@ int wolfSSL_CryptHwMutexUnLock(void)
             else
                 return BAD_MUTEX_E;
         #else
+            (void)m;
             return 0;
         #endif
     }
