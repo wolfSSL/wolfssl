@@ -4606,6 +4606,7 @@ typedef struct CipherSuiteInfo {
     byte minor;
     byte major;
 #endif
+    byte flags;
 } CipherSuiteInfo;
 
 WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
@@ -4627,7 +4628,8 @@ WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte 
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                                         byte* cipherSuite);
+                                         byte* cipherSuite, int* flags);
+
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

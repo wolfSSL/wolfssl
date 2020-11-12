@@ -904,6 +904,10 @@ int wolfSSL_get_ciphers_iana(char* buf, int len)
 
     /* Add each member to the buffer delimited by a : */
     for (i = 0; i < ciphersSz; i++) {
+#ifndef NO_CIPHER_SUITE_ALIASES
+        if (ciphers[i].flags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS)
+            continue;
+#endif
         cipherNameSz = (int)XSTRLEN(ciphers[i].name_iana);
         if (cipherNameSz + 1 < len) {
             XSTRNCPY(buf, ciphers[i].name_iana, len);
@@ -20056,6 +20060,16 @@ const char* wolfSSL_get_cipher_name_iana_from_suite(const byte cipherSuite0,
         const byte cipherSuite)
 {
     return GetCipherNameIana(cipherSuite0, cipherSuite);
+}
+
+int wolfSSL_get_cipher_suite_from_name(const char* name, byte* cipherSuite0,
+                                       byte* cipherSuite, int *flags) {
+    if ((name == NULL) ||
+        (cipherSuite0 == NULL) ||
+        (cipherSuite == NULL) ||
+        (flags == NULL))
+        return BAD_FUNC_ARG;
+    return GetCipherSuiteFromName(name, cipherSuite0, cipherSuite, flags);
 }
 
 

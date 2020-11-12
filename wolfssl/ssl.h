@@ -795,6 +795,9 @@ WOLFSSL_API long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx);
 WOLFSSL_API void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx,int depth);
 #endif /* !NO_CERTS */
 
+#define WOLFSSL_CIPHER_SUITE_FLAG_NONE          0x0
+#define WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS     0x1
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
 WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
@@ -854,6 +857,8 @@ WOLFSSL_API const char* wolfSSL_get_cipher_name_from_suite(const unsigned char,
     const unsigned char);
 WOLFSSL_API const char* wolfSSL_get_cipher_name_iana_from_suite(
     const unsigned char, const unsigned char);
+WOLFSSL_API int wolfSSL_get_cipher_suite_from_name(const char* name,
+    byte* cipherSuite0, byte* cipherSuite, int* flags);
 WOLFSSL_API const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf,
     int len);
 WOLFSSL_API const char* wolfSSL_get_curve_name(WOLFSSL* ssl);

@@ -10250,6 +10250,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 /* Default ciphersuite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
+                int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
                 const char* cipherName = NULL;
 
                 if (ssl->options.client_psk_tls13_cb != NULL) {
@@ -10258,7 +10259,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
                     if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                                           &cipherSuite) != 0) {
+                                               &cipherSuite, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
                 }
@@ -10275,6 +10276,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 /* TODO: Callback should be able to change ciphersuite. */
                 ssl->options.cipherSuite0 = cipherSuite0;
                 ssl->options.cipherSuite  = cipherSuite;
+                (void)cipherSuiteFlags;
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
