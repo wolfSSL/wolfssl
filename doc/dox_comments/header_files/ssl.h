@@ -2340,7 +2340,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
     \brief This function associates the client session with the server id.
     If the newSession flag is on, an existing session won’t be reused.
 
-    \return SSL_SUCCESS returned if the finction executed without error.
+    \return SSL_SUCCESS returned if the function executed without error.
     \return BAD_FUNC_ARG returned if the WOLFSSL struct or id parameter
     is NULL or if len is not greater than zero.
 
@@ -2361,7 +2361,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
     …
     int ret = wolfSSL_SetServerID(ssl, id, len, newSession);
 
-    if(ret){
+    if (ret == WOLFSSL_SUCCESS) {
 	    // The Id was successfully set
     }
     \endcode
