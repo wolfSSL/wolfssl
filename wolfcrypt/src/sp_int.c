@@ -2321,9 +2321,11 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
     if (a == NULL || result == NULL || rng == NULL)
         err = MP_VAL;
 
-    if (sp_isone(a)) {
-        *result = MP_NO;
-        return MP_OKAY;
+    if (err == MP_OKAY) {
+        if (sp_isone(a)) {
+            *result = MP_NO;
+            return MP_OKAY;
+        }
     }
 
     if (err == MP_OKAY && a->used == 1) {
@@ -2410,7 +2412,8 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
     (void)t;
 #endif /* !WC_NO_RNG */
 
-    *result = ret;
+    if (result != NULL)
+        *result = ret;
     return err;
 }
 
