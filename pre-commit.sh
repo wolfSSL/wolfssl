@@ -8,9 +8,15 @@ echo "\n\nSaving current config\n\n"
 cp config.status tmp.status
 cp wolfssl/options.h tmp.options.h 
 
-# stash modified files not part of this commit, don't test them
-echo "\n\nStashing any modified files not part of commit\n\n"
-git stash -q --keep-index
+# stash modified files, if any, that are not part of this commit, don't test
+# them
+STASHED=0
+if ! git diff --quiet
+then
+    STASHED=1
+    echo "\n\nStashing modified files not part of commit\n\n"
+    git stash -q --keep-index
+fi
 
 # do the commit tests
 echo "\n\nRunning commit tests...\n\n"
@@ -18,8 +24,11 @@ echo "\n\nRunning commit tests...\n\n"
 RESULT=$?
 
 # restore modified files not part of this commit
-echo "\n\nPopping any stashed modified files not part of commit\n"
-git stash pop -q
+if test $STASHED -eq 1
+then
+    echo "\n\nPopping stashed modified files not part of commit\n"
+    git stash pop -q
+fi
 
 # restore current config
 echo "\nRestoring current config\n"
