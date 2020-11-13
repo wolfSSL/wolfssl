@@ -5640,8 +5640,8 @@ static void test_wolfSSL_X509_verify(void)
 static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_X509 *x509, *x509v2;
-    WOLFSSL_EVP_PKEY* priv;
-    unsigned char *der = NULL, *key = NULL;
+    WOLFSSL_EVP_PKEY *priv, *pub;
+    unsigned char *der = NULL, *key = NULL, *pt;
     char *header, *name;
     int derSz;
     long keySz;
@@ -5655,8 +5655,10 @@ static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
     fp = XFOPEN(cliKeyFile, "rb");
     AssertIntEQ(wolfSSL_PEM_read(fp, &name, &header, &key, &keySz),
             WOLFSSL_SUCCESS);
+    XFCLOSE(fp);
+    pt = key;
     AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
-                (const unsigned char**)&key, keySz));
+                (const unsigned char**)&pt, keySz));
 
 
     /* create the version 2 certificate */
@@ -5667,8 +5669,8 @@ static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
                 wolfSSL_X509_get_subject_name(x509)), WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_X509_set_issuer_name(x509v2,
                 wolfSSL_X509_get_issuer_name(x509)), WOLFSSL_SUCCESS);
-    AssertIntEQ(X509_set_pubkey(x509v2,
-                wolfSSL_X509_get_pubkey(x509)), WOLFSSL_SUCCESS);
+    AssertNotNull(pub = wolfSSL_X509_get_pubkey(x509));
+    AssertIntEQ(X509_set_pubkey(x509v2, pub), WOLFSSL_SUCCESS);
 
     t = time(NULL);
     AssertNotNull(notBefore = wolfSSL_ASN1_TIME_adj(NULL, t, 0, 0));
@@ -5682,9 +5684,18 @@ static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
     AssertIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz,
                                      WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     free(der);
+    if (key != NULL)
+        free(key);
+    if (name != NULL)
+        free(name);
+    if (header != NULL)
+        free(header);
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(x509v2);
     wolfSSL_EVP_PKEY_free(priv);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_ASN1_TIME_free(notBefore);
+    wolfSSL_ASN1_TIME_free(notAfter);
 }
 
 
