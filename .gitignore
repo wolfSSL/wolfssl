@@ -241,6 +241,9 @@ linuxkm/libwolfssl.mod.c
 linuxkm/module_exports.c
 linuxkm/linuxkm/get_thread_size
 
+# Generated scripts and headers
+scripts/unit.test
+
 # MPLAB Generated Files (OS X)
 mcapi/wolfcrypt_mcapi.X/nbproject/Makefile-*
 mcapi/wolfcrypt_mcapi.X/nbproject/Package-default.bash

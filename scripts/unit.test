@@ -1,9 +1,0 @@
-#!/bin/sh
-
-DIRNAME="$(dirname "$0")"
-bwrap_path="$(command -v bwrap)"
-if [ -n "$bwrap_path" ]; then
-    exec "$bwrap_path" --unshare-net --dev-bind / / "$DIRNAME/../tests/unit.test" "$@"
-else
-    exec "$DIRNAME/../tests/unit.test" "$@"
-fi

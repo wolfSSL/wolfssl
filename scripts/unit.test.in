@@ -1,0 +1,8 @@
+#!/bin/sh
+
+bwrap_path="$(command -v bwrap)"
+if [ -n "$bwrap_path" ]; then
+    exec "$bwrap_path" --unshare-net --dev-bind / / "@builddir@/tests/unit.test" "$@"
+else
+    exec "@builddir@/tests/unit.test" "$@"
+fi
