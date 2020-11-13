@@ -39349,15 +39349,21 @@ err:
             }
 
         }
-        else { /* return short name */
-            if (XSTRLEN(a->sName) + 1 < (word32)bufLen - 1) {
-                bufSz = (int)XSTRLEN(a->sName);
+        else { /* return long name unless using x509small, then return short name */
+#if defined(OPENSSL_EXTRA_X509_SMALL) && !defined(OPENSSL_EXTRA)
+            const char* name = a->sName;
+#else
+            const char* name = wolfSSL_OBJ_nid2ln(wolfSSL_OBJ_obj2nid(a));
+#endif
+
+            if (XSTRLEN(name) + 1 < (word32)bufLen - 1) {
+                bufSz = (int)XSTRLEN(name);
             }
             else {
                 bufSz = bufLen - 1;
             }
             if (bufSz) {
-                XMEMCPY(buf, a->sName, bufSz);
+                XMEMCPY(buf, name, bufSz);
             }
             else if (wolfSSL_OBJ_obj2txt(buf, bufLen, a, 1)) {
                 if ((desc = oid_translate_num_to_str(buf))) {
