@@ -3221,14 +3221,14 @@ struct WOLFSSL_SESSION {
 };
 
 
-WOLFSSL_LOCAL
-WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
-WOLFSSL_LOCAL
-int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
+WOLFSSL_LOCAL int              SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL void             FreeSession(WOLFSSL_SESSION*, int);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
+    WOLFSSL_LOCAL
     WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
 #endif
 

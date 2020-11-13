@@ -10530,7 +10530,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
         if (session) {
             if (SetSession(ssl, session) != WOLFSSL_SUCCESS) {
     #ifdef HAVE_EXT_CACHE
-                wolfSSL_SESSION_free(session);
+                FreeSession(session, 0);
     #endif
                 WOLFSSL_MSG("SetSession failed");
                 session = NULL;
@@ -10546,7 +10546,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
     }
     #ifdef HAVE_EXT_CACHE
     else
-        wolfSSL_SESSION_free(session);
+        FreeSession(session, 0);
     #endif
 
     return WOLFSSL_SUCCESS;
@@ -13344,7 +13344,7 @@ int AddSession(WOLFSSL* ssl)
     if (error == 0 && ssl->ctx->new_sess_cb != NULL)
         ssl->ctx->new_sess_cb(ssl, session);
     if (ssl->options.internalCacheOff)
-        wolfSSL_SESSION_free(session);
+        FreeSession(session, 0);
 #endif
 
     return error;
@@ -19854,7 +19854,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 #endif /* HAVE_EXT_CACHE */
 }
 
-void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
+void FreeSession(WOLFSSL_SESSION* session, int isAlloced)
 {
     if (session == NULL)
         return;
@@ -19878,7 +19878,7 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
     wc_UnLockMutex(&session->refMutex);
 #endif
 #if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
-    if (session->isAlloced) {
+    if (isAlloced) {
     #ifdef HAVE_SESSION_TICKET
         if (session->isDynamic)
             XFREE(session->ticket, NULL, DYNAMIC_TYPE_SESSION_TICK);
@@ -19888,9 +19888,22 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 #else
     /* No need to free since cache is static */
     (void)session;
+    (void)isAlloced;
 #endif
 }
+
+void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
+{
+    if (session == NULL)
+        return;
+    
+#if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
+    FreeSession(session, session->isAlloced);
+#else
+    FreeSession(session, 0);
 #endif
+}
+#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
 
 /* helper function that takes in a protocol version struct and returns string */
@@ -28041,8 +28054,10 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     *p += idx;
 
 end:
-    if (ret != 0 && (sess == NULL || *sess != s))
+    if (ret != 0 && (sess == NULL || *sess != s)) {
         wolfSSL_SESSION_free(s);
+        s = NULL;
+    }
 #endif
     return s;
 }
@@ -29875,8 +29890,14 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
         } else {
             privSz = pubSz;
         }
-        pub   = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        priv  = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (pubSz > 0) {
+            pub = (unsigned char*)XMALLOC(pubSz,
+                    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
+        if (privSz > 0) {
+            priv = (unsigned char*)XMALLOC(privSz,
+                    NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        }
         if (pub == NULL || priv == NULL) {
             WOLFSSL_MSG("Unable to malloc memory");
         }
