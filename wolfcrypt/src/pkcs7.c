@@ -909,6 +909,105 @@ static int wc_PKCS7_RecipientListVersionsAllZero(PKCS7* pkcs7)
     return 1;
 }
 
+/* Verify RSA/ECC key is correctly formatted, used as sanity check after
+ * import of key/cert.
+ *
+ * keyOID - key OID (ex: RSAk, ECDSAk)
+ * key    - key in DER
+ * keySz  - size of key, octets
+ *
+ * Returns 0 on success, negative on error */
+static int wc_PKCS7_CheckPublicKeyDer(PKCS7* pkcs7, int keyOID,
+                                      const byte* key, word32 keySz)
+{
+    int ret = 0;
+    word32 scratch = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        RsaKey* rsa;
+    #endif
+    #ifdef HAVE_ECC
+        ecc_key* ecc;
+    #endif
+#else
+    #ifndef NO_RSA
+        RsaKey rsa[1];
+    #endif
+    #ifdef HAVE_ECC
+        ecc_key ecc[1];
+    #endif
+#endif
+
+    if (pkcs7 == NULL || key == NULL || keySz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        rsa = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (rsa == NULL) {
+            return MEMORY_E;
+        }
+    #endif
+
+    #ifdef HAVE_ECC
+        ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ecc == NULL) {
+            #ifndef NO_RSA
+                XFREE(rsa, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            return MEMORY_E;
+        }
+    #endif
+#endif
+
+    switch (keyOID) {
+#ifndef NO_RSA
+        case RSAk:
+            ret = wc_InitRsaKey_ex(rsa, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                break;
+            }
+
+            /* Try to decode public key as sanity check. wc_CheckRsaKey()
+               only checks private key not public. */
+            ret = wc_RsaPublicKeyDecode(key, &scratch, rsa, keySz);
+            wc_FreeRsaKey(rsa);
+
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECDSAk:
+            ret = wc_ecc_init_ex(ecc, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                break;
+            }
+
+            /* Try to decode public key and check with wc_ecc_check_key() */
+            ret = wc_EccPublicKeyDecode(key, &scratch, ecc, keySz);
+            if (ret == 0) {
+                ret = wc_ecc_check_key(ecc);
+            }
+            wc_ecc_free(ecc);
+
+            break;
+#endif
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        XFREE(rsa, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef HAVE_ECC
+        XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+#endif
+
+    return ret;
+}
+
 
 /* Init PKCS7 struct with recipient cert, decode into DecodedCert
  * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
@@ -974,6 +1073,18 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         InitDecodedCert(dCert, derCert, derCertSz, pkcs7->heap);
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
+            FreeDecodedCert(dCert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+#endif
+            return ret;
+        }
+
+        /* verify extracted public key is valid before storing */
+        ret = wc_PKCS7_CheckPublicKeyDer(pkcs7, dCert->keyOID,
+                                         dCert->publicKey, dCert->pubKeySize);
+        if (ret != 0) {
+            WOLFSSL_MSG("Invalid public key, check pkcs7->cert\n");
             FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
