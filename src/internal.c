@@ -30322,8 +30322,16 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
     }
 #endif /* HAVE_MAX_FRAGMENT */
 #ifdef WOLFSSL_DTLS
-    if (IsDtlsNotSctpMode(ssl) && (maxFragment > MAX_UDP_SIZE)) {
-        maxFragment = MAX_UDP_SIZE;
+    if (IsDtlsNotSctpMode(ssl)) {
+        if (maxFragment > MAX_UDP_SIZE) {
+            maxFragment = MAX_UDP_SIZE;
+        }
+    #if defined(WOLFSSL_DTLS_MTU)
+        if (maxFragment >
+                        ssl->dtlsMtuSz - RECORD_HEADER_SZ - DTLS_RECORD_EXTRA) {
+            maxFragment = ssl->dtlsMtuSz - RECORD_HEADER_SZ - DTLS_RECORD_EXTRA;
+        }
+    #endif
     }
 #endif
 
