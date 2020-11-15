@@ -679,7 +679,8 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #endif
 
   fp_init(q);
-  q->used = a->used + 2;
+  /* qb + d = a, and b is an integer > 0, therefore q <= a */
+  q->used = a->used;
 
   fp_init(t1);
   fp_init(t2);
