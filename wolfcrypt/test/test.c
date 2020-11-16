@@ -19349,7 +19349,7 @@ done:
 /* returns 0 on success */
 static int ecc_test_make_pub(WC_RNG* rng)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
     ecc_key *pub = (ecc_key *)XMALLOC(sizeof *pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19372,7 +19372,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     int verify = 0;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((key == NULL) ||
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
         (pub == NULL) ||
@@ -19451,6 +19451,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     }
     TEST_SLEEP();
 
+#ifndef WOLFSSL_NO_MALLOC
     pubPoint = wc_ecc_new_point_h(HEAP_HINT);
     if (pubPoint == NULL) {
         ERROR_OUT(-9625, done);
@@ -19471,6 +19472,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9627, done);
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
+#endif /* !WOLFSSL_NO_MALLOC */
 #endif /* !NO_ECC256 */
 
     /* create a new key since above test for loading key is not supported */
@@ -19590,7 +19592,7 @@ done:
 
     wc_ecc_del_point_h(pubPoint, HEAP_HINT);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -20256,9 +20258,10 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     return 0;
 }
 
-#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_NO_MALLOC)
 static int ecc_point_test(void)
 {
     int        ret;
@@ -21919,7 +21922,8 @@ static int ecc_test(void)
         goto done;
     }
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_NO_MALLOC)
     ret = ecc_point_test();
     if (ret < 0) {
         goto done;
