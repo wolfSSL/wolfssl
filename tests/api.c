@@ -39054,11 +39054,8 @@ void ApiTest(void)
     AssertFalse(test_wc_Sha224GetHash());
     AssertFalse(test_wc_Sha224Copy());
     AssertFalse(test_wc_InitBlake2b());
-<<<<<<< HEAD
-    AssertFalse(test_wc_InitBlake2s_WithKey());
-=======
     AssertFalse(test_wc_InitBlake2b_WithKey());
->>>>>>> Added unit tests for blake2b
+    AssertFalse(test_wc_InitBlake2s_WithKey());
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
