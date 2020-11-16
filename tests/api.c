@@ -5877,6 +5877,47 @@ static int test_wc_InitBlake2b (void)
     return ret;
 }     /*END test_wc_InitBlake2b*/
 
+/*
+ * Unit test for the wc_InitBlake2s_WithKey()
+ */
+static int test_wc_InitBlake2s_WithKey (void)
+{
+    int ret = 0;
+#ifdef HAVE_BLAKE2S
+    Blake2s     blake2;
+    word32      digestSz = BLAKE2S_KEYBYTES;
+    byte        *key = (byte*)"01234567890123456789012345678901";
+    word32      keylen = BLAKE2S_KEYBYTES;
+
+    printf(testingFmt, "wc_InitBlake2s_WithKey()");
+
+    /* Test good arg. */
+    ret = wc_InitBlake2s_WithKey(&blake2, digestSz, key, keylen);
+    if (ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_InitBlake2s_WithKey(NULL, digestSz, key, keylen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_InitBlake2s_WithKey(&blake2, digestSz, key, 256);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_InitBlake2s_WithKey(&blake2, digestSz, NULL, keylen);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}     /*END wc_InitBlake2s_WithKey*/
 
 /*
  * Unit test for the wc_InitMd5()
@@ -38971,6 +39012,7 @@ void ApiTest(void)
     AssertFalse(test_wc_Sha224GetHash());
     AssertFalse(test_wc_Sha224Copy());
     AssertFalse(test_wc_InitBlake2b());
+    AssertFalse(test_wc_InitBlake2s_WithKey());
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
