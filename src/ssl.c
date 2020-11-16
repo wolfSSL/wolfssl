@@ -7370,35 +7370,40 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
         if (ret == 0 && der->keyOID == RSAk) {
             ret = wc_CryptoCb_RsaCheckPrivKey(pkey, der->publicKey,
                                               der->pubKeySize);
-            if (ret == 0)
-                ret = 1;
             wc_FreeRsaKey(pkey);
         }
         else if (ret == 0 && der->keyOID == ECDSAk) {
             ret = wc_CryptoCb_EccCheckPrivKey(pkey, der->publicKey,
                                               der->pubKeySize);
-            if (ret == 0)
-                ret = 1;
             wc_ecc_free(pkey);
         }
         if (pkey != NULL) {
             XFREE(pkey, ctx->heap, type);
         }
+        if (ret == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
     }
     else
 #endif
+    {
         ret = wc_CheckPrivateKey(buff, size, der);
+        if (ret == 1) {
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
     FreeDecodedCert(der);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(der, NULL, DYNAMIC_TYPE_DCERT);
 #endif
 
-    if (ret == 1) {
-        return WOLFSSL_SUCCESS;
-    }
-    else {
-        return WOLFSSL_FAILURE;
-    }
+    return ret;
 #else
     WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
     return WOLFSSL_FAILURE;
