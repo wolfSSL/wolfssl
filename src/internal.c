@@ -20075,7 +20075,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
 #ifndef NO_RSA
         RsaKey* rsaKey;
 
-        rsaKey = XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
+        rsaKey = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
         if (rsaKey == NULL) {
             return MEMORY_E;
         }
@@ -20098,7 +20098,7 @@ int CreateDevPrivateKey(void** pkey, byte* data, word32 length, int hsType,
 #ifdef HAVE_ECC
         ecc_key* ecKey;
 
-        ecKey = XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
+        ecKey = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
         if (ecKey == NULL) {
             return MEMORY_E;
         }
