@@ -5886,8 +5886,10 @@ static int test_wc_InitBlake2b_WithKey (void)
 #ifdef HAVE_BLAKE2
     Blake2b     blake2;
     word32      digestSz = BLAKE2B_KEYBYTES;
-    byte        *key = (byte*)"01234567890123456789012345678901";
+    byte        key[BLAKE2B_KEYBYTES];
     word32      keylen = BLAKE2B_KEYBYTES;
+
+
 
     printf(testingFmt, "wc_InitBlake2b_WithKey()");
 
