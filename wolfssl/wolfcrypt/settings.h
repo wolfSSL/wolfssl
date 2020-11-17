@@ -1399,6 +1399,7 @@ extern void uITRON4_free(void *p) ;
     #include <lib_mem.h>
     #include <lib_math.h>
     #include <lib_str.h>
+    #include  <stdio.h>
     #include <string.h>
 
     #define USE_FAST_MATH
@@ -1468,6 +1469,7 @@ extern void uITRON4_free(void *p) ;
                                      (void *)(pmem_2),                  \
                                      (CPU_SIZE_T)(size)) == DEF_YES))   \
              ? 0 : 1)
+        #define XSNPRINTF snprintf
     #endif
 
     #define XMEMMOVE XMEMCPY

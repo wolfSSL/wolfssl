@@ -64,10 +64,12 @@
     #undef printf
     #define printf printx
 #elif defined(MICRIUM)
-      #include <bsp_ser.h>
-      void BSP_Ser_Printf (CPU_CHAR* format, ...);
-      #undef printf
-      #define printf BSP_Ser_Printf
+    #if (OS_VERSION < 50000)
+        #include <bsp_ser.h>
+        void BSP_Ser_Printf (CPU_CHAR* format, ...);
+        #undef printf
+        #define printf BSP_Ser_Printf
+    #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
     #define BENCH_EMBEDDED
@@ -6023,10 +6025,23 @@ exit_ed_verify:
 #elif defined(MICRIUM)
     double current_time(int reset)
     {
-        CPU_ERR err;
 
+#if (OS_VERSION < 50000)
+        CPU_ERR err;
         (void)reset;
         return (double) CPU_TS_Get32()/CPU_TS_TmrFreqGet(&err);
+#else
+        RTOS_ERR  err;
+        double ret = 0;
+        OS_TICK tick = OSTimeGet(&err);
+        OS_RATE_HZ rate = OSTimeTickRateHzGet(&err);
+        (void)reset;
+
+        if (RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE) {
+            ret = ((double)tick)/rate;
+        }
+        return ret;
+#endif
     }
 #elif defined(WOLFSSL_ZEPHYR)
 
