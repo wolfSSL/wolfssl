@@ -18566,7 +18566,7 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         err = sp_256_point_new_10(heap, pd, p);
     }
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
+    if (err == MP_OKAY && privm) {
         priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 10, heap,
                                                               DYNAMIC_TYPE_ECC);
         if (priv == NULL) {
@@ -18583,7 +18583,8 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         sp_256_from_mp(pub->x, 10, pX);
         sp_256_from_mp(pub->y, 10, pY);
         sp_256_from_bin(pub->z, 10, one, (int)sizeof(one));
-        sp_256_from_mp(priv, 10, privm);
+        if (privm)
+            sp_256_from_mp(priv, 10, privm);
 
         /* Check point at infinitiy. */
         if ((sp_256_iszero_10(pub->x) != 0) &&
@@ -18617,15 +18618,17 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Base * private = point */
-            err = sp_256_ecc_mulmod_base_10(p, priv, 1, 1, heap);
-    }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_256_cmp_10(p->x, pub->x) != 0 ||
-            sp_256_cmp_10(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_256_ecc_mulmod_base_10(p, priv, 1, 1, heap);
+        }
+        if (err == MP_OKAY) {
+            /* Check result is public key */
+            if (sp_256_cmp_10(p->x, pub->x) != 0 ||
+                sp_256_cmp_10(p->y, pub->y) != 0) {
+                err = ECC_PRIV_KEY_E;
+            }
         }
     }
 
@@ -25891,7 +25894,7 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         err = sp_384_point_new_15(heap, pd, p);
     }
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
+    if (err == MP_OKAY && privm) {
         priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 15, heap,
                                                               DYNAMIC_TYPE_ECC);
         if (priv == NULL) {
@@ -25908,7 +25911,8 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         sp_384_from_mp(pub->x, 15, pX);
         sp_384_from_mp(pub->y, 15, pY);
         sp_384_from_bin(pub->z, 15, one, (int)sizeof(one));
-        sp_384_from_mp(priv, 15, privm);
+        if (privm)
+            sp_384_from_mp(priv, 15, privm);
 
         /* Check point at infinitiy. */
         if ((sp_384_iszero_15(pub->x) != 0) &&
@@ -25942,15 +25946,17 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Base * private = point */
-            err = sp_384_ecc_mulmod_base_15(p, priv, 1, 1, heap);
-    }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_384_cmp_15(p->x, pub->x) != 0 ||
-            sp_384_cmp_15(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_384_ecc_mulmod_base_15(p, priv, 1, 1, heap);
+        }
+        if (err == MP_OKAY) {
+            /* Check result is public key */
+            if (sp_384_cmp_15(p->x, pub->x) != 0 ||
+                sp_384_cmp_15(p->y, pub->y) != 0) {
+                err = ECC_PRIV_KEY_E;
+            }
         }
     }
 

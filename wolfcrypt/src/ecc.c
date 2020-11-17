@@ -7207,7 +7207,7 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #endif
 }
 
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 /* validate privkey * generator == pubkey, 0 on success */
 static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 {
@@ -7290,7 +7290,7 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
     return err;
 }
-#endif
+#endif /* !WOLFSSL_SP_MATH || WOLFSSL_VALIDATE_ECC_IMPORT */
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
 
@@ -7536,15 +7536,15 @@ int wc_ecc_check_key(ecc_key* key)
     /* pubkey point cannot be at infinity */
 #ifndef WOLFSSL_SP_NO_256
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
-        err = sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y, &key->k,
-                                                                     key->heap);
+        err = sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y, 
+            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
     }
     else
 #endif
 #ifdef WOLFSSL_SP_384
     if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP384R1) {
-        err = sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y, &key->k,
-                                                                     key->heap);
+        err = sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y, 
+            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
     }
     else
 #endif
