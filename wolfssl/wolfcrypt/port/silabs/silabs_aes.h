@@ -36,8 +36,9 @@ typedef struct {
   sl_se_key_descriptor_t  key;
 } silabs_aes_t;
 
-#ifdef HAVE_AESGCM
 typedef struct Aes Aes;
+
+#ifdef HAVE_AESGCM
 int wc_AesGcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                              const byte* iv, word32 ivSz,
                              byte* authTag, word32 authTagSz,
@@ -48,6 +49,18 @@ int wc_AesGcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
                              const byte* authIn, word32 authInSz);
 
 #endif /* HAVE_AESGCM */
+
+#ifdef HAVE_AESCCM
+int wc_AesCcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
+                             const byte* iv, word32 ivSz,
+                             byte* authTag, word32 authTagSz,
+                             const byte* authIn, word32 authInSz);
+int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
+                             const byte* iv, word32 ivSz,
+                             const byte* authTag, word32 authTagSz,
+                             const byte* authIn, word32 authInSz);
+
+#endif /* HAVE_AESCCM */
 
 #endif /* defined(WOLFSSL_SILABS_SE_ACCEL) */
 

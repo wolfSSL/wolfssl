@@ -7079,6 +7079,33 @@ int wc_AesCcmCheckTagSize(int sz)
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
     /* implemented in wolfcrypt/src/port/caam_aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    return wc_AesCcmEncrypt_silabs(
+        aes, out, in, inSz,
+        nonce, nonceSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+}
+
+#ifdef HAVE_AES_DECRYPT
+int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    return wc_AesCcmDecrypt_silabs(
+        aes, out, in, inSz,
+        nonce, nonceSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+}
+#endif
 #elif defined(FREESCALE_LTC)
 
 /* return 0 on success */

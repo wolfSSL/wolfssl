@@ -27,6 +27,10 @@ recommend defining `WOLFSSL_USER_SETTINGS` and adding your own
 `user_settings.h` file. You can find a good reference for this in
 `IDE/GCC-ARM/Header/user_settings.h`.
 
+### Caveats
+
+ * AES GCM tags of some lengths do not pass tests.
+
 
 ### Benchmarks
 

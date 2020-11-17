@@ -161,4 +161,51 @@ int wc_AesGcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESGCM */
 
+
+#ifdef HAVE_AESCCM
+int wc_AesCcmEncrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
+                             const byte* iv, word32 ivSz,
+                             byte* authTag, word32 authTagSz,
+                             const byte* authIn, word32 authInSz)
+{
+    sl_status_t status = sl_se_ccm_encrypt_and_tag(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        sz,
+        iv,
+        ivSz,
+        authIn,
+        authInSz,
+        in,
+        out,
+        authTag,
+        authTagSz
+        );
+
+    return (status != SL_STATUS_OK) ? AES_GCM_AUTH_E : 0;
+}
+
+int wc_AesCcmDecrypt_silabs (Aes* aes, byte* out, const byte* in, word32 sz,
+                            const byte* iv, word32 ivSz,
+                            const byte* authTag, word32 authTagSz,
+                            const byte* authIn, word32 authInSz)
+{
+    sl_status_t status = sl_se_ccm_auth_decrypt(
+        &(aes->ctx.cmd_ctx),
+        &(aes->ctx.key),
+        sz,
+        iv,
+        ivSz,
+        authIn,
+        authInSz,
+        in,
+        out,
+        (byte*)authTag,
+        authTagSz);
+
+    return (status != SL_STATUS_OK) ? AES_GCM_AUTH_E : 0;
+}
+
+#endif /* HAVE_AESGCM */
+
 #endif /* WOLFSSL_SILABS_SE_ACCEL */
