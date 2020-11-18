@@ -31875,10 +31875,8 @@ static int wolfSSL_RSA_To_Der(WOLFSSL_RSA* rsa, byte** outBuf, int publicKey)
 }
 #endif
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
 #ifndef NO_BIO
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
-
 /* Takes a WOLFSSL_RSA key and writes it out to a WOLFSSL_BIO
  *
  * bio    the WOLFSSL_BIO to write to
@@ -32162,7 +32160,6 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
     return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_BIO */
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) */
 
 #if (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
