@@ -16044,10 +16044,16 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     byte   curve[MAX_ALGO_SZ+2];
     byte   ver[MAX_VERSION_SZ];
     byte   seq[MAX_SEQ_SZ];
-    byte   *prv = NULL, *pub = NULL;
     int    ret, totalSz, curveSz, verSz;
     int    privHdrSz  = ASN_ECC_HEADER_SZ;
     int    pubHdrSz   = ASN_ECC_CONTEXT_SZ + ASN_ECC_HEADER_SZ;
+#ifdef WOLFSSL_NO_MALLOC
+    byte   prv[MAX_ECC_BYTES + ASN_ECC_HEADER_SZ + MAX_SEQ_SZ];
+    byte   pub[(MAX_ECC_BYTES * 2) + 1 + ASN_ECC_CONTEXT_SZ + 
+                              ASN_ECC_HEADER_SZ + MAX_SEQ_SZ];
+#else
+    byte   *prv = NULL, *pub = NULL;
+#endif
 
     word32 idx = 0, prvidx = 0, pubidx = 0, curveidx = 0;
     word32 seqSz, privSz, pubSz = ECC_BUFSIZE;
@@ -16067,15 +16073,23 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
 
     /* private */
     privSz = key->dp->size;
+#ifndef WOLFSSL_NO_MALLOC
     prv = (byte*)XMALLOC(privSz + privHdrSz + MAX_SEQ_SZ,
                          key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (prv == NULL) {
         return MEMORY_E;
     }
+#else
+    if (sizeof(prv) < privSz + privHdrSz + MAX_SEQ_SZ) {
+        return BUFFER_E;
+    }
+#endif
     prvidx += SetOctetString8Bit(key->dp->size, &prv[prvidx]);
     ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
     if (ret < 0) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
     prvidx += privSz;
@@ -16084,16 +16098,24 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     if (pubIn) {
         ret = wc_ecc_export_x963(key, NULL, &pubSz);
         if (ret != LENGTH_ONLY_E) {
+        #ifndef WOLFSSL_NO_MALLOC
             XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return ret;
         }
 
+    #ifndef WOLFSSL_NO_MALLOC
         pub = (byte*)XMALLOC(pubSz + pubHdrSz + MAX_SEQ_SZ,
                              key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (pub == NULL) {
             XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
+    #else
+        if (sizeof(pub) < pubSz + pubHdrSz + MAX_SEQ_SZ) {
+            return BUFFER_E;
+        }
+    #endif
 
         pub[pubidx++] = ECC_PREFIX_1;
         if (pubSz > 128) /* leading zero + extra size byte */
@@ -16105,8 +16127,10 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
         pubidx += SetBitString(pubSz, 0, pub + pubidx);
         ret = wc_ecc_export_x963(key, pub + pubidx, &pubSz);
         if (ret != 0) {
+        #ifndef WOLFSSL_NO_MALLOC
             XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return ret;
         }
         pubidx += pubSz;
@@ -16120,7 +16144,9 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     if (totalSz > (int)inLen) {
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (pubIn) {
+        #ifndef WOLFSSL_NO_MALLOC
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
         }
         return BAD_FUNC_ARG;
     }
@@ -16137,7 +16163,9 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     /* private */
     XMEMCPY(output + idx, prv, prvidx);
     idx += prvidx;
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     /* curve */
     XMEMCPY(output + idx, curve, curveidx);
@@ -16147,7 +16175,9 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     if (pubIn) {
         XMEMCPY(output + idx, pub, pubidx);
         /* idx += pubidx;  not used after write, if more data remove comment */
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 
     return totalSz;
@@ -16182,7 +16212,11 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     word32 oidSz = 0;
     word32 pkcs8Sz = 0;
     const byte* curveOID = NULL;
+#ifdef WOLFSSL_NO_MALLOC
+    byte  tmpDer[ECC_BUFSIZE];
+#else
     byte* tmpDer = NULL;
+#endif
 
     if (key == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
@@ -16193,16 +16227,19 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     if (ret < 0)
         return ret;
 
+#ifndef WOLFSSL_NO_MALLOC
     /* temp buffer for plain DER key */
     tmpDer = (byte*)XMALLOC(ECC_BUFSIZE, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmpDer == NULL)
         return MEMORY_E;
-
+#endif
     XMEMSET(tmpDer, 0, ECC_BUFSIZE);
 
     tmpDerSz = wc_BuildEccKeyDer(key, tmpDer, ECC_BUFSIZE, 0);
     if (tmpDerSz < 0) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return tmpDerSz;
     }
 
@@ -16210,17 +16247,24 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, tmpDer, tmpDerSz, algoID,
                             curveOID, oidSz);
     if (ret != LENGTH_ONLY_E) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
 
     if (output == NULL) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         *outLen = pkcs8Sz;
         return LENGTH_ONLY_E;
 
-    } else if (*outLen < pkcs8Sz) {
+    }
+    else if (*outLen < pkcs8Sz) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         WOLFSSL_MSG("Input buffer too small for ECC PKCS#8 key");
         return BUFFER_E;
     }
@@ -16228,11 +16272,15 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     ret = wc_CreatePKCS8Key(output, &pkcs8Sz, tmpDer, tmpDerSz,
                             algoID, curveOID, oidSz);
     if (ret < 0) {
+    #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     *outLen = ret;
     return ret;

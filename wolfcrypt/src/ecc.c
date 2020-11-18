@@ -6359,6 +6359,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         /* perform blocking call to non-blocking function */
         ecc_nb_ctx_t nb_ctx;
         XMEMSET(&nb_ctx, 0, sizeof(nb_ctx));
+        err = NOT_COMPILED_IN; /* set default error */
     #endif
     #ifndef WOLFSSL_SP_NO_256
         if (ecc_sets[key->idx].id == ECC_SECP256R1) {
@@ -7875,6 +7876,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
             ret = wc_EccPublicKeyDecode(pub, &idx, key, pubSz);
         key->type = ECC_PRIVATEKEY;
     #else
+        (void)pubSz;
         ret = NOT_COMPILED_IN;
     #endif
     }

@@ -10663,7 +10663,7 @@ static int random_rng_test(void)
 
     if (ret != 0) return ret;
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
     {
         byte nonce[8] = { 0 };
         /* Test dynamic RNG. */
@@ -10834,7 +10834,7 @@ static int simple_mem_test(int sz)
 static int memory_test(void)
 {
     int ret = 0;
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
     byte* b = NULL;
 #endif
 #if defined(COMPLEX_MEM_TEST) || defined(WOLFSSL_STATIC_MEMORY)
@@ -10951,7 +10951,7 @@ static int memory_test(void)
     }
 #endif
 
-#ifndef USE_FAST_MATH
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_NO_MALLOC)
     /* realloc test */
     b = (byte*)XMALLOC(MEM_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (b) {
@@ -19349,7 +19349,7 @@ done:
 /* returns 0 on success */
 static int ecc_test_make_pub(WC_RNG* rng)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
     ecc_key *pub = (ecc_key *)XMALLOC(sizeof *pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19372,7 +19372,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     int verify = 0;
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((key == NULL) ||
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
         (pub == NULL) ||
@@ -19451,6 +19451,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     }
     TEST_SLEEP();
 
+#ifndef WOLFSSL_NO_MALLOC
     pubPoint = wc_ecc_new_point_h(HEAP_HINT);
     if (pubPoint == NULL) {
         ERROR_OUT(-9625, done);
@@ -19471,6 +19472,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-9627, done);
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
+#endif /* !WOLFSSL_NO_MALLOC */
 #endif /* !NO_ECC256 */
 
     /* create a new key since above test for loading key is not supported */
@@ -19590,7 +19592,7 @@ done:
 
     wc_ecc_del_point_h(pubPoint, HEAP_HINT);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if (key != NULL) {
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19610,6 +19612,7 @@ done:
     return ret;
 }
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 {
     int ret;
@@ -19687,8 +19690,10 @@ static int ecc_test_key_decode(WC_RNG* rng, int keySize)
 
     return ret;
 }
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC_KEY_IMPORT */
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
     int    ret = 0;
@@ -19784,6 +19789,7 @@ done:
 
     return ret;
 }
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int curve_id, const ecc_set_type* dp)
@@ -20222,6 +20228,8 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     }
 #endif
 
+#if defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(NO_ASN_CRYPT)
     ret = ecc_test_key_decode(rng, keySize);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
@@ -20232,7 +20240,9 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             return ret;
         }
     }
+#endif
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
     ret = ecc_test_key_gen(rng, keySize);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
@@ -20243,13 +20253,15 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
             return ret;
         }
     }
+#endif
 
     return 0;
 }
 
-#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+#if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_NO_MALLOC)
 static int ecc_point_test(void)
 {
     int        ret;
@@ -21384,7 +21396,7 @@ exit:
 }
 #endif /* WOLFSSL_CERT_GEN */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
 /* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
 static int ecc_test_allocator(WC_RNG* rng)
 {
@@ -21910,7 +21922,8 @@ static int ecc_test(void)
         goto done;
     }
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_IMPORT) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WOLFSSL_NO_MALLOC)
     ret = ecc_point_test();
     if (ret < 0) {
         goto done;
@@ -21984,10 +21997,11 @@ static int ecc_test(void)
         goto done;
     }
 #endif
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_NO_MALLOC)
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
         printf("ecc_test_allocator failed!: %d\n", ret);
+        goto done;
     }
 #endif
 
@@ -21996,6 +22010,7 @@ static int ecc_test(void)
     ret = ecc_test_nonblock(&rng);
     if (ret != 0) {
         printf("ecc_test_nonblock failed!: %d\n", ret);
+        goto done;
     }
 #endif
 
@@ -22208,7 +22223,8 @@ done:
 #if defined(USE_CERT_BUFFERS_256) && !defined(WOLFSSL_ATECC508A) && \
     !defined(WOLFSSL_ATECC608A) && !defined(NO_ECC256) && \
     defined(HAVE_ECC_VERIFY) && defined(HAVE_ECC_SIGN)
-static int ecc_test_buffers(void) {
+static int ecc_test_buffers(void)
+{
     size_t bytes;
 #ifdef WOLFSSL_SMALL_STACK
     ecc_key *cliKey = (ecc_key *)XMALLOC(sizeof *cliKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

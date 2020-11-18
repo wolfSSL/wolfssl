@@ -48359,12 +48359,15 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     }
     if (ret == 0 && enc == NULL) {
         type = PKCS8_PRIVATEKEY_TYPE;
+    #ifdef HAVE_ECC
         if (pkey->type == EVP_PKEY_EC) {
             algId = ECDSAk;
             ret = wc_ecc_get_oid(pkey->ecc->group->curve_oid, &curveOid,
                                                                         &oidSz);
         }
-        else {
+        else
+    #endif
+        {
             algId = RSAk;
             curveOid = NULL;
             oidSz = 0;
