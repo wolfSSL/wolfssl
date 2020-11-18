@@ -6184,6 +6184,32 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 }
 #endif /* !NO_ASN */
 
+static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
+{
+    int err;
+    DECLARE_CURVE_SPECS(curve, 1);
+
+    ALLOC_CURVE_SPECS(1);
+    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (err != 0) {
+        FREE_CURVE_SPECS();
+        return err;
+    }
+
+    if (mp_iszero(r) || mp_iszero(s)) {
+        err = MP_ZERO_E;
+    }
+    if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) {
+        return MP_VAL;
+    }
+    if ((err == 0) && (mp_cmp(s, curve->order) != MP_LT)) {
+        return MP_VAL;
+    }
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+    return err;
+}
 
 /**
    Verify an ECC signature
@@ -6252,7 +6278,10 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       return ECC_BAD_ARG_E;
    }
 
-   keySz = key->dp->size;
+   err = wc_ecc_check_r_s_range(key, r, s);
+   if (err != MP_OKAY) {
+      return err;
+   }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
@@ -6444,15 +6473,6 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    /* read in the specs for this curve */
    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
-
-   /* check for zero */
-   if (err == MP_OKAY) {
-       if (mp_iszero(r) == MP_YES || mp_iszero(s) == MP_YES ||
-           mp_cmp(r, curve->order) != MP_LT ||
-           mp_cmp(s, curve->order) != MP_LT) {
-           err = MP_ZERO_E;
-       }
-   }
 
    /* read hash */
    if (err == MP_OKAY) {
