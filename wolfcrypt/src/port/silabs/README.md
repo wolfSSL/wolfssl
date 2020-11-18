@@ -29,8 +29,12 @@ recommend defining `WOLFSSL_USER_SETTINGS` and adding your own
 
 ### Caveats
 
- * AES GCM tags of some lengths do not pass tests.
-
+ * AES GCM tags length >= 16 bytes
+ * By default random generator is seeded by the TRNG, but not used to
+   generate all random data. `WOLFSSL_SILABS_TRNG` can be set to
+   generate all random data with hardware TRNG, but requesting too
+   much data or too quickly may result in system reset and setting
+   `SESYSREQ`.
 
 ### Benchmarks
 
