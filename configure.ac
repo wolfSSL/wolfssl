@@ -1383,11 +1383,18 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
         if test "$GCC" = "yes"
         then
-            # GCC needs these flags, icc doesn't
-            # opt levels greater than 2 may cause problems on systems w/o aesni
-            if test "$CC" != "icc"
+            # clang needs these flags
+            if test "$CC" = "clang"
             then
-                AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                AM_CFLAGS="$AM_CFLAGS -maes -mpclmul"
+            else
+                # GCC needs these flags, icc doesn't
+                # opt levels greater than 2 may cause problems on systems w/o
+                # aesni
+                if test "$CC" != "icc"
+                then
+                    AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                fi
             fi
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
