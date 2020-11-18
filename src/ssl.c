@@ -37569,11 +37569,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         out[0] = t->type;
-        sz = SetLength(t->length - 1, out + 1) + 1;  /* gen tag */
-        for (i = 0; i < t->length - 1; i++) {
+        sz = SetLength(t->length, out + 1) + 1;  /* gen tag */
+        for (i = 0; i < t->length; i++) {
             out[sz + i] = t->data[i];
         }
-        return t->length - 1 + sz;
+        return t->length + sz;
     }
 #endif /* WOLFSSL_ALT_NAMES */
 
@@ -37854,8 +37854,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             key = (void*)&ecc;
         }
     #endif
-        if (key == NULL)
+        if (key == NULL) {
+            WOLFSSL_MSG("No public key found for certificate");
             return WOLFSSL_FAILURE;
+        }
 
         /* Make the body of the certificate request. */
     #ifdef WOLFSSL_CERT_REQ

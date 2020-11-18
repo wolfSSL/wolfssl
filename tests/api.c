@@ -5620,6 +5620,215 @@ static void test_wolfSSL_X509_verify(void)
     printf(resultFmt, passed);
 #endif
 }
+
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
+         defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+/* create certificate with version 2 */
+static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_X509 *x509, *x509v2;
+    WOLFSSL_EVP_PKEY *priv, *pub;
+    unsigned char *der = NULL, *key = NULL, *pt;
+    char *header, *name;
+    int derSz;
+    long keySz;
+    XFILE fp;
+    WOLFSSL_ASN1_TIME *notBefore, *notAfter;
+    time_t t;
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                WOLFSSL_FILETYPE_PEM));
+
+    fp = XFOPEN(cliKeyFile, "rb");
+    AssertIntEQ(wolfSSL_PEM_read(fp, &name, &header, &key, &keySz),
+            WOLFSSL_SUCCESS);
+    XFCLOSE(fp);
+    pt = key;
+    AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
+                (const unsigned char**)&pt, keySz));
+
+
+    /* create the version 2 certificate */
+    AssertNotNull(x509v2 = X509_new());
+    AssertIntEQ(wolfSSL_X509_set_version(x509v2, 1), WOLFSSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_X509_set_subject_name(x509v2,
+                wolfSSL_X509_get_subject_name(x509)), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509v2,
+                wolfSSL_X509_get_issuer_name(x509)), WOLFSSL_SUCCESS);
+    AssertNotNull(pub = wolfSSL_X509_get_pubkey(x509));
+    AssertIntEQ(X509_set_pubkey(x509v2, pub), WOLFSSL_SUCCESS);
+
+    t = time(NULL);
+    AssertNotNull(notBefore = wolfSSL_ASN1_TIME_adj(NULL, t, 0, 0));
+    AssertNotNull(notAfter = wolfSSL_ASN1_TIME_adj(NULL, t, 365, 0));
+    AssertTrue(wolfSSL_X509_set_notBefore(x509v2, notBefore));
+    AssertTrue(wolfSSL_X509_set_notAfter(x509v2, notAfter));
+
+    AssertIntGT(wolfSSL_X509_sign(x509v2, priv, EVP_sha256()), 0);
+    derSz = wolfSSL_i2d_X509(x509v2, &der);
+    AssertIntGT(derSz, 0);
+    AssertIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz,
+                                     WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    free(der);
+    if (key != NULL)
+        free(key);
+    if (name != NULL)
+        free(name);
+    if (header != NULL)
+        free(header);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(x509v2);
+    wolfSSL_EVP_PKEY_free(priv);
+    wolfSSL_EVP_PKEY_free(pub);
+    wolfSSL_ASN1_TIME_free(notBefore);
+    wolfSSL_ASN1_TIME_free(notAfter);
+}
+
+
+/* override certificate version error */
+static int test_override_x509(int preverify, WOLFSSL_X509_STORE_CTX* store)
+{
+    AssertIntEQ(store->error, ASN_VERSION_E);
+    AssertIntEQ((int)wolfSSL_X509_get_version(store->current_cert), 1);
+    (void)preverify;
+    return 1;
+}
+
+
+/* set verify callback that will override bad certificate version */
+static void test_set_override_x509(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, test_override_x509);
+}
+#endif
+
+
+static void test_wolfSSL_X509_TLS_version(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+        !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
+         defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
+        defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+    tcp_ready   ready;
+    func_args   server_args;
+    func_args   client_args;
+    THREAD_TYPE serverThread;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
+
+    printf(testingFmt, "test_wolfSSL_X509_TLS_version");
+
+    /* test server rejects a client certificate that is not version 3 */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    server_args.return_code = TEST_FAIL;
+    client_args.return_code = TEST_FAIL;
+
+    func_cb_client.ctx_ready = &test_set_x509_badversion;
+#ifndef WOLFSSL_NO_TLS12
+    func_cb_client.method = wolfTLSv1_2_client_method;
+#else
+    func_cb_client.method = wolfTLSv1_3_client_method;
+#endif
+    client_args.callbacks = &func_cb_client;
+
+#ifndef WOLFSSL_NO_TLS12
+    func_cb_server.method = wolfTLSv1_2_server_method;
+#else
+    func_cb_server.method = wolfTLSv1_3_server_method;
+#endif
+    server_args.callbacks = &func_cb_server;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    AssertIntEQ(client_args.return_code, TEST_FAIL);
+    AssertIntEQ(server_args.return_code, TEST_FAIL);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+    /* Now re run but override the bad X509 version */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    server_args.return_code = TEST_FAIL;
+    client_args.return_code = TEST_FAIL;
+
+    func_cb_client.ctx_ready = &test_set_x509_badversion;
+    func_cb_server.ctx_ready = &test_set_override_x509;
+#ifndef WOLFSSL_NO_TLS12
+    func_cb_client.method = wolfTLSv1_2_client_method;
+#else
+    func_cb_client.method = wolfTLSv1_3_client_method;
+#endif
+    client_args.callbacks = &func_cb_client;
+
+#ifndef WOLFSSL_NO_TLS12
+    func_cb_server.method = wolfTLSv1_2_server_method;
+#else
+    func_cb_server.method = wolfTLSv1_3_server_method;
+#endif
+    server_args.callbacks = &func_cb_server;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+
+    AssertIntEQ(client_args.return_code, TEST_SUCCESS);
+    AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
  * version allowed.
  * POST: 1 on success.
@@ -38719,6 +38928,7 @@ void ApiTest(void)
     test_wolfSSL_URI();
     test_wolfSSL_TBS();
     test_wolfSSL_X509_verify();
+    test_wolfSSL_X509_TLS_version();
 
     test_wc_PemToDer();
     test_wc_AllocDer();
