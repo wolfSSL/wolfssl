@@ -1211,7 +1211,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
@@ -1222,7 +1222,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
