@@ -7091,7 +7091,7 @@ typedef struct sp_256_proj_point_add_4_ctx {
     sp_digit* z;
 } sp_256_proj_point_add_4_ctx;
 
-static int sp_256_proj_point_add_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, 
+static int sp_256_proj_point_add_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     const sp_point_256* p, const sp_point_256* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -8171,7 +8171,7 @@ typedef struct sp_256_proj_point_add_avx2_4_ctx {
     sp_digit* z;
 } sp_256_proj_point_add_avx2_4_ctx;
 
-static int sp_256_proj_point_add_avx2_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, 
+static int sp_256_proj_point_add_avx2_4_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     const sp_point_256* p, const sp_point_256* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -22716,6 +22716,13 @@ static void sp_256_mont_sqr_n_order_4(sp_digit* r, const sp_digit* a, int n)
 }
 #endif /* !WOLFSSL_SP_SMALL */
 
+#ifdef WOLFSSL_SP_NONBLOCK
+/* Context of non-blocking moduluar inversion with Montgomery form number. */
+typedef struct sp_256_mont_inv_order_4_ctx {
+    int state;    /* State of next operation. */
+    int i;        /* Index of bit in order. */
+} sp_256_mont_inv_order_4_ctx;
+
 /* Invert the number, in Montgomery form, modulo the order of the P256 curve.
  * (r = 1 / a mod order)
  *
@@ -22723,18 +22730,12 @@ static void sp_256_mont_sqr_n_order_4(sp_digit* r, const sp_digit* a, int n)
  * a   Number to invert.
  * td  Temporary data.
  */
-
-#ifdef WOLFSSL_SP_NONBLOCK
-typedef struct sp_256_mont_inv_order_4_ctx {
-    int state;
-    int i;
-} sp_256_mont_inv_order_4_ctx;
 static int sp_256_mont_inv_order_4_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const sp_digit* a,
         sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_256_mont_inv_order_4_ctx* ctx = (sp_256_mont_inv_order_4_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_256_mont_inv_order_4_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -22764,6 +22765,13 @@ static int sp_256_mont_inv_order_4_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const s
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
+/* Invert the number, in Montgomery form, modulo the order of the P256 curve.
+ * (r = 1 / a mod order)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
 static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -22858,32 +22866,8 @@ static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
 }
 
 #ifdef HAVE_INTEL_AVX2
-extern void sp_256_sqr_avx2_4(sp_digit* r, const sp_digit* a);
-#define sp_256_mont_reduce_order_avx2_4    sp_256_mont_reduce_avx2_4
-
-extern void sp_256_mont_reduce_avx2_4(sp_digit* a, const sp_digit* m, sp_digit mp);
-/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_256_mont_mul_order_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
-{
-    sp_256_mul_avx2_4(r, a, b);
-    sp_256_mont_reduce_order_avx2_4(r, p256_order, p256_mp_order);
-}
-
-/* Square number mod the order of P256 curve. (r = a * a mod order)
- *
- * r  Result of the squaring.
- * a  Number to square.
- */
-static void sp_256_mont_sqr_order_avx2_4(sp_digit* r, const sp_digit* a)
-{
-    sp_256_sqr_avx2_4(r, a);
-    sp_256_mont_reduce_order_avx2_4(r, p256_order, p256_mp_order);
-}
+extern void sp_256_mont_mul_order_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit* b);
+extern void sp_256_mont_sqr_order_avx2_4(sp_digit* r, const sp_digit* a);
 
 #ifndef WOLFSSL_SP_SMALL
 /* Square number mod the order of P256 curve a number of times.
@@ -22903,6 +22887,13 @@ static void sp_256_mont_sqr_n_order_avx2_4(sp_digit* r, const sp_digit* a, int n
 }
 #endif /* !WOLFSSL_SP_SMALL */
 
+#ifdef WOLFSSL_SP_NONBLOCK
+/* Context of non-blocking moduluar inversion with Montgomery form number. */
+typedef struct sp_256_mont_inv_order_avx2_4_ctx {
+    int state;    /* State of next operation. */
+    int i;        /* Index of bit in order. */
+} sp_256_mont_inv_order_avx2_4_ctx;
+
 /* Invert the number, in Montgomery form, modulo the order of the P256 curve.
  * (r = 1 / a mod order)
  *
@@ -22910,18 +22901,12 @@ static void sp_256_mont_sqr_n_order_avx2_4(sp_digit* r, const sp_digit* a, int n
  * a   Number to invert.
  * td  Temporary data.
  */
-
-#ifdef WOLFSSL_SP_NONBLOCK
-typedef struct sp_256_mont_inv_order_avx2_4_ctx {
-    int state;
-    int i;
-} sp_256_mont_inv_order_avx2_4_ctx;
 static int sp_256_mont_inv_order_avx2_4_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const sp_digit* a,
         sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
     sp_256_mont_inv_order_avx2_4_ctx* ctx = (sp_256_mont_inv_order_avx2_4_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_256_mont_inv_order_avx2_4_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -22951,6 +22936,13 @@ static int sp_256_mont_inv_order_avx2_4_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, co
 }
 #endif /* WOLFSSL_SP_NONBLOCK */
 
+/* Invert the number, in Montgomery form, modulo the order of the P256 curve.
+ * (r = 1 / a mod order)
+ *
+ * r   Inverse result.
+ * a   Number to invert.
+ * td  Temporary data.
+ */
 static void sp_256_mont_inv_order_avx2_4(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
@@ -23121,9 +23113,9 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
-        err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+        err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
             &ctx->point, &p256_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
@@ -23404,6 +23396,10 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 }
 #endif /* HAVE_ECC_SIGN */
 
+#ifndef WOLFSSL_SP_SMALL
+extern void sp_256_mod_inv_4(sp_digit* r, const sp_digit* a, const sp_digit* m);
+extern void sp_256_mod_inv_avx2_4(sp_digit* r, const sp_digit* a, const sp_digit* m);
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 256)
@@ -23529,7 +23525,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 11;
         break;
     case 10: /* DBL */
-        err = sp_256_proj_point_dbl_4_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+        err = sp_256_proj_point_dbl_4_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
             ctx->state = 11;
@@ -23655,6 +23651,17 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 4, pY);
         sp_256_from_mp(p2->z, 4, pZ);
 
+#ifndef WOLFSSL_SP_SMALL
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mod_inv_avx2_4(s, s, p256_order);
+        }
+        else
+#endif
+        {
+            sp_256_mod_inv_4(s, s, p256_order);
+        }
+#endif /* !WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             sp_256_mul_avx2_4(s, s, p256_norm_order);
@@ -23668,6 +23675,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     }
     if (err == MP_OKAY) {
         sp_256_norm_4(s);
+#ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             sp_256_mont_inv_order_avx2_4(s, s, tmp);
@@ -23682,6 +23690,20 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
             sp_256_mont_mul_order_4(u2, u2, s);
         }
 
+#else
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mont_mul_order_avx2_4(u1, u1, s);
+            sp_256_mont_mul_order_avx2_4(u2, u2, s);
+        }
+        else
+#endif
+        {
+            sp_256_mont_mul_order_4(u1, u1, s);
+            sp_256_mont_mul_order_4(u2, u2, s);
+        }
+
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
             err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
@@ -25425,7 +25447,7 @@ typedef struct sp_384_proj_point_add_6_ctx {
     sp_digit* z;
 } sp_384_proj_point_add_6_ctx;
 
-static int sp_384_proj_point_add_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, 
+static int sp_384_proj_point_add_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     const sp_point_384* p, const sp_point_384* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -26557,7 +26579,7 @@ typedef struct sp_384_proj_point_add_avx2_6_ctx {
     sp_digit* z;
 } sp_384_proj_point_add_avx2_6_ctx;
 
-static int sp_384_proj_point_add_avx2_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, 
+static int sp_384_proj_point_add_avx2_6_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     const sp_point_384* p, const sp_point_384* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -29796,7 +29818,7 @@ static int sp_384_mont_inv_order_6_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const s
 {
     int err = FP_WOULDBLOCK;
     sp_384_mont_inv_order_6_ctx* ctx = (sp_384_mont_inv_order_6_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_384_mont_inv_order_6_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -29950,7 +29972,7 @@ static int sp_384_mont_inv_order_avx2_6_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, co
 {
     int err = FP_WOULDBLOCK;
     sp_384_mont_inv_order_avx2_6_ctx* ctx = (sp_384_mont_inv_order_avx2_6_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_384_mont_inv_order_avx2_6_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -30121,9 +30143,9 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
-        err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+        err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
             &ctx->point, &p384_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
@@ -30404,6 +30426,91 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 }
 #endif /* HAVE_ECC_SIGN */
 
+#ifndef WOLFSSL_SP_SMALL
+extern void sp_384_rshift1_6(sp_digit* r, const sp_digit* a);
+extern void sp_384_div2_mod_6(sp_digit* r, const sp_digit* a, const sp_digit* m);
+extern int sp_384_num_bits_6(const sp_digit * a);
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @param  [in]   m   Modulus.
+ * @return  MP_OKAY on success.
+ */
+static int sp_384_mod_inv_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit u[6];
+    sp_digit v[6];
+    sp_digit b[6];
+    sp_digit d[6];
+    int ut, vt;
+    sp_digit o;
+
+    XMEMCPY(u, m, sizeof(u));
+    XMEMCPY(v, a, sizeof(v));
+
+    ut = sp_384_num_bits_6(u);
+    vt = sp_384_num_bits_6(v);
+
+    XMEMSET(b, 0, sizeof(b));
+    if ((v[0] & 1) == 0) {
+        sp_384_rshift1_6(v, v);
+        XMEMCPY(d, m, sizeof(u));
+        d[0] += 1;
+        sp_384_rshift1_6(d, d);
+        vt--;
+
+        while ((v[0] & 1) == 0) {
+            sp_384_rshift1_6(v, v);
+            sp_384_div2_mod_6(d, d, m);
+            vt--;
+        }
+    }
+    else {
+        XMEMSET(d+1, 0, sizeof(d)-sizeof(sp_digit));
+        d[0] = 1;
+    }
+
+    while (ut > 1 && vt > 1) {
+        if (ut > vt || (ut == vt && sp_384_cmp_6(u, v) >= 0)) {
+            sp_384_sub_6(u, u, v);
+            o = sp_384_sub_6(b, b, d);
+            if (o != 0)
+                sp_384_add_6(b, b, m);
+            ut = sp_384_num_bits_6(u);
+
+            do {
+                sp_384_rshift1_6(u, u);
+                sp_384_div2_mod_6(b, b, m);
+                ut--;
+            }
+            while (ut > 0 && (u[0] & 1) == 0);
+        }
+        else {
+            sp_384_sub_6(v, v, u);
+            o = sp_384_sub_6(d, d, b);
+            if (o != 0)
+                sp_384_add_6(d, d, m);
+            vt = sp_384_num_bits_6(v);
+
+            do {
+                sp_384_rshift1_6(v, v);
+                sp_384_div2_mod_6(d, d, m);
+                vt--;
+            }
+            while (vt > 0 && (v[0] & 1) == 0);
+        }
+    }
+
+    if (ut == 1)
+        XMEMCPY(r, b, sizeof(b));
+    else
+        XMEMCPY(r, d, sizeof(d));
+
+    return MP_OKAY;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 384)
@@ -30529,7 +30636,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 11;
         break;
     case 10: /* DBL */
-        err = sp_384_proj_point_dbl_6_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+        err = sp_384_proj_point_dbl_6_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
             ctx->state = 11;
@@ -30655,6 +30762,11 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
         sp_384_from_mp(p2->y, 6, pY);
         sp_384_from_mp(p2->z, 6, pZ);
 
+#ifndef WOLFSSL_SP_SMALL
+        {
+            sp_384_mod_inv_6(s, s, p384_order);
+        }
+#endif /* !WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             sp_384_mul_avx2_6(s, s, p384_norm_order);
@@ -30668,6 +30780,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
     }
     if (err == MP_OKAY) {
         sp_384_norm_6(s);
+#ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             sp_384_mont_inv_order_avx2_6(s, s, tmp);
@@ -30682,6 +30795,20 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
             sp_384_mont_mul_order_6(u2, u2, s);
         }
 
+#else
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_384_mont_mul_order_avx2_6(u1, u1, s);
+            sp_384_mont_mul_order_avx2_6(u2, u2, s);
+        }
+        else
+#endif
+        {
+            sp_384_mont_mul_order_6(u1, u1, s);
+            sp_384_mont_mul_order_6(u2, u2, s);
+        }
+
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
             err = sp_384_ecc_mulmod_base_avx2_6(p1, u1, 0, 0, heap);
