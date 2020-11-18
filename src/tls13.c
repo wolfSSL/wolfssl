@@ -8063,15 +8063,26 @@ int wolfSSL_preferred_group(WOLFSSL* ssl)
  */
 int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
 {
-    int i;
+    int ret, i;
 
+    WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
     if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsAtLeastTLSv1_3(ctx->method->version))
         return BAD_FUNC_ARG;
 
-    for (i = 0; i < count; i++)
-        ctx->group[i] = (word16)groups[i];
+    ctx->numGroups = 0;
+    TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+    for (i = 0; i < count; i++) {
+        /* Call to wolfSSL_CTX_UseSupportedCurve also checks if input groups
+         * are valid */
+        if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, groups[i]))
+                != WOLFSSL_SUCCESS) {
+            TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
+            return ret;
+        }
+        ctx->group[i] = groups[i];
+    }
     ctx->numGroups = (byte)count;
 
     return WOLFSSL_SUCCESS;
@@ -8087,20 +8098,31 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
  */
 int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
 {
-    int i;
+    int ret, i;
 
+    WOLFSSL_ENTER("wolfSSL_set_groups");
     if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
         return BAD_FUNC_ARG;
     if (!IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
-    for (i = 0; i < count; i++)
-        ssl->group[i] = (word16)groups[i];
+    ssl->numGroups = 0;
+    TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+    for (i = 0; i < count; i++) {
+        /* Call to wolfSSL_UseSupportedCurve also checks if input groups
+                 * are valid */
+        if ((ret = wolfSSL_UseSupportedCurve(ssl, groups[i]))
+                != WOLFSSL_SUCCESS) {
+            TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
+            return ret;
+        }
+        ssl->group[i] = groups[i];
+    }
     ssl->numGroups = (byte)count;
 
     return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifndef NO_PSK
 void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,

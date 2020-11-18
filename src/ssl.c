@@ -133,6 +133,7 @@
     int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi);
     int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi);
     int oid2nid(word32 oid, int grp);
+    word32 nid2oid(int nid, int grp);
 #endif
 
 #if defined(WOLFSSL_QT)
@@ -2377,11 +2378,8 @@ int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
 /* Elliptic Curves */
 #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
 
-int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
+static int isValidCurveGroup(word16 name)
 {
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
-
     switch (name) {
         case WOLFSSL_ECC_SECP160K1:
         case WOLFSSL_ECC_SECP160R1:
@@ -2405,11 +2403,17 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         case WOLFSSL_FFDHE_4096:
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
-            break;
+            return 0;
 
         default:
             return BAD_FUNC_ARG;
     }
+}
+
+int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
+{
+    if (ssl == NULL || isValidCurveGroup(name) != 0)
+        return BAD_FUNC_ARG;
 
     ssl->options.userCurves = 1;
 
@@ -2419,42 +2423,72 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
 
 int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 {
-    if (ctx == NULL)
+    if (ctx == NULL || isValidCurveGroup(name) != 0)
         return BAD_FUNC_ARG;
-
-    switch (name) {
-        case WOLFSSL_ECC_SECP160K1:
-        case WOLFSSL_ECC_SECP160R1:
-        case WOLFSSL_ECC_SECP160R2:
-        case WOLFSSL_ECC_SECP192K1:
-        case WOLFSSL_ECC_SECP192R1:
-        case WOLFSSL_ECC_SECP224K1:
-        case WOLFSSL_ECC_SECP224R1:
-        case WOLFSSL_ECC_SECP256K1:
-        case WOLFSSL_ECC_SECP256R1:
-        case WOLFSSL_ECC_SECP384R1:
-        case WOLFSSL_ECC_SECP521R1:
-        case WOLFSSL_ECC_BRAINPOOLP256R1:
-        case WOLFSSL_ECC_BRAINPOOLP384R1:
-        case WOLFSSL_ECC_BRAINPOOLP512R1:
-        case WOLFSSL_ECC_X25519:
-        case WOLFSSL_ECC_X448:
-        case WOLFSSL_FFDHE_2048:
-        case WOLFSSL_FFDHE_3072:
-        case WOLFSSL_FFDHE_4096:
-        case WOLFSSL_FFDHE_6144:
-        case WOLFSSL_FFDHE_8192:
-            break;
-
-        default:
-            return BAD_FUNC_ARG;
-    }
 
     ctx->userCurves = 1;
 
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }
 
+#ifdef OPENSSL_EXTRA
+int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
+                                        int count)
+{
+    int i;
+    int _groups[WOLFSSL_MAX_GROUP_COUNT];
+    WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
+    if (count == 0) {
+        WOLFSSL_MSG("Group count is zero");
+        return WOLFSSL_FAILURE;
+    }
+    for (i = 0; i < count; i++) {
+        if (isValidCurveGroup(groups[i]) == 0) {
+            _groups[i] = groups[i];
+        }
+        else {
+            /* groups may be populated with curve NIDs */
+            int oid = nid2oid(groups[i], oidCurveType);
+            int name = (int)GetCurveByOID(oid);
+            if (name == 0) {
+                WOLFSSL_MSG("Invalid group name");
+                return WOLFSSL_FAILURE;
+            }
+            _groups[i] = name;
+        }
+    }
+    return wolfSSL_CTX_set_groups(ctx, _groups, count) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+
+int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
+{
+    int i;
+    int _groups[WOLFSSL_MAX_GROUP_COUNT];
+    WOLFSSL_ENTER("wolfSSL_CTX_set1_groups");
+    if (count == 0) {
+        WOLFSSL_MSG("Group count is zero");
+        return WOLFSSL_FAILURE;
+    }
+    for (i = 0; i < count; i++) {
+        if (isValidCurveGroup(groups[i]) == 0) {
+            _groups[i] = groups[i];
+        }
+        else {
+            /* groups may be populated with curve NIDs */
+            int oid = nid2oid(groups[i], oidCurveType);
+            int name = (int)GetCurveByOID(oid);
+            if (name == 0) {
+                WOLFSSL_MSG("Invalid group name");
+                return WOLFSSL_FAILURE;
+            }
+            _groups[i] = name;
+        }
+    }
+    return wolfSSL_set_groups(ssl, _groups, count) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif
 #endif /* HAVE_SUPPORTED_CURVES && !NO_WOLFSSL_CLIENT */
 
 /* QSH quantum safe handshake */
@@ -48150,6 +48184,337 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
 #define WOLFSSL_BIO_INCLUDED
 #include "src/bio.c"
 #endif
+
+word32 nid2oid(int nid, int grp)
+{
+    /* get OID type */
+    switch (grp) {
+        /* oidHashType */
+        case oidHashType:
+            switch (nid) {
+            #ifdef WOLFSSL_MD2
+                case NID_md2:
+                    return MD2h;
+            #endif
+            #ifndef NO_MD5
+                case NID_md5:
+                    return MD5h;
+            #endif
+            #ifndef NO_SHA
+                case NID_sha1:
+                    return SHAh;
+            #endif
+                case NID_sha224:
+                    return SHA224h;
+            #ifndef NO_SHA256
+                case NID_sha256:
+                    return SHA256h;
+            #endif
+            #ifdef WOLFSSL_SHA384
+                case NID_sha384:
+                    return SHA384h;
+            #endif
+            #ifdef WOLFSSL_SHA512
+                case NID_sha512:
+                    return SHA512h;
+            #endif
+            }
+            break;
+
+        /*  oidSigType */
+        case oidSigType:
+            switch (nid) {
+            #ifndef NO_DSA
+                case CTC_SHAwDSA:
+                    return CTC_SHAwDSA;
+            #endif /* NO_DSA */
+            #ifndef NO_RSA
+                case CTC_MD2wRSA:
+                    return CTC_MD2wRSA;
+                case CTC_MD5wRSA:
+                    return CTC_MD5wRSA;
+                case CTC_SHAwRSA:
+                    return CTC_SHAwRSA;
+                case CTC_SHA224wRSA:
+                    return CTC_SHA224wRSA;
+                case CTC_SHA256wRSA:
+                    return CTC_SHA256wRSA;
+                case CTC_SHA384wRSA:
+                    return CTC_SHA384wRSA;
+                case CTC_SHA512wRSA:
+                    return CTC_SHA512wRSA;
+            #endif /* NO_RSA */
+            #ifdef HAVE_ECC
+                case CTC_SHAwECDSA:
+                    return CTC_SHAwECDSA;
+                case CTC_SHA224wECDSA:
+                    return CTC_SHA224wECDSA;
+                case CTC_SHA256wECDSA:
+                    return CTC_SHA256wECDSA;
+                case CTC_SHA384wECDSA:
+                    return CTC_SHA384wECDSA;
+                case CTC_SHA512wECDSA:
+                    return CTC_SHA512wECDSA;
+            #endif /* HAVE_ECC */
+            }
+            break;
+
+        /* oidKeyType */
+        case oidKeyType:
+            switch (nid) {
+            #ifndef NO_DSA
+                case DSAk:
+                    return DSAk;
+            #endif /* NO_DSA */
+            #ifndef NO_RSA
+                case RSAk:
+                    return RSAk;
+            #endif /* NO_RSA */
+            #ifdef HAVE_NTRU
+                case NTRUk:
+                    return NTRUk;
+            #endif /* HAVE_NTRU */
+            #ifdef HAVE_ECC
+                case ECDSAk:
+                    return ECDSAk;
+            #endif /* HAVE_ECC */
+            }
+            break;
+
+
+    #ifdef HAVE_ECC
+        case oidCurveType:
+            switch (nid) {
+            case NID_X9_62_prime192v1:
+                return ECC_SECP192R1_OID;
+            case NID_X9_62_prime192v2:
+                return ECC_PRIME192V2_OID;
+            case NID_X9_62_prime192v3:
+                return ECC_PRIME192V3_OID;
+            case NID_X9_62_prime239v1:
+                return ECC_PRIME239V1_OID;
+            case NID_X9_62_prime239v2:
+                return ECC_PRIME239V2_OID;
+            case NID_X9_62_prime239v3:
+                return ECC_PRIME239V3_OID;
+            case NID_X9_62_prime256v1:
+                return ECC_SECP256R1_OID;
+            case NID_secp112r1:
+                return ECC_SECP112R1_OID;
+            case NID_secp112r2:
+                return ECC_SECP112R2_OID;
+            case NID_secp128r1:
+                return ECC_SECP128R1_OID;
+            case NID_secp128r2:
+                return ECC_SECP128R2_OID;
+            case NID_secp160r1:
+                return ECC_SECP160R1_OID;
+            case NID_secp160r2:
+                return ECC_SECP160R2_OID;
+            case NID_secp224r1:
+                return ECC_SECP224R1_OID;
+            case NID_secp384r1:
+                return ECC_SECP384R1_OID;
+            case NID_secp521r1:
+                return ECC_SECP521R1_OID;
+            case NID_secp160k1:
+                return ECC_SECP160K1_OID;
+            case NID_secp192k1:
+                return ECC_SECP192K1_OID;
+            case NID_secp224k1:
+                return ECC_SECP224K1_OID;
+            case NID_secp256k1:
+                return ECC_SECP256K1_OID;
+            case NID_brainpoolP160r1:
+                return ECC_BRAINPOOLP160R1_OID;
+            case NID_brainpoolP192r1:
+                return ECC_BRAINPOOLP192R1_OID;
+            case NID_brainpoolP224r1:
+                return ECC_BRAINPOOLP224R1_OID;
+            case NID_brainpoolP256r1:
+                return ECC_BRAINPOOLP256R1_OID;
+            case NID_brainpoolP320r1:
+                return ECC_BRAINPOOLP320R1_OID;
+            case NID_brainpoolP384r1:
+                return ECC_BRAINPOOLP384R1_OID;
+            case NID_brainpoolP512r1:
+                return ECC_BRAINPOOLP512R1_OID;
+            }
+            break;
+    #endif /* HAVE_ECC */
+
+        /* oidBlkType */
+        case oidBlkType:
+            switch (nid) {
+            #ifdef WOLFSSL_AES_128
+                case AES128CBCb:
+                    return AES128CBCb;
+            #endif
+            #ifdef WOLFSSL_AES_192
+                case AES192CBCb:
+                    return AES192CBCb;
+            #endif
+            #ifdef WOLFSSL_AES_256
+                case AES256CBCb:
+                    return AES256CBCb;
+            #endif
+            #ifndef NO_DES3
+                case NID_des:
+                    return DESb;
+                case NID_des3:
+                    return DES3b;
+            #endif
+            }
+            break;
+
+    #ifdef HAVE_OCSP
+        case oidOcspType:
+            switch (nid) {
+                case NID_id_pkix_OCSP_basic:
+                    return OCSP_BASIC_OID;
+                case OCSP_NONCE_OID:
+                    return OCSP_NONCE_OID;
+            }
+            break;
+    #endif /* HAVE_OCSP */
+
+        /* oidCertExtType */
+        case oidCertExtType:
+            switch (nid) {
+                case BASIC_CA_OID:
+                    return BASIC_CA_OID;
+                case ALT_NAMES_OID:
+                    return ALT_NAMES_OID;
+                case CRL_DIST_OID:
+                    return CRL_DIST_OID;
+                case AUTH_INFO_OID:
+                    return AUTH_INFO_OID;
+                case AUTH_KEY_OID:
+                    return AUTH_KEY_OID;
+                case SUBJ_KEY_OID:
+                    return SUBJ_KEY_OID;
+                case INHIBIT_ANY_OID:
+                    return INHIBIT_ANY_OID;
+                case NID_key_usage:
+                    return KEY_USAGE_OID;
+                case NID_name_constraints:
+                    return NAME_CONS_OID;
+                case NID_certificate_policies:
+                    return CERT_POLICY_OID;
+            }
+            break;
+
+        /* oidCertAuthInfoType */
+        case oidCertAuthInfoType:
+            switch (nid) {
+                case AIA_OCSP_OID:
+                    return AIA_OCSP_OID;
+                case AIA_CA_ISSUER_OID:
+                    return AIA_CA_ISSUER_OID;
+            }
+            break;
+
+        /* oidCertPolicyType */
+        case oidCertPolicyType:
+            switch (nid) {
+                case NID_any_policy:
+                    return CP_ANY_OID;
+            }
+            break;
+
+        /* oidCertAltNameType */
+        case oidCertAltNameType:
+            switch (nid) {
+                case NID_hw_name_oid:
+                    return HW_NAME_OID;
+            }
+            break;
+
+        /* oidCertKeyUseType */
+        case oidCertKeyUseType:
+            switch (nid) {
+                case NID_anyExtendedKeyUsage:
+                    return EKU_ANY_OID;
+                case EKU_SERVER_AUTH_OID:
+                    return EKU_SERVER_AUTH_OID;
+                case EKU_CLIENT_AUTH_OID:
+                    return EKU_CLIENT_AUTH_OID;
+                case EKU_OCSP_SIGN_OID:
+                    return EKU_OCSP_SIGN_OID;
+            }
+            break;
+
+        /* oidKdfType */
+        case oidKdfType:
+            switch (nid) {
+                case PBKDF2_OID:
+                    return PBKDF2_OID;
+            }
+            break;
+
+        /* oidPBEType */
+        case oidPBEType:
+            switch (nid) {
+                case PBE_SHA1_RC4_128:
+                    return PBE_SHA1_RC4_128;
+                case PBE_SHA1_DES:
+                    return PBE_SHA1_DES;
+                case PBE_SHA1_DES3:
+                    return PBE_SHA1_DES3;
+            }
+            break;
+
+        /* oidKeyWrapType */
+        case oidKeyWrapType:
+            switch (nid) {
+            #ifdef WOLFSSL_AES_128
+                case AES128_WRAP:
+                    return AES128_WRAP;
+            #endif
+            #ifdef WOLFSSL_AES_192
+                case AES192_WRAP:
+                    return AES192_WRAP;
+            #endif
+            #ifdef WOLFSSL_AES_256
+                case AES256_WRAP:
+                    return AES256_WRAP;
+            #endif
+            }
+            break;
+
+        /* oidCmsKeyAgreeType */
+        case oidCmsKeyAgreeType:
+            switch (nid) {
+                #ifndef NO_SHA
+                case dhSinglePass_stdDH_sha1kdf_scheme:
+                    return dhSinglePass_stdDH_sha1kdf_scheme;
+                #endif
+                #ifdef WOLFSSL_SHA224
+                case dhSinglePass_stdDH_sha224kdf_scheme:
+                    return dhSinglePass_stdDH_sha224kdf_scheme;
+                #endif
+                #ifndef NO_SHA256
+                case dhSinglePass_stdDH_sha256kdf_scheme:
+                    return dhSinglePass_stdDH_sha256kdf_scheme;
+                #endif
+                #ifdef WOLFSSL_SHA384
+                case dhSinglePass_stdDH_sha384kdf_scheme:
+                    return dhSinglePass_stdDH_sha384kdf_scheme;
+                #endif
+                #ifdef WOLFSSL_SHA512
+                case dhSinglePass_stdDH_sha512kdf_scheme:
+                    return dhSinglePass_stdDH_sha512kdf_scheme;
+                #endif
+            }
+            break;
+
+        default:
+            WOLFSSL_MSG("NID not in table");
+            return -1;
+    }
+
+    return -1;
+}
 
 int oid2nid(word32 oid, int grp)
 {
