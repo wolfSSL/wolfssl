@@ -3158,7 +3158,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             defined(HAVE_CAVIUM)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                    pad_type != WC_RSA_PSS_PAD) {
-            if (ret > 0) {
+            ret = key->asyncDev.event.ret;
+            if (ret >= 0) {
                 /* convert result */
                 byte* dataLen = (byte*)&key->dataLen;
                 ret = (dataLen[0] << 8) | (dataLen[1]);
