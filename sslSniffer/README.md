@@ -88,7 +88,7 @@ To build with OCTEON III support for a Linux host:
 
 ## Command Line Options
 
-The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/ directory`. The command line application has several options that can be passed in at runtime to change the default behavior of the application. To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
+The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/` directory. The command line application has several options that can be passed in at runtime to change the default behavior of the application. To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
 
 An example startup may look like this:
 

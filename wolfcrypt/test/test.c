@@ -9196,8 +9196,8 @@ static int aesgcm_test(void)
     #endif
 #endif
 
-#if !defined(BENCH_EMBEDDED)
-    #ifndef BENCH_AESGCM_LARGE
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
+    #if !defined(BENCH_AESGCM_LARGE)
         #define BENCH_AESGCM_LARGE 1024
     #endif
     byte *large_input = (byte *)XMALLOC(BENCH_AESGCM_LARGE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9561,7 +9561,7 @@ static int aesgcm_test(void)
 
   out:
 
-#if !defined(BENCH_EMBEDDED)
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM)
     if (large_input)
         XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (large_output)
@@ -12142,8 +12142,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     /* async may not require RNG */
     if (ret != 0 && ret != MISSING_RNG_E)
-#elif defined(HAVE_FIPS) || defined(WOLFSSL_ASYNC_CRYPT) || \
-     !defined(WC_RSA_BLINDING)
+#elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY)

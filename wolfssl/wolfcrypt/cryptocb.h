@@ -306,10 +306,6 @@ WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
 
-#else
-
-#define wc_CryptoCb_GetDevIdAtIndex(idx) (INVALID_DEVID)
-
 #endif /* WOLF_CRYPTO_CB */
 
 #ifdef __cplusplus
