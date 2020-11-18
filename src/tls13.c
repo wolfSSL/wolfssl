@@ -2492,6 +2492,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
     #ifndef WOLFSSL_PSK_ONE_ID
         const char* cipherName = NULL;
         byte cipherSuite0 = TLS13_BYTE, cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
+        int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
 
         /* Get the pre-shared key. */
         if (ssl->options.client_psk_tls13_cb != NULL) {
@@ -2500,7 +2501,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
                     &cipherName);
             if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                                           &cipherSuite) != 0) {
+                                       &cipherSuite, &cipherSuiteFlags) != 0) {
                 return PSK_KEY_ERROR;
             }
         }
@@ -2518,6 +2519,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
                                               psk->cipherSuite != cipherSuite) {
             return PSK_KEY_ERROR;
         }
+        (void)cipherSuiteFlags;
     #else
         /* PSK information loaded during setting of default TLS extensions. */
     #endif
@@ -3306,6 +3308,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     const char*   cipherName = NULL;
     byte          cipherSuite0 = TLS13_BYTE;
     byte          cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
+    int           cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
 #endif
 
     WOLFSSL_ENTER("DoPreSharedKeys");
@@ -3420,7 +3423,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                              ssl->arrays->client_identity, ssl->arrays->psk_key,
                              MAX_PSK_KEY_LEN, &cipherName)) != 0 &&
              GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                                          &cipherSuite) == 0) ||
+                                    &cipherSuite, &cipherSuiteFlags) == 0) ||
             (ssl->options.server_psk_cb != NULL &&
              (ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
                              ssl->arrays->client_identity, ssl->arrays->psk_key,
@@ -3431,6 +3434,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             /* Check whether PSK ciphersuite is in SSL. */
             suite[0] = cipherSuite0;
             suite[1] = cipherSuite;
+            (void)cipherSuiteFlags;
             if (!FindSuiteSSL(ssl, suite)) {
                 current = current->next;
                 continue;

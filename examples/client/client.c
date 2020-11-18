@@ -3118,6 +3118,47 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     showPeerEx(ssl, lng_index);
 
+    /* if the caller requested a particular cipher, check here that either
+     * a canonical name of the established cipher matches the requested
+     * cipher name, or the requested cipher name is marked as an alias
+     * that matches the established cipher.
+     */
+    if (cipherList && (! XSTRSTR(cipherList, ":"))) {
+        WOLFSSL_CIPHER* established_cipher = wolfSSL_get_current_cipher(ssl);
+        byte requested_cipherSuite0, requested_cipherSuite;
+        int requested_cipherFlags;
+        if (established_cipher &&
+            /* don't test for pseudo-ciphers like "ALL" and "DEFAULT". */
+            (wolfSSL_get_cipher_suite_from_name(cipherList,
+                                                &requested_cipherSuite0,
+                                                &requested_cipherSuite,
+                                                &requested_cipherFlags) == 0)) {
+            word32 established_cipher_id =
+                wolfSSL_CIPHER_get_id(established_cipher);
+            byte established_cipherSuite0 = (established_cipher_id >> 8) & 0xff;
+            byte established_cipherSuite = established_cipher_id & 0xff;
+            const char *established_cipher_name =
+                wolfSSL_get_cipher_name_from_suite(established_cipherSuite0,
+                                                   established_cipherSuite);
+            const char *established_cipher_name_iana =
+                wolfSSL_get_cipher_name_iana_from_suite(established_cipherSuite0,
+                                                        established_cipherSuite);
+
+            if (established_cipher_name == NULL)
+                err_sys("error looking up name of established cipher");
+
+            if (strcmp(cipherList, established_cipher_name) &&
+                ((established_cipher_name_iana == NULL) ||
+                 strcmp(cipherList, established_cipher_name_iana))) {
+                if (! (requested_cipherFlags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+                    err_sys("Unexpected mismatch between names of requested and established ciphers.");
+                else if ((requested_cipherSuite0 != established_cipherSuite0) ||
+                         (requested_cipherSuite != established_cipherSuite))
+                    err_sys("Mismatch between IDs of requested and established ciphers.");
+            }
+        }
+    }
+
 #if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
 #ifdef HAVE_STRFTIME
     {
