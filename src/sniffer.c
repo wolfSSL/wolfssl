@@ -2781,9 +2781,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     (void)msgSz;
 
     /* make sure we didn't miss ClientHello */
-    if (session->flags.clientHello == 0) {
-        SetError(MISSED_CLIENT_HELLO_STR, error, session, FATAL_ERROR_STATE);
-        return -1;
+    if (session->flags.clientHello == 0 || session->sslClient->arrays == NULL) {
+        SetError(MISSED_CLIENT_HELLO_STR, error, session, 0);
+        return 0; /* do not throw error, just ignore packet */
     }
 
     /* make sure can read through session len */
@@ -4254,6 +4254,7 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
+    
     /* We only care about the data in the TCP/IP record. There may be extra
      * data after the IP record for the FCS for Ethernet. */
     *sslBytes = (int)(packet + ipInfo->total - *sslFrame);
@@ -4666,6 +4667,8 @@ static int FixSequence(TcpInfo* tcpInfo, SnifferSession* session)
 {
     word32*   expected = (session->flags.side == WOLFSSL_SERVER_END) ?
                                 &session->srvExpected : &session->cliExpected;
+    word32    seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
+                                session->srvSeqStart : session->cliSeqStart;
     PacketBuffer* list = (session->flags.side == WOLFSSL_SERVER_END) ?
                                 session->srvReassemblyList :
                                 session->cliReassemblyList;
@@ -4673,16 +4676,16 @@ static int FixSequence(TcpInfo* tcpInfo, SnifferSession* session)
                                 &session->flags.srvSkipPartial :
                                 &session->flags.cliSkipPartial;
 
+    if (tcpInfo->ackNumber < seqStart) {
+        return -1; /* do not fix sequence - could be ack on unseen seq */
+    }
     *skipPartial = 1;
+    
     if (list != NULL)
         *expected = list->begin;
-    else {
-        word32 seqStart = (session->flags.side == WOLFSSL_SERVER_END) ?
-                                session->srvSeqStart : session->cliSeqStart;
-        word32     real = tcpInfo->ackNumber - seqStart;
+    else
+        *expected = tcpInfo->ackNumber - seqStart;
 
-        *expected = real;
-    }
 
     return 1;
 }
@@ -4723,8 +4726,8 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
                         &session->flags.cliAckFault :
                         &session->flags.srvAckFault;
 
-    /* init SEQ from server to client */
-    if (tcpInfo->syn && tcpInfo->ack) {
+    /* init SEQ from server to client - if not ack fault */
+    if (tcpInfo->syn && tcpInfo->ack && !*ackFault) {
         session->srvSeqStart = tcpInfo->sequence;
         session->srvExpected = 1;
         TraceServerSyn(tcpInfo->sequence);
