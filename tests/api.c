@@ -20676,6 +20676,7 @@ static int test_wc_ecc_rs_to_sig (void)
     /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
     const char*   R = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
     const char*   S = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
+    const char*   zeroStr = "0";
     byte          sig[ECC_MAX_SIG_SIZE];
     word32        siglen = (word32)sizeof(sig);
     /*R and S max size is the order of curve. 2^192.*/
@@ -20706,6 +20707,12 @@ static int test_wc_ecc_rs_to_sig (void)
             ret = wc_ecc_rs_to_sig(R, S, NULL, &siglen);
         }
         if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_rs_to_sig(R, zeroStr, sig, &siglen);
+        }
+        if (ret == MP_ZERO_E) {
+            ret = wc_ecc_rs_to_sig(zeroStr, S, sig, &siglen);
+        }
+        if (ret == MP_ZERO_E) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
