@@ -2106,7 +2106,7 @@ static const struct s_ent {
 #endif /* NO_MD5 */
 
 #ifndef NO_SHA
-    {WC_HASH_TYPE_SHA, NID_sha1, "SHA"},
+    {WC_HASH_TYPE_SHA, NID_sha1, "SHA1"},
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
@@ -3279,8 +3279,8 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     {
         {"MD4", "ssl3-md4"},
         {"MD5", "ssl3-md5"},
-        {"SHA", "ssl3-sha1"},
-        {"SHA", "SHA1"},
+        {"SHA1", "ssl3-sha1"},
+        {"SHA1", "SHA"},
         { NULL, NULL}
     };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
@@ -3358,7 +3358,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void)
     {
         WOLFSSL_ENTER("EVP_sha1");
-        return EVP_get_digestbyname("SHA");
+        return EVP_get_digestbyname("SHA1");
     }
 #endif /* NO_SHA */
 
