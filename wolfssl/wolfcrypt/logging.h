@@ -191,6 +191,14 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     #define WOLFSSL_ERROR_MSG(m)
 #endif
 
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    extern WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack;
+    extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize;
+    extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
+    extern WOLFSSL_API THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
+    extern WOLFSSL_API THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
+#endif
+
 #ifdef __cplusplus
 }
 #endif
