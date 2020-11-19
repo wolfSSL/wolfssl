@@ -24619,11 +24619,17 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         if (ssl->options.tls1_3) {
             XMEMCPY(ssl->session.sessionID,
                                  ssl->session.ticket + length - ID_LEN, ID_LEN);
+            /* Fake sessionID should have a length not equal to full length. */
+            ssl->session.sessionIDSz = ID_LEN - 1;
         }
         else
 #endif
+        {
             XMEMCPY(ssl->arrays->sessionID,
                                  ssl->session.ticket + length - ID_LEN, ID_LEN);
+            /* Fake sessionID should have a length not equal to full length. */
+            ssl->arrays->sessionIDSz = ID_LEN - 1;
+        }
     }
 
     return 0;
