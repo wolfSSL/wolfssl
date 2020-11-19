@@ -1394,7 +1394,7 @@ extern void uITRON4_free(void *p) ;
     #if defined(RTOS_MODULE_NET_AVAIL) || (APP_CFG_TCPIP_EN == DEF_ENABLED)
         #include <net_cfg.h>
         #include <net_sock.h>
-        #include <net_err.h>
+        //#include <net_err.h>
     #endif
     #include <lib_mem.h>
     #include <lib_math.h>

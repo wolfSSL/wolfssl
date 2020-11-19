@@ -20796,6 +20796,7 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     (void)rng;
 #endif
 
+#if !defined(WOLFSSL_SILABS_SE_ACCEL)
     /* Use API. */
     ret = 0;
     do {
@@ -20809,6 +20810,7 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
         return -10085;
     TEST_SLEEP();
     return 0;
+#endif
 }
 #endif /* HAVE_ECC_DHE */
 #endif
@@ -21996,7 +21998,7 @@ static int ecc_test(void)
     }
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_STM32_PKA)
+  !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);

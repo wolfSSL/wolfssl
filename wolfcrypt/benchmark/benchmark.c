@@ -5314,7 +5314,7 @@ void bench_ecc(int doAsync)
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE
-    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, BENCH_MAX_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, 2*BENCH_MAX_ECC_SIZE, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);

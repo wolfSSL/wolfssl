@@ -58,6 +58,10 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -136,6 +140,8 @@ enum {
     ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
 #elif defined(PLUTON_CRYPTO_ECC)
+    ECC_MAX_CRYPTO_HW_SIZE = 32,
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #elif defined(WOLFSSL_CRYPTOCELL)
     #ifndef CRYPTOCELL_KEY_SIZE
@@ -395,6 +401,12 @@ struct ecc_key {
 #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    sl_se_command_context_t  cmd_ctx;
+    sl_se_key_descriptor_t   key;
+    byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
     mp_int* s;
@@ -510,7 +522,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
+  defined(WOLFSSL_SILABS_SE_ACCEL)
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret
 #else
 #define wc_ecc_shared_secret_ssh wc_ecc_shared_secret_ex /* For backwards compat */
