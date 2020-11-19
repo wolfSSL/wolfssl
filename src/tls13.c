@@ -2365,7 +2365,7 @@ static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
  * ssl The SSL/TLS object.
  * returns 0 on success, otherwise failure.
  */
-static int RestartHandshakeHash(WOLFSSL* ssl)
+int RestartHandshakeHash(WOLFSSL* ssl)
 {
     int    ret;
     Hashes hashes;

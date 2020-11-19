@@ -1727,6 +1727,7 @@ WOLFSSL_LOCAL int  DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input,
 WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz,
                                      byte* extMsgType);
+WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
 #endif
 int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
                     int pLen, int content);
@@ -2624,9 +2625,14 @@ enum SetCBIO {
 #endif
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
+/* contains static ephemeral keys */
 typedef struct {
-    int keyAlgo;
-    DerBuffer* key;
+#ifndef NO_DH
+    DerBuffer* dhKey;
+#endif
+#ifdef HAVE_ECC
+    DerBuffer* ecKey;
+#endif
 } StaticKeyExchangeInfo_t;
 #endif
 
