@@ -2853,6 +2853,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
 
+    if (ssl == NULL || ssl->arrays == NULL)
+        return BAD_FUNC_ARG;
+
     /* Protocol version length check. */
     if (OPAQUE16_LEN > helloSz)
         return BUFFER_ERROR;

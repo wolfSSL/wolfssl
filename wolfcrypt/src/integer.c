@@ -4700,21 +4700,21 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
   }
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
-  if (mp_count_bits(a) == 1024)
+  if (mp_count_bits(a) == 1024 && mp_isodd(a))
       err = sp_ModExp_1024(b, &r, a, &y);
-  else if (mp_count_bits(a) == 2048)
+  else if (mp_count_bits(a) == 2048 && mp_isodd(a))
       err = sp_ModExp_2048(b, &r, a, &y);
   else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
-  if (mp_count_bits(a) == 1536)
+  if (mp_count_bits(a) == 1536 && mp_isodd(a))
       err = sp_ModExp_1536(b, &r, a, &y);
-  else if (mp_count_bits(a) == 3072)
+  else if (mp_count_bits(a) == 3072 && mp_isodd(a))
       err = sp_ModExp_3072(b, &r, a, &y);
   else
 #endif
 #ifdef WOLFSSL_SP_4096
-  if (mp_count_bits(a) == 4096)
+  if (mp_count_bits(a) == 4096 && mp_isodd(a))
       err = sp_ModExp_4096(b, &r, a, &y);
   else
 #endif
@@ -5254,7 +5254,12 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
     if (mp_iszero(a) == MP_YES) {
-        *size = 2;
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16)
+            *size = 3;
+        else
+#endif
+            *size = 2;
         return MP_OKAY;
     }
 
@@ -5311,6 +5316,11 @@ int mp_toradix (mp_int *a, char *str, int radix)
 
     /* quick out if its zero */
     if (mp_iszero(a) == MP_YES) {
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16) {
+            *str++ = '0';
+        }
+#endif
         *str++ = '0';
         *str = '\0';
         return MP_OKAY;

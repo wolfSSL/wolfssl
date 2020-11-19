@@ -1308,7 +1308,11 @@ static void Usage(void)
         printf("%s", msg[++msgid]);
     #endif
 #elif defined(USE_FAST_MATH)
+    #if !defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_SP_MATH)
     printf("%d\n", FP_MAX_BITS/2);
+    #else
+    printf("%d\n", SP_INT_MAX_BITS/2);
+    #endif
 #else
     /* normal math has unlimited max size */
     printf("%s", msg[++msgid]);
