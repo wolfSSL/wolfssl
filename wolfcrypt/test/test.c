@@ -15474,7 +15474,8 @@ static int dh_test(void)
 #endif
 
     /* Test DH key import / export */
-#if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) || \
+#if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM) && \
+        (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     wc_FreeDhKey(key);
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
@@ -15496,7 +15497,13 @@ static int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-7951, done);
     }
+#else
+    ret = wc_DhSetKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
+    if (ret != 0) {
+        ERROR_OUT(-7951, done);
+    }
 #endif
+
 
     privSz = DH_TEST_BUF_SIZE;
     pubSz = DH_TEST_BUF_SIZE;
