@@ -41,7 +41,7 @@ int silabs_GenerateRand(byte* output, word32 sz)
 
     if (status == SL_STATUS_OK)
         status = sl_se_get_random(&cmd_ctx, output,  sz);
-    
+
     return (status != SL_STATUS_OK);
 }
 
