@@ -3809,6 +3809,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #ifdef HAVE_ECC_CDH
     mp_int k_lcl;
 
+    WOLFSSL_ENTER("wc_ecc_shared_secret_gen_sync");
     /* if cofactor flag has been set */
     if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
         mp_digit cofactor = (mp_digit)private_key->dp->cofactor;
@@ -3825,6 +3826,8 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             }
         }
     }
+#else
+    WOLFSSL_ENTER("wc_ecc_shared_secret_gen_sync");
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -3908,6 +3911,8 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     if (k == &k_lcl)
         mp_clear(k);
 #endif
+
+    WOLFSSL_LEAVE("wc_ecc_shared_secret_gen_sync", err);
 
     return err;
 }
@@ -4030,6 +4035,14 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                             byte* out, word32 *outlen)
 {
     int err;
+#ifdef ECC_TIMING_RESISTANT
+    int initTmpRng = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG *tmpRNG = NULL;
+#else
+    WC_RNG tmpRNG[1];
+#endif
+#endif
 
     if (private_key == NULL || point == NULL || out == NULL ||
                                                             outlen == NULL) {
@@ -4039,20 +4052,50 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     /* type valid? */
     if (private_key->type != ECC_PRIVATEKEY &&
             private_key->type != ECC_PRIVATEKEY_ONLY) {
+        WOLFSSL_MSG("ECC_BAD_ARG_E");
         return ECC_BAD_ARG_E;
     }
 
     /* Verify domain params supplied */
-    if (wc_ecc_is_valid_idx(private_key->idx) == 0)
+    if (wc_ecc_is_valid_idx(private_key->idx) == 0) {
+        WOLFSSL_MSG("wc_ecc_is_valid_idx failed");
         return ECC_BAD_ARG_E;
+    }
 
     switch(private_key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_SHARED_SEC_GEN:
             private_key->state = ECC_STATE_SHARED_SEC_GEN;
 
+            #ifdef ECC_TIMING_RESISTANT
+            if (private_key->rng == NULL) {
+                #ifdef WOLFSSL_SMALL_STACK
+                tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+                if (tmpRNG == NULL)
+                    return WOLFSSL_FAILURE;
+                #endif
+                if ((err = wc_InitRng(tmpRNG)) != MP_OKAY) {
+                    #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+                    #endif
+                    break;
+                }
+                private_key->rng = tmpRNG;
+                initTmpRng = 1;
+            }
+            #endif
             err = wc_ecc_shared_secret_gen(private_key, point, out, outlen);
+            #ifdef ECC_TIMING_RESISTANT
+            if (initTmpRng) {
+                wc_FreeRng(tmpRNG);
+                #ifdef WOLFSSL_SMALL_STACK
+                XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+                #endif
+                private_key->rng = NULL;
+            }
+            #endif
             if (err < 0) {
+                WOLFSSL_MSG("wc_ecc_shared_secret_gen failed");
                 break;
             }
             FALL_THROUGH;
@@ -4077,6 +4120,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         default:
             err = BAD_STATE_E;
     } /* switch */
+
+    WOLFSSL_LEAVE("wc_ecc_shared_secret_ex", err);
 
     /* if async pending then return and skip done cleanup below */
     if (err == WC_PENDING_E) {

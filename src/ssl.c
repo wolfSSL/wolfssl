@@ -36871,6 +36871,10 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     (void)KDF;
 
     (void)KDF;
+    ecc_key* key;
+#ifdef ECC_TIMING_RESISTANT
+    int setGlobalRNG = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_ECDH_compute_key");
 
@@ -36892,13 +36896,30 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
     }
 
     len = (word32)outlen;
+    key = (ecc_key*)ecdh->internal;
 
-    if (wc_ecc_shared_secret_ssh((ecc_key*)ecdh->internal,
+#ifdef ECC_TIMING_RESISTANT
+    if (key->rng == NULL) {
+        if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("No RNG to use");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        key->rng = &globalRNG;
+        setGlobalRNG = 1;
+    }
+#endif
+
+    if (wc_ecc_shared_secret_ssh(key,
                                  (ecc_point*)pub_key->internal,
                                  (byte *)out, &len) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_shared_secret failed");
         return WOLFSSL_FATAL_ERROR;
     }
+
+#ifdef ECC_TIMING_RESISTANT
+    if (setGlobalRNG)
+        key->rng = NULL;
+#endif
 
     return len;
 }
