@@ -350,6 +350,17 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 WOLFSSL_MSG("setsockopt rcvtimeo failed");
         }
     }
+#ifndef NO_ASN_TIME
+    else if(IsSCR(ssl)) {
+        if (ssl->dtls_start_timeout &&
+                LowResTimer() - ssl->dtls_start_timeout > (word32)dtls_timeout) {
+            return WOLFSSL_CBIO_ERR_TIMEOUT;
+        }
+        else if (!ssl->dtls_start_timeout) {
+            ssl->dtls_start_timeout = LowResTimer();
+        }
+    }
+#endif /* !NO_ASN_TIME */
 
     recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags,
                                   (SOCKADDR*)&peer, &peerSz);
@@ -395,6 +406,9 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
     }
+#ifndef NO_ASN_TIME
+    ssl->dtls_start_timeout = 0;
+#endif /* !NO_ASN_TIME */
 
     return recvd;
 }
