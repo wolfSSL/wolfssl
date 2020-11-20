@@ -348,7 +348,8 @@ static WC_INLINE int sp_2048_div_16(const sp_digit* a, const sp_digit* d, sp_dig
 #endif
         sp_2048_cond_sub_16(&t1[16], &t1[16], d, (sp_digit)0 - r1);
     for (i=15; i>=0; i--) {
-        r1 = div_2048_word_16(t1[16 + i], t1[16 + i - 1], div);
+        sp_digit hi = t1[16 + i] - (t1[16 + i] == div);
+        r1 = div_2048_word_16(hi, t1[16 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -904,7 +905,8 @@ static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_dig
 #endif
         sp_2048_cond_sub_32(&t1[32], &t1[32], d, (sp_digit)0 - r1);
     for (i=31; i>=0; i--) {
-        r1 = div_2048_word_32(t1[32 + i], t1[32 + i - 1], div);
+        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
+        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -976,7 +978,8 @@ static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, s
         sp_2048_sub_in_place_32(&t1[32], d);
     }
     for (i=31; i>=0; i--) {
-        r1 = div_2048_word_32(t1[32 + i], t1[32 + i - 1], div);
+        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
+        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -2622,7 +2625,8 @@ static WC_INLINE int sp_3072_div_24(const sp_digit* a, const sp_digit* d, sp_dig
 #endif
         sp_3072_cond_sub_24(&t1[24], &t1[24], d, (sp_digit)0 - r1);
     for (i=23; i>=0; i--) {
-        r1 = div_3072_word_24(t1[24 + i], t1[24 + i - 1], div);
+        sp_digit hi = t1[24 + i] - (t1[24 + i] == div);
+        r1 = div_3072_word_24(hi, t1[24 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -3178,7 +3182,8 @@ static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_dig
 #endif
         sp_3072_cond_sub_48(&t1[48], &t1[48], d, (sp_digit)0 - r1);
     for (i=47; i>=0; i--) {
-        r1 = div_3072_word_48(t1[48 + i], t1[48 + i - 1], div);
+        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
+        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -3250,7 +3255,8 @@ static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, s
         sp_3072_sub_in_place_48(&t1[48], d);
     }
     for (i=47; i>=0; i--) {
-        r1 = div_3072_word_48(t1[48 + i], t1[48 + i - 1], div);
+        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
+        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -4874,7 +4880,8 @@ static WC_INLINE int sp_4096_div_64(const sp_digit* a, const sp_digit* d, sp_dig
 #endif
         sp_4096_cond_sub_64(&t1[64], &t1[64], d, (sp_digit)0 - r1);
     for (i=63; i>=0; i--) {
-        r1 = div_4096_word_64(t1[64 + i], t1[64 + i - 1], div);
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -4946,7 +4953,8 @@ static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, s
         sp_4096_sub_in_place_64(&t1[64], d);
     }
     for (i=63; i>=0; i--) {
-        r1 = div_4096_word_64(t1[64 + i], t1[64 + i - 1], div);
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_4096_word_64(hi, t1[64 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -22611,7 +22619,8 @@ static WC_INLINE int sp_256_div_4(const sp_digit* a, const sp_digit* d, sp_digit
 #endif
         sp_256_cond_sub_4(&t1[4], &t1[4], d, (sp_digit)0 - r1);
     for (i=3; i>=0; i--) {
-        r1 = div_256_word_4(t1[4 + i], t1[4 + i - 1], div);
+        sp_digit hi = t1[4 + i] - (t1[4 + i] == div);
+        r1 = div_256_word_4(hi, t1[4 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -29663,7 +29672,8 @@ static WC_INLINE int sp_384_div_6(const sp_digit* a, const sp_digit* d, sp_digit
 #endif
         sp_384_cond_sub_6(&t1[6], &t1[6], d, (sp_digit)0 - r1);
     for (i=5; i>=0; i--) {
-        r1 = div_384_word_6(t1[6 + i], t1[6 + i - 1], div);
+        sp_digit hi = t1[6 + i] - (t1[6 + i] == div);
+        r1 = div_384_word_6(hi, t1[6 + i - 1], div);
 
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))

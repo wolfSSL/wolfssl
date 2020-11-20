@@ -900,7 +900,7 @@ SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -910,19 +910,19 @@ SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 3] = t2;
     }
@@ -1243,7 +1243,7 @@ SP_NOINLINE static void sp_2048_mul_d_18(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -1253,19 +1253,19 @@ SP_NOINLINE static void sp_2048_mul_d_18(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 3] = t2;
     }
@@ -1487,15 +1487,17 @@ static int sp_2048_div_18(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[17];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 18U);
         for (i=17; i>=0; i--) {
+            sp_digit hi;
             t1[18 + i] += t1[18 + i - 1] >> 57;
             t1[18 + i - 1] &= 0x1ffffffffffffffL;
+            hi = t1[18 + i] - (t1[18 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[18 + i];
+            d1 = hi;
             d1 <<= 57;
             d1 += t1[18 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_2048_div_word_18(t1[18 + i], t1[18 + i - 1], dv);
+            r1 = sp_2048_div_word_18(hi, t1[18 + i - 1], dv);
 #endif
 
             sp_2048_mul_d_18(t2, d, r1);
@@ -2430,15 +2432,17 @@ static int sp_2048_div_36(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[35];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 36U);
         for (i=35; i>=0; i--) {
+            sp_digit hi;
             t1[36 + i] += t1[36 + i - 1] >> 57;
             t1[36 + i - 1] &= 0x1ffffffffffffffL;
+            hi = t1[36 + i] - (t1[36 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[36 + i];
+            d1 = hi;
             d1 <<= 57;
             d1 += t1[36 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_2048_div_word_36(t1[36 + i], t1[36 + i - 1], dv);
+            r1 = sp_2048_div_word_36(hi, t1[36 + i - 1], dv);
 #endif
 
             sp_2048_mul_d_36(t2, d, r1);
@@ -5103,7 +5107,7 @@ SP_NOINLINE static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -5113,19 +5117,19 @@ SP_NOINLINE static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 3] = t2;
     }
@@ -5470,7 +5474,7 @@ SP_NOINLINE static void sp_3072_mul_d_27(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -5480,19 +5484,19 @@ SP_NOINLINE static void sp_3072_mul_d_27(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1ffffffffffffffL);
+        t2 = t & 0x1ffffffffffffffL;
         t >>= 57;
         r[i + 3] = t2;
     }
@@ -5679,15 +5683,17 @@ static int sp_3072_div_27(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[26];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 27U);
         for (i=26; i>=0; i--) {
+            sp_digit hi;
             t1[27 + i] += t1[27 + i - 1] >> 57;
             t1[27 + i - 1] &= 0x1ffffffffffffffL;
+            hi = t1[27 + i] - (t1[27 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[27 + i];
+            d1 = hi;
             d1 <<= 57;
             d1 += t1[27 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_3072_div_word_27(t1[27 + i], t1[27 + i - 1], dv);
+            r1 = sp_3072_div_word_27(hi, t1[27 + i - 1], dv);
 #endif
 
             sp_3072_mul_d_27(t2, d, r1);
@@ -6592,15 +6598,17 @@ static int sp_3072_div_54(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[53];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 54U);
         for (i=53; i>=0; i--) {
+            sp_digit hi;
             t1[54 + i] += t1[54 + i - 1] >> 57;
             t1[54 + i - 1] &= 0x1ffffffffffffffL;
+            hi = t1[54 + i] - (t1[54 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[54 + i];
+            d1 = hi;
             d1 <<= 57;
             d1 += t1[54 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_3072_div_word_54(t1[54 + i], t1[54 + i - 1], dv);
+            r1 = sp_3072_div_word_54(hi, t1[54 + i - 1], dv);
 #endif
 
             sp_3072_mul_d_54(t2, d, r1);
@@ -9351,7 +9359,7 @@ SP_NOINLINE static void sp_4096_mul_d_78(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -9361,19 +9369,19 @@ SP_NOINLINE static void sp_4096_mul_d_78(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 3] = t2;
     }
@@ -9741,7 +9749,7 @@ SP_NOINLINE static void sp_4096_mul_d_39(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -9751,19 +9759,19 @@ SP_NOINLINE static void sp_4096_mul_d_39(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 3] = t2;
     }
@@ -9976,15 +9984,17 @@ static int sp_4096_div_39(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_4096_mul_d_78(t1, a, 1L << 19);
         dv = sd[38];
         for (i=39; i>=0; i--) {
+            sp_digit hi;
             t1[39 + i] += t1[39 + i - 1] >> 53;
             t1[39 + i - 1] &= 0x1fffffffffffffL;
+            hi = t1[39 + i] - (t1[39 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[39 + i];
+            d1 = hi;
             d1 <<= 53;
             d1 += t1[39 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_4096_div_word_39(t1[39 + i], t1[39 + i - 1], dv);
+            r1 = sp_4096_div_word_39(hi, t1[39 + i - 1], dv);
 #endif
 
             sp_4096_mul_d_39(t2, sd, r1);
@@ -10743,7 +10753,7 @@ SP_NOINLINE static void sp_4096_mul_d_156(sp_digit* r, const sp_digit* a,
 #else
     int128_t tb = b;
     int128_t t = 0;
-    sp_digit t2;
+    int128_t t2;
     int128_t p[4];
     int i;
 
@@ -10753,19 +10763,19 @@ SP_NOINLINE static void sp_4096_mul_d_156(sp_digit* r, const sp_digit* a,
         p[2] = tb * a[i + 2];
         p[3] = tb * a[i + 3];
         t += p[0];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 0] = t2;
         t += p[1];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 1] = t2;
         t += p[2];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 2] = t2;
         t += p[3];
-        t2 = (sp_digit)(t & 0x1fffffffffffffL);
+        t2 = t & 0x1fffffffffffffL;
         t >>= 53;
         r[i + 3] = t2;
     }
@@ -10987,15 +10997,17 @@ static int sp_4096_div_78(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_4096_mul_d_156(t1, a, 1L << 38);
         dv = sd[77];
         for (i=78; i>=0; i--) {
+            sp_digit hi;
             t1[78 + i] += t1[78 + i - 1] >> 53;
             t1[78 + i - 1] &= 0x1fffffffffffffL;
+            hi = t1[78 + i] - (t1[78 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[78 + i];
+            d1 = hi;
             d1 <<= 53;
             d1 += t1[78 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_4096_div_word_78(t1[78 + i], t1[78 + i - 1], dv);
+            r1 = sp_4096_div_word_78(hi, t1[78 + i - 1], dv);
 #endif
 
             sp_4096_mul_d_78(t2, sd, r1);
@@ -17250,15 +17262,17 @@ static int sp_256_div_5(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[4];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 5U);
         for (i=4; i>=0; i--) {
+            sp_digit hi;
             t1[5 + i] += t1[5 + i - 1] >> 52;
             t1[5 + i - 1] &= 0xfffffffffffffL;
+            hi = t1[5 + i] - (t1[5 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[5 + i];
+            d1 = hi;
             d1 <<= 52;
             d1 += t1[5 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_256_div_word_5(t1[5 + i], t1[5 + i - 1], dv);
+            r1 = sp_256_div_word_5(hi, t1[5 + i - 1], dv);
 #endif
 
             sp_256_mul_d_5(t2, d, r1);
@@ -24075,15 +24089,17 @@ static int sp_384_div_7(const sp_digit* a, const sp_digit* d, sp_digit* m,
         dv = d[6];
         XMEMCPY(t1, a, sizeof(*t1) * 2U * 7U);
         for (i=6; i>=0; i--) {
+            sp_digit hi;
             t1[7 + i] += t1[7 + i - 1] >> 55;
             t1[7 + i - 1] &= 0x7fffffffffffffL;
+            hi = t1[7 + i] - (t1[7 + i] == dv);
 #ifndef WOLFSSL_SP_DIV_64
-            d1 = t1[7 + i];
+            d1 = hi;
             d1 <<= 55;
             d1 += t1[7 + i - 1];
             r1 = (sp_digit)(d1 / dv);
 #else
-            r1 = sp_384_div_word_7(t1[7 + i], t1[7 + i - 1], dv);
+            r1 = sp_384_div_word_7(hi, t1[7 + i - 1], dv);
 #endif
 
             sp_384_mul_d_7(t2, d, r1);
