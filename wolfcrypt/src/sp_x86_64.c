@@ -23916,6 +23916,15 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
     }
 #endif
 
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 256) ||
+        (mp_count_bits(pY) > 256) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+
     if (err == MP_OKAY) {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
         priv = privd;
@@ -30910,6 +30919,15 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 #endif
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 384) ||
+        (mp_count_bits(pY) > 384) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 384)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
 
     if (err == MP_OKAY) {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)

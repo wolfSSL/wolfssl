@@ -6200,10 +6200,10 @@ static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
         err = MP_ZERO_E;
     }
     if ((err == 0) && (mp_cmp(r, curve->order) != MP_LT)) {
-        return MP_VAL;
+        err = MP_VAL;
     }
     if ((err == 0) && (mp_cmp(s, curve->order) != MP_LT)) {
-        return MP_VAL;
+        err = MP_VAL;
     }
 
     wc_ecc_curve_free(curve);
@@ -7444,8 +7444,8 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 /* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)
 {
+#ifndef WOLFSSL_SP_MATH
     int    err;
-#if !defined(WOLFSSL_SP_MATH)
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL)
     mp_int* b = NULL;
@@ -7458,10 +7458,27 @@ int wc_ecc_check_key(ecc_key* key)
     DECLARE_CURVE_SPECS(curve, 3);
 #endif /* USE_ECC_B_PARAM */
 #endif /* WOLFSSL_ATECC508A */
+#endif /* !WOLFSSL_SP_MATH */
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_HAVE_SP_ECC
+#ifndef WOLFSSL_SP_NO_256
+    if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
+        return sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y, 
+            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
+    }
+#endif
+#ifdef WOLFSSL_SP_384
+    if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP384R1) {
+        return sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y, 
+            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
+    }
+#endif
+#endif
+
+#ifndef WOLFSSL_SP_MATH
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_CRYPTOCELL)
 
@@ -7561,32 +7578,11 @@ int wc_ecc_check_key(ecc_key* key)
 
     FREE_CURVE_SPECS();
 
+    return err;
 #endif /* WOLFSSL_ATECC508A */
 #else
-    if (key == NULL)
-        return BAD_FUNC_ARG;
-
-    /* pubkey point cannot be at infinity */
-#ifndef WOLFSSL_SP_NO_256
-    if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
-        err = sp_ecc_check_key_256(key->pubkey.x, key->pubkey.y, 
-            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
-    }
-    else
-#endif
-#ifdef WOLFSSL_SP_384
-    if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP384R1) {
-        err = sp_ecc_check_key_384(key->pubkey.x, key->pubkey.y, 
-            key->type == ECC_PRIVATEKEY ? &key->k : NULL, key->heap);
-    }
-    else
-#endif
-    {
-        err = WC_KEY_SIZE_E;
-    }
-#endif
-
-    return err;
+    return WC_KEY_SIZE_E;
+#endif /* !WOLFSSL_SP_MATH */
 }
 
 #ifdef HAVE_ECC_KEY_IMPORT
