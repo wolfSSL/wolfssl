@@ -4072,7 +4072,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                 #ifdef WOLFSSL_SMALL_STACK
                 tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
                 if (tmpRNG == NULL)
-                    return WOLFSSL_FAILURE;
+                    return MEMORY_E;
                 #endif
                 if ((err = wc_InitRng(tmpRNG)) != MP_OKAY) {
                     #ifdef WOLFSSL_SMALL_STACK
