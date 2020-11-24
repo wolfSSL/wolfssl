@@ -6178,20 +6178,18 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 /* try and populate public pkey_sz and pkey.ptr */
 static void ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 {
-    int ret;
+    word32 derSz = 0;
     if (!pkey || !ecc)
         return;
-    if ((ret = wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
-        int derSz = ret;
-        char* derBuf = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
+        byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (derBuf) {
-            ret = wc_EccPublicKeyToDer(ecc, (byte*)derBuf, derSz, 1);
-            if (ret >= 0) {
+            if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) >= 0) {
                 if (pkey->pkey.ptr) {
                     XFREE(pkey->pkey.ptr, NULL, DYNAMIC_TYPE_OPENSSL);
                 }
-                pkey->pkey_sz = ret;
-                pkey->pkey.ptr = derBuf;
+                pkey->pkey_sz = (int)derSz;
+                pkey->pkey.ptr = (char*)derBuf;
             }
             else { /* failure - okay to ignore */
                 XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

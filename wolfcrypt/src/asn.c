@@ -16598,13 +16598,15 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 }
 
 #ifdef HAVE_PKCS8
-/* Write only private ecc key to unencrypted PKCS#8 format.
+/* Write only private ecc key or both private and public parts to unencrypted
+ * PKCS#8 format.
  *
  * If output is NULL, places required PKCS#8 buffer size in outLen and
  * returns LENGTH_ONLY_E.
  *
  * return length on success else < 0 */
-int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
+static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
+        int includePublic)
 {
     int ret, tmpDerSz;
     int algoID = 0;
@@ -16617,7 +16619,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     byte* tmpDer = NULL;
 #endif
 
-    if (key == NULL || outLen == NULL)
+    if (key == NULL || key->dp == NULL || outLen == NULL)
         return BAD_FUNC_ARG;
 
     /* set algoID, get curve OID */
@@ -16634,7 +16636,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
 #endif
     XMEMSET(tmpDer, 0, ECC_BUFSIZE);
 
-    tmpDerSz = wc_BuildEccKeyDer(key, tmpDer, ECC_BUFSIZE, 0);
+    tmpDerSz = wc_BuildEccKeyDer(key, tmpDer, ECC_BUFSIZE, includePublic);
     if (tmpDerSz < 0) {
     #ifndef WOLFSSL_NO_MALLOC
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16683,6 +16685,20 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
 
     *outLen = ret;
     return ret;
+}
+
+/* Write only private ecc key to unencrypted PKCS#8 format.
+ *
+ * return length on success else < 0 */
+int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
+{
+    return eccToPKCS8(key, output, outLen, 0);
+}
+
+int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
+                     word32* outLen)
+{
+    return eccToPKCS8(key, output, outLen, 1);
 }
 #endif /* HAVE_PKCS8 */
 #endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
