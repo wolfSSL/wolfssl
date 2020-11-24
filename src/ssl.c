@@ -11633,7 +11633,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    if (!ssl->options.handShakeDone &&
+    if ((IsSCR(ssl) || !ssl->options.handShakeDone) &&
         (DtlsMsgPoolTimeout(ssl) < 0 || DtlsMsgPoolSend(ssl, 0) < 0)) {
 
         result = WOLFSSL_FATAL_ERROR;

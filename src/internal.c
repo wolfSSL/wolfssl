@@ -6488,6 +6488,16 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
 
+#ifdef WOLFSSL_DTLS
+    /* DTLS_POOL */
+    if (ssl->options.dtls) {
+        DtlsMsgPoolReset(ssl);
+        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
+        ssl->dtls_rx_msg_list = NULL;
+        ssl->dtls_rx_msg_list_sz = 0;
+    }
+#endif
+
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
         WOLFSSL_MSG("Secure Renegotiation needs to retain handshake resources");
@@ -6531,16 +6541,6 @@ void FreeHandshakeResources(WOLFSSL* ssl)
             ssl->options.weOwnRng = 0;
         }
     }
-
-#ifdef WOLFSSL_DTLS
-    /* DTLS_POOL */
-    if (ssl->options.dtls) {
-        DtlsMsgPoolReset(ssl);
-        DtlsMsgListDelete(ssl->dtls_rx_msg_list, ssl->heap);
-        ssl->dtls_rx_msg_list = NULL;
-        ssl->dtls_rx_msg_list_sz = 0;
-    }
-#endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
                                                     defined(HAVE_SESSION_TICKET)
