@@ -1099,7 +1099,7 @@ top:
       #ifdef WOLFSSL_SMALL_STACK
         XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
-        return FP_OKAY;
+        return err;
       }
       err = fp_sub (B, x, B);
       if (err != FP_OKAY) {
@@ -1127,7 +1127,7 @@ top:
       #ifdef WOLFSSL_SMALL_STACK
         XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
-        return FP_OKAY;
+        return err;
       }
       err = fp_sub (D, x, D);
       if (err != FP_OKAY) {
@@ -1212,7 +1212,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
@@ -1223,7 +1223,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
