@@ -10576,14 +10576,22 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecAES_128_CBC:
                {
                    Aes aes;
-                   ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                   ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+                   if (ret == 0) {
+                       ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
                                                                 AES_DECRYPTION);
+                       if (ret == 0) {
+                           ret = wc_AesCbcDecrypt(&aes, out, msg,
+                                                                msgSz-digestSz);
+                       #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+                           ret = wc_AsyncWait(ret, &aes.asyncDev,
+                                                            WC_ASYNC_FLAG_NONE);
+                       #endif
+                       }
+                       wc_AesFree(&aes);
+                   }
                    if (ret != 0)
-                       break;
-                   ret = wc_AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
-                #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
-                   ret = wc_AsyncWait(ret, &aes.asyncDev, WC_ASYNC_FLAG_NONE);
-                #endif
+                      break;
                }
                break;
     #endif
