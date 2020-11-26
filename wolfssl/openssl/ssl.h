@@ -808,6 +808,13 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define PEMerr(func, reason)            WOLFSSL_ERROR_LINE((reason), \
                                         NULL, __LINE__, __FILE__, NULL)
 #endif
+#ifndef WOLFCRYPT_ONLY
+#define EVPerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_EVP, \
+                                        (func), (reason), __FILE__, __LINE__)
+#else
+#define EVPerr(func, reason)            WOLFSSL_ERROR_LINE((reason), \
+                                        NULL, __LINE__, __FILE__, NULL)
+#endif
 
 #define SSLv23_server_method            wolfSSLv23_server_method
 #define SSL_CTX_set_options             wolfSSL_CTX_set_options

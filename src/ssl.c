@@ -5522,8 +5522,15 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         if (ret != 0)
             return ret;
-        if (keyFormat == 0)
+        if (keyFormat == 0) {
+#ifdef OPENSSL_EXTRA
+            /* Reaching this point probably means that the
+             * decryption password is wrong */
+            if (info->passwd_cb)
+                EVPerr(0, EVP_R_BAD_DECRYPT);
+#endif
             return WOLFSSL_BAD_FILE;
+        }
 
         (void)devId;
     }
@@ -29305,7 +29312,6 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
     }
 }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int SetDhInternal(WOLFSSL_DH* dh)
 {
     int            ret = WOLFSSL_FATAL_ERROR;
@@ -29435,6 +29441,7 @@ int SetDhExternal(WOLFSSL_DH *dh)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_DH_EXTRA
     if (SetIndividualExternal(&dh->priv_key, &key->priv) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("No DH Private Key");
         return WOLFSSL_FATAL_ERROR;
@@ -29444,12 +29451,12 @@ int SetDhExternal(WOLFSSL_DH *dh)
         WOLFSSL_MSG("No DH Public Key");
         return WOLFSSL_FATAL_ERROR;
     }
+#endif /* WOLFSSL_DH_EXTRA */
 
     dh->exSet = 1;
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
 /* return code compliant with OpenSSL :
@@ -39719,7 +39726,7 @@ err:
         ret = AllocDer(&ctx->certificate, x->derCert->length, CERT_TYPE,
                        ctx->heap);
         if (ret != 0)
-            return 0;
+            return WOLFSSL_FAILURE;
 
         XMEMCPY(ctx->certificate->buffer, x->derCert->buffer,
                 x->derCert->length);
@@ -39730,10 +39737,13 @@ err:
         }
         #ifndef WOLFSSL_X509_STORE_CERTS
         ctx->ourCert = x;
+        if (wolfSSL_X509_up_ref(x) != 1) {
+            return WOLFSSL_FAILURE;
+        }
         #else
         ctx->ourCert = wolfSSL_X509_d2i(NULL, x->derCert->buffer,x->derCert->length);
         if(ctx->ourCert == NULL){
-            return 0;
+            return WOLFSSL_FAILURE;
         }
         #endif
 
@@ -40573,7 +40583,6 @@ WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
 
 #ifndef NO_DH
 #ifndef NO_BIO
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         pem_password_cb *cb, void *u)
 {
@@ -40703,7 +40712,6 @@ end:
     return NULL;
 #endif
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
