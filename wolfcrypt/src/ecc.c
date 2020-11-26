@@ -3007,8 +3007,10 @@ exit:
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    if (key) {
-       R->key = NULL;
-       ecc_key_tmp_final(key, heap);
+       if (R)
+           R->key = NULL;
+       if (err == MP_OKAY)
+           ecc_key_tmp_final(key, heap);
        XFREE(key, heap, DYNAMIC_TYPE_ECC);
    }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
