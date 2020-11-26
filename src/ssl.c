@@ -46760,13 +46760,9 @@ static unsigned long wolfSSL_BN_get_word_1(mp_int *mp) {
     unsigned long ret = 0UL;
     int digit_i;
 
-    if ((unsigned long)DIGIT_BIT == (sizeof(unsigned long) * 8UL))
-        return (unsigned long)mp->dp[0];
-    else {
-        for (digit_i = 0; digit_i < mp->used; ++digit_i) {
-            ret <<= (unsigned long)DIGIT_BIT;
-            ret |= (unsigned long)mp->dp[digit_i];
-        }
+    for (digit_i = 0; digit_i < mp->used; ++digit_i) {
+        ret <<= (unsigned long)DIGIT_BIT;
+        ret |= (unsigned long)mp->dp[digit_i];
     }
 
     return ret;
