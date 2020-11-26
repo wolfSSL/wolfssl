@@ -16795,37 +16795,55 @@ static int DecodeSingleResponse(byte* source,
 #endif
 #endif
 
-    /* The following items are optional. Only check for them if there is more
-     * unprocessed data in the singleResponse wrapper. */
+    /* If there's more unprocessed data in the singleResponse wrapper, process 
+       the optional items nextUpdate and singleExtensions described in rfc6960:
+       SingleResponse ::= SEQUENCE {
+          certID                       CertID,
+          certStatus                   CertStatus,
+          thisUpdate                   GeneralizedTime,
+          nextUpdate         [0]       EXPLICIT GeneralizedTime OPTIONAL,
+          singleExtensions   [1]       EXPLICIT Extensions OPTIONAL }
+     */
     localIdx = idx;
     if (((int)(idx - prevIndex) < wrapperSz) &&
-        GetASNTag(source, &localIdx, &tag, size) == 0 &&
-        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        GetASNTag(source, &localIdx, &tag, size) == 0)
     {
-        idx++;
-        if (GetLength(source, &idx, &length, size) < 0)
-            return ASN_PARSE_E;
+        if (tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        {
+            idx++;
+            if (GetLength(source, &idx, &length, size) < 0)
+                return ASN_PARSE_E;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        cs->nextDateAsn = source + idx;
-        localIdx = 0;
-        if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
-                        (byte*)&cs->nextDateParsed.type,
-                        &cs->nextDateParsed.length, size) < 0)
-            return ASN_PARSE_E;
-        XMEMCPY(cs->nextDateParsed.data,
-                cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
-                cs->nextDateParsed.length);
+            cs->nextDateAsn = source + idx;
+            localIdx = 0;
+            if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
+                            (byte*)&cs->nextDateParsed.type,
+                            &cs->nextDateParsed.length, size) < 0)
+                return ASN_PARSE_E;
+            XMEMCPY(cs->nextDateParsed.data,
+                    cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
+                    cs->nextDateParsed.length);
 #endif
-        if (GetBasicDate(source, &idx, cs->nextDate,
-                                                &cs->nextDateFormat, size) < 0)
-            return ASN_PARSE_E;
+            if (GetBasicDate(source, &idx, cs->nextDate,
+                             &cs->nextDateFormat, size) < 0)
+                return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-        if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
-            return ASN_AFTER_DATE_E;
+            if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
+                return ASN_AFTER_DATE_E;
 #endif
 #endif
+        }
+        else if (tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+        {
+            /* skip the optional singleExtensions */
+            idx++;
+            if (GetLength(source, &idx, &length, size) < 0)
+                return ASN_PARSE_E;
+
+            idx += length;
+        }
     }
 
     *ioIndex = idx;
