@@ -416,6 +416,16 @@ then
     then
         enable_compkey=no
     fi
+
+    if test "$ENABLED_FIPS" = "yes"
+    then
+        enable_xchacha=no
+        enable_pkcs7=no
+        enable_scep=no
+        enable_openssh=no
+        enable_ed25519=no
+        enable_ed448=no
+    fi
 fi
 
 
@@ -508,6 +518,14 @@ then
 
         # Enable ECC Import checks
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    fi
+
+    if test "$ENABLED_FIPS" = "yes"
+    then
+        enable_xchacha=no
+        enable_pkcs7=no
+        enable_ed25519=no
+        enable_ed448=no
     fi
 fi
 
@@ -3696,16 +3714,10 @@ fi
 
 
 # Small Stack - Cache on object
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-then
-    ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
-else
-    ENABLED_SMALL_STACK_CACHE_DEFAULT=no
-fi
 AC_ARG_ENABLE([smallstackcache],
     [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
     [ ENABLED_SMALL_STACK_CACHE=$enableval ],
-    [ ENABLED_SMALL_STACK_CACHE=$ENABLED_SMALL_STACK_CACHE_DEFAULT ]
+    [ ENABLED_SMALL_STACK_CACHE=no ]
     )
 
 if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
@@ -5986,10 +5998,10 @@ AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
-	test "$ENABLED_STACKSIZE" = "yes" ||
-	(test "$ENABLED_LEANTLS" = "no" &&
-	     test "$ENABLED_LEANPSK" = "no" &&
-	     test "$ENABLED_LOWRESOURCE" = "no")
+        test "$ENABLED_STACKSIZE" = "yes" ||
+        (test "$ENABLED_LEANTLS" = "no" &&
+             test "$ENABLED_LEANPSK" = "no" &&
+             test "$ENABLED_LOWRESOURCE" = "no")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
@@ -6145,6 +6157,11 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
+if test "$ENABLED_FIPS" = "yes"; then
+echo "   * FIPS:                       $FIPS_VERSION"
+else
+echo "   * FIPS:                       $ENABLED_FIPS"
+fi
 echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
