@@ -1592,8 +1592,7 @@ static WC_INLINE int OCSPIOCb(void* ioCtx, const char* url, int urlSz,
 
 static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 {
-    (void)ioCtx;
-    (void)response;
+    return EmbedOcspRespFree(ioCtx, response);
 }
 #endif
 
