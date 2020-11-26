@@ -30353,7 +30353,7 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
         return NULL;
     }
 
-    if (wolfSSL_BN_set_word(bn, (WOLFSSL_BN_ULONG)e) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_BN_set_word(bn, e) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Error using e value");
         wolfSSL_BN_free(bn);
         return NULL;
@@ -46279,17 +46279,30 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
 
 /* return compliant with OpenSSL
  *   1 if BIGNUM is word, 0 else */
-int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
+int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, unsigned long w)
 {
-    WOLFSSL_ENTER("wolfSSL_BN_is_word");
+    WOLFSSL_MSG("wolfSSL_BN_is_word");
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
         return WOLFSSL_FAILURE;
     }
 
-    if (mp_isword((mp_int*)bn->internal, w) == MP_YES) {
-         return WOLFSSL_SUCCESS;
+    if (w <= MP_MASK) {
+        if (mp_isword((mp_int*)bn->internal, (mp_digit)w) == MP_YES) {
+            return WOLFSSL_SUCCESS;
+        }
+    } else {
+        int ret;
+        mp_int w_mp;
+        if (mp_init(&w_mp) != MP_OKAY)
+            return WOLFSSL_FAILURE;
+        if (mp_set_int(&w_mp, w) != MP_OKAY)
+            return WOLFSSL_FAILURE;
+        ret = mp_cmp((mp_int *)bn->internal, &w_mp);
+        mp_free(&w_mp);
+        if (ret == MP_EQ)
+            return WOLFSSL_SUCCESS;
     }
 
     return WOLFSSL_FAILURE;
@@ -46723,7 +46736,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* bn)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
-int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
+int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, unsigned long w)
 {
     WOLFSSL_MSG("wolfSSL_BN_set_word");
 
@@ -46740,6 +46753,25 @@ int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
     return WOLFSSL_SUCCESS;
 }
 
+static unsigned long wolfSSL_BN_get_word_1(mp_int *mp) {
+#if DIGIT_BIT == (SIZEOF_LONG * 8)
+    return (unsigned long)mp->dp[0];
+#else
+    unsigned long ret = 0UL;
+    int digit_i;
+
+    if ((unsigned long)DIGIT_BIT == (sizeof(unsigned long) * 8UL))
+        return (unsigned long)mp->dp[0];
+    else {
+        for (digit_i = 0; digit_i < mp->used; ++digit_i) {
+            ret <<= (unsigned long)DIGIT_BIT;
+            ret |= (unsigned long)mp->dp[digit_i];
+        }
+    }
+
+    return ret;
+#endif
+}
 
 /* Returns the big number as an unsigned long if possible.
  *
@@ -46749,8 +46781,6 @@ int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
  */
 unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM* bn)
 {
-    mp_int* mp;
-
     WOLFSSL_MSG("wolfSSL_BN_get_word");
 
     if (bn == NULL) {
@@ -46762,9 +46792,8 @@ unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM* bn)
         WOLFSSL_MSG("bignum is larger than unsigned long");
         return 0xFFFFFFFFL;
     }
-    mp = (mp_int*)bn->internal;
 
-    return (unsigned long)(mp->dp[0]);
+    return wolfSSL_BN_get_word_1((mp_int*)bn->internal);
 }
 
 /* return code compliant with OpenSSL :
@@ -46868,7 +46897,7 @@ int wolfSSL_BN_rshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
-int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
+int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, unsigned long w)
 {
     WOLFSSL_MSG("wolfSSL_BN_add_word");
 
@@ -46877,9 +46906,24 @@ int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
         return WOLFSSL_FAILURE;
     }
 
-    if (mp_add_d((mp_int*)bn->internal, w, (mp_int*)bn->internal) != MP_OKAY) {
-        WOLFSSL_MSG("mp_add_d error");
-        return WOLFSSL_FAILURE;
+    if (w <= MP_MASK) {
+        if (mp_add_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, (mp_int*)bn->internal) != MP_OKAY) {
+            WOLFSSL_MSG("mp_add_d error");
+            return WOLFSSL_FAILURE;
+        }
+    } else {
+        int ret;
+        mp_int w_mp;
+        if (mp_init(&w_mp) != MP_OKAY)
+            return WOLFSSL_FAILURE;
+        if (mp_set_int(&w_mp, w) != MP_OKAY)
+            return WOLFSSL_FAILURE;
+        ret = mp_add((mp_int *)bn->internal, &w_mp, (mp_int *)bn->internal);
+        mp_free(&w_mp);
+        if (ret != MP_OKAY) {
+            WOLFSSL_MSG("mp_add error");
+            return WOLFSSL_FAILURE;
+        }
     }
 
     return WOLFSSL_SUCCESS;
@@ -47002,10 +47046,10 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
 /* return code compliant with OpenSSL :
  *   (bn mod w) if success, -1 if error
  */
-WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
-                                     WOLFSSL_BN_ULONG w)
+unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
+                                     unsigned long w)
 {
-    WOLFSSL_BN_ULONG ret = 0;
+    unsigned long ret = 0;
 
     WOLFSSL_MSG("wolfSSL_BN_mod_word");
 
@@ -47014,9 +47058,28 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
         return (WOLFSSL_BN_ULONG)WOLFSSL_FATAL_ERROR;
     }
 
-    if (mp_mod_d((mp_int*)bn->internal, w, &ret) != MP_OKAY) {
-        WOLFSSL_MSG("mp_add_d error");
-        return (WOLFSSL_BN_ULONG)WOLFSSL_FATAL_ERROR;
+    if (w <= MP_MASK) {
+        if (mp_mod_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, &ret) != MP_OKAY) {
+            WOLFSSL_MSG("mp_add_d error");
+            return (unsigned long)WOLFSSL_FATAL_ERROR;
+        }
+    } else {
+        int mp_ret;
+        mp_int w_mp, r_mp;
+        if (mp_init(&w_mp) != MP_OKAY)
+            return (unsigned long)WOLFSSL_FAILURE;
+        if (mp_init(&r_mp) != MP_OKAY)
+            return (unsigned long)WOLFSSL_FAILURE;
+        if (mp_set_int(&w_mp, w) != MP_OKAY)
+            return (unsigned long)WOLFSSL_FAILURE;
+        mp_ret = mp_mod((mp_int *)bn->internal, &w_mp, &r_mp);
+        ret = wolfSSL_BN_get_word_1(&r_mp);
+        mp_free(&r_mp);
+        mp_free(&w_mp);
+        if (mp_ret != MP_OKAY) {
+            WOLFSSL_MSG("mp_mod error");
+            return (unsigned long)WOLFSSL_FAILURE;
+        }
     }
 
     return ret;
