@@ -6069,8 +6069,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         return BUILD_MSG_ERROR;
 
 #ifndef NO_SESSION_CACHE
-    if (!ssl->options.resuming && (ssl->options.side == WOLFSSL_SERVER_END ||
-            (ssl->options.side == WOLFSSL_SERVER_END && ssl->arrays != NULL))) {
+    if (!ssl->options.resuming) {
         AddSession(ssl);    /* just try */
     }
 #endif
