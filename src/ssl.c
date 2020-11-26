@@ -47059,10 +47059,12 @@ unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
     }
 
     if (w <= MP_MASK) {
-        if (mp_mod_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, &ret) != MP_OKAY) {
+        WOLFSSL_BN_ULONG bn_ret;
+        if (mp_mod_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, &bn_ret) != MP_OKAY) {
             WOLFSSL_MSG("mp_add_d error");
             return (unsigned long)WOLFSSL_FATAL_ERROR;
         }
+        ret = (unsigned long)bn_ret;
     } else {
         int mp_ret;
         mp_int w_mp, r_mp;

@@ -15635,8 +15635,10 @@ static int dsa_test(void)
 #else
     byte   tmp[1024];
     DsaKey key[1];
+#ifdef WOLFSSL_KEY_GEN
     DsaKey derIn[1];
     DsaKey genKey[1];
+#endif
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
