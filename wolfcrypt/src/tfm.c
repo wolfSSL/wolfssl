@@ -3903,10 +3903,10 @@ void fp_rshb(fp_int *c, int x)
     fp_digit r, rr;
     fp_digit D = x;
 
-    /* shifting by a negative number not supported */
-    if (x < 0) return;
-    /* shifting by zero changes nothing */
-    if (x == 0) return;
+    /* shifting by a negative number not supported, and shifting by
+     * zero changes nothing.
+     */
+    if (x <= 0) return;
 
     /* shift digits first if needed */
     if (x >= DIGIT_BIT) {
