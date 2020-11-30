@@ -21290,15 +21290,12 @@ static int sp_256_ecc_mulmod_win_add_sub_4(sp_point_256* r, const sp_point_256* 
     return err;
 }
 
-#ifndef WC_NO_CACHE_RESISTANT
 /* A table entry for pre-computed points. */
 typedef struct sp_table_entry_256 {
     sp_digit x[4];
     sp_digit y[4];
 } sp_table_entry_256;
 
-#if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
-#endif /* FP_ECC || WOLFSSL_SP_SMALL */
 /* Add two Montgomery form projective points. The second point has a q value of
  * one.
  * Only the first point can be the same pointer as the result point.
@@ -21404,6 +21401,11 @@ static void sp_256_proj_to_affine_4(sp_point_256* a, sp_digit* t)
     XMEMCPY(a->z, p256_norm_mod, sizeof(p256_norm_mod));
 }
 
+#endif /* FP_ECC */
+#ifndef WC_NO_CACHE_RESISTANT
+#if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
+#endif /* FP_ECC || WOLFSSL_SP_SMALL */
+#ifdef FP_ECC
 /* Generate the pre-computed table of points for the base point.
  *
  * a      The base point.
