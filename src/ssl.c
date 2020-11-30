@@ -11633,7 +11633,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    if (!ssl->options.handShakeDone &&
+    if ((IsSCR(ssl) || !ssl->options.handShakeDone) &&
         (DtlsMsgPoolTimeout(ssl) < 0 || DtlsMsgPoolSend(ssl, 0) < 0)) {
 
         result = WOLFSSL_FATAL_ERROR;
@@ -25303,18 +25303,6 @@ long wolfSSL_get_options(const WOLFSSL* ssl)
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
-
-long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
-{
-    WOLFSSL_ENTER("SSL_clear_options");
-    if(ssl == NULL)
-        return WOLFSSL_FAILURE;
-    ssl->options.mask &= ~opt;
-    return ssl->options.mask;
-}
-
-
 #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
 /* clears the counter for number of renegotiations done
@@ -25359,6 +25347,18 @@ int  wolfSSL_SSL_renegotiate_pending(WOLFSSL *s)
             s->options.handShakeState != HANDSHAKE_DONE ? 1 : 0;
 }
 #endif /* HAVE_SECURE_RENEGOTIATION || HAVE_SERVER_RENEGOTIATION_INFO */
+
+#ifdef OPENSSL_EXTRA
+
+long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
+{
+    WOLFSSL_ENTER("SSL_clear_options");
+    if(ssl == NULL)
+        return WOLFSSL_FAILURE;
+    ssl->options.mask &= ~opt;
+    return ssl->options.mask;
+}
+
 
 #ifndef NO_DH
 long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
