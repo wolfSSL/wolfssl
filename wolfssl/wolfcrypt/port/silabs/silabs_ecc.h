@@ -54,7 +54,7 @@ int silabs_ecc_import_private(ecc_key* key, word32 keysize);
 
 int silabs_ecc_sig_to_rs(ecc_key* key, word32 keySz);
 
-int silabs_ecc_import_private_raw(ecc_key* key, word32 keySz, byte* d, int encType);
+int silabs_ecc_import_private_raw(ecc_key* key, word32 keySz, const char* d, int encType);
 
 int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
                              byte* out, word32* outlen);
