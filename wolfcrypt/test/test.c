@@ -20808,9 +20808,10 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     } while (ret == WC_PENDING_E);
     if (ret != 0)
         return -10085;
+#endif
+
     TEST_SLEEP();
     return 0;
-#endif
 }
 #endif /* HAVE_ECC_DHE */
 #endif
