@@ -1193,7 +1193,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    indefItems = XMALLOC(sizeof(IndefItems), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    indefItems = (IndefItems *)XMALLOC(sizeof(IndefItems), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (indefItems == NULL) {
         ret = MEMORY_E;
         goto end;

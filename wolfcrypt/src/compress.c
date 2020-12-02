@@ -47,7 +47,7 @@
 static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
 {
     (void)opaque;
-    return XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
+    return (void *)XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
 }
 
 
