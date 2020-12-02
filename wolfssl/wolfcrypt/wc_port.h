@@ -124,6 +124,27 @@
 
     _Pragma("GCC diagnostic pop");
 
+    /* Linux headers define these using C expressions, but we need
+     * them to be evaluable by the preprocessor, for use in sp_int.h.
+     */
+    _Static_assert(sizeof(ULONG_MAX) == 8, "WOLFSSL_LINUXKM supported only on targets with 64 bit long words.");
+    #undef UCHAR_MAX
+    #define UCHAR_MAX 255
+    #undef USHRT_MAX
+    #define USHRT_MAX 65535
+    #undef UINT_MAX
+    #define UINT_MAX 4294967295U
+    #undef ULONG_MAX
+    #define ULONG_MAX 18446744073709551615UL
+    #undef ULLONG_MAX
+    #define ULLONG_MAX ULONG_MAX
+    #undef INT_MAX
+    #define INT_MAX 2147483647
+    #undef LONG_MAX
+    #define LONG_MAX 9223372036854775807L
+    #undef LLONG_MAX
+    #define LLONG_MAX LONG_MAX
+
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.
      */
