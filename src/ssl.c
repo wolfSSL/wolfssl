@@ -29045,7 +29045,7 @@ void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *tpl)
     if (!tpl) {
         return NULL;
     }
-    if (!(ret = XMALLOC(tpl->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
+    if (!(ret = (void *)XMALLOC(tpl->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
         return NULL;
     }
     XMEMSET(ret, 0, tpl->size);
@@ -31817,7 +31817,7 @@ void wolfSSL_OPENSSL_free(void* p)
 
 void *wolfSSL_OPENSSL_malloc(size_t a)
 {
-  return XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
+    return (void *)XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 int wolfSSL_OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
