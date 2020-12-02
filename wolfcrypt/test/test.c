@@ -19408,39 +19408,53 @@ done:
 static int ecc_test_cdh_vectors(WC_RNG* rng)
 {
     int ret;
-    ecc_key pub_key, priv_key;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key *pub_key = (ecc_key *)XMALLOC(sizeof *pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ecc_key *priv_key = (ecc_key *)XMALLOC(sizeof *priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ecc_key pub_key[1], priv_key[1];
+#endif
     byte    sharedA[32] = {0}, sharedB[32] = {0};
     word32  x, z;
 
-    const char* QCAVSx = "700c48f77f56584c5cc632ca65640db91b6bacce3a4df6b42ce7cc838833d287";
-    const char* QCAVSy = "db71e509e3fd9b060ddb20ba5c51dcc5948d46fbf640dfe0441782cab85fa4ac";
-    const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
-    const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
-    const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
-    const char* ZIUT =   "46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b";
+    static const char* QCAVSx = "700c48f77f56584c5cc632ca65640db91b6bacce3a4df6b42ce7cc838833d287";
+    static const char* QCAVSy = "db71e509e3fd9b060ddb20ba5c51dcc5948d46fbf640dfe0441782cab85fa4ac";
+    static const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
+    static const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
+    static const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
+    static const char* ZIUT =   "46fc62106420ff012e54a434fbdd2d25ccc5852060561e68040dd7778997bd7b";
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((pub_key == NULL) ||
+        (priv_key == NULL)) {
+        ret = MEMORY_E;
+        goto done;
+    }
+#endif
+
+    XMEMSET(pub_key, 0, sizeof *pub_key);
+    XMEMSET(priv_key, 0, sizeof *priv_key);
 
     /* setup private and public keys */
-    ret = wc_ecc_init_ex(&pub_key, HEAP_HINT, devId);
-    if (ret != 0)
-        return ret;
-    ret = wc_ecc_init_ex(&priv_key, HEAP_HINT, devId);
-    if (ret != 0) {
-        wc_ecc_free(&pub_key);
-        return ret;
-    }
-    wc_ecc_set_flags(&pub_key, WC_ECC_FLAG_COFACTOR);
-    wc_ecc_set_flags(&priv_key, WC_ECC_FLAG_COFACTOR);
-    ret = wc_ecc_import_raw(&pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
+    ret = wc_ecc_init_ex(pub_key, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
-    ret = wc_ecc_import_raw(&priv_key, QIUTx, QIUTy, dIUT, "SECP256R1");
+    ret = wc_ecc_init_ex(priv_key, HEAP_HINT, devId);
+    if (ret != 0)
+        goto done;
+    wc_ecc_set_flags(pub_key, WC_ECC_FLAG_COFACTOR);
+    wc_ecc_set_flags(priv_key, WC_ECC_FLAG_COFACTOR);
+    ret = wc_ecc_import_raw(pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
+    if (ret != 0)
+        goto done;
+    ret = wc_ecc_import_raw(priv_key, QIUTx, QIUTy, dIUT, "SECP256R1");
     if (ret != 0)
         goto done;
 
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
-    ret = wc_ecc_set_rng(&priv_key, rng);
+    ret = wc_ecc_set_rng(priv_key, rng);
     if (ret != 0)
         goto done;
 #else
@@ -19451,10 +19465,10 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     x = sizeof(sharedA);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &priv_key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, priv_key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_shared_secret(&priv_key, &pub_key, sharedA, &x);
+            ret = wc_ecc_shared_secret(priv_key, pub_key, sharedA, &x);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
         goto done;
@@ -19473,8 +19487,21 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     }
 
 done:
-    wc_ecc_free(&priv_key);
-    wc_ecc_free(&pub_key);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (priv_key) {
+        wc_ecc_free(priv_key);
+        XFREE(priv_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (pub_key) {
+        wc_ecc_free(pub_key);
+        XFREE(pub_key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    wc_ecc_free(priv_key);
+    wc_ecc_free(pub_key);
+#endif
+
     return ret;
 }
 #endif /* HAVE_ECC_CDH */
@@ -21230,24 +21257,28 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 {
     int     ret;
     word32  inOutIdx;
-    ecc_key key;
+#ifdef WOLFSSL_SMALL_STACK
+    ecc_key *key = (ecc_key *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    ecc_key key[1];
+#endif
 
     /* test use of custom curve - using BRAINPOOLP256R1 for test */
     #ifndef WOLFSSL_ECC_CURVE_STATIC
-        const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
+        static const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
             0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
         };
-        const word32 ecc_oid_brainpoolp256r1_sz =
-            sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t);
+        #define ecc_oid_brainpoolp256r1_sz \
+              (sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t))
     #else
         #define ecc_oid_brainpoolp256r1 { \
             0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07 \
         }
         #define ecc_oid_brainpoolp256r1_sz 9
     #endif
-    const word32 ecc_oid_brainpoolp256r1_sum = 104;
+    #define ecc_oid_brainpoolp256r1_sum 104
 
-    const ecc_set_type ecc_dp_brainpool256r1 = {
+    static const ecc_set_type ecc_dp_brainpool256r1 = {
         32,                                                                 /* size/bytes */
         ECC_CURVE_CUSTOM,                                                   /* ID         */
         "BRAINPOOLP256R1",                                                  /* curve name */
@@ -21263,11 +21294,20 @@ static int ecc_test_custom_curves(WC_RNG* rng)
         1,                                                                  /* cofactor   */
     };
 
+#ifdef WOLFSSL_SMALL_STACK
+    if (! key) {
+        ret = MEMORY_E;
+        goto done;
+    }
+#endif
+
+    XMEMSET(key, 0, sizeof *key);
+
     ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF,
         &ecc_dp_brainpool256r1);
     if (ret != 0) {
         printf("ECC test for custom curve failed! %d\n", ret);
-        return ret;
+        goto done;
     }
 
     #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
@@ -21282,23 +21322,33 @@ static int ecc_test_custom_curves(WC_RNG* rng)
         ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, curve_id, NULL);
         if (ret < 0) {
             printf("ECC test for curve_id %d failed! %d\n", curve_id, ret);
-            return ret;
+            goto done;
         }
     }
     #endif
 
-    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
-        return -10120;
+        ret = -10120;
+        goto done;
     }
 
     inOutIdx = 0;
-    ret = wc_EccPublicKeyDecode(eccKeyExplicitCurve, &inOutIdx, &key,
+    ret = wc_EccPublicKeyDecode(eccKeyExplicitCurve, &inOutIdx, key,
                                                    sizeof(eccKeyExplicitCurve));
     if (ret != 0)
-        return -10121;
+        ret = -10121;
 
-    wc_ecc_free(&key);
+  done:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (key) {
+        wc_ecc_free(key);
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    wc_ecc_free(key);
+#endif
 
     return ret;
 }
