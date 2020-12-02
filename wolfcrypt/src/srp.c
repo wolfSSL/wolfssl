@@ -631,117 +631,233 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
 int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
                                byte* serverPubKey, word32 serverPubKeySz)
 {
-    SrpHash hash;
-    byte *secret;
+#ifdef WOLFSSL_SMALL_STACK
+    SrpHash *hash = (SrpHash *)XMALLOC(sizeof *hash, srp->heap, DYNAMIC_TYPE_SRP);
+    byte *digest = (byte *)XMALLOC(SRP_MAX_DIGEST_SIZE, srp->heap, DYNAMIC_TYPE_SRP);
+    mp_int *u = (mp_int *)XMALLOC(sizeof *u, srp->heap, DYNAMIC_TYPE_SRP);
+    mp_int *s = (mp_int *)XMALLOC(sizeof *s, srp->heap, DYNAMIC_TYPE_SRP);
+    mp_int *temp1 = (mp_int *)XMALLOC(sizeof *temp1, srp->heap, DYNAMIC_TYPE_SRP);
+    mp_int *temp2 = (mp_int *)XMALLOC(sizeof *temp2, srp->heap, DYNAMIC_TYPE_SRP);
+#else
+    SrpHash hash[1];
     byte digest[SRP_MAX_DIGEST_SIZE];
+    mp_int u[1], s[1], temp1[1], temp2[1];
+#endif
+    byte *secret = NULL;
     word32 i, secretSz, digestSz;
-    mp_int u, s, temp1, temp2;
     byte pad = 0;
     int r;
 
     /* validating params */
 
-    if (!srp || !clientPubKey || clientPubKeySz == 0
-             || !serverPubKey || serverPubKeySz == 0)
-        return BAD_FUNC_ARG;
+    if ((r = mp_init_multi(u, s, temp1, temp2, 0, 0)) != MP_OKAY) {
+        r = MP_INIT_E;
+        goto out;
+    }
 
-    if (mp_iszero(&srp->priv) == MP_YES)
-        return SRP_CALL_ORDER_E;
+    if (!srp || !clientPubKey || clientPubKeySz == 0
+        || !serverPubKey || serverPubKeySz == 0) {
+        r = BAD_FUNC_ARG;
+        goto out;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((hash == NULL) ||
+        (digest == NULL) ||
+        (u == NULL) ||
+        (s == NULL) ||
+        (temp1 == NULL) ||
+        (temp2 == NULL)) {
+        r = MEMORY_E;
+        goto out;
+    }
+#endif
+
+    if (mp_iszero(&srp->priv) == MP_YES) {
+        r = SRP_CALL_ORDER_E;
+        goto out;
+    }
 
     /* initializing variables */
 
-    if ((r = SrpHashInit(&hash, srp->type)) != 0)
-        return r;
+    if ((r = SrpHashInit(hash, srp->type)) != 0)
+        goto out;
 
     digestSz = SrpHashSize(srp->type);
     secretSz = mp_unsigned_bin_size(&srp->N);
 
-    if ((secretSz < clientPubKeySz) || (secretSz < serverPubKeySz))
-        return BAD_FUNC_ARG;
+    if ((secretSz < clientPubKeySz) || (secretSz < serverPubKeySz)) {
+        r = BAD_FUNC_ARG;
+        goto out;
+    }
 
-    if ((secret = (byte*)XMALLOC(secretSz, srp->heap, DYNAMIC_TYPE_SRP)) ==NULL)
-        return MEMORY_E;
-
-    if ((r = mp_init_multi(&u, &s, &temp1, &temp2, 0, 0)) != MP_OKAY) {
-        XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
-        return r;
+    if ((secret = (byte*)XMALLOC(secretSz, srp->heap, DYNAMIC_TYPE_SRP)) == NULL) {
+        r = MEMORY_E;
+        goto out;
     }
 
     /* building u (random scrambling parameter) */
 
     /* H(A) */
-    for (i = 0; !r && i < secretSz - clientPubKeySz; i++)
-        r = SrpHashUpdate(&hash, &pad, 1);
-    if (!r) r = SrpHashUpdate(&hash, clientPubKey, clientPubKeySz);
+    for (i = 0; i < secretSz - clientPubKeySz; i++) {
+        if ((r = SrpHashUpdate(hash, &pad, 1)))
+            goto out;
+    }
+
+    if ((r = SrpHashUpdate(hash, clientPubKey, clientPubKeySz)))
+        goto out;
 
     /* H(A | B) */
-    for (i = 0; !r && i < secretSz - serverPubKeySz; i++)
-        r = SrpHashUpdate(&hash, &pad, 1);
-    if (!r) r = SrpHashUpdate(&hash, serverPubKey, serverPubKeySz);
+    for (i = 0; i < secretSz - serverPubKeySz; i++) {
+        if ((r = SrpHashUpdate(hash, &pad, 1)))
+            goto out;
+    }
+    if ((r = SrpHashUpdate(hash, serverPubKey, serverPubKeySz)))
+        goto out;
 
     /* set u */
-    if (!r) r = SrpHashFinal(&hash, digest);
-    if (!r) r = mp_read_unsigned_bin(&u, digest, SrpHashSize(srp->type));
-    SrpHashFree(&hash);
+    if ((r = SrpHashFinal(hash, digest)))
+        goto out;
+    if ((r = mp_read_unsigned_bin(u, digest, SrpHashSize(srp->type))))
+        goto out;
+    SrpHashFree(hash);
 
     /* building s (secret) */
 
-    if (!r && srp->side == SRP_CLIENT_SIDE) {
+    if (srp->side == SRP_CLIENT_SIDE) {
 
         /* temp1 = B - k * v; rejects k == 0, B == 0 and B >= N. */
-        r = mp_read_unsigned_bin(&temp1, srp->k, digestSz);
-        if (!r) r = mp_iszero(&temp1) == MP_YES ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_exptmod(&srp->g, &srp->auth, &srp->N, &temp2);
-        if (!r) r = mp_mulmod(&temp1, &temp2, &srp->N, &s);
-        if (!r) r = mp_read_unsigned_bin(&temp2, serverPubKey, serverPubKeySz);
-        if (!r) r = mp_iszero(&temp2) == MP_YES ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_cmp(&temp2, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_submod(&temp2, &s, &srp->N, &temp1);
+        if ((r = mp_read_unsigned_bin(temp1, srp->k, digestSz)))
+            goto out;
+        if (mp_iszero(temp1) == MP_YES) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if ((r = mp_exptmod(&srp->g, &srp->auth, &srp->N, temp2)))
+            goto out;
+        if ((r = mp_mulmod(temp1, temp2, &srp->N, s)))
+            goto out;
+        if ((r = mp_read_unsigned_bin(temp2, serverPubKey, serverPubKeySz)))
+            goto out;
+        if (mp_iszero(temp2) == MP_YES) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if (mp_cmp(temp2, &srp->N) != MP_LT) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if ((r = mp_submod(temp2, s, &srp->N, temp1)))
+            goto out;
 
         /* temp2 = a + u * x */
-        if (!r) r = mp_mulmod(&u, &srp->auth, &srp->N, &s);
-        if (!r) r = mp_add(&srp->priv, &s, &temp2);
+        if ((r = mp_mulmod(u, &srp->auth, &srp->N, s)))
+            goto out;
+        if ((r = mp_add(&srp->priv, s, temp2)))
+            goto out;
 
         /* secret = temp1 ^ temp2 % N */
-        if (!r) r = mp_exptmod(&temp1, &temp2, &srp->N, &s);
+        if ((r = mp_exptmod(temp1, temp2, &srp->N, s)))
+            goto out;
 
-    } else if (!r && srp->side == SRP_SERVER_SIDE) {
+    } else if (srp->side == SRP_SERVER_SIDE) {
         /* temp1 = v ^ u % N */
-        r = mp_exptmod(&srp->auth, &u, &srp->N, &temp1);
+        if ((r = mp_exptmod(&srp->auth, u, &srp->N, temp1)))
+            goto out;
 
         /* temp2 = A * temp1 % N; rejects A == 0, A >= N */
-        if (!r) r = mp_read_unsigned_bin(&s, clientPubKey, clientPubKeySz);
-        if (!r) r = mp_iszero(&s) == MP_YES ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_cmp(&s, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_mulmod(&s, &temp1, &srp->N, &temp2);
+        if ((r = mp_read_unsigned_bin(s, clientPubKey, clientPubKeySz)))
+            goto out;
+        if (mp_iszero(s) == MP_YES) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if (mp_cmp(s, &srp->N) != MP_LT) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if ((r = mp_mulmod(s, temp1, &srp->N, temp2)))
+            goto out;
 
         /* rejects A * v ^ u % N >= 1, A * v ^ u % N == -1 % N */
-        if (!r) r = mp_read_unsigned_bin(&temp1, (const byte*)"\001", 1);
-        if (!r) r = mp_cmp(&temp2, &temp1) != MP_GT ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_sub(&srp->N, &temp1, &s);
-        if (!r) r = mp_cmp(&temp2, &s) == MP_EQ ? SRP_BAD_KEY_E : 0;
+        if ((r = mp_read_unsigned_bin(temp1, (const byte*)"\001", 1)))
+            goto out;
+        if (mp_cmp(temp2, temp1) != MP_GT) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
+        if ((r = mp_sub(&srp->N, temp1, s)))
+            goto out;
+        if (mp_cmp(temp2, s) == MP_EQ) {
+            r = SRP_BAD_KEY_E;
+            goto out;
+        }
 
         /* secret = temp2 * b % N */
-        if (!r) r = mp_exptmod(&temp2, &srp->priv, &srp->N, &s);
+        if ((r = mp_exptmod(temp2, &srp->priv, &srp->N, s)))
+            goto out;
     }
 
     /* building session key from secret */
 
-    if (!r) r = mp_to_unsigned_bin(&s, secret);
-    if (!r) r = srp->keyGenFunc_cb(srp, secret, mp_unsigned_bin_size(&s));
+    if ((r = mp_to_unsigned_bin(s, secret)))
+        goto out;
+    if ((r = srp->keyGenFunc_cb(srp, secret, mp_unsigned_bin_size(s))))
+        goto out;
 
     /* updating client proof = H( H(N) ^ H(g) | H(user) | salt | A | B | K) */
 
-    if (!r) r = SrpHashUpdate(&srp->client_proof, clientPubKey, clientPubKeySz);
-    if (!r) r = SrpHashUpdate(&srp->client_proof, serverPubKey, serverPubKeySz);
-    if (!r) r = SrpHashUpdate(&srp->client_proof, srp->key,     srp->keySz);
+    if ((r = SrpHashUpdate(&srp->client_proof, clientPubKey, clientPubKeySz)))
+        goto out;
+    if ((r = SrpHashUpdate(&srp->client_proof, serverPubKey, serverPubKeySz)))
+        goto out;
+    if ((r = SrpHashUpdate(&srp->client_proof, srp->key,     srp->keySz)))
+        goto out;
 
     /* updating server proof = H(A) */
 
-    if (!r) r = SrpHashUpdate(&srp->server_proof, clientPubKey, clientPubKeySz);
+    r = SrpHashUpdate(&srp->server_proof, clientPubKey, clientPubKeySz);
 
-    XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
-    mp_clear(&u); mp_clear(&s); mp_clear(&temp1); mp_clear(&temp2);
+  out:
+
+    if (secret) {
+        ForceZero(secret, secretSz);
+        XFREE(secret, srp->heap, DYNAMIC_TYPE_SRP);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (hash)
+        XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
+    if (digest)
+        XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
+    if (u) {
+        if (r != MP_INIT_E)
+            mp_clear(u);
+        XFREE(u, srp->heap, DYNAMIC_TYPE_SRP);
+    }
+    if (s) {
+        if (r != MP_INIT_E)
+            mp_clear(s);
+        XFREE(s, srp->heap, DYNAMIC_TYPE_SRP);
+    }
+    if (temp1) {
+        if (r != MP_INIT_E)
+            mp_clear(temp1);
+        XFREE(temp1, srp->heap, DYNAMIC_TYPE_SRP);
+    }
+    if (temp2) {
+        if (r != MP_INIT_E)
+            mp_clear(temp2);
+        XFREE(temp2, srp->heap, DYNAMIC_TYPE_SRP);
+    }
+#else
+    if (r != MP_INIT_E) {
+        mp_clear(u);
+        mp_clear(s);
+        mp_clear(temp1);
+        mp_clear(temp2);
+    }
+#endif
 
     return r;
 }
