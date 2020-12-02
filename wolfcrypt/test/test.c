@@ -15648,12 +15648,14 @@ static int dsa_test(void)
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
 #else
-    XFILE  file = XFOPEN(dsaKey, "rb");
-    if (!file)
-        ERROR_OUT(-8200, out);
+    {
+        XFILE  file = XFOPEN(dsaKey, "rb");
+        if (!file)
+            ERROR_OUT(-8200, out);
 
-    bytes = (word32) XFREAD(tmp, 1, DSA_TEST_TMP_SIZE, file);
-    XFCLOSE(file);
+        bytes = (word32) XFREAD(tmp, 1, DSA_TEST_TMP_SIZE, file);
+        XFCLOSE(file);
+    }
 #endif /* USE_CERT_BUFFERS */
 
     ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
