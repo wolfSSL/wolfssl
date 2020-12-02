@@ -909,12 +909,13 @@ exit:
     return ret;
 }
 
-static int atcatls_set_certificates(WOLFSSL_CTX *ctx) {
+static int atcatls_set_certificates(WOLFSSL_CTX *ctx) 
+{
     int ret = 0;
     ATCA_STATUS status;
-  
-    /*Read signer cert*/
     size_t signerCertSize = 0;
+	
+    /*Read signer cert*/
     status = tng_atcacert_max_signer_cert_size(&signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
@@ -959,14 +960,16 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx) {
     
     char devCertChain[devPemSz+signerPemSz];
     
-    strncat(devCertChain,(char*)devPem,devPemSz);
-    strncat(devCertChain,(char*)signerPem,signerPemSz);
+    XSTRNCAT(devCertChain,(char*)devPem,devPemSz);
+    XSTRNCAT(devCertChain,(char*)signerPem,signerPemSz);
     
-    ret=wolfSSL_CTX_use_certificate_chain_buffer(ctx,(const unsigned char*)devCertChain,strlen(devCertChain));
-    if (ret != SSL_SUCCESS) {
+    ret=wolfSSL_CTX_use_certificate_chain_buffer(ctx,(const unsigned char*)devCertChain,XSTRLEN(devCertChain));
+    if (ret != WOLFSSL_SUCCESS) {
         ret=-1;
     }
-    else ret=0;
+    else {
+	ret=0;
+    }
     return ret;
 }
 
@@ -979,7 +982,7 @@ int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
 #ifdef WOLFSSL_ATECC_TNGTLS
     ret=atcatls_set_certificates(ctx);
-    if(0!=ret){
+    if(ret != 0){
         #ifdef WOLFSSL_ATECC_DEBUG
         printf("    atcatls_set_certificates failed. (%d) \r\n",ret);
         #endif
