@@ -33,6 +33,10 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
+#ifdef WOLFSSL_ATECC_TNGTLS
+#include "tng/tng_atcacert_client.h"
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -88,7 +92,6 @@ static wolfSSL_Mutex mSlotMutex;
 static int ateccx08a_cfg_initialized = 0;
 static ATCAIfaceCfg cfg_ateccx08a_i2c_pi;
 #endif /* WOLFSSL_ATECC508A */
-
 
 /**
  * \brief Generate random number to be used for hash.
@@ -468,6 +471,12 @@ int atmel_init(void)
     int ret = 0;
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
+
+/*Harmony3 will generate configuration based on user inputs*/
+#ifdef MICROCHIP_MPLAB_HARMONY_3
+    extern ATCAIfaceCfg atecc608_0_init_data;
+#endif
+    
     if (!mAtcaInitDone) {
         ATCA_STATUS status;
         int i;
@@ -490,7 +499,11 @@ int atmel_init(void)
                 mSlotList[i] = ATECC_INVALID_SLOT;
             }
         }
-
+#ifdef MICROCHIP_MPLAB_HARMONY_3
+        atcab_release();
+        atcab_wakeup();
+        wolfCrypt_ATECC_SetConfig(&atecc608_0_init_data);
+#endif
         if (ateccx08a_cfg_initialized == 0) {
             /* Setup the hardware interface using defaults */
             XMEMSET(&cfg_ateccx08a_i2c_pi, 0, sizeof(cfg_ateccx08a_i2c_pi));
@@ -896,12 +909,83 @@ exit:
     return ret;
 }
 
+static int atcatls_set_certificates(WOLFSSL_CTX *ctx) {
+    int ret = 0;
+    ATCA_STATUS status;
+  
+    /*Read signer cert*/
+    size_t signerCertSize = 0;
+    status = tng_atcacert_max_signer_cert_size(&signerCertSize);
+    if (ATCA_SUCCESS != status) {
+        ret = atmel_ecc_translate_err(ret);
+        return ret;
+    }
+    uint8_t signerCert[signerCertSize];
+    status = tng_atcacert_read_signer_cert((uint8_t*) & signerCert, &signerCertSize);
+    if (ATCA_SUCCESS != status) {
+        ret = atmel_ecc_translate_err(ret);
+        return ret;
+    }
+
+    /*Read device cert signed by the signer above*/
+    size_t deviceCertSize = 0;
+    status = tng_atcacert_max_device_cert_size(&deviceCertSize);
+    if (ATCA_SUCCESS != status) {
+        ret = atmel_ecc_translate_err(ret);
+        return ret;
+    }
+    uint8_t deviceCert[deviceCertSize];
+    status = tng_atcacert_read_device_cert((uint8_t*) & deviceCert, &deviceCertSize, (uint8_t*) & signerCert);
+    if (ATCA_SUCCESS != status) {
+        ret = atmel_ecc_translate_err(ret);
+        return ret;
+    }
+    /*Generate a PEM chain for device certificate.*/
+    byte devPem[1024];
+    byte signerPem[1024];
+    XMEMSET(devPem, 0, 1024);
+    XMEMSET(signerPem, 0, 1024);
+    int devPemSz, signerPemSz;
+    
+    devPemSz = wc_DerToPem(deviceCert, deviceCertSize, devPem, sizeof(devPem), CERT_TYPE);
+    if((devPemSz<=0)){
+        return devPemSz;
+    }
+    
+    signerPemSz = wc_DerToPem(signerCert, signerCertSize, signerPem, sizeof(signerPem), CERT_TYPE);
+    if((signerPemSz<=0)){
+        return signerPemSz;
+    }
+    
+    char devCertChain[devPemSz+signerPemSz];
+    
+    strncat(devCertChain,(char*)devPem,devPemSz);
+    strncat(devCertChain,(char*)signerPem,signerPemSz);
+    
+    ret=wolfSSL_CTX_use_certificate_chain_buffer(ctx,(const unsigned char*)devCertChain,strlen(devCertChain));
+    if (ret != SSL_SUCCESS) {
+        ret=-1;
+    }
+    else ret=0;
+    return ret;
+}
+
 int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
 {
+    int ret;
     wolfSSL_CTX_SetEccKeyGenCb(ctx, atcatls_create_key_cb);
     wolfSSL_CTX_SetEccVerifyCb(ctx, atcatls_verify_signature_cb);
     wolfSSL_CTX_SetEccSignCb(ctx, atcatls_sign_certificate_cb);
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
+#ifdef WOLFSSL_ATECC_TNGTLS
+    ret=atcatls_set_certificates(ctx);
+    if(0!=ret){
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("    atcatls_set_certificates failed. (%d) \r\n",ret);
+        #endif
+        return ret;
+    }
+#endif
     return 0;
 }
 
