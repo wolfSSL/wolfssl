@@ -16828,6 +16828,18 @@ static int DecodeSingleResponse(byte* source,
 #endif
     }
 
+    /* Skip the optional extensions in singleResponse. */
+    localIdx = idx;
+    if (((int)(idx - prevIndex) < wrapperSz) &&
+        GetASNTag(source, &localIdx, &tag, size) == 0 &&
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    {
+        idx++;
+        if (GetLength(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
+        idx += length;
+    }
+
     *ioIndex = idx;
 
     return 0;
