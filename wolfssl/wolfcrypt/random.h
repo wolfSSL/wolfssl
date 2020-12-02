@@ -225,7 +225,12 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 #define wc_InitRng_ex(rng, h, d) NOT_COMPILED_IN
 #define wc_InitRngNonce(rng, n, s) NOT_COMPILED_IN
 #define wc_InitRngNonce_ex(rng, n, s, h, d) NOT_COMPILED_IN
+#if defined(__ghs__) || defined(WC_NO_RNG_SIMPLE)
+/* some older compilers do not like macro function in expression */
+#define wc_RNG_GenerateBlock(rng, b, s) NOT_COMPILED_IN
+#else
 #define wc_RNG_GenerateBlock(rng, b, s) ({(void)rng; (void)b; (void)s; NOT_COMPILED_IN;})
+#endif
 #define wc_RNG_GenerateByte(rng, b) NOT_COMPILED_IN
 #define wc_FreeRng(rng) (void)NOT_COMPILED_IN
 #endif
