@@ -31,6 +31,10 @@ This library provides single precision (SP) integer math functions.
 #include <limits.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Find smallest type for smallest bits. */
 #if UCHAR_MAX == 255
     #define SP_UCHAR_BITS    8
@@ -889,5 +893,8 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
 #endif
 
-#endif /* WOLF_CRYPT_SP_H */
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
+#endif /* WOLF_CRYPT_SP_H */
