@@ -46753,16 +46753,16 @@ int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, unsigned long w)
     return WOLFSSL_SUCCESS;
 }
 
-static unsigned long wolfSSL_BN_get_word_1(mp_int *mp) {
+static WOLFSSL_BN_ULONG wolfSSL_BN_get_word_1(mp_int *mp) {
 #if DIGIT_BIT == (SIZEOF_LONG * 8)
-    return (unsigned long)mp->dp[0];
+    return (WOLFSSL_BN_ULONG)mp->dp[0];
 #else
-    unsigned long ret = 0UL;
+    WOLFSSL_BN_ULONG ret = 0UL;
     int digit_i;
 
     for (digit_i = 0; digit_i < mp->used; ++digit_i) {
-        ret <<= (unsigned long)DIGIT_BIT;
-        ret |= (unsigned long)mp->dp[digit_i];
+        ret <<= (WOLFSSL_BN_ULONG)DIGIT_BIT;
+        ret |= (WOLFSSL_BN_ULONG)mp->dp[digit_i];
     }
 
     return ret;
@@ -46775,7 +46775,7 @@ static unsigned long wolfSSL_BN_get_word_1(mp_int *mp) {
  *
  * Returns value or 0xFFFFFFFFL if bigger than unsigned long.
  */
-unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM* bn)
+WOLFSSL_BN_ULONG wolfSSL_BN_get_word(const WOLFSSL_BIGNUM* bn)
 {
     WOLFSSL_MSG("wolfSSL_BN_get_word");
 
@@ -46893,7 +46893,7 @@ int wolfSSL_BN_rshift(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *bn, int n)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 else
  */
-int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, unsigned long w)
+int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
 {
     WOLFSSL_MSG("wolfSSL_BN_add_word");
 
@@ -46903,7 +46903,7 @@ int wolfSSL_BN_add_word(WOLFSSL_BIGNUM *bn, unsigned long w)
     }
 
     if (w <= MP_MASK) {
-        if (mp_add_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, (mp_int*)bn->internal) != MP_OKAY) {
+        if (mp_add_d((mp_int*)bn->internal, (mp_digit)w, (mp_int*)bn->internal) != MP_OKAY) {
             WOLFSSL_MSG("mp_add_d error");
             return WOLFSSL_FAILURE;
         }
@@ -47042,10 +47042,10 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
 /* return code compliant with OpenSSL :
  *   (bn mod w) if success, -1 if error
  */
-unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
-                                     unsigned long w)
+WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
+                                     WOLFSSL_BN_ULONG w)
 {
-    unsigned long ret = 0;
+    WOLFSSL_BN_ULONG ret = 0;
 
     WOLFSSL_MSG("wolfSSL_BN_mod_word");
 
@@ -47055,12 +47055,12 @@ unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
     }
 
     if (w <= MP_MASK) {
-        WOLFSSL_BN_ULONG bn_ret;
+        mp_digit bn_ret;
         if (mp_mod_d((mp_int*)bn->internal, (WOLFSSL_BN_ULONG)w, &bn_ret) != MP_OKAY) {
             WOLFSSL_MSG("mp_add_d error");
-            return (unsigned long)WOLFSSL_FATAL_ERROR;
+            return (WOLFSSL_BN_ULONG)WOLFSSL_FATAL_ERROR;
         }
-        ret = (unsigned long)bn_ret;
+        ret = (WOLFSSL_BN_ULONG)bn_ret;
     } else {
         int mp_ret;
         mp_int w_mp, r_mp;
@@ -47076,7 +47076,7 @@ unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
         mp_free(&w_mp);
         if (mp_ret != MP_OKAY) {
             WOLFSSL_MSG("mp_mod error");
-            return (unsigned long)WOLFSSL_FAILURE;
+            return (WOLFSSL_BN_ULONG)WOLFSSL_FAILURE;
         }
     }
 

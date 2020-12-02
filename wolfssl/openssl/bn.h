@@ -49,7 +49,7 @@ typedef struct WOLFSSL_BIGNUM {
 
 
 #define BN_ULONG WOLFSSL_BN_ULONG
-#define WOLFSSL_BN_ULONG mp_digit
+#define WOLFSSL_BN_ULONG unsigned long
 
 typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
@@ -85,7 +85,7 @@ WOLFSSL_API int wolfSSL_BN_is_zero(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_one(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_negative(const WOLFSSL_BIGNUM*);
-WOLFSSL_API int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM*, unsigned long);
+WOLFSSL_API int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
 
 WOLFSSL_API int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*);
 
@@ -109,11 +109,11 @@ WOLFSSL_API int   wolfSSL_BN_dec2bn(WOLFSSL_BIGNUM**, const char* str);
 WOLFSSL_API char* wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_lshift(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, int);
-WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM*, unsigned long);
+WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
 WOLFSSL_API int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM*, int);
 WOLFSSL_API int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM*, int);
-WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, unsigned long);
-WOLFSSL_API unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
+WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
+WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_add(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                WOLFSSL_BIGNUM*);
@@ -123,8 +123,8 @@ WOLFSSL_API int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
 WOLFSSL_API char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM*, int,
                                        WOLFSSL_BN_CTX*, WOLFSSL_BN_GENCB*);
-WOLFSSL_API unsigned long wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM*,
-                                                 unsigned long);
+WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM*,
+                                                 WOLFSSL_BN_ULONG);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     WOLFSSL_API int wolfSSL_BN_print_fp(XFILE, const WOLFSSL_BIGNUM*);
 #endif
