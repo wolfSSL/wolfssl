@@ -650,7 +650,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
 
     /* validating params */
 
-    if ((r = mp_init_multi(u, s, temp1, temp2, 0, 0)) != MP_OKAY) {
+    if ((mp_init_multi(u, s, temp1, temp2, 0, 0)) != MP_OKAY) {
         r = MP_INIT_E;
         goto out;
     }

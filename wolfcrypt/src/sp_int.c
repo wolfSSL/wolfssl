@@ -1980,6 +1980,10 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Modular exponentiation implementations using Single Precision. */
 WOLFSSL_LOCAL int sp_ModExp_1024(sp_int* base, sp_int* exp, sp_int* mod,
     sp_int* res);
@@ -1991,6 +1995,10 @@ WOLFSSL_LOCAL int sp_ModExp_3072(sp_int* base, sp_int* exp, sp_int* mod,
     sp_int* res);
 WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
     sp_int* res);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif
 
@@ -4994,7 +5002,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -5118,7 +5125,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
@@ -9687,7 +9693,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -9803,7 +9808,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
