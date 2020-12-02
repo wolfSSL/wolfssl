@@ -1648,6 +1648,7 @@ static word32 inv_col_mul(word32 t, int i9, int ib, int id, int ie)
 #endif
 
 
+#ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_AES_SMALL_TABLES
 /* load 4 Te Tables into cache by cache line stride */
 static WC_INLINE word32 PreFetchTe(void)
@@ -1675,6 +1676,7 @@ static WC_INLINE word32 PreFetchSBox(void)
     }
     return x;
 }
+#endif
 #endif
 
 /* Software AES - ECB Encrypt */
@@ -1775,7 +1777,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     s3 ^= rk[3];
 
 #ifndef WOLFSSL_AES_SMALL_TABLES
-#ifdef WOLFSSL_X86_64_BUILD
+#ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchTe();
 #endif
 
@@ -1905,7 +1907,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (Te[1][GETBYTE(t2, 0)] & 0x000000ff) ^
         rk[3];
 #else
-#ifdef WOLFSSL_X86_64_BUILD
+#ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchSBox();
 #endif
 
@@ -2005,6 +2007,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
      defined(WOLFSSL_AES_DIRECT)
 
+#ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_AES_SMALL_TABLES
 /* load 4 Td Tables into cache by cache line stride */
 static WC_INLINE word32 PreFetchTd(void)
@@ -2033,6 +2036,7 @@ static WC_INLINE word32 PreFetchTd4(void)
     }
     return x;
 }
+#endif
 
 /* Software AES - ECB Decrypt */
 static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
@@ -2107,7 +2111,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     s3 ^= rk[3];
 
 #ifndef WOLFSSL_AES_SMALL_TABLES
-#ifdef WOLFSSL_X86_64_BUILD
+#ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchTd();
 #endif
 
@@ -2212,7 +2216,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
      * map cipher state to byte array block:
      */
 
-#ifdef WOLFSSL_X86_64_BUILD
+#ifndef WC_NO_CACHE_RESISTANT
     t0 |= PreFetchTd4();
 #endif
 
@@ -2241,7 +2245,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         ((word32)Td4[GETBYTE(t0, 0)]) ^
         rk[3];
 #else
-#ifdef WOLFSSL_X86_64_BUILD
+#ifndef WC_NO_CACHE_RESISTANT
     s0 |= PreFetchTd4();
 #endif
 
