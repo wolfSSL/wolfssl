@@ -2485,23 +2485,24 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
    int      first = 1, bitbuf = 0, bitcpy = 0, j;
    int      bitcnt = 0, mode = 0, digidx = 0;
    mp_digit buf;
+   int      infinity;
 
    (void)rng;
 
    /* calc the M tab, which holds kG for k==8..15 */
    /* M[0] == 8G */
    if (err == MP_OKAY)
-       err = ecc_projective_dbl_point(tG, M[0], a, modulus, mp);
+       err = ecc_projective_dbl_point_safe(tG, M[0], a, modulus, mp);
    if (err == MP_OKAY)
-       err = ecc_projective_dbl_point(M[0], M[0], a, modulus, mp);
+       err = ecc_projective_dbl_point_safe(M[0], M[0], a, modulus, mp);
    if (err == MP_OKAY)
-       err = ecc_projective_dbl_point(M[0], M[0], a, modulus, mp);
+       err = ecc_projective_dbl_point_safe(M[0], M[0], a, modulus, mp);
 
    /* now find (8+k)G for k=1..7 */
    if (err == MP_OKAY)
        for (j = 9; j < 16; j++) {
-           err = ecc_projective_add_point(M[j-9], tG, M[j-M_POINTS], a, modulus,
-                                                                            mp);
+           err = ecc_projective_add_point_safe(M[j-9], tG, M[j-M_POINTS], a,
+                                                        modulus, mp, &infinity);
            if (err != MP_OKAY) break;
        }
 
@@ -2536,7 +2537,7 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
 
            /* if the bit is zero and mode == 1 then we double */
            if (mode == 1 && i == 0) {
-               err = ecc_projective_dbl_point(R, R, a, modulus, mp);
+               err = ecc_projective_dbl_point_safe(R, R, a, modulus, mp);
                if (err != MP_OKAY) break;
                continue;
            }
@@ -2562,14 +2563,15 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
                    /* ok window is filled so double as required and add  */
                    /* double first */
                    for (j = 0; j < WINSIZE; j++) {
-                       err = ecc_projective_dbl_point(R, R, a, modulus, mp);
+                       err = ecc_projective_dbl_point_safe(R, R, a, modulus,
+                                                                            mp);
                        if (err != MP_OKAY) break;
                    }
                    if (err != MP_OKAY) break;  /* out of first for(;;) */
 
                    /* now add, bitbuf will be 8..15 [8..2^WINSIZE] guaranteed */
-                   err = ecc_projective_add_point(R, M[bitbuf-M_POINTS], R, a,
-                                                                   modulus, mp);
+                   err = ecc_projective_add_point_safe(R, M[bitbuf-M_POINTS], R,
+                                                     a, modulus, mp, &infinity);
                }
                if (err != MP_OKAY) break;
                /* empty window and reset */
@@ -2586,7 +2588,7 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
            for (j = 0; j < bitcpy; j++) {
                /* only double if we have had at least one add first */
                if (first == 0) {
-                   err = ecc_projective_dbl_point(R, R, a, modulus, mp);
+                   err = ecc_projective_dbl_point_safe(R, R, a, modulus, mp);
                    if (err != MP_OKAY) break;
                }
 
@@ -2605,7 +2607,8 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
                        first = 0;
                    } else {
                        /* then add */
-                       err = ecc_projective_add_point(R, tG, R, a, modulus, mp);
+                       err = ecc_projective_add_point_safe(R, tG, R, a, modulus,
+                                                                 mp, &infinity);
                        if (err != MP_OKAY) break;
                    }
                }
@@ -2683,6 +2686,7 @@ static int ecc_mulmod(mp_int* k, ecc_point* P, ecc_point* Q, ecc_point** R,
     /* First bit always 1 (fix at end) and swap equals first bit */
     int      swap = 1;
 #endif
+    int      infinity;
 
     /* Step 1: R[0] = P; R[1] = P */
     /* R[0] = P */
@@ -2727,10 +2731,10 @@ static int ecc_mulmod(mp_int* k, ecc_point* P, ecc_point* Q, ecc_point** R,
         b = v & 1;
         v >>= 1;
 #ifdef WC_NO_CACHE_RESISTANT
-        err = ecc_projective_dbl_point(R[b^1], R[b^1], a, modulus, mp);
+        err = ecc_projective_dbl_point_safe(R[b^1], R[b^1], a, modulus, mp);
         if (err == MP_OKAY) {
-            err = ecc_projective_add_point(R[b^1], R[b], R[b^1], a, modulus,
-                                           mp);
+            err = ecc_projective_add_point_safe(R[b^1], R[b], R[b^1], a,
+                                                        modulus, mp, &infinity);
         }
 #else
         /* Swap R[0] and R[1] if other index is needed. */
@@ -2744,9 +2748,11 @@ static int ecc_mulmod(mp_int* k, ecc_point* P, ecc_point* Q, ecc_point** R,
         swap = (int)b;
 
         if (err == MP_OKAY)
-            err = ecc_projective_dbl_point(R[0], R[0], a, modulus, mp);
-        if (err == MP_OKAY)
-            err = ecc_projective_add_point(R[0], R[1], R[0], a, modulus, mp);
+            err = ecc_projective_dbl_point_safe(R[0], R[0], a, modulus, mp);
+        if (err == MP_OKAY) {
+            err = ecc_projective_add_point_safe(R[0], R[1], R[0], a, modulus,
+                                                                 mp, &infinity);
+        }
 #endif /* WC_NO_CACHE_RESISTANT */
     }
     /* Step 4: end for */
@@ -2773,7 +2779,8 @@ static int ecc_mulmod(mp_int* k, ecc_point* P, ecc_point* Q, ecc_point** R,
     if (err == MP_OKAY) {
         b = k->dp[0] & 1;
 #ifdef WC_NO_CACHE_RESISTANT
-        err = ecc_projective_add_point(R[b], R[2], R[b], a, modulus, mp);
+        err = ecc_projective_add_point_safe(R[b], R[2], R[b], a, modulus, mp,
+                                                                     &infinity);
 #else
         /* Swap R[0] and R[1], if necessary, to operate on the one we want. */
         err = mp_cond_swap_ct(R[0]->x, R[1]->x, modulus->used, (int)b);
@@ -2782,7 +2789,8 @@ static int ecc_mulmod(mp_int* k, ecc_point* P, ecc_point* Q, ecc_point** R,
         if (err == MP_OKAY)
             err = mp_cond_swap_ct(R[0]->z, R[1]->z, modulus->used, (int)b);
         if (err == MP_OKAY)
-            err = ecc_projective_add_point(R[0], R[2], R[0], a, modulus, mp);
+            err = ecc_projective_add_point_safe(R[0], R[2], R[0], a, modulus,
+                                                                 mp, &infinity);
         /* Swap back if necessary. */
         if (err == MP_OKAY)
             err = mp_cond_swap_ct(R[0]->x, R[1]->x, modulus->used, (int)b);
@@ -5910,7 +5918,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (err == MP_OKAY) {
     /* precomp [i,0](A + B) table */
-    err = ecc_projective_dbl_point(precomp[1], precomp[2], a, modulus, mp);
+    err = ecc_projective_dbl_point_safe(precomp[1], precomp[2], a, modulus, mp);
   }
   if (err == MP_OKAY) {
     err = ecc_projective_add_point_safe(precomp[1], precomp[2], precomp[3],
@@ -5919,8 +5927,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (err == MP_OKAY) {
     /* precomp [0,i](A + B) table */
-    err = ecc_projective_dbl_point(precomp[1<<2], precomp[2<<2], a, modulus,
-                                                                            mp);
+    err = ecc_projective_dbl_point_safe(precomp[1<<2], precomp[2<<2], a,
+                                                                  modulus, mp);
   }
   if (err == MP_OKAY) {
     err = ecc_projective_add_point_safe(precomp[1<<2], precomp[2<<2],
@@ -9061,6 +9069,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    int err;
    unsigned x, y, bitlen, lut_gap;
    mp_int tmp;
+   int infinity;
 
    if (mp_init(&tmp) != MP_OKAY)
        return GEN_MEM_ERR;
@@ -9111,7 +9120,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
          /* now double it bitlen/FP_LUT times */
          for (y = 0; y < lut_gap; y++) {
-             if ((err = ecc_projective_dbl_point(fp_cache[idx].LUT[1<<x],
+             if ((err = ecc_projective_dbl_point_safe(fp_cache[idx].LUT[1<<x],
                             fp_cache[idx].LUT[1<<x], a, modulus, mp)) != MP_OKAY) {
                  break;
              }
@@ -9127,10 +9136,11 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
            if (lut_orders[y].ham != (int)x) continue;
 
            /* perform the add */
-           if ((err = ecc_projective_add_point(
+           if ((err = ecc_projective_add_point_safe(
                            fp_cache[idx].LUT[lut_orders[y].terma],
                            fp_cache[idx].LUT[lut_orders[y].termb],
-                           fp_cache[idx].LUT[y], a, modulus, mp)) != MP_OKAY) {
+                           fp_cache[idx].LUT[y], a, modulus, mp,
+                           &infinity)) != MP_OKAY) {
               break;
            }
        }
@@ -9665,7 +9675,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
            if (err == MP_OKAY)
              /* build the LUT */
-               err = build_lut(idx1, a, modulus, mp, &mu);
+             err = build_lut(idx1, a, modulus, mp, &mu);
         }
       }
 
@@ -9682,7 +9692,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
             }
 
             if (err == MP_OKAY)
-            /* build the LUT */
+              /* build the LUT */
               err = build_lut(idx2, a, modulus, mp, &mu);
         }
       }
