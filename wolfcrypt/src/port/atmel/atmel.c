@@ -914,61 +914,55 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     int ret = 0;
     ATCA_STATUS status;
     size_t signerCertSize = 0;
-	
+    uint8_t signerCert[signerCertSize];
+    size_t deviceCertSize = 0;
+    uint8_t deviceCert[deviceCertSize];
+    int devPemSz, signerPemSz;
+    byte devPem[1024];
+    byte signerPem[1024];
+    char devCertChain[devPemSz+signerPemSz];
+
     /*Read signer cert*/
     status = tng_atcacert_max_signer_cert_size(&signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-    uint8_t signerCert[signerCertSize];
-    status = tng_atcacert_read_signer_cert((uint8_t*) & signerCert, &signerCertSize);
+    status = tng_atcacert_read_signer_cert((uint8_t*)&signerCert, &signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-
     /*Read device cert signed by the signer above*/
-    size_t deviceCertSize = 0;
     status = tng_atcacert_max_device_cert_size(&deviceCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-    uint8_t deviceCert[deviceCertSize];
     status = tng_atcacert_read_device_cert((uint8_t*) & deviceCert, &deviceCertSize, (uint8_t*) & signerCert);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
     /*Generate a PEM chain for device certificate.*/
-    byte devPem[1024];
-    byte signerPem[1024];
     XMEMSET(devPem, 0, 1024);
-    XMEMSET(signerPem, 0, 1024);
-    int devPemSz, signerPemSz;
-    
+    XMEMSET(signerPem, 0, 1024);    
     devPemSz = wc_DerToPem(deviceCert, deviceCertSize, devPem, sizeof(devPem), CERT_TYPE);
-    if((devPemSz<=0)){
+    if((devPemSz <= 0)){
         return devPemSz;
     }
-    
     signerPemSz = wc_DerToPem(signerCert, signerCertSize, signerPem, sizeof(signerPem), CERT_TYPE);
-    if((signerPemSz<=0)){
+    if((signerPemSz <= 0)){
         return signerPemSz;
-    }
-    
-    char devCertChain[devPemSz+signerPemSz];
-    
+    }   
     XSTRNCAT(devCertChain,(char*)devPem,devPemSz);
     XSTRNCAT(devCertChain,(char*)signerPem,signerPemSz);
-    
-    ret=wolfSSL_CTX_use_certificate_chain_buffer(ctx,(const unsigned char*)devCertChain,XSTRLEN(devCertChain));
+    ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx,(const unsigned char*)devCertChain,XSTRLEN(devCertChain));
     if (ret != WOLFSSL_SUCCESS) {
-        ret=-1;
+        ret = -1;
     }
     else {
-	ret=0;
+	ret = 0;
     }
     return ret;
 }
