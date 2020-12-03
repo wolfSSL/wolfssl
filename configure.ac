@@ -4891,63 +4891,6 @@ if test "$ENABLED_SMALL" = "yes"; then
 fi
 
 
-AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
-    [ ENABLED_SP_ASM=$enableval ],
-    [ ENABLED_SP_ASM=no ],
-    )
-if test "$ENABLED_SP_ASM" = "yes"; then
-  if test "$ENABLED_SP" = "no"; then
-    AC_MSG_ERROR([Must have SP enabled: --enable-sp])
-  fi
-  if test "$ENABLED_SP_NONBLOCK" = "yes"; then
-    AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
-  fi
-  if test "$ENABLED_ASM" = "no"; then
-    AC_MSG_ERROR([Assembly code turned off])
-  fi
-
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ASM"
-  AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ASM"
-  case $host_cpu in
-  *aarch64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64_ASM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
-    ENABLED_SP_ARM64_ASM=yes
-    ;;
-  *arm*)
-    if test $host_alias = "thumb"; then
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
-      AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
-      ENABLED_SP_ARM_THUMB_ASM=yes
-    else
-      if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
-        ENABLED_SP_ARM_CORTEX_ASM=yes
-      else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        ENABLED_SP_ARM32_ASM=yes
-      fi
-    fi
-    ;;
-  *x86_64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
-    ENABLED_SP_X86_64_ASM=yes
-    if test "x$ENABLED_FASTMATH" = "xno"
-    then
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
-    fi
-    ;;
-  *)
-    AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
-    ;;
-  esac
-
-fi
-
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
         AC_MSG_ERROR([Must have SP enabled: --enable-sp])
@@ -5056,9 +4999,69 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
   esac
 fi
 
+
+AC_ARG_ENABLE([sp-asm],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
+    [ ENABLED_SP_ASM=$enableval ],
+    [ ENABLED_SP_ASM=no ],
+    )
+if test "$ENABLED_SP_ASM" = "yes"; then
+  if test "$ENABLED_SP" = "no"; then
+    AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+  fi
+  if test "$ENABLED_SP_NONBLOCK" = "yes"; then
+    AC_MSG_ERROR([SP non-blocking not supported with sp-asm])
+  fi
+  if test "$ENABLED_ASM" = "no"; then
+    AC_MSG_ERROR([Assembly code turned off])
+  fi
+
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ASM"
+  AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ASM"
+  case $host_cpu in
+  *aarch64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
+    ENABLED_SP_ARM64_ASM=yes
+    ;;
+  *arm*)
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
+      AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
+      ENABLED_SP_ARM_THUMB_ASM=yes
+    else
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-r5"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
+        ENABLED_SP_ARM_CORTEX_ASM=yes
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        ENABLED_SP_ARM32_ASM=yes
+      fi
+    fi
+    ;;
+  *x86_64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
+    ENABLED_SP_X86_64_ASM=yes
+    if test "x$ENABLED_FASTMATH" = "xno"
+    then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
+    fi
+    ;;
+  *)
+    AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
+    ;;
+  esac
+
+fi
+
+
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
+
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
