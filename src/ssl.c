@@ -7860,8 +7860,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
-    if (pkey == NULL)
+    if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
+    }
 
     return pkey;
 }
