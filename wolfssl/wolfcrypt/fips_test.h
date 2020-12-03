@@ -40,10 +40,13 @@ enum FipsCastId {
     FIPS_CAST_HMAC_SHA3_256,
     FIPS_CAST_DRBG,
     FIPS_CAST_RSA_SIGN_PKCS1v15,
+    FIPS_CAST_RSA_3072_SIGN_PKCS1v15,
+    FIPS_CAST_RSA_4096_SIGN_PKCS1v15,
     FIPS_CAST_ECC_CDH,
     FIPS_CAST_ECC_PRIMITIVE_Z,
     FIPS_CAST_DH_PRIMITIVE_Z,
     FIPS_CAST_ECDSA_PAIRWISE,
+    FIPS_CAST_ECDSA_SHA3_PAIRWISE,
     FIPS_CAST_COUNT
 };
 
@@ -78,11 +81,12 @@ WOLFSSL_API const char* wolfCrypt_GetCoreHash_fips(void);
 #endif
 
 WOLFSSL_LOCAL int DoIntegrityTest(char*, int);
-WOLFSSL_API int wc_GetCastStatus_fips(int);
 WOLFSSL_LOCAL int DoPOST(char*, int);
 WOLFSSL_LOCAL int DoCAST(int);
 WOLFSSL_LOCAL int DoKnownAnswerTests(char*, int); /* FIPSv1 and FIPSv2 */
 
+WOLFSSL_API int wc_RunCast_fips(int);
+WOLFSSL_API int wc_GetCastStatus_fips(int);
 
 #ifdef __cplusplus
     } /* extern "C" */
