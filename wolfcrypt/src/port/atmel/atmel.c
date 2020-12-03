@@ -911,12 +911,16 @@ exit:
 
 static int atcatls_set_certificates(WOLFSSL_CTX *ctx) 
 {
+    #ifndef ATCATLS_MAX_CERT_SIZE
+        #define ATCATLS_MAX_CERT_SIZE 560
+    #endif
+
     int ret = 0;
     ATCA_STATUS status;
-    size_t signerCertSize = 1024;
-    uint8_t signerCert[signerCertSize];
-    size_t deviceCertSize = 1024;
-    uint8_t deviceCert[deviceCertSize];
+    size_t signerCertSize = ATCATLS_MAX_CERT_SIZE;
+    uint8_t signerCert[ATCATLS_MAX_CERT_SIZE];
+    size_t deviceCertSize = ATCATLS_MAX_CERT_SIZE;
+    uint8_t deviceCert[ATCATLS_MAX_CERT_SIZE];
     int devPemSz, signerPemSz;
     char devCertChain[2048];
 
@@ -934,12 +938,14 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     }
     /*Generate a PEM chain of device certificate.*/
     XMEMSET(devCertChain, 0, sizeof(devCertChain));
-    devPemSz = wc_DerToPem(deviceCert, deviceCertSize, (byte*)&devCertChain[0], sizeof(devCertChain), CERT_TYPE);
-    if((devPemSz <= 0)){
+    devPemSz = wc_DerToPem(deviceCert, deviceCertSize, (byte*)&devCertChain[0],
+                                              sizeof(devCertChain), CERT_TYPE);
+    if(devPemSz <= 0){
         return devPemSz;
     }
-    signerPemSz = wc_DerToPem(signerCert, signerCertSize, (byte*)&devCertChain[devPemSz], sizeof(devCertChain)-devPemSz, CERT_TYPE);
-    if((signerPemSz <= 0)){
+    signerPemSz = wc_DerToPem(signerCert, signerCertSize, (byte*)&devCertChain[devPemSz], 
+                                               sizeof(devCertChain)-devPemSz, CERT_TYPE);
+    if(signerPemSz <= 0){
         return signerPemSz;
     }
     ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, (const unsigned char*)devCertChain, XSTRLEN(devCertChain));
@@ -967,7 +973,7 @@ int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
         #endif
     }
 #endif
-    return 0;
+    return ret;
 }
 
 int atcatls_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
