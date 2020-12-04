@@ -5119,7 +5119,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_2048_lshift_64(r, norm, y);
+        sp_2048_lshift_64(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -5147,7 +5147,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             sp_2048_mont_sqr_64(r, r, m, mp);
             sp_2048_mont_sqr_64(r, r, m, mp);
 
-            sp_2048_lshift_64(r, r, y);
+            sp_2048_lshift_64(r, r, (byte)y);
             sp_2048_mul_d_64(tmp, norm, r[64]);
             r[64] = 0;
             o = sp_2048_add_64(r, r, tmp);
@@ -10211,7 +10211,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_3072_lshift_96(r, norm, y);
+        sp_3072_lshift_96(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -10239,7 +10239,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
             sp_3072_mont_sqr_96(r, r, m, mp);
             sp_3072_mont_sqr_96(r, r, m, mp);
 
-            sp_3072_lshift_96(r, r, y);
+            sp_3072_lshift_96(r, r, (byte)y);
             sp_3072_mul_d_96(tmp, norm, r[96]);
             r[96] = 0;
             o = sp_3072_add_96(r, r, tmp);
@@ -13723,7 +13723,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_4096_lshift_128(r, norm, y);
+        sp_4096_lshift_128(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -13751,7 +13751,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
             sp_4096_mont_sqr_128(r, r, m, mp);
             sp_4096_mont_sqr_128(r, r, m, mp);
 
-            sp_4096_lshift_128(r, r, y);
+            sp_4096_lshift_128(r, r, (byte)y);
             sp_4096_mul_d_128(tmp, norm, r[128]);
             r[128] = 0;
             o = sp_4096_add_128(r, r, tmp);
@@ -17699,7 +17699,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=63; j<4; j++,x+=64) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -17714,7 +17714,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (i=62; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<4; j++,x+=64) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -18071,7 +18071,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=31; j<8; j++,x+=32) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -18086,7 +18086,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (i=30; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=32) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -25157,7 +25157,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
 
         y = 0;
         for (j=0,x=95; j<4; j++,x+=96) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25172,7 +25172,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (i=94; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<4; j++,x+=96) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
@@ -25545,7 +25545,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
 
         y = 0;
         for (j=0,x=47; j<8; j++,x+=48) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25560,7 +25560,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (i=46; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=48) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
