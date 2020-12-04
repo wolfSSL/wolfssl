@@ -37,11 +37,20 @@ static int __init wolfssl_init(void)
 static int wolfssl_init(void)
 #endif
 {
-    int ret = wolfSSL_Init();
+    int ret;
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        pr_err("wolfCrypt_Init() failed: %s", wc_GetErrorString(ret));
+        return -ENOTRECOVERABLE;
+    }
+#else
+    ret = wolfSSL_Init();
     if (ret != WOLFSSL_SUCCESS) {
         pr_err("wolfSSL_Init() failed: %s", wc_GetErrorString(ret));
         return -ENOTRECOVERABLE;
     }
+#endif
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -50,7 +59,11 @@ static int wolfssl_init(void)
         msleep(10);
         return -ENOTRECOVERABLE;
     }
-    pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " self-test passed. See https://www.wolfssl.com/ for information.\n");
+    pr_info("wolfCrypt self-test passed.\n");
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
 #else
     pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " loaded. See https://www.wolfssl.com/ for information.\n");
 #endif
@@ -68,11 +81,20 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
-    int ret = wolfSSL_Cleanup();
+    int ret;
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Cleanup();
+    if (ret != 0)
+        pr_err("wolfCrypt_Cleanup() failed: %s", wc_GetErrorString(ret));
+    else
+        pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+#else
+    ret = wolfSSL_Cleanup();
     if (ret != WOLFSSL_SUCCESS)
         pr_err("wolfSSL_Cleanup() failed: %s", wc_GetErrorString(ret));
     else
         pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+#endif
 
     return;
 }
