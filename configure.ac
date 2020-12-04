@@ -3490,6 +3490,20 @@ AS_CASE([$SELFTEST_VERSION],
     ])
 
 
+AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256="no"])
+
+if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
+then
+    if test "$ENABLED_32BIT" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
+        if test "$ENABLED_SHA3" = "no"
+        then
+            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
+        fi
+    fi
+fi
+
 # set POLY1305 default
 POLY1305_DEFAULT=yes
 
