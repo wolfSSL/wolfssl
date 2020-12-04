@@ -331,8 +331,9 @@ typedef struct sp_ecc_ctx {
             #define SP_INT_DIGITS        (( 256 + SP_WORD_SIZE) / SP_WORD_SIZE)
         #endif
     #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
-        #if !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
-            #define SP_INT_DIGITS        (( 512 + SP_WORD_SIZE) / SP_WORD_SIZE)
+        #ifdef WOLFSSL_SP_MATH_ALL
+            #define SP_INT_DIGITS   \
+                    ((2 * ( 521 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE)
         #elif defined(WOLFSSL_SP_384)
             #define SP_INT_DIGITS        (( 768 + SP_WORD_SIZE) / SP_WORD_SIZE)
         #else
