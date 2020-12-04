@@ -136,7 +136,7 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
     return value;
 #elif defined(__aarch64__) && defined(__GNUC__)
     __asm__ volatile (
-        "REV %w0, %w0  \n"
+        "REV32 %0, %0  \n"
         : "+r" (value)
         :
     );
