@@ -4805,7 +4805,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
 #endif
 
 #ifndef WOLFSSL_SP_SMALL
-#ifndef WOLFSSL_HAVE_SP_ECC
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
     /* Multiply a by b and store in r: r = a * b
@@ -5585,7 +5585,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
     }
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* WOLFSSL_HAVE_SP_ECC */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
 #if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
     #if SP_INT_DIGITS >= 32
@@ -7579,7 +7579,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
         }
         else
 #ifndef WOLFSSL_SP_SMALL
-#ifndef WOLFSSL_HAVE_SP_ECC
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
         if ((a->used == 4) && (b->used == 4)) {
             err = _sp_mul_4(a, b, r);
@@ -7610,7 +7610,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
         else
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* WOLFSSL_HAVE_SP_ECC */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 #if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
     #if SP_INT_DIGITS >= 32
         if ((a->used == 16) && (b->used == 16)) {
@@ -9515,10 +9515,10 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         return err;
     }
 #endif /* SQR_MUL_ASM */
-#endif
+#endif /* !WOLFSSL_SP_MATH || !WOLFSSL_SP_SMALL */
 
 #ifndef WOLFSSL_SP_SMALL
-#ifndef WOLFSSL_HAVE_SP_ECC
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
 #ifndef SQR_MUL_ASM
     /* Square a and store in r. r = a * a
@@ -9645,10 +9645,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         sp_int* t = NULL;
     #else
         sp_int t[1];
-    #endif
-    #ifdef WOLFSSL_SP_PPC
-        tl = 0;
-        th = 0;
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -10210,7 +10206,7 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
     }
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* WOLFSSL_HAVE_SP_ECC */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 
 #if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
     #if SP_INT_DIGITS >= 32
@@ -11763,7 +11759,7 @@ int sp_sqr(sp_int* a, sp_int* r)
         }
     else
 #ifndef WOLFSSL_SP_SMALL
-#ifndef WOLFSSL_HAVE_SP_ECC
+#if !defined(WOLFSSL_HAVE_SP_ECC) && defined(HAVE_ECC)
 #if SP_WORD_SIZE == 64
         if (a->used == 4) {
             err = _sp_sqr_4(a, r);
@@ -11794,7 +11790,7 @@ int sp_sqr(sp_int* a, sp_int* r)
         else
 #endif /* SQR_MUL_ASM */
 #endif /* SP_WORD_SIZE == 32 */
-#endif /* WOLFSSL_HAVE_SP_ECC */
+#endif /* !WOLFSSL_HAVE_SP_ECC && HAVE_ECC */
 #if defined(SQR_MUL_ASM) && defined(WOLFSSL_SP_INT_LARGE_COMBA)
     #if SP_INT_DIGITS >= 32
         if (a->used == 16) {
@@ -11850,7 +11846,7 @@ int sp_sqr(sp_int* a, sp_int* r)
     }
 
     return err;
-#endif
+#endif /* WOLFSSL_SP_MATH && WOLFSSL_SP_SMALL */
 }
 /* END SP_SQR implementations */
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH || HAVE_ECC ||
