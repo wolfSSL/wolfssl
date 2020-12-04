@@ -9640,11 +9640,22 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 {
    int  idx1 = -1, idx2 = -1, err, mpInit = 0;
    mp_digit mp;
-   mp_int   mu;
+#ifdef WOLFSSL_SMALL_STACK
+   mp_int   *mu = (mp_int *)XMALLOC(sizeof *mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
-   err = mp_init(&mu);
-   if (err != MP_OKAY)
+   if (mu == NULL)
+       return MP_MEM;
+#else
+   mp_int   mu[1];
+#endif
+
+   err = mp_init(mu);
+   if (err != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
        return err;
+   }
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
@@ -9652,8 +9663,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         initMutex = 1;
    }
 
-   if (wc_LockMutex(&ecc_fp_lock) != 0)
+   if (wc_LockMutex(&ecc_fp_lock) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
       return BAD_MUTEX_E;
+   }
 #endif /* HAVE_THREAD_LS */
 
       /* find point */
@@ -9696,12 +9711,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
            if (err == MP_OKAY) {
              mpInit = 1;
-             err = mp_montgomery_calc_normalization(&mu, modulus);
+             err = mp_montgomery_calc_normalization(mu, modulus);
            }
 
            if (err == MP_OKAY)
              /* build the LUT */
-             err = build_lut(idx1, a, modulus, mp, &mu);
+             err = build_lut(idx1, a, modulus, mp, mu);
         }
       }
 
@@ -9713,13 +9728,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 err = mp_montgomery_setup(modulus, &mp);
                 if (err == MP_OKAY) {
                     mpInit = 1;
-                    err = mp_montgomery_calc_normalization(&mu, modulus);
+                    err = mp_montgomery_calc_normalization(mu, modulus);
                 }
             }
 
             if (err == MP_OKAY)
               /* build the LUT */
-              err = build_lut(idx2, a, modulus, mp, &mu);
+              err = build_lut(idx2, a, modulus, mp, mu);
         }
       }
 
@@ -9741,7 +9756,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #ifndef HAVE_THREAD_LS
     wc_UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
-    mp_clear(&mu);
+    mp_clear(mu);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 
     return err;
 }
