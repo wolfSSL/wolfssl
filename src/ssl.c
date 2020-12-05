@@ -41400,17 +41400,14 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 
     switch (cmd) {
         #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        #ifdef HAVE_SNI
         case SSL_CTRL_SET_TLSEXT_HOSTNAME:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TLSEXT_HOSTNAME.");
-        #ifdef HAVE_SNI
             if (pt == NULL) {
                 WOLFSSL_MSG("Passed in NULL Host Name.");
                 break;
             }
             return wolfSSL_set_tlsext_host_name(ssl, (const char*) pt);
-        #else
-            WOLFSSL_MSG("SNI not enabled.");
-            break;
         #endif /* HAVE_SNI */
         #endif /* WOLFSSL_NGINX || WOLFSSL_QT || OPENSSL_ALL */
         default:
@@ -42867,6 +42864,8 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
 }
 
 
+#ifdef HAVE_SNI
+
 void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
@@ -42894,6 +42893,9 @@ int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
     }
     return WOLFSSL_FAILURE;
 }
+
+#endif /* HAVE_SNI */
+
 
 #ifndef NO_BIO
 void wolfSSL_ERR_load_BIO_strings(void) {

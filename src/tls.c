@@ -9178,9 +9178,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
         switch (extension->type) {
 
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 SNI_FREE_ALL((SNI*)extension->data, heap);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 TCA_FREE_ALL((TCA*)extension->data, heap);
@@ -9312,11 +9314,13 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
         switch (extension->type) {
 
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 /* SNI only sends the name on the request. */
                 if (isRequest)
                     length += SNI_GET_SIZE((SNI*)extension->data);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 /* TCA only sends the list on the request. */
@@ -9464,12 +9468,14 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* extension data should be written internally. */
         switch (extension->type) {
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 if (isRequest) {
                     WOLFSSL_MSG("SNI extension to write");
                     offset += SNI_WRITE((SNI*)extension->data, output + offset);
                 }
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 WOLFSSL_MSG("Trusted CA Indication extension to write");
@@ -10909,6 +10915,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             return BUFFER_ERROR;
 
         switch (type) {
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 WOLFSSL_MSG("SNI extension received");
             #ifdef WOLFSSL_DEBUG_TLS
@@ -10929,6 +10936,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #endif
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 WOLFSSL_MSG("Trusted CA extension received");
