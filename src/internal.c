@@ -27868,7 +27868,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     goto out;
                 }
     #endif
-    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+    #ifdef HAVE_SNI
                 if((ret=SNI_Callback(ssl)))
                     goto out;
                 ssl->options.side = WOLFSSL_SERVER_END;
@@ -30327,8 +30327,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#ifdef HAVE_SNI
     int SNI_Callback(WOLFSSL* ssl)
     {
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
@@ -30344,7 +30343,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         return 0;
     }
-#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* HAVE_SNI */
 
 #endif /* NO_WOLFSSL_SERVER */
 

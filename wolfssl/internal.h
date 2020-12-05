@@ -1713,8 +1713,10 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#ifdef HAVE_SNI
+#ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
@@ -2163,7 +2165,9 @@ typedef struct Keys {
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
+#ifdef HAVE_SNI
     TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
+#endif
     TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
     TLSX_TRUSTED_CA_KEYS            = 0x0003,
     TLSX_TRUNCATED_HMAC             = 0x0004,
@@ -2818,9 +2822,7 @@ struct WOLFSSL_CTX {
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
-                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH) ))
+#ifdef HAVE_SNI
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
