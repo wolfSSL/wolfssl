@@ -27004,17 +27004,16 @@ typedef struct {
 } pkcs7AuthEnvelopedVector;
 
 
-#ifndef WOLFSSL_LINUXKM
 static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                           byte* rsaPrivKey,  word32 rsaPrivKeySz,
                                           byte* eccCert, word32 eccCertSz,
                                           byte* eccPrivKey,  word32 eccPrivKeySz)
 {
-    int ret = 0, testSz, i;
+    int ret = 0, testSz = 0, i;
     int envelopedSz, decodedSz;
 
-    byte   *enveloped;
-    byte   *decoded;
+    byte   *enveloped = NULL;
+    byte   *decoded = NULL;
     WC_RNG rng;
     PKCS7* pkcs7;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -27027,7 +27026,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     };
     byte senderNonce[PKCS7_NONCE_SZ + 2];
 #ifdef HAVE_ECC
-    byte senderNonceOid[] =
+    static const byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
 
@@ -27040,20 +27039,20 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && defined(HAVE_ECC) && \
     defined(WOLFSSL_SHA512)
-    byte optionalUkm[] = {
+    static const byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
 #endif /* NO_AES */
 
 #if !defined(NO_AES) && !defined(NO_SHA) && defined(WOLFSSL_AES_128)
     /* encryption key for kekri recipient types */
-    byte secretKey[] = {
+    static const byte secretKey[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
 
     /* encryption key identifier */
-    byte secretKeyId[] = {
+    static const byte secretKeyId[] = {
         0x02,0x02,0x03,0x04
     };
 #endif
@@ -27062,58 +27061,76 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     !defined(NO_SHA) && defined(WOLFSSL_AES_128)
 
     #ifndef HAVE_FIPS
-    char password[] = "password";
+    static const char password[] = "password";
     #else
-    char password[] = "passwordFIPS_MODE";
+    static const char password[] = "passwordFIPS_MODE";
     #endif
 
-    byte salt[] = {
+    static const byte salt[] = {
         0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12
     };
 #endif
 
-    const pkcs7AuthEnvelopedVector testVectors[] =
+    pkcs7AuthEnvelopedVector *testVectors = NULL;
+
     {
+#define ADD_PKCS7_TEST_VEC(...) {                                       \
+            const pkcs7AuthEnvelopedVector vec = __VA_ARGS__;           \
+            testVectors = (pkcs7AuthEnvelopedVector *)                  \
+                XREALLOC(testVectors,                                   \
+                         sizeof *testVectors * (testSz + 1),            \
+                         HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);           \
+            if (testVectors == NULL)                                    \
+                ERROR_OUT(-12233, out);                                 \
+            XMEMCPY(&testVectors[testSz++], &vec, sizeof *testVectors); \
+        }
+
         /* key transport key encryption technique */
 #ifndef NO_RSA
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #ifdef WOLFSSL_AES_128
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES128GCM.der"},
+         0, 0, "pkcs7authEnvelopedDataAES128GCM.der"});
         #endif
         #ifdef WOLFSSL_AES_192
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES192GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES192GCM.der"},
+         0, 0, "pkcs7authEnvelopedDataAES192GCM.der"});
         #endif
         #ifdef WOLFSSL_AES_256
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0,
-         0, 0, "pkcs7authEnvelopedDataAES256GCM.der"},
+         0, 0, "pkcs7authEnvelopedDataAES256GCM.der"});
 
         /* test with contentType set to FirmwarePkgData */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, 0, 0,
          rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL,
          0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL,
          0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der"},
+         "pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der"});
 
         /* explicitly using SKID for SubjectKeyIdentifier */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, CMS_SKID, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
-         0, 0, 0, 0, 0, "pkcs7authEnvelopedDataAES256GCM_SKID.der"},
+         0, 0, 0, 0, 0, "pkcs7authEnvelopedDataAES256GCM_SKID.der"});
 
         /* explicitly using IssuerAndSerialNumber for SubjectKeyIdentifier */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0,
          CMS_ISSUER_AND_SERIAL_NUMBER, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
          NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_IANDS.der"},
+         "pkcs7authEnvelopedDataAES256GCM_IANDS.der"});
         #endif
     #endif /* NO_AES */
 #endif
@@ -27122,72 +27139,80 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifdef HAVE_ECC
     #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP,
          dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0,
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der"},
+         "pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der"});
         #endif
 
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_256)
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0,
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der"});
 
         /* with authenticated attributes */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          NULL, 0, NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0,
          0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_authAttribs.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_authAttribs.der"});
 
         /* with unauthenticated attributes */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, attribs,
          (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0, NULL, 0,
          NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0,
          0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_unauthAttribs.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_unauthAttribs.der"});
 
         /* with authenticated AND unauthenticated attributes */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_bothAttribs.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_bothAttribs.der"});
 
         /* with authenticated AND unauthenticated attributes AND
          * contentType of FirmwarePkgData */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)),
          attribs, (sizeof(attribs) / sizeof(PKCS7Attrib)), NULL, 0, 0, 0,
          NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_fw_bothAttribs.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_fw_bothAttribs.der"});
         #endif /* NO_SHA256 && WOLFSSL_AES_256 */
 
         #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_AES_256)
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL,
          NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der"});
 
         /* with optional user keying material (ukm) */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES256GCMb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
-         eccPrivKeySz, NULL, 0, NULL, 0, optionalUkm, sizeof(optionalUkm), 0,
+         eccPrivKeySz, NULL, 0, NULL, 0, (byte *)optionalUkm, sizeof(optionalUkm), 0,
          0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0,
          0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der"},
+         "pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der"});
         #endif /* WOLFSSL_SHA512 && WOLFSSL_AES_256 */
     #endif /* NO_AES */
 #endif
@@ -27195,44 +27220,44 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* kekri (KEKRecipientInfo) recipient types */
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, AES128_WRAP, 0,
          NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0,
-         secretKey, sizeof(secretKey), secretKeyId, sizeof(secretKeyId),
+         (byte *)secretKey, sizeof(secretKey), (byte *)secretKeyId, sizeof(secretKeyId),
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
-         "pkcs7authEnvelopedDataAES128GCM_KEKRI.der"},
+         "pkcs7authEnvelopedDataAES128GCM_KEKRI.der"});
         #endif
 #endif
 
         /* pwri (PasswordRecipientInfo) recipient types */
 #if !defined(NO_PWDBASED) && !defined(NO_AES) && defined(HAVE_AESGCM)
         #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0,
          NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0,
-         NULL, 0, NULL, NULL, 0, NULL, 0, 0, password,
-         (word32)XSTRLEN(password), salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
-         AES128CBCb, 0, 0, 0, "pkcs7authEnvelopedDataAES128GCM_PWRI.der"},
+         NULL, 0, NULL, NULL, 0, NULL, 0, 0, (char *)password,
+         (word32)XSTRLEN(password), (byte *)salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
+         AES128CBCb, 0, 0, 0, "pkcs7authEnvelopedDataAES128GCM_PWRI.der"});
         #endif
 #endif
 
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         #ifdef WOLFSSL_AES_128
         /* ori (OtherRecipientInfo) recipient types */
+        ADD_PKCS7_TEST_VEC(
         {data, (word32)sizeof(data), DATA, AES128GCMb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, NULL, 0, NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
          NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 1, 0,
-         "pkcs7authEnvelopedDataAES128GCM_ORI.der"},
+         "pkcs7authEnvelopedDataAES128GCM_ORI.der"});
         #endif
 #endif
-    };
+    }
 
     enveloped = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     decoded = (byte *)XMALLOC(PKCS7_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if ((! enveloped) || (! decoded)) {
         ERROR_OUT(-12210, out);
     }
-
-    testSz = sizeof(testVectors) / sizeof(pkcs7AuthEnvelopedVector);
-
 
     /* generate senderNonce */
     {
@@ -27510,6 +27535,8 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
 
   out:
+    if (testVectors)
+        XFREE(testVectors, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (enveloped)
         XFREE(enveloped, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (decoded)
@@ -27517,7 +27544,6 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     return ret;
 }
-#endif /* ! WOLFSSL_LINUXKM */
 
 static int pkcs7authenveloped_test(void)
 {
@@ -27590,12 +27616,10 @@ static int pkcs7authenveloped_test(void)
         return -12304;
     }
 
-#ifndef WOLFSSL_LINUXKM
     ret = pkcs7authenveloped_run_vectors(rsaCert, (word32)rsaCertSz,
                                          rsaPrivKey, (word32)rsaPrivKeySz,
                                          eccCert, (word32)eccCertSz,
                                          eccPrivKey, (word32)eccPrivKeySz);
-#endif
 
 #ifndef NO_RSA
     XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
