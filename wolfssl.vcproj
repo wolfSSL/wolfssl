@@ -180,6 +180,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tlsx_sni.c"
+				>
+			</File>
+			<File
 				RelativePath=".\src\tls13.c"
 				>
 			</File>

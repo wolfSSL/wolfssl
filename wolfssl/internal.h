@@ -2305,6 +2305,12 @@ WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
 WOLFSSL_LOCAL byte TLSX_SNI_Status(TLSX* extensions, byte type);
 WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                                    void** data);
+WOLFSSL_LOCAL void   TLSX_SNI_FreeAll(SNI* list, void* heap);
+WOLFSSL_LOCAL word16 TLSX_SNI_GetSize(SNI* list);
+WOLFSSL_LOCAL word16 TLSX_SNI_Write(SNI* list, byte* output);
+WOLFSSL_LOCAL int    TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input,
+                                                 word16 length, byte isRequest);
+WOLFSSL_LOCAL int    TLSX_SNI_VerifyParse(WOLFSSL* ssl, byte isRequest);
 
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL void   TLSX_SNI_SetOptions(TLSX* extensions, byte type,

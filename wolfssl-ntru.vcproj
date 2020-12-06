@@ -331,6 +331,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tlsx_sni.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>

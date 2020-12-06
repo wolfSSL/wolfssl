@@ -2251,76 +2251,6 @@ void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 }
 
 
-#ifdef HAVE_SNI
-
-WOLFSSL_ABI
-int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
-{
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
-
-    return TLSX_UseSNI(&ssl->extensions, type, data, size, ssl->heap);
-}
-
-
-WOLFSSL_ABI
-int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, byte type, const void* data,
-                                                                    word16 size)
-{
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
-
-    return TLSX_UseSNI(&ctx->extensions, type, data, size, ctx->heap);
-}
-
-#ifndef NO_WOLFSSL_SERVER
-
-void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, byte type, byte options)
-{
-    if (ssl && ssl->extensions)
-        TLSX_SNI_SetOptions(ssl->extensions, type, options);
-}
-
-
-void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx, byte type, byte options)
-{
-    if (ctx && ctx->extensions)
-        TLSX_SNI_SetOptions(ctx->extensions, type, options);
-}
-
-
-byte wolfSSL_SNI_Status(WOLFSSL* ssl, byte type)
-{
-    return TLSX_SNI_Status(ssl ? ssl->extensions : NULL, type);
-}
-
-
-word16 wolfSSL_SNI_GetRequest(WOLFSSL* ssl, byte type, void** data)
-{
-    if (data)
-        *data = NULL;
-
-    if (ssl && ssl->extensions)
-        return TLSX_SNI_GetRequest(ssl->extensions, type, data);
-
-    return 0;
-}
-
-
-int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
-                              byte type, byte* sni, word32* inOutSz)
-{
-    if (clientHello && helloSz > 0 && sni && inOutSz && *inOutSz > 0)
-        return TLSX_SNI_GetFromBuffer(clientHello, helloSz, type, sni, inOutSz);
-
-    return BAD_FUNC_ARG;
-}
-
-#endif /* NO_WOLFSSL_SERVER */
-
-#endif /* HAVE_SNI */
-
-
 #ifdef HAVE_TRUSTED_CA
 
 WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
@@ -46045,30 +45975,6 @@ int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
     return name->sz;
 }
 
-#ifdef HAVE_SNI
-int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
-{
-    int ret;
-    WOLFSSL_ENTER("wolfSSL_set_tlsext_host_name");
-    ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
-            host_name, (word16)XSTRLEN(host_name));
-    WOLFSSL_LEAVE("wolfSSL_set_tlsext_host_name", ret);
-    return ret;
-}
-
-
-#ifndef NO_WOLFSSL_SERVER
-const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
-{
-    void * serverName = NULL;
-    if (ssl == NULL)
-        return NULL;
-    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
-    return (const char *)serverName;
-}
-#endif /* NO_WOLFSSL_SERVER */
-#endif /* HAVE_SNI */
-
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
     if (ssl && ctx && SetSSL_CTX(ssl, ctx, 0) == WOLFSSL_SUCCESS)
@@ -46084,39 +45990,6 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
         return ctx->verifyCallback;
     return NULL;
 }
-
-
-#ifdef HAVE_SNI
-
-void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
-    if (ctx)
-        ctx->sniRecvCb = cb;
-}
-
-int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
-                                               CallbackSniRecv cb)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_set_tlsext_servername_callback");
-    if (ctx) {
-        ctx->sniRecvCb = cb;
-        return WOLFSSL_SUCCESS;
-    }
-    return WOLFSSL_FAILURE;
-}
-
-int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
-    if (ctx) {
-        ctx->sniRecvCbArg = arg;
-        return WOLFSSL_SUCCESS;
-    }
-    return WOLFSSL_FAILURE;
-}
-
-#endif /* HAVE_SNI */
 
 
 #ifndef NO_BIO
