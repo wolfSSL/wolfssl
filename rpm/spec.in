@@ -233,6 +233,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/sniffer.h
 %{_includedir}/wolfssl/sniffer_error.h
 %{_includedir}/wolfssl/ssl.h
+%{_includedir}/wolfssl/tlsx_sni.h
 %{_includedir}/wolfssl/test.h
 %{_includedir}/wolfssl/version.h
 %{_includedir}/wolfssl/wolfcrypt/aes.h

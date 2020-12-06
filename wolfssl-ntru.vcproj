@@ -327,6 +327,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tlsx_base.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
