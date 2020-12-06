@@ -42,6 +42,16 @@
 /* Server Name Indication                                                     */
 /******************************************************************************/
 
+typedef struct SNI {
+    byte                       type;    /* SNI Type         */
+    union { char* host_name; } data;    /* SNI Data         */
+    struct SNI*                next;    /* List Behavior    */
+    byte                       status;  /* Matching result  */
+#ifndef NO_WOLFSSL_SERVER
+    byte                       options; /* Behavior options */
+#endif
+} SNI;
+
 /** Creates a new SNI object. */
 static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 {
@@ -96,9 +106,10 @@ static void TLSX_SNI_Free(SNI* sni, void* heap)
 }
 
 /** Releases all SNI objects in the provided list. */
-void TLSX_SNI_FreeAll(SNI* list, void* heap)
+void TLSX_SNI_FreeAll(void* vlist, void* heap)
 {
     SNI* sni;
+    SNI* list = (SNI*)vlist;
 
     while ((sni = list)) {
         list = sni->next;
@@ -107,9 +118,10 @@ void TLSX_SNI_FreeAll(SNI* list, void* heap)
 }
 
 /** Tells the buffered size of the SNI objects in a list. */
-word16 TLSX_SNI_GetSize(SNI* list)
+word16 TLSX_SNI_GetSize(void* vlist)
 {
     SNI* sni;
+    SNI* list = (SNI*)vlist;
     word16 length = OPAQUE16_LEN; /* list length */
 
     while ((sni = list)) {
@@ -128,9 +140,10 @@ word16 TLSX_SNI_GetSize(SNI* list)
 }
 
 /** Writes the SNI objects of a list in a buffer. */
-word16 TLSX_SNI_Write(SNI* list, byte* output)
+word16 TLSX_SNI_Write(void* vlist, byte* output)
 {
     SNI* sni;
+    SNI* list = (SNI*)vlist;
     word16 length = 0;
     word16 offset = OPAQUE16_LEN; /* list length offset */
 

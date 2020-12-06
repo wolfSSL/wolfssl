@@ -8610,7 +8610,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
 #ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
-                TLSX_SNI_FreeAll((SNI*)extension->data, heap);
+                TLSX_SNI_FreeAll(extension->data, heap);
                 break;
 #endif
 
@@ -8751,7 +8751,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
             case TLSX_SERVER_NAME:
                 /* SNI only sends the name on the request. */
                 if (isRequest)
-                    length += TLSX_SNI_GetSize((SNI*)extension->data);
+                    length += TLSX_SNI_GetSize(extension->data);
                 break;
 #endif
 
@@ -8907,7 +8907,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_SERVER_NAME:
                 if (isRequest) {
                     WOLFSSL_MSG("SNI extension to write");
-                    offset += TLSX_SNI_Write((SNI*)extension->data, output + offset);
+                    offset += TLSX_SNI_Write(extension->data, output + offset);
                 }
                 break;
 #endif

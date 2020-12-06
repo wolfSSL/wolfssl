@@ -2290,24 +2290,14 @@ WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 /** Server Name Indication - RFC 6066 (session 3) */
 #ifdef HAVE_SNI
 
-typedef struct SNI {
-    byte                       type;    /* SNI Type         */
-    union { char* host_name; } data;    /* SNI Data         */
-    struct SNI*                next;    /* List Behavior    */
-    byte                       status;  /* Matching result  */
-#ifndef NO_WOLFSSL_SERVER
-    byte                       options; /* Behavior options */
-#endif
-} SNI;
-
 WOLFSSL_LOCAL int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
                                                        word16 size, void* heap);
 WOLFSSL_LOCAL byte TLSX_SNI_Status(TLSX* extensions, byte type);
 WOLFSSL_LOCAL word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type,
                                                                    void** data);
-WOLFSSL_LOCAL void   TLSX_SNI_FreeAll(SNI* list, void* heap);
-WOLFSSL_LOCAL word16 TLSX_SNI_GetSize(SNI* list);
-WOLFSSL_LOCAL word16 TLSX_SNI_Write(SNI* list, byte* output);
+WOLFSSL_LOCAL void   TLSX_SNI_FreeAll(void* list, void* heap);
+WOLFSSL_LOCAL word16 TLSX_SNI_GetSize(void* list);
+WOLFSSL_LOCAL word16 TLSX_SNI_Write(void* list, byte* output);
 WOLFSSL_LOCAL int    TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input,
                                                  word16 length, byte isRequest);
 WOLFSSL_LOCAL int    TLSX_SNI_VerifyParse(WOLFSSL* ssl, byte isRequest);
