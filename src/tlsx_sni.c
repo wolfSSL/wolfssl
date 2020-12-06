@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/tlsx_sni.h>
 
 #ifdef HAVE_SNI
 
