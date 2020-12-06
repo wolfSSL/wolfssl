@@ -192,8 +192,9 @@ static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
         sni->status = status;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 /** Gets the status of a SNI object. */
-byte TLSX_SNI_Status(TLSX* extensions, byte type)
+static byte TLSX_SNI_Status(TLSX* extensions, byte type)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
     SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
@@ -203,6 +204,10 @@ byte TLSX_SNI_Status(TLSX* extensions, byte type)
 
     return 0;
 }
+#endif
+
+static int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
+                       word16 size, void* heap);
 
 /** Parses a buffer of SNI extensions. */
 int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
@@ -386,8 +391,8 @@ int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
     return 0;
 }
 
-int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
-                                                                     void* heap)
+static int TLSX_UseSNI(TLSX** extensions, byte type, const void* data,
+                       word16 size, void* heap)
 {
     TLSX* extension;
     SNI* sni = NULL;
@@ -434,7 +439,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
 #ifndef NO_WOLFSSL_SERVER
 
 /** Tells the SNI requested by the client. */
-word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
+static word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
     SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
@@ -453,7 +458,7 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
 }
 
 /** Sets the options for a SNI object. */
-void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
+static void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
     SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
@@ -463,8 +468,8 @@ void TLSX_SNI_SetOptions(TLSX* extensions, byte type, byte options)
 }
 
 /** Retrieves a SNI request from a client hello buffer. */
-int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
-                           byte type, byte* sni, word32* inOutSz)
+static int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
+                                  byte type, byte* sni, word32* inOutSz)
 {
     word32 offset = 0;
     word32 len32 = 0;
