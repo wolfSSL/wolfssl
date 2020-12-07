@@ -33,10 +33,11 @@
 #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
 
 
+#define SILABS_UNSUPPORTED_KEY_TYPE 0xFFFFFFFF
 
-sl_se_key_type_t silabs_map_key_type (ecc_curve_id curve_id)
+static sl_se_key_type_t silabs_map_key_type (ecc_curve_id curve_id)
 {
-    sl_se_key_type_t res = 0;
+    sl_se_key_type_t res = SILABS_UNSUPPORTED_KEY_TYPE;
 
     switch(curve_id) {
     case ECC_SECP192R1:
@@ -71,8 +72,7 @@ sl_se_key_type_t silabs_map_key_type (ecc_curve_id curve_id)
 #endif
 
     default:
-        WOLFSSL_MSG("silabs_map_key_type() ECC curve unsupported by hardware");
-        res = 0;
+        res = SILABS_UNSUPPORTED_KEY_TYPE;
         break;
     }
 
@@ -139,12 +139,14 @@ int silabs_ecc_make_key(ecc_key* key, int keysize)
     sl_status_t sl_stat;
 
     key->key.type = silabs_map_key_type(key->dp->id);
+    if (SILABS_UNSUPPORTED_KEY_TYPE == key->key.type)
+        return WC_HW_E;
+
     key->key.size = keysize;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
     key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY
         | SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY
-        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
-        ;
+        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY;
 
     sl_stat = sl_se_get_storage_size(&key->key, &key->key.storage.location.buffer.size);
     key->key.storage.location.buffer.pointer = key->key_raw;
@@ -175,12 +177,14 @@ int silabs_ecc_import(ecc_key* key, word32 keysize)
     word32 used = keysize;
 
     key->key.type = silabs_map_key_type(key->dp->id);
+    if (SILABS_UNSUPPORTED_KEY_TYPE == key->key.type)
+        return WC_HW_E;
+
     key->key.size = keysize;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
     key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY
         | SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY
-        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
-        ;
+        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY;
 
     sl_stat = sl_se_get_storage_size(&key->key, &key->key.storage.location.buffer.size);
     key->key.storage.location.buffer.pointer = key->key_raw;
@@ -211,11 +215,13 @@ int silabs_ecc_import_private(ecc_key* key, word32 keysize)
     sl_status_t sl_stat;
     word32 keySz = keysize;
     key->key.type = silabs_map_key_type(key->dp->id);
+    if (SILABS_UNSUPPORTED_KEY_TYPE == key->key.type)
+        return WC_HW_E;
+
     key->key.size = key->dp->size;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
     key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY
-        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
-        ;
+        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY;
 
     sl_stat = sl_se_get_storage_size(&key->key, &key->key.storage.location.buffer.size);
     key->key.storage.location.buffer.pointer = key->key_raw;
@@ -233,6 +239,9 @@ int silabs_ecc_sig_to_rs(ecc_key* key, word32 keySz)
     int err = MP_OKAY;
 
     key->key.type = silabs_map_key_type(key->dp->id);
+    if (SILABS_UNSUPPORTED_KEY_TYPE == key->key.type)
+        return WC_HW_E;
+
     key->key.size = keySz;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
     key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY
@@ -294,7 +303,7 @@ int silabs_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sl_status_t sl_stat;
 
     pub_key = public_key->key;
-    pub_key.flags = 0x2000;
+    pub_key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY;
 
     *outlen = pub_key.size * 2;
     pub_sz = pub_key.size * 2;
