@@ -20796,7 +20796,6 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     (void)rng;
 #endif
 
-#if !defined(WOLFSSL_SILABS_SE_ACCEL)
     /* Use API. */
     ret = 0;
     do {
@@ -20808,7 +20807,6 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     } while (ret == WC_PENDING_E);
     if (ret != 0)
         return -10085;
-#endif
 
     TEST_SLEEP();
     return 0;
