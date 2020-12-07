@@ -3217,11 +3217,14 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 23) {
             err = MP_READ_E;
         }
-        if (inLen > 256U) {
+        else if (inLen > 256U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3310,11 +3313,14 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 23) {
             err = MP_READ_E;
         }
-        if (inLen > 256U) {
+        else if (inLen > 256U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3457,11 +3463,14 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 2048) {
            err = MP_READ_E;
         }
-        if (inLen > 256) {
+        else if (inLen > 256) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3511,11 +3520,14 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 2048) {
             err = MP_READ_E;
         }
-        if (inLen > 256U) {
+        else if (inLen > 256U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3559,8 +3571,11 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 256) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3633,8 +3648,11 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 256U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 2048) {
+        else if (mp_count_bits(mm) != 2048) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -3773,18 +3791,16 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 2048) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 2048) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
-    }
 
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 90 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -3831,17 +3847,14 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 2048) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 2048) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 2048) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -4222,17 +4235,14 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 2048) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 256) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 256) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
     if (err == MP_OKAY) {
@@ -4292,18 +4302,16 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 2048) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 256U) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 256U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 2048) {
-            err = MP_READ_E;
-        }
-    }
 #ifdef WOLFSSL_SMALL_STACK
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 90 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -4387,18 +4395,16 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 1024) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 1024) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 1024) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1024) {
-            err = MP_READ_E;
-        }
-    }
 
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 45 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -4446,17 +4452,14 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 1024) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 1024) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 1024) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1024) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -7099,11 +7102,14 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 23) {
             err = MP_READ_E;
         }
-        if (inLen > 384U) {
+        else if (inLen > 384U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7192,11 +7198,14 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 23) {
             err = MP_READ_E;
         }
-        if (inLen > 384U) {
+        else if (inLen > 384U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7339,11 +7348,14 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 3072) {
            err = MP_READ_E;
         }
-        if (inLen > 384) {
+        else if (inLen > 384) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7393,11 +7405,14 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 3072) {
             err = MP_READ_E;
         }
-        if (inLen > 384U) {
+        else if (inLen > 384U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7441,8 +7456,11 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 384) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7515,8 +7533,11 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 384U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 3072) {
+        else if (mp_count_bits(mm) != 3072) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -7655,18 +7676,16 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 3072) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 3072) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
-    }
 
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 134 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -7713,17 +7732,14 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 3072) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 3072) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 3072) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -8192,17 +8208,14 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 3072) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 384) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 384) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
     if (err == MP_OKAY) {
@@ -8262,18 +8275,16 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 3072) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 384U) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 384U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 3072) {
-            err = MP_READ_E;
-        }
-    }
 #ifdef WOLFSSL_SMALL_STACK
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 134 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -8357,18 +8368,16 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 1536) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 1536) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 1536) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1536) {
-            err = MP_READ_E;
-        }
-    }
 
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 67 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -8416,17 +8425,14 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 1536) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 1536) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 1536) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 1536) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -11151,11 +11157,14 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 21) {
             err = MP_READ_E;
         }
-        if (inLen > 512U) {
+        else if (inLen > 512U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11244,11 +11253,14 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
         if (mp_count_bits(em) > 21) {
             err = MP_READ_E;
         }
-        if (inLen > 512U) {
+        else if (inLen > 512U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11391,11 +11403,14 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 4096) {
            err = MP_READ_E;
         }
-        if (inLen > 512) {
+        else if (inLen > 512) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11445,11 +11460,14 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         if (mp_count_bits(dm) > 4096) {
             err = MP_READ_E;
         }
-        if (inLen > 512U) {
+        else if (inLen > 512U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11493,8 +11511,11 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 512) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11567,8 +11588,11 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         if (inLen > 512U) {
             err = MP_READ_E;
         }
-        if (mp_count_bits(mm) != 4096) {
+        else if (mp_count_bits(mm) != 4096) {
             err = MP_READ_E;
+        }
+        else if (mp_iseven(mm)) {
+            err = MP_VAL;
         }
     }
 
@@ -11707,18 +11731,16 @@ int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 4096) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 4096) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
-    }
 
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 196 * 4, NULL, DYNAMIC_TYPE_DH);
@@ -11765,17 +11787,14 @@ int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     if (mp_count_bits(base) > 4096) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expBits > 4096) {
-            err = MP_READ_E;
-        }
+    else if (expBits > 4096) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -12368,17 +12387,14 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 4096) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 512) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 512) {
+        err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
     if (err == MP_OKAY) {
@@ -12438,18 +12454,16 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
     if (mp_count_bits(base) > 4096) {
         err = MP_READ_E;
     }
-
-    if (err == MP_OKAY) {
-        if (expLen > 512U) {
-            err = MP_READ_E;
-        }
+    else if (expLen > 512U) {
+        err = MP_READ_E;
+    }
+    else if (mp_count_bits(mod) != 4096) {
+        err = MP_READ_E;
+    }
+    else if (mp_iseven(mod)) {
+        err = MP_VAL;
     }
 
-    if (err == MP_OKAY) {
-        if (mp_count_bits(mod) != 4096) {
-            err = MP_READ_E;
-        }
-    }
 #ifdef WOLFSSL_SMALL_STACK
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(*d) * 196 * 4, NULL, DYNAMIC_TYPE_DH);
