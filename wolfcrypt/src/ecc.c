@@ -4738,10 +4738,6 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     key->heap = heap;
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
-    //TODO: anything?
-#endif
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     /* handle as async */
     ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
@@ -5619,10 +5615,6 @@ int wc_ecc_free(ecc_key* key)
     }
 #endif
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
-    // TODO:
-#endif
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     #ifdef WC_ASYNC_ENABLE_ECC
     wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC);
@@ -6239,7 +6231,6 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    word32 msgLenInBytes = hashlen;
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-   // TODO:
    byte sigRS[64*2];
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
@@ -7362,8 +7353,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-
-    // TODO:
+    /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #else
     ALLOC_CURVE_SPECS(2);

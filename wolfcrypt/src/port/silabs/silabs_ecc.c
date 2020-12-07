@@ -71,7 +71,7 @@ sl_se_key_type_t silabs_map_key_type (ecc_curve_id curve_id)
 #endif
 
     default:
-        // TODO: log error
+        WOLFSSL_MSG("silabs_map_key_type() ECC curve unsupported by hardware");
         res = 0;
         break;
     }
