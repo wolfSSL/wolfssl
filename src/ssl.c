@@ -46279,7 +46279,7 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
 
 /* return compliant with OpenSSL
  *   1 if BIGNUM is word, 0 else */
-int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, unsigned long w)
+int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
     WOLFSSL_MSG("wolfSSL_BN_is_word");
 
