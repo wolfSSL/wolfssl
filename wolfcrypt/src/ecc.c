@@ -4184,7 +4184,8 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         ecc_point* pubOut, WC_RNG* rng)
 {
     int err = MP_OKAY;
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) \
+  && !defined(WOLFSSL_SILABS_SE_ACCEL)
 #if !defined(WOLFSSL_SP_MATH)
     ecc_point* base = NULL;
 #endif
@@ -4198,7 +4199,8 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         return BAD_FUNC_ARG;
     }
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) \
+  && !defined(WOLFSSL_SILABS_SE_ACCEL)
 
     /* if ecc_point passed in then use it as output for public key point */
     if (pubOut != NULL) {
@@ -4321,7 +4323,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #else
     (void)curveIn;
     err = NOT_COMPILED_IN;
-#endif /* WOLFSSL_ATECC508A */
+#endif /* WOLFSSL_ATECC508A || WOLFSSL_SILABS_SE_ACCEL */
 
     /* change key state if public part is cached */
     if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {

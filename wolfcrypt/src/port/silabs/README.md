@@ -63,18 +63,7 @@ ECDSA    256 verify        148 ops took 1.001 sec, avg 6.764 ms, 147.852 ops/sec
 
 ### Benchmarks and Memory Use
 
-Software only implementation (SILABS_SE_ACCEL, Fast Math):
 
-```
-```
-
-Memory Use:
-
-```
-Peak Stack: 
-Peak Heap: 
-Total: 
-```
 
 # Support
 
