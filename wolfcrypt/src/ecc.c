@@ -4864,7 +4864,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     #elif defined(WOLFSSL_SILABS_SE_ACCEL)
         err = silabs_ecc_sign_hash(in, inlen, out, outlen, key);
         if (err != 0) {
-               return BAD_COND_E;
+               return WC_HW_E;
         }
     #elif defined(WOLFSSL_CRYPTOCELL)
 
@@ -6231,7 +6231,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    word32 msgLenInBytes = hashlen;
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-   byte sigRS[64*2];
+   byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -6351,9 +6351,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        return err;
    }
 
-   silabs_ecc_verify_hash(&sigRS[0], keySz*2,
-                          hash, hashlen,
-                          res, key);
+   err = silabs_ecc_verify_hash(&sigRS[0], keySz*2,
+                                hash, hashlen,
+                                res, key);
 
 #else
   /* checking if private key with no public part */

@@ -29,6 +29,7 @@ Update was preformed under Simplicity Studio directory:
    versions requesting too much data or too quickly may result in
    system reset and setting `SESYSREQ`.
 
+
 ## Benchmarks
 
 See our [benchmarks](https://www.wolfssl.com/docs/benchmarks/) on the wolfSSL website.
@@ -60,9 +61,6 @@ ECDHE    256 agree         184 ops took 1.003 sec, avg 5.451 ms, 183.450 ops/sec
 ECDSA    256 sign          158 ops took 1.010 sec, avg 6.392 ms, 156.436 ops/sec
 ECDSA    256 verify        148 ops took 1.001 sec, avg 6.764 ms, 147.852 ops/sec
 ```
-
-### Benchmarks and Memory Use
-
 
 
 # Support

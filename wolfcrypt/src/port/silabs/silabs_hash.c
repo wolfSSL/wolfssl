@@ -40,10 +40,10 @@ int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
     int ret = 0;
     sl_status_t  rr;
 
-    // set sizes and state
+    /* set sizes and state */
     XMEMSET(sha, 0, sizeof(wc_silabs_sha_t));
 
-    // set init state
+    /* set init state */
     switch(type) {
     case WC_HASH_TYPE_SHA:
         rr = sl_se_hash_starts(&sha->hash_ctx,
@@ -88,7 +88,7 @@ int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
     }
 
     if (rr == SL_STATUS_OK) {
-      // init handles if it is already initialized
+      /* init handles if it is already initialized */
       ret = sl_se_init();
     } else {
       ret = BUFFER_E;
