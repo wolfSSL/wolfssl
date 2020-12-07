@@ -907,17 +907,13 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
 #ifdef WOLFSSL_SMALL_STACK
     if (k) {
-        if (ret != MP_INIT_E) {
+        if (ret != MP_INIT_E)
             mp_forcezero(k);
-            mp_clear(k);
-        }
         XFREE(k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (kInv) {
-        if (ret != MP_INIT_E) {
+        if (ret != MP_INIT_E)
             mp_forcezero(kInv);
-            mp_clear(kInv);
-        }
         XFREE(kInv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (r) {
@@ -937,10 +933,8 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     }
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (b) {
-        if (ret != MP_INIT_E) {
+        if (ret != MP_INIT_E)
             mp_forcezero(b);
-            mp_clear(b);
-        }
         XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
@@ -955,13 +949,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         mp_forcezero(k);
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
         mp_forcezero(b);
-        mp_clear(b);
 #endif
         mp_clear(H);
         mp_clear(s);
         mp_clear(r);
-        mp_clear(kInv);
-        mp_clear(k);
     }
 #endif
 
