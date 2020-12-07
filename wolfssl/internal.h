@@ -146,6 +146,8 @@
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
     /* do nothing */
+#elif defined(RTTHREAD)
+    /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
