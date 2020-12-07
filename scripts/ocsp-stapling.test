@@ -311,7 +311,7 @@ wolf_pid3=$!
 wait_for_readyFile $ready_file2 $wolf_pid3 $port3
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
 RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
@@ -324,7 +324,7 @@ wait_for_readyFile $ready_file2 $wolf_pid3 $port3
 sleep 0.1
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -p $port3
 RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" \
+[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 2 succeeded $RESULT" \
                   && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
 
@@ -345,7 +345,21 @@ if [ $? -ne 0 ]; then
     [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 3 failed" && exit 1
     printf '%s\n\n' "Test PASSED!"
 
-    printf '%s\n\n' "------------- TEST CASE 4 SHOULD REVOKE ------------------"
+    printf '%s\n\n' "------------- TEST CASE 4 SHOULD PASS --------------------"
+    # client test against our own server, must staple - GOOD CERT
+    remove_single_rF $ready_file2
+    ./examples/server/server -c certs/ocsp/server1-cert.pem -R $ready_file2 \
+                             -k certs/ocsp/server1-key.pem -v 4 \
+                             -p $port3 &
+    wolf_pid3=$!
+    wait_for_readyFile $ready_file2 $wolf_pid3 $port3
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1m -v 4 -F 1 \
+                             -p $port3
+    RESULT=$?
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 4 failed" && exit 1
+    printf '%s\n\n' "Test PASSED!"
+
+    printf '%s\n\n' "------------- TEST CASE 5 SHOULD REVOKE ------------------"
     # client test against our own server - REVOKED CERT
     remove_single_rF $ready_file2
     ./examples/server/server -c certs/ocsp/server2-cert.pem -R $ready_file2 \
@@ -357,7 +371,7 @@ if [ $? -ne 0 ]; then
                              -p $port3
     RESULT=$?
     [ $RESULT -ne 1 ] && \
-                      printf '\n\n%s\n' "Client connection succeeded $RESULT" \
+                      printf '\n\n%s\n' "Client connection 5 succeeded $RESULT" \
                       && exit 1
     printf '%s\n\n' "Test successfully REVOKED!"
 fi
@@ -373,20 +387,20 @@ openssl s_server $V4V6_FLAG -cert ./certs/server-cert.pem -key certs/server-key.
 openssl_pid=$!
 sleep 0.1
 
-printf '%s\n\n' "------------- TEST CASE 5 SHOULD PASS ----------------------"
+printf '%s\n\n' "------------- TEST CASE 6 SHOULD PASS ----------------------"
 # client asks for OCSP staple but doesn't fail when none returned
 ./examples/client/client -p $port -g -v 3 -W 1
 
 RESULT=$?
-[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 5 failed" && exit 1
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 6 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
 
-printf '%s\n\n' "------------- TEST CASE 6 SHOULD UNKNOWN -------------------"
+printf '%s\n\n' "------------- TEST CASE 7 SHOULD UNKNOWN -------------------"
 # client asks for OCSP staple but doesn't fail when none returned
 ./examples/client/client -p $port -g -v 3 -W 1m
 
 RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 6 succeeded $RESULT" \
+[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection 7 succeeded $RESULT" \
                   && exit 1
 printf '%s\n\n' "Test PASSED!"
 
@@ -395,21 +409,21 @@ openssl_tls13=$?
 ./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
 wolfssl_not_tls13=$?
 if [ "$openssl_tls13" = "0" -a "wolfssl_not_tls13" != "0" ]; then
-    printf '%s\n\n' "------------- TEST CASE 7 SHOULD PASS --------------------"
+    printf '%s\n\n' "------------- TEST CASE 8 SHOULD PASS --------------------"
     # client asks for OCSP staple but doesn't fail when none returned
     ./examples/client/client -p $port -g -v 4 -W 1
 
     RESULT=$?
-    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 7 failed" && exit 1
+    [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 8 failed" && exit 1
     printf '%s\n\n' "Test PASSED!"
 
-    printf '%s\n\n' "------------- TEST CASE 8 SHOULD UNKNOWN -----------------"
+    printf '%s\n\n' "------------- TEST CASE 9 SHOULD UNKNOWN -----------------"
     # client asks for OCSP staple but doesn't fail when none returned
     ./examples/client/client -p $port -g -v 4 -W 1m
 
     RESULT=$?
     [ $RESULT -ne 1 ] \
-                  && printf '\n\n%s\n' "Client connection 8 succeeded $RESULT" \
+                  && printf '\n\n%s\n' "Client connection 9 succeeded $RESULT" \
                   && exit 1
     printf '%s\n\n' "Test PASSED!"
 fi

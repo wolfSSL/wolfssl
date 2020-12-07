@@ -2976,15 +2976,37 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     int ret;
+#if !defined(NO_WOLFSSL_SERVER)
+    byte status_type;
+    word16 size = 0;
+#if defined(WOLFSSL_TLS13)
+    DecodedCert* cert;
+#endif
+#endif
+
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER) \
+    && defined(WOLFSSL_TLS13)
+    OcspRequest* request;
+    TLSX* extension;
+    CertificateStatusRequest* csr;
+#endif
+
+#if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13) \
+ || !defined(NO_WOLFSSL_SERVER) 
+    word32 offset = 0;
+#endif
+
+#if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13)
+    word32 resp_length;
+#endif
 
     /* shut up compiler warnings */
     (void) ssl; (void) input;
 
     if (!isRequest) {
 #ifndef NO_WOLFSSL_CLIENT
-        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-        CertificateStatusRequest* csr = extension ?
-                              (CertificateStatusRequest*)extension->data : NULL;
+        extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+        csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
 
         if (!csr) {
             /* look at context level */
@@ -3005,8 +3027,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 case WOLFSSL_CSR_OCSP:
                     /* propagate nonce */
                     if (csr->request.ocsp.nonceSz) {
-                        OcspRequest* request =
-                             (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
+                        request = 
+                            (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
 
                         if (request) {
                             XMEMCPY(request->nonce, csr->request.ocsp.nonce,
@@ -3022,9 +3044,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
     #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3) {
-            word32       resp_length;
-            word32       offset = 0;
-
             /* Get the new extension potentially created above. */
             extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
             csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
@@ -3061,10 +3080,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
     }
     else {
 #ifndef NO_WOLFSSL_SERVER
-        byte   status_type;
-        word16 offset = 0;
-        word16 size = 0;
-
         if (length == 0)
             return 0;
 
@@ -3113,11 +3128,29 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (ret != WOLFSSL_SUCCESS)
             return ret; /* throw error */
 
-    #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+    #if defined(WOLFSSL_TLS13)
         if (ssl->options.tls1_3) {
-            OcspRequest* request;
-            TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-            CertificateStatusRequest* csr = extension ?
+            cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                         DYNAMIC_TYPE_DCERT);
+            if (cert == NULL) {
+                return MEMORY_E;
+            }
+            InitDecodedCert(cert, ssl->buffers.certificate->buffer,
+                            ssl->buffers.certificate->length, ssl->heap);
+            ret = ParseCert(cert, CERT_TYPE, 1, ssl->ctx->cm);
+            if (ret != 0 ) {
+                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                return ret;
+            }
+            ret = TLSX_CSR_InitRequest(ssl->extensions, cert, ssl->heap);
+            if (ret != 0 ) {
+                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                return ret;
+            }
+            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+
+            extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+            csr = extension ?
                 (CertificateStatusRequest*)extension->data : NULL;
             if (csr == NULL)
                 return MEMORY_ERROR;
