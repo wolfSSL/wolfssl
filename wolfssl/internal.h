@@ -2885,10 +2885,12 @@ struct WOLFSSL_CTX {
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
+#ifndef NO_WOLFSSL_SERVER
 #ifdef HAVE_SNI
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
+#endif /* NO_WOLFSSL_SERVER */
 #if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
     CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
     word32      mcastFirstSeq;    /* first trigger level */

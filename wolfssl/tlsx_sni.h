@@ -74,6 +74,17 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_UseSNI(WOLFSSL_CTX*, unsigned char,
 
 #ifndef NO_WOLFSSL_SERVER
 
+/* SNI received callback type */
+typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
+
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX *,
+        CallbackSniRecv);
+#endif
+WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
+        CallbackSniRecv);
+WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
+
 /* SNI options */
 enum {
     /* Do not abort the handshake if the requested SNI didn't match. */
@@ -109,16 +120,6 @@ WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
 
 WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
                                                unsigned char type, void** data);
-
-/* SNI received callback type */
-typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
-
-WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
-        CallbackSniRecv);
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX *,
-        CallbackSniRecv);
-
-WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)

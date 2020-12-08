@@ -618,8 +618,6 @@ static int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     return len16 ? BUFFER_ERROR : 0;
 }
 
-#endif /* !NO_WOLFSSL_SERVER */
-
 void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
@@ -627,6 +625,7 @@ void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
         ctx->sniRecvCb = cb;
 }
 
+#ifdef OPENSSL_EXTRA
 int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
                                                CallbackSniRecv cb)
 {
@@ -637,6 +636,7 @@ int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
     }
     return WOLFSSL_FAILURE;
 }
+#endif /* OPENSSL_EXTRA */
 
 int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
 {
@@ -647,6 +647,8 @@ int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
     }
     return WOLFSSL_FAILURE;
 }
+
+#endif /* !NO_WOLFSSL_SERVER */
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
  || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
