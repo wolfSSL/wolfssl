@@ -8122,9 +8122,22 @@ static int aes_test(void)
             0x65,0x73,0x20,0x4a,0x61,0x63,0x6b,0x20
         };
         static const byte bigKey[] = "0123456789abcdeffedcba9876543210";
+
+        word32 keySz, msgSz;
+#ifdef WOLFSSL_SMALL_STACK
+        byte *bigCipher = (byte *)XMALLOC(sizeof(bigMsg), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        byte *bigPlain = (byte *)XMALLOC(sizeof(bigMsg), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        if ((! bigCipher) ||
+            (! bigPlain)) {
+            if (bigCipher)
+                XFREE(bigCipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return -5947;
+        }
+#else
         byte bigCipher[sizeof(bigMsg)];
         byte bigPlain[sizeof(bigMsg)];
-        word32 keySz, msgSz;
+#endif
 
         /* Iterate from one AES_BLOCK_SIZE of bigMsg through the whole
          * message by AES_BLOCK_SIZE for each size of AES key. */
@@ -8133,33 +8146,53 @@ static int aes_test(void)
                  msgSz <= sizeof(bigMsg);
                  msgSz += AES_BLOCK_SIZE) {
 
-                XMEMSET(bigCipher, 0, sizeof(bigCipher));
-                XMEMSET(bigPlain, 0, sizeof(bigPlain));
+                XMEMSET(bigCipher, 0, sizeof(bigMsg));
+                XMEMSET(bigPlain, 0, sizeof(bigMsg));
                 ret = wc_AesSetKey(&enc, bigKey, keySz, iv, AES_ENCRYPTION);
-                if (ret != 0)
-                    return -5908;
+                if (ret != 0) {
+                    ret = -5908;
+                    break;
+                }
                 ret = wc_AesSetKey(&dec, bigKey, keySz, iv, AES_DECRYPTION);
-                if (ret != 0)
-                    return -5909;
+                if (ret != 0) {
+                    ret = -5909;
+                    break;
+                }
 
                 ret = wc_AesCbcEncrypt(&enc, bigCipher, bigMsg, msgSz);
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
             #endif
-                if (ret != 0)
-                    return -5910;
+                if (ret != 0) {
+                    ret = -5910;
+                    break;
+                }
 
                 ret = wc_AesCbcDecrypt(&dec, bigPlain, bigCipher, msgSz);
             #if defined(WOLFSSL_ASYNC_CRYPT)
                 ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
             #endif
-                if (ret != 0)
-                    return -5911;
+                if (ret != 0) {
+                    ret = -5911;
+                    break;
+                }
 
-                if (XMEMCMP(bigPlain, bigMsg, msgSz))
-                    return -5912;
+                if (XMEMCMP(bigPlain, bigMsg, msgSz)) {
+                    ret = -5912;
+                    break;
+                }
             }
+            if (ret != 0)
+                break;
         }
+
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(bigCipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(bigPlain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+        if (ret != 0)
+            return ret;
     }
 #endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT */
 
