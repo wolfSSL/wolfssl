@@ -2049,7 +2049,7 @@ struct stack_size_debug_context {
  *
  * enable with
  *
- * CFLAGS='-g -DHAVE_STACK_SIZE_VERBOSE' ./configure --enable-stacksize [...]
+ * ./configure --enable-stacksize=verbose [...]
  */
 
 static void *debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
@@ -2123,11 +2123,23 @@ int StackSizeHWMReset(void)
 
 #define STACK_SIZE_CHECKPOINT(...) ({  \
     ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
-    int _ret = (__VA_ARGS__); \
-    printf("relative stack used = %ld\n", HWM); \
-    StackSizeHWMReset();               \
-    _ret;                       \
+    __VA_ARGS__;                                     \
+    printf("relative stack used = %ld\n", HWM);      \
+    StackSizeHWMReset();                             \
     })
+
+#define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
+    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    __VA_ARGS__;                                     \
+    printf("relative stack used = %ld\n", HWM);      \
+    int _ret = StackSizeHWMReset();                   \
+    if ((max >= 0) && (HWM > (ssize_t)(max))) {      \
+        printf("relative stack usage at %s L%d exceeds designated max %ld.\n", __FILE__, __LINE__, (ssize_t)(max)); \
+        _ret = -1;                                   \
+    }                                                \
+    _ret;                                            \
+    })
+
 
 #ifdef __GNUC__
 #define STACK_SIZE_INIT() (void)StackSizeSetOffset(__FUNCTION__, __builtin_frame_address(0))
@@ -2144,6 +2156,9 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     size_t         stackSize = 1024*1024;
     pthread_attr_t myAttr;
     pthread_t      threadId;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    struct stack_size_debug_context shim_args;
+#endif
 
 #ifdef PTHREAD_STACK_MIN
     if (stackSize < PTHREAD_STACK_MIN)
@@ -2166,15 +2181,12 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
 #ifdef HAVE_STACK_SIZE_VERBOSE
     StackSizeCheck_stackSizeHWM = 0;
-    {
-      struct stack_size_debug_context shim_args;
-      shim_args.myStack = myStack;
-      shim_args.stackSize = stackSize;
-      shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
-      shim_args.fn = tf;
-      shim_args.args = args;
-      ret = pthread_create(&threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)&shim_args);
-    }
+    shim_args.myStack = myStack;
+    shim_args.stackSize = stackSize;
+    shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    shim_args.fn = tf;
+    shim_args.args = args;
+    ret = pthread_create(&threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)&shim_args);
 #else
     ret = pthread_create(&threadId, &myAttr, tf, args);
 #endif
