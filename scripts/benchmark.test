@@ -67,7 +67,9 @@ then
     server_pid=$!
 fi
 
-
+# NOTE: We sleep for 2 seconds below. If timing the execution of this script
+#       with "time", bear in mind that those 2 seconds will be reflected in
+#       the "real" time.
 echo "Waiting for server_ready file..."
 while [ ! -s /tmp/wolfssl_server_ready -a "$counter" -lt 20 ]; do
     sleep 0.1
