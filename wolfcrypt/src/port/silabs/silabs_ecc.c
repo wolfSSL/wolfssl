@@ -245,8 +245,7 @@ int silabs_ecc_sig_to_rs(ecc_key* key, word32 keySz)
     key->key.size = keySz;
     key->key.storage.method = SL_SE_KEY_STORAGE_EXTERNAL_PLAINTEXT;
     key->key.flags = SL_SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY
-        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY
-        ;
+        | SL_SE_KEY_FLAG_ASYMMMETRIC_SIGNING_ONLY;
 
     sl_stat = sl_se_get_storage_size(&key->key, &key->key.storage.location.buffer.size);
     key->key.storage.location.buffer.pointer = key->key_raw;

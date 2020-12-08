@@ -87,11 +87,8 @@ int wc_silabs_se_hash_init (wc_silabs_sha_t* sha, enum wc_HashType type)
         break;
     }
 
-    if (rr == SL_STATUS_OK) {
-      /* init handles if it is already initialized */
-      ret = sl_se_init();
-    } else {
-      ret = BUFFER_E;
+    if (rr != SL_STATUS_OK) {
+      ret = WC_HW_E;
     }
 
     return ret;
