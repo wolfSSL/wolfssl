@@ -233,6 +233,9 @@
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
     #include <wolfssl/wolfcrypt/asn.h>
+    #ifdef HAVE_LIBZ
+    #include <wolfssl/wolfcrypt/compress.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
@@ -24645,7 +24648,7 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
     decompressedSz = (int)cert_sz;
     AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
 
-    pkcs7->content    = (byte*)cert;
+    pkcs7->content    = (byte*)cert_buf;
     pkcs7->contentSz  = (word32)cert_sz;
     pkcs7->contentOID = DATA;
 
@@ -24666,12 +24669,34 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
     /* success case */
     AssertIntEQ(wc_PKCS7_DecodeCompressedData(pkcs7, out, outSz,
                 decompressed, decompressedSz), cert_sz);
-    AssertIntEQ(XMEMCMP(decompressed, cert, cert_sz), 0);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    decompressed = NULL;
+
+    /* test decompression function with different 'max' inputs */
+    outSz = sizeof(out);
+    AssertIntGT((outSz = wc_Compress(out, outSz, cert_buf, (word32)cert_sz, 0)),
+            0);
+    AssertIntLT(wc_DeCompressDynamic(&decompressed, 1, DYNAMIC_TYPE_TMP_BUFFER,
+            out, outSz, 0, heap), 0);
+    AssertNull(decompressed);
+    AssertIntGT(wc_DeCompressDynamic(&decompressed, -1, DYNAMIC_TYPE_TMP_BUFFER,
+            out, outSz, 0, heap), 0);
+    AssertNotNull(decompressed);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    decompressed = NULL;
+
+    AssertIntGT(wc_DeCompressDynamic(&decompressed, DYNAMIC_TYPE_TMP_BUFFER, 5,
+            out, outSz, 0, heap), 0);
+    AssertNotNull(decompressed);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (cert_buf)
         free(cert_buf);
-    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
     wc_PKCS7_Free(pkcs7);
+
     printf(resultFmt, passed);
 #endif
 }

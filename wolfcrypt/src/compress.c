@@ -198,6 +198,8 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
  * is the callers responsibility on successful return.
  *
  * out gets set to the output buffer created, *out gets overwritten
+ * max is the max decompression multiplier, i.e if 2 then max out size created
+ *     would be 2*inSz, if set to -1 then there is no limit on out buffer size
  * memoryType the memory hint to use for 'out' i.e. DYNAMIC_TYPE_TMP_BUFFER
  * in  compressed input buffer
  * inSz size of 'in' buffer
@@ -206,24 +208,27 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
  *
  * return the decompressed size, creates and grows out buffer as needed
  */
-int wc_DeCompressDynamic(byte** out, int memoryType, const byte* in,
-        word32 inSz, int windowBits, void* heap)
+int wc_DeCompressDynamic(byte** out, int max, int memoryType,
+        const byte* in, word32 inSz, int windowBits, void* heap)
 {
     z_stream   stream;
     int result   = 0;
+    int i;
     word32 tmpSz = 0;
     byte*  tmp;
 
     if (out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
+    i = (max == 1)? 1 : 2; /* start with output buffer twice the size of input
+                            * unless max was set to 1 */
 
     stream.next_in = (Bytef*)in;
     stream.avail_in = (uInt)inSz;
     /* Check for source > 64K on 16-bit machine: */
     if ((uLong)stream.avail_in != inSz) return DECOMPRESS_INIT_E;
 
-    tmpSz = inSz * 2; /* start with output buffer twice the size of input */
+    tmpSz = inSz * i;
     tmp = (byte*)XMALLOC(tmpSz, heap, memoryType);
     if (tmp == NULL)
         return MEMORY_E;
@@ -259,12 +264,20 @@ int wc_DeCompressDynamic(byte** out, int memoryType, const byte* in,
         /* good chance output buffer ran out of space with Z_BUF_ERROR
            try increasing output buffer size */
         if (result == Z_BUF_ERROR) {
-            word32 newSz = tmpSz * 2; /* double size of tmp buffer */
+            word32 newSz;
             byte*  newTmp;
+
+            if (max > 0 && i >= max) {
+                WOLFSSL_MSG("Hit max decompress size!");
+                break;
+            }
+            i++;
+
+            newSz = tmpSz + inSz;
             newTmp = (byte*)XMALLOC(newSz, heap, memoryType);
             if (newTmp == NULL) {
-                XFREE(tmp, heap, memoryType);
-                return MEMORY_E;
+                WOLFSSL_MSG("Memory error with increasing buffer size");
+                break;
             }
             XMEMCPY(newTmp, tmp, tmpSz);
             XFREE(tmp, heap, memoryType);
