@@ -33,14 +33,25 @@
 
 #ifndef NO_CRYPT_TEST
 
-/* only for stack size check */
-#ifdef HAVE_STACK_SIZE
+#if defined(HAVE_STACK_SIZE) && !defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
+    #define HAVE_WOLFCRYPT_TEST_OPTIONS
+#endif
+
+#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
     #include <wolfssl/ssl.h>
     #define err_sys err_sys_remap /* remap err_sys */
     #include <wolfssl/test.h>
     #undef err_sys
+#endif
+
+#if defined(HAVE_STACK_SIZE_VERBOSE)
+#ifdef WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES
+    static ssize_t max_relative_stack = WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES;
 #else
-    #define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
+    static ssize_t max_relative_stack = -1;
+#endif
+#else
+    #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) (__VA_ARGS__, 0)
     #define STACK_SIZE_INIT()
 #endif
 
@@ -468,14 +479,14 @@ static int err_sys(const char* msg, int es)
     EXIT_TEST(-1);
 }
 
-#ifndef HAVE_STACK_SIZE
+#ifndef HAVE_WOLFCRYPT_TEST_OPTIONS
 /* func_args from test.h, so don't have to pull in other stuff */
 typedef struct func_args {
     int    argc;
     char** argv;
     int    return_code;
 } func_args;
-#endif /* !HAVE_STACK_SIZE */
+#endif /* !HAVE_WOLFCRYPT_TEST_OPTIONS */
 
 #ifdef HAVE_FIPS
 
@@ -529,13 +540,13 @@ static int wolfssl_pb_print(const char* msg, ...)
     {
         va_list args;
         va_start(args, fmt);
-        STACK_SIZE_CHECKPOINT(printf(fmt, args));
+        STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max_relative_stack, vprintf(fmt, args));
         va_end(args);
         TEST_SLEEP();
     }
 #else
     /* redirect to printf */
-    #define test_pass(...) STACK_SIZE_CHECKPOINT(printf(__VA_ARGS__))
+    #define test_pass(...) { if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max_relative_stack, printf(__VA_ARGS__)) < 0) { return err_sys("post-test check failed", -1); }}
     /* stub the sleep macro */
     #define TEST_SLEEP()
 #endif
@@ -553,13 +564,32 @@ int wolfcrypt_test(void* args)
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
     printf("------------------------------------------------------------------------------\n");
 
-    if (args)
+    if (args) {
+#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
+        int ch;
+#endif
         ((func_args*)args)->return_code = -1; /* error state */
+#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
+        while ((ch = mygetopt(((func_args*)args)->argc, ((func_args*)args)->argv, "s:")) != -1) {
+            switch(ch) {
+            case 's':
+#ifdef HAVE_STACK_SIZE_VERBOSE
+                max_relative_stack = (ssize_t)atoi(myoptarg);
+                break;
+#else
+                return err_sys("-s (max relative stack size) requires HAVE_STACK_SIZE_VERBOSE.", -1);
+#endif
+            default:
+                return err_sys("unknown test option.", -1);
+            }
+        }
+#endif
+    }
 
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
-        printf("unable to load static memory");
+        printf("unable to load static memory.\n");
         return(EXIT_FAILURE);
     }
 #endif
@@ -1261,6 +1291,12 @@ initDefaultName();
 #ifdef WOLFSSL_ESPIDF
     void app_main( )
 #else
+
+#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
+    int myoptind = 0;
+    char* myoptarg = NULL;
+#endif
+
     int main(int argc, char** argv)
 #endif
     {
