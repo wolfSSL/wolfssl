@@ -12668,9 +12668,8 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ASN_PARSE_E;
 
     /* decompress content */
-    ret = wc_DeCompressDynamic(&decompressed, DYNAMIC_TYPE_PKCS7,
-            WOLFSSL_PKCS7_MAX_DECOMPRESSION, &pkiMsg[idx], length, 0,
-            pkcs7->heap);
+    ret = wc_DeCompressDynamic(&decompressed, WOLFSSL_PKCS7_MAX_DECOMPRESSION,
+            DYNAMIC_TYPE_PKCS7, &pkiMsg[idx], length, 0, pkcs7->heap);
     if (ret < 0) {
         return ret;
     }
