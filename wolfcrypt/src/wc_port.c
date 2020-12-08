@@ -216,6 +216,11 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #ifdef WOLFSSL_SILABS_SE_ACCEL
+        /* init handles if it is already initialized */
+        ret = sl_se_init();
+    #endif
+
     #ifdef WOLFSSL_ARMASM
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
