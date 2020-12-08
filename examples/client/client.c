@@ -522,7 +522,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     return EXIT_SUCCESS;
 }
 
-/* Measures throughput in kbps. Throughput = number of bytes */
+/* Measures throughput in mbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
     int useX448, int exitWithRet)
