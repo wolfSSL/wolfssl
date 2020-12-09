@@ -213,6 +213,7 @@ int silabs_ecc_import(ecc_key* key, word32 keysize)
 int silabs_ecc_import_private(ecc_key* key, word32 keysize)
 {
     sl_status_t sl_stat;
+    int ret = 0;
     word32 keySz = keysize;
     key->key.type = silabs_map_key_type(key->dp->id);
     if (SILABS_UNSUPPORTED_KEY_TYPE == key->key.type)
@@ -228,9 +229,14 @@ int silabs_ecc_import_private(ecc_key* key, word32 keysize)
     if (sl_stat != SL_STATUS_OK)
           return WC_HW_E;
 
-    return wc_export_int(&key->k, key->key.storage.location.buffer.pointer,
-                         &keySz, keySz,
-                         WC_TYPE_UNSIGNED_BIN);
+    ret = wc_export_int(&key->k, key->key.storage.location.buffer.pointer,
+                        &keySz, keySz,
+                        WC_TYPE_UNSIGNED_BIN);
+
+    if (keySz != keysize)
+        ret = WC_HW_E;
+
+    return ret;
 }
 
 int silabs_ecc_sig_to_rs(ecc_key* key, word32 keySz)
