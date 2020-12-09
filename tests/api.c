@@ -34233,7 +34233,7 @@ static void test_wolfSSL_EVP_X_STATE_LEN(void)
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
-    AssertIntEQ(wolfSSL_EVP_X_STATE_LEN(ctx), 272);
+    AssertIntEQ(wolfSSL_EVP_X_STATE_LEN(ctx), sizeof(Arc4));
     EVP_CIPHER_CTX_free(ctx);
 
 
