@@ -5718,7 +5718,7 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 64 - c;
         }
-        sp_2048_lshift_32(r, norm, y);
+        sp_2048_lshift_32(r, norm, (byte)y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
                 n = e[i--];
@@ -5747,7 +5747,7 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
             sp_2048_mont_sqr_32(r, r, m, mp);
             sp_2048_mont_sqr_32(r, r, m, mp);
 
-            sp_2048_lshift_32(r, r, y);
+            sp_2048_lshift_32(r, r, (byte)y);
             sp_2048_mul_d_32(tmp, norm, r[32]);
             r[32] = 0;
             o = sp_2048_add_32(r, r, tmp);
@@ -13610,7 +13610,7 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 64 - c;
         }
-        sp_3072_lshift_48(r, norm, y);
+        sp_3072_lshift_48(r, norm, (byte)y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
                 n = e[i--];
@@ -13639,7 +13639,7 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
             sp_3072_mont_sqr_48(r, r, m, mp);
             sp_3072_mont_sqr_48(r, r, m, mp);
 
-            sp_3072_lshift_48(r, r, y);
+            sp_3072_lshift_48(r, r, (byte)y);
             sp_3072_mul_d_48(tmp, norm, r[48]);
             r[48] = 0;
             o = sp_3072_add_48(r, r, tmp);
@@ -18701,7 +18701,7 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 64 - c;
         }
-        sp_4096_lshift_64(r, norm, y);
+        sp_4096_lshift_64(r, norm, (byte)y);
         for (; i>=0 || c>=6; ) {
             if (c == 0) {
                 n = e[i--];
@@ -18730,7 +18730,7 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             sp_4096_mont_sqr_64(r, r, m, mp);
             sp_4096_mont_sqr_64(r, r, m, mp);
 
-            sp_4096_lshift_64(r, r, y);
+            sp_4096_lshift_64(r, r, (byte)y);
             sp_4096_mul_d_64(tmp, norm, r[64]);
             r[64] = 0;
             o = sp_4096_add_64(r, r, tmp);
@@ -21075,7 +21075,7 @@ static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode_256* v)
     n = k[j];
     o = 0;
     for (i=0; i<43; i++) {
-        y = n;
+        y = (int8_t)n;
         if (o + 6 < 64) {
             y &= 0x3f;
             n >>= 6;
@@ -21089,12 +21089,12 @@ static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode_256* v)
         }
         else if (++j < 4) {
             n = k[j];
-            y |= (n << (64 - o)) & 0x3f;
+            y |= (uint8_t)((n << (64 - o)) & 0x3f);
             o -= 58;
             n >>= o;
         }
 
-        y += carry;
+        y += (uint8_t)carry;
         v[i].i = recode_index_4_6[y];
         v[i].neg = recode_neg_4_6[y];
         carry = (y >> 6) + v[i].neg;
@@ -21579,7 +21579,7 @@ static int sp_256_ecc_mulmod_stripe_4(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=42; j<6 && x<256; j++,x+=43) {
-            y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+            y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -21594,7 +21594,7 @@ static int sp_256_ecc_mulmod_stripe_4(sp_point_256* r, const sp_point_256* g,
         for (i=41; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<6 && x<256; j++,x+=43) {
-                y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+                y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_4(rt, rt, t);
@@ -21939,7 +21939,7 @@ static int sp_256_ecc_mulmod_stripe_4(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=31; j<8; j++,x+=32) {
-            y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+            y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -21954,7 +21954,7 @@ static int sp_256_ecc_mulmod_stripe_4(sp_point_256* r, const sp_point_256* g,
         for (i=30; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=32) {
-                y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+                y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_4(rt, rt, t);
@@ -23860,7 +23860,7 @@ static void sp_256_ecc_recode_7_4(const sp_digit* k, ecc_recode_256* v)
     n = k[j];
     o = 0;
     for (i=0; i<37; i++) {
-        y = n;
+        y = (int8_t)n;
         if (o + 7 < 64) {
             y &= 0x7f;
             n >>= 7;
@@ -23874,12 +23874,12 @@ static void sp_256_ecc_recode_7_4(const sp_digit* k, ecc_recode_256* v)
         }
         else if (++j < 4) {
             n = k[j];
-            y |= (n << (64 - o)) & 0x7f;
+            y |= (uint8_t)((n << (64 - o)) & 0x7f);
             o -= 57;
             n >>= o;
         }
 
-        y += carry;
+        y += (uint8_t)carry;
         v[i].i = recode_index_4_7[y];
         v[i].neg = recode_neg_4_7[y];
         carry = (y >> 7) + v[i].neg;
@@ -40644,7 +40644,7 @@ static void sp_384_ecc_recode_6_6(const sp_digit* k, ecc_recode_384* v)
     n = k[j];
     o = 0;
     for (i=0; i<65; i++) {
-        y = n;
+        y = (int8_t)n;
         if (o + 6 < 64) {
             y &= 0x3f;
             n >>= 6;
@@ -40658,12 +40658,12 @@ static void sp_384_ecc_recode_6_6(const sp_digit* k, ecc_recode_384* v)
         }
         else if (++j < 6) {
             n = k[j];
-            y |= (n << (64 - o)) & 0x3f;
+            y |= (uint8_t)((n << (64 - o)) & 0x3f);
             o -= 58;
             n >>= o;
         }
 
-        y += carry;
+        y += (uint8_t)carry;
         v[i].i = recode_index_6_6[y];
         v[i].neg = recode_neg_6_6[y];
         carry = (y >> 6) + v[i].neg;
@@ -41164,7 +41164,7 @@ static int sp_384_ecc_mulmod_stripe_6(sp_point_384* r, const sp_point_384* g,
 
         y = 0;
         for (j=0,x=47; j<8; j++,x+=48) {
-            y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+            y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -41179,7 +41179,7 @@ static int sp_384_ecc_mulmod_stripe_6(sp_point_384* r, const sp_point_384* g,
         for (i=46; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=48) {
-                y |= ((k[x / 64] >> (x % 64)) & 1) << j;
+                y |= (int)(((k[x / 64] >> (x % 64)) & 1) << j);
             }
 
             sp_384_proj_point_dbl_6(rt, rt, t);
