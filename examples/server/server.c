@@ -463,8 +463,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     #else
             (int)throughput,
     #endif
-            tx_time * 1000, throughput / tx_time / 1024 / 1024,
-            rx_time * 1000, throughput / rx_time / 1024 / 1024
+            rx_time * 1000, throughput / rx_time / 1024 / 1024,
+            tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
     }
 
