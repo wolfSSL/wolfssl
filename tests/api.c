@@ -233,6 +233,9 @@
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
     #include <wolfssl/wolfcrypt/asn.h>
+    #ifdef HAVE_LIBZ
+    #include <wolfssl/wolfcrypt/compress.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
@@ -24622,6 +24625,82 @@ static void test_wc_PKCS7_SetOriDecryptCtx (void)
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_wc_PKCS7_DecodeCompressedData(void)
+{
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES) && defined(HAVE_LIBZ)
+    PKCS7* pkcs7;
+    void*  heap = NULL;
+    byte   out[3072];
+    byte   *decompressed;
+    int    outSz, decompressedSz;
+
+    const char* cert = "./certs/client-cert.pem";
+    byte*  cert_buf = NULL;
+    size_t cert_sz = 0;
+
+    printf(testingFmt, "wc_PKCS7_DecodeCompressedData()");
+
+    AssertIntEQ(load_file(cert, &cert_buf, &cert_sz), 0);
+    AssertNotNull((decompressed =
+                (byte*)XMALLOC(cert_sz, heap, DYNAMIC_TYPE_TMP_BUFFER)));
+    decompressedSz = (int)cert_sz;
+    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
+
+    pkcs7->content    = (byte*)cert_buf;
+    pkcs7->contentSz  = (word32)cert_sz;
+    pkcs7->contentOID = DATA;
+
+    AssertIntGT((outSz = wc_PKCS7_EncodeCompressedData(pkcs7, out,
+                    sizeof(out))), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    /* compressed key should be smaller than when started */
+    AssertIntLT(outSz, cert_sz);
+
+    /* test decompression */
+    AssertNotNull((pkcs7 = wc_PKCS7_New(heap, devId)));
+
+    /* fail case with out buffer too small */
+    AssertIntLT(wc_PKCS7_DecodeCompressedData(pkcs7, out, outSz,
+                decompressed, outSz), 0);
+
+    /* success case */
+    AssertIntEQ(wc_PKCS7_DecodeCompressedData(pkcs7, out, outSz,
+                decompressed, decompressedSz), cert_sz);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    decompressed = NULL;
+
+    /* test decompression function with different 'max' inputs */
+    outSz = sizeof(out);
+    AssertIntGT((outSz = wc_Compress(out, outSz, cert_buf, (word32)cert_sz, 0)),
+            0);
+    AssertIntLT(wc_DeCompressDynamic(&decompressed, 1, DYNAMIC_TYPE_TMP_BUFFER,
+            out, outSz, 0, heap), 0);
+    AssertNull(decompressed);
+    AssertIntGT(wc_DeCompressDynamic(&decompressed, -1, DYNAMIC_TYPE_TMP_BUFFER,
+            out, outSz, 0, heap), 0);
+    AssertNotNull(decompressed);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    decompressed = NULL;
+
+    AssertIntGT(wc_DeCompressDynamic(&decompressed, DYNAMIC_TYPE_TMP_BUFFER, 5,
+            out, outSz, 0, heap), 0);
+    AssertNotNull(decompressed);
+    AssertIntEQ(XMEMCMP(decompressed, cert_buf, cert_sz), 0);
+    XFREE(decompressed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (cert_buf)
+        free(cert_buf);
+    wc_PKCS7_Free(pkcs7);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wc_i2d_PKCS12(void)
 {
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
@@ -39832,6 +39911,7 @@ void ApiTest(void)
     test_wc_PKCS7_NoDefaultSignedAttribs();
     test_wc_PKCS7_SetOriEncryptCtx();
     test_wc_PKCS7_SetOriDecryptCtx();
+    test_wc_PKCS7_DecodeCompressedData();
 
 
     test_wc_i2d_PKCS12();

@@ -67,6 +67,14 @@ struct PKCS7SignerInfo {
 };
 
 
+#ifndef WOLFSSL_PKCS7_MAX_DECOMPRESSION
+    /* 1031 comes from "Maximum Compression Factor" in the zlib tech document,
+     * typical compression is from 2:1 to 5:1 but there is rare cases where
+     * 1030.3:1 could happen (like a file with all 0's)
+     */
+    #define WOLFSSL_PKCS7_MAX_DECOMPRESSION 1031
+#endif
+
 #ifndef NO_PKCS7_STREAM
 
 #define MAX_PKCS7_STREAM_BUFFER 256
@@ -12659,17 +12667,10 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* allocate space for decompressed data */
-    decompressed = (byte*)XMALLOC(length, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    if (decompressed == NULL) {
-        WOLFSSL_MSG("Error allocating memory for CMS decompression buffer");
-        return MEMORY_E;
-    }
-
     /* decompress content */
-    ret = wc_DeCompress(decompressed, length, &pkiMsg[idx], length);
+    ret = wc_DeCompressDynamic(&decompressed, WOLFSSL_PKCS7_MAX_DECOMPRESSION,
+            DYNAMIC_TYPE_PKCS7, &pkiMsg[idx], length, 0, pkcs7->heap);
     if (ret < 0) {
-        XFREE(decompressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
     decompressedSz = (word32)ret;
