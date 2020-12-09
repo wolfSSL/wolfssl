@@ -35091,7 +35091,7 @@ static void test_wolfSSL_i2d_PrivateKey()
 #endif
 }
 
-static void test_wolfSSL_OCSP_get0_info()
+static void test_wolfSSL_OCSP_id_get0_info()
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && !defined(NO_FILESYSTEM)
     X509* cert;
@@ -35104,7 +35104,7 @@ static void test_wolfSSL_OCSP_get0_info()
     ASN1_INTEGER* serial = NULL;
     ASN1_INTEGER* x509Int;
 
-    printf(testingFmt, "wolfSSL_OCSP_get0_info()");
+    printf(testingFmt, "wolfSSL_OCSP_id_get0_info()");
 
     AssertNotNull(cert =
             wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM));
@@ -35136,7 +35136,164 @@ static void test_wolfSSL_OCSP_get0_info()
     X509_free(issuer);
 
     printf(resultFmt, "passed");
-#endif /* OPENSSL_EXTRA & HAVE_OCSP */
+#endif
+}
+
+static void test_wolfSSL_i2d_OCSP_CERTID()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+    WOLFSSL_OCSP_CERTID certId;
+    byte* targetBuffer;
+    byte* beginTargetBuffer;
+    /* OCSP CertID bytes taken from PCAP */
+    byte rawCertId[] = {
+        0x30, 0x49, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05,
+        0x00, 0x04, 0x14, 0x80, 0x51, 0x06, 0x01, 0x32, 0xad, 0x9a, 0xc2, 0x7d,
+        0x51, 0x87, 0xa0, 0xe8, 0x87, 0xfb, 0x01, 0x62, 0x01, 0x55, 0xee, 0x04,
+        0x14, 0x03, 0xde, 0x50, 0x35, 0x56, 0xd1, 0x4c, 0xbb, 0x66, 0xf0, 0xa3,
+        0xe2, 0x1b, 0x1b, 0xc3, 0x97, 0xb2, 0x3d, 0xd1, 0x55, 0x02, 0x10, 0x01,
+        0xfd, 0xa3, 0xeb, 0x6e, 0xca, 0x75, 0xc8, 0x88, 0x43, 0x8b, 0x72, 0x4b,
+        0xcf, 0xbc, 0x91
+    };
+    int ret, i;
+
+    printf(testingFmt, "wolfSSL_i2d_OCSP_CERTID()");
+    
+    XMEMSET(&certId, 0, sizeof(WOLFSSL_OCSP_CERTID));
+    certId.rawCertId = rawCertId;
+    certId.rawCertIdSize = sizeof(rawCertId);
+    targetBuffer = (byte*)XMALLOC(sizeof(rawCertId), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    beginTargetBuffer = targetBuffer;
+    ret = wolfSSL_i2d_OCSP_CERTID(&certId, &targetBuffer);
+    /* If target buffer is not null, function increments targetBuffer to point
+       just past the end of the encoded data. */
+    AssertPtrEq(targetBuffer, (beginTargetBuffer + sizeof(rawCertId)));
+    /* Function returns the size of the encoded data. */
+    AssertIntEQ(ret, sizeof(rawCertId));
+    for (i = 0; i < ret; ++i)
+    {
+        AssertIntEQ(beginTargetBuffer[i], rawCertId[i]);
+    }
+
+    XFREE(beginTargetBuffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    targetBuffer = NULL;
+    ret = wolfSSL_i2d_OCSP_CERTID(&certId, &targetBuffer);
+    /* If target buffer is null, function allocates memory for a buffer and
+       copies the encoded data into it. targetBuffer then points to the start of
+       this newly allocate buffer. */
+    AssertIntEQ(ret, sizeof(rawCertId));
+    for (i = 0; i < ret; ++i)
+    {
+        AssertIntEQ(targetBuffer[i], rawCertId[i]);
+    }
+
+    XFREE(targetBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_OCSP_SINGLERESP_get0_id()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+    WOLFSSL_OCSP_SINGLERESP single;
+    const WOLFSSL_OCSP_CERTID* certId = wolfSSL_OCSP_SINGLERESP_get0_id(&single);
+    
+    printf(testingFmt, "wolfSSL_OCSP_SINGLERESP_get0_id()");
+
+    AssertPtrEq(&single, certId);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_OCSP_single_get0_status()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) 
+    WOLFSSL_OCSP_SINGLERESP single;
+    CertStatus certStatus;
+    WOLFSSL_ASN1_TIME* thisDate;
+    WOLFSSL_ASN1_TIME* nextDate;
+    int ret, i;
+
+    printf(testingFmt, "wolfSSL_OCSP_single_get0_status()");
+
+    XMEMSET(&single,     0, sizeof(WOLFSSL_OCSP_SINGLERESP));
+    XMEMSET(&certStatus, 0, sizeof(CertStatus));
+
+    /* Fill the date fields with some dummy data. */
+    for (i = 0; i < CTC_DATE_SIZE; ++i) {
+        certStatus.thisDateParsed.data[i] = i;
+        certStatus.nextDateParsed.data[i] = i;
+    }
+    certStatus.status = CERT_GOOD;
+    single.status = &certStatus;
+
+    ret = wolfSSL_OCSP_single_get0_status(&single, NULL, NULL, &thisDate,
+                                          &nextDate);
+    AssertIntEQ(ret, CERT_GOOD);
+    AssertPtrEq(thisDate, &certStatus.thisDateParsed);
+    AssertPtrEq(nextDate, &certStatus.nextDateParsed);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_OCSP_resp_count()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+    WOLFSSL_OCSP_BASICRESP basicResp;
+    WOLFSSL_OCSP_SINGLERESP singleRespOne;
+    WOLFSSL_OCSP_SINGLERESP singleRespTwo;
+    int count = 1;
+
+    printf(testingFmt, "wolfSSL_OCSP_resp_count()");
+
+    XMEMSET(&basicResp,     0, sizeof(WOLFSSL_OCSP_BASICRESP));
+    XMEMSET(&singleRespOne, 0, sizeof(WOLFSSL_OCSP_SINGLERESP));
+    XMEMSET(&singleRespTwo, 0, sizeof(WOLFSSL_OCSP_SINGLERESP));
+
+    count = wolfSSL_OCSP_resp_count(&basicResp);
+    AssertIntEQ(count, 0);
+
+    basicResp.single = &singleRespOne;
+    count = wolfSSL_OCSP_resp_count(&basicResp);
+    AssertIntEQ(count, 1);
+
+    singleRespOne.next = &singleRespTwo;
+    count = wolfSSL_OCSP_resp_count(&basicResp);
+    AssertIntEQ(count, 2);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_OCSP_resp_get0()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+    WOLFSSL_OCSP_BASICRESP basicResp;
+    WOLFSSL_OCSP_SINGLERESP singleRespOne;
+    WOLFSSL_OCSP_SINGLERESP singleRespTwo;
+    WOLFSSL_OCSP_SINGLERESP* ret;
+
+    printf(testingFmt, "wolfSSL_OCSP_resp_get0()");
+
+    XMEMSET(&basicResp,     0, sizeof(WOLFSSL_OCSP_BASICRESP));
+    XMEMSET(&singleRespOne, 0, sizeof(WOLFSSL_OCSP_SINGLERESP));
+    XMEMSET(&singleRespTwo, 0, sizeof(WOLFSSL_OCSP_SINGLERESP));
+
+    basicResp.single = &singleRespOne;
+    singleRespOne.next = &singleRespTwo;
+
+    ret = wolfSSL_OCSP_resp_get0(&basicResp, 0);
+    AssertPtrEq(ret, &singleRespOne);
+
+    ret = wolfSSL_OCSP_resp_get0(&basicResp, 1);
+    AssertPtrEq(ret, &singleRespTwo);
+
+    printf(resultFmt, passed);
+#endif
 }
 
 static void test_wolfSSL_EVP_PKEY_derive(void)
@@ -39227,7 +39384,12 @@ void ApiTest(void)
     test_wolfssl_EVP_aes_gcm();
     test_wolfSSL_PKEY_up_ref();
     test_wolfSSL_i2d_PrivateKey();
-    test_wolfSSL_OCSP_get0_info();
+    test_wolfSSL_OCSP_id_get0_info();
+    test_wolfSSL_i2d_OCSP_CERTID();
+    test_wolfSSL_OCSP_SINGLERESP_get0_id();
+    test_wolfSSL_OCSP_single_get0_status();
+    test_wolfSSL_OCSP_resp_count();
+    test_wolfSSL_OCSP_resp_get0();
     test_wolfSSL_EVP_PKEY_derive();
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
 
