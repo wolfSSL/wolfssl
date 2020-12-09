@@ -222,6 +222,9 @@ WOLFSSL_API int wc_Shake256Hash(const byte*, word32, byte*, word32);
 
 #endif /* !NO_HASH_WRAPPER */
 
+#if (defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))) || \
+    defined(HAVE_SELFTEST)
 enum max_prf {
 #ifdef HAVE_FFDHE_8192
     MAX_PRF_HALF        = 516, /* Maximum half secret len */
@@ -233,8 +236,11 @@ enum max_prf {
     MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
     MAX_PRF_DIG         = 224  /* Maximum digest len      */
 };
+#endif
 
-#ifdef WOLFSSL_HAVE_PRF
+#if defined(WOLFSSL_HAVE_PRF) && ((defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))) || defined(HAVE_SELFTEST))
+
 WOLFSSL_API int wc_PRF(byte* result, word32 resLen, const byte* secret,
                     word32 secLen, const byte* seed, word32 seedLen, int hash,
                     void* heap, int devId);

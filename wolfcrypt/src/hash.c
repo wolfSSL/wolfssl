@@ -1651,7 +1651,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 
 #endif /* !NO_HASH_WRAPPER */
 
-#ifdef WOLFSSL_HAVE_PRF
+#if defined(WOLFSSL_HAVE_PRF) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
 
 #ifdef WOLFSSL_SHA384
     #define P_HASH_MAX_SIZE WC_SHA384_DIGEST_SIZE

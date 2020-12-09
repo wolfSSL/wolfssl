@@ -32,6 +32,7 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
