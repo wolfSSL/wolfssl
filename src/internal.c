@@ -1782,6 +1782,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->maxEarlyDataSz = MAX_EARLY_DATA_SZ;
 #endif
 
+#if defined(WOLFSSL_TLS13) && !defined(HAVE_SUPPORTED_CURVES)
+    ctx->noPskDheKe = 1;
+#endif
+
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
 
@@ -15856,6 +15860,8 @@ int ProcessReply(WOLFSSL* ssl)
 }
 
 
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS) || \
+             (defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT))
 int SendChangeCipher(WOLFSSL* ssl)
 {
     byte              *output;
@@ -15948,6 +15954,7 @@ int SendChangeCipher(WOLFSSL* ssl)
     else
         return SendBuffered(ssl);
 }
+#endif
 
 
 #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)
@@ -26995,13 +27002,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version) &&
-            ssl->options.side == WOLFSSL_SERVER_END) {
+                                      ssl->options.side == WOLFSSL_SERVER_END) {
+    #ifdef HAVE_SUPPORTED_CURVES
             /* Try to establish a key share. */
             int ret = TLSX_KeyShare_Establish(ssl);
             if (ret == KEY_SHARE_ERROR)
                 ssl->options.serverState = SERVER_HELLO_RETRY_REQUEST_COMPLETE;
             else if (ret != 0)
                 return 0;
+    #endif
         }
         else if (first == TLS13_BYTE || (first == ECC_BYTE &&
                 (second == TLS_SHA256_SHA256 || second == TLS_SHA384_SHA384))) {

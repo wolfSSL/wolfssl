@@ -36458,8 +36458,10 @@ static int test_tls13_apis(void)
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
     int          groups[2] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_X448 };
     int          numGroups = 2;
+#endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     char         groupList[] = "P-521:P-384:P-256";
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
@@ -36508,6 +36510,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
 #ifdef HAVE_ECC
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
@@ -36572,6 +36575,7 @@ static int test_tls13_apis(void)
 #endif
     AssertIntEQ(wolfSSL_NoKeyShares(clientSsl), WOLFSSL_SUCCESS);
 #endif
+#endif /* HAVE_SUPPORTED_CURVES */
 
     AssertIntEQ(wolfSSL_CTX_no_ticket_TLSv13(NULL), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_CLIENT
@@ -36679,6 +36683,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
+#ifdef HAVE_SUPPORTED_CURVES
     AssertIntEQ(wolfSSL_CTX_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, NULL, 0), BAD_FUNC_ARG);
@@ -36757,6 +36762,7 @@ static int test_tls13_apis(void)
                 WOLFSSL_SUCCESS);
 #endif
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_EARLY_DATA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);

@@ -272,6 +272,13 @@ static int IsClientAuth(const char* line, int* reqClientCert)
 
     return 0;
 }
+#endif
+
+#ifdef NO_CERTS
+static int IsUsingCert(const char* line)
+{
+    return XSTRSTR(line, "-c ") != NULL;
+}
 
 static int IsNoClientCert(const char* line)
 {
@@ -374,6 +381,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #ifdef DEBUG_SUITE_TESTS
             printf("client auth on line %s not supported in build\n",
                    commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
+#ifdef NO_CERTS
+    if (IsUsingCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
         #endif
         return NOT_BUILT_IN;
     }
@@ -508,6 +523,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         #ifdef DEBUG_SUITE_TESTS
             printf("client auth on line %s not supported in build\n",
                    commandLine);
+        #endif
+        return NOT_BUILT_IN;
+    }
+#endif
+#ifdef NO_CERTS
+    if (IsNoClientCert(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
         #endif
         return NOT_BUILT_IN;
     }
