@@ -42,7 +42,7 @@
  * OpenSSL compatibility layer. This makes code working with an AES structure
  * to need the size of the structure. */
 typedef struct WOLFSSL_AES_KEY {
-    void *buf[(sizeof(Aes) / sizeof(void *)) + 1];
+    ALIGN16 void *buf[(sizeof(Aes) / sizeof(void *)) + 1];
 } WOLFSSL_AES_KEY;
 typedef WOLFSSL_AES_KEY AES_KEY;
 
