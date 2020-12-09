@@ -189,6 +189,38 @@ WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
 WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
 
+#if (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4))) && \
+    !defined(HAVE_SELFTEST)
+enum max_prf {
+#ifdef HAVE_FFDHE_8192
+    MAX_PRF_HALF        = 516, /* Maximum half secret len */
+#elif defined(HAVE_FFDHE_6144)
+    MAX_PRF_HALF        = 388, /* Maximum half secret len */
+#else
+    MAX_PRF_HALF        = 260, /* Maximum half secret len */
+#endif
+    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
+    MAX_PRF_DIG         = 224  /* Maximum digest len      */
+};
+#endif
+
+#if defined(WOLFSSL_HAVE_PRF) && ((!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4))) && \
+    !defined(HAVE_SELFTEST))
+
+WOLFSSL_API int wc_PRF(byte* result, word32 resLen, const byte* secret,
+                    word32 secLen, const byte* seed, word32 seedLen, int hash,
+                    void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, int useAtLeastSha256,
+                    int hash_type, void* heap, int devId);
+#endif /* WOLFSSL_HAVE_PRF */
+
 #ifdef HAVE_HKDF
 
 WOLFSSL_API int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,

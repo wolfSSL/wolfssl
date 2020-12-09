@@ -1172,6 +1172,280 @@ int wolfSSL_GetHmacMaxSize(void)
     return WC_MAX_DIGEST_SIZE;
 }
 
+
+#if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4)
+
+#ifdef WOLFSSL_SHA384
+    #define P_HASH_MAX_SIZE WC_SHA384_DIGEST_SIZE
+#else
+    #define P_HASH_MAX_SIZE WC_SHA256_DIGEST_SIZE
+#endif
+
+/* Pseudo Random Function for MD5, SHA-1, SHA-256, or SHA-384 */
+int wc_PRF(byte* result, word32 resLen, const byte* secret,
+                  word32 secLen, const byte* seed, word32 seedLen, int hash,
+                  void* heap, int devId)
+{
+    word32 len = P_HASH_MAX_SIZE;
+    word32 times;
+    word32 lastLen;
+    word32 lastTime;
+    word32 i;
+    word32 idx = 0;
+    int    ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    byte*  previous;
+    byte*  current;
+    Hmac*  hmac;
+#else
+    byte   previous[P_HASH_MAX_SIZE];  /* max size */
+    byte   current[P_HASH_MAX_SIZE];   /* max size */
+    Hmac   hmac[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
+
+    if (previous == NULL || current == NULL || hmac == NULL) {
+        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+
+        return MEMORY_E;
+    }
+#endif
+
+    switch (hash) {
+    #ifndef NO_MD5
+        case md5_mac:
+            hash = WC_MD5;
+            len  = WC_MD5_DIGEST_SIZE;
+        break;
+    #endif
+
+    #ifndef NO_SHA256
+        case sha256_mac:
+            hash = WC_SHA256;
+            len  = WC_SHA256_DIGEST_SIZE;
+        break;
+    #endif
+
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hash = WC_SHA384;
+            len  = WC_SHA384_DIGEST_SIZE;
+        break;
+    #endif
+
+    #ifndef NO_SHA
+        case sha_mac:
+        default:
+            hash = WC_SHA;
+            len  = WC_SHA_DIGEST_SIZE;
+        break;
+    #endif
+    }
+
+    times   = resLen / len;
+    lastLen = resLen % len;
+
+    if (lastLen)
+        times += 1;
+
+    lastTime = times - 1;
+
+    ret = wc_HmacInit(hmac, heap, devId);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, hash, secret, secLen);
+        if (ret == 0)
+            ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
+        if (ret == 0)
+            ret = wc_HmacFinal(hmac, previous);       /* A1 */
+        if (ret == 0) {
+            for (i = 0; i < times; i++) {
+                ret = wc_HmacUpdate(hmac, previous, len);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacUpdate(hmac, seed, seedLen);
+                if (ret != 0)
+                    break;
+                ret = wc_HmacFinal(hmac, current);
+                if (ret != 0)
+                    break;
+
+                if ((i == lastTime) && lastLen)
+                    XMEMCPY(&result[idx], current,
+                                             min(lastLen, P_HASH_MAX_SIZE));
+                else {
+                    XMEMCPY(&result[idx], current, len);
+                    idx += len;
+                    ret = wc_HmacUpdate(hmac, previous, len);
+                    if (ret != 0)
+                        break;
+                    ret = wc_HmacFinal(hmac, previous);
+                    if (ret != 0)
+                        break;
+                }
+            }
+        }
+        wc_HmacFree(hmac);
+    }
+
+    ForceZero(previous,  P_HASH_MAX_SIZE);
+    ForceZero(current,   P_HASH_MAX_SIZE);
+    ForceZero(hmac,      sizeof(Hmac));
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+#endif
+
+    return ret;
+}
+#undef P_HASH_MAX_SIZE
+
+/* compute PRF (pseudo random function) using SHA1 and MD5 for TLSv1 */
+int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
+           word32 secLen, const byte* label, word32 labLen,
+           const byte* seed, word32 seedLen, void* heap, int devId)
+{
+    int    ret  = 0;
+    word32 half = (secLen + 1) / 2;
+
+#ifdef WOLFSSL_SMALL_STACK
+    byte* md5_half;
+    byte* sha_half;
+    byte* md5_result;
+    byte* sha_result;
+#else
+    byte  md5_half[MAX_PRF_HALF];     /* half is real size */
+    byte  sha_half[MAX_PRF_HALF];     /* half is real size */
+    byte  md5_result[MAX_PRF_DIG];    /* digLen is real size */
+    byte  sha_result[MAX_PRF_DIG];    /* digLen is real size */
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+    if (labelSeed == NULL)
+        return MEMORY_E;
+#else
+    byte labelSeed[MAX_PRF_LABSEED];
+#endif
+
+    if (half > MAX_PRF_HALF ||
+        labLen + seedLen > MAX_PRF_LABSEED ||
+        digLen > MAX_PRF_DIG)
+    {
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        FREE_VAR(labelSeed, heap);
+    #endif
+        return BUFFER_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
+    sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
+    md5_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
+    sha_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
+
+    if (md5_half == NULL || sha_half == NULL || md5_result == NULL ||
+                                                           sha_result == NULL) {
+        if (md5_half)   XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
+        if (sha_half)   XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
+        if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
+        if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        FREE_VAR(labelSeed, heap);
+    #endif
+
+        return MEMORY_E;
+    }
+#endif
+
+    XMEMSET(md5_result, 0, digLen);
+    XMEMSET(sha_result, 0, digLen);
+
+    XMEMCPY(md5_half, secret, half);
+    XMEMCPY(sha_half, secret + half - secLen % 2, half);
+
+    XMEMCPY(labelSeed, label, labLen);
+    XMEMCPY(labelSeed + labLen, seed, seedLen);
+
+    if ((ret = wc_PRF(md5_result, digLen, md5_half, half, labelSeed,
+                                labLen + seedLen, md5_mac, heap, devId)) == 0) {
+        if ((ret = wc_PRF(sha_result, digLen, sha_half, half, labelSeed,
+                                labLen + seedLen, sha_mac, heap, devId)) == 0) {
+            /* calculate XOR for TLSv1 PRF */
+            XMEMCPY(digest, md5_result, digLen);
+            xorbuf(digest, sha_result, digLen);
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+#endif
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    FREE_VAR(labelSeed, heap);
+#endif
+
+    return ret;
+}
+
+/* Wrapper for TLS 1.2 and TLSv1 cases to calculate PRF */
+/* In TLS 1.2 case call straight thru to wc_PRF */
+int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
+            const byte* label, word32 labLen, const byte* seed, word32 seedLen,
+            int useAtLeastSha256, int hash_type, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (useAtLeastSha256) {
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+        if (labelSeed == NULL)
+            return MEMORY_E;
+    #else
+        byte labelSeed[MAX_PRF_LABSEED];
+    #endif
+
+        if (labLen + seedLen > MAX_PRF_LABSEED)
+            return BUFFER_E;
+
+        XMEMCPY(labelSeed, label, labLen);
+        XMEMCPY(labelSeed + labLen, seed, seedLen);
+
+        /* If a cipher suite wants an algorithm better than sha256, it
+         * should use better. */
+        if (hash_type < sha256_mac || hash_type == blake2b_mac)
+            hash_type = sha256_mac;
+        /* compute PRF for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1.2 PRF */
+        ret = wc_PRF(digest, digLen, secret, secLen, labelSeed,
+                     labLen + seedLen, hash_type, heap, devId);
+
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        FREE_VAR(labelSeed, heap);
+    #endif
+    }
+#ifndef NO_OLD_TLS
+    else {
+        /* compute TLSv1 PRF (pseudo random function using HMAC) */
+        ret = wc_PRF_TLSv1(digest, digLen, secret, secLen, label, labLen, seed,
+                          seedLen, heap, devId);
+    }
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_PRF */
+
+
 #ifdef HAVE_HKDF
     /* HMAC-KDF-Extract.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
