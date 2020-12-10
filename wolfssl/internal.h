@@ -4306,6 +4306,11 @@ struct WOLFSSL {
     StaticKeyExchangeInfo_t staticKE;
 #endif
 #ifdef OPENSSL_ALL
+    /* Added in libest port: allow applications to get the 'tls-unique' Channel
+     * Binding Type (https://tools.ietf.org/html/rfc5929#section-3). This is
+     * used in the EST protocol to bind an enrollment to a TLS session through
+     * 'proof-of-possession' (https://tools.ietf.org/html/rfc7030#section-3.4
+     * and https://tools.ietf.org/html/rfc7030#section-3.5). */
     byte clientFinished[TLS_FINISHED_SZ];
     byte serverFinished[TLS_FINISHED_SZ];
 #endif
