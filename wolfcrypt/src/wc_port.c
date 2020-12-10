@@ -333,6 +333,9 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
     #endif
+    #ifdef WOLFSSL_SILABS_SE_ACCEL
+        ret = sl_se_deinit();
+    #endif
     #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
         tsip_Close();
     #endif

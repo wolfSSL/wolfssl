@@ -22337,20 +22337,19 @@ static int ecc_test_buffers(void)
     TEST_SLEEP();
 
     XMEMSET(plain, 0, sizeof(plain));
-    verify = 1;
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_verify_hash(out, x, plain, inLen, &verify,
+            ret = wc_ecc_verify_hash(out, x, in, inLen, &verify,
                 cliKey);
     } while (ret == WC_PENDING_E);
     if (ret < 0)
         ERROR_OUT(-10430, done);
 
-    if (verify != 0)
+    if (verify != 1)
         ERROR_OUT(-10431, done);
     TEST_SLEEP();
 
