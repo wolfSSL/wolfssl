@@ -127,16 +127,18 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 #elif defined(WOLF_ALLOW_BUILTIN) && \
         defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
     return (word32)__builtin_bswap32(value);
-#elif defined(__arm__) && defined(__GNUC__)
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      defined(__aarch64__)
     __asm__ volatile (
-        "REV %0, %0  \n"
+        "REV32 %0, %0  \n"
         : "+r" (value)
         :
     );
     return value;
-#elif defined(__aarch64__) && defined(__GNUC__)
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      (defined(__thumb__) || defined(__arm__))
     __asm__ volatile (
-        "REV %w0, %w0  \n"
+        "REV %0, %0  \n"
         : "+r" (value)
         :
     );
