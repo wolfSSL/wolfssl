@@ -2938,23 +2938,28 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    ecc_point     *tG, *M[M_POINTS];
    int           i, err;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-   ecc_key       key;
+   ecc_key       *key = (ecc_key *)XMALLOC(sizeof *key, heap, DYNAMIC_TYPE_ECC);
 #endif
    mp_digit      mp;
-
-   if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
-       return ECC_BAD_ARG_E;
-   }
 
    /* init variables */
    tG = NULL;
    XMEMSET(M, 0, sizeof(M));
 
+   if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
+       err = ECC_BAD_ARG_E;
+       goto exit;
+   }
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-   err = ecc_key_tmp_init(&key, heap);
+   if (key == NULL) {
+       err = MP_MEM;
+       goto exit;
+   }
+   err = ecc_key_tmp_init(key, heap);
    if (err != MP_OKAY)
       goto exit;
-   R->key = &key;
+   R->key = key;
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
   /* alloc ram for window temps */
@@ -2965,7 +2970,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
          goto exit;
       }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-      M[i]->key = &key;
+      M[i]->key = key;
 #endif
   }
 
@@ -3001,8 +3006,13 @@ exit:
        wc_ecc_del_point_h(M[i], heap);
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-   R->key = NULL;
-   ecc_key_tmp_final(&key, heap);
+   if (key) {
+       if (R)
+           R->key = NULL;
+       if (err == MP_OKAY)
+           ecc_key_tmp_final(key, heap);
+       XFREE(key, heap, DYNAMIC_TYPE_ECC);
+   }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
    return err;
@@ -10762,40 +10772,66 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
   return res;
 #else
   int res, legendre, done = 0;
-  mp_int t1, C, Q, S, Z, M, T, R, two;
   mp_digit i;
+#ifdef WOLFSSL_SMALL_STACK
+  mp_int *t1 = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *C = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *Q = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *S = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *Z = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *M = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *T = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *R = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  mp_int *two = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+
+  if ((t1 == NULL) ||
+      (C == NULL) ||
+      (Q == NULL) ||
+      (S == NULL) ||
+      (Z == NULL) ||
+      (M == NULL) ||
+      (T == NULL) ||
+      (R == NULL) ||
+      (two == NULL)) {
+    res = MP_MEM;
+    goto out;
+  }
+#else
+  mp_int t1[1], C[1], Q[1], S[1], Z[1], M[1], T[1], R[1], two[1];
+#endif
 
   /* first handle the simple cases n = 0 or n = 1 */
   if (mp_cmp_d(n, 0) == MP_EQ) {
     mp_zero(ret);
-    return MP_OKAY;
+    res = MP_OKAY;
+    goto out;
   }
   if (mp_cmp_d(n, 1) == MP_EQ) {
-    return mp_set(ret, 1);
+    res = mp_set(ret, 1);
+    goto out;
   }
 
   /* prime must be odd */
   if (mp_cmp_d(prime, 2) == MP_EQ) {
-    return MP_VAL;
+    res = MP_VAL;
+    goto out;
   }
 
   /* is quadratic non-residue mod prime */
   if ((res = mp_jacobi(n, prime, &legendre)) != MP_OKAY) {
-    return res;
+    goto out;
   }
   if (legendre == -1) {
-    return MP_VAL;
+    res = MP_VAL;
+    goto out;
   }
 
-  if ((res = mp_init_multi(&t1, &C, &Q, &S, &Z, &M)) != MP_OKAY)
-    return res;
+  if ((res = mp_init_multi(t1, C, Q, S, Z, M)) != MP_OKAY)
+    goto out;
 
-  if ((res = mp_init_multi(&T, &R, &two, NULL, NULL, NULL))
-                          != MP_OKAY) {
-    mp_clear(&t1); mp_clear(&C); mp_clear(&Q); mp_clear(&S); mp_clear(&Z);
-    mp_clear(&M);
-    return res;
-  }
+  if ((res = mp_init_multi(T, R, two, NULL, NULL, NULL))
+                          != MP_OKAY)
+    goto out;
 
   /* SPECIAL CASE: if prime mod 4 == 3
    * compute directly: res = n^(prime+1)/4 mod prime
@@ -10803,14 +10839,14 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
    */
   res = mp_mod_d(prime, 4, &i);
   if (res == MP_OKAY && i == 3) {
-    res = mp_add_d(prime, 1, &t1);
+    res = mp_add_d(prime, 1, t1);
 
     if (res == MP_OKAY)
-      res = mp_div_2(&t1, &t1);
+      res = mp_div_2(t1, t1);
     if (res == MP_OKAY)
-      res = mp_div_2(&t1, &t1);
+      res = mp_div_2(t1, t1);
     if (res == MP_OKAY)
-      res = mp_exptmod(n, &t1, prime, ret);
+      res = mp_exptmod(n, t1, prime, ret);
 
     done = 1;
   }
@@ -10821,122 +10857,162 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     /* factor out powers of 2 from prime-1, defining Q and S
     *                                      as: prime-1 = Q*2^S */
     /* Q = prime - 1 */
-    res = mp_copy(prime, &Q);
+    res = mp_copy(prime, Q);
     if (res == MP_OKAY)
-      res = mp_sub_d(&Q, 1, &Q);
+      res = mp_sub_d(Q, 1, Q);
 
     /* S = 0 */
     if (res == MP_OKAY)
-      mp_zero(&S);
+      mp_zero(S);
 
-    while (res == MP_OKAY && mp_iseven(&Q) == MP_YES) {
+    while (res == MP_OKAY && mp_iseven(Q) == MP_YES) {
       /* Q = Q / 2 */
-      res = mp_div_2(&Q, &Q);
+      res = mp_div_2(Q, Q);
 
       /* S = S + 1 */
       if (res == MP_OKAY)
-        res = mp_add_d(&S, 1, &S);
+        res = mp_add_d(S, 1, S);
     }
 
     /* find a Z such that the Legendre symbol (Z|prime) == -1 */
     /* Z = 2 */
     if (res == MP_OKAY)
-      res = mp_set_int(&Z, 2);
+      res = mp_set_int(Z, 2);
 
     while (res == MP_OKAY) {
-      res = mp_jacobi(&Z, prime, &legendre);
+      res = mp_jacobi(Z, prime, &legendre);
       if (res == MP_OKAY && legendre == -1)
         break;
 
       /* Z = Z + 1 */
       if (res == MP_OKAY)
-        res = mp_add_d(&Z, 1, &Z);
+        res = mp_add_d(Z, 1, Z);
     }
 
     /* C = Z ^ Q mod prime */
     if (res == MP_OKAY)
-      res = mp_exptmod(&Z, &Q, prime, &C);
+      res = mp_exptmod(Z, Q, prime, C);
 
     /* t1 = (Q + 1) / 2 */
     if (res == MP_OKAY)
-      res = mp_add_d(&Q, 1, &t1);
+      res = mp_add_d(Q, 1, t1);
     if (res == MP_OKAY)
-      res = mp_div_2(&t1, &t1);
+      res = mp_div_2(t1, t1);
 
     /* R = n ^ ((Q + 1) / 2) mod prime */
     if (res == MP_OKAY)
-      res = mp_exptmod(n, &t1, prime, &R);
+      res = mp_exptmod(n, t1, prime, R);
 
     /* T = n ^ Q mod prime */
     if (res == MP_OKAY)
-      res = mp_exptmod(n, &Q, prime, &T);
+      res = mp_exptmod(n, Q, prime, T);
 
     /* M = S */
     if (res == MP_OKAY)
-      res = mp_copy(&S, &M);
+      res = mp_copy(S, M);
 
     if (res == MP_OKAY)
-      res = mp_set_int(&two, 2);
+      res = mp_set_int(two, 2);
 
     while (res == MP_OKAY && done == 0) {
-      res = mp_copy(&T, &t1);
+      res = mp_copy(T, t1);
 
       /* reduce to 1 and count */
       i = 0;
       while (res == MP_OKAY) {
-        if (mp_cmp_d(&t1, 1) == MP_EQ)
+        if (mp_cmp_d(t1, 1) == MP_EQ)
             break;
-        res = mp_exptmod(&t1, &two, prime, &t1);
+        res = mp_exptmod(t1, two, prime, t1);
         if (res == MP_OKAY)
           i++;
       }
       if (res == MP_OKAY && i == 0) {
-        res = mp_copy(&R, ret);
+        res = mp_copy(R, ret);
         done = 1;
       }
 
       if (done == 0) {
         /* t1 = 2 ^ (M - i - 1) */
         if (res == MP_OKAY)
-          res = mp_sub_d(&M, i, &t1);
+          res = mp_sub_d(M, i, t1);
         if (res == MP_OKAY)
-          res = mp_sub_d(&t1, 1, &t1);
+          res = mp_sub_d(t1, 1, t1);
         if (res == MP_OKAY)
-          res = mp_exptmod(&two, &t1, prime, &t1);
+          res = mp_exptmod(two, t1, prime, t1);
 
         /* t1 = C ^ (2 ^ (M - i - 1)) mod prime */
         if (res == MP_OKAY)
-          res = mp_exptmod(&C, &t1, prime, &t1);
+          res = mp_exptmod(C, t1, prime, t1);
 
         /* C = (t1 * t1) mod prime */
         if (res == MP_OKAY)
-          res = mp_sqrmod(&t1, prime, &C);
+          res = mp_sqrmod(t1, prime, C);
 
         /* R = (R * t1) mod prime */
         if (res == MP_OKAY)
-          res = mp_mulmod(&R, &t1, prime, &R);
+          res = mp_mulmod(R, t1, prime, R);
 
         /* T = (T * C) mod prime */
         if (res == MP_OKAY)
-          res = mp_mulmod(&T, &C, prime, &T);
+          res = mp_mulmod(T, C, prime, T);
 
         /* M = i */
         if (res == MP_OKAY)
-          res = mp_set(&M, i);
+          res = mp_set(M, i);
       }
     }
   }
 
-  /* done */
-  mp_clear(&t1);
-  mp_clear(&C);
-  mp_clear(&Q);
-  mp_clear(&S);
-  mp_clear(&Z);
-  mp_clear(&M);
-  mp_clear(&T);
-  mp_clear(&R);
-  mp_clear(&two);
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+  if (t1) {
+    mp_clear(t1);
+    XFREE(t1, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (C) {
+    mp_clear(C);
+    XFREE(C, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (Q) {
+    mp_clear(Q);
+    XFREE(Q, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (S) {
+    mp_clear(S);
+    XFREE(S, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (Z) {
+    mp_clear(Z);
+    XFREE(Z, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (M) {
+    mp_clear(M);
+    XFREE(M, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (T) {
+    mp_clear(T);
+    XFREE(T, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (R) {
+    mp_clear(R);
+    XFREE(R, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+  if (two) {
+    mp_clear(two);
+    XFREE(two, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+  }
+#else
+  mp_clear(t1);
+  mp_clear(C);
+  mp_clear(Q);
+  mp_clear(S);
+  mp_clear(Z);
+  mp_clear(M);
+  mp_clear(T);
+  mp_clear(R);
+  mp_clear(two);
+#endif
 
   return res;
 #endif

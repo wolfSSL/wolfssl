@@ -360,7 +360,7 @@ static WC_INLINE int wc_XChaCha20Poly1305_crypt_oneshot(
     byte *dst_i;
     size_t src_len_rem;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    ChaChaPoly_Aead *aead = XMALLOC(sizeof *aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    ChaChaPoly_Aead *aead = (ChaChaPoly_Aead *)XMALLOC(sizeof *aead, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aead == NULL)
         return MEMORY_E;

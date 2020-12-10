@@ -2091,7 +2091,7 @@ void* mynewt_ctx_new() {
     if(!mynewt_ctx) return NULL;
 
     XMEMSET(mynewt_ctx, 0, sizeof(Mynewt_Ctx));
-    mynewt_ctx->mnMemBuffer = XMALLOC(mempool_bytes, 0, 0);
+    mynewt_ctx->mnMemBuffer = (void *)XMALLOC(mempool_bytes, 0, 0);
     if(!mynewt_ctx->mnMemBuffer) {
         mynewt_ctx_clear((void*)mynewt_ctx);
         return NULL;

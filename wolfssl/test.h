@@ -2052,12 +2052,6 @@ struct stack_size_debug_context {
  * CFLAGS='-g -DHAVE_STACK_SIZE_VERBOSE' ./configure --enable-stacksize [...]
  */
 
-extern THREAD_LS_T unsigned char *StackSizeCheck_myStack;
-extern THREAD_LS_T size_t StackSizeCheck_stackSize;
-extern THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
-extern THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
-extern THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
-
 static void *debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
   StackSizeCheck_myStack = shim_args->myStack;
   StackSizeCheck_stackSize = shim_args->stackSize;

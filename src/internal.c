@@ -351,7 +351,7 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
     static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
     {
         (void)opaque;
-        return XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
+        return (void *)XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
     }
 
 
@@ -6052,7 +6052,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     }
 
     /* Allocate memory for key */
-    *pKey = XMALLOC(sz, ssl->heap, type);
+    *pKey = (void *)XMALLOC(sz, ssl->heap, type);
     if (*pKey == NULL) {
         return MEMORY_E;
     }
