@@ -404,6 +404,10 @@ struct ecc_key {
 #ifdef WOLFSSL_SILABS_SE_ACCEL
     sl_se_command_context_t  cmd_ctx;
     sl_se_key_descriptor_t   key;
+    /* Used for SiLabs "plaintext" with public X, public Y, and
+     * private D concatenated. These are respectively at offset `0`,
+     * offset `keysize`, and offset `2 * keysize`.
+     */
     byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
 #endif
 

@@ -29,6 +29,12 @@ Update was preformed under Simplicity Studio directory:
    versions requesting too much data or too quickly may result in
    system reset and setting `SESYSREQ`.
 
+### Multi-threading
+
+The SE manager supports multi-threading for FreeRTOS and Micrium
+([ref](https://docs.silabs.com/gecko-platform/latest/service/api/group-sl-se-manager#autotoc-md152)).
+If a different OS is used with multi-threading, additional mutex
+protection may be necessary.
 
 ## Benchmarks
 
