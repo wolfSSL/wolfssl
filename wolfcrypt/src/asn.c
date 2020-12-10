@@ -5090,6 +5090,8 @@ void FreeDecodedCert(DecodedCert* cert)
 #ifndef IGNORE_NAME_CONSTRAINTS
     if (cert->altEmailNames)
         FreeAltNames(cert->altEmailNames, cert->heap);
+    if (cert->altDirNames)
+        FreeAltNames(cert->altDirNames, cert->heap);
     if (cert->permittedNames)
         FreeNameSubtrees(cert->permittedNames, cert->heap);
     if (cert->excludedNames)
@@ -7684,6 +7686,26 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                         XMEMCMP(cert->subjectRaw, base->name,
                                                         base->nameSz) == 0) {
                         matchDir = 1;
+
+                        #ifndef WOLFSSL_NO_ASN_STRICT
+                        /* RFC 5280 section 4.2.1.10
+                           "Restrictions of the form directoryName MUST be
+                            applied to the subject field .... and to any names
+                            of type directoryName in the subjectAltName
+                            extension"
+                        */
+                        if (cert->altDirNames != NULL) {
+                            DNS_entry* cur = cert->altDirNames;
+                            while (cur != NULL) {
+                                if (XMEMCMP(cur->name, base->name, base->nameSz)
+                                        != 0) {
+                                    WOLFSSL_MSG("DIR alt name constraint err");
+                                    matchDir = 0; /* did not match */
+                                }
+                                cur = cur->next;
+                            }
+                        }
+                        #endif /* !WOLFSSL_NO_ASN_STRICT */
                     }
                     break;
                 }
@@ -7768,6 +7790,42 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             idx    += strLen;
         }
     #ifndef IGNORE_NAME_CONSTRAINTS
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+            DNS_entry* dirEntry;
+            int strLen;
+            word32 lenStartIdx = idx;
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+
+            dirEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                        DYNAMIC_TYPE_ALTNAME);
+            if (dirEntry == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            dirEntry->type = ASN_DIR_TYPE;
+            dirEntry->name = (char*)XMALLOC(strLen + 1, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (dirEntry->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(dirEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+            dirEntry->len = strLen;
+            XMEMCPY(dirEntry->name, &input[idx], strLen);
+            dirEntry->name[strLen] = '\0';
+
+            dirEntry->next = cert->altDirNames;
+            cert->altDirNames = dirEntry;
+
+            length -= strLen;
+            idx    += strLen;
+        }
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
             DNS_entry* emailEntry;
             int strLen;
