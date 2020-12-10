@@ -5273,22 +5273,42 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef OPENSSL_EXTRA
     if (ssl->version.minor == TLSv1_3_MINOR &&
      (ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.3 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
         WOLFSSL_MSG("\tOption set to not allow TLSv1.3, Downgrading");
         ssl->version.minor = TLSv1_2_MINOR;
     }
     if (ssl->version.minor == TLSv1_2_MINOR &&
      (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.2 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
         WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
         ssl->version.minor = TLSv1_1_MINOR;
     }
     if (ssl->version.minor == TLSv1_1_MINOR &&
      (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.1 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
         WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
         ssl->options.tls1_1 = 0;
         ssl->version.minor = TLSv1_MINOR;
     }
     if (ssl->version.minor == TLSv1_MINOR &&
         (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
         WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
         ssl->options.tls    = 0;
         ssl->options.tls1_1 = 0;
