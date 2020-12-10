@@ -337,6 +337,333 @@ WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
 /*!
     \ingroup RSA
 
+    \brief Signs the provided array with the private key.
+
+    \return RSA_BUFFER_E: -131, RSA buffer error, output too small or
+    input too large
+
+    \param in The byte array to be encrypted.
+    \param inLen The length of in.
+    \param out The byte array for the encrypted data to be stored.
+    \param outLen The length of out.
+    \param hash The hash type to be in message
+    \param mgf Mask Generation Function Identifiers
+    \param key The key to use for verification.
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+
+    ret = wc_RsaPSS_Sign((byte*)szMessage, (word32)XSTRLEN(szMessage)+1,
+            pSignature, sizeof(pSignature),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+    if (ret > 0 ){
+        sz = ret;
+    } else return -1;
+
+    ret = wc_RsaPSS_Verify(pSignature, sz, pt, outLen,
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+    if (ret <= 0)return -1;
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Verify
+*/
+WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
+                                word32 outLen, enum wc_HashType hash, int mgf,
+                                RsaKey* key, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+
+    \brief Decrypt input singature to verify that the message was signed by key.
+
+    \return Success Length of text on no error.
+    \return MEMORY_E memory exception.
+
+    \param in The byte array to be decrypted.
+    \param inLen The length of in.
+    \param out The byte array for the decrypted data to be stored.
+    \param outLen The length of out.
+    \param hash The hash type to be in message
+    \param mgf Mask Generation Function Identifiers
+    \param key The key to use for verification.
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+    ret = wc_RsaPSS_Sign((byte*)szMessage, (word32)XSTRLEN(szMessage)+1,
+            pSignature, sizeof(pSignature),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+    if (ret > 0 ){
+        sz = ret;
+    } else return -1;
+
+    ret = wc_RsaPSS_Verify(pSignature, sz, pt, outLen,
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+    if (ret <= 0)return -1;
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+    \sa wc_RsaPSS_VerifyInline
+    \sa wc_RsaPSS_CheckPadding
+*/
+WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
+                                  word32 outLen, enum wc_HashType hash, int mgf,
+                                  RsaKey* key);
+
+/*!
+    \ingroup RSA
+
+/*!
+    \ingroup RSA
+
+    \brief Decript input singature to verify that the message was signed by RSA key.  
+    The output uses the same byte array as the input.
+
+    \return >0 Length of text.
+    \return <0 An error occurred.
+
+    \param in Byte array to be decrypted.
+    \param inLen Length of the buffer input.
+    \param out Pointer to a pointer for decrypted information.
+    \param hash The hash type to be in message
+    \param mgf Mask Generation Function Identifiers
+    \param key RsaKey to use.
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+    ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, pSignatureSz,
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+    if (ret > 0 ){
+        sz = ret;
+    } else return -1;
+
+    ret = wc_RsaPSS_VerifyInline(pSignature, sz, pt,
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+    if (ret <= 0)return -1;
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Verify
+    \sa wc_RsaPSS_Sign
+    \sa wc_RsaPSS_CheckPadding
+*/
+
+WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
+                                        enum wc_HashType hash, int mgf,
+                                        RsaKey* key);
+/*!
+    \ingroup RSA
+
+    \brief Decript singature to verify that the message was signed by key with checking
+    the padding.
+
+    \return Success Length of text on no error.
+    \return MEMORY_E memory exception.
+
+    \param in The byte array to be decrypted.
+    \param inLen The length of in.
+    \param out The byte array for the decrypted data to be stored.
+    \param outLen The length of out.
+    \param hash The hash type to be in message
+    \param mgf Mask Generation Function Identifiers
+    \param key The key to use for verification.
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+
+    if (ret == 0) {
+        digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, message, sz, digest, digestSz);
+    } else return -1;
+    
+    if (ret == 0) {
+        ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, pSignatureSz,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        if (ret > 0 ){
+            sz = ret;
+        } else return -1;
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheck(pSignature, sz, pt, outLen,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret <= 0) return -1;
+    } else return -1;
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+    \sa wc_RsaPSS_Verify
+*/
+WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
+                               byte* out, word32 outLen,
+                               const byte* digest, word32 digestLen,
+                               enum wc_HashType hash, int mgf,
+                               RsaKey* key);
+/*!
+    \ingroup RSA
+
+    \brief Decript singature to verify that the message was signed by key with checking
+    the padding. The output uses the same byte array as the input.
+
+    \return Success Length of text on no error.
+    \return MEMORY_E memory exception.
+
+    \param in The byte array to be decrypted.
+    \param inLen The length of in.
+    \param out The byte array for the decrypted data to be stored.
+    \param outLen The length of out.
+    \param hash The hash type to be in message
+    \param mgf Mask Generation Function Identifiers
+    \param key The key to use for verification.
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+
+    if (ret == 0) {
+        digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, message, sz, digest, digestSz);
+    } else return -1;
+    
+    if (ret == 0) {
+        ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, pSignatureSz,
+                WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+        if (ret > 0 ){
+            sz = ret;
+        } else return -1;
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaPSS_VerifyCheckInline(pSignature, sz, pt,
+                digest, digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+            if (ret <= 0) return -1;
+    } else return -1;
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+    \sa wc_RsaPSS_Verify
+*/
+WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
+                               const byte* digest, word32 digentLen,
+                               enum wc_HashType hash, int mgf,
+                               RsaKey* key);
+
+/*!
+    \ingroup RSA
+
+    \brief Decript singature to verify that the message was signed by key and check the padding.
+    The output uses the same byte array as the input.
+
+    \return Success Length of text on no error.
+    \return MEMORY_E memory exception.
+
+    \param digest The byte array to be decrypted.
+    \param digestSz The length of in.
+    \param verify The byte array for the decrypted data to be stored.
+    \param hash The hash type to be in message
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    } else return -1;
+    if (ret == 0) {
+            ret = wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng);
+    } else return -1;
+    if (ret == 0) {
+        digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256);
+        ret = wc_Hash(WC_HASH_TYPE_SHA256, message, sz, digest, digestSz);
+    } else return -1;
+    ret = wc_RsaPSS_Sign(digest, digestSz, pSignature, sizeof(pSignature),
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng);
+    if (ret > 0 ){
+        sz = ret;
+    } else return -1;
+
+    verify = wc_RsaPSS_Verify(pSignature, sz, out, outLen,
+            WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key);
+    if (verify <= 0)return -1;
+
+    ret = wc_RsaPSS_CheckPadding(digest, digestSz, out, verify, hash);
+
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    \endcode
+
+    \sa wc_RsaPSS_Sign
+    \sa wc_RsaPSS_Verify
+    \sa wc_RsaPSS_VerifyInline
+*/
+WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
+                                        word32 sigSz,
+                                        enum wc_HashType hashType);
+/*!
+    \ingroup RSA
+
     \brief Returns the encryption size for the provided key structure.
 
     \return Success Encryption size for the provided key structure.
