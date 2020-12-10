@@ -7974,12 +7974,15 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         ret = mp_read_unsigned_bin(&key->k, priv, privSz);
     }
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (ret == MP_OKAY)
+        ret = mp_read_unsigned_bin(&key->k, priv, privSz);
+
     if (ret == MP_OKAY) {
         if (pub) {
-            ret = silabs_ecc_import(key, privSz);
+            ret = silabs_ecc_import(key, key->dp->size);
         } else
         {
-            ret = silabs_ecc_import_private(key, privSz);
+            ret = silabs_ecc_import_private(key, key->dp->size);
         }
     }
 #else
