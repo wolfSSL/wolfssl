@@ -769,6 +769,7 @@ struct DecodedCert {
     DNS_entry* altNames;             /* alt names list of dns entries    */
 #ifndef IGNORE_NAME_CONSTRAINTS
     DNS_entry* altEmailNames;        /* alt names list of RFC822 entries */
+    DNS_entry* altDirNames;          /* alt names list of DIR entries    */
     Base_entry* permittedNames;      /* Permitted name bases             */
     Base_entry* excludedNames;       /* Excluded name bases              */
 #endif /* IGNORE_NAME_CONSTRAINTS */
