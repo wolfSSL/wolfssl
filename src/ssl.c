@@ -16228,12 +16228,25 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 
 #endif /* !NO_WOLFSSL_SERVER */
 
+static int sanityCheckProtoVersion(WOLFSSL_CTX* ctx)
+{
+    if ((ctx->mask & WOLFSSL_OP_NO_SSLv3) &&
+            (ctx->mask & WOLFSSL_OP_NO_TLSv1) &&
+            (ctx->mask & WOLFSSL_OP_NO_TLSv1_1) &&
+            (ctx->mask & WOLFSSL_OP_NO_TLSv1_2) &&
+            (ctx->mask & WOLFSSL_OP_NO_TLSv1_3)) {
+        WOLFSSL_MSG("All TLS versions disabled");
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
 int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
 
     if (ctx == NULL) {
-        return BAD_FUNC_ARG;
+        return WOLFSSL_FAILURE;
     }
 
     switch (version) {
@@ -16275,7 +16288,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
             break;
 #endif
         default:
-            return BAD_FUNC_ARG;
+            return WOLFSSL_FAILURE;
     }
 
     switch (version) {
@@ -16313,7 +16326,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
         return WOLFSSL_FAILURE;
     }
 
-    return WOLFSSL_SUCCESS;
+    return sanityCheckProtoVersion(ctx);
 }
 
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
@@ -16358,7 +16371,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         return WOLFSSL_FAILURE;
     }
 
-    return WOLFSSL_SUCCESS;
+    return sanityCheckProtoVersion(ctx);
 }
 
 #endif /* OPENSSL_EXTRA */
