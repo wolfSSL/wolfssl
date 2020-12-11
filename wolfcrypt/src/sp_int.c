@@ -4837,7 +4837,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         sp_int_digit* db = b->dp;
 
     #ifdef WOLFSSL_SMALL_STACK
-         w = (sp_int_word*)XMALLOC(sizeof(sp_word) * 16, NULL,
+         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 16, NULL,
                                    DYNAMIC_TYPE_BIGINT);
          if (w == NULL) {
              err = MP_MEM;
@@ -9546,7 +9546,7 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
         sp_int_digit* da = a->dp;
 
     #ifdef WOLFSSL_SMALL_STACK
-         w = (sp_int_word*)XMALLOC(sizeof(sp_word) * 10, NULL,
+         w = (sp_int_word*)XMALLOC(sizeof(sp_int_word) * 10, NULL,
                                    DYNAMIC_TYPE_BIGINT);
          if (w == NULL) {
              err = MP_MEM;
