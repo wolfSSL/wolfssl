@@ -8267,15 +8267,42 @@ int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos,
     return WOLFSSL_SUCCESS;
 }
 
+static WOLFSSL_STACK* generateExtStack(const WOLFSSL_X509 *x)
+{
+    int numOfExt, i;
+    WOLFSSL_X509 *x509 = (WOLFSSL_X509*)x;
+    WOLFSSL_STACK* ret;
+    WOLFSSL_STACK* tmp;
+
+    if (!x509) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    /* Save x509->ext_sk */
+    tmp = x509->ext_sk;
+    x509->ext_sk = NULL;
+    numOfExt = wolfSSL_X509_get_ext_count(x509);
+
+    for (i = 0; i < numOfExt; i++) {
+        /* Build the extension stack */
+        (void)wolfSSL_X509_set_ext(x509, i);
+    }
+
+    /* Restore */
+    ret = x509->ext_sk;
+    x509->ext_sk = tmp;
+    return ret;
+}
+
 /**
  * @param x Certificate to extract extensions from
  * @return STACK_OF(X509_EXTENSION)*
  */
 const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
 {
-    int numOfExt, i;
+    int numOfExt;
     WOLFSSL_X509 *x509 = (WOLFSSL_X509*)x;
-    WOLFSSL_STACK* tmp;
     WOLFSSL_ENTER("wolfSSL_X509_get0_extensions");
 
     if (!x509) {
@@ -8287,19 +8314,7 @@ const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
 
     if (numOfExt != wolfSSL_sk_num(x509->ext_sk_full)) {
         wolfSSL_sk_free(x509->ext_sk_full);
-        x509->ext_sk_full = NULL;
-        /* Save x509->ext_sk */
-        tmp = x509->ext_sk;
-        x509->ext_sk = NULL;
-
-        for (i = 0; i < numOfExt; i++) {
-            /* Build the extension stack */
-            (void)wolfSSL_X509_set_ext(x509, i);
-        }
-
-        /* Restore */
-        x509->ext_sk_full = x509->ext_sk;
-        x509->ext_sk = tmp;
+        x509->ext_sk_full = generateExtStack(x);
     }
 
     return x509->ext_sk_full;
@@ -8310,10 +8325,7 @@ const WOLFSSL_STACK *wolfSSL_X509_get0_extensions(const WOLFSSL_X509 *x)
  */
 const WOLFSSL_STACK *wolfSSL_X509_REQ_get_extensions(const WOLFSSL_X509 *x)
 {
-    const WOLFSSL_STACK *ret = wolfSSL_X509_get0_extensions(x);
-    if (x)
-        ((WOLFSSL_X509*)x)->ext_sk_full = NULL;
-    return ret;
+    return generateExtStack(x);
 }
 
 /* Gets the X509_EXTENSION* ext based on it's location in WOLFSSL_X509* x509.
@@ -25364,7 +25376,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 /* Use the public key to verify the signature. Note: this only verifies
  * the certificate signature.
  * returns WOLFSSL_SUCCESS on successful signature verification */
-static int wolfSSL_X509_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, int req)
+static int verify_X509_or_X509_REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, int req)
 {
     int ret;
     const byte* der;
@@ -25417,13 +25429,13 @@ static int wolfSSL_X509_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pk
 
 int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 {
-    return wolfSSL_X509_X509_REQ_verify(x509, pkey, 0);
+    return verify_X509_or_X509_REQ(x509, pkey, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 {
-    return wolfSSL_X509_X509_REQ_verify(x509, pkey, 1);
+    return verify_X509_or_X509_REQ(x509, pkey, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* !NO_CERTS */
@@ -40351,7 +40363,7 @@ cleanup:
     }
 
 #ifndef NO_BIO
-    static WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_X509_REQ(WOLFSSL_BIO *bp,
+    static WOLFSSL_X509 *PEM_read_bio_X509_or_X509_REQ(WOLFSSL_BIO *bp,
             WOLFSSL_X509 **x, pem_password_cb *cb, void *u, int type)
     {
         WOLFSSL_X509* x509 = NULL;
@@ -40361,7 +40373,7 @@ cleanup:
         long  i = 0, l, footerSz;
         const char* footer = NULL;
 
-        WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
+        WOLFSSL_ENTER("PEM_read_bio_X509_or_X509_REQ");
 
         if (bp == NULL || (type != CERT_TYPE && type != CERTREQ_TYPE)) {
             WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", BAD_FUNC_ARG);
@@ -40439,14 +40451,14 @@ cleanup:
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-        return wolfSSL_PEM_read_bio_X509_X509_REQ(bp, x, cb, u, CERT_TYPE);
+        return PEM_read_bio_X509_or_X509_REQ(bp, x, cb, u, CERT_TYPE);
     }
 
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-        return wolfSSL_PEM_read_bio_X509_X509_REQ(bp, x, cb, u, CERTREQ_TYPE);
+        return PEM_read_bio_X509_or_X509_REQ(bp, x, cb, u, CERTREQ_TYPE);
     }
 #endif
 
@@ -52025,6 +52037,7 @@ int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
 {
     WOLFSSL_ENTER("wolfSSL_X509_REQ_add1_attr_by_txt");
 
+#ifdef HAVE_LIBEST
     if (!req || !attrname || !bytes || type != MBSTRING_ASC) {
         WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_FAILURE;
@@ -52052,9 +52065,13 @@ int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
     }
 
     /* return error if not built for libest */
-#ifdef HAVE_LIBEST
     return WOLFSSL_SUCCESS;
 #else
+    (void)req;
+    (void)attrname;
+    (void)type;
+    (void)bytes;
+    (void)len;
     return WOLFSSL_FAILURE;
 #endif
 }
