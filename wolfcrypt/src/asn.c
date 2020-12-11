@@ -7628,6 +7628,25 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                                                         base->nameSz) == 0) {
                         return 0;
                     }
+                    #ifndef WOLFSSL_NO_ASN_STRICT
+                    /* RFC 5280 section 4.2.1.10
+                       "Restrictions of the form directoryName MUST be
+                        applied to the subject field .... and to any names
+                        of type directoryName in the subjectAltName
+                        extension"
+                    */
+                    if (cert->altDirNames != NULL) {
+                        DNS_entry* cur = cert->altDirNames;
+                        while (cur != NULL) {
+                            if (XMEMCMP(cur->name, base->name, base->nameSz)
+                                    == 0) {
+                                WOLFSSL_MSG("DIR alt name constraint err");
+                                return 0;
+                            }
+                            cur = cur->next;
+                        }
+                    }
+                    #endif /* !WOLFSSL_NO_ASN_STRICT */
                     break;
                 }
             }; /* switch */
