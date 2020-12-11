@@ -42,6 +42,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef _MSC_VER
+    /* disable for while(0) cases (MSVC bug) */
+    #pragma warning(disable:4127)
+#endif
+
 int wc_InitDsaKey(DsaKey* key)
 {
     if (key == NULL)
