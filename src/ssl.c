@@ -15734,6 +15734,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
 
+        while (b && b->type != WOLFSSL_BIO_SOCKET)
+            b = b->next;
+
+        if (!b) {
+            WOLFSSL_ENTER("No socket BIO in chain");
+            return WOLFSSL_FAILURE;
+        }
+
         if (wolfIO_TcpConnect(&sfd, b->ip, b->port, 0) < 0 ) {
             WOLFSSL_ENTER("wolfIO_TcpConnect error");
             return WOLFSSL_FAILURE;
