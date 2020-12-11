@@ -7799,6 +7799,11 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 WOLFSSL_MSG("\tfail: str length");
                 return ASN_PARSE_E;
             }
+
+            if (GetSequence(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: seq length");
+                return ASN_PARSE_E;
+            }
             length -= (idx - lenStartIdx);
 
             dirEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
@@ -12717,7 +12722,11 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
 
     curName = names;
     do {
-        output[idx++] = ASN_CONTEXT_SPECIFIC | curName->type;
+        output[idx] = ASN_CONTEXT_SPECIFIC | curName->type;
+        if (curName->type == ASN_DIR_TYPE) {
+            output[idx] |= ASN_CONSTRUCTED;
+        }
+        idx++;
         idx += SetLength(curName->len, output + idx);
         XMEMCPY(output + idx, curName->name, curName->len);
         idx += curName->len;
