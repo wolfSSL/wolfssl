@@ -30,12 +30,12 @@
 .text
 .globl	chacha_encrypt_x64
 .type	chacha_encrypt_x64,@function
-.align	4
+.align	16
 chacha_encrypt_x64:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_x64
-.p2align	2
+.p2align	4
 _chacha_encrypt_x64:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -508,12 +508,12 @@ L_chacha20_avx1_four:
 .text
 .globl	chacha_encrypt_avx1
 .type	chacha_encrypt_avx1,@function
-.align	4
+.align	16
 chacha_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_avx1
-.p2align	2
+.p2align	4
 _chacha_encrypt_avx1:
 #endif /* __APPLE__ */
         subq	$0x190, %rsp
@@ -1066,12 +1066,12 @@ L_chacha20_avx2_eight:
 .text
 .globl	chacha_encrypt_avx2
 .type	chacha_encrypt_avx2,@function
-.align	4
+.align	16
 chacha_encrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_chacha_encrypt_avx2
-.p2align	2
+.p2align	4
 _chacha_encrypt_avx2:
 #endif /* __APPLE__ */
         subq	$0x310, %rsp
