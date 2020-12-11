@@ -1027,7 +1027,11 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
     c->dp[x] = 0;
   }
   /* clear the digit that is not completely outside/inside the modulus */
-  c->dp[b / DIGIT_BIT] &= ~((fp_digit)0) >> (DIGIT_BIT - b);
+  x = DIGIT_BIT - (b % DIGIT_BIT);
+  if (x != DIGIT_BIT) {
+     c->dp[b / DIGIT_BIT] &= ~((fp_digit)0) >> x;
+  }
+
   fp_clamp (c);
 }
 

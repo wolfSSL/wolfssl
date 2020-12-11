@@ -684,8 +684,10 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
     c->dp[x] = 0;
   }
   /* clear the digit that is not completely outside/inside the modulus */
-  c->dp[b / DIGIT_BIT] &= (mp_digit) ((((mp_digit) 1) <<
-              (((mp_digit) b) % DIGIT_BIT)) - ((mp_digit) 1));
+  x = DIGIT_BIT - (b % DIGIT_BIT);
+  if (x != DIGIT_BIT) {
+    c->dp[b / DIGIT_BIT] &= ~((mp_digit)0) >> x;
+  }
   mp_clamp (c);
   return MP_OKAY;
 }
