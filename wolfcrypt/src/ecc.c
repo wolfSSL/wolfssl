@@ -4133,6 +4133,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 
     return 0;
 }
+#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL */
 
 /* generate random and ensure its greater than 0 and less than order */
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
@@ -4176,7 +4177,6 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     return NOT_COMPILED_IN;
 #endif /* !WC_NO_RNG */
 }
-#endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL */
 
 static WC_INLINE void wc_ecc_reset(ecc_key* key)
 {
