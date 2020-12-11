@@ -99,7 +99,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         (uint8_t*)aes->reg,
         in,
         out);
-    return (status != SL_STATUS_OK);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
 }
 
 int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -112,7 +112,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         (uint8_t*)aes->reg,
         in,
         out);
-    return (status != SL_STATUS_OK);
+    return (status != SL_STATUS_OK) ? WC_HW_E : 0;
 }
 
 #ifdef HAVE_AESGCM

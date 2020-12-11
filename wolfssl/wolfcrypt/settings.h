@@ -1463,8 +1463,9 @@ extern void uITRON4_free(void *p) ;
                                           (void *)(pmem_2),     \
                      (CPU_SIZE_T)(size))) ? DEF_NO : DEF_YES)
     #else
-       // Work aroud for Micrium OS version 5.8 change in behavior
-       // that returns DEF_NO for 0 size compare
+      /* Work around for Micrium OS version 5.8 change in behavior
+       * that returns DEF_NO for 0 size compare
+       */
         #define XMEMCMP(pmem_1, pmem_2, size)                           \
             (( (size < 1 ) ||                                           \
                ((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1),                  \
