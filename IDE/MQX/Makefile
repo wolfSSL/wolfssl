@@ -1,5 +1,5 @@
 WOLF_ROOT = ../..
-MQX_ROOT = /mnt/c/Freescale/Freescale_MQX_4_1
+MQX_ROOT = $(WOLF_ROOT)/../../../Freescale/Freescale_MQX_4_1/
 CC       = arm-none-eabi-gcc
 AR		 = arm-none-eabi-ar
 
@@ -146,8 +146,8 @@ test	: wolfssllib ./user_settings.h
 benchmark	: wolfssllib ./user_settings.h
 	$(CC)  -o benchmark $(CFLAGS)  $(WOLF_ROOT)/wolfcrypt/benchmark/benchmark.c $(WOLFLIB) $(WOLFLIB) $(MQXLIB)
 server	:  wolfssllib ./user_settings.h
-	$(CC)  -o server $(CFLAGS)  $(WOLF_ROOT)/IDE/KDS/server-tls.c $(WOLFLIB) $(MQXLIB)
+	$(CC)  -o server $(CFLAGS)  $(WOLF_ROOT)/IDE/MQX/server-tls.c $(WOLFLIB) $(MQXLIB)
 client  :  wolfssllib ./user_settings.h
-	$(CC)  -o client $(CFLAGS) $(WOLF_ROOT)/IDE/KDS/client-tls.c $(WOLFLIB) $(MQXLIB)
+	$(CC)  -o client $(CFLAGS) $(WOLF_ROOT)/IDE/MQX/client-tls.c $(WOLFLIB) $(MQXLIB)
 clean	: 
 	rm $(OBJ) $(WOLFLIB)
