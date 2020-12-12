@@ -50,10 +50,10 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 
 ### STM32 Cube Pack Installation
 
-1. Download [wolfSSL Cube Pack](https://www.wolfssl.com/files/ide/I-CUBE-WOLFSSL-WOLFSSL.pack)
+1. Download [wolfSSL Cube Pack](https://www.wolfssl.com/files/ide/I-CUBE-wolfSSL.pack)
 2. Run the “STM32CubeMX” tool.
 3. Under “Manage software installations” click “INSTALL/REMOVE” button.
-4. From Local and choose “I-CUBE-WOLFSSL-WOLFSSL.pack”.
+4. From Local and choose “I-CUBE-wolfSSL.pack”.
 5. Accept the GPLv2 license. Contact wolfSSL at sales@wolfssl.com for a commercial license and support/maintenance.
 
 ### STM32 Cube Pack Usage
@@ -69,7 +69,7 @@ The TLS client/server benchmark example requires about 76 KB for allocated tasks
 
 ### STM32 Cube Pack Examples
 
-In the `I-CUBE-WOLFSSL-WOLFSSL.pack` pack there are pre-assembled example projects available.
+In the `I-CUBE-wolfSSL.pack` pack there are pre-assembled example projects available.
 After installing the pack you can find these example projects in `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/Projects`.
 To use an example:
 
