@@ -10,7 +10,11 @@
 
 
 ## 準備
+- 事前にGCCをインストールしておいてください。
+  GNU Arm Embedded Toolchain, https://developer.arm.com
 - 事前にMQXをインストールしておいてください。
+  Freescale MQX RTOS 4.1以降, https://www.nxp.com/
+  Freescale_MQX_4_1/doc/MQX_Getting_Started.pdfをご参照ください。
 
 ## 設定
 - wolfSSL コンフィグレーションオプション
