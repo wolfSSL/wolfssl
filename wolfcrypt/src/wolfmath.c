@@ -71,7 +71,7 @@
 #endif
 
 
-#if !defined(WOLFSSL_SP_MATH)
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL))
 int get_digit_count(mp_int* a)
 {
     if (a == NULL)
@@ -156,7 +156,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
     }
 #else
-#if defined(WOLFSSL_SP_MATH)
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     if ((ret == MP_OKAY) && (digits > SP_INT_DIGITS))
 #else
     if ((ret == MP_OKAY) && (digits > FP_SIZE))

@@ -2476,7 +2476,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
-        sig = XMALLOC(sz * 2, info->pk.eccverify.key->heap,
+        sig = (unsigned char *)XMALLOC(sz * 2, info->pk.eccverify.key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (sig == NULL)
             ret = MEMORY_E;

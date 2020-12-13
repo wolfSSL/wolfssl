@@ -86,19 +86,19 @@ WOLFSSL_LOCAL int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod,
 #endif
 
 
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
 /* math settings check */
 word32 CheckRunTimeSettings(void)
 {
     return CTC_SETTINGS;
 }
-#endif
 
 /* math settings size check */
 word32 CheckRunTimeFastMath(void)
 {
     return FP_SIZE;
 }
+#endif
 
 
 /* Functions */
@@ -679,7 +679,8 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #endif
 
   fp_init(q);
-  q->used = a->used + 2;
+  /* qb + d = a, and b is an integer > 0, therefore q <= a */
+  q->used = a->used;
 
   fp_init(t1);
   fp_init(t2);
@@ -1026,7 +1027,11 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
     c->dp[x] = 0;
   }
   /* clear the digit that is not completely outside/inside the modulus */
-  c->dp[b / DIGIT_BIT] &= ~((fp_digit)0) >> (DIGIT_BIT - b);
+  x = DIGIT_BIT - (b % DIGIT_BIT);
+  if (x != DIGIT_BIT) {
+     c->dp[b / DIGIT_BIT] &= ~((fp_digit)0) >> x;
+  }
+
   fp_clamp (c);
 }
 
@@ -1098,7 +1103,7 @@ top:
       #ifdef WOLFSSL_SMALL_STACK
         XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
-        return FP_OKAY;
+        return err;
       }
       err = fp_sub (B, x, B);
       if (err != FP_OKAY) {
@@ -1126,7 +1131,7 @@ top:
       #ifdef WOLFSSL_SMALL_STACK
         XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
-        return FP_OKAY;
+        return err;
       }
       err = fp_sub (D, x, D);
       if (err != FP_OKAY) {
@@ -1211,7 +1216,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
@@ -1222,7 +1227,7 @@ top:
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
-      return FP_OKAY;
+      return err;
     }
   }
 
@@ -2789,7 +2794,7 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
 #endif
 
    if (fp_iszero(G)) {
-      fp_set(G, 0);
+      fp_set(Y, 0);
       return FP_OKAY;
    }
 
@@ -3556,14 +3561,15 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
      b += excess;
   }
 
-  /* If we know the endianness of this architecture, and we're using
-     32-bit fp_digits, we can optimize this */
-#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER)) && \
-    defined(FP_32BIT)
-  /* But not for both simultaneously */
+/* Not both endian simultaneously */
 #if defined(LITTLE_ENDIAN_ORDER) && defined(BIG_ENDIAN_ORDER)
 #error Both LITTLE_ENDIAN_ORDER and BIG_ENDIAN_ORDER defined.
 #endif
+
+#if (defined(LITTLE_ENDIAN_ORDER) || defined(BIG_ENDIAN_ORDER))
+#ifdef FP_32BIT
+  /* If we know the endianness of this architecture, and we're using
+     32-bit fp_digits, we can optimize this */
   {
      unsigned char *pd = (unsigned char *)a->dp;
 
@@ -3574,10 +3580,10 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
        /* Use Duff's device to unroll the loop. */
        int idx = (c - 1) & ~3;
        switch (c % 4) {
-       case 0:    do { pd[idx+0] = *b++; // fallthrough
-       case 3:         pd[idx+1] = *b++; // fallthrough
-       case 2:         pd[idx+2] = *b++; // fallthrough
-       case 1:         pd[idx+3] = *b++; // fallthrough
+       case 0:    do { pd[idx+0] = *b++; FALL_THROUGH;
+       case 3:         pd[idx+1] = *b++; FALL_THROUGH;
+       case 2:         pd[idx+2] = *b++; FALL_THROUGH;
+       case 1:         pd[idx+3] = *b++;
                      idx -= 4;
                  } while ((c -= 4) > 0);
        }
@@ -3588,6 +3594,38 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
      }
 #endif
   }
+#elif defined(FP_64BIT)
+  /* If we know the endianness of this architecture, and we're using
+     64-bit fp_digits, we can optimize this */
+  {
+     unsigned char *pd = (unsigned char *)a->dp;
+
+     a->used = (c + sizeof(fp_digit) - 1)/sizeof(fp_digit);
+     /* read the bytes in */
+#ifdef BIG_ENDIAN_ORDER
+     {
+       /* Use Duff's device to unroll the loop. */
+       int idx = (c - 1) & ~7;
+       switch (c % 8) {
+       case 0:    do { pd[idx+0] = *b++; FALL_THROUGH;
+       case 7:         pd[idx+1] = *b++; FALL_THROUGH;
+       case 6:         pd[idx+2] = *b++; FALL_THROUGH;
+       case 5:         pd[idx+3] = *b++; FALL_THROUGH;
+       case 4:         pd[idx+4] = *b++; FALL_THROUGH;
+       case 3:         pd[idx+5] = *b++; FALL_THROUGH;
+       case 2:         pd[idx+6] = *b++; FALL_THROUGH;
+       case 1:         pd[idx+7] = *b++;
+                     idx -= 8;
+                 } while ((c -= 8) > 0);
+       }
+     }
+#else
+     for (c -= 1; c >= 0; c -= 1) {
+       pd[c] = *b++;
+     }
+#endif
+  }
+#endif
 #else
   /* read the bytes in */
   for (; c > 0; c--) {
@@ -3869,14 +3907,19 @@ void fp_rshb(fp_int *c, int x)
     fp_digit r, rr;
     fp_digit D = x;
 
-    /* shifting by a negative number not supported */
-    if (x < 0) return;
+    /* shifting by a negative number not supported, and shifting by
+     * zero changes nothing.
+     */
+    if (x <= 0) return;
 
     /* shift digits first if needed */
     if (x >= DIGIT_BIT) {
         fp_rshd(c, x / DIGIT_BIT);
         /* recalculate number of bits to shift */
         D = x % DIGIT_BIT;
+        /* check if any more shifting needed */
+        if (D == 0) return;
+
     }
 
     /* zero shifted is always zero */
@@ -4715,21 +4758,21 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
-  if (fp_count_bits(a) == 1024)
+  if (fp_count_bits(a) == 1024 && fp_isodd(a))
       sp_ModExp_1024(b, r, a, y);
-  else if (fp_count_bits(a) == 2048)
+  else if (fp_count_bits(a) == 2048 && fp_isodd(a))
       sp_ModExp_2048(b, r, a, y);
   else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
-  if (fp_count_bits(a) == 1536)
+  if (fp_count_bits(a) == 1536 && fp_isodd(a))
       sp_ModExp_1536(b, r, a, y);
-  else if (fp_count_bits(a) == 3072)
+  else if (fp_count_bits(a) == 3072 && fp_isodd(a))
       sp_ModExp_3072(b, r, a, y);
   else
 #endif
 #ifdef WOLFSSL_SP_4096
-  if (fp_count_bits(a) == 4096)
+  if (fp_count_bits(a) == 4096 && fp_isodd(a))
       sp_ModExp_4096(b, r, a, y);
   else
 #endif
@@ -5395,6 +5438,9 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
          break;
       }
     }
+    if (y >= radix) {
+      return FP_VAL;
+    }
 
     /* if the char was found in the map
      * and is less than the given radix add it
@@ -5514,7 +5560,12 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
     if (fp_iszero(a) == MP_YES) {
-        *size = 2;
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16)
+            *size = 3;
+        else
+#endif
+            *size = 2;
         return FP_OKAY;
     }
 
@@ -5585,6 +5636,10 @@ int mp_toradix (mp_int *a, char *str, int radix)
 
     /* quick out if its zero */
     if (fp_iszero(a) == FP_YES) {
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16)
+            *str++ = '0';
+#endif
         *str++ = '0';
         *str = '\0';
         return FP_OKAY;

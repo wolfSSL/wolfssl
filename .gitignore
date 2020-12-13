@@ -12,6 +12,7 @@ ctaocrypt/src/src/
 *.user
 configure
 config.*
+!cmake/config.in
 *Debug/
 *Release/
 *.ncb

@@ -1727,6 +1727,7 @@ WOLFSSL_LOCAL int  DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input,
 WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz,
                                      byte* extMsgType);
+WOLFSSL_LOCAL int RestartHandshakeHash(WOLFSSL* ssl);
 #endif
 int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
                     int pLen, int content);
@@ -2169,7 +2170,7 @@ typedef enum {
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
     TLSX_EC_POINT_FORMATS           = 0x000b,
-#if !defined(WOLFSSL_NO_SIGALG)
+#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
 #endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
@@ -2188,14 +2189,18 @@ typedef enum {
     TLSX_EARLY_DATA                 = 0x002a,
     #endif
     TLSX_SUPPORTED_VERSIONS         = 0x002b,
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
     TLSX_COOKIE                     = 0x002c,
+    #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
     #endif
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
     #endif
+    #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
+    #endif
     TLSX_KEY_SHARE                  = 0x0033,
 #endif
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -2624,9 +2629,14 @@ enum SetCBIO {
 #endif
 
 #ifdef WOLFSSL_STATIC_EPHEMERAL
+/* contains static ephemeral keys */
 typedef struct {
-    int keyAlgo;
-    DerBuffer* key;
+#ifndef NO_DH
+    DerBuffer* dhKey;
+#endif
+#ifdef HAVE_ECC
+    DerBuffer* ecKey;
+#endif
 } StaticKeyExchangeInfo_t;
 #endif
 
@@ -3221,14 +3231,14 @@ struct WOLFSSL_SESSION {
 };
 
 
-WOLFSSL_LOCAL
-WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
-WOLFSSL_LOCAL
-int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
+WOLFSSL_LOCAL int              SetSession(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_LOCAL void             FreeSession(WOLFSSL_SESSION*, int);
 
 typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
+    WOLFSSL_LOCAL
     WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
 #endif
 
@@ -4086,6 +4096,9 @@ struct WOLFSSL {
     int             dtls_timeout_init;  /* starting timeout value */
     int             dtls_timeout_max;   /* maximum timeout value */
     int             dtls_timeout;       /* current timeout value, changes */
+#ifndef NO_ASN_TIME
+    word32          dtls_start_timeout;
+#endif /* !NO_ASN_TIME */
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
     DtlsMsg*        dtls_tx_msg_list;
@@ -4606,6 +4619,7 @@ typedef struct CipherSuiteInfo {
     byte minor;
     byte major;
 #endif
+    byte flags;
 } CipherSuiteInfo;
 
 WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
@@ -4627,7 +4641,8 @@ WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte 
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                                         byte* cipherSuite);
+                                         byte* cipherSuite, int* flags);
+
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

@@ -382,6 +382,9 @@ enum Misc_ASN {
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
     MAX_X509_VERSION    = 3,       /* Max X509 version allowed */
     MIN_X509_VERSION    = 0,       /* Min X509 version allowed */
+    WOLFSSL_X509_V1     = 0,
+    WOLFSSL_X509_V2     = 1,
+    WOLFSSL_X509_V3     = 2,
 #if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
@@ -1255,6 +1258,9 @@ struct CertStatus {
 
     byte serial[EXTERNAL_SERIAL_SIZE];
     int serialSz;
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_ASN1_INTEGER* serialInt;
+#endif
 
     int status;
 
@@ -1271,11 +1277,36 @@ struct CertStatus {
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
-
-    /* option bits - using 32-bit for alignment */
-    word32 isDynamic:1; /* was allocated cert status */
 };
 
+typedef struct OcspEntry OcspEntry;
+
+#ifdef NO_SHA
+#define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#else
+#define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#endif
+
+struct OcspEntry
+{
+    OcspEntry *next;                      /* next entry                */
+    word32 hashAlgoOID;                   /* hash algo ID              */
+    byte issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash               */
+    byte issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash    */
+    CertStatus *status;                   /* OCSP response list        */
+    int totalStatus;                      /* number on list            */
+    byte* rawCertId;                      /* raw bytes of the CertID   */
+    int rawCertIdSize;                    /* num bytes in raw CertID   */
+    /* option bits - using 32-bit for alignment */
+    word32 isDynamic:1;                   /* was dynamically allocated */
+
+};
+
+/* TODO: Long-term, it would be helpful if we made this struct and other OCSP
+         structs conform to the ASN spec as described in RFC 6960. It will help
+         with readability and with implementing OpenSSL compatibility API
+         functions, because OpenSSL's OCSP data structures conform to the
+         RFC. */
 struct OcspResponse {
     int     responseStatus;  /* return code from Responder */
 
@@ -1285,8 +1316,6 @@ struct OcspResponse {
     byte    producedDate[MAX_DATE_SIZE];
                              /* Date at which this response was signed */
     byte    producedDateFormat; /* format of the producedDate */
-    byte*   issuerHash;
-    byte*   issuerKeyHash;
 
     byte*   cert;
     word32  certSz;
@@ -1295,7 +1324,7 @@ struct OcspResponse {
     word32  sigSz;           /* Length in octets for the sig */
     word32  sigOID;          /* OID for hash used for sig */
 
-    CertStatus* status;      /* certificate status to fill out */
+    OcspEntry* single;       /* chain of OCSP single responses */
 
     byte*   nonce;           /* pointer to nonce inside ASN.1 response */
     int     nonceSz;         /* length of the nonce string */
@@ -1327,26 +1356,9 @@ struct OcspRequest {
     void*  ssl;
 };
 
-typedef struct OcspEntry OcspEntry;
-
-#ifdef NO_SHA
-#define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-#define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
-
-struct OcspEntry
-{
-    OcspEntry *next;                      /* next entry             */
-    byte issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
-    byte issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus *status;                   /* OCSP response list     */
-    int totalStatus;                      /* number on list         */
-};
-
-WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32, void*);
+WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, OcspEntry*, CertStatus*, byte*, word32, void*);
 WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse*);
-WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap, int);
+WOLFSSL_LOCAL int OcspResponseDecode(OcspResponse*, void*, void* heap, int);
 
 WOLFSSL_LOCAL int    InitOcspRequest(OcspRequest*, DecodedCert*, byte, void*);
 WOLFSSL_LOCAL void   FreeOcspRequest(OcspRequest*);

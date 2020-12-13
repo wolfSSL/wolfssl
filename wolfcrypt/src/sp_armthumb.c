@@ -2151,7 +2151,7 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -2498,7 +2498,7 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -2587,7 +2587,7 @@ SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
     );
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -3086,7 +3086,8 @@ static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_dig
     div = d[31];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
     for (i=31; i>=0; i--) {
-        r1 = div_2048_word_32(t1[32 + i], t1[32 + i - 1], div);
+        sp_digit hi = t1[32 + i] - (t1[32 + i] == div);
+        r1 = div_2048_word_32(hi, t1[32 + i - 1], div);
 
         sp_2048_mul_d_32(t2, d, r1);
         t1[32 + i] += sp_2048_sub_in_place_32(&t1[i], t2);
@@ -3424,7 +3425,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -3891,7 +3892,8 @@ static WC_INLINE int sp_2048_div_64(const sp_digit* a, const sp_digit* d, sp_dig
     div = d[63];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
     for (i=63; i>=0; i--) {
-        r1 = div_2048_word_64(t1[64 + i], t1[64 + i - 1], div);
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_2048_word_64(hi, t1[64 + i - 1], div);
 
         sp_2048_mul_d_64(t2, d, r1);
         t1[64 + i] += sp_2048_sub_in_place_64(&t1[i], t2);
@@ -3941,7 +3943,8 @@ static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d, s
     div = d[63];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
     for (i=63; i>=0; i--) {
-        r1 = div_2048_word_64(t1[64 + i], t1[64 + i - 1], div);
+        sp_digit hi = t1[64 + i] - (t1[64 + i] == div);
+        r1 = div_2048_word_64(hi, t1[64 + i - 1], div);
 
         sp_2048_mul_d_64(t2, d, r1);
         t1[64 + i] += sp_2048_sub_in_place_64(&t1[i], t2);
@@ -5220,7 +5223,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_2048_lshift_64(r, norm, y);
+        sp_2048_lshift_64(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -5248,7 +5251,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
             sp_2048_mont_sqr_64(r, r, m, mp);
             sp_2048_mont_sqr_64(r, r, m, mp);
 
-            sp_2048_lshift_64(r, r, y);
+            sp_2048_lshift_64(r, r, (byte)y);
             sp_2048_mul_d_64(tmp, norm, r[64]);
             r[64] = 0;
             o = sp_2048_add_64(r, r, tmp);
@@ -7997,7 +8000,7 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -8352,7 +8355,7 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -8442,7 +8445,7 @@ SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
     );
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -8941,7 +8944,8 @@ static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_dig
     div = d[47];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
     for (i=47; i>=0; i--) {
-        r1 = div_3072_word_48(t1[48 + i], t1[48 + i - 1], div);
+        sp_digit hi = t1[48 + i] - (t1[48 + i] == div);
+        r1 = div_3072_word_48(hi, t1[48 + i - 1], div);
 
         sp_3072_mul_d_48(t2, d, r1);
         t1[48 + i] += sp_3072_sub_in_place_48(&t1[i], t2);
@@ -9279,7 +9283,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -9752,7 +9756,8 @@ static WC_INLINE int sp_3072_div_96(const sp_digit* a, const sp_digit* d, sp_dig
     div = d[95];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 96);
     for (i=95; i>=0; i--) {
-        r1 = div_3072_word_96(t1[96 + i], t1[96 + i - 1], div);
+        sp_digit hi = t1[96 + i] - (t1[96 + i] == div);
+        r1 = div_3072_word_96(hi, t1[96 + i - 1], div);
 
         sp_3072_mul_d_96(t2, d, r1);
         t1[96 + i] += sp_3072_sub_in_place_96(&t1[i], t2);
@@ -9802,7 +9807,8 @@ static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d, s
     div = d[95];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 96);
     for (i=95; i>=0; i--) {
-        r1 = div_3072_word_96(t1[96 + i], t1[96 + i - 1], div);
+        sp_digit hi = t1[96 + i] - (t1[96 + i] == div);
+        r1 = div_3072_word_96(hi, t1[96 + i - 1], div);
 
         sp_3072_mul_d_96(t2, d, r1);
         t1[96 + i] += sp_3072_sub_in_place_96(&t1[i], t2);
@@ -11279,7 +11285,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_3072_lshift_96(r, norm, y);
+        sp_3072_lshift_96(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -11307,7 +11313,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
             sp_3072_mont_sqr_96(r, r, m, mp);
             sp_3072_mont_sqr_96(r, r, m, mp);
 
-            sp_3072_lshift_96(r, r, y);
+            sp_3072_lshift_96(r, r, (byte)y);
             sp_3072_mul_d_96(tmp, norm, r[96]);
             r[96] = 0;
             o = sp_3072_add_96(r, r, tmp);
@@ -13672,7 +13678,8 @@ static WC_INLINE int sp_4096_div_128(const sp_digit* a, const sp_digit* d, sp_di
     div = d[127];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 128);
     for (i=127; i>=0; i--) {
-        r1 = div_4096_word_128(t1[128 + i], t1[128 + i - 1], div);
+        sp_digit hi = t1[128 + i] - (t1[128 + i] == div);
+        r1 = div_4096_word_128(hi, t1[128 + i - 1], div);
 
         sp_4096_mul_d_128(t2, d, r1);
         t1[128 + i] += sp_4096_sub_in_place_128(&t1[i], t2);
@@ -13722,7 +13729,8 @@ static WC_INLINE int sp_4096_div_128_cond(const sp_digit* a, const sp_digit* d, 
     div = d[127];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 128);
     for (i=127; i>=0; i--) {
-        r1 = div_4096_word_128(t1[128 + i], t1[128 + i - 1], div);
+        sp_digit hi = t1[128 + i] - (t1[128 + i] == div);
+        r1 = div_4096_word_128(hi, t1[128 + i - 1], div);
 
         sp_4096_mul_d_128(t2, d, r1);
         t1[128 + i] += sp_4096_sub_in_place_128(&t1[i], t2);
@@ -15396,7 +15404,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
             y = (int)(n >> c);
             n <<= 32 - c;
         }
-        sp_4096_lshift_128(r, norm, y);
+        sp_4096_lshift_128(r, norm, (byte)y);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
                 n = e[i--];
@@ -15424,7 +15432,7 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
             sp_4096_mont_sqr_128(r, r, m, mp);
             sp_4096_mont_sqr_128(r, r, m, mp);
 
-            sp_4096_lshift_128(r, r, y);
+            sp_4096_lshift_128(r, r, (byte)y);
             sp_4096_mul_d_128(tmp, norm, r[128]);
             r[128] = 0;
             o = sp_4096_add_128(r, r, tmp);
@@ -17520,7 +17528,7 @@ typedef struct sp_256_proj_point_add_8_ctx {
     sp_digit* z;
 } sp_256_proj_point_add_8_ctx;
 
-static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r, 
+static int sp_256_proj_point_add_8_nb(sp_ecc_ctx_t* sp_ctx, sp_point_256* r,
     const sp_point_256* p, const sp_point_256* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -18421,7 +18429,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=63; j<4; j++,x+=64) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -18436,7 +18444,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (i=62; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<4; j++,x+=64) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -18793,7 +18801,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
 
         y = 0;
         for (j=0,x=31; j<8; j++,x+=32) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -18808,7 +18816,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         for (i=30; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=32) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_256_proj_point_dbl_8(rt, rt, t);
@@ -21127,7 +21135,8 @@ static WC_INLINE int sp_256_div_8(const sp_digit* a, const sp_digit* d, sp_digit
     div = d[7];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 8);
     for (i=7; i>=0; i--) {
-        r1 = div_256_word_8(t1[8 + i], t1[8 + i - 1], div);
+        sp_digit hi = t1[8 + i] - (t1[8 + i] == div);
+        r1 = div_256_word_8(hi, t1[8 + i - 1], div);
 
         sp_256_mul_d_8(t2, d, r1);
         t1[8 + i] += sp_256_sub_in_place_8(&t1[i], t2);
@@ -21230,7 +21239,7 @@ static int sp_256_mont_inv_order_8_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const s
 {
     int err = FP_WOULDBLOCK;
     sp_256_mont_inv_order_8_ctx* ctx = (sp_256_mont_inv_order_8_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_256_mont_inv_order_8_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -21429,9 +21438,9 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
-        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+        err = sp_256_ecc_mulmod_8_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
             &ctx->point, &p256_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
@@ -21684,6 +21693,582 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 }
 #endif /* HAVE_ECC_SIGN */
 
+#ifndef WOLFSSL_SP_SMALL
+static void sp_256_rshift1_8(sp_digit* r, sp_digit* a)
+{
+    __asm__ __volatile__ (
+        "ldr	r2, [%[a]]\n\t"
+        "ldr	r3, [%[a], #4]\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #8]\n\t"
+        "str	r2, [%[r], #0]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #12]\n\t"
+        "str	r3, [%[r], #4]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #16]\n\t"
+        "str	r4, [%[r], #8]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "ldr	r4, [%[a], #20]\n\t"
+        "str	r2, [%[r], #12]\n\t"
+        "lsl	r5, r4, #31\n\t"
+        "lsr	r4, r4, #1\n\t"
+        "orr	r3, r3, r5\n\t"
+        "ldr	r2, [%[a], #24]\n\t"
+        "str	r3, [%[r], #16]\n\t"
+        "lsl	r5, r2, #31\n\t"
+        "lsr	r2, r2, #1\n\t"
+        "orr	r4, r4, r5\n\t"
+        "ldr	r3, [%[a], #28]\n\t"
+        "str	r4, [%[r], #20]\n\t"
+        "lsl	r5, r3, #31\n\t"
+        "lsr	r3, r3, #1\n\t"
+        "orr	r2, r2, r5\n\t"
+        "str	r2, [%[r], #24]\n\t"
+        "str	r3, [%[r], #28]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a)
+        : "memory", "r2", "r3", "r4", "r5"
+    );
+}
+
+/* Divide the number by 2 mod the modulus. (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus.
+ */
+static void sp_256_div2_mod_8(sp_digit* r, const sp_digit* a,
+    const sp_digit* m)
+{
+    __asm__ __volatile__ (
+        "ldr       r7, [%[a], #0]\n\t"
+        "lsl       r7, r7, #31\n\t"
+        "beq       1f\n\t"
+        "lsr       r7, r7, #31\n\t"
+        "ldr       r5, [%[m], #0]\n\t"
+        "ldr       r6, [%[m], #4]\n\t"
+        "ldr       r3, [%[a], #0]\n\t"
+        "ldr       r4, [%[a], #4]\n\t"
+        "add       r3, r5\n\t"
+        "adc       r4, r6\n\t"
+        "str       r3, [%[r], #0]\n\t"
+        "str       r4, [%[r], #4]\n\t"
+        "ldr       r5, [%[m], #8]\n\t"
+        "ldr       r6, [%[m], #12]\n\t"
+        "ldr       r3, [%[a], #8]\n\t"
+        "ldr       r4, [%[a], #12]\n\t"
+        "adc       r3, r5\n\t"
+        "adc       r4, r6\n\t"
+        "str       r3, [%[r], #8]\n\t"
+        "str       r4, [%[r], #12]\n\t"
+        "ldr       r5, [%[m], #16]\n\t"
+        "ldr       r6, [%[m], #20]\n\t"
+        "ldr       r3, [%[a], #16]\n\t"
+        "ldr       r4, [%[a], #20]\n\t"
+        "adc       r3, r5\n\t"
+        "adc       r4, r6\n\t"
+        "str       r3, [%[r], #16]\n\t"
+        "str       r4, [%[r], #20]\n\t"
+        "ldr       r5, [%[m], #24]\n\t"
+        "ldr       r6, [%[m], #28]\n\t"
+        "ldr       r3, [%[a], #24]\n\t"
+        "ldr       r4, [%[a], #28]\n\t"
+        "adc       r3, r5\n\t"
+        "adc       r4, r6\n\t"
+        "mov       r7, #0\n\t"
+        "adc       r7, r7\n\t"
+        "lsl       r7, r7, #31\n\t"
+        "b         2f\n\t"
+        "\n1:\n\t"
+        "ldr       r3, [%[a], #24]\n\t"
+        "ldr       r4, [%[a], #28]\n\t"
+        "\n2:\n\t"
+        "lsr       r5, r3, #1\n\t"
+        "lsl       r3, r3, #31\n\t"
+        "lsr       r6, r4, #1\n\t"
+        "lsl       r4, r4, #31\n\t"
+        "orr       r5, r4\n\t"
+        "orr       r6, r7\n\t"
+        "mov       r7, r3\n\t"
+        "str       r5, [%[r], #24]\n\t"
+        "str       r6, [%[r], #28]\n\t"
+        "ldr       r3, [%[a], #16]\n\t"
+        "ldr       r4, [%[a], #20]\n\t"
+        "lsr       r5, r3, #1\n\t"
+        "lsl       r3, r3, #31\n\t"
+        "lsr       r6, r4, #1\n\t"
+        "lsl       r4, r4, #31\n\t"
+        "orr       r5, r4\n\t"
+        "orr       r6, r7\n\t"
+        "mov       r7, r3\n\t"
+        "str       r5, [%[r], #16]\n\t"
+        "str       r6, [%[r], #20]\n\t"
+        "ldr       r3, [%[a], #8]\n\t"
+        "ldr       r4, [%[a], #12]\n\t"
+        "lsr       r5, r3, #1\n\t"
+        "lsl       r3, r3, #31\n\t"
+        "lsr       r6, r4, #1\n\t"
+        "lsl       r4, r4, #31\n\t"
+        "orr       r5, r4\n\t"
+        "orr       r6, r7\n\t"
+        "mov       r7, r3\n\t"
+        "str       r5, [%[r], #8]\n\t"
+        "str       r6, [%[r], #12]\n\t"
+        "ldr       r3, [%[r], #0]\n\t"
+        "ldr       r4, [%[r], #4]\n\t"
+        "lsr       r5, r3, #1\n\t"
+        "lsr       r6, r4, #1\n\t"
+        "lsl       r4, r4, #31\n\t"
+        "orr       r5, r4\n\t"
+        "orr       r6, r7\n\t"
+        "str       r5, [%[r], #0]\n\t"
+        "str       r6, [%[r], #4]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+        : "memory", "r3", "r4", "r5", "r6", "r7"
+    );
+}
+
+static int sp_256_num_bits_8(sp_digit* a)
+{
+    int r = 0;
+    static const byte table[256] = {
+        0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    };
+
+    __asm__ __volatile__ (
+        "mov   r6, #0xff\n\t"
+        "ldr r3, [%[a], #28]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 7f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       93f\n\t"
+        "mov     %[r], #248\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n93:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       92f\n\t"
+        "mov     %[r], #240\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n92:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       91f\n\t"
+        "mov     %[r], #232\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n91:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       90f\n\t"
+        "mov     %[r], #224\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n90:\n\t"
+        "b   9f\n\t"
+        "\n7:\n\t"
+        "ldr r3, [%[a], #24]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 6f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       83f\n\t"
+        "mov     %[r], #216\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n83:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       82f\n\t"
+        "mov     %[r], #208\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n82:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       81f\n\t"
+        "mov     %[r], #200\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n81:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       80f\n\t"
+        "mov     %[r], #192\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n80:\n\t"
+        "b   9f\n\t"
+        "\n6:\n\t"
+        "ldr r3, [%[a], #20]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 5f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       73f\n\t"
+        "mov     %[r], #184\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n73:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       72f\n\t"
+        "mov     %[r], #176\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n72:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       71f\n\t"
+        "mov     %[r], #168\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n71:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       70f\n\t"
+        "mov     %[r], #160\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n70:\n\t"
+        "b   9f\n\t"
+        "\n5:\n\t"
+        "ldr r3, [%[a], #16]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 4f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       63f\n\t"
+        "mov     %[r], #152\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n63:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       62f\n\t"
+        "mov     %[r], #144\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n62:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       61f\n\t"
+        "mov     %[r], #136\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n61:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       60f\n\t"
+        "mov     %[r], #128\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n60:\n\t"
+        "b   9f\n\t"
+        "\n4:\n\t"
+        "ldr r3, [%[a], #12]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 3f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       53f\n\t"
+        "mov     %[r], #120\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n53:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       52f\n\t"
+        "mov     %[r], #112\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n52:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       51f\n\t"
+        "mov     %[r], #104\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n51:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       50f\n\t"
+        "mov     %[r], #96\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n50:\n\t"
+        "b   9f\n\t"
+        "\n3:\n\t"
+        "ldr r3, [%[a], #8]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 2f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       43f\n\t"
+        "mov     %[r], #88\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n43:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       42f\n\t"
+        "mov     %[r], #80\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n42:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       41f\n\t"
+        "mov     %[r], #72\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n41:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       40f\n\t"
+        "mov     %[r], #64\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n40:\n\t"
+        "b   9f\n\t"
+        "\n2:\n\t"
+        "ldr r3, [%[a], #4]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 1f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       33f\n\t"
+        "mov     %[r], #56\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n33:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       32f\n\t"
+        "mov     %[r], #48\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n32:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       31f\n\t"
+        "mov     %[r], #40\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n31:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       30f\n\t"
+        "mov     %[r], #32\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n30:\n\t"
+        "b   9f\n\t"
+        "\n1:\n\t"
+        "ldr r3, [%[a], #0]\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       23f\n\t"
+        "mov     %[r], #24\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n23:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       22f\n\t"
+        "mov     %[r], #16\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n22:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       21f\n\t"
+        "mov     %[r], #8\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n21:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       20f\n\t"
+        "mov     %[r], #0\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 9f\n\t"
+        "\n20:\n\t"
+        "\n9:\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [table] "r" (table)
+        : "r3", "r4", "r5", "r6"
+    );
+
+    return r;
+}
+
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @param  [in]   m   Modulus.
+ * @return  MP_OKAY on success.
+ */
+static int sp_256_mod_inv_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit u[8];
+    sp_digit v[8];
+    sp_digit b[8];
+    sp_digit d[8];
+    int ut, vt;
+    sp_digit o;
+
+    XMEMCPY(u, m, sizeof(u));
+    XMEMCPY(v, a, sizeof(v));
+
+    ut = sp_256_num_bits_8(u);
+    vt = sp_256_num_bits_8(v);
+
+    XMEMSET(b, 0, sizeof(b));
+    if ((v[0] & 1) == 0) {
+        sp_256_rshift1_8(v, v);
+        XMEMCPY(d, m, sizeof(u));
+        d[0] += 1;
+        sp_256_rshift1_8(d, d);
+        vt--;
+
+        while ((v[0] & 1) == 0) {
+            sp_256_rshift1_8(v, v);
+            sp_256_div2_mod_8(d, d, m);
+            vt--;
+        }
+    }
+    else {
+        XMEMSET(d+1, 0, sizeof(d)-sizeof(sp_digit));
+        d[0] = 1;
+    }
+
+    while (ut > 1 && vt > 1) {
+        if (ut > vt || (ut == vt && sp_256_cmp_8(u, v) >= 0)) {
+            sp_256_sub_8(u, u, v);
+            o = sp_256_sub_8(b, b, d);
+            if (o != 0)
+                sp_256_add_8(b, b, m);
+            ut = sp_256_num_bits_8(u);
+
+            do {
+                sp_256_rshift1_8(u, u);
+                sp_256_div2_mod_8(b, b, m);
+                ut--;
+            }
+            while (ut > 0 && (u[0] & 1) == 0);
+        }
+        else {
+            sp_256_sub_8(v, v, u);
+            o = sp_256_sub_8(d, d, b);
+            if (o != 0)
+                sp_256_add_8(d, d, m);
+            vt = sp_256_num_bits_8(v);
+
+            do {
+                sp_256_rshift1_8(v, v);
+                sp_256_div2_mod_8(d, d, m);
+                vt--;
+            }
+            while (vt > 0 && (v[0] & 1) == 0);
+        }
+    }
+
+    if (ut == 1)
+        XMEMCPY(r, b, sizeof(b));
+    else
+        XMEMCPY(r, d, sizeof(d));
+
+    return MP_OKAY;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 256)
@@ -21809,7 +22394,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 11;
         break;
     case 10: /* DBL */
-        err = sp_256_proj_point_dbl_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+        err = sp_256_proj_point_dbl_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
             ctx->state = 11;
@@ -21932,6 +22517,11 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 8, pY);
         sp_256_from_mp(p2->z, 8, pZ);
 
+#ifndef WOLFSSL_SP_SMALL
+        {
+            sp_256_mod_inv_8(s, s, p256_order);
+        }
+#endif /* !WOLFSSL_SP_SMALL */
         {
             sp_256_mul_8(s, s, p256_norm_order);
         }
@@ -21939,12 +22529,20 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     }
     if (err == MP_OKAY) {
         sp_256_norm_8(s);
+#ifdef WOLFSSL_SP_SMALL
         {
             sp_256_mont_inv_order_8(s, s, tmp);
             sp_256_mont_mul_order_8(u1, u1, s);
             sp_256_mont_mul_order_8(u2, u2, s);
         }
 
+#else
+        {
+            sp_256_mont_mul_order_8(u1, u1, s);
+            sp_256_mont_mul_order_8(u2, u2, s);
+        }
+
+#endif /* WOLFSSL_SP_SMALL */
             err = sp_256_ecc_mulmod_base_8(p1, u1, 0, 0, heap);
     }
     if (err == MP_OKAY) {
@@ -22142,7 +22740,7 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         err = sp_256_point_new_8(heap, pd, p);
     }
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
+    if (err == MP_OKAY && privm) {
         priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
                                                               DYNAMIC_TYPE_ECC);
         if (priv == NULL) {
@@ -22150,6 +22748,15 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 #endif
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 256) ||
+        (mp_count_bits(pY) > 256) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
 
     if (err == MP_OKAY) {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
@@ -22159,7 +22766,8 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         sp_256_from_mp(pub->x, 8, pX);
         sp_256_from_mp(pub->y, 8, pY);
         sp_256_from_bin(pub->z, 8, one, (int)sizeof(one));
-        sp_256_from_mp(priv, 8, privm);
+        if (privm)
+            sp_256_from_mp(priv, 8, privm);
 
         /* Check point at infinitiy. */
         if ((sp_256_iszero_8(pub->x) != 0) &&
@@ -22193,15 +22801,17 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Base * private = point */
-            err = sp_256_ecc_mulmod_base_8(p, priv, 1, 1, heap);
-    }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_256_cmp_8(p->x, pub->x) != 0 ||
-            sp_256_cmp_8(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_256_ecc_mulmod_base_8(p, priv, 1, 1, heap);
+        }
+        if (err == MP_OKAY) {
+            /* Check result is public key */
+            if (sp_256_cmp_8(p->x, pub->x) != 0 ||
+                sp_256_cmp_8(p->y, pub->y) != 0) {
+                err = ECC_PRIV_KEY_E;
+            }
         }
     }
 
@@ -24269,7 +24879,7 @@ typedef struct sp_384_proj_point_add_12_ctx {
     sp_digit* z;
 } sp_384_proj_point_add_12_ctx;
 
-static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r, 
+static int sp_384_proj_point_add_12_nb(sp_ecc_ctx_t* sp_ctx, sp_point_384* r,
     const sp_point_384* p, const sp_point_384* q, sp_digit* t)
 {
     int err = FP_WOULDBLOCK;
@@ -25210,7 +25820,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
 
         y = 0;
         for (j=0,x=95; j<4; j++,x+=96) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25225,7 +25835,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (i=94; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<4; j++,x+=96) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
@@ -25598,7 +26208,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
 
         y = 0;
         for (j=0,x=47; j<8; j++,x+=48) {
-            y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+            y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
         }
     #ifndef WC_NO_CACHE_RESISTANT
         if (ct) {
@@ -25613,7 +26223,7 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         for (i=46; i>=0; i--) {
             y = 0;
             for (j=0,x=i; j<8; j++,x+=48) {
-                y |= ((k[x / 32] >> (x % 32)) & 1) << j;
+                y |= (int)(((k[x / 32] >> (x % 32)) & 1) << j);
             }
 
             sp_384_proj_point_dbl_12(rt, rt, t);
@@ -27965,7 +28575,8 @@ static WC_INLINE int sp_384_div_12(const sp_digit* a, const sp_digit* d, sp_digi
     div = d[11];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 12);
     for (i=11; i>=0; i--) {
-        r1 = div_384_word_12(t1[12 + i], t1[12 + i - 1], div);
+        sp_digit hi = t1[12 + i] - (t1[12 + i] == div);
+        r1 = div_384_word_12(hi, t1[12 + i - 1], div);
 
         sp_384_mul_d_12(t2, d, r1);
         t1[12 + i] += sp_384_sub_in_place_12(&t1[i], t2);
@@ -28069,7 +28680,7 @@ static int sp_384_mont_inv_order_12_nb(sp_ecc_ctx_t* sp_ctx, sp_digit* r, const 
 {
     int err = FP_WOULDBLOCK;
     sp_384_mont_inv_order_12_ctx* ctx = (sp_384_mont_inv_order_12_ctx*)sp_ctx;
-    
+
     typedef char ctx_size_test[sizeof(sp_384_mont_inv_order_12_ctx) >= sizeof(*sp_ctx) ? -1 : 1];
     (void)sizeof(ctx_size_test);
 
@@ -28239,9 +28850,9 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         }
         XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
         ctx->state = 2;
-        break; 
+        break;
     case 2: /* MULMOD */
-        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, 
+        err = sp_384_ecc_mulmod_12_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx,
             &ctx->point, &p384_base, ctx->k, 1, 1, heap);
         if (err == MP_OKAY) {
             ctx->state = 3;
@@ -28494,6 +29105,789 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
 }
 #endif /* HAVE_ECC_SIGN */
 
+#ifndef WOLFSSL_SP_SMALL
+/* Divide the number by 2 mod the modulus. (r = a / 2 % m)
+ *
+ * r  Result of division by 2.
+ * a  Number to divide.
+ * m  Modulus.
+ */
+static void sp_384_div2_mod_12(sp_digit* r, const sp_digit* a,
+    const sp_digit* m)
+{
+    __asm__ __volatile__ (
+        "ldr       r3, [%[a]]\n\t"
+        "lsl       r3, #31\n\t"
+        "beq       1f\n\t"
+        "ldr       r4, [%[a], #0]\n\t"
+        "ldr       r5, [%[a], #4]\n\t"
+        "ldr       r6, [%[m], #0]\n\t"
+        "ldr       r7, [%[m], #4]\n\t"
+        "add     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #0]\n\t"
+        "str       r5, [%[r], #4]\n\t"
+        "ldr       r4, [%[a], #8]\n\t"
+        "ldr       r5, [%[a], #12]\n\t"
+        "ldr       r6, [%[m], #8]\n\t"
+        "ldr       r7, [%[m], #12]\n\t"
+        "adc     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #8]\n\t"
+        "str       r5, [%[r], #12]\n\t"
+        "ldr       r4, [%[a], #16]\n\t"
+        "ldr       r5, [%[a], #20]\n\t"
+        "ldr       r6, [%[m], #16]\n\t"
+        "ldr       r7, [%[m], #20]\n\t"
+        "adc     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #16]\n\t"
+        "str       r5, [%[r], #20]\n\t"
+        "ldr       r4, [%[a], #24]\n\t"
+        "ldr       r5, [%[a], #28]\n\t"
+        "ldr       r6, [%[m], #24]\n\t"
+        "ldr       r7, [%[m], #28]\n\t"
+        "adc     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #24]\n\t"
+        "str       r5, [%[r], #28]\n\t"
+        "ldr       r4, [%[a], #32]\n\t"
+        "ldr       r5, [%[a], #36]\n\t"
+        "ldr       r6, [%[m], #32]\n\t"
+        "ldr       r7, [%[m], #36]\n\t"
+        "adc     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #32]\n\t"
+        "str       r5, [%[r], #36]\n\t"
+        "ldr       r4, [%[a], #40]\n\t"
+        "ldr       r5, [%[a], #44]\n\t"
+        "ldr       r6, [%[m], #40]\n\t"
+        "ldr       r7, [%[m], #44]\n\t"
+        "adc     r4, r6\n\t"
+        "adc       r5, r7\n\t"
+        "str       r4, [%[r], #40]\n\t"
+        "str       r5, [%[r], #44]\n\t"
+        "mov r3, #0\n\t"
+        "adc r3, r3\n\t"
+        "lsl r3, r3, #31\n\t"
+        "b   2f\n\t"
+        "\n1:\n\t"
+        "ldr       r4, [%[a], #0]\n\t"
+        "ldr       r5, [%[a], #4]\n\t"
+        "str       r4, [%[r], #0]\n\t"
+        "str       r5, [%[r], #4]\n\t"
+        "ldr       r4, [%[a], #4]\n\t"
+        "ldr       r5, [%[a], #8]\n\t"
+        "str       r4, [%[r], #4]\n\t"
+        "str       r5, [%[r], #8]\n\t"
+        "ldr       r4, [%[a], #8]\n\t"
+        "ldr       r5, [%[a], #12]\n\t"
+        "str       r4, [%[r], #8]\n\t"
+        "str       r5, [%[r], #12]\n\t"
+        "ldr       r4, [%[a], #12]\n\t"
+        "ldr       r5, [%[a], #16]\n\t"
+        "str       r4, [%[r], #12]\n\t"
+        "str       r5, [%[r], #16]\n\t"
+        "ldr       r4, [%[a], #16]\n\t"
+        "ldr       r5, [%[a], #20]\n\t"
+        "str       r4, [%[r], #16]\n\t"
+        "str       r5, [%[r], #20]\n\t"
+        "ldr       r4, [%[a], #20]\n\t"
+        "ldr       r5, [%[a], #24]\n\t"
+        "str       r4, [%[r], #20]\n\t"
+        "str       r5, [%[r], #24]\n\t"
+        "ldr       r4, [%[a], #24]\n\t"
+        "ldr       r5, [%[a], #28]\n\t"
+        "str       r4, [%[r], #24]\n\t"
+        "str       r5, [%[r], #28]\n\t"
+        "ldr       r4, [%[a], #28]\n\t"
+        "ldr       r5, [%[a], #32]\n\t"
+        "str       r4, [%[r], #28]\n\t"
+        "str       r5, [%[r], #32]\n\t"
+        "ldr       r4, [%[a], #32]\n\t"
+        "ldr       r5, [%[a], #36]\n\t"
+        "str       r4, [%[r], #32]\n\t"
+        "str       r5, [%[r], #36]\n\t"
+        "ldr       r4, [%[a], #36]\n\t"
+        "ldr       r5, [%[a], #40]\n\t"
+        "str       r4, [%[r], #36]\n\t"
+        "str       r5, [%[r], #40]\n\t"
+        "ldr       r4, [%[a], #40]\n\t"
+        "ldr       r5, [%[a], #44]\n\t"
+        "str       r4, [%[r], #40]\n\t"
+        "str       r5, [%[r], #44]\n\t"
+        "\n2:\n\t"
+        "ldr r4, [%[r]]\n\t"
+        "ldr r5, [%[r], #4]\n\t"
+        "lsr r4, r4, #1\n\t"
+        "lsl r6, r5, #31\n\t"
+        "lsr r5, r5, #1\n\t"
+        "orr r4, r4, r6\n\t"
+        "ldr       r7, [%[r], #8]\n\t"
+        "str       r4, [%[r], #0]\n\t"
+        "lsl       r6, r7, #31\n\t"
+        "lsr       r7, r7, #1\n\t"
+        "orr       r5, r5, r6\n\t"
+        "ldr       r4, [%[r], #12]\n\t"
+        "str       r5, [%[r], #4]\n\t"
+        "lsl       r6, r4, #31\n\t"
+        "lsr       r4, r4, #1\n\t"
+        "orr       r7, r7, r6\n\t"
+        "ldr       r5, [%[r], #16]\n\t"
+        "str       r7, [%[r], #8]\n\t"
+        "lsl       r6, r5, #31\n\t"
+        "lsr       r5, r5, #1\n\t"
+        "orr       r4, r4, r6\n\t"
+        "ldr       r7, [%[r], #20]\n\t"
+        "str       r4, [%[r], #12]\n\t"
+        "lsl       r6, r7, #31\n\t"
+        "lsr       r7, r7, #1\n\t"
+        "orr       r5, r5, r6\n\t"
+        "ldr       r4, [%[r], #24]\n\t"
+        "str       r5, [%[r], #16]\n\t"
+        "lsl       r6, r4, #31\n\t"
+        "lsr       r4, r4, #1\n\t"
+        "orr       r7, r7, r6\n\t"
+        "ldr       r5, [%[r], #28]\n\t"
+        "str       r7, [%[r], #20]\n\t"
+        "lsl       r6, r5, #31\n\t"
+        "lsr       r5, r5, #1\n\t"
+        "orr       r4, r4, r6\n\t"
+        "ldr       r7, [%[r], #32]\n\t"
+        "str       r4, [%[r], #24]\n\t"
+        "lsl       r6, r7, #31\n\t"
+        "lsr       r7, r7, #1\n\t"
+        "orr       r5, r5, r6\n\t"
+        "ldr       r4, [%[r], #36]\n\t"
+        "str       r5, [%[r], #28]\n\t"
+        "lsl       r6, r4, #31\n\t"
+        "lsr       r4, r4, #1\n\t"
+        "orr       r7, r7, r6\n\t"
+        "ldr       r5, [%[r], #40]\n\t"
+        "str       r7, [%[r], #32]\n\t"
+        "lsl       r6, r5, #31\n\t"
+        "lsr       r5, r5, #1\n\t"
+        "orr       r4, r4, r6\n\t"
+        "ldr       r7, [%[r], #44]\n\t"
+        "str       r4, [%[r], #36]\n\t"
+        "lsl       r6, r7, #31\n\t"
+        "lsr       r7, r7, #1\n\t"
+        "orr       r5, r5, r6\n\t"
+        "orr r7, r7, r3\n\t"
+        "str r5, [%[r], #40]\n\t"
+        "str r7, [%[r], #44]\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [m] "r" (m)
+        : "memory", "r4", "r5", "r6", "r7", "r3"
+    );
+}
+
+static int sp_384_num_bits_12(sp_digit* a)
+{
+    int r = 0;
+    static const byte table[256] = {
+        0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    };
+
+    __asm__ __volatile__ (
+        "mov   r6, #0xff\n\t"
+        "ldr r3, [%[a], #44]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 11f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       133f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #121\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n133:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       132f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #113\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n132:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       131f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #105\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n131:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       130f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #97\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n130:\n\t"
+        "b   13f\n\t"
+        "\n11:\n\t"
+        "ldr r3, [%[a], #40]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 10f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       123f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #89\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n123:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       122f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #81\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n122:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       121f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #73\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n121:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       120f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #65\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n120:\n\t"
+        "b   13f\n\t"
+        "\n10:\n\t"
+        "ldr r3, [%[a], #36]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 9f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       113f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #57\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n113:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       112f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #49\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n112:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       111f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #41\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n111:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       110f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #33\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n110:\n\t"
+        "b   13f\n\t"
+        "\n9:\n\t"
+        "ldr r3, [%[a], #32]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 8f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       103f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #25\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n103:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       102f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #17\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n102:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       101f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #9\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n101:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       100f\n\t"
+        "mov     %[r], #255\n\t"
+        "add     %[r], %[r], #1\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n100:\n\t"
+        "b   13f\n\t"
+        "\n8:\n\t"
+        "ldr r3, [%[a], #28]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 7f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       93f\n\t"
+        "mov     %[r], #248\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n93:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       92f\n\t"
+        "mov     %[r], #240\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n92:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       91f\n\t"
+        "mov     %[r], #232\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n91:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       90f\n\t"
+        "mov     %[r], #224\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n90:\n\t"
+        "b   13f\n\t"
+        "\n7:\n\t"
+        "ldr r3, [%[a], #24]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 6f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       83f\n\t"
+        "mov     %[r], #216\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n83:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       82f\n\t"
+        "mov     %[r], #208\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n82:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       81f\n\t"
+        "mov     %[r], #200\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n81:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       80f\n\t"
+        "mov     %[r], #192\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n80:\n\t"
+        "b   13f\n\t"
+        "\n6:\n\t"
+        "ldr r3, [%[a], #20]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 5f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       73f\n\t"
+        "mov     %[r], #184\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n73:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       72f\n\t"
+        "mov     %[r], #176\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n72:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       71f\n\t"
+        "mov     %[r], #168\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n71:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       70f\n\t"
+        "mov     %[r], #160\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n70:\n\t"
+        "b   13f\n\t"
+        "\n5:\n\t"
+        "ldr r3, [%[a], #16]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 4f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       63f\n\t"
+        "mov     %[r], #152\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n63:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       62f\n\t"
+        "mov     %[r], #144\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n62:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       61f\n\t"
+        "mov     %[r], #136\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n61:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       60f\n\t"
+        "mov     %[r], #128\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n60:\n\t"
+        "b   13f\n\t"
+        "\n4:\n\t"
+        "ldr r3, [%[a], #12]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 3f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       53f\n\t"
+        "mov     %[r], #120\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n53:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       52f\n\t"
+        "mov     %[r], #112\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n52:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       51f\n\t"
+        "mov     %[r], #104\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n51:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       50f\n\t"
+        "mov     %[r], #96\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n50:\n\t"
+        "b   13f\n\t"
+        "\n3:\n\t"
+        "ldr r3, [%[a], #8]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 2f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       43f\n\t"
+        "mov     %[r], #88\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n43:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       42f\n\t"
+        "mov     %[r], #80\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n42:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       41f\n\t"
+        "mov     %[r], #72\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n41:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       40f\n\t"
+        "mov     %[r], #64\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n40:\n\t"
+        "b   13f\n\t"
+        "\n2:\n\t"
+        "ldr r3, [%[a], #4]\n\t"
+        "cmp r3, #0\n\t"
+        "beq 1f\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       33f\n\t"
+        "mov     %[r], #56\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n33:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       32f\n\t"
+        "mov     %[r], #48\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n32:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       31f\n\t"
+        "mov     %[r], #40\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n31:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       30f\n\t"
+        "mov     %[r], #32\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n30:\n\t"
+        "b   13f\n\t"
+        "\n1:\n\t"
+        "ldr r3, [%[a], #0]\n\t"
+        "lsr       r5, r3, #24\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       23f\n\t"
+        "mov     %[r], #24\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n23:\n\t"
+        "lsr       r5, r3, #16\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       22f\n\t"
+        "mov     %[r], #16\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n22:\n\t"
+        "lsr       r5, r3, #8\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       21f\n\t"
+        "mov     %[r], #8\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n21:\n\t"
+        "lsr       r5, r3, #0\n\t"
+        "and       r5, r6\n\t"
+        "cmp       r5, #0\n\t"
+        "beq       20f\n\t"
+        "mov     %[r], #0\n\t"
+        "ldrb      r4, [%[table], r5]\n\t"
+        "add       %[r], %[r], r4\n\t"
+        "b 13f\n\t"
+        "\n20:\n\t"
+        "\n13:\n\t"
+        : [r] "+r" (r)
+        : [a] "r" (a), [table] "r" (table)
+        : "r3", "r4", "r5", "r6"
+    );
+
+    return r;
+}
+
+/* Non-constant time modular inversion.
+ *
+ * @param  [out]  r   Resulting number.
+ * @param  [in]   a   Number to invert.
+ * @param  [in]   m   Modulus.
+ * @return  MP_OKAY on success.
+ */
+static int sp_384_mod_inv_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
+{
+    sp_digit u[12];
+    sp_digit v[12];
+    sp_digit b[12];
+    sp_digit d[12];
+    int ut, vt;
+    sp_digit o;
+
+    XMEMCPY(u, m, sizeof(u));
+    XMEMCPY(v, a, sizeof(v));
+
+    ut = sp_384_num_bits_12(u);
+    vt = sp_384_num_bits_12(v);
+
+    XMEMSET(b, 0, sizeof(b));
+    if ((v[0] & 1) == 0) {
+        sp_384_rshift1_12(v, v);
+        XMEMCPY(d, m, sizeof(u));
+        d[0] += 1;
+        sp_384_rshift1_12(d, d);
+        vt--;
+
+        while ((v[0] & 1) == 0) {
+            sp_384_rshift1_12(v, v);
+            sp_384_div2_mod_12(d, d, m);
+            vt--;
+        }
+    }
+    else {
+        XMEMSET(d+1, 0, sizeof(d)-sizeof(sp_digit));
+        d[0] = 1;
+    }
+
+    while (ut > 1 && vt > 1) {
+        if (ut > vt || (ut == vt && sp_384_cmp_12(u, v) >= 0)) {
+            sp_384_sub_12(u, u, v);
+            o = sp_384_sub_12(b, b, d);
+            if (o != 0)
+                sp_384_add_12(b, b, m);
+            ut = sp_384_num_bits_12(u);
+
+            do {
+                sp_384_rshift1_12(u, u);
+                sp_384_div2_mod_12(b, b, m);
+                ut--;
+            }
+            while (ut > 0 && (u[0] & 1) == 0);
+        }
+        else {
+            sp_384_sub_12(v, v, u);
+            o = sp_384_sub_12(d, d, b);
+            if (o != 0)
+                sp_384_add_12(d, d, m);
+            vt = sp_384_num_bits_12(v);
+
+            do {
+                sp_384_rshift1_12(v, v);
+                sp_384_div2_mod_12(d, d, m);
+                vt--;
+            }
+            while (vt > 0 && (v[0] & 1) == 0);
+        }
+    }
+
+    if (ut == 1)
+        XMEMCPY(r, b, sizeof(b));
+    else
+        XMEMCPY(r, d, sizeof(d));
+
+    return MP_OKAY;
+}
+
+#endif /* WOLFSSL_SP_SMALL */
 #ifdef HAVE_ECC_VERIFY
 /* Verify the signature values with the hash and public key.
  *   e = Truncate(hash, 384)
@@ -28619,7 +30013,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
         ctx->state = 11;
         break;
     case 10: /* DBL */
-        err = sp_384_proj_point_dbl_12_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1, 
+        err = sp_384_proj_point_dbl_12_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
             &ctx->p2, ctx->tmp);
         if (err == MP_OKAY) {
             ctx->state = 11;
@@ -28742,6 +30136,11 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
         sp_384_from_mp(p2->y, 12, pY);
         sp_384_from_mp(p2->z, 12, pZ);
 
+#ifndef WOLFSSL_SP_SMALL
+        {
+            sp_384_mod_inv_12(s, s, p384_order);
+        }
+#endif /* !WOLFSSL_SP_SMALL */
         {
             sp_384_mul_12(s, s, p384_norm_order);
         }
@@ -28749,12 +30148,20 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
     }
     if (err == MP_OKAY) {
         sp_384_norm_12(s);
+#ifdef WOLFSSL_SP_SMALL
         {
             sp_384_mont_inv_order_12(s, s, tmp);
             sp_384_mont_mul_order_12(u1, u1, s);
             sp_384_mont_mul_order_12(u2, u2, s);
         }
 
+#else
+        {
+            sp_384_mont_mul_order_12(u1, u1, s);
+            sp_384_mont_mul_order_12(u2, u2, s);
+        }
+
+#endif /* WOLFSSL_SP_SMALL */
             err = sp_384_ecc_mulmod_base_12(p1, u1, 0, 0, heap);
     }
     if (err == MP_OKAY) {
@@ -28956,7 +30363,7 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         err = sp_384_point_new_12(heap, pd, p);
     }
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
+    if (err == MP_OKAY && privm) {
         priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
                                                               DYNAMIC_TYPE_ECC);
         if (priv == NULL) {
@@ -28964,6 +30371,15 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 #endif
+
+    /* Quick check the lengs of public key ordinates and private key are in
+     * range. Proper check later.
+     */
+    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 384) ||
+        (mp_count_bits(pY) > 384) ||
+        ((privm != NULL) && (mp_count_bits(privm) > 384)))) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
 
     if (err == MP_OKAY) {
 #if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
@@ -28973,7 +30389,8 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         sp_384_from_mp(pub->x, 12, pX);
         sp_384_from_mp(pub->y, 12, pY);
         sp_384_from_bin(pub->z, 12, one, (int)sizeof(one));
-        sp_384_from_mp(priv, 12, privm);
+        if (privm)
+            sp_384_from_mp(priv, 12, privm);
 
         /* Check point at infinitiy. */
         if ((sp_384_iszero_12(pub->x) != 0) &&
@@ -29007,15 +30424,17 @@ int sp_ecc_check_key_384(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
         }
     }
 
-    if (err == MP_OKAY) {
-        /* Base * private = point */
-            err = sp_384_ecc_mulmod_base_12(p, priv, 1, 1, heap);
-    }
-    if (err == MP_OKAY) {
-        /* Check result is public key */
-        if (sp_384_cmp_12(p->x, pub->x) != 0 ||
-            sp_384_cmp_12(p->y, pub->y) != 0) {
-            err = ECC_PRIV_KEY_E;
+    if (privm) {
+        if (err == MP_OKAY) {
+            /* Base * private = point */
+                err = sp_384_ecc_mulmod_base_12(p, priv, 1, 1, heap);
+        }
+        if (err == MP_OKAY) {
+            /* Check result is public key */
+            if (sp_384_cmp_12(p->x, pub->x) != 0 ||
+                sp_384_cmp_12(p->y, pub->y) != 0) {
+                err = ECC_PRIV_KEY_E;
+            }
         }
     }
 

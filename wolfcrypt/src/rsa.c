@@ -651,19 +651,25 @@ int wc_CheckRsaKey(RsaKey* key)
                 break;
     #endif /* WOLFSSL_SP_4096 */
                 default:
-                /* If using only single prcsision math then issue key size error, 
-                    otherwise fall-back to multi-precision math calculation */
-                #ifdef WOLFSSL_SP_MATH
+                /* If using only single precsision math then issue key size
+                 * error, otherwise fall-back to multi-precision math
+                 * calculation */
+                #if defined(WOLFSSL_SP_MATH)
                     ret = WC_KEY_SIZE_E;
+                #else
+                    if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
+                        ret = MP_EXPTMOD_E;
+                    if (ret == 0) {
+                        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
+                            ret = MP_EXPTMOD_E;
+                    }
                 #endif
                     break;
         }
     }
-#endif /* WOLFSSL_HAVE_SP_RSA */
-
-#ifndef WOLFSSL_SP_MATH
+#else
     if (ret == 0) {
-        if (mp_exptmod(k, &key->e, &key->n, tmp) != MP_OKAY)
+        if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
             ret = MP_EXPTMOD_E;
     }
 
@@ -671,7 +677,7 @@ int wc_CheckRsaKey(RsaKey* key)
         if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
             ret = MP_EXPTMOD_E;
     }
-#endif /* !WOLFSSL_SP_MATH */
+#endif /* WOLFSSL_HAVE_SP_RSA */
 
     if (ret == 0) {
         if (mp_cmp(k, tmp) != MP_EQ)
@@ -1748,6 +1754,56 @@ int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+int wc_hash2mgf(enum wc_HashType hType)
+{
+    switch (hType) {
+    case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+        return WC_MGF1SHA1;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+        return WC_MGF1SHA224;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+        return WC_MGF1SHA256;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA384:
+#ifdef WOLFSSL_SHA384
+        return WC_MGF1SHA384;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+        return WC_MGF1SHA512;
+#else
+        break;
+#endif
+    case WC_HASH_TYPE_NONE:
+    case WC_HASH_TYPE_MD2:
+    case WC_HASH_TYPE_MD4:
+    case WC_HASH_TYPE_MD5:
+    case WC_HASH_TYPE_MD5_SHA:
+    case WC_HASH_TYPE_SHA3_224:
+    case WC_HASH_TYPE_SHA3_256:
+    case WC_HASH_TYPE_SHA3_384:
+    case WC_HASH_TYPE_SHA3_512:
+    case WC_HASH_TYPE_BLAKE2B:
+    case WC_HASH_TYPE_BLAKE2S:
+    default:
+        break;
+    }
+    WOLFSSL_MSG("Unrecognized or unsupported hash function");
+    return WC_MGF1NONE;
+}
 
 #ifdef WC_RSA_NONBLOCK
 static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
@@ -2076,7 +2132,7 @@ done:
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* tmp;
 #ifdef WC_RSA_BLINDING
@@ -2183,7 +2239,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH)
     (void)rng;
     WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
@@ -2237,8 +2293,15 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 ret = MP_INVMOD_E;
 
             /* rnd = rnd^e */
+        #ifndef WOLFSSL_SP_MATH_ALL
             if (ret == 0 && mp_exptmod(rnd, &key->e, &key->n, rnd) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
+        #else
+            if (ret == 0 && mp_exptmod_nct(rnd, &key->e, &key->n,
+                                                              rnd) != MP_OKAY) {
+                ret = MP_EXPTMOD_E;
+            }
+        #endif
 
             /* tmp = tmp*rnd mod n */
             if (ret == 0 && mp_mulmod(tmp, rnd, &key->n, tmp) != MP_OKAY)
@@ -2292,8 +2355,14 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                     ret = MP_EXPTMOD_E;
 
                 /* tmp = (tmpa - tmpb) * qInv (mod p) */
+#if defined(WOLFSSL_SP_MATH) || (defined(WOLFSSL_SP_MATH_ALL) && \
+                                              !defined(WOLFSSL_SP_INT_NEGATIVE))
+                if (ret == 0 && mp_submod(tmpa, tmpb, &key->p, tmp) != MP_OKAY)
+                    ret = MP_SUB_E;
+#else
                 if (ret == 0 && mp_sub(tmpa, tmpb, tmp) != MP_OKAY)
                     ret = MP_SUB_E;
+#endif
 
                 if (ret == 0 && mp_mulmod(tmp, &key->u, &key->p,
                                                                 tmp) != MP_OKAY)
@@ -3209,11 +3278,18 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
-    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key , WC_RSA_PKCSV15_PAD);
+    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key, WC_RSA_PKCSV15_PAD);
 }
 
 int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
                          RsaKey* key, int pad_type)
+{
+    return wc_RsaSSL_Verify_ex2(in, inLen, out, outLen, key, pad_type,
+            WC_HASH_TYPE_NONE);
+}
+
+int  wc_RsaSSL_Verify_ex2(const byte* in, word32 inLen, byte* out, word32 outLen,
+                         RsaKey* key, int pad_type, enum wc_HashType hash)
 {
     WC_RNG* rng;
 
@@ -3227,9 +3303,15 @@ int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
     rng = NULL;
 #endif
 
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
-        WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
+        hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DEFAULT, rng);
+#else
+    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
+        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
+        hash, wc_hash2mgf(hash), NULL, 0, RSA_PSS_SALT_LEN_DISCOVER, rng);
+#endif
 }
 #endif
 
@@ -3751,8 +3833,11 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
     if (ret == 0)
         ret = mp_sub(p, q, &d);
 
+#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+                                               defined(WOLFSSL_SP_INT_NEGATIVE))
     if (ret == 0)
         ret = mp_abs(&d, &d);
+#endif
 
     /* compare */
     if (ret == 0)

@@ -131,6 +131,11 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+# Start without certificates enabled and enable if a certificate algorithm is
+# enabled
+ENABLED_CERTS="no"
+
+
 
 # FIPS
 AC_ARG_ENABLE([fips],
@@ -191,7 +196,7 @@ AC_ARG_ENABLE([linuxkm-defaults],
 
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_OLD_PRIME_CHECK -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF -DSP_HALF_SIZE=32 -DSP_HALF_MAX=4294967295U"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_CONST -DWOLFSSL_SP_MOD_WORD_RP -DWOLFSSL_OLD_PRIME_CHECK -DWOLFSSL_SP_DIV_64 -DWOLFSSL_SP_DIV_WORD_HALF"
 fi
 
 AC_ARG_WITH([linux-source],
@@ -236,28 +241,42 @@ fi
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
     ENABLED_SP_DEFAULT=small
+    ENABLED_SP_MATH_ALL_DEFAULT=small
 else
     ENABLED_SP_DEFAULT=no
+    ENABLED_SP_MATH_ALL_DEFAULT=no
 fi
+
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
     [ ENABLED_SP=$enableval ],
     [ ENABLED_SP=$ENABLED_SP_DEFAULT ],
     )
 
+AC_ARG_ENABLE([sp-math-all],
+    [AS_HELP_STRING([--enable-sp-math-all],[Enable Single Precision math implementation for full algorithm suite (default: disabled)])],
+    [ ENABLED_SP_MATH_ALL=$enableval ],
+    [ ENABLED_SP_MATH_ALL=$ENABLED_SP_MATH_ALL_DEFAULT ],
+    )
 
 # Single Precision maths exclusively (no fastmath)
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no"
+if test "$ENABLED_LINUXKM_DEFAULTS" = "yes" && test "$ENABLED_SP" != "no" && test "$ENABLED_SP_MATH_ALL" = "no"
 then
     ENABLED_SP_MATH_DEFAULT=yes
 else
     ENABLED_SP_MATH_DEFAULT=no
 fi
 AC_ARG_ENABLE([sp-math],
-    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
+    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation with restricted algorithm suite (default: disabled)])],
     [ ENABLED_SP_MATH=$enableval ],
     [ ENABLED_SP_MATH=$ENABLED_SP_MATH_DEFAULT ],
     )
+
+
+if test "$ENABLED_SP_MATH" != "no" && test "$ENABLED_SP_MATH_ALL" != "no"
+then
+    AC_MSG_ERROR([cannot enable sp-math and sp-math-all simultaneously.])
+fi
 
 
 # ALL FEATURES
@@ -268,101 +287,124 @@ AC_ARG_ENABLE([all],
     )
 if test "$ENABLED_ALL" = "yes"
 then
-    enable_dtls=yes
+    test "$enable_dtls" = "" && enable_dtls=yes
     if test "x$FIPS_VERSION" != "xv1"
     then
-        enable_tls13=yes
-        enable_rsapss=yes
+        test "$enable_tls13" = "" && enable_tls13=yes
+        test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
-    enable_openssh=yes
-    enable_opensslextra=yes
-    enable_opensslall=yes
-    enable_savesession=yes
-    enable_savecert=yes
-    enable_atomicuser=yes
-    enable_pkcallbacks=yes
-    enable_aesgcm=yes
-    enable_aesccm=yes
-    enable_aesctr=yes
-    enable_aesofb=yes
-    enable_aescfb=yes
-    enable_camellia=yes
-    enable_ripemd=yes
-    enable_sha512=yes
-    enable_sha224=yes
-    enable_sha3=yes
-    enable_sessioncerts=yes
-    enable_keygen=yes
-    enable_certgen=yes
-    enable_certreq=yes
-    enable_certext=yes
-    enable_sep=yes
-    enable_hkdf=yes
-    enable_dsa=yes
-    enable_ecccustcurves=yes
-    enable_compkey=yes
-    enable_curve25519=yes
-    enable_curve448=yes
-    enable_ed448=yes
-    enable_ed25519=yes
-    enable_fpecc=yes
-    enable_eccencrypt=yes
-    enable_psk=yes
-    enable_idea=yes
-    enable_cmac=yes
-    enable_xts=yes
-    enable_webserver=yes
-    enable_hc128=yes
-    enable_rabbit=yes
-    enable_xchacha=yes
-    enable_ocsp=yes
-    enable_ocspstapling=yes
-    enable_ocspstapling2=yes
-    enable_crl=yes
-    enable_crl_monitor=yes
-    enable_sni=yes
-    enable_maxfragment=yes
-    enable_alpn=yes
-    enable_truncatedhmac=yes
-    enable_trusted_ca=yes
-    enable_supportedcurves=yes
-    enable_session_ticket=yes
-    enable_tlsx=yes
-    enable_pkcs7=yes
-    enable_ssh=yes
-    enable_scep=yes
-    enable_srp=yes
-    enable_certservice=yes
-    enable_jni=yes
-    enable_lighty=yes
-    enable_haproxy=yes
-    enable_stunnel=yes
-    enable_nginx=yes
-    enable_openvpn=yes
-    enable_asio=yes
-    enable_libwebsockets=yes
-    enable_qt=yes
-    enable_pwdbased=yes
-    enable_aeskeywrap=yes
-    enable_x963kdf=yes
-    enable_scrypt=yes
-    enable_indef=yes
-    enable_enckeys=yes
-    enable_hashflags=yes
-    enable_defaultdhparams=yes
-    enable_arc4=yes
-    enable_des3=yes
-    enable_nullcipher=yes
-    enable_blake2=yes
-    enable_blake2s=yes
-    enable_md2=yes
-    enable_md4=yes
-    enable_postauth=yes
-    enable_hrrcookie=yes
-    enable_cryptocb=yes
-    enable_fallback_scsv=yes
-    enable_anon=yes
-    enable_mcast=yes
+    test "$enable_savesession" = "" && enable_savesession=yes
+    test "$enable_savecert" = "" && enable_savecert=yes
+    test "$enable_atomicuser" = "" && enable_atomicuser=yes
+    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
+    test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_aesccm" = "" && enable_aesccm=yes
+    test "$enable_aesctr" = "" && enable_aesctr=yes
+    test "$enable_aesofb" = "" && enable_aesofb=yes
+    test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_camellia" = "" && enable_camellia=yes
+    test "$enable_ripemd" = "" && enable_ripemd=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha224" = "" && enable_sha224=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
+    test "$enable_keygen" = "" && enable_keygen=yes
+    test "$enable_certgen" = "" && enable_certgen=yes
+    test "$enable_certreq" = "" && enable_certreq=yes
+    test "$enable_certext" = "" && enable_certext=yes
+    test "$enable_sep" = "" && enable_sep=yes
+    test "$enable_hkdf" = "" && enable_hkdf=yes
+    test "$enable_curve25519" = "" && enable_curve25519=yes
+    test "$enable_curve448" = "" && enable_curve448=yes
+    test "$enable_fpecc" = "" && enable_fpecc=yes
+    test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+    test "$enable_psk" = "" && enable_psk=yes
+    test "$enable_idea" = "" && enable_idea=yes
+    test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_xts" = "" && enable_xts=yes
+    test "$enable_webserver" = "" && enable_webserver=yes
+    test "$enable_hc128" = "" && enable_hc128=yes
+    test "$enable_rabbit" = "" && enable_rabbit=yes
+    test "$enable_ocsp" = "" && enable_ocsp=yes
+    test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
+    test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
+    test "$enable_crl" = "" && enable_crl=yes
+    test "$enable_crl_monitor" = "" && enable_crl_monitor=yes
+    test "$enable_sni" = "" && enable_sni=yes
+    test "$enable_maxfragment" = "" && enable_maxfragment=yes
+    test "$enable_alpn" = "" && enable_alpn=yes
+    test "$enable_truncatedhmac" = "" && enable_truncatedhmac=yes
+    test "$enable_trusted_ca" = "" && enable_trusted_ca=yes
+    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
+    test "$enable_session_ticket" = "" && enable_session_ticket=yes
+    test "$enable_tlsx" = "" && enable_tlsx=yes
+    test "$enable_ssh" = "" && enable_ssh=yes
+    test "$enable_pwdbased" = "" && enable_pwdbased=yes
+    test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
+    test "$enable_x963kdf" = "" && enable_x963kdf=yes
+    test "$enable_scrypt" = "" && enable_scrypt=yes
+    test "$enable_indef" = "" && enable_indef=yes
+    test "$enable_enckeys" = "" && enable_enckeys=yes
+    test "$enable_hashflags" = "" && enable_hashflags=yes
+    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+    test "$enable_arc4" = "" && enable_arc4=yes
+    test "$enable_des3" = "" && enable_des3=yes
+    test "$enable_nullcipher" = "" && enable_nullcipher=yes
+    test "$enable_blake2" = "" && enable_blake2=yes
+    test "$enable_blake2s" = "" && enable_blake2s=yes
+    test "$enable_md2" = "" && enable_md2=yes
+    test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_postauth" = "" && enable_postauth=yes
+    test "$enable_hrrcookie" = "" && enable_hrrcookie=yes
+    test "$enable_cryptocb" = "" && enable_cryptocb=yes
+    test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
+    test "$enable_anon" = "" && enable_anon=yes
+    test "$enable_mcast" = "" && enable_mcast=yes
+
+    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+    then
+        test "$enable_compkey" = "" && enable_compkey=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+    fi
+
+    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
+    if test "$ENABLED_SP_MATH" = "no"
+    then
+        test "$enable_dsa" = "" && enable_dsa=yes
+        test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+        test "$enable_srp" = "" && enable_srp=yes
+        # linuxkm is incompatible with opensslextra and its dependents.
+        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+        then
+            if test "$ENABLED_FIPS" = "no"
+            then
+                test "$enable_openssh" = "" && enable_openssh=yes
+            fi
+            test "$enable_opensslextra" = "" && enable_opensslextra=yes
+            test "$enable_opensslall" = "" && enable_opensslall=yes
+            test "$enable_certservice" = "" && enable_certservice=yes
+            test "$enable_jni" = "" && enable_jni=yes
+            test "$enable_lighty" = "" && enable_lighty=yes
+            test "$enable_haproxy" = "" && enable_haproxy=yes
+            test "$enable_stunnel" = "" && enable_stunnel=yes
+            test "$enable_nginx" = "" && enable_nginx=yes
+            test "$enable_openvpn" = "" && enable_openvpn=yes
+            test "$enable_asio" = "" && enable_asio=yes
+            test "$enable_libwebsockets" = "" && enable_libwebsockets=yes
+            test "$enable_qt" = "" && enable_qt=yes
+        fi
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    fi
+
+    if test "$ENABLED_FIPS" = "no"
+    then
+        test "$enable_xchacha" = "" && enable_xchacha=yes
+        test "$enable_scep" = "" && enable_scep=yes
+        test "$enable_pkcs7" = "" && enable_pkcs7=yes
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+    fi
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
@@ -375,42 +417,6 @@ then
 
     # Enable ECC Key Gen checks
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
-
-    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
-    fi
-
-    if test "$ENABLED_SP_MATH" = "no"
-    then
-        # Enable ECC Import checks
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
-    else
-        # sp-math is incompatible with opensslextra, ECC custom curves, and DSA:
-
-        enable_openssh=no
-        enable_opensslextra=no
-        enable_opensslall=no
-        enable_dsa=no
-        enable_ecccustcurves=no
-        enable_srp=no
-        enable_certservice=no
-        enable_jni=no
-        enable_lighty=no
-        enable_haproxy=no
-        enable_stunnel=no
-        enable_nginx=no
-        enable_apachehttpd=no
-        enable_openvpn=no
-        enable_asio=no
-        enable_libwebsockets=no
-        enable_qt=no
-    fi
-
-    if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-    then
-        enable_compkey=no
-    fi
 fi
 
 
@@ -422,66 +428,79 @@ AC_ARG_ENABLE([all-crypto],
     )
 if test "$ENABLED_ALL_CRYPT" = "yes"
 then
-    enable_atomicuser=yes
-    enable_pkcallbacks=yes
-    enable_aesgcm=yes
-    enable_aesccm=yes
-    enable_aesctr=yes
-    enable_aesofb=yes
-    enable_aescfb=yes
-    enable_camellia=yes
-    enable_ripemd=yes
-    enable_sha512=yes
-    enable_sha224=yes
-    enable_sha3=yes
-    enable_sessioncerts=yes
-    enable_keygen=yes
-    enable_certgen=yes
-    enable_certreq=yes
-    enable_certext=yes
-    enable_sep=yes
-    enable_hkdf=yes
-    enable_curve25519=yes
-    enable_curve448=yes
-    enable_ed448=yes
-    enable_ed25519=yes
-    enable_fpecc=yes
-    enable_eccencrypt=yes
-    enable_psk=yes
-    enable_idea=yes
-    enable_cmac=yes
-    enable_xts=yes
-    enable_hc128=yes
-    enable_rabbit=yes
-    enable_xchacha=yes
-    enable_ocsp=yes
-    enable_ocspstapling=yes
-    enable_ocspstapling2=yes
-    enable_crl=yes
-    enable_supportedcurves=yes
-    enable_tlsx=yes
-    enable_pkcs7=yes
-    enable_pwdbased=yes
-    enable_aeskeywrap=yes
-    enable_x963kdf=yes
-    enable_scrypt=yes
-    enable_indef=yes
-    enable_enckeys=yes
-    enable_hashflags=yes
-    enable_defaultdhparams=yes
-    enable_arc4=yes
-    enable_des3=yes
-    enable_nullcipher=yes
-    enable_blake2=yes
-    enable_blake2s=yes
-    enable_md2=yes
-    enable_md4=yes
-    enable_cryptocb=yes
-    enable_anon=yes
+    test "$enable_atomicuser" = "" && enable_atomicuser=yes
+    test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
+    test "$enable_aesgcm" = "" && enable_aesgcm=yes
+    test "$enable_aesccm" = "" && enable_aesccm=yes
+    test "$enable_aesctr" = "" && enable_aesctr=yes
+    test "$enable_aesofb" = "" && enable_aesofb=yes
+    test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_camellia" = "" && enable_camellia=yes
+    test "$enable_ripemd" = "" && enable_ripemd=yes
+    test "$enable_sha512" = "" && enable_sha512=yes
+    test "$enable_sha224" = "" && enable_sha224=yes
+    test "$enable_sha3" = "" && enable_sha3=yes
+    test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
+    test "$enable_keygen" = "" && enable_keygen=yes
+    test "$enable_certgen" = "" && enable_certgen=yes
+    test "$enable_certreq" = "" && enable_certreq=yes
+    test "$enable_certext" = "" && enable_certext=yes
+    test "$enable_sep" = "" && enable_sep=yes
+    test "$enable_hkdf" = "" && enable_hkdf=yes
+    test "$enable_curve25519" = "" && enable_curve25519=yes
+    test "$enable_curve448" = "" && enable_curve448=yes
+    test "$enable_fpecc" = "" && enable_fpecc=yes
+    test "$enable_eccencrypt" = "" && enable_eccencrypt=yes
+    test "$enable_psk" = "" && enable_psk=yes
+    test "$enable_idea" = "" && enable_idea=yes
+    test "$enable_cmac" = "" && enable_cmac=yes
+    test "$enable_xts" = "" && enable_xts=yes
+    test "$enable_hc128" = "" && enable_hc128=yes
+    test "$enable_rabbit" = "" && enable_rabbit=yes
+    test "$enable_ocsp" = "" && enable_ocsp=yes
+    test "$enable_ocspstapling" = "" && enable_ocspstapling=yes
+    test "$enable_ocspstapling2" = "" && enable_ocspstapling2=yes
+    test "$enable_crl" = "" && enable_crl=yes
+    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
+    test "$enable_tlsx" = "" && enable_tlsx=yes
+    test "$enable_pwdbased" = "" && enable_pwdbased=yes
+    test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
+    test "$enable_x963kdf" = "" && enable_x963kdf=yes
+    test "$enable_scrypt" = "" && enable_scrypt=yes
+    test "$enable_indef" = "" && enable_indef=yes
+    test "$enable_enckeys" = "" && enable_enckeys=yes
+    test "$enable_hashflags" = "" && enable_hashflags=yes
+    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+    test "$enable_arc4" = "" && enable_arc4=yes
+    test "$enable_des3" = "" && enable_des3=yes
+    test "$enable_nullcipher" = "" && enable_nullcipher=yes
+    test "$enable_blake2" = "" && enable_blake2=yes
+    test "$enable_blake2s" = "" && enable_blake2s=yes
+    test "$enable_md2" = "" && enable_md2=yes
+    test "$enable_md4" = "" && enable_md4=yes
+    test "$enable_cryptocb" = "" && enable_cryptocb=yes
+    test "$enable_anon" = "" && enable_anon=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
-        enable_compkey=yes
+        test "$enable_compkey" = "" && enable_compkey=yes
+    fi
+
+    if test "$ENABLED_SP_MATH" = "no"
+    then
+        test "$enable_dsa" = "" && enable_dsa=yes
+        test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
+
+        # Enable ECC Import checks
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
+    fi
+
+    if test "$ENABLED_FIPS" != "yes"
+    then
+        test "$enable_xchacha" = "" && enable_xchacha=yes
+        test "$enable_ed25519" = "" && enable_ed25519=yes
+        test "$enable_ed448" = "" && enable_ed448=yes
+        test "$enable_pkcs7" = "" && enable_pkcs7=yes
     fi
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load
@@ -496,14 +515,6 @@ then
     # Enable ECC Key Gen checks
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_KEYGEN"
 
-    if test "$ENABLED_SP_MATH" = "no"
-    then
-        enable_dsa=yes
-        enable_ecccustcurves=yes
-
-        # Enable ECC Import checks
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
-    fi
 fi
 
 
@@ -933,7 +944,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EITHER_SIDE"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA_X509_SMALL"
-    
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD"
     AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER"
@@ -963,7 +974,7 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
     enable_lowresource=yes
@@ -1206,27 +1217,9 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" != "no"
+if test "$ENABLED_AESGCM" = "yes" && test "$ac_cv_c_bigendian" != "yes"
 then
-    if test "$ENABLED_AESGCM" = "word32"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
-        ENABLED_AESGCM=yes
-    fi
-
-    if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
-        ENABLED_AESGCM=yes
-    fi
-
-    if test "$ENABLED_AESGCM" = "table"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
-        ENABLED_AESGCM=yes
-    fi
-
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+    ENABLED_AESGCM="4bit"
 fi
 
 
@@ -1383,11 +1376,18 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESNI"
         if test "$GCC" = "yes"
         then
-            # GCC needs these flags, icc doesn't
-            # opt levels greater than 2 may cause problems on systems w/o aesni
-            if test "$CC" != "icc"
+            # clang needs these flags
+            if test "$CC" = "clang"
             then
-                AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                AM_CFLAGS="$AM_CFLAGS -maes -mpclmul"
+            else
+                # GCC needs these flags, icc doesn't
+                # opt levels greater than 2 may cause problems on systems w/o
+                # aesni
+                if test "$CC" != "icc"
+                then
+                    AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
+                fi
             fi
         fi
         AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
@@ -1808,6 +1808,8 @@ fi
 if test "$ENABLED_DSA" = "no" && test "$ENABLED_OPENSSH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+else
+    ENABLED_CERTS=yes
 fi
 
 # ECC Shamir
@@ -1848,6 +1850,8 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DWC_ECC_NONBLOCK"
     fi
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -1879,6 +1883,16 @@ then
     fi
 fi
 
+
+# ECC Minimum Key Size
+ENABLED_ECCMINSZ=224
+AC_ARG_WITH([eccminsz],
+    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
+    [
+        ENABLED_ECCMINSZ=$withval
+        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
+    ]
+)
 
 # Compressed Key
 AC_ARG_ENABLE([compkey],
@@ -1964,6 +1978,8 @@ then
     ENABLED_FEMATH=yes
     ENABLED_GEMATH=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED25519"
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -2025,6 +2041,8 @@ then
     # EdDSA448 requires SHAKE256 which requires SHA-3
     ENABLED_SHAKE3=yes
     ENABLED_SHAKE256=yes
+
+    ENABLED_CERTS=yes
 fi
 
 
@@ -2366,6 +2384,8 @@ else
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_RSA"
         ENABLED_RSA=no
+     else
+        ENABLED_CERTS=yes
     fi
 fi
 
@@ -2491,7 +2511,7 @@ AC_ARG_ENABLE([asn],
 
 if test "$ENABLED_ASN" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN"
     if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
     then
         # DH and ECC need bigint
@@ -2501,7 +2521,7 @@ else
     # turn off ASN if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_BIG_INT"
         ENABLED_ASN=no
     else
         if test "$ENABLED_ASN" = "nocrypt"
@@ -3525,7 +3545,7 @@ then
 fi
 
 # TLS 1.3 Requires either ECC or (RSA/DH), or CURVE25519/ED25519 or CURVE448/ED448
-if test "x$ENABLED_ECC" = "xno" && \
+if test "x$ENABLED_PSK" = "xno" && test "x$ENABLED_ECC" = "xno" && \
     (test "x$ENABLED_RSA" = "xno" || test "x$ENABLED_DH" = "xno") && \
     (test "x$ENABLED_CURVE25519" = "xno" || test "x$ENABLED_ED25519" = "xno") && \
     (test "x$ENABLED_CURVE448" = "xno" || test "x$ENABLED_ED448" = "xno")
@@ -3533,9 +3553,14 @@ then
     # disable TLS 1.3
     ENABLED_TLS13=no
 fi
+if test "$ENABLED_TLS13" = "yes" && (test "x$ENABLED_ECC" = "xyes" || \
+    test "x$ENABLED_DH" = "xyes")
+then
+    AM_CFLAGS="-DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+fi
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
 fi
 
 
@@ -3677,16 +3702,10 @@ fi
 
 
 # Small Stack - Cache on object
-if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
-then
-    ENABLED_SMALL_STACK_CACHE_DEFAULT=yes
-else
-    ENABLED_SMALL_STACK_CACHE_DEFAULT=no
-fi
 AC_ARG_ENABLE([smallstackcache],
     [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
     [ ENABLED_SMALL_STACK_CACHE=$enableval ],
-    [ ENABLED_SMALL_STACK_CACHE=$ENABLED_SMALL_STACK_CACHE_DEFAULT ]
+    [ ENABLED_SMALL_STACK_CACHE=no ]
     )
 
 if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
@@ -4683,16 +4702,17 @@ ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
+ENABLED_SP_SMALL=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
   small)
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_2048=yes
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
-    ENABLED_SP_SMALL=yes
     ENABLED_SP_EC_256=yes
     if test "$host_cpu" = "x86_64"; then
       ENABLED_SP_FF_4096=yes
@@ -4717,8 +4737,8 @@ do
     ;;
 
   smallec256 | smallp256 | small256)
-    ENABLED_SP_ECC=yes
     ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
     ;;
   ec256 | p256 | 256)
@@ -4726,8 +4746,8 @@ do
     ENABLED_SP_EC_256=yes
     ;;
   smallec384 | smallp384 | small384)
-    ENABLED_SP_ECC=yes
     ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
     ENABLED_SP_EC_384=yes
     ;;
   ec384 | p384 | 384)
@@ -4865,6 +4885,119 @@ if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
+if test "$ENABLED_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+fi
+
+
+if test "$ENABLED_SP_MATH" = "yes"; then
+    if test "$ENABLED_SP" = "no"; then
+        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+    fi
+    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and custom curves])
+    fi
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
+    fi
+    if test "$ENABLED_DSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and DSA])
+    fi
+    if test "$ENABLED_SRP" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and SRP])
+    fi
+    if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use RSA single precision only math and RSA])
+    fi
+    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
+        AC_MSG_ERROR([Cannot use DH single precision only math and DH])
+    fi
+
+    ENABLED_FASTMATH="no"
+    ENABLED_SLOWMATH="no"
+fi
+
+for v in `echo $ENABLED_SP_MATH_ALL | tr "," " "`
+do
+  case $v in
+  yes | no)
+    ;;
+  small)
+    ENABLED_SP_MATH_ALL="yes"
+    ENABLED_SP_SMALL="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ;;
+  huge)
+    ENABLED_SP_MATH_ALL="yes"
+    ENABLED_FASTHUGEMATH="yes"
+    AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_LARGE_COMBA"
+    ;;
+  256 | 384 | 521 | 1024 | 2048 | 3072 | 4096)
+    AM_CFLAGS="$AM_CFLAGS -DSP_INT_BITS=$v"
+    ENABLED_SP_MATH_ALL="yes"
+    ;;
+  *)
+    AC_MSG_ERROR([Support SP int bit sizes: 256, 384, 521, 1024, 2048, 3072, 4096. $ENABLED_SP_MATH_ALL not supported])
+    ;;
+  esac
+done
+
+if test "$ENABLED_SP_MATH_ALL" = "yes"; then
+
+  ENABLED_FASTMATH="no"
+  ENABLED_SLOWMATH="no"
+  ENABLED_SP="yes"
+  #ENABLED_SP_MATH="yes"
+
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH_ALL"
+
+  case $host_cpu in
+  *x86_64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64"
+    ;;
+  *x86*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86"
+    ;;
+  *aarch64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64"
+    ;;
+  *arm*)
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB"
+    else
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M"
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32"
+      fi
+    fi
+    ;;
+  *ppc64* | *powerpc64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_PPC64"
+    ;;
+  *ppc* | *powerpc*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_PPC"
+    ;;
+  *mips64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MIPS64"
+    ;;
+  *mips*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MIPS"
+    ;;
+  *riscv32*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_RISCV32"
+    ;;
+  *riscv64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_RISCV64"
+    ;;
+  *s390x*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_S390X"
+    ;;
+  esac
+fi
 
 
 AC_ARG_ENABLE([sp-asm],
@@ -4893,12 +5026,12 @@ if test "$ENABLED_SP_ASM" = "yes"; then
     ;;
   *arm*)
     if test $host_alias = "thumb"; then
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
       if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-r5"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         ENABLED_SP_ARM_CORTEX_ASM=yes
       else
@@ -4924,32 +5057,7 @@ if test "$ENABLED_SP_ASM" = "yes"; then
 
 fi
 
-if test "$ENABLED_SP_MATH" = "yes"; then
-    if test "$ENABLED_SP" = "no"; then
-        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
-    fi
-    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and custom curves])
-    fi
-    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
-    fi
-    if test "$ENABLED_DSA" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and DSA])
-    fi
-    if test "$ENABLED_SRP" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and SRP])
-    fi
-    if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
-        AC_MSG_ERROR([Cannot use RSA single precision only math and RSA])
-    fi
-    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
-        AC_MSG_ERROR([Cannot use DH single precision only math and DH])
-    fi
 
-    ENABLED_FASTMATH="no"
-    ENABLED_SLOWMATH="no"
-fi
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
@@ -5144,6 +5252,11 @@ then
     then
         # These flags are already implied by --enable-aesctr
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    fi
+    if test "x$ENABLED_AESGCM" != "xyes" && test "x$ENABLED_AESGCM" != "xno"
+    then
+        # Use the smaller object size implementation
+        ENABLED_AESGCM=yes
     fi
 fi
 
@@ -5379,6 +5492,17 @@ do
 done
 AM_CFLAGS=$NEW_AM_CFLAGS])
 
+case $host_cpu in
+  *arm*)
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -mthumb -march=armv6"
+    else
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -mcpu=cortex-r5"
+      fi
+    fi
+    ;;
+esac
 
 ################################################################################
 # Check for build-type conflicts                                               #
@@ -5477,9 +5601,6 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
 fi
-#if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_KEYGEN" = "yes"; then
-#    AC_MSG_ERROR([Cannot use single precision math and key generation])
-#fi
 
 if test "x$ENABLED_PKCS7" = "xyes"
 then
@@ -5507,6 +5628,35 @@ else
         AM_CFLAGS="$AM_CFLAGS -DNO_DES3"
         ENABLED_DES3=no
     fi
+fi
+
+if test "$ENABLED_AESGCM" != "no"
+then
+    if test "$ENABLED_AESGCM" = "word32"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "table"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
+        ENABLED_AESGCM=yes
+    fi
+
+    if test "$ENABLED_AESGCM" = "4bit"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE_4BIT"
+        ENABLED_AESGCM=yes
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
 fi
 
 
@@ -5562,6 +5712,10 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
     fi
 fi
+
+if test "x$ENABLED_CERTS" = "xno" || test "x$ENABLED_LEANPSK" = "xyes" || test "x$ENABLED_ASN" = "xno"; then
+   AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
+fi
 ################################################################################
 
 # USER SETTINGS
@@ -5587,7 +5741,17 @@ then
                 AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
             fi
         else
-            AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
+            if test "$ENABLED_SP" = "yes" && test "$ENABLED_SP_SMALL" = "no"
+            then
+                AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
+                if test "$ENABLED_FASTHUGEMATH" = "yes"
+                then
+                    AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
+                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_LARGE_COMBA"
+                fi
+            else
+                AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
+            fi
         fi
     ])
     fi
@@ -5682,8 +5846,8 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_SP_MATH" = "no"; then
-        AC_MSG_ERROR([--enable-sp-math is required for --enable-linuxkm.])
+    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no"; then
+        AC_MSG_ERROR([--enable-sp-math or --enable-sp-math-all is required for --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" = "yes"; then
         AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])
@@ -5803,7 +5967,7 @@ AM_CONDITIONAL([BUILD_SP_ARM32],[test "x$ENABLED_SP_ARM32_ASM" = "xyes" || test 
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB],[test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM_CORTEX],[test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_X86_64],[test "x$ENABLED_SP_X86_64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENABLED_SP_MATH_ALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FAST_RSA],[test "x$ENABLED_FAST_RSA" = "xyes"])
 AM_CONDITIONAL([BUILD_MCAPI],[test "x$ENABLED_MCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
@@ -5820,10 +5984,10 @@ AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
-	test "$ENABLED_STACKSIZE" = "yes" ||
-	(test "$ENABLED_LEANTLS" = "no" &&
-	     test "$ENABLED_LEANPSK" = "no" &&
-	     test "$ENABLED_LOWRESOURCE" = "no")
+        test "$ENABLED_STACKSIZE" = "yes" ||
+        (test "$ENABLED_LEANTLS" = "no" &&
+             test "$ENABLED_LEANPSK" = "no" &&
+             test "$ENABLED_LOWRESOURCE" = "no")
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WC_INTROSPECTION"
 fi
@@ -5979,6 +6143,11 @@ echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
 echo
 echo "   Features "
+if test "$ENABLED_FIPS" = "yes"; then
+echo "   * FIPS:                       $FIPS_VERSION"
+else
+echo "   * FIPS:                       $ENABLED_FIPS"
+fi
 echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
@@ -6042,6 +6211,7 @@ echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
 echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
@@ -6115,6 +6285,15 @@ echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
+if test "$ENABLED_SP_MATH_ALL" != "no"
+then
+    echo "   * SP math implementation:     all"
+elif test "$ENABLED_SP_MATH" != "no"
+then
+    echo "   * SP math implementation:     restricted"
+else
+    echo "   * SP math implementation:     no"
+fi
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"

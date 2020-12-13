@@ -587,8 +587,8 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448)
-#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
-    defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
+#if defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
@@ -925,6 +925,27 @@ static int rsa_sign_verify = 0;
 #ifndef NO_DH
 /* Use the FFDHE parameters */
 static int use_ffdhe = 0;
+#endif
+
+
+#ifdef HAVE_ECC
+/* Detect ECC key size to use */
+#ifndef BENCH_ECC_SIZE
+    #ifndef NO_ECC256
+        #define BENCH_ECC_SIZE 32
+    #elif defined(HAVE_ECC384)
+        #define BENCH_ECC_SIZE 48
+    #elif defined(HAVE_ECC224)
+        #define BENCH_ECC_SIZE 28
+    #elif defined(HAVE_ECC521)
+        #define BENCH_ECC_SIZE 66
+    #else
+        #error No ECC keygen size defined for benchmark
+    #endif
+#endif
+#define  BENCH_MAX_ECC_SIZE   BENCH_ECC_SIZE
+
+static int bench_ecc_size = BENCH_ECC_SIZE;
 #endif
 
 /* Don't print out in CSV format by default */
@@ -4344,7 +4365,7 @@ exit:
 void bench_rsaKeyGen(int doAsync)
 {
     int    k, keySz;
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     const int  keySizes[2] = {1024, 2048};
 #else
     const int  keySizes[1] = {2048};
@@ -4681,7 +4702,10 @@ exit_rsa_verify:
 
 void bench_rsa(int doAsync)
 {
-    int         ret = 0, i;
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    int         ret = 0;
+#endif
+    int         i;
     RsaKey      rsaKey[BENCH_MAX_PENDING];
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     int         rsaKeySz; /* used in printf */
@@ -4712,8 +4736,8 @@ void bench_rsa(int doAsync)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                        doAsync ? devId : INVALID_DEVID)) < 0) {
+        if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                         doAsync ? devId : INVALID_DEVID) < 0) {
             goto exit_bench_rsa;
         }
 
@@ -4785,8 +4809,8 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
             if (!isPending[i]) { /* if making the key is pending then just call
                                   * wc_MakeRsaKey again */
                 /* setup an async context for each key */
-                if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                    doAsync ? devId : INVALID_DEVID)) < 0) {
+                if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                     doAsync ? devId : INVALID_DEVID) < 0) {
                     goto exit_bench_rsa_key;
                 }
 
@@ -5228,23 +5252,6 @@ void bench_ntruKeyGen(void)
 #endif
 
 #ifdef HAVE_ECC
-
-/* Detect ECC key size to use */
-#ifndef BENCH_ECC_SIZE
-    #ifndef NO_ECC256
-        #define BENCH_ECC_SIZE 32
-    #elif defined(HAVE_ECC384)
-        #define BENCH_ECC_SIZE 48
-    #elif defined(HAVE_ECC224)
-        #define BENCH_ECC_SIZE 28
-    #elif defined(HAVE_ECC521)
-        #define BENCH_ECC_SIZE 66
-    #else
-        #error No ECC keygen size defined for benchmark
-    #endif
-#endif
-static int bench_ecc_size = BENCH_ECC_SIZE;
-
 void bench_eccMakeKey(int doAsync)
 {
     int ret = 0, i, times, count, pending = 0;
@@ -5308,11 +5315,11 @@ void bench_ecc(int doAsync)
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE
-    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, BENCH_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, BENCH_MAX_ECC_SIZE, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_MAX_ECC_SIZE, HEAP_HINT);
 #endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC

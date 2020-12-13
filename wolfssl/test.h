@@ -302,12 +302,16 @@
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_RSAKEY_BITS 2048
 #else
+    #ifndef DEFAULT_MIN_RSAKEY_BITS
     #define DEFAULT_MIN_RSAKEY_BITS 1024
+    #endif
 #endif
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_ECCKEY_BITS 256
 #else
+    #ifndef DEFAULT_MIN_ECCKEY_BITS
     #define DEFAULT_MIN_ECCKEY_BITS 224
+    #endif
 #endif
 
 /* all certs relative to wolfSSL home directory now */
@@ -1588,8 +1592,7 @@ static WC_INLINE int OCSPIOCb(void* ioCtx, const char* url, int urlSz,
 
 static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 {
-    (void)ioCtx;
-    (void)response;
+    return EmbedOcspRespFree(ioCtx, response);
 }
 #endif
 
@@ -2048,12 +2051,6 @@ struct stack_size_debug_context {
  *
  * CFLAGS='-g -DHAVE_STACK_SIZE_VERBOSE' ./configure --enable-stacksize [...]
  */
-
-extern THREAD_LS_T unsigned char *StackSizeCheck_myStack;
-extern THREAD_LS_T size_t StackSizeCheck_stackSize;
-extern THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
-extern THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
-extern THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
 
 static void *debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
   StackSizeCheck_myStack = shim_args->myStack;
@@ -3801,8 +3798,48 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    static int wantWriteFlag = 1;
 
+    int sent;
+    int sd = *(int*)ctx;
 
+    (void)ssl;
+
+    if (!wantWriteFlag)
+    {
+        wantWriteFlag = 1;
+
+        sent = wolfIO_Send(sd, buf, sz, 0);
+        if (sent < 0) {
+            int err = errno;
+
+            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+            else if (err == SOCKET_ECONNRESET) {
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            }
+            else if (err == SOCKET_EINTR) {
+                return WOLFSSL_CBIO_ERR_ISR;
+            }
+            else if (err == SOCKET_EPIPE) {
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+            else {
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        return sent;
+    }
+    else
+    {
+        wantWriteFlag = 0;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+}
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)

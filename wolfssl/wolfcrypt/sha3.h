@@ -90,7 +90,7 @@ enum {
 #else
 
 /* Sha3 digest */
-struct Sha3 {
+struct wc_Sha3 {
     /* State data that is processed for each block. */
     word64 s[25];
     /* Unprocessed message data. */
@@ -109,7 +109,7 @@ struct Sha3 {
 };
 
 #ifndef WC_SHA3_TYPE_DEFINED
-    typedef struct Sha3 wc_Sha3;
+    typedef struct wc_Sha3 wc_Sha3;
     #define WC_SHA3_TYPE_DEFINED
 #endif
 

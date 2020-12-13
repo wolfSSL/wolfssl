@@ -1750,6 +1750,21 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* The minimum allowed ECC key size */
+/* Note: 224-bits is equivelant to 2048-bit RSA */
+#ifndef ECC_MIN_KEY_SZ
+    #ifdef WOLFSSL_MIN_ECC_BITS
+        #define ECC_MIN_KEY_SZ WOLFSSL_MIN_ECC_BITS
+    #else
+        #if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION >= 2
+            /* FIPSv2 and ready (for now) includes 192-bit support */
+            #define ECC_MIN_KEY_SZ 192
+        #else
+            #define ECC_MIN_KEY_SZ 224
+        #endif
+    #endif
+#endif
+
 /* ECC Configs */
 #ifdef HAVE_ECC
     /* By default enable Sign, Verify, DHE, Key Import and Key Export unless explicitly disabled */
@@ -2122,8 +2137,8 @@ extern void uITRON4_free(void *p) ;
     #ifndef USE_WOLF_STRTOK
         #define USE_WOLF_STRTOK
     #endif
-    #ifndef WOLFSSL_SP_MOD_WORD_RP
-        #define WOLFSSL_SP_MOD_WORD_RP
+    #ifndef WOLFSSL_SP_DIV_WORD_HALF
+        #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
     #ifndef WOLFSSL_OLD_PRIME_CHECK
         #define WOLFSSL_OLD_PRIME_CHECK
@@ -2141,12 +2156,6 @@ extern void uITRON4_free(void *p) ;
     #endif
     #ifndef WOLFSSL_SP_DIV_WORD_HALF
         #define WOLFSSL_SP_DIV_WORD_HALF
-    #endif
-    #ifndef SP_HALF_SIZE
-        #define SP_HALF_SIZE        32
-    #endif
-    #ifndef SP_HALF_MAX
-        #define SP_HALF_MAX         4294967295U
     #endif
 #endif
 
@@ -2301,7 +2310,8 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
     !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
-                    defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    defined(WOLFSSL_RSA_PUBLIC_ONLY)
     #undef  WOLFSSL_NO_FORCE_ZERO
     #define WOLFSSL_NO_FORCE_ZERO
 #endif

@@ -137,7 +137,6 @@ static int lng_index = 0;
     }
 #endif
 
-
 static void err_sys_ex(int out, const char* msg)
 {
     if (out == 1) { /* if server is running w/ -x flag, print error w/o exit */
@@ -312,7 +311,11 @@ static int NonBlockingSSL_Accept(SSL* ssl)
         else
     #endif
         {
-            if (error != WOLFSSL_ERROR_WANT_WRITE) {
+            if (error == WOLFSSL_ERROR_WANT_WRITE)
+            {
+                select_ret = tcp_select_tx(sockfd, currTimeout);
+            }
+            else {
             #ifdef WOLFSSL_DTLS
                 currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
             #endif
@@ -333,12 +336,6 @@ static int NonBlockingSSL_Accept(SSL* ssl)
                                     srvHandShakeCB, srvTimeoutCB, srvTo);
             #endif
             error = SSL_get_error(ssl, 0);
-            if (error == WOLFSSL_ERROR_WANT_WRITE) {
-                /* Do a select here. */
-                select_ret = tcp_select_tx(sockfd, 1);
-                if (select_ret == TEST_TIMEOUT)
-                    error = WOLFSSL_FATAL_ERROR;
-            }
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;
@@ -466,8 +463,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     #else
             (int)throughput,
     #endif
-            tx_time * 1000, throughput / tx_time / 1024 / 1024,
-            rx_time * 1000, throughput / rx_time / 1024 / 1024
+            rx_time * 1000, throughput / rx_time / 1024 / 1024,
+            tx_time * 1000, throughput / tx_time / 1024 / 1024
         );
     }
 
@@ -694,6 +691,7 @@ static const char* server_usage_msg[][56] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 53 */
 #endif
+        "-6          Simulate WANT_WRITE errors on every other IO send\n",
 #ifdef HAVE_CURVE448
         "-8          Pre-generate Key share using Curve448 only\n",     /* 55 */
 #endif
@@ -984,6 +982,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int    needDH = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
+    int    simulateWantWrite = 0;
     int    fewerPackets = 0;
 #ifdef HAVE_PK_CALLBACKS
     int    pkCallbacks  = 0;
@@ -1157,8 +1156,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:4:58"
-		"@#")) != -1) {
+                "01:23:4:568"
+		        "@#")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1549,6 +1548,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #endif /* HAVE_TRUSTED_CA */
                 break;
 
+            case '6' :
+                nonBlocking = 1;
+                simulateWantWrite = 1;
+                break;
+
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -1730,6 +1734,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
 
+    if (simulateWantWrite)
+    {
+        wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
+    }
+
 #if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
                                     defined(HAVE_POLY1305)
     if (TicketInit() != 0)
@@ -1747,7 +1756,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (ret != 0) {
         err_sys_ex(runWithErrors, "error loading static ECDH key");
     }
-#elif !defined(NO_DH)
+#endif
+#ifndef NO_DH
     ret = wolfSSL_CTX_set_ephemeral_key(ctx, WC_PK_TYPE_DH,
         "./certs/statickeys/dh-ffdhe2048.pem", 0, WOLFSSL_FILETYPE_PEM);
     if (ret != 0) {
@@ -1869,12 +1879,21 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (defaultCipherList == NULL && !usePskPlus) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-                defaultCipherList = "TLS13-AES128-GCM-SHA256:"
-                                    "DHE-PSK-AES128-GCM-SHA256";
+                defaultCipherList = "TLS13-AES128-GCM-SHA256"
+                #ifndef WOLFSSL_NO_TLS12
+                                    ":DHE-PSK-AES128-GCM-SHA256"
+                #endif
+                ;
             #else
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
                 needDH = 1;
+        #elif defined(HAVE_AESGCM) && defined(WOLFSSL_TLS13)
+                defaultCipherList = "TLS13-AES128-GCM-SHA256"
+                #ifndef WOLFSSL_NO_TLS12
+                                    ":PSK-AES128-GCM-SHA256"
+                #endif
+                ;
         #elif defined(HAVE_NULL_CIPHER)
                 defaultCipherList = "PSK-NULL-SHA256";
         #else
@@ -2449,9 +2468,53 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "SSL in error state");
         }
 
+        /* if the caller requested a particular cipher, check here that either
+         * a canonical name of the established cipher matches the requested
+         * cipher name, or the requested cipher name is marked as an alias
+         * that matches the established cipher.
+         */
+        if (cipherList && (! XSTRSTR(cipherList, ":"))) {
+            WOLFSSL_CIPHER* established_cipher = wolfSSL_get_current_cipher(ssl);
+            byte requested_cipherSuite0, requested_cipherSuite;
+            int requested_cipherFlags;
+            if (established_cipher &&
+                /* don't test for pseudo-ciphers like "ALL" and "DEFAULT". */
+                (wolfSSL_get_cipher_suite_from_name(cipherList,
+                                                    &requested_cipherSuite0,
+                                                    &requested_cipherSuite,
+                                                    &requested_cipherFlags) == 0)) {
+                word32 established_cipher_id = wolfSSL_CIPHER_get_id(established_cipher);
+                byte established_cipherSuite0 = (established_cipher_id >> 8) & 0xff;
+                byte established_cipherSuite = established_cipher_id & 0xff;
+                const char *established_cipher_name =
+                    wolfSSL_get_cipher_name_from_suite(established_cipherSuite0,
+                                                       established_cipherSuite);
+                const char *established_cipher_name_iana =
+                    wolfSSL_get_cipher_name_iana_from_suite(established_cipherSuite0,
+                                                            established_cipherSuite);
+
+                if (established_cipher_name == NULL)
+                    err_sys_ex(catastrophic, "error looking up name of established cipher");
+
+                if (strcmp(cipherList, established_cipher_name) &&
+                    ((established_cipher_name_iana == NULL) ||
+                     strcmp(cipherList, established_cipher_name_iana))) {
+                    if (! (requested_cipherFlags & WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS))
+                        err_sys_ex(
+                            catastrophic,
+                            "Unexpected mismatch between names of requested and established ciphers.");
+                    else if ((requested_cipherSuite0 != established_cipherSuite0) ||
+                             (requested_cipherSuite != established_cipherSuite))
+                        err_sys_ex(
+                            catastrophic,
+                            "Mismatch between IDs of requested and established ciphers.");
+                }
+            }
+        }
+
 #ifdef OPENSSL_EXTRA
     {
-        byte*  rnd;
+        byte*  rnd = NULL;
         byte*  pt;
         size_t size;
 
@@ -2461,8 +2524,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "error getting server random buffer "
                        "size");
         }
+        else {
+            rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
 
-        rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (rnd == NULL) {
             err_sys_ex(runWithErrors, "error creating server random buffer");
         }

@@ -67,6 +67,14 @@ struct PKCS7SignerInfo {
 };
 
 
+#ifndef WOLFSSL_PKCS7_MAX_DECOMPRESSION
+    /* 1031 comes from "Maximum Compression Factor" in the zlib tech document,
+     * typical compression is from 2:1 to 5:1 but there is rare cases where
+     * 1030.3:1 could happen (like a file with all 0's)
+     */
+    #define WOLFSSL_PKCS7_MAX_DECOMPRESSION 1031
+#endif
+
 #ifndef NO_PKCS7_STREAM
 
 #define MAX_PKCS7_STREAM_BUFFER 256
@@ -909,6 +917,105 @@ static int wc_PKCS7_RecipientListVersionsAllZero(PKCS7* pkcs7)
     return 1;
 }
 
+/* Verify RSA/ECC key is correctly formatted, used as sanity check after
+ * import of key/cert.
+ *
+ * keyOID - key OID (ex: RSAk, ECDSAk)
+ * key    - key in DER
+ * keySz  - size of key, octets
+ *
+ * Returns 0 on success, negative on error */
+static int wc_PKCS7_CheckPublicKeyDer(PKCS7* pkcs7, int keyOID,
+                                      const byte* key, word32 keySz)
+{
+    int ret = 0;
+    word32 scratch = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        RsaKey* rsa;
+    #endif
+    #ifdef HAVE_ECC
+        ecc_key* ecc;
+    #endif
+#else
+    #ifndef NO_RSA
+        RsaKey rsa[1];
+    #endif
+    #ifdef HAVE_ECC
+        ecc_key ecc[1];
+    #endif
+#endif
+
+    if (pkcs7 == NULL || key == NULL || keySz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        rsa = (RsaKey*)XMALLOC(sizeof(RsaKey), pkcs7->heap,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (rsa == NULL) {
+            return MEMORY_E;
+        }
+    #endif
+
+    #ifdef HAVE_ECC
+        ecc = (ecc_key*)XMALLOC(sizeof(ecc_key), pkcs7->heap,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ecc == NULL) {
+            #ifndef NO_RSA
+                XFREE(rsa, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            return MEMORY_E;
+        }
+    #endif
+#endif
+
+    switch (keyOID) {
+#ifndef NO_RSA
+        case RSAk:
+            ret = wc_InitRsaKey_ex(rsa, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                break;
+            }
+
+            /* Try to decode public key as sanity check. wc_CheckRsaKey()
+               only checks private key not public. */
+            ret = wc_RsaPublicKeyDecode(key, &scratch, rsa, keySz);
+            wc_FreeRsaKey(rsa);
+
+            break;
+#endif
+#ifdef HAVE_ECC
+        case ECDSAk:
+            ret = wc_ecc_init_ex(ecc, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                break;
+            }
+
+            /* Try to decode public key and check with wc_ecc_check_key() */
+            ret = wc_EccPublicKeyDecode(key, &scratch, ecc, keySz);
+            if (ret == 0) {
+                ret = wc_ecc_check_key(ecc);
+            }
+            wc_ecc_free(ecc);
+
+            break;
+#endif
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    #ifndef NO_RSA
+        XFREE(rsa, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef HAVE_ECC
+        XFREE(ecc, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+#endif
+
+    return ret;
+}
+
 
 /* Init PKCS7 struct with recipient cert, decode into DecodedCert
  * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
@@ -974,6 +1081,18 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         InitDecodedCert(dCert, derCert, derCertSz, pkcs7->heap);
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
+            FreeDecodedCert(dCert);
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
+#endif
+            return ret;
+        }
+
+        /* verify extracted public key is valid before storing */
+        ret = wc_PKCS7_CheckPublicKeyDer(pkcs7, dCert->keyOID,
+                                         dCert->publicKey, dCert->pubKeySize);
+        if (ret != 0) {
+            WOLFSSL_MSG("Invalid public key, check pkcs7->cert\n");
             FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(dCert, pkcs7->heap, DYNAMIC_TYPE_DCERT);
@@ -1605,6 +1724,25 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
             ret = BAD_FUNC_ARG;
         }
     }
+
+    /* If not using old FIPS or CAVP selftest, or not using FAST,
+       or USER RSA, able to check RSA key. */
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(HAVE_FAST_RSA) && \
+    !defined(HAVE_USER_RSA) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA)
+
+    #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+    /* verify imported private key is a valid key before using it */
+    if (ret == 0) {
+        ret = wc_CheckRsaKey(privKey);
+        if (ret != 0) {
+            WOLFSSL_MSG("Invalid RSA private key, check pkcs7->privateKey");
+        }
+    }
+    #endif
+#endif
+
     if (ret == 0) {
     #ifdef WOLFSSL_ASYNC_CRYPT
         do {
@@ -1668,6 +1806,15 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
             ret = BAD_FUNC_ARG;
         }
     }
+
+    /* verify imported private key is a valid key before using it */
+    if (ret == 0) {
+        ret = wc_ecc_check_key(privKey);
+        if (ret != 0) {
+            WOLFSSL_MSG("Invalid ECC private key, check pkcs7->privateKey");
+        }
+    }
+
     if (ret == 0) {
         outSz = sizeof(esd->encContentDigest);
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -4375,10 +4522,20 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     ret = ASN_PARSE_E;
 
                 if (ret == 0) {
-                    /* Use single OCTET_STRING directly. */
-                    if (localIdx - start + length == (word32)contentLen)
+                    /* Use single OCTET_STRING directly, or reset length. */
+                    if (localIdx - start + length == (word32)contentLen) {
                         multiPart = 0;
+                    } else {
+                        /* reset length to outer OCTET_STRING for bundle size
+                         * check below */
+                        length = contentLen;
+                    }
                     localIdx = start;
+                }
+
+                if (ret != 0) {
+                    /* failed ASN1 parsing during OCTET_STRING checks */
+                    break;
                 }
             }
 
@@ -4397,6 +4554,16 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 /* support using header and footer without content */
                 if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
                     localIdx = 0;
+
+                } else if (pkiMsg2 == NULL && hashBuf == NULL) {
+                    /* header/footer not separate, check content length is
+                     * not larger than total bundle size */
+                    if ((localIdx + length) > pkiMsgSz) {
+                        WOLFSSL_MSG("Content length detected is larger than "
+                                    "total bundle size");
+                        ret = BUFFER_E;
+                        break;
+                    }
                 }
                 idx = localIdx;
             }
@@ -4412,7 +4579,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (!degenerate && !detached && ret != 0)
                     break;
 
-                length = 0; /* no content to read */
+                /* no content to read */
+                length = 0;
+                contentLen = 0;
+
                 pkiMsg2   = pkiMsg;
                 pkiMsg2Sz = pkiMsgSz;
             }
@@ -12497,17 +12667,10 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* allocate space for decompressed data */
-    decompressed = (byte*)XMALLOC(length, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    if (decompressed == NULL) {
-        WOLFSSL_MSG("Error allocating memory for CMS decompression buffer");
-        return MEMORY_E;
-    }
-
     /* decompress content */
-    ret = wc_DeCompress(decompressed, length, &pkiMsg[idx], length);
+    ret = wc_DeCompressDynamic(&decompressed, WOLFSSL_PKCS7_MAX_DECOMPRESSION,
+            DYNAMIC_TYPE_PKCS7, &pkiMsg[idx], length, 0, pkcs7->heap);
     if (ret < 0) {
-        XFREE(decompressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
     decompressedSz = (word32)ret;
