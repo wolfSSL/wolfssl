@@ -4331,7 +4331,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
-    ret = wc_AesSetKeyLocal(aes, key, len, iv, AES_ENCRYPTION, 0);
+    ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
     #ifdef WOLFSSL_AESNI
         /* AES-NI code generates its own H value. */
