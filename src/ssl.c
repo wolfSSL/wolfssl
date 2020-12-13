@@ -19893,8 +19893,9 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+
 /* return a new malloc'd session with default settings on success */
-WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
+static WOLFSSL_SESSION* NewSession(void)
 {
     WOLFSSL_SESSION* ret = NULL;
 
@@ -19902,18 +19903,27 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
             DYNAMIC_TYPE_OPENSSL);
     if (ret != NULL) {
         XMEMSET(ret, 0, sizeof(WOLFSSL_SESSION));
-        #ifdef OPENSSL_EXTRA
-        if (wc_InitMutex(&ret->refMutex) != 0) {
-            WOLFSSL_MSG("Error setting up session reference mutex");
-            XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
-            return NULL;
-        }
-        #endif
         ret->isAlloced = 1;
     }
     return ret;
 }
 
+WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
+{
+    WOLFSSL_SESSION* ret = NewSession();
+
+    if (ret != NULL) {
+#ifdef OPENSSL_EXTRA
+        if (wc_InitMutex(&ret->refMutex) != 0) {
+            WOLFSSL_MSG("Error setting up session reference mutex");
+            XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+            return NULL;
+        }
+    }
+#endif
+
+    return ret;
+}
 
 /* add one to session reference count
  * return WOFLSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
@@ -19949,10 +19959,17 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
     }
 #endif
 
-    copy = wolfSSL_SESSION_new();
+    copy = NewSession();
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->isAlloced = 1;
+#ifdef OPENSSL_EXTRA
+        if (wc_InitMutex(&copy->refMutex) != 0) {
+            WOLFSSL_MSG("Error setting up session reference mutex");
+            XFREE(copy, NULL, DYNAMIC_TYPE_OPENSSL);
+            return NULL;
+        }
+#endif
 #ifdef HAVE_SESSION_TICKET
         if (session->isDynamic) {
             copy->ticket = (byte*)XMALLOC(session->ticketLen, NULL,
