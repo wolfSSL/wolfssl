@@ -6057,12 +6057,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
-#ifndef NO_SESSION_CACHE
-    if (!ssl->options.resuming) {
-        AddSession(ssl);    /* just try */
-    }
-#endif
-
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) {
