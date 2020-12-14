@@ -36869,6 +36869,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
 {
     word32 len;
     ecc_key* key;
+    int ret;
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && !defined(HAVE_FIPS)
     int setGlobalRNG = 0;
@@ -36908,19 +36909,17 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
         setGlobalRNG = 1;
     }
 #endif
-
-    if (wc_ecc_shared_secret_ssh(key,
-                                 (ecc_point*)pub_key->internal,
-                                 (byte *)out, &len) != MP_OKAY) {
-        WOLFSSL_MSG("wc_ecc_shared_secret failed");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
+    ret = wc_ecc_shared_secret_ssh(key, (ecc_point*)pub_key->internal,
+            (byte *)out, &len);
 #if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_SELFTEST) \
     && !defined(HAVE_FIPS)
     if (setGlobalRNG)
         key->rng = NULL;
 #endif
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_shared_secret failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     return len;
 }

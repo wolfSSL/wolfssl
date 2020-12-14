@@ -4035,14 +4035,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                             byte* out, word32 *outlen)
 {
     int err;
-#ifdef ECC_TIMING_RESISTANT
-    int initTmpRng = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    WC_RNG *tmpRNG = NULL;
-#else
-    WC_RNG tmpRNG[1];
-#endif
-#endif
 
     if (private_key == NULL || point == NULL || out == NULL ||
                                                             outlen == NULL) {
@@ -4067,35 +4059,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         case ECC_STATE_SHARED_SEC_GEN:
             private_key->state = ECC_STATE_SHARED_SEC_GEN;
 
-            #ifdef ECC_TIMING_RESISTANT
-            if (private_key->rng == NULL) {
-                #ifdef WOLFSSL_SMALL_STACK
-                tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-                if (tmpRNG == NULL)
-                    return MEMORY_E;
-                #endif
-                if ((err = wc_InitRng(tmpRNG)) != MP_OKAY) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-                    #endif
-                    break;
-                }
-                private_key->rng = tmpRNG;
-                initTmpRng = 1;
-            }
-            #endif
             err = wc_ecc_shared_secret_gen(private_key, point, out, outlen);
-            #ifdef ECC_TIMING_RESISTANT
-            if (initTmpRng) {
-                wc_FreeRng(tmpRNG);
-                #ifdef WOLFSSL_SMALL_STACK
-                XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-                #endif
-                private_key->rng = NULL;
-            }
-            #endif
             if (err < 0) {
-                WOLFSSL_MSG("wc_ecc_shared_secret_gen failed");
                 break;
             }
             FALL_THROUGH;

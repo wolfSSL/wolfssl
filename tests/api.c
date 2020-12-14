@@ -33801,6 +33801,9 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
     /* Test wolfSSL_EVP_PKEY_set1_EC_KEY */
     AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
+    /* Should fail since ecKey is empty */
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
     AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
 
     /* Test wolfSSL_EVP_PKEY_get1_EC_KEY */
@@ -34133,6 +34136,8 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL),  WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,ecKey),   WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey),   WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 #endif /* HAVE_ECC */
@@ -36545,6 +36550,9 @@ static void test_EVP_PKEY_ec(void)
     AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
+    /* Should fail since ecKey is empty */
+    AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 
