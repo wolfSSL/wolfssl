@@ -5044,7 +5044,29 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
                return err;
             }
             if (fp_cmp_d(b, 2) != FP_GT || fp_cmp(b, c) != FP_LT) {
-                continue;
+                /* Generate a 64-bit random number */
+                fp_digit tm = 0;
+                if ((err = wc_RNG_GenerateBlock(rng, (byte*)&tm, sizeof(tm))) != 0) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
+                    XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return err;
+                }
+                if (fp_cmp_d(b, 2) != FP_GT) {
+                    /* b is too small, add random number to b */
+                    err = fp_add_d(b, tm, b);
+                } else {
+                    /* b is too large, subtract random number from c */
+                    err = fp_sub_d(c, tm, b);
+                }
+                if (err != FP_OKAY) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
+                    XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                    return err;
+                }
             }
 
             fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
