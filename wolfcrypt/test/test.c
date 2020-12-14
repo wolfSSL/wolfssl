@@ -1532,6 +1532,13 @@ static int base64_test(void)
     static const byte badSmall[] = "AAA Gdj=";
     static const byte badLarge[] = "AAA~Gdj=";
     static const byte badEOL[] = "A+Gd AA";
+    static const byte badPadding[] = "AA=A";
+    static const byte badChar[] = ",-.:;<=>?@[\\]^_`";
+    byte goodChar[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/;";
+    byte charTest[] = "A+Gd\0\0\0";
     int        i;
 
     /* Good Base64 encodings. */
@@ -1543,6 +1550,12 @@ static int base64_test(void)
     ret = Base64_Decode(goodEnd, sizeof(goodEnd), out, &outLen);
     if (ret != 0)
         return -1201;
+    outLen = sizeof(goodChar);
+    ret = Base64_Decode(goodChar, sizeof(goodChar), goodChar, &outLen);
+    if (ret != 0)
+        return -1235;
+    if (outLen != 64 / 4 * 3)
+        return -1236;
 
     /* Bad parameters. */
     outLen = 1;
@@ -1552,6 +1565,10 @@ static int base64_test(void)
 
     outLen = sizeof(out);
     ret = Base64_Decode(badEOL, sizeof(badEOL), out, &outLen);
+    if (ret != ASN_INPUT_E)
+        return -1203;
+    outLen = sizeof(out);
+    ret = Base64_Decode(badPadding, sizeof(badPadding), out, &outLen);
     if (ret != ASN_INPUT_E)
         return -1203;
     /* Bad character at each offset 0-3. */
@@ -1564,6 +1581,31 @@ static int base64_test(void)
         if (ret != ASN_INPUT_E)
             return -1214 - i;
     }
+    /* Invalid character less than 0x2b */
+    for (i = 1; i < 0x2b; i++) {
+        outLen = sizeof(out);
+        charTest[0] = i;
+        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        if (ret != ASN_INPUT_E)
+            return -1240 - i;
+    }
+    /* Bad characters in range 0x2b - 0x7a. */
+    for (i = 0; i < (int)sizeof(badChar) - 1; i++) {
+        outLen = sizeof(out);
+        charTest[0] = badChar[i];
+        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        if (ret != ASN_INPUT_E)
+            return -1270 - i;
+    }
+    /* Invalid character greater than 0x7a */
+    for (i = 0x7b; i < 0x100; i++) {
+        outLen = sizeof(out);
+        charTest[0] = i;
+        ret = Base64_Decode(charTest, sizeof(charTest), out, &outLen);
+        if (ret != ASN_INPUT_E)
+            return -1290 - i;
+    }
+    
 
 #ifdef WOLFSSL_BASE64_ENCODE
     /* Decode and encode all symbols - non-alphanumeric. */
