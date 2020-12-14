@@ -435,10 +435,22 @@ WC_STATIC WC_INLINE word16 ctMask16GT(int a, int b)
     return (word16)((((word32)a - b - 1) >> 31) - 1);
 }
 
+/* Constant time - sets 16 bit integer mask when a >= b */
+WC_STATIC WC_INLINE word16 ctMask16GTE(int a, int b)
+{
+    return (word16)((((word32)a - b    ) >> 31) - 1);
+}
+
 /* Constant time - sets 16 bit integer mask when a < b. */
 WC_STATIC WC_INLINE word16 ctMask16LT(int a, int b)
 {
     return (word16)((((word32)b - a - 1) >> 31) - 1);
+}
+
+/* Constant time - sets 16 bit integer mask when a <= b. */
+WC_STATIC WC_INLINE word16 ctMask16LTE(int a, int b)
+{
+    return (word16)((((word32)b - a    ) >> 31) - 1);
 }
 
 /* Constant time - sets 16 bit integer mask when a == b. */
