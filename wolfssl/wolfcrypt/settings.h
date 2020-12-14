@@ -1391,11 +1391,18 @@ extern void uITRON4_free(void *p) ;
 #ifdef MICRIUM
     #include <stdlib.h>
     #include <os.h>
-    #include <net_cfg.h>
-    #include <net_sock.h>
-    #include <net_err.h>
+    #if defined(RTOS_MODULE_NET_AVAIL) || (APP_CFG_TCPIP_EN == DEF_ENABLED)
+        #include <net_cfg.h>
+        #include <net_sock.h>
+        #if (OS_VERSION < 50000)
+            #include <net_err.h>
+        #endif
+    #endif
     #include <lib_mem.h>
     #include <lib_math.h>
+    #include <lib_str.h>
+    #include  <stdio.h>
+    #include <string.h>
 
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
@@ -1419,7 +1426,7 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
 
-    #ifndef CUSTOM_RAND_GENERATE
+    #if ! defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(CUSTOM_RAND_GENERATE)
         #define CUSTOM_RAND_TYPE     RAND_NBR
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
@@ -1449,10 +1456,25 @@ extern void uITRON4_free(void *p) ;
                     (CPU_SIZE_T)(size)))
     #define XMEMCPY(pdest, psrc, size) ((void)Mem_Copy((void *)(pdest), \
                      (void *)(psrc), (CPU_SIZE_T)(size)))
-    #define XMEMCMP(pmem_1, pmem_2, size) \
-                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1), \
-                                          (void *)(pmem_2), \
+
+    #if (OS_VERSION < 50000)
+        #define XMEMCMP(pmem_1, pmem_2, size)                   \
+                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1),     \
+                                          (void *)(pmem_2),     \
                      (CPU_SIZE_T)(size))) ? DEF_NO : DEF_YES)
+    #else
+      /* Work around for Micrium OS version 5.8 change in behavior
+       * that returns DEF_NO for 0 size compare
+       */
+        #define XMEMCMP(pmem_1, pmem_2, size)                           \
+            (( (size < 1 ) ||                                           \
+               ((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1),                  \
+                                     (void *)(pmem_2),                  \
+                                     (CPU_SIZE_T)(size)) == DEF_YES))   \
+             ? 0 : 1)
+        #define XSNPRINTF snprintf
+    #endif
+
     #define XMEMMOVE XMEMCPY
 
     #if (OS_CFG_MUTEX_EN == DEF_DISABLED)

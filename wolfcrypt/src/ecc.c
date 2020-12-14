@@ -3784,7 +3784,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
         WOLFSSL_MSG("CRYS_ECDH_SVDP_DH for secret failed");
         return err;
     }
-
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */
@@ -4201,7 +4202,8 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         ecc_point* pubOut, WC_RNG* rng)
 {
     int err = MP_OKAY;
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) \
+  && !defined(WOLFSSL_SILABS_SE_ACCEL)
 #if !defined(WOLFSSL_SP_MATH)
     ecc_point* base = NULL;
 #endif
@@ -4215,7 +4217,8 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         return BAD_FUNC_ARG;
     }
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) \
+  && !defined(WOLFSSL_SILABS_SE_ACCEL)
 
     /* if ecc_point passed in then use it as output for public key point */
     if (pubOut != NULL) {
@@ -4338,7 +4341,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #else
     (void)curveIn;
     err = NOT_COMPILED_IN;
-#endif /* WOLFSSL_ATECC508A */
+#endif /* WOLFSSL_ATECC508A || WOLFSSL_SILABS_SE_ACCEL */
 
     /* change key state if public part is cached */
     if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
@@ -4515,6 +4518,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
         err = mp_read_unsigned_bin(&key->k, ucompressed_key, raw_size);
     }
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    return silabs_ecc_make_key(key, keysize);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4846,8 +4851,10 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
 
 #ifndef NO_ASN
 
-#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) ||  \
+    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
+    defined(WOLFSSL_SILABS_SE_ACCEL)
 static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     mp_int* r, mp_int* s, byte* out, word32 *outlen, WC_RNG* rng,
     ecc_key* key)
@@ -4893,6 +4900,11 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             if (err != CRYPTO_RES_SUCCESS || raw_sig_size != keysize*2){
                return BAD_COND_E;
             }
+        }
+    #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+        err = silabs_ecc_sign_hash(in, inlen, out, outlen, key);
+        if (err != 0) {
+               return WC_HW_E;
         }
     #elif defined(WOLFSSL_CRYPTOCELL)
 
@@ -5091,7 +5103,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
 /* hardware crypto */
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+    defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL) || \
+  defined(WOLFSSL_SILABS_SE_ACCEL)
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
@@ -6283,6 +6296,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    CRYS_ECDSA_VerifyUserContext_t sigCtxTemp;
    word32 msgLenInBytes = hashlen;
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+   byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -6393,6 +6408,22 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
    /* valid signature if we get to this point */
    *res = 1;
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+   /* Extract R and S */
+
+   err = mp_to_unsigned_bin(r, &sigRS[0]);
+   if (err != MP_OKAY) {
+       return err;
+   }
+   err = mp_to_unsigned_bin(s, &sigRS[keySz]);
+   if (err != MP_OKAY) {
+       return err;
+   }
+
+   err = silabs_ecc_verify_hash(&sigRS[0], keySz*2,
+                                hash, hashlen,
+                                res, key);
+
 #else
   /* checking if private key with no public part */
   if (key->type == ECC_PRIVATEKEY_ONLY) {
@@ -7382,7 +7413,9 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
-
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* Hardware based private key, so this operation is not supported */
+    err = MP_OKAY; /* just report success */
 #else
     ALLOC_CURVE_SPECS(2);
 
@@ -7521,7 +7554,7 @@ int wc_ecc_check_key(ecc_key* key)
 
 #ifndef WOLFSSL_SP_MATH
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
-    defined(WOLFSSL_CRYPTOCELL)
+    defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL)
 
     err = 0; /* consider key check success on ATECC508/608A */
 
@@ -7803,6 +7836,10 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    err = silabs_ecc_import(key, keysize);
+#endif
+
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (err == MP_OKAY)
         err = wc_ecc_check_key(key);
@@ -7993,7 +8030,18 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
         ret = mp_read_unsigned_bin(&key->k, priv, privSz);
     }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (ret == MP_OKAY)
+        ret = mp_read_unsigned_bin(&key->k, priv, privSz);
 
+    if (ret == MP_OKAY) {
+        if (pub) {
+            ret = silabs_ecc_import(key, key->dp->size);
+        } else
+        {
+            ret = silabs_ecc_import_private(key, key->dp->size);
+        }
+    }
 #else
 
     ret = mp_read_unsigned_bin(&key->k, priv, privSz);
@@ -8141,6 +8189,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
     byte key_raw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
+#endif
+
+#if (defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A) &&      \
+     !defined(WOLFSSL_ATECC608A))  ||                                   \
+  defined(WOLFSSL_SILABS_SE_ACCEL)
     word32 keySz = 0;
 #endif
 
@@ -8208,12 +8261,17 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     /* For SECP256R1 only save raw public key for hardware */
     if (err == MP_OKAY && curve_id == ECC_SECP256R1) {
-        word32 keySz = key->dp->size;
+        keySz = key->dp->size;
         err = wc_export_int(key->pubkey.x, key->pubkey_raw,
             &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
         if (err == MP_OKAY)
             err = wc_export_int(key->pubkey.y, &key->pubkey_raw[keySz],
                 &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+    }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    keySz = key->dp->size;
+    if (err == MP_OKAY) {
+        err = silabs_ecc_sig_to_rs(key, keySz);
     }
 #elif defined(WOLFSSL_CRYPTOCELL)
     if (err == MP_OKAY) {
@@ -8252,8 +8310,10 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             /* Hardware doesn't support loading private key */
             err = NOT_COMPILED_IN;
 
-        #elif defined(WOLFSSL_CRYPTOCELL)
+        #elif defined(WOLFSSL_SILABS_SE_ACCEL)
+            err = silabs_ecc_import_private_raw(key, keySz, d, encType);
 
+        #elif defined(WOLFSSL_CRYPTOCELL)
             key->type = ECC_PRIVATEKEY;
 
             if (encType == WC_TYPE_HEX_STR)

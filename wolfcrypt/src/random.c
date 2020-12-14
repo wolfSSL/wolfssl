@@ -169,6 +169,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #endif
 #endif
 
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+#include <wolfssl/wolfcrypt/port/silabs/silabs_random.h>
+#endif
+
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
     static word32 intel_flags = 0;
@@ -925,6 +929,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #ifdef HAVE_INTEL_RDRAND
     if (IS_INTEL_RDRAND(intel_flags))
         return wc_GenerateRand_IntelRD(NULL, output, sz);
+#endif
+
+#if defined(WOLFSSL_SILABS_SE_ACCEL) && defined(WOLFSSL_SILABS_TRNG)
+    return silabs_GenerateRand(output, sz);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -1907,6 +1915,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #else
         #define USE_TEST_GENSEED
     #endif /* FREESCALE_K70_RNGA */
+
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+        return silabs_GenerateRand(output, sz);
+    }
 
 #elif defined(STM32_RNG)
      /* Generate a RNG seed using the hardware random number generator

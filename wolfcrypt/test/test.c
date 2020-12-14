@@ -91,10 +91,15 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
 
     #define printf printk
 #elif defined(MICRIUM)
-    #include <bsp_ser.h>
-    void BSP_Ser_Printf (CPU_CHAR* format, ...);
-    #undef printf
-    #define printf BSP_Ser_Printf
+    #include <os.h>
+    #if (OS_VERSION < 50000)
+        #include <bsp_ser.h>
+        void BSP_Ser_Printf (CPU_CHAR* format, ...);
+        #undef printf
+        #define printf BSP_Ser_Printf
+    #else
+        #include <stdio.h>
+    #endif
 #elif defined(WOLFSSL_PB)
     #include <stdarg.h>
     int wolfssl_pb_print(const char*, ...);
@@ -9050,6 +9055,7 @@ static int aesgcm_test(void)
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
         !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+        !defined(WOLFSSL_SILABS_SE_ACCEL) && \
         !(defined(WOLF_CRYPTO_CB) && \
             (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
 
@@ -9551,8 +9557,9 @@ static int gmac_test(void)
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
 
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (!defined(HAVE_FIPS) ||                                             \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+
 	/* FIPS builds only allow 16-byte auth tags. */
 	/* This sample uses a 15-byte auth tag. */
     static const byte k2[] =
@@ -9587,8 +9594,9 @@ static int gmac_test(void)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -6400;
 
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+#if (!defined(HAVE_FIPS) ||                                  \
+     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)) )
+
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
@@ -21077,6 +21085,7 @@ static int ecc_ssh_test(ecc_key* key, WC_RNG* rng)
     } while (ret == WC_PENDING_E);
     if (ret != 0)
         return -10085;
+
     TEST_SLEEP();
     return 0;
 }
@@ -22289,7 +22298,7 @@ static int ecc_test(void)
     }
 #endif
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
-    !defined(WOLFSSL_STM32_PKA)
+  !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_SILABS_SE_ACCEL)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);
@@ -22635,13 +22644,13 @@ static int ecc_test_buffers(void)
         ret = wc_AsyncWait(ret, cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
-            ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify,
+            ret = wc_ecc_verify_hash(out, x, in, inLen, &verify,
                 cliKey);
     } while (ret == WC_PENDING_E);
     if (ret < 0)
         ERROR_OUT(-10430, done);
 
-    if (XMEMCMP(plain, in, (word32)ret))
+    if (verify != 1)
         ERROR_OUT(-10431, done);
     TEST_SLEEP();
 

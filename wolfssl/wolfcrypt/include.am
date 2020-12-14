@@ -80,6 +80,10 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
+                         wolfssl/wolfcrypt/port/silabs/silabs_aes.h \
+                         wolfssl/wolfcrypt/port/silabs/silabs_ecc.h \
+                         wolfssl/wolfcrypt/port/silabs/silabs_hash.h \
+                         wolfssl/wolfcrypt/port/silabs/silabs_random.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
