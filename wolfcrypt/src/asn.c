@@ -16695,6 +16695,9 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     return eccToPKCS8(key, output, outLen, 0);
 }
 
+/* Write both private and public ecc keys to unencrypted PKCS#8 format.
+ *
+ * return length on success else < 0 */
 int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
                      word32* outLen)
 {
