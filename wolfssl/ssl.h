@@ -3580,6 +3580,7 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int c);
     || defined(WOLFSSL_MYSQL_COMPATIBLE) \
     || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA)
+#define X509_BUFFER_SZ 8192
 
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_file(const char *filename, const char *mode);
 WOLFSSL_API long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX*, WOLFSSL_DH*);

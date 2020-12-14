@@ -18300,7 +18300,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
     return newX509;
 }
 
-static WOLFSSL_X509* wolfSSL_X509_X509_REQ_d2i(WOLFSSL_X509** x509,
+static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
                                         const byte* in, int len, int req)
 {
     WOLFSSL_X509 *newX509 = NULL;
@@ -18369,14 +18369,14 @@ int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
 
 WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 {
-    return wolfSSL_X509_X509_REQ_d2i(x509, in, len, 0);
+    return d2i_X509orX509REQ(x509, in, len, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
         const unsigned char* in, int len)
 {
-    return wolfSSL_X509_X509_REQ_d2i(x509, in, len, 1);
+    return d2i_X509orX509REQ(x509, in, len, 1);
 }
 #endif
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
@@ -19495,13 +19495,13 @@ static unsigned long wolfSSL_CONF_VALUE_hash(const WOLFSSL_CONF_VALUE *val)
         return 0;
 }
 
-static int wolfSSL_CONF_VALUE_cmp(const WOLFSSL_CONF_VALUE *a,
+static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
                                   const WOLFSSL_CONF_VALUE *b)
 {
     int cmp_val;
 
     if (!a || !b) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (a->section != b->section) {
@@ -20156,7 +20156,7 @@ WOLFSSL_STACK *wolfSSL_sk_CONF_VALUE_new(wolf_sk_compare_cb compFunc)
     ret = wolfSSL_sk_new_node(NULL);
     if (!ret)
         return NULL;
-    ret->comp = compFunc ? compFunc : (wolf_sk_compare_cb)wolfSSL_CONF_VALUE_cmp;
+    ret->comp = compFunc ? compFunc : (wolf_sk_compare_cb)wolfssl_conf_value_cmp;
     ret->hash_fn = (wolf_sk_hash_cb)wolfSSL_CONF_VALUE_hash;
     ret->type = STACK_TYPE_CONF_VALUE;
     return ret;
@@ -20666,7 +20666,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 }
 #endif /* !NO_FILESYSTEM */
 
-static WOLFSSL_X509* wolfSSL_X509_X509_REQ_load_certificate_buffer(
+static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     const unsigned char* buf, int sz, int format, int type)
 {
 
@@ -20735,7 +20735,7 @@ static WOLFSSL_X509* wolfSSL_X509_X509_REQ_load_certificate_buffer(
 WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
     const unsigned char* buf, int sz, int format)
 {
-    return wolfSSL_X509_X509_REQ_load_certificate_buffer(buf, sz,
+    return loadX509orX509REQFromBuffer(buf, sz,
             format, CERT_TYPE);
 }
 
@@ -20743,7 +20743,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
 WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
     const unsigned char* buf, int sz, int format)
 {
-    return wolfSSL_X509_X509_REQ_load_certificate_buffer(buf, sz,
+    return loadX509orX509REQFromBuffer(buf, sz,
             format, CERTREQ_TYPE);
 }
 #endif
@@ -24258,7 +24258,7 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
 }
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN)
-static int wolfSSL_X509_make_der(WOLFSSL_X509* x509, int req,
+static int wolfssl_x509_make_der(WOLFSSL_X509* x509, int req,
         unsigned char* der, int* derSz, int includeSig);
 #endif
 
@@ -24273,15 +24273,15 @@ static int wolfSSL_X509_make_der(WOLFSSL_X509* x509, int req,
  *
  * returns WOLFSSL_SUCCESS on success
  */
-static int wolfSSL_i2d_X509_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int req)
+static int loadX509orX509REQFromBio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int req)
 {
     int ret = WOLFSSL_FAILURE;
     /* Get large buffer to hold cert der */
-    int  derSz = 8192;
+    int derSz = X509_BUFFER_SZ;
 #ifdef WOLFSSL_SMALL_STACK
     byte* der;
 #else
-    byte der[8192];
+    byte der[X509_BUFFER_SZ];
 #endif
     WOLFSSL_ENTER("wolfSSL_i2d_X509_bio");
 
@@ -24297,7 +24297,7 @@ static int wolfSSL_i2d_X509_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, i
     }
 #endif
 
-    if (wolfSSL_X509_make_der(x509, req, der, &derSz, 1) != WOLFSSL_SUCCESS) {
+    if (wolfssl_x509_make_der(x509, req, der, &derSz, 1) != WOLFSSL_SUCCESS) {
         goto cleanup;
     }
 
@@ -24324,13 +24324,13 @@ cleanup:
  */
 int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
-    return wolfSSL_i2d_X509_X509_REQ_bio(bio, x509, 0);
+    return loadX509orX509REQFromBio(bio, x509, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
-    return wolfSSL_i2d_X509_X509_REQ_bio(bio, x509, 1);
+    return loadX509orX509REQFromBio(bio, x509, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
@@ -24384,7 +24384,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
  * @param req  1 for a CSR and 0 for a x509 cert
  * @return pointer to WOLFSSL_X509 structure on success and NULL on fail
  */
-static WOLFSSL_X509* wolfSSL_d2i_X509_X509_REQ_bio(WOLFSSL_BIO* bio,
+static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
                                             WOLFSSL_X509** x509, int req)
 {
     WOLFSSL_X509* localX509 = NULL;
@@ -24442,13 +24442,13 @@ static WOLFSSL_X509* wolfSSL_d2i_X509_X509_REQ_bio(WOLFSSL_BIO* bio,
 
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 {
-    return wolfSSL_d2i_X509_X509_REQ_bio(bio, x509, 0);
+    return d2i_X509orX509REQ_bio(bio, x509, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 {
-    return wolfSSL_d2i_X509_X509_REQ_bio(bio, x509, 1);
+    return d2i_X509orX509REQ_bio(bio, x509, 1);
 }
 #endif
 
@@ -25376,7 +25376,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 /* Use the public key to verify the signature. Note: this only verifies
  * the certificate signature.
  * returns WOLFSSL_SUCCESS on successful signature verification */
-static int verify_X509_or_X509_REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, int req)
+static int verifyX509orX509REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, int req)
 {
     int ret;
     const byte* der;
@@ -25429,13 +25429,13 @@ static int verify_X509_or_X509_REQ(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey, i
 
 int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 {
-    return verify_X509_or_X509_REQ(x509, pkey, 0);
+    return verifyX509orX509REQ(x509, pkey, 0);
 }
 
 #ifdef WOLFSSL_CERT_REQ
 int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
 {
-    return verify_X509_or_X509_REQ(x509, pkey, 1);
+    return verifyX509orX509REQ(x509, pkey, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* !NO_CERTS */
@@ -39942,7 +39942,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      * updates derSz with certificate body size on success
      * return WOLFSSL_SUCCESS on success
      */
-    static int wolfSSL_X509_make_der(WOLFSSL_X509* x509, int req,
+    static int wolfssl_x509_make_der(WOLFSSL_X509* x509, int req,
             unsigned char* der, int* derSz, int includeSig)
     {
         int ret = WOLFSSL_FAILURE;
@@ -40243,7 +40243,7 @@ cleanup:
         }
 
         x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-        if ((ret = wolfSSL_X509_make_der(x509, 0, der, &derSz, 0)) !=
+        if ((ret = wolfssl_x509_make_der(x509, 0, der, &derSz, 0)) !=
                 WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Unable to make DER for X509");
             WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
@@ -40363,7 +40363,8 @@ cleanup:
     }
 
 #ifndef NO_BIO
-    static WOLFSSL_X509 *PEM_read_bio_X509_or_X509_REQ(WOLFSSL_BIO *bp,
+
+    static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
             WOLFSSL_X509 **x, pem_password_cb *cb, void *u, int type)
     {
         WOLFSSL_X509* x509 = NULL;
@@ -40373,7 +40374,7 @@ cleanup:
         long  i = 0, l, footerSz;
         const char* footer = NULL;
 
-        WOLFSSL_ENTER("PEM_read_bio_X509_or_X509_REQ");
+        WOLFSSL_ENTER("loadX509orX509REQFromPemBio");
 
         if (bp == NULL || (type != CERT_TYPE && type != CERTREQ_TYPE)) {
             WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", BAD_FUNC_ARG);
@@ -40451,14 +40452,14 @@ cleanup:
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-        return PEM_read_bio_X509_or_X509_REQ(bp, x, cb, u, CERT_TYPE);
+        return loadX509orX509REQFromPemBio(bp, x, cb, u, CERT_TYPE);
     }
 
 #ifdef WOLFSSL_CERT_REQ
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-        return PEM_read_bio_X509_or_X509_REQ(bp, x, cb, u, CERTREQ_TYPE);
+        return loadX509orX509REQFromPemBio(bp, x, cb, u, CERTREQ_TYPE);
     }
 #endif
 
@@ -43703,11 +43704,11 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     byte* pem = NULL;
     int   pemSz = 0;
     /* Get large buffer to hold cert der */
-    int  derSz = 8192;
+    int derSz = X509_BUFFER_SZ;
 #ifdef WOLFSSL_SMALL_STACK
     byte* der;
 #else
-    byte der[8192];
+    byte der[X509_BUFFER_SZ];
 #endif
     int ret;
 
@@ -43726,7 +43727,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     }
 #endif
 
-    if (wolfSSL_X509_make_der(cert, 0, der, &derSz, 1) != WOLFSSL_SUCCESS) {
+    if (wolfssl_x509_make_der(cert, 0, der, &derSz, 1) != WOLFSSL_SUCCESS) {
         goto error;
     }
 
@@ -51963,7 +51964,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 
     /* Create a Cert that has the certificate request fields. */
     req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
-    if (wolfSSL_X509_make_der(req, 1, der, &derSz, 0) != WOLFSSL_SUCCESS) {
+    if (wolfssl_x509_make_der(req, 1, der, &derSz, 0) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
@@ -51984,29 +51985,38 @@ int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
         return WOLFSSL_FAILURE;
 }
 
-static int wolfSSL_regen_X509_REQ_der_buffer(WOLFSSL_X509* x509)
+static int regenX509REQDerBuffer(WOLFSSL_X509* x509)
 {
-    byte der[4096];
-    int  derSz = sizeof(der);
-
-    if (wolfSSL_X509_make_der(x509, 1, der, &derSz, 0) !=
-            WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Unable to make DER for X509 REQ");
+    int derSz = X509_BUFFER_SZ;
+    int ret = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* der;
+    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (!der) {
+        WOLFSSL_MSG("malloc failed");
         return WOLFSSL_FAILURE;
     }
+#else
+    byte der[X509_BUFFER_SZ];
+#endif
 
-    FreeDer(&x509->derCert);
-
-    /* store cert for potential retrieval */
-    if (AllocDer(&x509->derCert, derSz, CERT_TYPE, x509->heap) == 0) {
-        XMEMCPY(x509->derCert->buffer, der, derSz);
+    if (wolfssl_x509_make_der(x509, 1, der, &derSz, 0) == WOLFSSL_SUCCESS) {
+        FreeDer(&x509->derCert);
+        if (AllocDer(&x509->derCert, derSz, CERT_TYPE, x509->heap) == 0) {
+            XMEMCPY(x509->derCert->buffer, der, derSz);
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            WOLFSSL_MSG("Failed to allocate DER buffer for X509");
+        }
     }
     else {
-        WOLFSSL_MSG("Failed to allocate DER buffer for X509");
-        return WOLFSSL_FAILURE;
+        WOLFSSL_MSG("Unable to make DER for X509 REQ");
     }
-
-    return WOLFSSL_SUCCESS;
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
 }
 
 int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
@@ -52028,7 +52038,7 @@ int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
         ext_sk = ext_sk->next;
     }
 
-    return wolfSSL_regen_X509_REQ_der_buffer(req);
+    return regenX509REQDerBuffer(req);
 }
 
 int wolfSSL_X509_REQ_add1_attr_by_txt(WOLFSSL_X509 *req,
