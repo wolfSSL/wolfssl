@@ -240,8 +240,8 @@ fi
 # Single Precision maths implementation
 if test "$ENABLED_LINUXKM_DEFAULTS" = "yes"
 then
-    ENABLED_SP_DEFAULT=small
-    ENABLED_SP_MATH_ALL_DEFAULT=small
+    ENABLED_SP_DEFAULT=yes
+    ENABLED_SP_MATH_ALL_DEFAULT=yes
 else
     ENABLED_SP_DEFAULT=no
     ENABLED_SP_MATH_ALL_DEFAULT=no
@@ -2204,26 +2204,14 @@ then
 fi
 
 
-# STACK SIZE info for examples
+# STACK SIZE info for testwolfcrypt and examples
 AC_ARG_ENABLE([stacksize],
     [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
 
-# verbose, per-test stack size info, currently only implemented in testwolfcrypt
-AC_ARG_ENABLE([stacksize-verbose],
-    [AS_HELP_STRING([--enable-stacksize-verbose],[Enable verbose stack size info on testwolfcrypt (default: disabled)])],
-    [ ENABLED_STACKSIZE_VERBOSE=$enableval ],
-    [ ENABLED_STACKSIZE_VERBOSE=no ]
-    )
-
-if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
-then
-    ENABLED_STACKSIZE=yes
-fi
-
-if test "$ENABLED_STACKSIZE" = "yes"
+if test "$ENABLED_STACKSIZE" != "no"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_DECL([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
@@ -2232,13 +2220,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
 fi
 
-if test "$ENABLED_STACKSIZE_VERBOSE" = "yes"
+if test "$ENABLED_STACKSIZE" = "verbose"
 then
     if test "$thread_ls_on" != "yes"
     then
         AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE_VERBOSE"
+    ENABLED_STACKSIZE=yes
 fi
 
 

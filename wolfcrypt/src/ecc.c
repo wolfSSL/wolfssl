@@ -6593,8 +6593,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY) {
        if ((err = mp_init_multi(v, w, u1, u2, NULL, NULL)) != MP_OKAY) {
           err = MEMORY_E;
+       } else {
+           did_init = 1;
        }
-       did_init = 1;
    }
 
    /* allocate points */
@@ -9662,11 +9663,22 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 {
    int  idx1 = -1, idx2 = -1, err, mpInit = 0;
    mp_digit mp;
-   mp_int   mu;
+#ifdef WOLFSSL_SMALL_STACK
+   mp_int   *mu = (mp_int *)XMALLOC(sizeof *mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
-   err = mp_init(&mu);
-   if (err != MP_OKAY)
+   if (mu == NULL)
+       return MP_MEM;
+#else
+   mp_int   mu[1];
+#endif
+
+   err = mp_init(mu);
+   if (err != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
        return err;
+   }
 
 #ifndef HAVE_THREAD_LS
    if (initMutex == 0) { /* extra sanity check if wolfCrypt_Init not called */
@@ -9674,8 +9686,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
         initMutex = 1;
    }
 
-   if (wc_LockMutex(&ecc_fp_lock) != 0)
+   if (wc_LockMutex(&ecc_fp_lock) != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+       XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
       return BAD_MUTEX_E;
+   }
 #endif /* HAVE_THREAD_LS */
 
       /* find point */
@@ -9718,12 +9734,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
            if (err == MP_OKAY) {
              mpInit = 1;
-             err = mp_montgomery_calc_normalization(&mu, modulus);
+             err = mp_montgomery_calc_normalization(mu, modulus);
            }
 
            if (err == MP_OKAY)
              /* build the LUT */
-             err = build_lut(idx1, a, modulus, mp, &mu);
+             err = build_lut(idx1, a, modulus, mp, mu);
         }
       }
 
@@ -9735,13 +9751,13 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 err = mp_montgomery_setup(modulus, &mp);
                 if (err == MP_OKAY) {
                     mpInit = 1;
-                    err = mp_montgomery_calc_normalization(&mu, modulus);
+                    err = mp_montgomery_calc_normalization(mu, modulus);
                 }
             }
 
             if (err == MP_OKAY)
               /* build the LUT */
-              err = build_lut(idx2, a, modulus, mp, &mu);
+              err = build_lut(idx2, a, modulus, mp, mu);
         }
       }
 
@@ -9763,7 +9779,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #ifndef HAVE_THREAD_LS
     wc_UnLockMutex(&ecc_fp_lock);
 #endif /* HAVE_THREAD_LS */
-    mp_clear(&mu);
+    mp_clear(mu);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 
     return err;
 }
@@ -10805,7 +10824,17 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
   mp_int *T = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
   mp_int *R = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
   mp_int *two = (mp_int *)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#else
+  mp_int t1[1], C[1], Q[1], S[1], Z[1], M[1], T[1], R[1], two[1];
+#endif
 
+  if ((mp_init_multi(t1, C, Q, S, Z, M) != MP_OKAY) ||
+      (mp_init_multi(T, R, two, NULL, NULL, NULL) != MP_OKAY)) {
+    res = MP_INIT_E;
+    goto out;
+  }
+
+#ifdef WOLFSSL_SMALL_STACK
   if ((t1 == NULL) ||
       (C == NULL) ||
       (Q == NULL) ||
@@ -10818,8 +10847,6 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     res = MP_MEM;
     goto out;
   }
-#else
-  mp_int t1[1], C[1], Q[1], S[1], Z[1], M[1], T[1], R[1], two[1];
 #endif
 
   /* first handle the simple cases n = 0 or n = 1 */
@@ -10847,13 +10874,6 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
     res = MP_VAL;
     goto out;
   }
-
-  if ((res = mp_init_multi(t1, C, Q, S, Z, M)) != MP_OKAY)
-    goto out;
-
-  if ((res = mp_init_multi(T, R, two, NULL, NULL, NULL))
-                          != MP_OKAY)
-    goto out;
 
   /* SPECIAL CASE: if prime mod 4 == 3
    * compute directly: res = n^(prime+1)/4 mod prime
@@ -10989,51 +11009,62 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
 #ifdef WOLFSSL_SMALL_STACK
   if (t1) {
-    mp_clear(t1);
+    if (res != MP_INIT_E)
+      mp_clear(t1);
     XFREE(t1, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (C) {
-    mp_clear(C);
+    if (res != MP_INIT_E)
+      mp_clear(C);
     XFREE(C, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (Q) {
-    mp_clear(Q);
+    if (res != MP_INIT_E)
+      mp_clear(Q);
     XFREE(Q, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (S) {
-    mp_clear(S);
+    if (res != MP_INIT_E)
+      mp_clear(S);
     XFREE(S, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (Z) {
-    mp_clear(Z);
+    if (res != MP_INIT_E)
+      mp_clear(Z);
     XFREE(Z, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (M) {
-    mp_clear(M);
+    if (res != MP_INIT_E)
+      mp_clear(M);
     XFREE(M, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (T) {
-    mp_clear(T);
+    if (res != MP_INIT_E)
+      mp_clear(T);
     XFREE(T, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (R) {
-    mp_clear(R);
+    if (res != MP_INIT_E)
+      mp_clear(R);
     XFREE(R, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (two) {
-    mp_clear(two);
+    if (res != MP_INIT_E)
+      mp_clear(two);
     XFREE(two, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
 #else
-  mp_clear(t1);
-  mp_clear(C);
-  mp_clear(Q);
-  mp_clear(S);
-  mp_clear(Z);
-  mp_clear(M);
-  mp_clear(T);
-  mp_clear(R);
-  mp_clear(two);
+  if (res != MP_INIT_E) {
+    mp_clear(t1);
+    mp_clear(C);
+    mp_clear(Q);
+    mp_clear(S);
+    mp_clear(Z);
+    mp_clear(M);
+    mp_clear(T);
+    mp_clear(R);
+    mp_clear(two);
+  }
 #endif
 
   return res;
