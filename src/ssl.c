@@ -5533,7 +5533,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #else
         DecodedCert  cert[1];
     #endif
-    #ifdef HAVE_PK_CALLBACKS
+    #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
         int keyType = 0;
     #endif
 
@@ -5641,16 +5641,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         switch (cert->keyOID) {
         #ifndef NO_RSA
             case RSAk:
-            #ifdef HAVE_PK_CALLBACKS
+            #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
                 keyType = rsa_sa_algo;
-            #endif
-            #ifdef HAVE_PKCS11
-                if (ctx) {
-                    ctx->privateKeyType = rsa_sa_algo;
-                }
-                else {
-                    ssl->buffers.keyType = rsa_sa_algo;
-                }
             #endif
                 /* Determine RSA key size by parsing public key */
                 idx = 0;
@@ -5677,16 +5669,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             case ECDSAk:
-            #ifdef HAVE_PK_CALLBACKS
+            #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
                 keyType = ecc_dsa_sa_algo;
-            #endif
-            #ifdef HAVE_PKCS11
-                if (ctx) {
-                    ctx->privateKeyType = ecc_dsa_sa_algo;
-                }
-                else {
-                    ssl->buffers.keyType = ecc_dsa_sa_algo;
-                }
             #endif
                 /* Determine ECC key size based on curve */
                 keySz = wc_ecc_get_curve_size_from_id(
@@ -5710,16 +5694,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             case ED25519k:
-            #ifdef HAVE_PK_CALLBACKS
+            #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
                 keyType = ed25519_sa_algo;
-            #endif
-            #ifdef HAVE_PKCS11
-                if (ctx) {
-                    ctx->privateKeyType = ed25519_sa_algo;
-                }
-                else {
-                    ssl->buffers.keyType = ed25519_sa_algo;
-                }
             #endif
                 /* ED25519 is fixed key size */
                 keySz = ED25519_KEY_SIZE;
@@ -5741,16 +5717,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif /* HAVE_ED25519 */
         #ifdef HAVE_ED448
             case ED448k:
-            #ifdef HAVE_PK_CALLBACKS
+            #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
                 keyType = ed448_sa_algo;
-            #endif
-            #ifdef HAVE_PKCS11
-                if (ctx) {
-                    ctx->privateKeyType = ed448_sa_algo;
-                }
-                else {
-                    ssl->buffers.keyType = ed448_sa_algo;
-                }
             #endif
                 /* ED448 is fixed key size */
                 keySz = ED448_KEY_SIZE;
@@ -5776,12 +5744,20 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 break; /* do no check if not a case for the key */
         }
 
-    #ifdef HAVE_PK_CALLBACKS
-        if (ssl && ssl->buffers.keyType == 0) {
+    #if defined(HAVE_PKCS11) || defined(HAVE_PK_CALLBACKS)
+        if (ssl
+        #ifdef HAVE_PK_CALLBACKS
+                && ssl->buffers.keyType == 0
+        #endif
+            ) {
             ssl->buffers.keyType = keyType;
             ssl->buffers.keySz = keySz;
         }
-        else if (ctx && ctx->privateKeyType == 0) {
+        else if (ctx
+        #ifdef HAVE_PK_CALLBACKS
+                     && ctx->privateKeyType == 0
+        #endif
+            ) {
             ctx->privateKeyType = keyType;
             ctx->privateKeySz = keySz;
         }
@@ -7377,18 +7353,57 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 
     size = ctx->privateKey->length;
     buff = ctx->privateKey->buffer;
-    ret  = wc_CheckPrivateKey(buff, size, der);
+#ifdef WOLF_CRYPTO_CB
+    if (ctx->privateKeyDevId != INVALID_DEVID) {
+        int type = 0;
+        void *pkey = NULL;
+
+        if (der->keyOID == RSAk) {
+            type = DYNAMIC_TYPE_RSA;
+        }
+        else if (der->keyOID == ECDSAk) {
+            type = DYNAMIC_TYPE_ECC;
+        }
+        ret = CreateDevPrivateKey(&pkey, buff, size, type, ctx->privateKeyLabel,
+                                  ctx->privateKeyId, ctx->heap,
+                                  ctx->privateKeyDevId);
+        if (ret == 0 && der->keyOID == RSAk) {
+            ret = wc_CryptoCb_RsaCheckPrivKey(pkey, der->publicKey,
+                                              der->pubKeySize);
+            wc_FreeRsaKey(pkey);
+        }
+        else if (ret == 0 && der->keyOID == ECDSAk) {
+            ret = wc_CryptoCb_EccCheckPrivKey(pkey, der->publicKey,
+                                              der->pubKeySize);
+            wc_ecc_free(pkey);
+        }
+        if (pkey != NULL) {
+            XFREE(pkey, ctx->heap, type);
+        }
+        if (ret == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    else
+#endif
+    {
+        ret = wc_CheckPrivateKey(buff, size, der);
+        if (ret == 1) {
+            ret = WOLFSSL_SUCCESS;
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
+    }
     FreeDecodedCert(der);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(der, NULL, DYNAMIC_TYPE_DCERT);
 #endif
 
-    if (ret == 1) {
-        return WOLFSSL_SUCCESS;
-    }
-    else {
-        return WOLFSSL_FAILURE;
-    }
+    return ret;
 #else
     WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
     return WOLFSSL_FAILURE;
@@ -7944,7 +7959,42 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
     size = ssl->buffers.key->length;
     buff = ssl->buffers.key->buffer;
-    ret  = wc_CheckPrivateKey(buff, size, &der);
+#ifdef WOLF_CRYPTO_CB
+    if (ssl->buffers.keyDevId != INVALID_DEVID) {
+        int type = 0;
+        void *pkey = NULL;
+
+        if (der.keyOID == RSAk) {
+            type = DYNAMIC_TYPE_RSA;
+        }
+        else if (der.keyOID == ECDSAk) {
+            type = DYNAMIC_TYPE_ECC;
+        }
+        ret = CreateDevPrivateKey(&pkey, buff, size, type,
+                                  ssl->buffers.keyLabel,
+                                  ssl->buffers.keyId, ssl->heap,
+                                  ssl->buffers.keyDevId);
+        if (ret == 0 && der.keyOID == RSAk) {
+            ret = wc_CryptoCb_RsaCheckPrivKey(pkey, der.publicKey,
+                                              der.pubKeySize);
+            if (ret == 0)
+                ret = 1;
+            wc_FreeRsaKey(pkey);
+        }
+        else if (ret == 0 && der.keyOID == ECDSAk) {
+            ret = wc_CryptoCb_EccCheckPrivKey(pkey, der.publicKey,
+                                              der.pubKeySize);
+            if (ret == 0)
+                ret = 1;
+            wc_ecc_free(pkey);
+        }
+        if (pkey != NULL) {
+            XFREE(pkey, ssl->heap, type);
+        }
+    }
+    else
+#endif
+        ret  = wc_CheckPrivateKey(buff, size, &der);
     FreeDecodedCert(&der);
     return ret;
 }
@@ -14146,6 +14196,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
                                       long sz, int devId, long keySz)
     {
+        int ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sz, devId);
+
+        if (ret == WOLFSSL_SUCCESS)
+            ctx->privateKeySz = (word32)keySz;
+
+        return ret;
+    }
+
+    int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
+                                      long sz, int devId)
+    {
         int ret = WOLFSSL_FAILURE;
 
         FreeDer(&ctx->privateKey);
@@ -14153,7 +14214,28 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                                               ctx->heap) == 0) {
             XMEMCPY(ctx->privateKey->buffer, id, sz);
             ctx->privateKeyId = 1;
-            ctx->privateKeySz = (word32)keySz;
+            if (devId != INVALID_DEVID)
+                ctx->privateKeyDevId = devId;
+            else
+                ctx->privateKeyDevId = ctx->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
+
+    int wolfSSL_CTX_use_PrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
+                                         int devId)
+    {
+        int ret = WOLFSSL_FAILURE;
+        word32 sz = (word32)XSTRLEN(label) + 1;
+
+        FreeDer(&ctx->privateKey);
+        if (AllocDer(&ctx->privateKey, (word32)sz, PRIVATEKEY_TYPE,
+                                                              ctx->heap) == 0) {
+            XMEMCPY(ctx->privateKey->buffer, label, sz);
+            ctx->privateKeyLabel = 1;
             if (devId != INVALID_DEVID)
                 ctx->privateKeyDevId = devId;
             else
@@ -14308,9 +14390,20 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                              ssl, NULL, 0, GET_VERIFY_SETTING_SSL(ssl));
     }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
     int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
                                   long sz, int devId, long keySz)
+    {
+        int ret = wolfSSL_use_PrivateKey_Id(ssl, id, sz, devId);
+
+        if (ret == WOLFSSL_SUCCESS)
+            ssl->buffers.keySz = (word32)keySz;
+
+        return ret;
+    }
+
+    int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
+                                  long sz, int devId)
     {
         int ret = WOLFSSL_FAILURE;
 
@@ -14321,7 +14414,29 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             XMEMCPY(ssl->buffers.key->buffer, id, sz);
             ssl->buffers.weOwnKey = 1;
             ssl->buffers.keyId = 1;
-            ssl->buffers.keySz = (word32)keySz;
+            if (devId != INVALID_DEVID)
+                ssl->buffers.keyDevId = devId;
+            else
+                ssl->buffers.keyDevId = ssl->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
+
+    int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
+    {
+        int ret = WOLFSSL_FAILURE;
+        word32 sz = (word32)XSTRLEN(label) + 1;
+
+        if (ssl->buffers.weOwnKey)
+            FreeDer(&ssl->buffers.key);
+        if (AllocDer(&ssl->buffers.key, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ssl->heap) == 0) {
+            XMEMCPY(ssl->buffers.key->buffer, label, sz);
+            ssl->buffers.weOwnKey = 1;
+            ssl->buffers.keyLabel = 1;
             if (devId != INVALID_DEVID)
                 ssl->buffers.keyDevId = devId;
             else

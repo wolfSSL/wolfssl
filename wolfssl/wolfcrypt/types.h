@@ -861,8 +861,10 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_CURVE25519 = 7,
         WC_PK_TYPE_RSA_KEYGEN = 8,
         WC_PK_TYPE_EC_KEYGEN = 9,
+        WC_PK_TYPE_RSA_CHECK_PRIV_KEY = 10,
+        WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
 
-        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_KEYGEN
+        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_CHECK_PRIV_KEY
     };
 
 

@@ -143,7 +143,8 @@ enum {
 #endif
 
 #ifdef HAVE_PKCS11
-    AES_MAX_ID_LEN   = 32,
+    AES_MAX_ID_LEN      = 32,
+    AES_MAX_LABEL_LEN   = 32,
 #endif
 };
 
@@ -192,6 +193,8 @@ struct Aes {
 #ifdef HAVE_PKCS11
     byte id[AES_MAX_ID_LEN];
     int  idLen;
+    char label[AES_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
@@ -436,6 +439,8 @@ WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
 #ifdef HAVE_PKCS11
 WOLFSSL_API int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap,
+        int devId);
+WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
         int devId);
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
