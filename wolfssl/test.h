@@ -2130,9 +2130,10 @@ int StackSizeHWMReset(void)
 
 #define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
     ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    int _ret;                                        \
     __VA_ARGS__;                                     \
     printf("relative stack used = %ld\n", HWM);      \
-    int _ret = StackSizeHWMReset();                   \
+    _ret = StackSizeHWMReset();                      \
     if ((max >= 0) && (HWM > (ssize_t)(max))) {      \
         printf("relative stack usage at %s L%d exceeds designated max %ld.\n", __FILE__, __LINE__, (ssize_t)(max)); \
         _ret = -1;                                   \
