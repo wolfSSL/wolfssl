@@ -1590,5 +1590,249 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #endif /* HAVE_HKDF */
 
+
+#ifdef WOLFSSL_WOLFSSH
+
+static
+int _HashInit(byte hashId, wc_Hmac_Hash* hash)
+{
+    int ret = BAD_FUNC_ARG;
+
+    switch (hashId) {
+    #ifndef NO_SHA
+        case WC_SHA:
+            ret = wc_InitSha(&hash->sha);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            ret = wc_InitSha256(&hash->sha256);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            ret = wc_InitSha384(&hash->sha384);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            ret = wc_InitSha512(&hash->sha512);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+    }
+
+    return ret;
+}
+
+static
+int _HashUpdate(byte hashId, wc_Hmac_Hash* hash,
+        const byte* data, word32 dataSz)
+{
+    int ret = BAD_FUNC_ARG;
+
+    switch (hashId) {
+    #ifndef NO_SHA
+        case WC_SHA:
+            ret = wc_ShaUpdate(&hash->sha, data, dataSz);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            ret = wc_Sha256Update(&hash->sha256, data, dataSz);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            ret = wc_Sha384Update(&hash->sha384, data, dataSz);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            ret = wc_Sha512Update(&hash->sha512, data, dataSz);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+    }
+
+    return ret;
+}
+
+static
+int _HashFinal(byte hashId, wc_Hmac_Hash* hash, byte* digest)
+{
+    int ret = BAD_FUNC_ARG;
+
+    switch (hashId) {
+    #ifndef NO_SHA
+        case WC_SHA:
+            ret = wc_ShaFinal(&hash->sha, digest);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            ret = wc_Sha256Final(&hash->sha256, digest);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            ret = wc_Sha384Final(&hash->sha384, digest);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            ret = wc_Sha512Final(&hash->sha512, digest);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+    }
+
+    return ret;
+}
+
+static
+void _HashFree(byte hashId, wc_Hmac_Hash* hash)
+{
+    switch (hashId) {
+    #ifndef NO_SHA
+        case WC_SHA:
+            wc_ShaFree(&hash->sha);
+            break;
+    #endif /* !NO_SHA */
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            wc_Sha256Free(&hash->sha256);
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            wc_Sha384Free(&hash->sha384);
+            break;
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            wc_Sha512Free(&hash->sha512);
+            break;
+    #endif /* WOLFSSL_SHA512 */
+    }
+}
+
+
+#define LENGTH_SZ 4
+
+int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    word32 blocks, remainder;
+    wc_Hmac_Hash hash;
+    enum wc_HashType enmhashId = (enum wc_HashType)hashId;
+    byte kPad = 0;
+    byte pad = 0;
+    byte kSzFlat[LENGTH_SZ];
+    int digestSz;
+    int ret;
+
+    if (key == NULL || keySz == 0 ||
+        k == NULL || kSz == 0 ||
+        h == NULL || hSz == 0 ||
+        sessionId == NULL || sessionIdSz == 0) {
+
+        return BAD_FUNC_ARG;
+    }
+
+    digestSz = wc_HmacSizeByType(enmhashId);
+    if (digestSz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (k[0] & 0x80) kPad = 1;
+    c32toa(kSz + kPad, kSzFlat);
+
+    blocks = keySz / digestSz;
+    remainder = keySz % digestSz;
+
+    ret = _HashInit(enmhashId, &hash);
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
+    if (ret == 0 && kPad)
+        ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, k, kSz);
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, h, hSz);
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, &keyId, sizeof(keyId));
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, sessionId, sessionIdSz);
+
+    if (ret == 0) {
+        if (blocks == 0) {
+            if (remainder > 0) {
+                byte lastBlock[WC_MAX_DIGEST_SIZE];
+                ret = _HashFinal(enmhashId, &hash, lastBlock);
+                if (ret == 0)
+                    XMEMCPY(key, lastBlock, remainder);
+            }
+        }
+        else {
+            word32 runningKeySz, curBlock;
+
+            runningKeySz = digestSz;
+            ret = _HashFinal(enmhashId, &hash, key);
+
+            for (curBlock = 1; curBlock < blocks; curBlock++) {
+                ret = _HashInit(enmhashId, &hash);
+                if (ret != 0) break;
+                ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
+                if (ret != 0) break;
+                if (kPad)
+                    ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+                if (ret != 0) break;
+                ret = _HashUpdate(enmhashId, &hash, k, kSz);
+                if (ret != 0) break;
+                ret = _HashUpdate(enmhashId, &hash, h, hSz);
+                if (ret != 0) break;
+                ret = _HashUpdate(enmhashId, &hash, key, runningKeySz);
+                if (ret != 0) break;
+                ret = _HashFinal(enmhashId, &hash, key + runningKeySz);
+                if (ret != 0) break;
+                runningKeySz += digestSz;
+            }
+
+            if (remainder > 0) {
+                byte lastBlock[WC_MAX_DIGEST_SIZE];
+                if (ret == 0)
+                    ret = _HashInit(enmhashId, &hash);
+                if (ret == 0)
+                    ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
+                if (ret == 0 && kPad)
+                    ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+                if (ret == 0)
+                    ret = _HashUpdate(enmhashId, &hash, k, kSz);
+                if (ret == 0)
+                    ret = _HashUpdate(enmhashId, &hash, h, hSz);
+                if (ret == 0)
+                    ret = _HashUpdate(enmhashId, &hash, key, runningKeySz);
+                if (ret == 0)
+                    ret = _HashFinal(enmhashId, &hash, lastBlock);
+                if (ret == 0)
+                    XMEMCPY(key + runningKeySz, lastBlock, remainder);
+            }
+        }
+    }
+
+    _HashFree(enmhashId, &hash);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SSH */
+
 #endif /* HAVE_FIPS */
 #endif /* NO_HMAC */

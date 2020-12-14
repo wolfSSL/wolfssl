@@ -236,6 +236,16 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
 
 #endif /* HAVE_HKDF */
 
+#ifdef WOLFSSL_WOLFSSH
+
+WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
+        byte* key, word32 keySz,
+        const byte* k, word32 kSz,
+        const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz);
+
+#endif /* WOLFSSL_SSH */
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
