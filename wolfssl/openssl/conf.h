@@ -92,6 +92,8 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
 #define NCONF_load                      wolfSSL_NCONF_load
 
 #define CONF_modules_load               wolfSSL_CONF_modules_load
+#define _CONF_new_section               wolfSSL_CONF_new_section
+#define _CONF_get_section               wolfSSL_CONF_get_section
 
 #define X509V3_conf_free                wolfSSL_X509V3_conf_free
 
