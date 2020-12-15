@@ -15960,6 +15960,14 @@ int SendChangeCipher(WOLFSSL* ssl)
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
 
+    /* setup encrypt keys */
+    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+        return ret;
+
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        ssl->options.startedETMWrite = ssl->options.encThenMac;
+    #endif
+
     if (ssl->options.groupMessages)
         return 0;
     #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DEBUG_DTLS)
@@ -16706,14 +16714,6 @@ int SendFinished(WOLFSSL* ssl)
 
     WOLFSSL_START(WC_FUNC_FINISHED_SEND);
     WOLFSSL_ENTER("SendFinished");
-
-    /* setup encrypt keys */
-    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-        return ret;
-
-    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-        ssl->options.startedETMWrite = ssl->options.encThenMac;
-    #endif
 
     /* check for available size */
     outputSz = sizeof(input) + MAX_MSG_EXTRA;
@@ -29405,6 +29405,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                            #ifdef WOLFSSL_EXTRA_ALERTS
+                                SendAlert(ssl, alert_fatal,
+                                        unknown_psk_identity);
+                            #endif
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
                         }
 
@@ -30285,6 +30289,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                            #ifdef WOLFSSL_EXTRA_ALERTS
+                                SendAlert(ssl, alert_fatal,
+                                        unknown_psk_identity);
+                            #endif
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
                         }
 
