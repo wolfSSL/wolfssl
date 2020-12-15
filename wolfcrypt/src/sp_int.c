@@ -12970,10 +12970,11 @@ int sp_radix_size(sp_int* a, int radix, int* size)
 int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
-    int   err = MP_OKAY, type;
+    int   err = MP_OKAY;
+    int   type = 0;
     int   isPrime = MP_NO;
 #ifdef WOLFSSL_SP_MATH_ALL
-    int   bits;
+    int   bits = 0;
 #endif /* WOLFSSL_SP_MATH_ALL */
 
     (void)heap;
@@ -12987,9 +12988,6 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
         if (len < 0) {
             type = USE_BBS;
             len = -len;
-        }
-        else {
-            type = 0;
         }
 
     #ifndef WOLFSSL_SP_MATH_ALL
