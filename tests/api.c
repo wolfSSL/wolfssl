@@ -1267,6 +1267,122 @@ static void test_wolfSSL_CertManagerNameConstraint(void)
 #endif
 }
 
+
+static void test_wolfSSL_CertManagerNameConstraint2(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
+    defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
+    const char* ca_cert  = "./certs/test/cert-ext-ndir.der";
+    const char* ca_cert2 = "./certs/test/cert-ext-ndir-exc.der";
+    const char* server_cert = "./certs/server-cert.pem";
+    WOLFSSL_CERT_MANAGER* cm;
+    WOLFSSL_X509 *x509, *ca;
+
+    const unsigned char *der;
+    const unsigned char *pt;
+    WOLFSSL_EVP_PKEY *priv;
+    WOLFSSL_X509_NAME* name;
+    int   derSz;
+
+    /* C=US*/
+    char altName[] = {
+        0x30, 0x0D, 0x31, 0x0B, 0x30, 0x09,
+        0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x55, 0x53
+    };
+
+    /* C=ID */
+    char altNameFail[] = {
+        0x30, 0x0D, 0x31, 0x0B, 0x30, 0x09,
+        0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x49, 0x44
+    };
+
+    /* C=US ST=California*/
+    char altNameExc[] = {
+        0x30, 0x22,
+        0x31, 0x0B,
+        0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02, 0x55, 0x53,
+        0x31, 0x13,
+        0x30, 0x11, 0x06, 0x03, 0x55, 0x04, 0x08, 0x0C, 0x0A,
+        0x43, 0x61, 0x6c, 0x69, 0x66, 0x6f, 0x72, 0x6e, 0x69, 0x61
+    };
+    /* load in CA private key for signing */
+    pt = ca_key_der_2048;
+    AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &pt,
+                                                sizeof_ca_key_der_2048));
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertNotNull((der = wolfSSL_X509_get_der(ca, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* add in matching DIR alt name and resign */
+    wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    wolfSSL_X509_free(x509);
+
+    /* check verify fail */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    /* add in miss matching DIR alt name and resign */
+    wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
+            ASN_DIR_TYPE);
+
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
+    wolfSSL_CertManagerFree(cm);
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+
+    /* now test with excluded name constraint */
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertNotNull(ca = wolfSSL_X509_load_certificate_file(ca_cert2,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertNotNull((der = wolfSSL_X509_get_der(ca, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(server_cert,
+                WOLFSSL_FILETYPE_PEM));
+    wolfSSL_X509_add_altname_ex(x509, altNameExc, sizeof(altNameExc),
+            ASN_DIR_TYPE);
+    AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
+    AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    wolfSSL_X509_sign(x509, priv, EVP_sha256());
+    AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
+    AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
+                WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
+    wolfSSL_CertManagerFree(cm);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(ca);
+
+    wolfSSL_EVP_PKEY_free(priv);
+#endif
+}
+
 static void test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -39246,6 +39362,7 @@ void ApiTest(void)
     test_wolfSSL_CertManagerGetCerts();
     test_wolfSSL_CertManagerSetVerify();
     test_wolfSSL_CertManagerNameConstraint();
+    test_wolfSSL_CertManagerNameConstraint2();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();

@@ -9,7 +9,11 @@ EXTRA_DIST += \
          certs/test/cert-ext-nc.der \
          certs/test/cert-ext-nct.cfg \
          certs/test/cert-ext-nct.der \
+         certs/test/cert-ext-ndir.cfg \
+         certs/test/cert-ext-ndir.der \
          certs/test/cert-ext-ns.der \
+         certs/test/cert-ext-ndir-exc.cfg \
+         certs/test/cert-ext-ndir-exc.der \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
          certs/test/cert-ext-joi.pem
