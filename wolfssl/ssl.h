@@ -527,11 +527,15 @@ struct WOLFSSL_X509_STORE {
 };
 
 #define WOLFSSL_NO_WILDCARDS   0x4
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    #define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
+#endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
 #define WOLFSSL_HOST_NAME_MAX  256
-#define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
 struct WOLFSSL_X509_VERIFY_PARAM {
     time_t         check_time;
     unsigned long  flags;
