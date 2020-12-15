@@ -206,15 +206,21 @@ extern "C" {
 /* Define the types used. */
 #ifdef HAVE___UINT128_T
     #ifdef __SIZEOF_INT128__
-      typedef __uint128_t   sp_uint128;
-      typedef  __int128_t    sp_int128;
-      typedef __uint128_t      uint128_t;
-      typedef  __int128_t       int128_t;
+        typedef __uint128_t   sp_uint128;
+        typedef  __int128_t    sp_int128;
     #else
-      typedef unsigned long sp_uint128   __attribute__ ((mode(TI)));
-      typedef          long  sp_int128   __attribute__ ((mode(TI)));
-      typedef unsigned long    uint128_t __attribute__ ((mode(TI)));
-      typedef          long     int128_t __attribute__ ((mode(TI)));
+        typedef unsigned long sp_uint128   __attribute__ ((mode(TI)));
+        typedef          long  sp_int128   __attribute__ ((mode(TI)));
+    #endif
+    #ifndef WOLFSSL_UINT128_T_DEFINED
+        #ifdef __SIZEOF_INT128__
+          typedef __uint128_t      uint128_t;
+          typedef  __int128_t       int128_t;
+        #else
+          typedef unsigned long    uint128_t __attribute__ ((mode(TI)));
+          typedef          long     int128_t __attribute__ ((mode(TI)));
+        #endif
+        #define WOLFSSL_UINT128_T_DEFINED
     #endif
 #endif
 
