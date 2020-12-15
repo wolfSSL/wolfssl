@@ -6924,7 +6924,8 @@ static int test_wc_Sha256FinalRaw (void)
 {
     int flag = 0;
 #if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     wc_Sha256 sha256;
     byte* hash_test[3];
     byte hash1[WC_SHA256_DIGEST_SIZE];
