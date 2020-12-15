@@ -3987,12 +3987,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-                                                        defined(WOLFSSL_HAPROXY)
+#ifdef HAVE_SNI
         if ((ret = SNI_Callback(ssl)) != 0)
             return ret;
         ssl->options.side = WOLFSSL_SERVER_END;
-#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif
 
     i += totalExtSz;
     *inOutIdx = i;
