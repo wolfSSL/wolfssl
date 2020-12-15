@@ -3061,12 +3061,10 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 if (offset + resp_length != length)
                     ret = BUFFER_ERROR;
             }
-        #if !defined(NO_WOLFSSL_SERVER)
             if (ret == 0) {
                 csr->response.buffer = input + offset;
                 csr->response.length = resp_length;
             }
-        #endif
 
             return ret;
         }

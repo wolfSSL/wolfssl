@@ -2352,7 +2352,7 @@ typedef struct {
     union {
         OcspRequest ocsp;
     } request;
-#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+#if defined(WOLFSSL_TLS13)
     buffer response;
 #endif
 } CertificateStatusRequest;
