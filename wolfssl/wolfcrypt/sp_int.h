@@ -558,11 +558,6 @@ typedef struct sp_ecc_ctx {
         }                                                         \
         a->used = ii + 1;                                         \
     } while (0)
-/* Get the count of digits in the multi-precision number.
- *
- * @param  [in]  a  SP integer to use.
- */
-#define sp_get_digit_count(a)     (((a) == NULL) ? 0 : ((sp_int*)(a))->used)
 
 /* Check the compiled and linked math implementation are the same.
  * Use the number of bits in a digit as indication of how code was compiled.
@@ -819,7 +814,6 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_abs                              sp_abs
 #define mp_isneg                            sp_isneg
 #define mp_clamp                            sp_clamp
-#define get_digit_count                     sp_get_digit_count
 
 /* One to one mappings. */
 #define mp_init                             sp_init
