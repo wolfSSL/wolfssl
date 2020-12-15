@@ -34,22 +34,11 @@ static xSemaphoreHandle exit_semaph;
 static volatile bool exit_loop=false;
 static uint64_t startTime = 0;
 
+#include "../wolfcrypt/test/test.c"
+
 #define SHA_STACK_SIZE (20*1024)
 #define TIMES_SHA 500
 #define TIMES_AES 100
-
-#ifndef NO_SHA
-int sha_test();
-#endif
-#ifndef NO_SHA256
-int sha256_test();
-#endif
-#ifdef WOLFSSL_SHA384
-int sha384_test(void);
-#endif
-#ifdef WOLFSSL_SHA512
-int sha512_test(void);
-#endif
 
 static uint64_t rsa_elapsedTime = 0;
 static void esp32TimerStart()
@@ -64,7 +53,6 @@ static uint64_t  esp32elapsedTime()
 }
 
 #ifndef NO_RSA
-int  rsa_test(void);
 static void tskRsa_Test(void *pvParam)
 {
     int ret = 0;
@@ -89,7 +77,6 @@ static void tskRsa_Test(void *pvParam)
 #endif
 
 #ifndef NO_AES
-int aes_test(void);
 static void tskAes_Test(void *pvParam)
 {
     int ret = 0;
@@ -131,7 +118,6 @@ static void tskAesGcm_Test(void *pvParam)
 }
 
 #ifdef WOLFSSL_AES_192
-int aes192_test(void);
 static void tskAes192_Test(void *pvParam)
 {
     int ret = 0;
@@ -151,7 +137,6 @@ static void tskAes192_Test(void *pvParam)
 }
 #endif
 #ifdef WOLFSSL_AES_256
-int aes256_test(void);
 static void tskAes256_Test(void *pvParam)
 {
     int ret = 0;
