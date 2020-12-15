@@ -2018,8 +2018,8 @@ struct WOLFSSL_CERT_MANAGER {
     byte            ocspSendNonce:1;       /* send the OCSP nonce ? */
     byte            ocspUseOverrideURL:1;  /* ignore cert responder, override */
     byte            ocspStaplingEnabled:1; /* is OCSP Stapling on ? */
-#if !defined(NO_WOLFSSL_CLIENT) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     byte            ocspMustStaple:1;      /* server must respond with staple */
 #endif
 
