@@ -438,9 +438,6 @@ WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
 /*!
     \ingroup RSA
 
-/*!
-    \ingroup RSA
-
     \brief Decrypt input signature to verify that the message was signed by RSA key.  
     The output uses the same byte array as the input.
 
@@ -892,6 +889,7 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
 WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen, byte* sig,
                                         word32 sigSz,
                                         enum wc_HashType hashType, int saltLen, int bits);
+/*!
     \ingroup RSA
 
     \brief Returns the encryption size for the provided key structure.
