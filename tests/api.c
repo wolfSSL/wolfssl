@@ -38250,6 +38250,7 @@ static void test_wolfSSL_d2i_X509_REQ(void)
         AssertNotNull(at->value.asn1_string);
         AssertStrEQ((char*)ASN1_STRING_data(at->value.asn1_string), "2xIE+qqp/rhyTXP+");
 #endif
+        AssertIntEQ(X509_get_ext_by_NID(req, NID_subject_alt_name, -1), -1);
 
         X509_free(req);
         BIO_free(bio);
@@ -38260,6 +38261,7 @@ static void test_wolfSSL_d2i_X509_REQ(void)
         X509_ATTRIBUTE* attr;
         ASN1_TYPE *at;
 #endif
+        STACK_OF(X509_EXTENSION) *exts = NULL;
         AssertNotNull(bio = BIO_new_file(csrExtFile, "rb"));
         /* This CSR contains an Extension Request attribute so
          * we test extension parsing in a CSR attribute here. */
@@ -38275,6 +38277,9 @@ static void test_wolfSSL_d2i_X509_REQ(void)
          */
         AssertIntEQ(X509_REQ_verify(req, pub_key), 1);
 
+        AssertNotNull(exts = (STACK_OF(X509_EXTENSION)*)X509_REQ_get_extensions(req));
+        AssertIntEQ(sk_X509_EXTENSION_num(exts), 2);
+
 #ifdef OPENSSL_ALL
         /*
          * Obtain the challenge password from the CSR
@@ -38286,10 +38291,13 @@ static void test_wolfSSL_d2i_X509_REQ(void)
         AssertNotNull(at->value.asn1_string);
         AssertStrEQ((char*)ASN1_STRING_data(at->value.asn1_string), "IGCu/xNL4/0/wOgo");
 #endif
+        AssertIntGE(X509_get_ext_by_NID(req, NID_key_usage, -1), 0);
+        AssertIntGE(X509_get_ext_by_NID(req, NID_subject_alt_name, -1), 0);
 
         X509_free(req);
         BIO_free(bio);
         EVP_PKEY_free(pub_key);
+        sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
     }
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST)
     {
