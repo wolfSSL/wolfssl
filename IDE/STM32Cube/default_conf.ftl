@@ -11,6 +11,7 @@
 [#assign s = name]
 [#assign toto = s?replace(".","_")]
 [#assign toto = toto?replace("/","")]
+[#assign toto = toto?replace("-","_")]
 [#assign inclusion_protection = toto?upper_case]
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __${inclusion_protection}__
