@@ -29405,6 +29405,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                            #ifdef WOLFSSL_EXTRA_ALERTS
+                                SendAlert(ssl, alert_fatal,
+                                        unknown_psk_identity);
+                            #endif
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
                         }
 
@@ -30285,6 +30289,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                            #ifdef WOLFSSL_EXTRA_ALERTS
+                                SendAlert(ssl, alert_fatal,
+                                        unknown_psk_identity);
+                            #endif
                             ERROR_OUT(PSK_KEY_ERROR, exit_dcke);
                         }
 
