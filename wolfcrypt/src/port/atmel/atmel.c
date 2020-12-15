@@ -911,44 +911,47 @@ exit:
 
 static int atcatls_set_certificates(WOLFSSL_CTX *ctx) 
 {
-    #ifndef ATCATLS_MAX_CERT_SIZE
-        #define ATCATLS_MAX_CERT_SIZE 560
+    #ifndef ATCATLS_TNGTLS_SIGNER_CERT_SIZE
+        #define ATCATLS_TNGTLS_SIGNER_CERT_SIZE 0x208
+    #endif
+    #ifndef ATCATLS_TNGTLS_DEVICE_CERT_SIZE
+        #define ATCATLS_TNGTLS_DEVICE_CERT_SIZE 0x222
     #endif
 
     int ret = 0;
     ATCA_STATUS status;
-    size_t signerCertSize = ATCATLS_MAX_CERT_SIZE;
-    uint8_t signerCert[ATCATLS_MAX_CERT_SIZE];
-    size_t deviceCertSize = ATCATLS_MAX_CERT_SIZE;
-    uint8_t deviceCert[ATCATLS_MAX_CERT_SIZE];
-    int devPemSz, signerPemSz;
-    char devCertChain[2048];
+    size_t signerCertSize = ATCATLS_TNGTLS_SIGNER_CERT_SIZE;
+    size_t deviceCertSize = ATCATLS_TNGTLS_DEVICE_CERT_SIZE;
+    uint8_t certBuffer[ATCATLS_TNGTLS_SIGNER_CERT_SIZE+ATCATLS_TNGTLS_DEVICE_CERT_SIZE];
 
     /*Read signer cert*/
-    status = tng_atcacert_read_signer_cert((uint8_t*)&signerCert, &signerCertSize);
+    status = tng_atcacert_read_signer_cert(&certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE], &signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
+    if(signerCertSize != ATCATLS_TNGTLS_SIGNER_CERT_SIZE){
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("tng_atcacert_read_signer_cert read size != ATCATLS_TNGTLS_SIGNER_CERT_SIZE. (%d) \r\n",signerCertSize);
+        #endif
+        return WOLFSSL_FAILURE;
+    }
+
     /*Read device cert signed by the signer above*/
-    status = tng_atcacert_read_device_cert((uint8_t*)deviceCert, &deviceCertSize, (uint8_t*)signerCert);
+    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize, &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-    /*Generate a PEM chain of device certificate.*/
-    XMEMSET(devCertChain, 0, sizeof(devCertChain));
-    devPemSz = wc_DerToPem(deviceCert, deviceCertSize, (byte*)&devCertChain[0],
-                                              sizeof(devCertChain), CERT_TYPE);
-    if(devPemSz <= 0){
-        return devPemSz;
+    if(deviceCertSize != ATCATLS_TNGTLS_DEVICE_CERT_SIZE){
+        #ifdef WOLFSSL_ATECC_DEBUG
+        printf("tng_atcacert_read_device_cert read size != ATCATLS_TNGTLS_DEVICE_CERT_SIZE. (%d) \r\n",deviceCertSize);
+        #endif
+        return WOLFSSL_FAILURE;
     }
-    signerPemSz = wc_DerToPem(signerCert, signerCertSize, (byte*)&devCertChain[devPemSz], 
-                                               sizeof(devCertChain)-devPemSz, CERT_TYPE);
-    if(signerPemSz <= 0){
-        return signerPemSz;
-    }
-    ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, (const unsigned char*)devCertChain, XSTRLEN(devCertChain));
+
+    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, (const unsigned char*)certBuffer, 
+          ATCATLS_TNGTLS_SIGNER_CERT_SIZE+ATCATLS_TNGTLS_DEVICE_CERT_SIZE, WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         ret = -1;
     }
