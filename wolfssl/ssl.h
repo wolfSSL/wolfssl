@@ -528,7 +528,8 @@ struct WOLFSSL_X509_STORE {
 
 #define WOLFSSL_NO_WILDCARDS   0x4
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_WPAS_SMALL) || defined(WOLFSSL_IP_ALT_NAME)
     #define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
 #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
 
