@@ -13163,6 +13163,127 @@ exit_rsa_nopadding:
 }
 #endif /* WC_RSA_NO_PADDING */
 
+#ifdef WOLFSSL_HAVE_SP_RSA
+static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
+{
+    byte*  tmp = NULL;
+    size_t bytes;
+    int    ret;
+    word32 inLen   = 0;
+    word32 idx     = 0;
+    word32 outSz   = RSA_TEST_BYTES;
+    word32 plainSz = RSA_TEST_BYTES;
+#if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_3072) && \
+    !defined(USE_CERT_BUFFERS_4096) && !defined(NO_FILESYSTEM)
+    XFILE  file;
+#endif
+    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((out == NULL) || (plain == NULL))
+        ERROR_OUT(MEMORY_E, exit_rsa_even_mod);
+#endif
+
+#if defined(USE_CERT_BUFFERS_2048)
+    bytes = (size_t)sizeof_client_key_der_2048;
+	if (bytes < (size_t)sizeof_client_cert_der_2048)
+		bytes = (size_t)sizeof_client_cert_der_2048;
+#else
+	bytes = FOURK_BUF;
+#endif
+
+    tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || out == NULL || plain == NULL
+    #endif
+    ) {
+        ERROR_OUT(-7800, exit_rsa_even_mod);
+    }
+
+#if defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_key_der_2048, (size_t)sizeof_client_key_der_2048);
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, client_key_der_3072, (size_t)sizeof_client_key_der_3072);
+#elif defined(USE_CERT_BUFFERS_4096)
+    XMEMCPY(tmp, client_key_der_4096, (size_t)sizeof_client_key_der_4096);
+#elif !defined(NO_FILESYSTEM)
+    file = XFOPEN(clientKey, "rb");
+    if (!file) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", -40);
+        ERROR_OUT(-7801, exit_rsa_even_mod);
+    }
+
+    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+    XFCLOSE(file);
+#else
+    /* No key to use. */
+    ERROR_OUT(-7802, exit_rsa_even_mod);
+#endif /* USE_CERT_BUFFERS */
+
+    ret = wc_RsaPrivateKeyDecode(tmp, &idx, key, (word32)bytes);
+    if (ret != 0) {
+        ERROR_OUT(-7804, exit_rsa_even_mod);
+    }
+
+    key->n.dp[0] &= (mp_digit)-2;
+    if (ret != 0) {
+        ERROR_OUT(-7804, exit_rsa_even_mod);
+    }
+
+    /* after loading in key use tmp as the test buffer */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    inLen = 32;
+    outSz   = wc_RsaEncryptSize(key);
+    XMEMSET(tmp, 7, plainSz);
+    ret = wc_RsaSSL_Sign(tmp, inLen, out, outSz, key, rng);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-7806, exit_rsa_even_mod);
+    }
+
+    ret = wc_RsaSSL_Verify(out, outSz, tmp, inLen, key);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-7808, exit_rsa_even_mod);
+    }
+#endif
+
+#ifdef WC_RSA_BLINDING
+    ret = wc_RsaSetRNG(key, rng);
+    if (ret < 0) {
+        ERROR_OUT(-7811, exit_rsa_even_mod);
+    }
+#endif
+
+    /* test encrypt and decrypt using WC_RSA_NO_PAD */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-7812, exit_rsa_even_mod);
+    }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    ret = wc_RsaPrivateDecrypt(out, outSz, plain, (int)plainSz, key);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-7813, exit_rsa_even_mod);
+    }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
+    /* if making it to this point of code without hitting an ERROR_OUT then
+     * all tests have passed */
+    ret = 0;
+
+exit_rsa_even_mod:
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    FREE_VAR(out, HEAP_HINT);
+    FREE_VAR(plain, HEAP_HINT);
+
+    return ret;
+}
+#endif /* WOLFSSL_HAVE_SP_RSA */
+
 #ifdef WOLFSSL_CERT_GEN
 static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
@@ -14888,7 +15009,16 @@ static int rsa_test(void)
 /* Need to create known good signatures to test with this. */
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     ret = rsa_pss_test(&rng, key);
+    if (ret != 0)
+        goto exit_rsa;
 #endif
+#endif
+
+#ifdef WOLFSSL_HAVE_SP_RSA
+    /* New key to be loaded in rsa_even_mod_test(). */
+    if (key != NULL)
+        wc_FreeRsaKey(key);
+    ret = rsa_even_mod_test(&rng, key);
 #endif
 
 exit_rsa:
@@ -15319,7 +15449,7 @@ static int dh_test_check_pubvalue(void)
     #define FFDHE_KEY_SIZE      (2048/8)
 #endif
 
-static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
+static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
 {
     int    ret;
     word32 privSz, pubSz, privSz2, pubSz2;
@@ -15420,6 +15550,31 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
     if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ERROR_OUT(-8059, done);
     }
+
+#ifdef WOLFSSL_HAVE_SP_DH
+    key->p.dp[0] &= (mp_digit)-2;
+    if (ret != 0) {
+        ERROR_OUT(-8058, done);
+    }
+
+    ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-8058, done);
+    }
+
+    ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    if (ret != MP_VAL) {
+        ERROR_OUT(-8057, done);
+    }
+
+    ret = wc_DhCheckKeyPair(key, pub, pubSz, priv, privSz);
+    if (ret != MP_EXPTMOD_E) {
+        ERROR_OUT(-8057, done);
+    }
+
+    /* Getting here means success - set ret to 0. */
+    ret = 0;
+#endif
 
 done:
 
@@ -15697,12 +15852,12 @@ static int dh_test(void)
 
     /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
     #ifdef HAVE_FFDHE_2048
-    ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
+    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe2048_Get());
     if (ret != 0)
         ERROR_OUT(-8129, done);
     #endif
     #ifdef HAVE_FFDHE_3072
-    ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
+    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe3072_Get());
     if (ret != 0)
         ERROR_OUT(-8130, done);
     #endif
