@@ -2904,25 +2904,29 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 #endif /* HAVE_PKCS8 */
 
 #if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
-/* check that the private key is a pair for the public key in certificate
+/* check that the private key is a pair for the public key
  * return 1 (true) on match
  * return 0 or negative value on failure/error
  *
- * key   : buffer holding DER format key
- * keySz : size of key buffer
- * der   : a initialized and parsed DecodedCert holding a certificate */
-int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
+ * privKey   : buffer holding DER format private key
+ * privKeySz : size of private key buffer
+ * pubKey    : buffer holding DER format public key
+ * pubKeySz  : size of public key buffer
+ * ks        : type of key */
+int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
+                       const byte* pubKey, word32 pubKeySz, enum Key_Sum ks)
 {
     int ret;
-    (void)keySz;
+    (void)privKeySz;
+    (void)pubKeySz;
 
-    if (key == NULL || der == NULL) {
+    if (privKey == NULL || pubKey == NULL) {
         return BAD_FUNC_ARG;
     }
 
     #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     /* test if RSA key */
-    if (der->keyOID == RSAk) {
+    if (ks == RSAk) {
     #ifdef WOLFSSL_SMALL_STACK
         RsaKey* a;
         RsaKey* b = NULL;
@@ -2957,12 +2961,12 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
             return ret;
         }
-        if ((ret = wc_RsaPrivateKeyDecode(key, &keyIdx, a, keySz)) == 0) {
+        if ((ret = wc_RsaPrivateKeyDecode(privKey, &keyIdx, a, privKeySz)) == 0) {
             WOLFSSL_MSG("Checking RSA key pair");
             keyIdx = 0; /* reset to 0 for parsing public key */
 
-            if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx, b,
-                                                       der->pubKeySize)) == 0) {
+            if ((ret = wc_RsaPublicKeyDecode(pubKey, &keyIdx, b,
+                    pubKeySz)) == 0) {
                 /* limit for user RSA crypto because of RsaKey
                  * dereference. */
             #if defined(HAVE_USER_RSA)
@@ -2991,7 +2995,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif /* !NO_RSA && !NO_ASN_CRYPT */
 
     #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
-    if (der->keyOID == ECDSAk) {
+    if (ks == ECDSAk) {
     #ifdef WOLFSSL_SMALL_STACK
         ecc_key* key_pair;
         byte*    privDer;
@@ -3021,8 +3025,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
             return ret;
         }
 
-        if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, key_pair,
-                                                                 keySz)) == 0) {
+        if ((ret = wc_EccPrivateKeyDecode(privKey, &keyIdx, key_pair,
+                privKeySz)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
 
             if ((ret = wc_ecc_export_private_only(key_pair, privDer, &privSz))
@@ -3030,9 +3034,9 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
                 wc_ecc_free(key_pair);
                 ret = wc_ecc_init(key_pair);
                 if (ret == 0) {
-                    ret = wc_ecc_import_private_key((const byte*)privDer,
-                                            privSz, (const byte*)der->publicKey,
-                                            der->pubKeySize, key_pair);
+                    ret = wc_ecc_import_private_key(privDer,
+                                            privSz, pubKey,
+                                            pubKeySz, key_pair);
                 }
 
                 /* public and private extracted successfully now check if is
@@ -3056,7 +3060,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 
     #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
-    if (der->keyOID == ED25519k) {
+    if (ks == ED25519k) {
     #ifdef WOLFSSL_SMALL_STACK
         ed25519_key* key_pair;
     #else
@@ -3077,12 +3081,12 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
             return ret;
         }
-        if ((ret = wc_Ed25519PrivateKeyDecode(key, &keyIdx, key_pair,
-                                                                 keySz)) == 0) {
+        if ((ret = wc_Ed25519PrivateKeyDecode(privKey, &keyIdx, key_pair,
+                privKeySz)) == 0) {
             WOLFSSL_MSG("Checking ED25519 key pair");
             keyIdx = 0;
-            if ((ret = wc_ed25519_import_public(der->publicKey, der->pubKeySize,
-                                                              key_pair)) == 0) {
+            if ((ret = wc_ed25519_import_public(pubKey, pubKeySz,
+                    key_pair)) == 0) {
                 /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
@@ -3099,7 +3103,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
 
     #if defined(HAVE_ED448) && !defined(NO_ASN_CRYPT)
-    if (der->keyOID == ED448k) {
+    if (ks == ED448k) {
     #ifdef WOLFSSL_SMALL_STACK
         ed448_key* key_pair = NULL;
     #else
@@ -3120,12 +3124,12 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
             return ret;
         }
-        if ((ret = wc_Ed448PrivateKeyDecode(key, &keyIdx, key_pair,
-                                                                 keySz)) == 0) {
+        if ((ret = wc_Ed448PrivateKeyDecode(privKey, &keyIdx, key_pair,
+                privKeySz)) == 0) {
             WOLFSSL_MSG("Checking ED448 key pair");
             keyIdx = 0;
-            if ((ret = wc_ed448_import_public(der->publicKey, der->pubKeySize,
-                                                              key_pair)) == 0) {
+            if ((ret = wc_ed448_import_public(pubKey, pubKeySz,
+                    key_pair)) == 0) {
                 /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
@@ -3144,9 +3148,24 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         ret = 0;
     }
 
-    (void)keySz;
-
     return ret;
+}
+
+/* check that the private key is a pair for the public key in certificate
+ * return 1 (true) on match
+ * return 0 or negative value on failure/error
+ *
+ * key   : buffer holding DER format key
+ * keySz : size of key buffer
+ * der   : a initialized and parsed DecodedCert holding a certificate */
+int wc_CheckPrivateKeyCert(const byte* key, word32 keySz, DecodedCert* der)
+{
+    if (key == NULL || der == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_CheckPrivateKey(key, keySz, der->publicKey,
+            der->pubKeySize, (enum Key_Sum) der->keyOID);
 }
 
 #endif /* HAVE_PKCS12 || !NO_CHECK_PRIVATE_KEY */

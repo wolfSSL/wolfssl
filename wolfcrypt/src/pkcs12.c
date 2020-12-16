@@ -948,7 +948,7 @@ static void freeDecCertList(WC_DerCertList** list, byte** pkey, word32* pkeySz,
 
         InitDecodedCert(&DeCert, current->buffer, current->bufferSz, heap);
         if (ParseCertRelative(&DeCert, CERT_TYPE, NO_VERIFY, NULL) == 0) {
-            if (wc_CheckPrivateKey(*pkey, *pkeySz, &DeCert) == 1) {
+            if (wc_CheckPrivateKeyCert(*pkey, *pkeySz, &DeCert) == 1) {
                 WOLFSSL_MSG("Key Pair found");
                 *cert = current->buffer;
                 *certSz = current->bufferSz;
