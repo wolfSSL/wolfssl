@@ -2898,7 +2898,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-    if (!helloRetry) {
+    if (!helloRetry && version >= 4) {
     #if defined(WOLFSSL_TLS13) && (!defined(NO_DH) || defined(HAVE_ECC) || \
                              defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
         if (onlyKeyShare == 0 || onlyKeyShare == 2) {
