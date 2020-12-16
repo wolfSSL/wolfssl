@@ -226,7 +226,7 @@ port3=$(get_first_free_port $((port2 + 1)))
 # test interop fail case
 ready_file=$PWD/wolf_ocsp_readyF$$
 printf '%s\n' "ready file:  $ready_file"
-timeout 60 ./examples/server/server -b -p $port1 -o -R $ready_file &
+./examples/server/server -b -p $port1 -o -R $ready_file &
 wolf_pid=$!
 wait_for_readyFile $ready_file $wolf_pid $port1
 if [ ! -f $ready_file ]; then
