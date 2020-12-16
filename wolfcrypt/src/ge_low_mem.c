@@ -52,11 +52,11 @@ static const byte ed25519_order[F25519_SIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
 };
 
-/*Arithmetic modulo the group order m = 2^252 +
+/*Arithmetic modulo the group order mod = 2^252 +
  27742317777372353535851937790883648493 =
  7237005577332262213973186563042994240857116359379907606001950938285454250989 */
 
-static const word32 m[32] = {
+static const word32 mod[32] = {
     0xED,0xD3,0xF5,0x5C,0x1A,0x63,0x12,0x58,0xD6,0x9C,0xF7,0xA2,0xDE,0xF9,
     0xDE,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     0x00,0x00,0x00,0x10
@@ -111,7 +111,7 @@ static void reduce_add_sub(word32 *r)
 
   for(i=0;i<32;i++)
   {
-    pb += m[i];
+    pb += mod[i];
     b = lt(r[i],pb);
     t[i] = r[i]-pb+(b<<8);
     pb = b;
@@ -149,7 +149,7 @@ static void barrett_reduce(word32* r, word32 x[64])
   for(i=0;i<33;i++)r1[i] = x[i];
   for(i=0;i<32;i++)
     for(j=0;j<33;j++)
-      if(i+j < 33) r2[i+j] += m[i]*q3[j];
+      if(i+j < 33) r2[i+j] += mod[i]*q3[j];
 
   for(i=0;i<32;i++)
   {

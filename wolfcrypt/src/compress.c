@@ -198,7 +198,7 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
  * is the callers responsibility on successful return.
  *
  * out gets set to the output buffer created, *out gets overwritten
- * max is the max decompression multiplier, i.e if 2 then max out size created
+ * maxSz is the max decompression multiplier, i.e if 2 then max out size created
  *     would be 2*inSz, if set to -1 then there is no limit on out buffer size
  * memoryType the memory hint to use for 'out' i.e. DYNAMIC_TYPE_TMP_BUFFER
  * in  compressed input buffer
@@ -208,7 +208,7 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
  *
  * return the decompressed size, creates and grows out buffer as needed
  */
-int wc_DeCompressDynamic(byte** out, int max, int memoryType,
+int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
         const byte* in, word32 inSz, int windowBits, void* heap)
 {
     z_stream   stream;
@@ -220,8 +220,8 @@ int wc_DeCompressDynamic(byte** out, int max, int memoryType,
     if (out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
-    i = (max == 1)? 1 : 2; /* start with output buffer twice the size of input
-                            * unless max was set to 1 */
+    i = (maxSz == 1)? 1 : 2; /* start with output buffer twice the size of input
+                              * unless max was set to 1 */
 
     stream.next_in = (Bytef*)in;
     stream.avail_in = (uInt)inSz;
@@ -267,7 +267,7 @@ int wc_DeCompressDynamic(byte** out, int max, int memoryType,
             word32 newSz;
             byte*  newTmp;
 
-            if (max > 0 && i >= max) {
+            if (maxSz > 0 && i >= maxSz) {
                 WOLFSSL_MSG("Hit max decompress size!");
                 break;
             }

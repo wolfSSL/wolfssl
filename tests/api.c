@@ -6143,12 +6143,12 @@ static int test_wc_InitBlake2b (void)
     int ret = 0;
 #ifdef HAVE_BLAKE2
 
-    Blake2b blake2;
+    Blake2b blake2b;
 
     printf(testingFmt, "wc_InitBlake2B()");
 
     /* Test good arg. */
-    ret = wc_InitBlake2b(&blake2, 64);
+    ret = wc_InitBlake2b(&blake2b, 64);
     if (ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -6173,7 +6173,7 @@ static int test_wc_InitBlake2b (void)
     }
 
     if (!ret) {
-        ret = wc_InitBlake2b(&blake2, 128);
+        ret = wc_InitBlake2b(&blake2b, 128);
         if (ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
         } else {
@@ -6191,7 +6191,7 @@ static int test_wc_InitBlake2b (void)
     }
 
     if (!ret) {
-        ret = wc_InitBlake2b(&blake2, 0);
+        ret = wc_InitBlake2b(&blake2b, 0);
         if (ret == 0) {
             ret = WOLFSSL_FATAL_ERROR;
         } else {
@@ -6212,7 +6212,7 @@ static int test_wc_InitBlake2b_WithKey (void)
 {
     int ret = 0;
 #ifdef HAVE_BLAKE2
-    Blake2b     blake2;
+    Blake2b     blake2b;
     word32      digestSz = BLAKE2B_KEYBYTES;
     byte        key[BLAKE2B_KEYBYTES];
     word32      keylen = BLAKE2B_KEYBYTES;
@@ -6222,7 +6222,7 @@ static int test_wc_InitBlake2b_WithKey (void)
     printf(testingFmt, "wc_InitBlake2b_WithKey()");
 
     /* Test good arg. */
-    ret = wc_InitBlake2b_WithKey(&blake2, digestSz, key, keylen);
+    ret = wc_InitBlake2b_WithKey(&blake2b, digestSz, key, keylen);
     if (ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -6234,13 +6234,13 @@ static int test_wc_InitBlake2b_WithKey (void)
         }
     }
     if (ret == 0) {
-        ret = wc_InitBlake2b_WithKey(&blake2, digestSz, key, 256);
+        ret = wc_InitBlake2b_WithKey(&blake2b, digestSz, key, 256);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_InitBlake2b_WithKey(&blake2, digestSz, NULL, keylen);
+        ret = wc_InitBlake2b_WithKey(&blake2b, digestSz, NULL, keylen);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -6256,7 +6256,7 @@ static int test_wc_InitBlake2s_WithKey (void)
 {
     int ret = 0;
 #ifdef HAVE_BLAKE2S
-    Blake2s     blake2;
+    Blake2s     blake2s;
     word32      digestSz = BLAKE2S_KEYBYTES;
     byte        *key = (byte*)"01234567890123456789012345678901";
     word32      keylen = BLAKE2S_KEYBYTES;
@@ -6264,7 +6264,7 @@ static int test_wc_InitBlake2s_WithKey (void)
     printf(testingFmt, "wc_InitBlake2s_WithKey()");
 
     /* Test good arg. */
-    ret = wc_InitBlake2s_WithKey(&blake2, digestSz, key, keylen);
+    ret = wc_InitBlake2s_WithKey(&blake2s, digestSz, key, keylen);
     if (ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -6276,13 +6276,13 @@ static int test_wc_InitBlake2s_WithKey (void)
         }
     }
     if (ret == 0) {
-        ret = wc_InitBlake2s_WithKey(&blake2, digestSz, key, 256);
+        ret = wc_InitBlake2s_WithKey(&blake2s, digestSz, key, 256);
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
-        ret = wc_InitBlake2s_WithKey(&blake2, digestSz, NULL, keylen);
+        ret = wc_InitBlake2s_WithKey(&blake2s, digestSz, NULL, keylen);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -17791,7 +17791,7 @@ static int test_wc_curve25519_export_key_raw (void)
 
     }
 
-    prvkSz = CURVE25519_KEYSIZE;
+    /* prvkSz = CURVE25519_KEYSIZE; */
     pubkSz = CURVE25519_KEYSIZE;
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw(
@@ -17847,7 +17847,7 @@ static int test_wc_curve25519_export_key_raw (void)
     }
 
     prvkSz = CURVE25519_KEYSIZE;
-    pubkSz = CURVE25519_KEYSIZE;
+    /* pubkSz = CURVE25519_KEYSIZE; */
 
     if(0 != wc_curve25519_export_key_raw(&key, privateKey, &prvkSz,
                                                      publicKey,  &pubkSz)){
@@ -17987,7 +17987,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         return  1;
     }
 
-    prvkSz = CURVE25519_KEYSIZE;
+    /* prvkSz = CURVE25519_KEYSIZE; */
     pubkSz = CURVE25519_KEYSIZE;
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
@@ -18014,7 +18014,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     }
 
     prvkSz = CURVE25519_KEYSIZE;
-    pubkSz = CURVE25519_KEYSIZE;
+    /* pubkSz = CURVE25519_KEYSIZE; */
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( NULL, privateKey,
      &prvkSz, publicKey, &pubkSz, EC25519_BIG_ENDIAN)){
@@ -18052,7 +18052,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
         return  1;
     }
 
-    prvkSz = CURVE25519_KEYSIZE;
+    /* prvkSz = CURVE25519_KEYSIZE; */
     pubkSz = CURVE25519_KEYSIZE;
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
@@ -18081,7 +18081,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     /* illegal value for endien */
 
     prvkSz = CURVE25519_KEYSIZE;
-    pubkSz = CURVE25519_KEYSIZE;
+    /* pubkSz = CURVE25519_KEYSIZE; */
 
     if(BAD_FUNC_ARG != wc_curve25519_export_key_raw_ex( &key, privateKey,
      &prvkSz, publicKey, NULL, EC25519_BIG_ENDIAN + 10 )){
@@ -18120,7 +18120,7 @@ static int test_wc_curve25519_export_key_raw_ex (void)
     }
 
     prvkSz = CURVE25519_KEYSIZE;
-    pubkSz = CURVE25519_KEYSIZE;
+    /* pubkSz = CURVE25519_KEYSIZE; */
 
     if(0 != wc_curve25519_export_key_raw_ex( &key, privateKey, &prvkSz,
                     publicKey, &pubkSz, EC25519_BIG_ENDIAN)) {
@@ -18661,8 +18661,6 @@ static int test_wc_curve25519_export_private_raw_ex (void)
 
     int ret = 0;
 #if defined(HAVE_CURVE25519)
-
-    WC_RNG          rng;
     curve25519_key  key;
     byte            out[CURVE25519_KEYSIZE];
     word32          outLen = sizeof(out);
@@ -18671,9 +18669,6 @@ static int test_wc_curve25519_export_private_raw_ex (void)
     printf(testingFmt, "wc_curve25519_export_private_raw_ex()");
 
     ret = wc_curve25519_init(&key);
-    if (ret == 0) {
-        ret = wc_InitRng(&rng);
-    }
     if (ret == 0) {
         ret = wc_curve25519_export_private_raw_ex(&key, out, &outLen, endian);
     }
@@ -18716,7 +18711,6 @@ static int test_wc_curve25519_export_private_raw_ex (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve25519_free(&key);
-    wc_FreeRng(&rng);
 #endif
     return ret;
 
@@ -19683,8 +19677,6 @@ static int test_wc_curve448_export_private_raw_ex (void)
 
     int ret = 0;
 #if defined(HAVE_CURVE448)
-
-    WC_RNG        rng;
     curve448_key  key;
     byte          out[CURVE448_KEY_SIZE];
     word32        outLen = sizeof(out);
@@ -19693,9 +19685,6 @@ static int test_wc_curve448_export_private_raw_ex (void)
     printf(testingFmt, "wc_curve448_export_private_raw_ex()");
 
     ret = wc_curve448_init(&key);
-    if (ret == 0) {
-        ret = wc_InitRng(&rng);
-    }
     if (ret == 0) {
         ret = wc_curve448_export_private_raw_ex(&key, out, &outLen, endian);
     }
@@ -19738,7 +19727,6 @@ static int test_wc_curve448_export_private_raw_ex (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
     wc_curve448_free(&key);
-    wc_FreeRng(&rng);
 #endif
     return ret;
 
@@ -30823,14 +30811,14 @@ static void test_wolfSSL_X509_set_version(void)
     !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
     X509* x509;
     long v = 2L;
-    long max = INT_MAX;
+    long maxInt = INT_MAX;
 
     AssertNotNull(x509 = X509_new());
     /* These should pass. */
     AssertTrue(wolfSSL_X509_set_version(x509, v));
     AssertIntEQ(v, wolfSSL_X509_get_version(x509));
     /* Fail Case: When v(long) is greater than x509->version(int). */
-    v = max+1;
+    v = maxInt+1;
     AssertFalse(wolfSSL_X509_set_version(x509, v));
     /* Cleanup */
     X509_free(x509);
@@ -33921,6 +33909,8 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     WOLFSSL_EC_KEY* ecKey;
 #endif
 
+    (void)pkey;
+
     printf(testingFmt, "wolfSSL_EVP_PKEY_assign");
 #ifndef NO_RSA
     type = EVP_PKEY_RSA;
@@ -35394,7 +35384,10 @@ static void test_wolfSSL_OCSP_SINGLERESP_get0_id()
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
     WOLFSSL_OCSP_SINGLERESP single;
-    const WOLFSSL_OCSP_CERTID* certId = wolfSSL_OCSP_SINGLERESP_get0_id(&single);
+    const WOLFSSL_OCSP_CERTID* certId;
+
+    XMEMSET(&single, 0, sizeof(single));
+    certId = wolfSSL_OCSP_SINGLERESP_get0_id(&single);
     
     printf(testingFmt, "wolfSSL_OCSP_SINGLERESP_get0_id()");
 

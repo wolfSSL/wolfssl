@@ -492,8 +492,6 @@ WC_NORETURN void
 #endif
 err_sys(const char* msg)
 {
-    printf("wolfSSL error: %s\n", msg);
-
 #if !defined(__GNUC__)
     /* scan-build (which pretends to be gnuc) can get confused and think the
      * msg pointer can be null even when hardcoded and then it won't exit,
@@ -504,6 +502,8 @@ err_sys(const char* msg)
     if (msg)
 #endif
     {
+        printf("wolfSSL error: %s\n", msg);
+
         XEXIT_T(EXIT_FAILURE);
     }
 }
@@ -516,12 +516,6 @@ WC_NORETURN void
 #endif
 err_sys_with_errno(const char* msg)
 {
-#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
-    printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
-#else
-    printf("wolfSSL error: %s\n", msg);
-#endif
-
 #if !defined(__GNUC__)
     /* scan-build (which pretends to be gnuc) can get confused and think the
      * msg pointer can be null even when hardcoded and then it won't exit,
@@ -532,6 +526,12 @@ err_sys_with_errno(const char* msg)
     if (msg)
 #endif
     {
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
+        printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
+#else
+        printf("wolfSSL error: %s\n", msg);
+#endif
+
         XEXIT_T(EXIT_FAILURE);
     }
 }
@@ -600,7 +600,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     /* The C++ strchr can return a different value */
     cp = (char*)strchr(optstring, c);
 
-    if (cp == NULL || c == ':' || 'c' == ';')
+    if (cp == NULL || c == ':' || c == ';')
         return '?';
 
     cp++;
@@ -1292,8 +1292,8 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
                               int udp, int sctp, int ready_file, int do_listen)
 {
-    SOCKADDR_IN_T client;
-    socklen_t client_len = sizeof(client);
+    SOCKADDR_IN_T client_addr;
+    socklen_t client_len = sizeof(client_addr);
     tcp_ready* ready = NULL;
 
     (void) ready; /* Account for case when "ready" is not used */
@@ -1350,7 +1350,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     }
 
-    *clientfd = accept(*sockfd, (struct sockaddr*)&client,
+    *clientfd = accept(*sockfd, (struct sockaddr*)&client_addr,
                       (ACCEPT_THIRD_T)&client_len);
     if(WOLFSSL_SOCKET_IS_INVALID(*clientfd)) {
         err_sys_with_errno("tcp accept failed");
@@ -1605,7 +1605,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
     {
         int ret;
         long int fileSz;
-        XFILE file;
+        XFILE lFile;
 
         if (fname == NULL || buf == NULL || bufLen == NULL)
             return BAD_FUNC_ARG;
@@ -1615,15 +1615,15 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         *bufLen = 0;
 
         /* open file (read-only binary) */
-        file = XFOPEN(fname, "rb");
-        if (!file) {
+        lFile = XFOPEN(fname, "rb");
+        if (!lFile) {
             printf("Error loading %s\n", fname);
             return BAD_PATH_ERROR;
         }
 
-        fseek(file, 0, SEEK_END);
-        fileSz = (int)ftell(file);
-        rewind(file);
+        fseek(lFile, 0, SEEK_END);
+        fileSz = (int)ftell(lFile);
+        rewind(lFile);
         if (fileSz  > 0) {
             *bufLen = (size_t)fileSz;
             *buf = (byte*)malloc(*bufLen);
@@ -1632,7 +1632,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
                 printf("Error allocating %lu bytes\n", (unsigned long)*bufLen);
             }
             else {
-                size_t readLen = fread(*buf, *bufLen, 1, file);
+                size_t readLen = fread(*buf, *bufLen, 1, lFile);
 
                 /* check response code */
                 ret = (readLen > 0) ? 0 : -1;
@@ -1641,7 +1641,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         else {
             ret = BUFFER_E;
         }
-        fclose(file);
+        fclose(lFile);
 
         return ret;
     }
@@ -2002,11 +2002,11 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
     {
         #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             int depth, res;
-            XFILE file;
+            XFILE keyFile;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = XFOPEN(ntruKeyFile, "rb");
-                if (file != NULL) {
-                    fclose(file);
+                keyFile = XFOPEN(ntruKeyFile, "rb");
+                if (keyFile != NULL) {
+                    fclose(keyFile);
                     return depth;
                 }
             #ifdef USE_WINDOWS_API
@@ -2052,7 +2052,7 @@ struct stack_size_debug_context {
  * ./configure --enable-stacksize=verbose [...]
  */
 
-static void *debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
+static THREAD_RETURN debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
   StackSizeCheck_myStack = shim_args->myStack;
   StackSizeCheck_stackSize = shim_args->stackSize;
   StackSizeCheck_stackSizeHWM_ptr = shim_args->stackSizeHWM_ptr;
@@ -2066,7 +2066,9 @@ static WC_INLINE int StackSizeSetOffset(const char *funcname, void *p)
 
     StackSizeCheck_stackOffsetPointer = p;
 
-    printf("setting stack relative offset reference mark in %s to +%ld\n", funcname, (char *)(StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)p);
+    printf("setting stack relative offset reference mark in %s to +%lu\n",
+        funcname, (unsigned long)((char*)(StackSizeCheck_myStack +
+                                  StackSizeCheck_stackSize) - (char *)p));
 
     return 0;
 }
@@ -2208,11 +2210,13 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
     free(myStack);
 #ifdef HAVE_STACK_SIZE_VERBOSE
-    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i) ? StackSizeCheck_stackSizeHWM : (stackSize - i));
+    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i)
+        ? (unsigned long)StackSizeCheck_stackSizeHWM
+        : (unsigned long)(stackSize - i));
 #else
     {
       size_t used = stackSize - i;
-      printf("stack used = %lu\n", used);
+      printf("stack used = %lu\n", (unsigned long)used);
     }
 #endif
 
@@ -2288,11 +2292,14 @@ static WC_INLINE int StackSizeCheck_reap(pthread_t threadId, void *stack_context
 
     free(shim_args->myStack);
 #ifdef HAVE_STACK_SIZE_VERBOSE
-    printf("stack used = %lu\n", *shim_args->stackSizeHWM_ptr > (shim_args->stackSize - i) ? *shim_args->stackSizeHWM_ptr : (shim_args->stackSize - i));
+    printf("stack used = %lu\n",
+        *shim_args->stackSizeHWM_ptr > (shim_args->stackSize - i)
+        ? (unsigned long)*shim_args->stackSizeHWM_ptr
+        : (unsigned long)(shim_args->stackSize - i));
 #else
     {
       size_t used = shim_args->stackSize - i;
-      printf("stack used = %lu\n", used);
+      printf("stack used = %lu\n", (unsigned long)used);
     }
 #endif
     free(shim_args);

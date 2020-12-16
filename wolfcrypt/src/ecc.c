@@ -6338,6 +6338,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       return err;
    }
 
+   keySz = key->dp->size;
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {

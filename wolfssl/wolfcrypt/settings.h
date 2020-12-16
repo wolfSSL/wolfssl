@@ -678,17 +678,17 @@ extern void uITRON4_free(void *p) ;
 
     /* static char* gets(char *buff); */
     static char* fgets(char *buff, int sz, XFILE fp) {
-        char * p = buff;
-        *p = '\0';
+        char * s = buff;
+        *s = '\0';
         while (1) {
-            *p = tm_getchar(-1);
-            tm_putchar(*p);
-            if (*p == '\r') {
+            *s = tm_getchar(-1);
+            tm_putchar(*s);
+            if (*s == '\r') {
                 tm_putchar('\n');
-                *p = '\0';
+                *s = '\0';
                 break;
             }
-            p++;
+            s++;
         }
         return buff;
     }

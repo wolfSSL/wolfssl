@@ -3778,7 +3778,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
     }
 
+#ifdef HAVE_EXTENDED_MASTER
 exit:
+#endif
 #ifdef HAVE_MAX_FRAGMENT
     if (session->tlsFragBuf) {
         XFREE(session->tlsFragBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);

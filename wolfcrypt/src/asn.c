@@ -16229,12 +16229,12 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
 
     totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
     if (totalSz > (int)inLen) {
+        #ifndef WOLFSSL_NO_MALLOC
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (pubIn) {
-        #ifndef WOLFSSL_NO_MALLOC
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
         }
+        #endif
         return BAD_FUNC_ARG;
     }
 

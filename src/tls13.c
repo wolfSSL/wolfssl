@@ -5188,7 +5188,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     goto exit_scv;
             }
 
-            if (args->length <= 0) {
+            if (args->length == 0) {
                 ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
             }
 

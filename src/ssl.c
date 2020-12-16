@@ -1170,7 +1170,7 @@ int wolfSSL_mcast_get_max_peers(void)
 
 #ifdef WOLFSSL_DTLS
 static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
-                                         word32 second, word32 max)
+                                         word32 second, word32 high)
 {
     word32 newCur = 0;
 
@@ -1178,8 +1178,8 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
         newCur = first;
     else if (cur < second)
         newCur = second;
-    else if (cur < max)
-        newCur = max;
+    else if (cur < high)
+        newCur = high;
 
     return newCur;
 }
@@ -1505,7 +1505,7 @@ int wolfSSL_METHOD_GetObjectSize(void)
 
 int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method,
                                    unsigned char* buf, unsigned int sz,
-                                   int flag, int max)
+                                   int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap;
     WOLFSSL_HEAP_HINT* hint;
@@ -1564,15 +1564,15 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
 
     /* determine what max applies too */
     if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
-        heap->maxIO = max;
+        heap->maxIO = maxSz;
     }
     else { /* general memory used in handshakes */
-        heap->maxHa = max;
+        heap->maxHa = maxSz;
     }
 
     heap->flag |= flag;
 
-    (void)max;
+    (void)maxSz;
     (void)method;
 
     return WOLFSSL_SUCCESS;
