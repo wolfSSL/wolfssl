@@ -987,6 +987,9 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
     }
     else {
         *data = (unsigned char*)XMALLOC(id->rawCertIdSize, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (*data == NULL) {
+            return WOLFSSL_FAILURE;
+        }
         XMEMCPY(*data, id->rawCertId, id->rawCertIdSize);
     }
 
