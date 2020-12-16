@@ -921,11 +921,10 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     #ifndef ATCATLS_TNGTLS_DEVICE_CERT_SIZE
         #define ATCATLS_TNGTLS_DEVICE_CERT_SIZE 0x222
     #endif
-        #ifndef ATCATLS_TNGTLS_CERT_BUFF_SIZE
+    #ifndef ATCATLS_TNGTLS_CERT_BUFF_SIZE
         #define ATCATLS_TNGTLS_CERT_BUFF_SIZE (ATCATLS_TNGTLS_SIGNER_CERT_SIZE +\
-		                                       ATCATLS_TNGTLS_DEVICE_CERT_SIZE)
+                                               ATCATLS_TNGTLS_DEVICE_CERT_SIZE)
     #endif
-	
 
     int ret = 0;
     ATCA_STATUS status;
@@ -935,7 +934,7 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
 
     /*Read signer cert*/
     status = tng_atcacert_read_signer_cert(&certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE],
-          	 &signerCertSize);
+                                           &signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
@@ -943,14 +942,14 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     if (signerCertSize != ATCATLS_TNGTLS_SIGNER_CERT_SIZE) {
         #ifdef WOLFSSL_ATECC_DEBUG
         printf("signer cert size != ATCATLS_TNGTLS_SIGNER_CERT_SIZE.(%d)\r\n",
-		        signerCertSize);
+               signerCertSize);
         #endif
         return WOLFSSL_FAILURE;
     }
 
     /*Read device cert signed by the signer above*/
     status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,\
-     	     &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
+     	                  &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
@@ -958,14 +957,14 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     if (deviceCertSize != ATCATLS_TNGTLS_DEVICE_CERT_SIZE) {
         #ifdef WOLFSSL_ATECC_DEBUG
         printf("device cert size != ATCATLS_TNGTLS_DEVICE_CERT_SIZE.(%d)\r\n",
-		        deviceCertSize);
+               deviceCertSize);
         #endif
         return WOLFSSL_FAILURE;
     }
 
-    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, 
-	       (const unsigned char*)certBuffer, ATCATLS_TNGTLS_CERT_BUFF_SIZE,
-		   WOLFSSL_FILETYPE_ASN1);
+    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
+          (const unsigned char*)certBuffer, ATCATLS_TNGTLS_CERT_BUFF_SIZE,
+          WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         ret = -1;
     }
