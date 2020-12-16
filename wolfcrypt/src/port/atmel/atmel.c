@@ -472,9 +472,11 @@ int atmel_init(void)
 
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
 
-/*Harmony3 will generate configuration based on user inputs*/
-#ifdef MICROCHIP_MPLAB_HARMONY_3
+#if defined(WOLFSSL_ATECC608A)
+    /*Harmony3 will generate configuration based on user inputs*/
+    #ifdef MICROCHIP_MPLAB_HARMONY_3
     extern ATCAIfaceCfg atecc608_0_init_data;
+    #endif
 #endif
     
     if (!mAtcaInitDone) {
@@ -502,7 +504,9 @@ int atmel_init(void)
 #ifdef MICROCHIP_MPLAB_HARMONY_3
         atcab_release();
         atcab_wakeup();
+        #ifdef WOLFSSL_ATECC608A
         wolfCrypt_ATECC_SetConfig(&atecc608_0_init_data);
+        #endif
 #endif
         if (ateccx08a_cfg_initialized == 0) {
             /* Setup the hardware interface using defaults */
@@ -917,41 +921,51 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     #ifndef ATCATLS_TNGTLS_DEVICE_CERT_SIZE
         #define ATCATLS_TNGTLS_DEVICE_CERT_SIZE 0x222
     #endif
+        #ifndef ATCATLS_TNGTLS_CERT_BUFF_SIZE
+        #define ATCATLS_TNGTLS_CERT_BUFF_SIZE (ATCATLS_TNGTLS_SIGNER_CERT_SIZE +\
+		                                       ATCATLS_TNGTLS_DEVICE_CERT_SIZE)
+    #endif
+	
 
     int ret = 0;
     ATCA_STATUS status;
     size_t signerCertSize = ATCATLS_TNGTLS_SIGNER_CERT_SIZE;
     size_t deviceCertSize = ATCATLS_TNGTLS_DEVICE_CERT_SIZE;
-    uint8_t certBuffer[ATCATLS_TNGTLS_SIGNER_CERT_SIZE+ATCATLS_TNGTLS_DEVICE_CERT_SIZE];
+    uint8_t certBuffer[ATCATLS_TNGTLS_CERT_BUFF_SIZE];
 
     /*Read signer cert*/
-    status = tng_atcacert_read_signer_cert(&certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE], &signerCertSize);
+    status = tng_atcacert_read_signer_cert(&certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE],
+          	 &signerCertSize);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-    if(signerCertSize != ATCATLS_TNGTLS_SIGNER_CERT_SIZE){
+    if (signerCertSize != ATCATLS_TNGTLS_SIGNER_CERT_SIZE) {
         #ifdef WOLFSSL_ATECC_DEBUG
-        printf("tng_atcacert_read_signer_cert read size != ATCATLS_TNGTLS_SIGNER_CERT_SIZE. (%d) \r\n",signerCertSize);
+        printf("signer cert size != ATCATLS_TNGTLS_SIGNER_CERT_SIZE.(%d)\r\n",
+		        signerCertSize);
         #endif
         return WOLFSSL_FAILURE;
     }
 
     /*Read device cert signed by the signer above*/
-    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize, &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
+    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,\
+     	     &certBuffer[ATCATLS_TNGTLS_DEVICE_CERT_SIZE]);
     if (ATCA_SUCCESS != status) {
         ret = atmel_ecc_translate_err(ret);
         return ret;
     }
-    if(deviceCertSize != ATCATLS_TNGTLS_DEVICE_CERT_SIZE){
+    if (deviceCertSize != ATCATLS_TNGTLS_DEVICE_CERT_SIZE) {
         #ifdef WOLFSSL_ATECC_DEBUG
-        printf("tng_atcacert_read_device_cert read size != ATCATLS_TNGTLS_DEVICE_CERT_SIZE. (%d) \r\n",deviceCertSize);
+        printf("device cert size != ATCATLS_TNGTLS_DEVICE_CERT_SIZE.(%d)\r\n",
+		        deviceCertSize);
         #endif
         return WOLFSSL_FAILURE;
     }
 
-    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, (const unsigned char*)certBuffer, 
-          ATCATLS_TNGTLS_SIGNER_CERT_SIZE+ATCATLS_TNGTLS_DEVICE_CERT_SIZE, WOLFSSL_FILETYPE_ASN1);
+    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, 
+	       (const unsigned char*)certBuffer, ATCATLS_TNGTLS_CERT_BUFF_SIZE,
+		   WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         ret = -1;
     }
@@ -970,9 +984,9 @@ int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
 #ifdef WOLFSSL_ATECC_TNGTLS
     ret = atcatls_set_certificates(ctx);
-    if(ret != 0){
+    if (ret != 0) {
         #ifdef WOLFSSL_ATECC_DEBUG
-        printf("atcatls_set_certificates failed. (%d) \r\n",ret);
+        printf("atcatls_set_certificates failed. (%d)\r\n",ret);
         #endif
     }
 #endif
