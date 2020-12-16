@@ -1913,7 +1913,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
         break;
 #endif /* HAVE_ECC */
     default:
-        break;
+        return ret;
     } /* switch (a->type) */
 
     /* check size */

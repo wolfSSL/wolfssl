@@ -265,7 +265,7 @@ const byte base64Encode[] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
 
 /* make sure *i (idx) won't exceed max, store and possibly escape to out,
  * raw means use e w/o decode,  0 on success */
-static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
+static int CEscape(int escaped, byte e, byte* out, word32* i, word32 maxSz,
                   int raw, int getSzOnly)
 {
     int    doEscape = 0;
@@ -307,7 +307,7 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 max,
     }
 
     /* check size */
-    if ( (idx+needed) > max && !getSzOnly) {
+    if ( (idx+needed) > maxSz && !getSzOnly) {
         WOLFSSL_MSG("Escape buffer max too small");
         return BUFFER_E;
     }

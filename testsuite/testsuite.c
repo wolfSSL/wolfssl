@@ -324,7 +324,7 @@ static void simple_test(func_args* args)
     if (cliArgs.return_code != 0) {
         args->return_code = cliArgs.return_code;
     #ifdef HAVE_STACK_SIZE
-        return (void *)0;
+        return (THREAD_RETURN)0;
     #else
         return;
     #endif
@@ -332,7 +332,7 @@ static void simple_test(func_args* args)
     join_thread(serverThread);
     if (svrArgs.return_code != 0) args->return_code = svrArgs.return_code;
 #ifdef HAVE_STACK_SIZE
-    return (void *)0;
+    return (THREAD_RETURN)0;
 #endif
 }
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */

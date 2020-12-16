@@ -312,7 +312,7 @@ int wolfSSL_init_memory_heap(WOLFSSL_HEAP* heap)
 }
 
 int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
-    unsigned char* buf, unsigned int sz, int flag, int max)
+    unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
     int ret;
     WOLFSSL_HEAP*      heap;
@@ -362,16 +362,16 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
 
     /* determine what max applies too */
     if ((flag & WOLFMEM_IO_POOL) || (flag & WOLFMEM_IO_POOL_FIXED)) {
-        heap->maxIO = max;
+        heap->maxIO = maxSz;
     }
     else { /* general memory used in handshakes */
-        heap->maxHa = max;
+        heap->maxHa = maxSz;
     }
 
     heap->flag |= flag;
     *pHint = hint;
 
-    (void)max;
+    (void)maxSz;
 
     return 0;
 }

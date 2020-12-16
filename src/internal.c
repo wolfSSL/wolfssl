@@ -6591,25 +6591,26 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         int dtype;
     #ifdef HAVE_ECC
         dtype = DYNAMIC_TYPE_ECC;
+    #elif defined(HAVE_CURVE25519)
+        dtype = DYNAMIC_TYPE_CURVE25519;
+    #else
+        dtype = DYNAMIC_TYPE_CURVE448;
     #endif
-    #ifdef HAVE_CURVE25519
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && defined(HAVE_CURVE25519)
         if (ssl->peerX25519KeyPresent ||
                               ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
-    #endif /* HAVE_ECC */
          {
             dtype = DYNAMIC_TYPE_CURVE25519;
          }
-    #endif /* HAVE_CURVE25519 */
-    #ifdef HAVE_CURVE448
-    #ifdef HAVE_ECC
+    #endif
+    #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                          defined(HAVE_CURVE448)
         if (ssl->peerX448KeyPresent ||
                                 ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE448)
-    #endif /* HAVE_ECC */
          {
             dtype = DYNAMIC_TYPE_CURVE448;
          }
-    #endif /* HAVE_CURVE448 */
+    #endif
         FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
         ssl->eccTempKeyPresent = 0;
     }
@@ -13066,7 +13067,7 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_MULTICAST
 static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
-                                         word32 second, word32 max)
+                                         word32 second, word32 high)
 {
     word32 newCur = 0;
 
@@ -13074,8 +13075,8 @@ static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
         newCur = first;
     else if (cur < second)
         newCur = second;
-    else if (cur < max)
-        newCur = max;
+    else if (cur < high)
+        newCur = high;
 
     return newCur;
 }
