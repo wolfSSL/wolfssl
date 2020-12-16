@@ -8588,6 +8588,9 @@ static int wc_AesFeedbackCFB8(Aes* aes, byte* out, const byte* in,
         }
 
         /* MSB + XOR */
+    #ifdef BIG_ENDIAN_ORDER
+        ByteReverseWords(aes->tmp, aes->tmp, AES_BLOCK_SIZE);
+    #endif
         out[0] = aes->tmp[0] ^ in[0];
         if (dir == AES_ENCRYPTION) {
             pt = (byte*)aes->reg;
