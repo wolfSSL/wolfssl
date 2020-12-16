@@ -14822,67 +14822,14 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
 static int SetAltNamesFromDcert(Cert* cert, DecodedCert* decoded)
 {
     int ret = 0;
-    byte tag;
 
-    if (decoded->extensions) {
-        int    length;
-        word32 maxExtensionsIdx;
-
-        decoded->srcIdx = decoded->extensionsIdx;
-        if (GetASNTag(decoded->source, &decoded->srcIdx, &tag, decoded->maxIdx)
-                != 0) {
-            return ASN_PARSE_E;
-        }
-
-        if (tag != ASN_EXTENSIONS) {
-            ret = ASN_PARSE_E;
-        }
-        else if (GetLength(decoded->source, &decoded->srcIdx, &length,
-                                                         decoded->maxIdx) < 0) {
-            ret = ASN_PARSE_E;
-        }
-        else if (GetSequence(decoded->source, &decoded->srcIdx, &length,
-                                                         decoded->maxIdx) < 0) {
-            ret = ASN_PARSE_E;
-        }
-        else {
-            maxExtensionsIdx = decoded->srcIdx + length;
-
-            while (decoded->srcIdx < maxExtensionsIdx) {
-                word32 oid;
-                word32 startIdx = decoded->srcIdx;
-                word32 tmpIdx;
-
-                if (GetSequence(decoded->source, &decoded->srcIdx, &length,
-                            decoded->maxIdx) < 0) {
-                    ret = ASN_PARSE_E;
-                    break;
-                }
-
-                tmpIdx = decoded->srcIdx;
-                decoded->srcIdx = startIdx;
-
-                if (GetAlgoId(decoded->source, &decoded->srcIdx, &oid,
-                              oidCertExtType, decoded->maxIdx) < 0) {
-                    ret = ASN_PARSE_E;
-                    break;
-                }
-
-                if (oid == ALT_NAMES_OID) {
-                    cert->altNamesSz = length + (tmpIdx - startIdx);
-
-                    if (cert->altNamesSz < (int)sizeof(cert->altNames))
-                        XMEMCPY(cert->altNames, &decoded->source[startIdx],
-                                cert->altNamesSz);
-                    else {
-                        cert->altNamesSz = 0;
-                        WOLFSSL_MSG("AltNames extensions too big");
-                        ret = ALT_NAME_E;
-                        break;
-                    }
-                }
-                decoded->srcIdx = tmpIdx + length;
-            }
+    cert->altNamesSz = 0;
+    if (decoded->altNames) {
+        ret = FlattenAltNames(cert->altNames,
+            sizeof(cert->altNames), decoded->altNames);
+        if (ret >= 0) {
+            cert->altNamesSz = ret;
+            ret = 0;
         }
     }
 
@@ -15294,7 +15241,7 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
     int ret = 0;
 
     if (cert == NULL) {
-     ret = BAD_FUNC_ARG;
+       ret = BAD_FUNC_ARG;
     }
     else {
         /* Check if decodedCert is cached */
