@@ -565,7 +565,11 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
                             ssl->arrays->clientRandom,
                             ssl->arrays->serverRandom,
                             ssl->arrays->tsip_masterSecret);
-            
+
+            #else
+
+            ret = NOT_COMPILED_IN;
+
             #endif
         } else
 #endif
@@ -9027,18 +9031,18 @@ static int TLSX_EarlyData_GetSize(byte msgType, word16* pSz)
  * Assumes that the the output buffer is big enough to hold data.
  * In messages: ClientHello, EncryptedExtensions and NewSessionTicket.
  *
- * max      The maximum early data size.
+ * maxSz    The maximum early data size.
  * output   The buffer to write into.
  * msgType  The type of the message this extension is being written into.
  * returns the number of bytes written into the buffer.
  */
-static int TLSX_EarlyData_Write(word32 max, byte* output, byte msgType,
+static int TLSX_EarlyData_Write(word32 maxSz, byte* output, byte msgType,
                                 word16* pSz)
 {
     if (msgType == client_hello || msgType == encrypted_extensions)
         return 0;
     else if (msgType == session_ticket) {
-        c32toa(max, output);
+        c32toa(maxSz, output);
         *pSz += OPAQUE32_LEN;
         return 0;
     }
@@ -9095,11 +9099,11 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 /* Use the data to create a new Early Data object in the extensions.
  *
- * ssl  The SSL/TLS object.
- * max  The maximum early data size.
+ * ssl    The SSL/TLS object.
+ * maxSz  The maximum early data size.
  * returns 0 on success and other values indicate failure.
  */
-int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max)
+int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz)
 {
     int   ret = 0;
     TLSX* extension;
@@ -9118,7 +9122,7 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max)
     }
 
     extension->resp = 1;
-    extension->val  = max;
+    extension->val  = maxSz;
 
     return 0;
 }

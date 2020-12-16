@@ -1748,7 +1748,6 @@ enum {
                               * and auto retry */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
-    BIO_FLAGS_BASE64_NO_NL = 1,
     BIO_CLOSE   = 1,
     BIO_NOCLOSE = 0,
 

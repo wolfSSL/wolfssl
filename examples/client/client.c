@@ -687,8 +687,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             err_sys("Client buffer malloc failed");
         }
 doExit:
-        if(tx_buffer) XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if(rx_buffer) XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tx_buffer) XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (rx_buffer) XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     else {
         err_sys("wolfSSL_connect failed");
@@ -701,10 +701,11 @@ doExit:
     if (exitWithRet)
         return err;
 
+    printf(
 #if !defined(__MINGW32__)
-    printf("wolfSSL Client Benchmark %zu bytes\n"
+        "wolfSSL Client Benchmark %zu bytes\n"
 #else
-    printf("wolfSSL Client Benchmark %d bytes\n"
+        "wolfSSL Client Benchmark %d bytes\n"
 #endif
         "\tConnect %8.3f ms\n"
         "\tTX      %8.3f ms (%8.3f MBps)\n"
