@@ -2296,6 +2296,11 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_HASH_RAW
 #endif
 
+/* XChacha not implemented with ARM assembly ChaCha */
+#if defined(WOLFSSL_ARMASM)
+    #undef HAVE_XCHACHA
+#endif
+
 #if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512) && defined(NO_AES) && \
                                                           !defined(WOLFSSL_SHA3)
     #undef  WOLFSSL_NO_WORD64_OPS
