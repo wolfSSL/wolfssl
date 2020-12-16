@@ -3963,7 +3963,7 @@ fi
 
 if test "$ENABLED_SIGNAL" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
     # Requires opensslextra make sure on
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
