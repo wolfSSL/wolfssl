@@ -6293,7 +6293,7 @@ int wolfSSL_CertManagerDisableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 /* require OCSP stapling response */
 int wolfSSL_CertManagerEnableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
 {
-    int ret = WOLFSSL_SUCCESS;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerEnableOCSPMustStaple");
 
@@ -6305,6 +6305,7 @@ int wolfSSL_CertManagerEnableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
     #ifndef NO_WOLFSSL_CLIENT
         cm->ocspMustStaple = 1;
     #endif
+    ret = WOLFSSL_SUCCESS;
 #else
     ret = NOT_COMPILED_IN;
 #endif
@@ -6314,7 +6315,7 @@ int wolfSSL_CertManagerEnableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
 
 int wolfSSL_CertManagerDisableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
 {
-    int ret = WOLFSSL_SUCCESS;
+    int ret;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerDisableOCSPMustStaple");
 
@@ -6326,6 +6327,7 @@ int wolfSSL_CertManagerDisableOCSPMustStaple(WOLFSSL_CERT_MANAGER* cm)
     #ifndef NO_WOLFSSL_CLIENT
         cm->ocspMustStaple = 0;
     #endif
+    ret = WOLFSSL_SUCCESS;
 #else
     ret = NOT_COMPILED_IN;
 #endif
@@ -14788,11 +14790,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             /* Need a persistent copy of the subject name. */
             node->data.name = wolfSSL_X509_NAME_dup(subjectName);
-            /*
-             * Original cert will be freed so make sure not to try to access
-             * it in the future.
-             */
-            node->data.name->x509 = NULL;
+            if (node->data.name != NULL) {
+                /*
+                * Original cert will be freed so make sure not to try to access
+                * it in the future.
+                */
+                node->data.name->x509 = NULL;
+            }
 
             /* Put node on the front of the list. */
             node->num  = (list == NULL) ? 1 : list->num + 1;
@@ -32192,6 +32196,11 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
             return WOLFSSL_FAILURE;
         }
 
+        if (derBuf == NULL) {
+            WOLFSSL_MSG("wolfSSL_RSA_To_Der failed to get buffer");
+            return WOLFSSL_FAILURE;
+        }
+
         pkey->pkey.ptr = (char*)XMALLOC(derSz, bio->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         if (pkey->pkey.ptr == NULL) {
@@ -32244,6 +32253,11 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
 
     if ((derSz = wolfSSL_RSA_To_Der(rsa, &derBuf, 1)) < 0) {
         WOLFSSL_MSG("wolfSSL_RSA_To_Der failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("wolfSSL_RSA_To_Der failed to get buffer");
         return WOLFSSL_FAILURE;
     }
 
@@ -37706,7 +37720,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     static int CopyX509NameToCert(WOLFSSL_X509_NAME* n, byte* out)
     {
         unsigned char* der = NULL;
-        int length = BAD_FUNC_ARG, ret = BAD_FUNC_ARG;
+        int length = BAD_FUNC_ARG, ret;
         word32 idx = 0;
 
         ret = wolfSSL_i2d_X509_NAME(n, &der);
@@ -39227,9 +39241,11 @@ err:
                 XMEMCPY(fullName + *idx, "=", 1); *idx = *idx + 1;
 
                 data = wolfSSL_ASN1_STRING_data(e->value);
-                sz   = (int)XSTRLEN((const char*)data);
-                XMEMCPY(fullName + *idx, data, sz);
-                *idx += sz;
+                if (data != NULL) {
+                    sz = (int)XSTRLEN((const char*)data);
+                    XMEMCPY(fullName + *idx, data, sz);
+                    *idx += sz;
+                }
 
                 ret++;
             }

@@ -4072,6 +4072,11 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
         return ret;
 
     ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
+    if (ext == NULL) {
+        WOLFSSL_MSG("Could not find supported groups extension");
+        return 0;
+    }
+
     curve = (SupportedCurve*)ext->data;
     name = curve->name;
 
