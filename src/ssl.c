@@ -7430,7 +7430,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     else
 #endif
     {
-        ret = wc_CheckPrivateKey(buff, size, der);
+        ret = wc_CheckPrivateKeyCert(buff, size, der);
         if (ret == 1) {
             ret = WOLFSSL_SUCCESS;
         }
@@ -8034,7 +8034,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     }
     else
 #endif
-        ret  = wc_CheckPrivateKey(buff, size, &der);
+        ret  = wc_CheckPrivateKeyCert(buff, size, &der);
     FreeDecodedCert(&der);
     return ret;
 }
@@ -19521,8 +19521,11 @@ static int wolfssl_conf_value_cmp(const WOLFSSL_CONF_VALUE *a,
     }
 }
 
-/* Use MD5 for hashing as it is fast and should
- * be good enough for database indexing */
+/* Use MD5 for hashing as OpenSSL uses a hash algorithm that is
+ * "not as good as MD5, but still good" so using MD5 should
+ * be good enough for this application. The produced hashes don't
+ * need to line up between OpenSSL and wolfSSL. The hashes are for
+ * internal indexing only */
 unsigned long wolfSSL_LH_strhash(const char *str)
 {
     unsigned long ret = 0;
@@ -42617,11 +42620,6 @@ err:
 
     int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key)
     {
-        DecodedCert dc;
-        byte* der;
-        int derSz;
-        int ret;
-
         WOLFSSL_ENTER("wolfSSL_X509_check_private_key");
 
         if (!x509 || !key) {
@@ -42629,24 +42627,9 @@ err:
             return WOLFSSL_FAILURE;
         }
 
-        der = (byte*)wolfSSL_X509_get_der(x509, &derSz);
-        if (der == NULL) {
-            WOLFSSL_MSG("wolfSSL_X509_get_der error");
-            return WOLFSSL_FAILURE;
-        }
-
-        InitDecodedCert(&dc, der, derSz, x509->heap);
-
-        if (ParseCertRelative(&dc, CERT_TYPE, NO_VERIFY, NULL) != 0) {
-            FreeDecodedCert(&dc);
-            return WOLFSSL_FAILURE;
-        }
-
-        der = (byte*)key->pkey.ptr;
-        derSz = key->pkey_sz;
-        ret = wc_CheckPrivateKey(der, derSz, &dc);
-        FreeDecodedCert(&dc);
-        return ret == 1 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        return wc_CheckPrivateKey((byte*)key->pkey.ptr, key->pkey_sz,
+                x509->pubKey.buffer, x509->pubKey.length,
+                x509->pubKeyOID) == 1 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
 /* wolfSSL uses negative values for error states. This function returns an
