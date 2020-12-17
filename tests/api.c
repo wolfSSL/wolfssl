@@ -34735,8 +34735,11 @@ static void test_wolfSSL_OBJ_ln(void)
         nCurves = EC_get_builtin_curves(r,nCurves);
 
         for (i = 0; i < nCurves; i++) {
-            AssertIntEQ(OBJ_ln2nid(r[i].comment), r[i].nid);
-            AssertStrEQ(OBJ_nid2ln(r[i].nid), r[i].comment);
+            /* skip ECC_CURVE_INVALID */
+            if (r[i].nid != ECC_CURVE_INVALID) {
+                AssertIntEQ(OBJ_ln2nid(r[i].comment), r[i].nid);
+                AssertStrEQ(OBJ_nid2ln(r[i].nid), r[i].comment);
+            }
         }
     }
 #endif
