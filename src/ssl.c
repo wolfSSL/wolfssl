@@ -31310,43 +31310,6 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
     }
 }
 
-WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
-{
-    WOLFSSL_DH* ret = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_DH_dup");
-
-    if (!dh) {
-        WOLFSSL_MSG("Bad parameter");
-        return NULL;
-    }
-
-    if (dh->inSet == 0 && SetDhInternal(dh) != WOLFSSL_SUCCESS){
-        WOLFSSL_MSG("Bad DH set internal");
-        return NULL;
-    }
-
-    if (!(ret = wolfSSL_DH_new())) {
-        WOLFSSL_MSG("wolfSSL_DH_new error");
-        return NULL;
-    }
-
-    if (wc_DhKeyCopy((DhKey*)dh->internal, (DhKey*)ret->internal) != MP_OKAY) {
-        WOLFSSL_MSG("wc_DhKeyCopy error");
-        wolfSSL_DH_free(ret);
-        return NULL;
-    }
-    ret->inSet = 1;
-
-    if (SetDhExternal(ret) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("SetDhExternal error");
-        wolfSSL_DH_free(ret);
-        return NULL;
-    }
-
-    return ret;
-}
-
 int SetDhInternal(WOLFSSL_DH* dh)
 {
     int            ret = WOLFSSL_FATAL_ERROR;
@@ -31452,6 +31415,8 @@ int SetDhInternal(WOLFSSL_DH* dh)
 }
 
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+
+#ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 {
     WOLFSSL_DH* ret = NULL;
@@ -31488,6 +31453,7 @@ WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
 
     return ret;
 }
+#endif /* WOLFSSL_DH_EXTRA */
 
 /* Set the members of DhKey into WOLFSSL_DH
  * DhKey was populated from wc_DhKeyDecode
@@ -42629,7 +42595,8 @@ err:
 
         return wc_CheckPrivateKey((byte*)key->pkey.ptr, key->pkey_sz,
                 x509->pubKey.buffer, x509->pubKey.length,
-                x509->pubKeyOID) == 1 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+                (enum Key_Sum)x509->pubKeyOID) == 1 ?
+                        WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
 /* wolfSSL uses negative values for error states. This function returns an
