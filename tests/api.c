@@ -16866,6 +16866,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     DsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
+    word32  sz;
 
     printf(testingFmt, "wc_DsaKeyToPublicDer()");
 
@@ -16889,10 +16890,15 @@ static int test_wc_DsaKeyToPublicDer(void)
     if (ret == 0) {
         ret = wc_DsaKeyToPublicDer(&genKey, der, ONEK_BUF);
         if (ret >= 0) {
+            sz = ret;
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
         }
+    }
+    if (ret == 0) {
+        word32 idx = 0;
+        ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
     }
 
     /* Test bad args. */
@@ -22449,7 +22455,7 @@ static int test_ToTraditional (void)
     }
     if (ret == 0) {
         ret = ToTraditional(input, 0);
-        if (ret == ASN_PARSE_E) {
+        if (ret == ASN_PARSE_E || ret == BUFFER_E) {
             ret = 0;
         }
     }
@@ -35218,7 +35224,7 @@ static void test_wolfSSL_i2d_DHparams(void)
 
     /* Invalid cases */
     AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
-    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 264);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 268);
 
     DH_free(dh);
     printf(resultFmt, passed);
@@ -35242,7 +35248,7 @@ static void test_wolfSSL_i2d_DHparams(void)
 
     /* Invalid cases */
     AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
-    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 392);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 396);
 
     DH_free(dh);
     printf(resultFmt, passed);

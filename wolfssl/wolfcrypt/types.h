@@ -666,6 +666,10 @@ decouple library dependencies with standard string, memory and so on.
         #define XTOLOWER(c)      tolower((c))
     #endif
 
+    #ifndef OFFSETOF
+        #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
+    #endif
+
 
     /* memory allocation types for user hints */
     enum {
