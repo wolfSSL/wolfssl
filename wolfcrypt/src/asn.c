@@ -17556,7 +17556,7 @@ void FreeOcspRequest(OcspRequest* req)
 
 int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 {
-    int cmp = 0; /* start as matching if both req and resp have no values */
+    int cmp = -1; /* default as not matching, cmp gets set on each check */
     OcspEntry *single, *next, *prev = NULL, *top;
 
     WOLFSSL_ENTER("CompareOcspReqResp");
