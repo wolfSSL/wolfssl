@@ -18292,6 +18292,7 @@ static int test_wc_DsaKeyToPublicDer(void)
     DsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
+    word32  sz;
 
     printf(testingFmt, "wc_DsaKeyToPublicDer()");
 
@@ -18315,10 +18316,15 @@ static int test_wc_DsaKeyToPublicDer(void)
     if (ret == 0) {
         ret = wc_DsaKeyToPublicDer(&genKey, der, ONEK_BUF);
         if (ret >= 0) {
+            sz = ret;
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
         }
+    }
+    if (ret == 0) {
+        word32 idx = 0;
+        ret = wc_DsaPublicKeyDecode(der, &idx, &genKey, sz);
     }
 
     /* Test bad args. */
@@ -24023,7 +24029,7 @@ static int test_ToTraditional (void)
     }
     if (ret == 0) {
         ret = ToTraditional(input, 0);
-        if (ret == ASN_PARSE_E) {
+        if (ret == ASN_PARSE_E || ret == BUFFER_E) {
             ret = 0;
         }
     }
@@ -28383,13 +28389,13 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         XFILE file;
         const char* fname = "./certs/server-key.pem";
         const char* fname_rsa_p8 = "./certs/server-keyPkcs8.pem";
-        
+
         size_t sz;
         byte* buf;
         EVP_PKEY* pkey2;
         EVP_PKEY* pkey3;
         RSA* rsa_key = NULL;
-        
+
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
@@ -28415,7 +28421,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY_free(pkey2);
         EVP_PKEY_free(pkey);
         pkey  = NULL;
-        
+
         /* Qt unit test case : rsa pkcs8 key */
         file = XFOPEN(fname_rsa_p8, "rb");
         AssertTrue((file != XBADFILE));
@@ -28426,7 +28432,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
-        
+
         AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
         AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
@@ -28512,7 +28518,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         if (buf)
             AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
-        
+
         AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
         AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
@@ -28532,7 +28538,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY_free(pkey);
         pkey  = NULL;
     }
-#endif /* !HAVE_ECC && !NO_FILESYSTEM */
+#endif
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
     {

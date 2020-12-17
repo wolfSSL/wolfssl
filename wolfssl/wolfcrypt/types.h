@@ -579,8 +579,9 @@ decouple library dependencies with standard string, memory and so on.
            debugging is turned on */
         #ifndef USE_WINDOWS_API
             #ifndef XSNPRINTF
-            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
-                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
+            #if defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) && \
+                (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+                 defined(WOLFSSL_CERT_EXT) || defined(HAVE_PKCS7))
                 /* case where stdio is not included else where but is needed
                    for snprintf */
                 #include <stdio.h>
@@ -707,6 +708,10 @@ decouple library dependencies with standard string, memory and so on.
         #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
+    #endif
+
+    #ifndef OFFSETOF
+        #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
     #endif
 
 
