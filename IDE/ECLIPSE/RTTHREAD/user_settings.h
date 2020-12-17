@@ -42,7 +42,7 @@
 /* adjust CURRENT_UNIX_TS to seconds since Jan 01 1970. (UTC)
 You can get the current time from https://www.unixtimestamp.com/
 */
-#define CURRENT_UNIX_TS 1542605837
+#define CURRENT_UNIX_TS 1542605837UL
 
 /* When using Windows simulator, you must define USE_WINDOWS_API for test.h to build */
 #ifdef _WIN32
