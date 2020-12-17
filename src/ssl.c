@@ -7375,14 +7375,14 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
                                   ctx->privateKeyId, ctx->heap,
                                   ctx->privateKeyDevId);
         if (ret == 0 && der->keyOID == RSAk) {
-            ret = wc_CryptoCb_RsaCheckPrivKey(pkey, der->publicKey,
+            ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey, der->publicKey,
                                               der->pubKeySize);
-            wc_FreeRsaKey(pkey);
+            wc_FreeRsaKey((RsaKey*)pkey);
         }
         else if (ret == 0 && der->keyOID == ECDSAk) {
-            ret = wc_CryptoCb_EccCheckPrivKey(pkey, der->publicKey,
+            ret = wc_CryptoCb_EccCheckPrivKey((ecc_key*)pkey, der->publicKey,
                                               der->pubKeySize);
-            wc_ecc_free(pkey);
+            wc_ecc_free((ecc_key*)pkey);
         }
         if (pkey != NULL) {
             XFREE(pkey, ctx->heap, type);
@@ -7982,18 +7982,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                                   ssl->buffers.keyId, ssl->heap,
                                   ssl->buffers.keyDevId);
         if (ret == 0 && der.keyOID == RSAk) {
-            ret = wc_CryptoCb_RsaCheckPrivKey(pkey, der.publicKey,
+            ret = wc_CryptoCb_RsaCheckPrivKey((RsaKey*)pkey, der.publicKey,
                                               der.pubKeySize);
             if (ret == 0)
                 ret = 1;
-            wc_FreeRsaKey(pkey);
+            wc_FreeRsaKey((RsaKey*)pkey);
         }
         else if (ret == 0 && der.keyOID == ECDSAk) {
-            ret = wc_CryptoCb_EccCheckPrivKey(pkey, der.publicKey,
+            ret = wc_CryptoCb_EccCheckPrivKey((ecc_key*)pkey, der.publicKey,
                                               der.pubKeySize);
             if (ret == 0)
                 ret = 1;
-            wc_ecc_free(pkey);
+            wc_ecc_free((ecc_key*)pkey);
         }
         if (pkey != NULL) {
             XFREE(pkey, ssl->heap, type);
