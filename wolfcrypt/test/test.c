@@ -8115,7 +8115,7 @@ static int aes_test(void)
     XMEMSET(cipher, 0, AES_BLOCK_SIZE * 4);
     ret = wc_AesCbcEncrypt(enc, cipher, msg, AES_BLOCK_SIZE);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(-5904, out);
@@ -8123,7 +8123,7 @@ static int aes_test(void)
     XMEMSET(plain, 0, AES_BLOCK_SIZE * 4);
     ret = wc_AesCbcDecrypt(dec, plain, cipher, AES_BLOCK_SIZE);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, dec.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(-5905, out);
@@ -8299,7 +8299,7 @@ static int aes_test(void)
         XMEMSET(cipher, 0, AES_BLOCK_SIZE * 2);
         ret = wc_AesCbcEncrypt(enc, cipher, msg2, AES_BLOCK_SIZE);
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
         if (ret != 0)
             ERROR_OUT(-5914, out);
@@ -8309,7 +8309,7 @@ static int aes_test(void)
         ret = wc_AesCbcEncrypt(enc, cipher + AES_BLOCK_SIZE,
                 msg2 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
         if (ret != 0)
             ERROR_OUT(-5916, out);
@@ -8324,7 +8324,7 @@ static int aes_test(void)
         XMEMSET(plain, 0, AES_BLOCK_SIZE * 2);
         ret = wc_AesCbcDecrypt(dec, plain, verify2, AES_BLOCK_SIZE);
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, dec.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
         if (ret != 0)
             ERROR_OUT(-5919, out);
@@ -8334,7 +8334,7 @@ static int aes_test(void)
         ret = wc_AesCbcDecrypt(dec, plain + AES_BLOCK_SIZE,
                 verify2 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, dec.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
         if (ret != 0)
             ERROR_OUT(-5921, out);
@@ -13036,7 +13036,7 @@ static int rsa_no_pad_test(void)
     XMEMSET(tmp, 7, inLen);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret >= 0) {
             ret = wc_RsaDirect(tmp, inLen, out, &outSz, key,
@@ -13056,7 +13056,7 @@ static int rsa_no_pad_test(void)
     /* decrypt with public key and compare result */
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret >= 0) {
             ret = wc_RsaDirect(out, outSz, plain, &plainSz, key,
@@ -13089,7 +13089,7 @@ static int rsa_no_pad_test(void)
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret >= 0) {
             ret = wc_RsaPublicEncrypt_ex(tmp, inLen, out, (int)outSz, key, &rng,
@@ -13105,7 +13105,7 @@ static int rsa_no_pad_test(void)
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret >= 0) {
             ret = wc_RsaPrivateDecrypt_ex(out, outSz, plain, (int)plainSz, key,
@@ -19784,7 +19784,7 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     x = sizeof(sharedA);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, priv_key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &priv_key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_shared_secret(priv_key, pub_key, sharedA, &x);
