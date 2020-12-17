@@ -60,9 +60,13 @@ static void test_task (void *p_arg)
 10. Now you are ready to download and debug your image on the board.
 
 
-The test results below were collected from the RT-Thread ART-Pi (STM32H750XBH6) with the following software and tool chains:
+The test results below were collected from the RT-Thread ART-Pi with the following software and tool chains:
+
+- STM32H750XBH6
 
 - RT-Thread Studio (Version: 2.0.0)
+
+- GNU ARM Cross C Compiler (Optimization level: -O0)
 
 - The starting project is based on [RT-Thread ART-Pi SDK](https://github.com/RT-Thread-Studio/sdk-bsp-stm32h750-realthread-artpi) (./projects/art_pi_wifi)
 
