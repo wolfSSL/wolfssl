@@ -1219,6 +1219,8 @@ extern void uITRON4_free(void *p) ;
     #define USE_CERT_BUFFERS_4096
     #undef  FP_MAX_BITS
     #define FP_MAX_BITS (8192)
+    #undef  SP_INT_BITS
+    #define SP_INT_BITS (4096)
 
     #undef  NO_DH
     #define NO_DH
@@ -1970,6 +1972,11 @@ extern void uITRON4_free(void *p) ;
         #error "FFDHE parameters are too large for FP_MAX_BIT as set"
     #endif
 #endif
+#if defined(HAVE_FFDHE) && defined(SP_INT_BITS)
+    #if MIN_FFDHE_FP_MAX_BITS > SP_INT_BITS * 2
+        #error "FFDHE parameters are too large for SP_INT_BIT as set"
+    #endif
+#endif
 
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
@@ -1978,6 +1985,13 @@ extern void uITRON4_free(void *p) ;
             #define FP_MAX_BITS 8192
         #else
             #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+        #endif
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(SP_INT_BITS)
+        #if MIN_FFDHE_FP_MAX_BITS <= 8192
+            #define SP_INT_BITS 4096
+        #else
+            #define PS_INT_BITS MIN_FFDHE_FP_MAX_BITS / 2
         #endif
     #endif
 #endif
