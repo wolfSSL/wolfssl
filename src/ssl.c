@@ -19147,7 +19147,7 @@ WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void)
 
 static WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
 {
-    WOLFSSL_GENERAL_NAME* dup = NULL;
+    WOLFSSL_GENERAL_NAME* dupl = NULL;
 
     WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_dup");
 
@@ -19156,7 +19156,7 @@ static WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
         return NULL;
     }
 
-    if (!(dup = wolfSSL_GENERAL_NAME_new())) {
+    if (!(dupl = wolfSSL_GENERAL_NAME_new())) {
         WOLFSSL_MSG("wolfSSL_GENERAL_NAME_new error");
         return NULL;
     }
@@ -19164,25 +19164,25 @@ static WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
     switch (gn->type) {
     /* WOLFSSL_ASN1_STRING types */
     case GEN_DNS:
-        if (!(dup->d.dNSName = wolfSSL_ASN1_STRING_dup(gn->d.dNSName))) {
+        if (!(dupl->d.dNSName = wolfSSL_ASN1_STRING_dup(gn->d.dNSName))) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_dup error");
             goto error;
         }
         break;
     case GEN_IPADD:
-        if (!(dup->d.iPAddress = wolfSSL_ASN1_STRING_dup(gn->d.iPAddress))) {
+        if (!(dupl->d.iPAddress = wolfSSL_ASN1_STRING_dup(gn->d.iPAddress))) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_dup error");
             goto error;
         }
         break;
     case GEN_EMAIL:
-        if (!(dup->d.rfc822Name = wolfSSL_ASN1_STRING_dup(gn->d.rfc822Name))) {
+        if (!(dupl->d.rfc822Name = wolfSSL_ASN1_STRING_dup(gn->d.rfc822Name))) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_dup error");
             goto error;
         }
         break;
     case GEN_URI:
-        if (!(dup->d.uniformResourceIdentifier =
+        if (!(dupl->d.uniformResourceIdentifier =
                 wolfSSL_ASN1_STRING_dup(gn->d.uniformResourceIdentifier))) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_dup error");
             goto error;
@@ -19198,10 +19198,10 @@ static WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
         goto error;
     }
 
-    return dup;
+    return dupl;
 error:
-    if (dup) {
-        wolfSSL_GENERAL_NAME_free(dup);
+    if (dupl) {
+        wolfSSL_GENERAL_NAME_free(dupl);
     }
     return NULL;
 }
@@ -20850,7 +20850,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 
 WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
 {
-    WOLFSSL_ASN1_OBJECT* dup = NULL;
+    WOLFSSL_ASN1_OBJECT* dupl = NULL;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_OBJECT_dup");
 
@@ -20858,29 +20858,29 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_dup(WOLFSSL_ASN1_OBJECT* obj)
         WOLFSSL_MSG("Bad parameter");
         return NULL;
     }
-    dup = wolfSSL_ASN1_OBJECT_new();
-    if (!dup) {
+    dupl = wolfSSL_ASN1_OBJECT_new();
+    if (!dupl) {
         WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_new error");
         return NULL;
     }
     /* Copy data */
-    XMEMCPY(dup->sName, obj->sName, WOLFSSL_MAX_SNAME);
-    dup->type = obj->type;
-    dup->grp = obj->grp;
-    dup->nid = obj->nid;
-    dup->objSz = obj->objSz;
+    XMEMCPY(dupl->sName, obj->sName, WOLFSSL_MAX_SNAME);
+    dupl->type = obj->type;
+    dupl->grp = obj->grp;
+    dupl->nid = obj->nid;
+    dupl->objSz = obj->objSz;
     if (obj->obj) {
-        dup->obj = (const unsigned char*)XMALLOC(
+        dupl->obj = (const unsigned char*)XMALLOC(
                 obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
-        if (!dup->obj) {
+        if (!dupl->obj) {
             WOLFSSL_MSG("ASN1 obj malloc error");
-            wolfSSL_ASN1_OBJECT_free(dup);
+            wolfSSL_ASN1_OBJECT_free(dupl);
             return NULL;
         }
-        XMEMCPY((byte*)dup->obj, obj->obj, obj->objSz);
-        dup->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+        XMEMCPY((byte*)dupl->obj, obj->obj, obj->objSz);
+        dupl->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
     }
-    return dup;
+    return dupl;
 }
 #endif /* !NO_ASN && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
@@ -22511,7 +22511,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
      */
     WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_dup(WOLFSSL_ASN1_STRING* asn1)
     {
-        WOLFSSL_ASN1_STRING* dup = NULL;
+        WOLFSSL_ASN1_STRING* dupl = NULL;
 
         WOLFSSL_ENTER("wolfSSL_ASN1_STRING_dup");
         if (!asn1) {
@@ -22519,23 +22519,23 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return NULL;
         }
 
-        dup = wolfSSL_ASN1_STRING_new();
-        if (!dup) {
+        dupl = wolfSSL_ASN1_STRING_new();
+        if (!dupl) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_new error");
             return NULL;
         }
 
-        dup->type = asn1->type;
-        dup->flags = asn1->flags;
+        dupl->type = asn1->type;
+        dupl->flags = asn1->flags;
 
-        if (wolfSSL_ASN1_STRING_set(dup, asn1->data, asn1->length)
+        if (wolfSSL_ASN1_STRING_set(dupl, asn1->data, asn1->length)
                 != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
-            wolfSSL_ASN1_STRING_free(dup);
+            wolfSSL_ASN1_STRING_free(dupl);
             return NULL;
         }
 
-        return dup;
+        return dupl;
     }
 
 
