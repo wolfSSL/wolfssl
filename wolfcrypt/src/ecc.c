@@ -9323,16 +9323,31 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
 #ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb = NULL;
+   mp_int*        tk = NULL;
+   mp_int*        order = NULL;
 #else
    unsigned char kb[KB_SIZE];
+   mp_int        tk[1];
+   mp_int        order[1];
 #endif
    int      x, err;
    unsigned y, z = 0, bitlen, bitpos, lut_gap;
    int first;
-   mp_int   tk, order;
 
-   if (mp_init_multi(&tk, &order, NULL, NULL, NULL, NULL) != MP_OKAY)
-       return MP_INIT_E;
+#ifdef WOLFSSL_SMALL_STACK
+   tk = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+   if (tk == NULL) {
+      err = MEMORY_E; goto done;
+   }
+   order = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+   if (order == NULL) {
+      err = MEMORY_E; goto done;
+   }
+#endif
+
+   if (mp_init_multi(tk, order, NULL, NULL, NULL, NULL) != MP_OKAY) {
+       err = MP_INIT_E; goto done;
+   }
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(k) > mp_unsigned_bin_size(modulus)) {
@@ -9345,23 +9360,23 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+      if ((err = mp_read_radix(order, ecc_sets[x].order,
                                                 MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 
       /* k must be less than modulus */
-      if (mp_cmp(k, &order) != MP_LT) {
-         if ((err = mp_mod(k, &order, &tk)) != MP_OKAY) {
+      if (mp_cmp(k, order) != MP_LT) {
+         if ((err = mp_mod(k, order, tk)) != MP_OKAY) {
             goto done;
          }
       } else {
-         if ((err = mp_copy(k, &tk)) != MP_OKAY) {
+         if ((err = mp_copy(k, tk)) != MP_OKAY) {
             goto done;
          }
       }
    } else {
-      if ((err = mp_copy(k, &tk)) != MP_OKAY) {
+      if ((err = mp_copy(k, tk)) != MP_OKAY) {
          goto done;
       }
    }
@@ -9375,7 +9390,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
    lut_gap = bitlen / FP_LUT;
 
    /* get the k value */
-   if (mp_unsigned_bin_size(&tk) > (int)(KB_SIZE - 2)) {
+   if (mp_unsigned_bin_size(tk) > (int)(KB_SIZE - 2)) {
       err = BUFFER_E; goto done;
    }
 
@@ -9388,10 +9403,10 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 #endif
 
    XMEMSET(kb, 0, KB_SIZE);
-   if ((err = mp_to_unsigned_bin(&tk, kb)) == MP_OKAY) {
+   if ((err = mp_to_unsigned_bin(tk, kb)) == MP_OKAY) {
       /* let's reverse kb so it's little endian */
       x = 0;
-      y = mp_unsigned_bin_size(&tk);
+      y = mp_unsigned_bin_size(tk);
       if (y > 0) {
           y -= 1;
       }
@@ -9453,11 +9468,13 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
 done:
    /* cleanup */
-   mp_clear(&order);
-   mp_clear(&tk);
+   mp_clear(order);
+   mp_clear(tk);
 
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(tk, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
 #undef KB_SIZE
@@ -9478,16 +9495,37 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
 #ifdef WOLFSSL_SMALL_STACK
    unsigned char* kb[2] = {NULL, NULL};
+   mp_int*        tka = NULL;
+   mp_int*        tkb = NULL;
+   mp_int*        order = NULL;
 #else
    unsigned char kb[2][KB_SIZE];
+   mp_int        tka[1];
+   mp_int        tkb[1];
+   mp_int        order[1];
 #endif
    int      x, err;
    unsigned y, z, bitlen, bitpos, lut_gap, zA, zB;
    int first;
-   mp_int tka, tkb, order;
 
-   if (mp_init_multi(&tka, &tkb, &order, NULL, NULL, NULL) != MP_OKAY)
-       return MP_INIT_E;
+#ifdef WOLFSSL_SMALL_STACK
+   tka = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+   if (tka == NULL) {
+      err = MEMORY_E; goto done;
+   }
+   tkb = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+   if (tkb == NULL) {
+      err = MEMORY_E; goto done;
+   }
+   order = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+   if (order == NULL) {
+      err = MEMORY_E; goto done;
+   }
+#endif
+
+   if (mp_init_multi(tka, tkb, order, NULL, NULL, NULL) != MP_OKAY) {
+      err = MP_INIT_E; goto done;
+   }
 
    /* if it's smaller than modulus we fine */
    if (mp_unsigned_bin_size(kA) > mp_unsigned_bin_size(modulus)) {
@@ -9500,23 +9538,23 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+      if ((err = mp_read_radix(order, ecc_sets[x].order,
                                                 MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 
       /* kA must be less than modulus */
-      if (mp_cmp(kA, &order) != MP_LT) {
-         if ((err = mp_mod(kA, &order, &tka)) != MP_OKAY) {
+      if (mp_cmp(kA, order) != MP_LT) {
+         if ((err = mp_mod(kA, order, tka)) != MP_OKAY) {
             goto done;
          }
       } else {
-         if ((err = mp_copy(kA, &tka)) != MP_OKAY) {
+         if ((err = mp_copy(kA, tka)) != MP_OKAY) {
             goto done;
          }
       }
    } else {
-      if ((err = mp_copy(kA, &tka)) != MP_OKAY) {
+      if ((err = mp_copy(kA, tka)) != MP_OKAY) {
          goto done;
       }
    }
@@ -9532,23 +9570,23 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+      if ((err = mp_read_radix(order, ecc_sets[x].order,
                                                 MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 
       /* kB must be less than modulus */
-      if (mp_cmp(kB, &order) != MP_LT) {
-         if ((err = mp_mod(kB, &order, &tkb)) != MP_OKAY) {
+      if (mp_cmp(kB, order) != MP_LT) {
+         if ((err = mp_mod(kB, order, tkb)) != MP_OKAY) {
             goto done;
          }
       } else {
-         if ((err = mp_copy(kB, &tkb)) != MP_OKAY) {
+         if ((err = mp_copy(kB, tkb)) != MP_OKAY) {
             goto done;
          }
       }
    } else {
-      if ((err = mp_copy(kB, &tkb)) != MP_OKAY) {
+      if ((err = mp_copy(kB, tkb)) != MP_OKAY) {
          goto done;
       }
    }
@@ -9562,8 +9600,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
    lut_gap = bitlen / FP_LUT;
 
    /* get the k value */
-   if ((mp_unsigned_bin_size(&tka) > (int)(KB_SIZE - 2)) ||
-       (mp_unsigned_bin_size(&tkb) > (int)(KB_SIZE - 2))  ) {
+   if ((mp_unsigned_bin_size(tka) > (int)(KB_SIZE - 2)) ||
+       (mp_unsigned_bin_size(tkb) > (int)(KB_SIZE - 2))  ) {
       err = BUFFER_E; goto done;
    }
 
@@ -9576,17 +9614,17 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #endif
 
    XMEMSET(kb[0], 0, KB_SIZE);
-   if ((err = mp_to_unsigned_bin(&tka, kb[0])) != MP_OKAY) {
+   if ((err = mp_to_unsigned_bin(tka, kb[0])) != MP_OKAY) {
       goto done;
    }
 
    /* let's reverse kb so it's little endian */
    x = 0;
-   y = mp_unsigned_bin_size(&tka);
+   y = mp_unsigned_bin_size(tka);
    if (y > 0) {
        y -= 1;
    }
-   mp_clear(&tka);
+   mp_clear(tka);
    while ((unsigned)x < y) {
       z = kb[0][x]; kb[0][x] = kb[0][y]; kb[0][y] = (byte)z;
       ++x; --y;
@@ -9601,9 +9639,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
 #endif
 
    XMEMSET(kb[1], 0, KB_SIZE);
-   if ((err = mp_to_unsigned_bin(&tkb, kb[1])) == MP_OKAY) {
+   if ((err = mp_to_unsigned_bin(tkb, kb[1])) == MP_OKAY) {
       x = 0;
-      y = mp_unsigned_bin_size(&tkb);
+      y = mp_unsigned_bin_size(tkb);
       if (y > 0) {
           y -= 1;
       }
@@ -9682,9 +9720,9 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
 done:
    /* cleanup */
-   mp_clear(&tkb);
-   mp_clear(&tka);
-   mp_clear(&order);
+   mp_clear(tkb);
+   mp_clear(tka);
+   mp_clear(order);
 
 #ifdef WOLFSSL_SMALL_STACK
    if (kb[0])
@@ -9696,8 +9734,11 @@ done:
       ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(kb[0], NULL, DYNAMIC_TYPE_ECC_BUFFER);
    XFREE(kb[1], NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(kb[0], NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(tkb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(tka, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
 #undef KB_SIZE
