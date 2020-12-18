@@ -41134,7 +41134,7 @@ err:
         }
 
         /* Read the header and footer */
-        while ((l = wolfSSL_BIO_read(bio, &pem[i], 1)) == 1) {
+        while (wolfSSL_BIO_read(bio, &pem[i], 1) == 1) {
             i++;
             if (!header)
                 header = XSTRNSTR(pem, "-----BEGIN ", (unsigned int)i);
