@@ -26637,7 +26637,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     /* looking for KEY ID
      * fwDecryptKeyID OID "1.2.840.113549.1.9.16.2.37
      */
-    const unsigned char OID[] = {
+    static const unsigned char OID[] = {
         /* 0x06, 0x0B do not pass in tag and length */
         0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
         0x01, 0x09, 0x10, 0x02, 0x25
@@ -28830,7 +28830,7 @@ static int pkcs7signed_run_vectors(
     static byte messageType[] = { 0x13, 2, '1', '9' };
     static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
-    PKCS7Attrib attribs[] =
+    static PKCS7Attrib attribs[] =
     {
         { transIdOid, sizeof(transIdOid), transId,
                                sizeof(transId) - 1 }, /* take off the null */
@@ -28841,9 +28841,9 @@ static int pkcs7signed_run_vectors(
     };
 
     /* for testing custom contentType, FirmwarePkgData */
-    byte customContentType[] = { 0x06, 0x0B, 0x2A, 0x86,
-                                 0x48, 0x86, 0xF7, 0x0D,
-                                 0x01, 0x09, 0x10, 0x01, 0x10 };
+    static byte customContentType[] = { 0x06, 0x0B, 0x2A, 0x86,
+                                        0x48, 0x86, 0xF7, 0x0D,
+                                        0x01, 0x09, 0x10, 0x01, 0x10 };
 
     const pkcs7SignedVector testVectors[] =
     {
@@ -29317,7 +29317,7 @@ static int pkcs7signed_run_SingleShotVectors(
     };
 
 #if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
-    byte aes256Key[] = {
+    static byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
