@@ -7187,7 +7187,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     return ret;
 
                 if ((ret = DeriveTls13Keys(ssl, handshake_key,
-                                           ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
+                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
         #ifdef WOLFSSL_EARLY_DATA
@@ -7204,13 +7204,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     return ret;
         #ifdef WOLFSSL_EARLY_DATA
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                       ENCRYPT_AND_DECRYPT_SIDE,
-                                       ssl->earlyData == no_early_data)) != 0) {
+                                    ENCRYPT_AND_DECRYPT_SIDE,
+                                    ssl->earlyData == no_early_data)) != 0) {
                     return ret;
                 }
         #else
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                           ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
+                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
         #endif
@@ -7222,9 +7222,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.clientState = CLIENT_HELLO_COMPLETE;
                 ssl->options.connectState  = FIRST_REPLY_DONE;
                 ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+                ssl->options.processReply = 0; /* doProcessInit */
 
-                if (wolfSSL_connect_TLSv13(ssl) != SSL_SUCCESS)
-                    ret = POST_HAND_AUTH_ERROR;
+                if (wolfSSL_connect_TLSv13(ssl) != WOLFSSL_SUCCESS) {
+                    ret = ssl->error;
+                    if (ret != WC_PENDING_E)
+                        ret = POST_HAND_AUTH_ERROR;
+                }
             }
         #endif
         }

@@ -526,6 +526,11 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
@@ -546,11 +551,6 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     /* check that internal buffLen is valid */
     if (sha->buffLen >= WC_SHA_BLOCK_SIZE)
         return BUFFER_E;
-
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
-        return 0;
-    }
 
     /* add length for final */
     AddLength(sha, len);
