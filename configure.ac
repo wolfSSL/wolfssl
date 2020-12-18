@@ -3964,7 +3964,7 @@ fi
 
 if test "$ENABLED_SIGNAL" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SIGNAL -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
     # Requires opensslextra make sure on
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
@@ -6372,7 +6372,7 @@ fi
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
-echo "   * Cavium Nitox:               $ENABLED_CAVIUM"
+echo "   * Cavium Nitrox:              $ENABLED_CAVIUM"
 echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
