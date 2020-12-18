@@ -1854,10 +1854,6 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfSSL_CertManagerFree(ctx->cm);
     ctx->cm = NULL;
     #ifdef OPENSSL_EXTRA
-    /* ctx->cm was free'd so cm of x509 store should now be NULL */
-        if (ctx->x509_store_pt != NULL) {
-            ctx->x509_store_pt->cm = NULL;
-        }
         wolfSSL_X509_STORE_free(ctx->x509_store_pt);
         while (ctx->ca_names != NULL) {
             WOLFSSL_STACK *next = ctx->ca_names->next;
@@ -3432,6 +3428,9 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
         }
+        if (x509->ext_sk_full != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk_full);
+        }
         #endif /* OPENSSL_ALL || WOLFSSL_QT */
         #ifdef OPENSSL_EXTRA
         /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
@@ -3458,6 +3457,11 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->key.pkey = NULL;
         }
     #endif /* OPENSSL_ALL */
+    #if defined(WOLFSSL_CERT_REQ) && defined(OPENSSL_ALL)
+        if (x509->challengePwAttr) {
+            wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+        }
+    #endif /* WOLFSSL_CERT_REQ */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
@@ -5263,6 +5267,64 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    ssl->options.mask = ctx->mask;
+#endif
+#ifdef OPENSSL_EXTRA
+    if (ssl->version.minor == TLSv1_3_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.3 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.3, Downgrading");
+        ssl->version.minor = TLSv1_2_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_2_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.2 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+        ssl->version.minor = TLSv1_1_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_1_MINOR &&
+     (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1.1 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+        ssl->options.tls1_1 = 0;
+        ssl->version.minor = TLSv1_MINOR;
+    }
+    if (ssl->version.minor == TLSv1_MINOR &&
+        (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        if (!ctx->method->downgrade) {
+            WOLFSSL_MSG("\tInconsistent protocol options. TLS 1 set but not "
+                        "allowed and downgrading disabled.");
+            return VERSION_ERROR;
+        }
+        WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+        ssl->options.tls    = 0;
+        ssl->options.tls1_1 = 0;
+        ssl->version.minor = SSLv3_MINOR;
+    }
+    if (ssl->version.minor == SSLv3_MINOR &&
+        (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+        WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+        return VERSION_ERROR;
+    }
+
+    if (ssl->version.minor < ssl->options.minDowngrade) {
+        WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+        return VERSION_ERROR;
+    }
+#endif
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
@@ -5270,10 +5332,6 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     ssl->pkCurveOID = ctx->pkCurveOID;
-#endif
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-    ssl->options.mask = ctx->mask;
 #endif
 #ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
@@ -9564,6 +9622,40 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     else
         x509->subjectCN[0] = '\0';
 
+#ifdef WOLFSSL_CERT_REQ
+    x509->isCSR = dCert->isCSR;
+    /* CSR attributes */
+    if (dCert->cPwd) {
+        if (dCert->cPwdLen < CTC_NAME_SIZE) {
+            XMEMCPY(x509->challengePw, dCert->cPwd, dCert->cPwdLen);
+            x509->challengePw[dCert->cPwdLen] = '\0';
+#ifdef OPENSSL_ALL
+            if (x509->challengePwAttr) {
+                wolfSSL_X509_ATTRIBUTE_free(x509->challengePwAttr);
+            }
+            x509->challengePwAttr = wolfSSL_X509_ATTRIBUTE_new();
+            if (x509->challengePwAttr) {
+                x509->challengePwAttr->value->value.asn1_string =
+                        wolfSSL_ASN1_STRING_new();
+                if (wolfSSL_ASN1_STRING_set(
+                        x509->challengePwAttr->value->value.asn1_string,
+                        dCert->cPwd, dCert->cPwdLen) != WOLFSSL_SUCCESS) {
+                    ret = MEMORY_E;
+                }
+                x509->challengePwAttr->value->type = V_ASN1_PRINTABLESTRING;
+            }
+            else {
+                ret = MEMORY_E;
+            }
+#endif
+        }
+        else {
+            WOLFSSL_MSG("Challenge password too long");
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
 #ifdef WOLFSSL_SEP
     {
         int minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);
@@ -12105,6 +12197,14 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                     input + *inOutIdx, TLS_FINISHED_SZ);
         ssl->secure_renegotiation->verifySet = 1;
     }
+#endif
+#ifdef OPENSSL_ALL
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        XMEMCPY(ssl->serverFinished,
+                input + *inOutIdx, TLS_FINISHED_SZ);
+    else
+        XMEMCPY(ssl->clientFinished,
+                input + *inOutIdx, TLS_FINISHED_SZ);
 #endif
 
     /* force input exhaustion at ProcessReply consuming padSz */
@@ -15567,7 +15667,11 @@ int ProcessReply(WOLFSSL* ssl)
                                             ssl->buffers.inputBuffer.length);
 #endif
                     }
-                    else if (!IsAtLeastTLSv1_3(ssl->version)) {
+                    else if (!IsAtLeastTLSv1_3(ssl->version)
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
+                            || !TLSv1_3_Capable(ssl)
+#endif
+                            ) {
 #ifndef WOLFSSL_NO_TLS12
                         ret = DoHandShakeMsg(ssl,
                                             ssl->buffers.inputBuffer.buffer,
@@ -16755,6 +16859,14 @@ int SendFinished(WOLFSSL* ssl)
             XMEMCPY(ssl->secure_renegotiation->server_verify_data, hashes,
                     TLS_FINISHED_SZ);
     }
+#endif
+#ifdef OPENSSL_ALL
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        XMEMCPY(ssl->clientFinished,
+                hashes, TLS_FINISHED_SZ);
+    else
+        XMEMCPY(ssl->serverFinished,
+                hashes, TLS_FINISHED_SZ);
 #endif
 
     #ifdef WOLFSSL_DTLS
@@ -20416,7 +20528,7 @@ exit_dpk:
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
     /* returns 1 if able to do TLS 1.3 otherwise 0 */
-    static int TLSv1_3_Capable(WOLFSSL* ssl)
+    int TLSv1_3_Capable(WOLFSSL* ssl)
     {
     #ifndef WOLFSSL_TLS13
         return 0;

@@ -242,6 +242,9 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_write_ECPrivateKey          wolfSSL_PEM_write_ECPrivateKey
 #define PEM_read_bio_ECPrivateKey       wolfSSL_PEM_read_bio_ECPrivateKey
 #define PEM_read_bio_EC_PUBKEY          wolfSSL_PEM_read_bio_EC_PUBKEY
+#ifndef NO_WOLFSSL_STUB
+#define PEM_write_bio_ECPKParameters(...) 0
+#endif
 /* EVP_KEY */
 #define PEM_read_bio_PrivateKey         wolfSSL_PEM_read_bio_PrivateKey
 #define PEM_read_PUBKEY                 wolfSSL_PEM_read_PUBKEY

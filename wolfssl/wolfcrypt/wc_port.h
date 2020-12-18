@@ -604,6 +604,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #else
         #define XFOPEN     fopen
     #endif
+    #define XFDOPEN    fdopen
     #define XFSEEK     fseek
     #define XFTELL     ftell
     #define XREWIND    rewind
@@ -619,6 +620,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
+        #define XWRITE      write
+        #define XREAD       read
+        #define XCLOSE      close
     #endif
 #endif
 

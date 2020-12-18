@@ -2079,6 +2079,45 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 }
 
 #ifdef WOLFSSL_DH_EXTRA
+WOLFSSL_LOCAL int wc_DhKeyCopy(DhKey* src, DhKey* dst)
+{
+    int ret;
+
+    if (!src || !dst || src == dst) {
+        WOLFSSL_MSG("Parameters not provided or are the same");
+        return BAD_FUNC_ARG;
+    }
+
+    if ((ret = mp_copy(&src->p, &dst->p)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return ret;
+    }
+
+    if ((ret = mp_copy(&src->g, &dst->g)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return ret;
+    }
+
+    if ((ret = mp_copy(&src->q, &dst->q)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return ret;
+    }
+
+    if ((ret = mp_copy(&src->pub, &dst->pub)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return ret;
+    }
+
+    if ((ret = mp_copy(&src->priv, &dst->priv)) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return ret;
+    }
+
+    dst->heap = src->heap;
+
+    return MP_OKAY;
+}
+
 /* Sets private and public key in DhKey if both are available, otherwise sets
     either private or public key, depending on which is available. */
 int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
