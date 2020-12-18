@@ -5301,7 +5301,7 @@ exit:
 
 void bench_ecc(int doAsync)
 {
-    int ret = 0, i, times, count, pending = 0;
+    int ret = 0, i, times = 0, count = 0, pending = 0;
     const int keySize = bench_ecc_size;
     ecc_key genKey[BENCH_MAX_PENDING];
 #ifdef HAVE_ECC_DHE
@@ -5313,7 +5313,7 @@ void bench_ecc(int doAsync)
 #endif
 #endif
     word32 x[BENCH_MAX_PENDING];
-    double start;
+    double start = 0;
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE

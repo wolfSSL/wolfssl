@@ -279,7 +279,9 @@ static int IsUsingCert(const char* line)
 {
     return XSTRSTR(line, "-c ") != NULL;
 }
+#endif
 
+#if defined(NO_CERTS) || defined(WOLFSSL_NO_CLIENT_AUTH)
 static int IsNoClientCert(const char* line)
 {
     const char* begin;

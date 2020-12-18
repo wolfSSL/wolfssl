@@ -6930,7 +6930,8 @@ static int test_wc_Sha256FinalRaw (void)
 {
     int flag = 0;
 #if !defined(NO_SHA256) && !defined(HAVE_SELFTEST) && !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
     wc_Sha256 sha256;
     byte* hash_test[3];
     byte hash1[WC_SHA256_DIGEST_SIZE];
@@ -22058,7 +22059,7 @@ static int test_wc_ecc_sig_size_calc (void)
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST)
     ecc_key     key;
     WC_RNG      rng;
-    int         sz;
+    int         sz = 0;
 
     printf(testingFmt, "wc_ecc_sig_size_calc()");
 
@@ -29317,7 +29318,8 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     offset_day = 7;
     offset_sec = 45 * mini;
     /* offset_sec = -45 * min;*/
-    asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertNotNull(asn_time =
+            wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec));
     AssertTrue(asn_time->type == asn_utc_time);
     XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
     date_str[CTC_DATE_SIZE] = '\0';
@@ -34872,6 +34874,7 @@ static void test_IncCtr(void)
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     const EVP_CIPHER *init = EVP_des_ede3_cbc();
 
+    AssertNotNull(ctx);
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
     AssertIntEQ(EVP_CipherInit(ctx, init, key, iv, 1), WOLFSSL_SUCCESS);
 
@@ -35718,7 +35721,7 @@ static void test_wolfSSL_OCSP_resp_count()
     WOLFSSL_OCSP_BASICRESP basicResp;
     WOLFSSL_OCSP_SINGLERESP singleRespOne;
     WOLFSSL_OCSP_SINGLERESP singleRespTwo;
-    int count = 1;
+    int count;
 
     printf(testingFmt, "wolfSSL_OCSP_resp_count()");
 

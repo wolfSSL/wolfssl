@@ -2290,10 +2290,15 @@ extern void uITRON4_free(void *p) ;
     #define KEEP_PEER_CERT
 #endif
 
-/* RAW hash function APIs are not implemented with ARMv8 hardware acceleration*/
-#ifdef WOLFSSL_ARMASM
+/* RAW hash function APIs are not implemented */
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AFALG_HASH)
     #undef  WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_NO_HASH_RAW
+#endif
+
+/* XChacha not implemented with ARM assembly ChaCha */
+#if defined(WOLFSSL_ARMASM)
+    #undef HAVE_XCHACHA
 #endif
 
 #if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512) && defined(NO_AES) && \
