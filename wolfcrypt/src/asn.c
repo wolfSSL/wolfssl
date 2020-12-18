@@ -6722,6 +6722,7 @@ static int GetSignature(DecodedCert* cert)
 {
     int length;
     int ret;
+
     ret = CheckBitString(cert->source, &cert->srcIdx, &length, cert->maxIdx, 1,
                          NULL);
     if (ret != 0)
@@ -6730,6 +6731,9 @@ static int GetSignature(DecodedCert* cert)
     cert->sigLength = length;
     cert->signature = &cert->source[cert->srcIdx];
     cert->srcIdx += cert->sigLength;
+
+    if (cert->srcIdx != cert->maxIdx)
+        return ASN_PARSE_E;
 
     return 0;
 }
