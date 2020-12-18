@@ -5792,13 +5792,10 @@ static void test_set_x509_badversion(WOLFSSL_CTX* ctx)
     AssertIntGT(derSz, 0);
     AssertIntEQ(wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz,
                                      WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    free(der);
-    if (key != NULL)
-        free(key);
-    if (name != NULL)
-        free(name);
-    if (header != NULL)
-        free(header);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_OPENSSL); /* TODO: Replace with API call */
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(name, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(header, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_X509_free(x509);
     wolfSSL_X509_free(x509v2);
     wolfSSL_EVP_PKEY_free(priv);
@@ -29512,7 +29509,7 @@ static void test_wolfSSL_X509_sign(void)
     AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
                                               X509_get_subject_name(ca), 0, 0));
     AssertIntEQ(0, XSTRNCMP(caSubject, dCert.subject, XSTRLEN(caSubject)));
-    free(caSubject);
+    XFREE(caSubject, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 
 #ifdef WOLFSSL_MULTI_ATTRIB
     /* test adding multiple OU's to the signer */
@@ -29530,7 +29527,7 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
     AssertNotNull(caSubject  = wolfSSL_X509_NAME_oneline(
                                              X509_get_issuer_name(x509), 0, 0));
-    free(caSubject);
+    XFREE(caSubject, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
 
     FreeDecodedCert(&dCert);
 
