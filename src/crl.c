@@ -542,6 +542,8 @@ static RevokedCert *DupRevokedCertList(RevokedCert* in, void* heap)
         }
         current = current->next;
     }
+
+    (void)heap;
     return head;
 }
 
