@@ -5256,7 +5256,10 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
     /* special case for binary */
     if (radix == MP_RADIX_BIN) {
-        *size = mp_count_bits (a) + (a->sign == MP_NEG ? 1 : 0) + 1;
+        *size = mp_count_bits(a);
+        if (*size == 0)
+          *size = 1;
+        *size += (a->sign == MP_NEG ? 1 : 0) + 1; /* "-" sign + null term */
         return MP_OKAY;
     }
 

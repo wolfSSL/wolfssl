@@ -5550,8 +5550,11 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
     /* special case for binary */
     if (radix == 2) {
-        *size = fp_count_bits (a) + (a->sign == FP_NEG ? 1 : 0) + 1;
-        return FP_YES;
+        *size = fp_count_bits(a);
+        if (*size == 0)
+          *size = 1;
+        *size += (a->sign == FP_NEG ? 1 : 0) + 1; /* "-" sign + null term */
+        return FP_OKAY;
     }
 
     /* make sure the radix is in range */
