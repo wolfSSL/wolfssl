@@ -4911,16 +4911,15 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
                return WC_HW_E;
         }
     #elif defined(WOLFSSL_CRYPTOCELL)
-
+        /* truncate if hash is longer than key size */
+        if (msgLenInBytes > keysize) {
+            msgLenInBytes = keysize;
+        }
         hash_mode = cc310_hashModeECC(msgLenInBytes);
         if (hash_mode == CRYS_ECPKI_HASH_OpModeLast) {
             hash_mode = cc310_hashModeECC(keysize);
             hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
-        }
 
-        /* truncate if hash is longer than key size */
-        if (msgLenInBytes > keysize) {
-            msgLenInBytes = keysize;
         }
 
         /* create signature from an input buffer using a private key*/
@@ -6390,14 +6389,14 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        return err;
    }
 
+   /* truncate if hash is longer than key size */
+   if (msgLenInBytes > keySz) {
+       msgLenInBytes = keySz;
+   }
    hash_mode = cc310_hashModeECC(msgLenInBytes);
    if (hash_mode == CRYS_ECPKI_HASH_OpModeLast) {
        /* hash_mode = */ cc310_hashModeECC(keySz);
        hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
-   }
-   /* truncate if hash is longer than key size */
-   if (msgLenInBytes > keySz) {
-       msgLenInBytes = keySz;
    }
 
    /* verify the signature using the public key */
