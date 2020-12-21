@@ -8857,6 +8857,8 @@ static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
         *len = str->length;
         XMEMCPY(*buf, str->data, str->length);
     }
+
+    (void)heap;
     return WOLFSSL_SUCCESS;
 }
 
@@ -41290,6 +41292,7 @@ err:
                     WOLFSSL_MSG("No output parameters set");
                     WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", WOLFSSL_FAILURE);
                     wolfSSL_sk_free(localSk);
+                    wolfSSL_X509_INFO_free(current);
                     return NULL;
                 }
                 if (ret != WOLFSSL_SUCCESS) {
