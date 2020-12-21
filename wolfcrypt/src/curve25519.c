@@ -114,7 +114,7 @@ int wc_curve25519_generic(int public_size, byte* pub,
     /* unsupported with NXP LTC, onlly supports single basepoint with
      * nxp_ltc_curve25519_GetBasePoint() */
     return WC_HW_E;
-#endif
+#else
 
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
@@ -143,6 +143,8 @@ int wc_curve25519_generic(int public_size, byte* pub,
     #endif
 
     return ret;
+
+#endif /* FREESCALE_LTC_ECC */
 }
 
 /* generate a new private key, as a bare vector.
@@ -179,10 +181,14 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
  * return value is propagated from wc_curve25519_make_private() or
  * wc_curve25519_make_pub() (0 on success).
  */
-int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key) {
+int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
+{
+    int ret;
+
     if (key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
-    int ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
+
+    ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
     if (ret < 0)
         return ret;
     return wc_curve25519_make_pub((int)sizeof key->p.point, key->p.point, sizeof key->k.point, key->k.point);

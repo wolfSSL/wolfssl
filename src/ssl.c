@@ -8375,7 +8375,8 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     if (lastpos < 0)
         lastpos = 0;
     for (; lastpos < wolfSSL_sk_num(sk); lastpos++)
-        if (wolfSSL_OBJ_cmp(wolfSSL_sk_value(sk, lastpos), obj) == 0)
+        if (wolfSSL_OBJ_cmp((WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(sk,
+                        lastpos), obj) == 0)
             return lastpos;
     return -1;
 }
@@ -8856,6 +8857,8 @@ static int asn1_string_copy_to_buffer(WOLFSSL_ASN1_STRING* str, byte** buf,
         *len = str->length;
         XMEMCPY(*buf, str->data, str->length);
     }
+
+    (void)heap;
     return WOLFSSL_SUCCESS;
 }
 
@@ -19567,7 +19570,7 @@ WOLFSSL_CONF_VALUE *wolfSSL_lh_WOLFSSL_CONF_VALUE_retrieve(
         return NULL;
     }
 
-    return wolfSSL_lh_retrieve(sk, data);
+    return (WOLFSSL_CONF_VALUE*)wolfSSL_lh_retrieve(sk, data);
 }
 
 int wolfSSL_CONF_modules_load(const WOLFSSL_CONF *cnf, const char *appname,
@@ -20202,7 +20205,7 @@ WOLFSSL_CONF_VALUE *wolfSSL_sk_CONF_VALUE_value(const WOLFSSL_STACK *sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_value");
     if (sk)
-        return wolfSSL_sk_value(sk, i);
+        return (WOLFSSL_CONF_VALUE*)wolfSSL_sk_value(sk, i);
     return NULL;
 }
 
@@ -41289,6 +41292,7 @@ err:
                     WOLFSSL_MSG("No output parameters set");
                     WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", WOLFSSL_FAILURE);
                     wolfSSL_sk_free(localSk);
+                    wolfSSL_X509_INFO_free(current);
                     return NULL;
                 }
                 if (ret != WOLFSSL_SUCCESS) {
