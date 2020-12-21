@@ -3920,7 +3920,10 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
     int err;
 
 #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
-    if (private_key->dp && private_key->dp->id != ECC_CURVE_CUSTOM
+    if (private_key->dp 
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        && private_key->dp->id != ECC_CURVE_CUSTOM
+    #endif
     #ifdef HAVE_CAVIUM_V
         /* verify the curve is supported by hardware */
         && NitroxEccIsCurveSupported(private_key)
