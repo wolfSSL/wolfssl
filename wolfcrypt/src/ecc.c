@@ -5576,31 +5576,31 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #ifdef WOLFSSL_ECDSA_SET_K
 int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 {
-    int ret = 0;
+    int ret;
     DECLARE_CURVE_SPECS(curve, 1);
 
     if (k == NULL || klen == 0 || key == NULL) {
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        ALLOC_CURVE_SPECS(1);
-        ret = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    ALLOC_CURVE_SPECS(1);
+    ret = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (ret != 0) {
+        FREE_CURVE_SPECS();
+        return ret;
     }
 
-    if (ret == 0) {
-        if (key->sign_k == NULL) {
-            key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
-                                                              DYNAMIC_TYPE_ECC);
-            if (key->sign_k == NULL) {
-                ret = MEMORY_E;
-            }
+    if (key->sign_k == NULL) {
+        key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
+                                                            DYNAMIC_TYPE_ECC);
+        if (key->sign_k) {
+            ret = mp_init(key->sign_k);
+        }
+        else {
+            ret = MEMORY_E;
         }
     }
 
-    if (ret == 0) {
-        ret = mp_init(key->sign_k);
-    }
     if (ret == 0) {
         ret = mp_read_unsigned_bin(key->sign_k, k, klen);
     }
@@ -5608,11 +5608,12 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
         ret = MP_VAL;
     }
 
+    wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
     return ret;
 }
 #endif /* WOLFSSL_ECDSA_SET_K */
-#endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL*/
+#endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL */
 
 #endif /* !HAVE_ECC_SIGN */
 
