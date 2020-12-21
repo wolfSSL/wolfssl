@@ -179,10 +179,14 @@ int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
  * return value is propagated from wc_curve25519_make_private() or
  * wc_curve25519_make_pub() (0 on success).
  */
-int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key) {
+int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
+{
+    int ret;
+
     if (key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
-    int ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
+
+    ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
     if (ret < 0)
         return ret;
     return wc_curve25519_make_pub((int)sizeof key->p.point, key->p.point, sizeof key->k.point, key->k.point);
