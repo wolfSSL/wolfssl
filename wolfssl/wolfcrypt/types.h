@@ -495,11 +495,12 @@ decouple library dependencies with standard string, memory and so on.
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-        /* strstr, strncmp, and strncat only used by wolfSSL proper,
+        /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
          * not required for wolfCrypt only */
         #define XSTRSTR(s1,s2)    strstr((s1),(s2))
         #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
         #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
+        #define XSTRCMP(s1,s2)    strcmp((s1),(s2))
         #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 
         #ifdef USE_WOLF_STRSEP
@@ -649,9 +650,12 @@ decouple library dependencies with standard string, memory and so on.
                 #include <ctype.h>
             #endif
 	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
-            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
+            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA) || \
+            defined(OPENSSL_EXTRA)
             #define XTOUPPER(c)     toupper((c))
-            #define XISALPHA(c)     isalpha((c))
+        #endif
+        #ifdef OPENSSL_ALL
+        #define XISALNUM(c)     isalnum((c))
         #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
@@ -861,8 +865,10 @@ decouple library dependencies with standard string, memory and so on.
         WC_PK_TYPE_CURVE25519 = 7,
         WC_PK_TYPE_RSA_KEYGEN = 8,
         WC_PK_TYPE_EC_KEYGEN = 9,
+        WC_PK_TYPE_RSA_CHECK_PRIV_KEY = 10,
+        WC_PK_TYPE_EC_CHECK_PRIV_KEY = 11,
 
-        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_KEYGEN
+        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_CHECK_PRIV_KEY
     };
 
 

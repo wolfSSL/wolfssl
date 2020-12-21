@@ -110,6 +110,12 @@ int wc_curve25519_generic(int public_size, byte* pub,
                           int basepoint_size, const byte* basepoint) {
     int ret;
 
+#ifdef FREESCALE_LTC_ECC
+    /* unsupported with NXP LTC, onlly supports single basepoint with
+     * nxp_ltc_curve25519_GetBasePoint() */
+    return WC_HW_E;
+#endif
+
     if ((public_size != CURVE25519_KEYSIZE) ||
         (private_size != CURVE25519_KEYSIZE) ||
         (basepoint_size != CURVE25519_KEYSIZE)) {
@@ -124,14 +130,6 @@ int wc_curve25519_generic(int public_size, byte* pub,
         return ECC_BAD_ARG_E;
     }
 
-#ifdef FREESCALE_LTC_ECC
-    {
-        ECPoint wc_pub;
-        ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, basepoint);
-        if (ret == 0)
-            XMEMCPY(pub, wc_pub.point, CURVE25519_KEYSIZE);
-    }
-#else
     fe_init();
 
     #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
@@ -143,7 +141,6 @@ int wc_curve25519_generic(int public_size, byte* pub,
     #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
         RESTORE_VECTOR_REGISTERS();
     #endif
-#endif
 
     return ret;
 }

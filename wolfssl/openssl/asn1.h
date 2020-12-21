@@ -32,6 +32,10 @@
 #define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
 #define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
 
+#define ASN1_get_object      wolfSSL_ASN1_get_object
+#define d2i_ASN1_OBJECT      wolfSSL_d2i_ASN1_OBJECT
+#define c2i_ASN1_OBJECT      wolfSSL_c2i_ASN1_OBJECT
+
 #define V_ASN1_INTEGER                   0x02
 #define V_ASN1_OCTET_STRING              0x04 /* tag for ASN1_OCTET_STRING */
 #define V_ASN1_NEG                       0x100
@@ -66,10 +70,21 @@
 #define ASN1_TIME_diff                  wolfSSL_ASN1_TIME_diff
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
+#define V_ASN1_EOC                      0
 #define V_ASN1_OBJECT                   6
+#define V_ASN1_UTF8STRING               12
+#define V_ASN1_SEQUENCE                 16
+#define V_ASN1_SET                      17
+#define V_ASN1_PRINTABLESTRING          19
+#define V_ASN1_T61STRING                20
+#define V_ASN1_IA5STRING                22
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
-#define V_ASN1_PRINTABLESTRING          19
+#define V_ASN1_UNIVERSALSTRING          28
+#define V_ASN1_BMPSTRING                30
+
+
+#define V_ASN1_CONSTRUCTED              0x20
 
 #define ASN1_STRING_FLAG_BITS_LEFT       0x008
 #define ASN1_STRING_FLAG_NDEF            0x010
@@ -82,6 +97,12 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
 
 WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value);
+
+WOLFSSL_API int wolfSSL_ASN1_get_object(const unsigned char **in, long *len, int *tag,
+                                        int *cls, long inLen);
+
+WOLFSSL_API WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a,
+        const unsigned char **pp, long len);
 
 #ifdef OPENSSL_ALL
 /* IMPLEMENT_ASN1_FUNCTIONS is strictly for external use only. Internally

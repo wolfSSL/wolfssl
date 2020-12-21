@@ -3987,12 +3987,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-                                                        defined(WOLFSSL_HAPROXY)
+#ifdef HAVE_SNI
         if ((ret = SNI_Callback(ssl)) != 0)
             return ret;
         ssl->options.side = WOLFSSL_SERVER_END;
-#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif
 
     i += totalExtSz;
     *inOutIdx = i;
@@ -5189,7 +5188,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     goto exit_scv;
             }
 
-            if (args->length <= 0) {
+            if (args->length == 0) {
                 ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
             }
 
@@ -6057,12 +6056,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
                                headerSz + finishedSz, handshake, 1, 0, 0);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
-
-#ifndef NO_SESSION_CACHE
-    if (!ssl->options.resuming) {
-        AddSession(ssl);    /* just try */
-    }
-#endif
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
@@ -7194,7 +7187,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     return ret;
 
                 if ((ret = DeriveTls13Keys(ssl, handshake_key,
-                                           ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
+                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
         #ifdef WOLFSSL_EARLY_DATA
@@ -7211,13 +7204,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     return ret;
         #ifdef WOLFSSL_EARLY_DATA
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                       ENCRYPT_AND_DECRYPT_SIDE,
-                                       ssl->earlyData == no_early_data)) != 0) {
+                                    ENCRYPT_AND_DECRYPT_SIDE,
+                                    ssl->earlyData == no_early_data)) != 0) {
                     return ret;
                 }
         #else
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
-                                           ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
+                                        ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
         #endif
@@ -7229,9 +7222,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ssl->options.clientState = CLIENT_HELLO_COMPLETE;
                 ssl->options.connectState  = FIRST_REPLY_DONE;
                 ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+                ssl->options.processReply = 0; /* doProcessInit */
 
-                if (wolfSSL_connect_TLSv13(ssl) != SSL_SUCCESS)
-                    ret = POST_HAND_AUTH_ERROR;
+                if (wolfSSL_connect_TLSv13(ssl) != WOLFSSL_SUCCESS) {
+                    ret = ssl->error;
+                    if (ret != WC_PENDING_E)
+                        ret = POST_HAND_AUTH_ERROR;
+                }
             }
         #endif
         }

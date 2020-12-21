@@ -85,6 +85,11 @@ typedef struct wc_CryptoInfo {
                 WC_RNG* rng;
             } rsakg;
         #endif
+            struct {
+                RsaKey*     key;
+                const byte* pubKey;
+                word32      pubKeySz;
+            } rsa_check;
         #endif
         #ifdef HAVE_ECC
             struct {
@@ -115,6 +120,11 @@ typedef struct wc_CryptoInfo {
                 int*        res;
                 ecc_key*    key;
             } eccverify;
+            struct {
+                ecc_key*    key;
+                const byte* pubKey;
+                word32      pubKeySz;
+            } ecc_check;
         #endif
         };
     } pk;
@@ -229,6 +239,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
 WOLFSSL_LOCAL int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e,
     WC_RNG* rng);
 #endif /* WOLFSSL_KEY_GEN */
+
+WOLFSSL_LOCAL int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
+    word32 pubKeySz);
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
@@ -243,6 +256,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
 
 WOLFSSL_LOCAL int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key);
+
+WOLFSSL_LOCAL int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
+    word32 pubKeySz);
 #endif /* HAVE_ECC */
 
 #ifndef NO_AES
@@ -289,10 +305,6 @@ WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
-
-#else
-
-#define wc_CryptoCb_GetDevIdAtIndex(idx) (INVALID_DEVID)
 
 #endif /* WOLF_CRYPTO_CB */
 

@@ -146,6 +146,8 @@
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
     /* do nothing */
+#elif defined(RTTHREAD)
+    /* do nothing */
 #elif defined(EBSNET)
     /* do nothing */
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
@@ -1692,6 +1694,11 @@ WOLFSSL_LOCAL int  CompleteServerHello(WOLFSSL *ssl);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz);
+#ifdef WOLF_CRYPTO_CB
+WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* buffer, word32 length,
+                                       int hsType, int label, int id,
+                                       void* heap, int devId);
+#endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
 #ifdef HAVE_PK_CALLBACKS
 WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
@@ -1713,8 +1720,10 @@ WOLFSSL_LOCAL int  HashOutput(WOLFSSL* ssl, const byte* output, int sz,
                               int ivSz);
 WOLFSSL_LOCAL int  HashInput(WOLFSSL* ssl, const byte* input, int sz);
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+#ifdef HAVE_SNI
+#ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
+#endif
 #endif
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
@@ -2022,6 +2031,8 @@ struct WOLFSSL_CERT_MANAGER {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
+    wolfSSL_Mutex   refMutex;   /* reference count mutex */
+    int             refCount;         /* reference count */
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER*, const char*);
@@ -2163,7 +2174,9 @@ typedef struct Keys {
 #ifdef HAVE_TLS_EXTENSIONS
 
 typedef enum {
+#ifdef HAVE_SNI
     TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
+#endif
     TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
     TLSX_TRUSTED_CA_KEYS            = 0x0003,
     TLSX_TRUNCATED_HMAC             = 0x0004,
@@ -2670,8 +2683,9 @@ struct WOLFSSL_CTX {
     int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
-    byte        privateKeyType:7;
+    byte        privateKeyType:6;
     byte        privateKeyId:1;
+    byte        privateKeyLabel:1;
     int         privateKeySz;
     int         privateKeyDevId;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
@@ -2822,9 +2836,7 @@ struct WOLFSSL_CTX {
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
-                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH) ))
+#ifdef HAVE_SNI
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
@@ -3228,6 +3240,8 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+    byte               side;                      /* Either WOLFSSL_CLIENT_END or
+                                                     WOLFSSL_SERVER_END */
 };
 
 
@@ -3326,8 +3340,9 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
-    byte            keyType:7;             /* Type of key: RSA, ECC, Ed25519 */
+    byte            keyType:6;             /* Type of key: RSA, ECC, Ed25519 */
     byte            keyId:1;               /* Key data is an id not data */
+    byte            keyLabel:1;            /* Key data is a label not data */
     int             keySz;                 /* Size of RSA key */
     int             keyDevId;              /* Device Id for key */
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
@@ -3611,6 +3626,8 @@ struct WOLFSSL_STACK {
                         * (safety measure for freeing and shortcut for count) */
     #if defined(OPENSSL_ALL)
     wolf_sk_compare_cb comp;
+    wolf_sk_hash_cb hash_fn;
+    unsigned long hash;
     #endif
 
     union {
@@ -3622,7 +3639,9 @@ struct WOLFSSL_STACK {
         WOLFSSL_CIPHER         cipher;
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
+#ifdef OPENSSL_EXTRA
         WOLFSSL_CONF_VALUE*    conf;
+#endif
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
@@ -3676,6 +3695,7 @@ struct WOLFSSL_X509 {
 #endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
+    WOLFSSL_STACK* ext_sk_full; /* Store X509_EXTENSIONS from wolfSSL_X509_get0_extensions */
     WOLFSSL_STACK* ext_d2i;/* Store d2i extensions from wolfSSL_X509_get_ext_d2i */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
@@ -3747,9 +3767,15 @@ struct WOLFSSL_X509 {
     byte             authKeyIdCrit:1;
     byte             issuerSet:1;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#ifdef WOLFSSL_CERT_REQ
+    byte             isCSR:1;
+#endif
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #ifdef WOLFSSL_CERT_REQ
+#ifdef OPENSSL_ALL
+    WOLFSSL_X509_ATTRIBUTE* challengePwAttr;
+#endif
     char             challengePw[CTC_NAME_SIZE]; /* for REQ certs */
 #endif
     WOLFSSL_X509_NAME issuer;
@@ -4281,6 +4307,15 @@ struct WOLFSSL {
 #ifdef WOLFSSL_STATIC_EPHEMERAL
     StaticKeyExchangeInfo_t staticKE;
 #endif
+#ifdef OPENSSL_ALL
+    /* Added in libest port: allow applications to get the 'tls-unique' Channel
+     * Binding Type (https://tools.ietf.org/html/rfc5929#section-3). This is
+     * used in the EST protocol to bind an enrollment to a TLS session through
+     * 'proof-of-possession' (https://tools.ietf.org/html/rfc7030#section-3.4
+     * and https://tools.ietf.org/html/rfc7030#section-3.5). */
+    byte clientFinished[TLS_FINISHED_SZ];
+    byte serverFinished[TLS_FINISHED_SZ];
+#endif
 };
 
 
@@ -4440,6 +4475,7 @@ WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(const ProtocolVersion pv);
+WOLFSSL_LOCAL int TLSv1_3_Capable(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);

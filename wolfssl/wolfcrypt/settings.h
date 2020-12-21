@@ -678,17 +678,17 @@ extern void uITRON4_free(void *p) ;
 
     /* static char* gets(char *buff); */
     static char* fgets(char *buff, int sz, XFILE fp) {
-        char * p = buff;
-        *p = '\0';
+        char * s = buff;
+        *s = '\0';
         while (1) {
-            *p = tm_getchar(-1);
-            tm_putchar(*p);
-            if (*p == '\r') {
+            *s = tm_getchar(-1);
+            tm_putchar(*s);
+            if (*s == '\r') {
                 tm_putchar('\n');
-                *p = '\0';
+                *s = '\0';
                 break;
             }
-            p++;
+            s++;
         }
         return buff;
     }
@@ -1219,6 +1219,8 @@ extern void uITRON4_free(void *p) ;
     #define USE_CERT_BUFFERS_4096
     #undef  FP_MAX_BITS
     #define FP_MAX_BITS (8192)
+    #undef  SP_INT_BITS
+    #define SP_INT_BITS (4096)
 
     #undef  NO_DH
     #define NO_DH
@@ -1391,11 +1393,18 @@ extern void uITRON4_free(void *p) ;
 #ifdef MICRIUM
     #include <stdlib.h>
     #include <os.h>
-    #include <net_cfg.h>
-    #include <net_sock.h>
-    #include <net_err.h>
+    #if defined(RTOS_MODULE_NET_AVAIL) || (APP_CFG_TCPIP_EN == DEF_ENABLED)
+        #include <net_cfg.h>
+        #include <net_sock.h>
+        #if (OS_VERSION < 50000)
+            #include <net_err.h>
+        #endif
+    #endif
     #include <lib_mem.h>
     #include <lib_math.h>
+    #include <lib_str.h>
+    #include  <stdio.h>
+    #include <string.h>
 
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
@@ -1419,7 +1428,7 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #define NO_WRITEV
 
-    #ifndef CUSTOM_RAND_GENERATE
+    #if ! defined(WOLFSSL_SILABS_SE_ACCEL) && !defined(CUSTOM_RAND_GENERATE)
         #define CUSTOM_RAND_TYPE     RAND_NBR
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
@@ -1449,10 +1458,25 @@ extern void uITRON4_free(void *p) ;
                     (CPU_SIZE_T)(size)))
     #define XMEMCPY(pdest, psrc, size) ((void)Mem_Copy((void *)(pdest), \
                      (void *)(psrc), (CPU_SIZE_T)(size)))
-    #define XMEMCMP(pmem_1, pmem_2, size) \
-                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1), \
-                                          (void *)(pmem_2), \
+
+    #if (OS_VERSION < 50000)
+        #define XMEMCMP(pmem_1, pmem_2, size)                   \
+                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1),     \
+                                          (void *)(pmem_2),     \
                      (CPU_SIZE_T)(size))) ? DEF_NO : DEF_YES)
+    #else
+      /* Work around for Micrium OS version 5.8 change in behavior
+       * that returns DEF_NO for 0 size compare
+       */
+        #define XMEMCMP(pmem_1, pmem_2, size)                           \
+            (( (size < 1 ) ||                                           \
+               ((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1),                  \
+                                     (void *)(pmem_2),                  \
+                                     (CPU_SIZE_T)(size)) == DEF_YES))   \
+             ? 0 : 1)
+        #define XSNPRINTF snprintf
+    #endif
+
     #define XMEMMOVE XMEMCPY
 
     #if (OS_CFG_MUTEX_EN == DEF_DISABLED)
@@ -1948,6 +1972,11 @@ extern void uITRON4_free(void *p) ;
         #error "FFDHE parameters are too large for FP_MAX_BIT as set"
     #endif
 #endif
+#if defined(HAVE_FFDHE) && defined(SP_INT_BITS)
+    #if MIN_FFDHE_FP_MAX_BITS > SP_INT_BITS * 2
+        #error "FFDHE parameters are too large for SP_INT_BIT as set"
+    #endif
+#endif
 
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
@@ -1956,6 +1985,13 @@ extern void uITRON4_free(void *p) ;
             #define FP_MAX_BITS 8192
         #else
             #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+        #endif
+    #endif
+    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(SP_INT_BITS)
+        #if MIN_FFDHE_FP_MAX_BITS <= 8192
+            #define SP_INT_BITS 4096
+        #else
+            #define PS_INT_BITS MIN_FFDHE_FP_MAX_BITS / 2
         #endif
     #endif
 #endif
@@ -2167,7 +2203,8 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+ || defined(HAVE_LIGHTY)
     #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
     #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
@@ -2188,7 +2225,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
@@ -2261,15 +2298,21 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* Parts of the openssl compatibility layer require peer certs */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+ || defined(HAVE_LIGHTY)
     #undef  KEEP_PEER_CERT
     #define KEEP_PEER_CERT
 #endif
 
-/* RAW hash function APIs are not implemented with ARMv8 hardware acceleration*/
-#ifdef WOLFSSL_ARMASM
+/* RAW hash function APIs are not implemented */
+#if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AFALG_HASH)
     #undef  WOLFSSL_NO_HASH_RAW
     #define WOLFSSL_NO_HASH_RAW
+#endif
+
+/* XChacha not implemented with ARM assembly ChaCha */
+#if defined(WOLFSSL_ARMASM)
+    #undef HAVE_XCHACHA
 #endif
 
 #if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512) && defined(NO_AES) && \

@@ -425,7 +425,7 @@ fi
 printf '%s\n\n' "Test successful"
 printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
 remove_single_rF $ready_file5
-timeout 60 ./examples/server/server -c certs/ocsp/server4-cert.pem \
+./examples/server/server -c certs/ocsp/server4-cert.pem \
                          -k certs/ocsp/server4-key.pem -R $ready_file5 \
                          -p $port5 -H loadSSL &
 server_pid5=$!

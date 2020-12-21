@@ -509,38 +509,38 @@ static void wc_PKCS7_ChangeState(PKCS7* pkcs7, int newState)
 static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
 {
     /* PKCS#7 content types, RFC 2315, section 14 */
-    const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07 };
-    const byte data[]               = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x01 };
-    const byte signedData[]         = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x02};
-    const byte envelopedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x03 };
-    const byte authEnvelopedData[]  = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                        0x0D, 0x01, 0x09, 0x10, 0x01, 0x17};
-    const byte signedAndEnveloped[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x04 };
-    const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x05 };
+    static const byte pkcs7[]              =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07 };
+    static const byte data[]               =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01 };
+    static const byte signedData[]         =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02};
+    static const byte envelopedData[]      =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x03 };
+    static const byte authEnvelopedData[]  =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x17};
+    static const byte signedAndEnveloped[] =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x04 };
+    static const byte digestedData[]       =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x05 };
 #ifndef NO_PKCS7_ENCRYPTED_DATA
-    const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                               0x0D, 0x01, 0x07, 0x06 };
+    static const byte encryptedData[]      =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x06 };
 #endif
     /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), RFC 4108 */
-    const byte firmwarePkgData[]    = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
-                                        0x01, 0x09, 0x10, 0x01, 0x10 };
+    static const byte firmwarePkgData[]    =
+        { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x10 };
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
     /* id-ct-compressedData (1.2.840.113549.1.9.16.1.9), RFC 3274 */
-    const byte compressedData[]     = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
-                                        0x01, 0x09, 0x10, 0x01, 0x09 };
+    static const byte compressedData[]     =
+       { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x01, 0x09 };
 #endif
 
 #if !defined(NO_PWDBASED) && !defined(NO_SHA)
-    const byte pwriKek[]            = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
-                                        0x01, 0x09, 0x10, 0x03, 0x09 };
-    const byte pbkdf2[]             = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
-                                        0x01, 0x05, 0x0C };
+    static const byte pwriKek[]            =
+       { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x10, 0x03, 0x09 };
+    static const byte pbkdf2[]             =
+       { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x05, 0x0C };
 #endif
 
     int idSz, idx = 0;
@@ -1151,6 +1151,7 @@ int wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
                                DYNAMIC_TYPE_PKCS7);
     if (cert == NULL)
         return MEMORY_E;
+    XMEMSET(cert, 0, sizeof(Pkcs7Cert));
 
     cert->der = derCert;
     cert->derSz = derCertSz;
@@ -1260,18 +1261,24 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
 
     wc_PKCS7_SignerInfoFree(pkcs7);
     wc_PKCS7_FreeDecodedAttrib(pkcs7->decodedAttrib, pkcs7->heap);
+    pkcs7->decodedAttrib = NULL;
     wc_PKCS7_FreeCertSet(pkcs7);
 
 #ifdef ASN_BER_TO_DER
-    if (pkcs7->der != NULL)
+    if (pkcs7->der != NULL) {
         XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->der = NULL;
+    }
 #endif
-    if (pkcs7->contentDynamic != NULL)
+    if (pkcs7->contentDynamic != NULL) {
         XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->contentDynamic = NULL;
+    }
 
     if (pkcs7->cek != NULL) {
         ForceZero(pkcs7->cek, pkcs7->cekSz);
         XFREE(pkcs7->cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->cek = NULL;
     }
 
     pkcs7->contentTypeSz = 0;
@@ -2234,6 +2241,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
 
 
 /* build PKCS#7 signedData content type */
+/* To get the output size then set output = 0 and *outputSz = 0 */
 static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
@@ -2268,9 +2276,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     byte signingTime[MAX_TIME_STRING_SZ];
 
-    if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
-        pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
-        output == NULL || outputSz == NULL || *outputSz == 0 || hashSz == 0 ||
+    if (pkcs7 == NULL || pkcs7->hashOID == 0 ||
+        outputSz == NULL || hashSz == 0 ||
         hashBuf == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -2441,7 +2448,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         ret = wc_PKCS7_SignedDataBuildSignature(pkcs7, flatSignedAttribs,
                                                 flatSignedAttribsSz, esd);
         if (ret < 0) {
-            if (pkcs7->signedAttribsSz != 0)
+            if (flatSignedAttribs)
                 XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2506,11 +2513,16 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     /* if using header/footer, we are not returning the content */
     if (output2 && output2Sz) {
         if (total2Sz > *output2Sz) {
-            if (pkcs7->signedAttribsSz != 0)
+            if (flatSignedAttribs)
                 XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
+            if (*outputSz == 0 && *output2Sz == 0) {
+                *outputSz = totalSz;
+                *output2Sz = total2Sz;
+                return 0;
+            }
             return BUFFER_E;
         }
 
@@ -2524,7 +2536,20 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     if (totalSz > *outputSz) {
-        if (pkcs7->signedAttribsSz != 0)
+        if (flatSignedAttribs)
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        if (*outputSz == 0) {
+            *outputSz = totalSz;
+            return totalSz;
+        }
+        return BUFFER_E;
+    }
+
+    if (output == NULL) {
+        if (flatSignedAttribs)
             XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2746,7 +2771,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 #endif
 
     /* other args checked in wc_PKCS7_EncodeSigned_ex */
-    if (pkcs7 == NULL || pkcs7->contentSz == 0 || pkcs7->content == NULL) {
+    if (pkcs7 == NULL || (pkcs7->contentSz > 0 && pkcs7->content == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -4890,15 +4915,22 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     }
         #ifdef ASN_BER_TO_DER
                     der = pkcs7->der;
+                    pkcs7->der = NULL;
         #endif
                     contentDynamic = pkcs7->contentDynamic;
                     version = pkcs7->version;
 
 
                     if (ret == 0) {
+                        byte isDynamic = pkcs7->isDynamic;
                     #ifndef NO_PKCS7_STREAM
                         PKCS7State* stream = pkcs7->stream;
+                        pkcs7->stream = NULL;
                     #endif
+                        /* Free pkcs7 resources but not the structure itself */
+                        pkcs7->isDynamic = 0;
+                        wc_PKCS7_Free(pkcs7);
+                        pkcs7->isDynamic = isDynamic;
                         /* This will reset PKCS7 structure and then set the
                          * certificate */
                         ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);

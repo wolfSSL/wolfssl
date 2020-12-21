@@ -48,7 +48,11 @@
 
 /* Max number of certificates that PKCS7 structure can parse */
 #ifndef MAX_PKCS7_CERTS
+#ifdef OPENSSL_ALL
+    #define MAX_PKCS7_CERTS 15
+#else
     #define MAX_PKCS7_CERTS 4
+#endif
 #endif
 
 #ifndef MAX_ORI_TYPE_SZ
@@ -154,7 +158,8 @@ enum Pkcs7_Misc {
                             MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ,
 #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
-     (HAVE_FIPS_VERSION <= 2)) || (defined(HAVE_SELFTEST))
+     (HAVE_FIPS_VERSION <= 2)) || (defined(HAVE_SELFTEST) && \
+     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2)))
     /* In the event of fips cert 3389 or CAVP selftest v1 build, these enums are
      * not in aes.h for use with pkcs7 so enumerate it here outside the fips
      * boundary */

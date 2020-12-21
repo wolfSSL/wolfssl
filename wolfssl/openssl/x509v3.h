@@ -83,6 +83,8 @@ struct WOLFSSL_X509_EXTENSION {
 
 #define X509V3_CTX         WOLFSSL_X509V3_CTX
 
+#define CTX_TEST           0x1
+
 typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
@@ -99,6 +101,8 @@ WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
                                           const WOLFSSL_ASN1_STRING *s);
 WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
+WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
+        const char *section, WOLFSSL_X509 *cert);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
 #define AUTHORITY_KEYID_free      wolfSSL_AUTHORITY_KEYID_free
@@ -107,11 +111,20 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
+#define X509V3_EXT_add_nconf      wolfSSL_X509V3_EXT_add_nconf
+#ifndef NO_WOLFSSL_STUB
+#define X509V3_parse_list(...)    NULL
+#endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
-#define X509V3_EXT_conf_nid wolfSSL_X509V3_EXT_conf_nid
-#define X509V3_set_ctx      wolfSSL_X509V3_set_ctx
-#define X509V3_set_ctx_nodb wolfSSL_X509V3_set_ctx_nodb
+#define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
+#define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
+#ifndef NO_WOLFSSL_STUB
+#define X509V3_set_nconf(...)
+#endif
+#define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
+#define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb
+#define X509v3_get_ext_count      wolfSSL_sk_num
 
 #ifdef  __cplusplus
 }

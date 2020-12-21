@@ -88,6 +88,9 @@
 #if defined(WOLFSSL_CRYPTOCELL)
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
+#if defined(WOLFSSL_SILABS_SE_ACCEL)
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
+#endif
 
 #if defined(_MSC_VER)
     #define SHA256_NOINLINE __declspec(noinline)
@@ -138,6 +141,8 @@ struct wc_Sha256 {
     ltc_hash_ctx_t ctx;
 #elif defined(STM32_HASH_SHA2)
     STM32_HASH_Context stmCtx;
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+  wc_silabs_sha_t silabsCtx;
 #else
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];

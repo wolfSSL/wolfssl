@@ -2688,6 +2688,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
     /* Software AES - SetKey */
@@ -3630,6 +3633,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_DEVCRYPTO_CBC)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
     /* Software AES - CBC Encrypt */
@@ -4331,7 +4337,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
-    ret = wc_AesSetKeyLocal(aes, key, len, iv, AES_ENCRYPTION, 0);
+    ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
     #ifdef WOLFSSL_AESNI
         /* AES-NI code generates its own H value. */
@@ -6790,6 +6796,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    return wc_AesGcmEncrypt_silabs(
+        aes, out, in, sz,
+        iv, ivSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+#endif
+
 #ifdef STM32_CRYPTO_AES_GCM
     return wc_AesGcmEncrypt_STM32(
         aes, out, in, sz, iv, ivSz,
@@ -7261,6 +7275,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    return wc_AesGcmDecrypt_silabs(
+        aes, out, in, sz, iv, ivSz,
+        authTag, authTagSz, authIn, authInSz);
+
+#endif
+
 #ifdef STM32_CRYPTO_AES_GCM
     /* The STM standard peripheral library API's doesn't support partial blocks */
     return wc_AesGcmDecrypt_STM32(
@@ -7539,6 +7560,33 @@ int wc_AesCcmCheckTagSize(int sz)
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
     /* implemented in wolfcrypt/src/port/caam_aes.c */
 
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
+                   byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    return wc_AesCcmEncrypt_silabs(
+        aes, out, in, inSz,
+        nonce, nonceSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+}
+
+#ifdef HAVE_AES_DECRYPT
+int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
+                   const byte* nonce, word32 nonceSz,
+                   const byte* authTag, word32 authTagSz,
+                   const byte* authIn, word32 authInSz)
+{
+    return wc_AesCcmDecrypt_silabs(
+        aes, out, in, inSz,
+        nonce, nonceSz,
+        authTag, authTagSz,
+        authIn, authInSz);
+}
+#endif
 #elif defined(FREESCALE_LTC)
 
 /* return 0 on success */
@@ -8090,10 +8138,35 @@ int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
         ret = BUFFER_E;
 
     if (ret == 0)
-        ret  = wc_AesInit(aes, heap, devId);
+        ret = wc_AesInit(aes, heap, devId);
     if (ret == 0) {
         XMEMCPY(aes->id, id, len);
         aes->idLen = len;
+        aes->labelLen = 0;
+    }
+
+    return ret;
+}
+
+int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if (aes == NULL || label == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if (labelLen == 0 || labelLen > AES_MAX_LABEL_LEN)
+            ret = BUFFER_E;
+    }
+
+    if (ret == 0)
+        ret = wc_AesInit(aes, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(aes->label, label, labelLen);
+        aes->labelLen = labelLen;
+        aes->idLen = 0;
     }
 
     return ret;
@@ -8515,6 +8588,9 @@ static int wc_AesFeedbackCFB8(Aes* aes, byte* out, const byte* in,
         }
 
         /* MSB + XOR */
+    #ifdef BIG_ENDIAN_ORDER
+        ByteReverseWords(aes->tmp, aes->tmp, AES_BLOCK_SIZE);
+    #endif
         out[0] = aes->tmp[0] ^ in[0];
         if (dir == AES_ENCRYPTION) {
             pt = (byte*)aes->reg;

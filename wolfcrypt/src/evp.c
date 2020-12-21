@@ -1330,7 +1330,6 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
 {
     WOLFSSL_EVP_PKEY_CTX* ctx;
-    int type = NID_undef;
 
     if (pkey == NULL) return 0;
     if (e != NULL) return 0;
@@ -1344,15 +1343,8 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
-    type = wolfSSL_EVP_PKEY_type(pkey->type);
-
-    if (type != NID_undef) {
-        if (wc_LockMutex(&pkey->refMutex) != 0) {
-            WOLFSSL_MSG("Couldn't lock pkey mutex");
-        }
-        pkey->references++;
-
-        wc_UnLockMutex(&pkey->refMutex);
+    if (wolfSSL_EVP_PKEY_up_ref(pkey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Couldn't increase key reference count");
     }
     return ctx;
 }
@@ -1385,9 +1377,12 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new_id(int id, WOLFSSL_ENGINE *e)
     if (pkey) {
         pkey->type = id;
         ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
-        if (ctx == NULL) {
-            wolfSSL_EVP_PKEY_free(pkey);
-        }
+        /* wolfSSL_EVP_PKEY_CTX_new calls wolfSSL_EVP_PKEY_up_ref so we need
+         * to always call wolfSSL_EVP_PKEY_free (either to free it if an
+         * error occured in the previous function or to decrease the reference
+         * count so that pkey is actually free'd when wolfSSL_EVP_PKEY_CTX_free
+         * is called) */
+        wolfSSL_EVP_PKEY_free(pkey);
     }
     return ctx;
 }
@@ -1432,7 +1427,19 @@ int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_EVP_PKEY_CTX_ctrl_str(WOLFSSL_EVP_PKEY_CTX *ctx,
+                          const char *name, const char *value)
+{
+    WOLFSSL_STUB("wolfSSL_EVP_PKEY_CTX_ctrl_str");
+    (void)ctx;
+    (void)name;
+    (void)value;
+    return WOLFSSL_FAILURE;
+}
+#endif /* NO_WOLFSSL_STUB */
+
+#if !defined(NO_DH) && defined(HAVE_ECC)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION!=2))
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
@@ -1873,6 +1880,89 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     return 0;
 }
 
+
+int wolfSSL_EVP_PKEY_copy_parameters(WOLFSSL_EVP_PKEY *to,
+        const WOLFSSL_EVP_PKEY *from)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_copy_parameters");
+
+    if (!to || !from) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (to->type == EVP_PKEY_NONE) {
+        to->type = from->type;
+    }
+    else if (to->type != from->type) {
+        WOLFSSL_MSG("Different key types");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch(from->type) {
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        if (from->ecc) {
+            if (!to->ecc && !(to->ecc = wolfSSL_EC_KEY_new())) {
+                WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+                return WOLFSSL_FAILURE;
+            }
+            to->ownEcc = 1;
+            to->ecc->group->curve_idx = from->ecc->group->curve_idx;
+            to->ecc->group->curve_nid = from->ecc->group->curve_nid;
+            to->ecc->group->curve_oid = from->ecc->group->curve_oid;
+        }
+        else {
+            WOLFSSL_MSG("Missing ECC struct");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+#endif
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
+        if (from->dsa) {
+            WOLFSSL_BIGNUM* cpy;
+            if (!to->dsa && !(to->dsa = wolfSSL_DSA_new())) {
+                WOLFSSL_MSG("wolfSSL_DSA_new error");
+                return WOLFSSL_FAILURE;
+            }
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->p))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->p = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->q))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->q = cpy;
+            if (!(cpy = wolfSSL_BN_dup(from->dsa->g))) {
+                WOLFSSL_MSG("wolfSSL_BN_dup error");
+                return WOLFSSL_FAILURE;
+            }
+            to->dsa->g = cpy;
+        }
+        else {
+            WOLFSSL_MSG("Missing DSA struct");
+            return WOLFSSL_FAILURE;
+        }
+        break;
+#endif
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
+#endif
+#ifndef NO_DH
+    case EVP_PKEY_DH:
+#endif
+    default:
+        WOLFSSL_MSG("Copy parameters not available for this key type");
+        return WOLFSSL_FAILURE;
+    }
+#if defined(HAVE_ECC) || !defined(NO_DSA)
+    return WOLFSSL_SUCCESS;
+#endif
+}
+
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 {
@@ -1913,7 +2003,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
         break;
 #endif /* HAVE_ECC */
     default:
-        break;
+        return ret;
     } /* switch (a->type) */
 
     /* check size */
@@ -2202,7 +2292,6 @@ const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
     return (const unsigned char*)pkey->pkey.ptr;
 }
 
-
 /* Initialize an EVP_DigestSign/Verify operation.
  * Initialize a digest for RSA and ECC keys, or HMAC for HMAC key.
  */
@@ -2212,6 +2301,19 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
                                       WOLFSSL_ENGINE *e,
                                       WOLFSSL_EVP_PKEY *pkey)
 {
+    if (!type) {
+        int default_digest;
+        if (wolfSSL_EVP_PKEY_get_default_digest_nid(pkey, &default_digest)
+                != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Could not get default digest");
+            return WOLFSSL_FAILURE;
+        }
+        type = wolfSSL_EVP_get_digestbynid(default_digest);
+        if (!type) {
+            return BAD_FUNC_ARG;
+        }
+    }
+
     if (pkey->type == EVP_PKEY_HMAC) {
         int                  hashType;
         const unsigned char* key;
@@ -2282,21 +2384,16 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
 
         ctx->isHMAC = 1;
     }
-    else {
-        int ret;
+    else if (wolfSSL_EVP_DigestInit(ctx, type) != 1)
+            return WOLFSSL_FAILURE;
 
-        if (ctx->pctx == NULL) {
-            ctx->pctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
-            if (ctx->pctx == NULL)
-                return WOLFSSL_FAILURE;
-        }
-
-        ret = wolfSSL_EVP_DigestInit(ctx, type);
-        if (ret == WOLFSSL_SUCCESS && pctx != NULL)
-            *pctx = ctx->pctx;
-        return ret;
+    if (ctx->pctx == NULL) {
+        ctx->pctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
+        if (ctx->pctx == NULL)
+            return WOLFSSL_FAILURE;
     }
-
+    if (pctx != NULL)
+        *pctx = ctx->pctx;
     return WOLFSSL_SUCCESS;
 }
 
@@ -2306,10 +2403,7 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
 static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
                                         const void *d, unsigned int cnt)
 {
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
-
+    if (ctx->isHMAC) {
         if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
             return WOLFSSL_FAILURE;
 
@@ -2328,11 +2422,8 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
 {
     int  ret;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         Hmac hmacCopy;
-
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
 
         if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
@@ -2437,7 +2528,7 @@ int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
 {
     WOLFSSL_ENTER("EVP_DigestSignInit");
 
-    if (ctx == NULL || type == NULL || pkey == NULL)
+    if (ctx == NULL || pkey == NULL)
         return BAD_FUNC_ARG;
 
     return wolfSSL_evp_digest_pk_init(ctx, pctx, type, e, pkey);
@@ -2468,10 +2559,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
         return WOLFSSL_FAILURE;
 
     /* Return the maximum size of the signaure when sig is NULL. */
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
-
+    if (ctx->isHMAC) {
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
         if (sig == NULL) {
@@ -2501,7 +2589,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     if (wolfssl_evp_digest_pk_final(ctx, digest, &hashLen) <= 0)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         /* Copy the HMAC result as signature. */
         if ((unsigned int)(*siglen) > hashLen)
             *siglen = hashLen;
@@ -2586,9 +2674,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if (ctx == NULL || sig == NULL)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
-        if (!ctx->isHMAC)
-            return WOLFSSL_FAILURE;
+    if (ctx->isHMAC) {
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
 
@@ -2600,7 +2686,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if (wolfssl_evp_digest_pk_final(ctx, digest, &hashLen) <= 0)
         return WOLFSSL_FAILURE;
 
-    if (ctx->pctx == NULL) {
+    if (ctx->isHMAC) {
         /* Check HMAC result matches the signature. */
         if (XMEMCMP(sig, digest, siglen) == 0)
             return WOLFSSL_SUCCESS;
@@ -3171,11 +3257,21 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
         {"SHA", "SHA1"},
         { NULL, NULL}
     };
+    char nameUpper[15]; /* 15 bytes should be enough for any name */
+    size_t i;
 
     const struct alias  *al;
     const struct s_ent *ent;
 
+    for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
+        nameUpper[i] = (char)XTOUPPER(name[i]);
+    }
+    if (i < sizeof(nameUpper))
+        nameUpper[i] = '\0';
+    else
+        return NULL;
 
+    name = nameUpper;
     for (al = alias_tbl; al->name != NULL; al++)
         if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
             name = al->name;
@@ -5314,7 +5410,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         WOLFSSL_ENTER("EVP_DigestInit");
 
-        if (ctx == NULL || md == NULL) {
+        if (ctx == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -5328,7 +5424,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         /* Set to 0 if no match */
         ctx->macType = wolfSSL_EVP_md2macType(md);
-        if (XSTRNCMP(md, "SHA256", 6) == 0) {
+        if (md == NULL) {
+             XMEMSET(&ctx->hash.digest, 0, sizeof(WOLFSSL_Hasher));
+        }
+        else if (XSTRNCMP(md, "SHA256", 6) == 0) {
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
@@ -5595,6 +5694,10 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
         case NID_sha1:
             return wolfSSL_EVP_sha1();
 #endif
+#ifndef NO_SHA256
+        case NID_sha256:
+            return wolfSSL_EVP_sha256();
+#endif
         default:
             WOLFSSL_MSG("Bad digest id value");
     }
@@ -5663,11 +5766,15 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     if ((pkey == NULL) || (key == NULL))
         return WOLFSSL_FAILURE;
 
+    if (wolfSSL_RSA_up_ref(key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_RSA_up_ref failed");
+        return WOLFSSL_FAILURE;
+    }
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
         wolfSSL_RSA_free(pkey->rsa);
     }
     pkey->rsa    = key;
-    pkey->ownRsa = 0; /* pkey does not own RSA */
+    pkey->ownRsa = 1; /* pkey does not own RSA but needs to call free on it */
     pkey->type   = EVP_PKEY_RSA;
     if (key->inSet == 0) {
         if (SetRsaInternal(key) != WOLFSSL_SUCCESS) {
@@ -6482,7 +6589,7 @@ int wolfSSL_EVP_PKEY_type(int type)
 }
 
 
-int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_id(const WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey != NULL)
         return pkey->type;
@@ -6490,13 +6597,39 @@ int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey)
 }
 
 
-int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_base_id(const WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey == NULL)
         return NID_undef;
     return wolfSSL_EVP_PKEY_type(pkey->type);
 }
 
+int wolfSSL_EVP_PKEY_get_default_digest_nid(WOLFSSL_EVP_PKEY *pkey, int *pnid)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get_default_digest_nid");
+
+    if (!pkey || !pnid) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    switch (pkey->type) {
+    case EVP_PKEY_HMAC:
+#ifndef NO_DSA
+    case EVP_PKEY_DSA:
+#endif
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
+#endif
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+#endif
+        *pnid = NID_sha256;
+        return WOLFSSL_SUCCESS;
+    default:
+        return WOLFSSL_FAILURE;
+    }
+}
 
 /* increments ref count of WOLFSSL_EVP_PKEY. Return 1 on success, 0 on error */
 int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
@@ -6508,10 +6641,10 @@ int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
         pkey->references++;
         wc_UnLockMutex(&pkey->refMutex);
 
-        return 1;
+        return WOLFSSL_SUCCESS;
     }
 
-    return 0;
+    return WOLFSSL_FAILURE;
 }
 
 #ifndef NO_RSA

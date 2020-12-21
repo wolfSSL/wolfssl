@@ -565,7 +565,11 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
                             ssl->arrays->clientRandom,
                             ssl->arrays->serverRandom,
                             ssl->arrays->tsip_masterSecret);
-            
+
+            #else
+
+            ret = NOT_COMPILED_IN;
+
             #endif
         } else
 #endif
@@ -4072,6 +4076,11 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
         return ret;
 
     ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
+    if (ext == NULL) {
+        WOLFSSL_MSG("Could not find supported groups extension");
+        return 0;
+    }
+
     curve = (SupportedCurve*)ext->data;
     name = curve->name;
 
@@ -9027,18 +9036,18 @@ static int TLSX_EarlyData_GetSize(byte msgType, word16* pSz)
  * Assumes that the the output buffer is big enough to hold data.
  * In messages: ClientHello, EncryptedExtensions and NewSessionTicket.
  *
- * max      The maximum early data size.
+ * maxSz    The maximum early data size.
  * output   The buffer to write into.
  * msgType  The type of the message this extension is being written into.
  * returns the number of bytes written into the buffer.
  */
-static int TLSX_EarlyData_Write(word32 max, byte* output, byte msgType,
+static int TLSX_EarlyData_Write(word32 maxSz, byte* output, byte msgType,
                                 word16* pSz)
 {
     if (msgType == client_hello || msgType == encrypted_extensions)
         return 0;
     else if (msgType == session_ticket) {
-        c32toa(max, output);
+        c32toa(maxSz, output);
         *pSz += OPAQUE32_LEN;
         return 0;
     }
@@ -9095,11 +9104,11 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 /* Use the data to create a new Early Data object in the extensions.
  *
- * ssl  The SSL/TLS object.
- * max  The maximum early data size.
+ * ssl    The SSL/TLS object.
+ * maxSz  The maximum early data size.
  * returns 0 on success and other values indicate failure.
  */
-int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max)
+int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 maxSz)
 {
     int   ret = 0;
     TLSX* extension;
@@ -9118,7 +9127,7 @@ int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max)
     }
 
     extension->resp = 1;
-    extension->val  = max;
+    extension->val  = maxSz;
 
     return 0;
 }
@@ -9178,9 +9187,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
 
         switch (extension->type) {
 
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 SNI_FREE_ALL((SNI*)extension->data, heap);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 TCA_FREE_ALL((TCA*)extension->data, heap);
@@ -9312,11 +9323,13 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
         switch (extension->type) {
 
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 /* SNI only sends the name on the request. */
                 if (isRequest)
                     length += SNI_GET_SIZE((SNI*)extension->data);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 /* TCA only sends the list on the request. */
@@ -9464,12 +9477,14 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* extension data should be written internally. */
         switch (extension->type) {
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 if (isRequest) {
                     WOLFSSL_MSG("SNI extension to write");
                     offset += SNI_WRITE((SNI*)extension->data, output + offset);
                 }
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 WOLFSSL_MSG("Trusted CA Indication extension to write");
@@ -10909,6 +10924,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             return BUFFER_ERROR;
 
         switch (type) {
+#ifdef HAVE_SNI
             case TLSX_SERVER_NAME:
                 WOLFSSL_MSG("SNI extension received");
             #ifdef WOLFSSL_DEBUG_TLS
@@ -10929,6 +10945,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #endif
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
+#endif
 
             case TLSX_TRUSTED_CA_KEYS:
                 WOLFSSL_MSG("Trusted CA extension received");

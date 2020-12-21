@@ -58,6 +58,10 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    #include <wolfssl/wolfcrypt/port/silabs/silabs_ecc.h>
+#endif
+
 #ifdef WOLFSSL_HAVE_SP_ECC
     #include <wolfssl/wolfcrypt/sp_int.h>
 #endif
@@ -137,6 +141,8 @@ enum {
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
 #elif defined(PLUTON_CRYPTO_ECC)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    ECC_MAX_CRYPTO_HW_SIZE = 32,
 #elif defined(WOLFSSL_CRYPTOCELL)
     #ifndef CRYPTOCELL_KEY_SIZE
         CRYPTOCELL_KEY_SIZE = ECC_MAXSIZE,
@@ -152,8 +158,9 @@ enum {
     /* Shamir's dual add constants */
     SHAMIR_PRECOMP_SZ = 16,
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
     ECC_MAX_ID_LEN    = 32,
+    ECC_MAX_LABEL_LEN = 32,
 #endif
 };
 
@@ -395,6 +402,16 @@ struct ecc_key {
 #if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    sl_se_command_context_t  cmd_ctx;
+    sl_se_key_descriptor_t   key;
+    /* Used for SiLabs "plaintext" with public X, public Y, and
+     * private D concatenated. These are respectively at offset `0`,
+     * offset `keysize`, and offset `2 * keysize`.
+     */
+    byte key_raw[3 * ECC_MAX_CRYPTO_HW_SIZE];
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
     mp_int* s;
@@ -407,9 +424,11 @@ struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
     byte id[ECC_MAX_ID_LEN];
     int  idLen;
+    char label[ECC_MAX_LABEL_LEN];
+    int  labelLen;
 #endif
 #if defined(WOLFSSL_CRYPTOCELL)
     ecc_context_t ctx;
@@ -544,10 +563,12 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_ABI WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
 WOLFSSL_API
 int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
                    int devId);
+WOLFSSL_API
+int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL

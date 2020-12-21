@@ -206,15 +206,21 @@ extern "C" {
 /* Define the types used. */
 #ifdef HAVE___UINT128_T
     #ifdef __SIZEOF_INT128__
-      typedef __uint128_t   sp_uint128;
-      typedef  __int128_t    sp_int128;
-      typedef __uint128_t      uint128_t;
-      typedef  __int128_t       int128_t;
+        typedef __uint128_t   sp_uint128;
+        typedef  __int128_t    sp_int128;
     #else
-      typedef unsigned long sp_uint128   __attribute__ ((mode(TI)));
-      typedef          long  sp_int128   __attribute__ ((mode(TI)));
-      typedef unsigned long    uint128_t __attribute__ ((mode(TI)));
-      typedef          long     int128_t __attribute__ ((mode(TI)));
+        typedef unsigned long sp_uint128   __attribute__ ((mode(TI)));
+        typedef          long  sp_int128   __attribute__ ((mode(TI)));
+    #endif
+    #ifndef WOLFSSL_UINT128_T_DEFINED
+        #ifdef __SIZEOF_INT128__
+          typedef __uint128_t      uint128_t;
+          typedef  __int128_t       int128_t;
+        #else
+          typedef unsigned long    uint128_t __attribute__ ((mode(TI)));
+          typedef          long     int128_t __attribute__ ((mode(TI)));
+        #endif
+        #define WOLFSSL_UINT128_T_DEFINED
     #endif
 #endif
 
@@ -558,11 +564,6 @@ typedef struct sp_ecc_ctx {
         }                                                         \
         a->used = ii + 1;                                         \
     } while (0)
-/* Get the count of digits in the multi-precision number.
- *
- * @param  [in]  a  SP integer to use.
- */
-#define sp_get_digit_count(a)     (((a) == NULL) ? 0 : ((sp_int*)(a))->used)
 
 /* Check the compiled and linked math implementation are the same.
  * Use the number of bits in a digit as indication of how code was compiled.
@@ -819,7 +820,6 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_abs                              sp_abs
 #define mp_isneg                            sp_isneg
 #define mp_clamp                            sp_clamp
-#define get_digit_count                     sp_get_digit_count
 
 /* One to one mappings. */
 #define mp_init                             sp_init

@@ -121,9 +121,23 @@ extern ${variable.value} ${variable.name};
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST
 #else
-	#warning Please define a hardware platform!
-    #define WOLFSSL_STM32F4 /* default */
+    #warning Please define a hardware platform!
+    /* This means there is not a pre-defined platform for your board/CPU */
+    /* You need to define a CPU type, HW crypto and debug UART */
+    /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4, 
+        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4 and WOLFSSL_STM32L5 */
+    #define WOLFSSL_STM32F4
+
+    /* Debug UART */
     #define HAL_CONSOLE_UART huart4
+
+    /* Hardware Crypto - uncomment as available on hardware */
+    //#define WOLFSSL_STM32_PKA
+    //#define NO_STM32_RNG
+    //#undef  NO_STM32_HASH
+    //#undef  NO_STM32_CRYPTO
+    //#define WOLFSSL_GENSEED_FORTEST
+    //#define STM32_HAL_V2
 #endif
 
 

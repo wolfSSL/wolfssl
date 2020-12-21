@@ -341,7 +341,7 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
 
-#ifdef HAVE_PKCS11
+#ifdef WOLF_CRYPTO_CB
 int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
                      int devId)
 {
@@ -354,10 +354,32 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
 
     if (ret == 0)
         ret = wc_InitRsaKey_ex(key, heap, devId);
-
     if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(key->id, id, len);
         key->idLen = len;
+    }
+
+    return ret;
+}
+
+int wc_InitRsaKey_Label(RsaKey* key, const char* label, void* heap, int devId)
+{
+    int ret = 0;
+    int labelLen = 0;
+
+    if (key == NULL || label == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0) {
+        labelLen = (int)XSTRLEN(label);
+        if (labelLen == 0 || labelLen > RSA_MAX_LABEL_LEN)
+            ret = BUFFER_E;
+    }
+
+    if (ret == 0)
+        ret = wc_InitRsaKey_ex(key, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(key->label, label, labelLen);
+        key->labelLen = labelLen;
     }
 
     return ret;
@@ -3136,7 +3158,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             defined(HAVE_CAVIUM)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                    pad_type != WC_RSA_PSS_PAD) {
-            if (ret > 0) {
+            ret = key->asyncDev.event.ret;
+            if (ret >= 0) {
                 /* convert result */
                 byte* dataLen = (byte*)&key->dataLen;
                 ret = (dataLen[0] << 8) | (dataLen[1]);
