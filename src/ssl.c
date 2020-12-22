@@ -21195,8 +21195,8 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
 {
     WOLFSSL_SESSION* ret = NewSession();
 
-    if (ret != NULL) {
 #ifdef OPENSSL_EXTRA
+    if (ret != NULL) {
         if (wc_InitMutex(&ret->refMutex) != 0) {
             WOLFSSL_MSG("Error setting up session reference mutex");
             XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -29323,8 +29323,10 @@ void* wolfSSL_sk_value(const WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.obj;
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
+    #ifdef OPENSSL_EXTRA
         case STACK_TYPE_CONF_VALUE:
             return (void*)sk->data.conf;
+    #endif
         case STACK_TYPE_NULL:
         default:
             return (void*)sk->data.generic;
@@ -29447,9 +29449,12 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
         case STACK_TYPE_OBJ:
             wolfSSL_sk_ASN1_OBJECT_free(sk);
             break;
+        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+            defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         case STACK_TYPE_STRING:
             wolfSSL_sk_WOLFSSL_STRING_free(sk);
             break;
+        #endif
         #ifdef OPENSSL_ALL
         case STACK_TYPE_X509_INFO:
             wolfSSL_sk_X509_INFO_free(sk);
@@ -51783,6 +51788,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     else
         return WOLFSSL_FAILURE;
 
+#ifdef OPENSSL_EXTRA
 #if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
     !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     if (pkey->type == EVP_PKEY_RSA) {
@@ -51800,6 +51806,7 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     }
     else
 #endif
+#endif /* OPENSSL_EXTRA */
     {
         p = (byte*)XMALLOC(pkey->pkey_sz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (p == NULL)
