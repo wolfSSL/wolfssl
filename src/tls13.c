@@ -7565,6 +7565,15 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                 }
             }
 
+            if (!ssl->options.tls1_3) {
+    #ifndef WOLFSSL_NO_TLS12
+                if (ssl->options.downgrade)
+                    return wolfSSL_connect(ssl);
+    #endif
+                WOLFSSL_MSG("Client using higher version, fatal error");
+                return VERSION_ERROR;
+            }
+
             ssl->options.connectState = HELLO_AGAIN;
             WOLFSSL_MSG("connect state: HELLO_AGAIN");
             FALL_THROUGH;
@@ -7572,16 +7581,6 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case HELLO_AGAIN:
             if (ssl->options.certOnly)
                 return WOLFSSL_SUCCESS;
-
-            if (!ssl->options.tls1_3) {
-    #ifndef WOLFSSL_NO_TLS12
-                if (ssl->options.downgrade)
-                    return wolfSSL_connect(ssl);
-    #endif
-
-                WOLFSSL_MSG("Client using higher version, fatal error");
-                return VERSION_ERROR;
-            }
 
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
