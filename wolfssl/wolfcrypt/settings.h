@@ -2380,6 +2380,13 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SMALL_STACK
 #endif
 
+#ifdef WOLFSSL_SMALL_STACK_STATIC
+    #undef WOLFSSL_SMALL_STACK_STATIC
+    #define WOLFSSL_SMALL_STACK_STATIC static
+#else
+    #define WOLFSSL_SMALL_STACK_STATIC
+#endif
+
 /* The client session cache requires time for timeout */
 #if defined(NO_ASN_TIME) && !defined(NO_SESSION_CACHE)
     #define NO_SESSION_CACHE
