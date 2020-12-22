@@ -35155,8 +35155,7 @@ int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
         return WOLFSSL_FAILURE;
     }
 
-    return wolfSSL_CTX_set_groups(ctx, groups, count) == WOLFSSL_SUCCESS ?
-            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return wolfSSL_CTX_set1_groups(ctx, groups, count);
 }
 
 int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
@@ -35173,8 +35172,7 @@ int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
         return WOLFSSL_FAILURE;
     }
 
-    return wolfSSL_set_groups(ssl, groups, count) == WOLFSSL_SUCCESS ?
-            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    return wolfSSL_set1_groups(ssl, groups, count);
 }
 #endif /* WOLFSSL_TLS13 */
 
