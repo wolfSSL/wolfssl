@@ -3,7 +3,7 @@ Release 4.6.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ### New Feature Additions
 ###### New Build Options
-* wolfSSL now enables linux kernel module support. Big news for Linux kernel module developers with crypto requirements! wolfCrypt and wolfSSL are now loadable as modules in the Linux kernel, providing the entire libwolfssl API natively to other kernel modules. For the first time on Linux, the entire TLS protocol stack can be loaded as a module, allowing fully kernel-resident TLS/DTLS endpoints with in-kernel handshaking.  (--enable-linuxkm, --enable-linuxkm-defaults, --with-linux-source)
+* wolfSSL now enables linux kernel module support. Big news for Linux kernel module developers with crypto requirements! wolfCrypt and wolfSSL are now loadable as modules in the Linux kernel, providing the entire libwolfssl API natively to other kernel modules. For the first time on Linux, the entire TLS protocol stack can be loaded as a module, allowing fully kernel-resident TLS/DTLS endpoints with in-kernel handshaking.  (--enable-linuxkm, --enable-linuxkm-defaults, --with-linux-source) (https://www.wolfssl.com/loading-wolfssl-into-the-linux-kernel/)
 * Build tests and updated instructions for use with Apple’s A12Z chipset  (https://www.wolfssl.com/preliminary-cryptographic-benchmarks-on-new-apple-a12z-bionic-platform/)
 * Expansion of wolfSSL SP math implementation and addition of --enable-sp-math-all build option
 * Apache httpd w/TLS 1.3 support added

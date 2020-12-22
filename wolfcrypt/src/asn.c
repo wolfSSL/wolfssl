@@ -4811,7 +4811,8 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
     (void)heap;
 }
 
-#if !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
+#if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
+        defined(WOLFSSL_CERT_GEN))
 /* Write a public DSA key to output */
 int wc_SetDsaPublicKey(byte* output, DsaKey* key,
                            int outLen, int with_header)
@@ -5000,7 +5001,7 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 {
     return wc_SetDsaPublicKey(output, key, inLen, 1);
 }
-#endif /* !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
+#endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 
 /* Convert private DsaKey key to DER format, write to output (inLen),
    return bytes written */
