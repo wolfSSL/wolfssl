@@ -27060,6 +27060,12 @@ static void test_wolfSSL_EVP_MD_size(void)
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA1"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 #endif
     /* error case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);

@@ -2107,6 +2107,7 @@ static const struct s_ent {
 
 #ifndef NO_SHA
     {WC_HASH_TYPE_SHA, NID_sha1, "SHA1"},
+    {WC_HASH_TYPE_SHA, NID_sha1, "SHA"}, /* Leave for backwards compatibility */
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
@@ -6883,7 +6884,10 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
             }
             else
         #endif
-            {
+            if (XSTRNCMP("SHA1", evp, 4) == 0) {
+                hash = WC_HASH_TYPE_SHA;
+            }
+            else {
                 WOLFSSL_MSG("Unknown SHA hash");
             }
         }
