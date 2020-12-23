@@ -2338,7 +2338,7 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int c, int m)
        return MP_MEM;
 #endif
 
-    t->used = (a->used ^ b->used) & mask;
+    t->used = (int)((a->used ^ b->used) & mask);
     for (i = 0; i < c; i++) {
         t->dp[i] = (a->dp[i] ^ b->dp[i]) & mask;
     }
