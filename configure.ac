@@ -2228,7 +2228,6 @@ then
         AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE_VERBOSE"
-    ENABLED_STACKSIZE=yes
 fi
 
 
@@ -2259,13 +2258,17 @@ AC_ARG_ENABLE([trackmemory],
     [ ENABLED_TRACKMEMORY=no ]
     )
 
-if test "$ENABLED_TRACKMEMORY" = "yes"
+if test "$ENABLED_TRACKMEMORY" != "no"
 then
     if test "$ENABLED_MEMORY" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY"
     else
         AC_MSG_ERROR([trackmemory requires using wolfSSL memory (--enable-memory).])
+    fi
+    if test "$ENABLED_TRACKMEMORY" = "verbose"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY_VERBOSE"
     fi
 fi
 
@@ -5927,7 +5930,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no"; then
         AC_MSG_ERROR([--enable-sp-math or --enable-sp-math-all is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_STACKSIZE" = "yes"; then
+    if test "$ENABLED_STACKSIZE" != "no"; then
         AC_MSG_ERROR([--enable-stacksize is incompatible with --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKLOG" = "yes"; then
@@ -6062,7 +6065,7 @@ AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
 
 if test "$ax_enable_debug" = "yes" ||
-        test "$ENABLED_STACKSIZE" = "yes" ||
+        test "$ENABLED_STACKSIZE" != "no" ||
         (test "$ENABLED_LEANTLS" = "no" &&
              test "$ENABLED_LEANPSK" = "no" &&
              test "$ENABLED_LOWRESOURCE" = "no")
@@ -6360,6 +6363,7 @@ echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * Crypt tests:                $ENABLED_CRYPT_TESTS"
 echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
+echo "   * Heap stats in tests:        $ENABLED_TRACKMEMORY"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"

@@ -76,6 +76,15 @@
         long totalBytes;      /* total number of bytes allocated */
         long peakBytes;       /* concurrent max bytes */
         long currentBytes;    /* total current bytes in use */
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+        long peakAllocsTripOdometer; /* peak number of concurrent allocations,
+                                      * subject to reset by
+                                      * wolfCrypt_heap_peak_checkpoint()
+                                      */
+        long peakBytesTripOdometer; /* peak concurrent bytes, subject to reset
+                                     * by wolfCrypt_heap_peak_checkpoint()
+                                     */
+#endif
     } memoryStats;
 
     typedef struct memHint {
@@ -170,8 +179,17 @@
         ourMemStats.totalAllocs++;
         ourMemStats.totalBytes   += sz;
         ourMemStats.currentBytes += sz;
-        if (ourMemStats.currentBytes > ourMemStats.peakBytes)
-            ourMemStats.peakBytes = ourMemStats.currentBytes;
+        #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+        if (ourMemStats.peakAllocsTripOdometer < ourMemStats.totalAllocs - ourMemStats.totalDeallocs)
+            ourMemStats.peakAllocsTripOdometer = ourMemStats.totalAllocs - ourMemStats.totalDeallocs;
+        if (ourMemStats.peakBytesTripOdometer < ourMemStats.currentBytes) {
+            ourMemStats.peakBytesTripOdometer = ourMemStats.currentBytes;
+        #endif
+            if (ourMemStats.currentBytes > ourMemStats.peakBytes)
+                ourMemStats.peakBytes = ourMemStats.currentBytes;
+        #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+        }
+        #endif
     #endif
     #ifdef DO_MEM_LIST
         if (pthread_mutex_lock(&memLock) == 0) {
@@ -338,8 +356,12 @@
         ourMemStats.totalBytes   = 0;
         ourMemStats.peakBytes    = 0;
         ourMemStats.currentBytes = 0;
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+        ourMemStats.peakAllocsTripOdometer = 0;
+        ourMemStats.peakBytesTripOdometer    = 0;
+#endif
     #endif
-    
+
     #ifdef DO_MEM_LIST
         XMEMSET(&ourMemList, 0, sizeof(ourMemList));
 

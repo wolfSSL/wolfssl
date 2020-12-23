@@ -290,6 +290,19 @@ int wolfCrypt_Init(void)
     return ret;
 }
 
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+long wolfCrypt_heap_peakAllocs_checkpoint(void) {
+    long ret = ourMemStats.peakAllocsTripOdometer;
+    ourMemStats.peakAllocsTripOdometer = ourMemStats.totalAllocs -
+        ourMemStats.totalDeallocs;
+    return ret;
+}
+long wolfCrypt_heap_peakBytes_checkpoint(void) {
+    long ret = ourMemStats.peakBytesTripOdometer;
+    ourMemStats.peakBytesTripOdometer = ourMemStats.currentBytes;
+    return ret;
+}
+#endif
 
 /* return success value is the same as wolfCrypt_Init */
 int wolfCrypt_Cleanup(void)
