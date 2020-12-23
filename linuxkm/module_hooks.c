@@ -31,6 +31,26 @@
 #include <linux/delay.h>
 #endif
 
+static int libwolfssl_cleanup(void) {
+    int ret;
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Cleanup();
+    if (ret != 0)
+        pr_err("wolfCrypt_Cleanup() failed: %s", wc_GetErrorString(ret));
+    else
+        pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+#else
+    ret = wolfSSL_Cleanup();
+    if (ret != WOLFSSL_SUCCESS)
+        pr_err("wolfSSL_Cleanup() failed: %s", wc_GetErrorString(ret));
+    else
+        pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
+#endif
+
+    return ret;
+}
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -55,7 +75,8 @@ static int wolfssl_init(void)
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
     if (ret < 0) {
-        pr_err("wolfcrypt self-test failed.");
+        pr_err("wolfcrypt self-test failed with return code %d.", ret);
+        (void)libwolfssl_cleanup();
         msleep(10);
         return -ENOTRECOVERABLE;
     }
@@ -81,21 +102,7 @@ static void __exit wolfssl_exit(void)
 static void wolfssl_exit(void)
 #endif
 {
-    int ret;
-#ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Cleanup();
-    if (ret != 0)
-        pr_err("wolfCrypt_Cleanup() failed: %s", wc_GetErrorString(ret));
-    else
-        pr_info("wolfCrypt " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
-#else
-    ret = wolfSSL_Cleanup();
-    if (ret != WOLFSSL_SUCCESS)
-        pr_err("wolfSSL_Cleanup() failed: %s", wc_GetErrorString(ret));
-    else
-        pr_info("wolfSSL " LIBWOLFSSL_VERSION_STRING " cleanup complete.\n");
-#endif
-
+    (void)libwolfssl_cleanup();
     return;
 }
 
