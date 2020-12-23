@@ -449,6 +449,11 @@ WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
 WOLFSSL_API int wolfCrypt_Init(void);
 WOLFSSL_API int wolfCrypt_Cleanup(void);
 
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+    WOLFSSL_API long wolfCrypt_heap_peakAllocs_checkpoint(void);
+    WOLFSSL_API long wolfCrypt_heap_peakBytes_checkpoint(void);
+#endif
+
 
 /* FILESYSTEM SECTION */
 /* filesystem abstraction layer, used by ssl.c */

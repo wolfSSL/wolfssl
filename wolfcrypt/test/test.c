@@ -55,6 +55,35 @@
     #define STACK_SIZE_INIT()
 #endif
 
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+#ifdef WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS
+    static ssize_t max_relative_heap_allocs = WOLFSSL_TEST_MAX_RELATIVE_HEAP_ALLOCS;
+#else
+    static ssize_t max_relative_heap_allocs = -1;
+#endif
+#ifdef WOLFSSL_TEST_MAX_RELATIVE_HEAP_BYTES
+    static ssize_t max_relative_heap_bytes = WOLFSSL_TEST_MAX_RELATIVE_HEAP_BYTES;
+#else
+    static ssize_t max_relative_heap_bytes = -1;
+#endif
+#define PRINT_HEAP_CHECKPOINT() {                                        \
+    const ssize_t _rha = wolfCrypt_heap_peakAllocs_checkpoint() - heap_baselineAllocs; \
+    const ssize_t _rhb = wolfCrypt_heap_peakBytes_checkpoint() - heap_baselineBytes; \
+    printf("    relative heap peak usage: %ld alloc%s, %ld bytes\n",    \
+           _rha,                                                        \
+           _rha == 1 ? "" : "s",                                        \
+           _rhb);                                                       \
+    if ((max_relative_heap_allocs > 0) && (_rha > max_relative_heap_allocs)) \
+        return err_sys("heap allocs exceed designated max.", -1);       \
+    if ((max_relative_heap_bytes > 0) && (_rhb > max_relative_heap_bytes)) \
+        return err_sys("heap bytes exceed designated max.", -1);        \
+    heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();        \
+    heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();         \
+    }
+#else
+#define PRINT_HEAP_CHECKPOINT()
+#endif
+
 #ifdef __GNUC__
 _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
 #endif
@@ -477,11 +506,11 @@ static int err_sys(const char* msg, int es)
 
 #ifdef WOLFSSL_LINUXKM
     lkm_printf("%s error = %d\n", msg, es);
+    EXIT_TEST(es);
 #else
     printf("%s error = %d\n", msg, es);
-#endif
-
     EXIT_TEST(-1);
+#endif
 }
 
 #ifndef HAVE_WOLFCRYPT_TEST_OPTIONS
@@ -547,11 +576,18 @@ static int wolfssl_pb_print(const char* msg, ...)
         va_start(args, fmt);
         STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max_relative_stack, vprintf(fmt, args));
         va_end(args);
+        PRINT_HEAP_CHECKPOINT();
         TEST_SLEEP();
     }
 #else
     /* redirect to printf */
-    #define test_pass(...) { if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max_relative_stack, printf(__VA_ARGS__)) < 0) { return err_sys("post-test check failed", -1); }}
+    #define test_pass(...) {                                    \
+        if (STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK                \
+            (max_relative_stack, printf(__VA_ARGS__)) < 0) {    \
+            return err_sys("post-test check failed", -1);       \
+        }                                                       \
+        PRINT_HEAP_CHECKPOINT();                                \
+    }
     /* stub the sleep macro */
     #define TEST_SLEEP()
 #endif
@@ -563,7 +599,17 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+    long heap_baselineAllocs, heap_baselineBytes;
+#endif
     STACK_SIZE_INIT();
+
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+    (void)wolfCrypt_heap_peakAllocs_checkpoint();
+    heap_baselineAllocs = wolfCrypt_heap_peakAllocs_checkpoint();
+    (void)wolfCrypt_heap_peakBytes_checkpoint();
+    heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();
+#endif
 
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
@@ -575,17 +621,35 @@ int wolfcrypt_test(void* args)
 #endif
         ((func_args*)args)->return_code = -1; /* error state */
 #ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
-        while ((ch = mygetopt(((func_args*)args)->argc, ((func_args*)args)->argv, "s:")) != -1) {
+        while ((ch = mygetopt(((func_args*)args)->argc, ((func_args*)args)->argv, "s:m:a:h")) != -1) {
             switch(ch) {
             case 's':
 #ifdef HAVE_STACK_SIZE_VERBOSE
                 max_relative_stack = (ssize_t)atoi(myoptarg);
                 break;
 #else
-                return err_sys("-s (max relative stack size) requires HAVE_STACK_SIZE_VERBOSE.", -1);
+                return err_sys("-s (max relative stack bytes) requires HAVE_STACK_SIZE_VERBOSE (--enable-stacksize=verbose).", -1);
 #endif
+            case 'm':
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+                max_relative_heap_bytes = (ssize_t)atoi(myoptarg);
+                break;
+#else
+                return err_sys("-m (max relative heap memory bytes) requires WOLFSSL_TRACK_MEMORY_VERBOSE (--enable-trackmemory=verbose).", -1);
+#endif
+            case 'a':
+#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+                max_relative_heap_allocs = (ssize_t)atoi(myoptarg);
+                break;
+#else
+                return err_sys("-a (max relative heap allocs) requires WOLFSSL_TRACK_MEMORY_VERBOSE (--enable-trackmemory=verbose).", -1);
+#endif
+            case 'h':
+                return err_sys("\
+options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
+         [-a max_relative_heap_allocs] [-h]\n", 0);
             default:
-                return err_sys("unknown test option.", -1);
+                return err_sys("unknown test option.  try -h.", -1);
             }
         }
 #endif
