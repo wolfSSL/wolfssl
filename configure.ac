@@ -3646,7 +3646,7 @@ fi
 AC_ARG_ENABLE([pkcs7],
     [AS_HELP_STRING([--enable-pkcs7],[Enable PKCS7 (default: disabled)])],
     [ ENABLED_PKCS7=$enableval ],
-    [ ENABLED_PKCS7=no ],
+    [ ENABLED_PKCS7=no ]
     )
 
 
@@ -3656,6 +3656,48 @@ AC_ARG_ENABLE([ssh],
     [ ENABLED_WOLFSSH=$enableval ],
     [ ENABLED_WOLFSSH=no ]
     )
+
+# wolfTPM Options
+AC_ARG_ENABLE([wolftpm],
+    [AS_HELP_STRING([--enable-wolftpm],[Enable wolfTPM options (default: disabled)])],
+    [ ENABLED_WOLFTPM=$enableval ],
+    [ ENABLED_WOLFTPM=no ]
+    )
+
+if test "x$ENABLED_WOLFTPM" = "xyes"
+then
+    # Requires cryptocb (set in its enable section)
+    # Requires certgen, certreq, certext
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
+    if test "x$ENABLED_CERTREQ" = "xno"
+    then
+        ENABLED_CERTREQ="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"
+    fi
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
+
+    # Requires PKCS7
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+    fi
+
+    # Requires aescfb
+    if test "x$ENABLED_AESCFB" = "xno"
+    then
+        ENABLED_AESCFB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
+    fi
+fi
+
 
 # Simple Certificate Enrollment Protocol (SCEP)
 AC_ARG_ENABLE([scep],
@@ -5417,7 +5459,7 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -6245,6 +6287,7 @@ echo "   * AES-CBC:                    $ENABLED_AESCBC"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"
+echo "   * AES-CFB:                    $ENABLED_AESCFB"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * IDEA:                       $ENABLED_IDEA"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
@@ -6351,6 +6394,7 @@ echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
 echo "   * wolfSSH                     $ENABLED_WOLFSSH"
+echo "   * wolfTPM                     $ENABLED_WOLFTPM"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
