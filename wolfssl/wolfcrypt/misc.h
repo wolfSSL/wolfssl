@@ -18,9 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+/*
 
+DESCRIPTION
+This module implements the arithmetic-shift right, left, byte swapping, XOR,
+masking and clearing memory logic.
 
-
+*/
 #ifndef WOLF_CRYPT_MISC_H
 #define WOLF_CRYPT_MISC_H
 
@@ -39,11 +43,23 @@ word32 rotlFixed(word32, word32);
 WOLFSSL_LOCAL
 word32 rotrFixed(word32, word32);
 
+#ifdef WC_RC2
+WOLFSSL_LOCAL
+word16 rotlFixed16(word16, word16);
+WOLFSSL_LOCAL
+word16 rotrFixed16(word16, word16);
+#endif
+
 WOLFSSL_LOCAL
 word32 ByteReverseWord32(word32);
 WOLFSSL_LOCAL
 void   ByteReverseWords(word32*, const word32*, word32);
 
+WOLFSSL_LOCAL
+void XorWordsOut(wolfssl_word* r, const wolfssl_word* a, const wolfssl_word* b,
+                 word32 n);
+WOLFSSL_LOCAL
+void xorbufout(void*, const void*, const void*, word32);
 WOLFSSL_LOCAL
 void XorWords(wolfssl_word*, const wolfssl_word*, word32);
 WOLFSSL_LOCAL
@@ -99,7 +115,9 @@ WOLFSSL_LOCAL byte ctMaskLT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskEq(int a, int b);
 WOLFSSL_LOCAL word16 ctMask16GT(int a, int b);
+WOLFSSL_LOCAL word16 ctMask16GTE(int a, int b);
 WOLFSSL_LOCAL word16 ctMask16LT(int a, int b);
+WOLFSSL_LOCAL word16 ctMask16LTE(int a, int b);
 WOLFSSL_LOCAL word16 ctMask16Eq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskNotEq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskSel(byte m, byte a, byte b);

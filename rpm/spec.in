@@ -74,7 +74,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.24
-%{_libdir}/libwolfssl.so.24.1.0
+%{_libdir}/libwolfssl.so.24.3.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -180,8 +180,10 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/ocsp.h
 %{_includedir}/wolfssl/openssl/aes.h
 %{_includedir}/wolfssl/openssl/asn1.h
+%{_includedir}/wolfssl/openssl/asn1t.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
+%{_includedir}/wolfssl/openssl/cms.h
 %{_includedir}/wolfssl/openssl/buffer.h
 %{_includedir}/wolfssl/openssl/conf.h
 %{_includedir}/wolfssl/openssl/crypto.h
@@ -216,10 +218,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/ripemd.h
 %{_includedir}/wolfssl/openssl/rsa.h
 %{_includedir}/wolfssl/openssl/sha.h
+%{_includedir}/wolfssl/openssl/srp.h
 %{_includedir}/wolfssl/openssl/sha3.h
 %{_includedir}/wolfssl/openssl/ssl.h
 %{_includedir}/wolfssl/openssl/ssl23.h
 %{_includedir}/wolfssl/openssl/stack.h
+%{_includedir}/wolfssl/openssl/txt_db.h
 %{_includedir}/wolfssl/openssl/tls1.h
 %{_includedir}/wolfssl/openssl/ui.h
 %{_includedir}/wolfssl/openssl/x509.h
@@ -281,6 +285,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/rabbit.h
 %{_includedir}/wolfssl/wolfcrypt/random.h
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
+%{_includedir}/wolfssl/wolfcrypt/rc2.h
 %{_includedir}/wolfssl/wolfcrypt/rsa.h
 %{_includedir}/wolfssl/wolfcrypt/settings.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h
@@ -300,6 +305,9 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Mon Aug 17 2020 John Safranek <john@wolfssl.com>
+- Add a missing header.
+- Update for release.
 * Thu Apr 16 2020 John Safranek <john@wolfssl.com>
 - Add some missing headers.
 - Sort the file list.

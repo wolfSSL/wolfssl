@@ -96,7 +96,7 @@ void wolfssl_thread_entry(void *pvParameters) {
         configASSERT(xConnectedSocket != FREERTOS_INVALID_SOCKET);
 
         /* Create WOLFSSL_CTX object */
-        ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+        ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex((void *)NULL));
 
         /* Load server certificates into WOLFSSL_CTX */
         if (ctx == NULL) {
@@ -142,7 +142,6 @@ void wolfssl_thread_entry(void *pvParameters) {
         }
         memset(buff, 0, sizeof(buff));
         ret = wolfSSL_read(ssl, buff, sizeof(buff) - 1);
-
         if (ret < 0)
             break;
 
@@ -156,6 +155,8 @@ void wolfssl_thread_entry(void *pvParameters) {
 
         /* Reply back to the client */
         ret = wolfSSL_write(ssl, buff, (int) strlen(buff));
+        if (ret < 0)
+            break;
 
         /* Cleanup after this connection */
         util_Cleanup(xConnectedSocket, ctx, ssl);

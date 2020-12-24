@@ -328,6 +328,13 @@
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 
+#elif defined(WOLFSSL_IMXRT_DCP)
+    /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
     /* Software implementation */
     #define USE_SHA_SOFTWARE_IMPL
@@ -519,6 +526,11 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
@@ -539,11 +551,6 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     /* check that internal buffLen is valid */
     if (sha->buffLen >= WC_SHA_BLOCK_SIZE)
         return BUFFER_E;
-
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
-        return 0;
-    }
 
     /* add length for final */
     AddLength(sha, len);
@@ -679,7 +686,6 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        ret = 0; /* reset ret */
         /* fall-through when unavailable */
     }
 #endif
@@ -794,6 +800,9 @@ void wc_ShaFree(wc_Sha* sha)
         sha->msg = NULL;
     }
 #endif
+#ifdef WOLFSSL_IMXRT_DCP
+    DCPShaFree(sha);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -840,6 +849,11 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha));
+
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+    dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

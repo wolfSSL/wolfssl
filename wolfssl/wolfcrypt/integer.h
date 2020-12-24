@@ -33,7 +33,7 @@
    may not be faster on all
 */
 #include <wolfssl/wolfcrypt/types.h>       /* will set MP_xxBIT if not default */
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     #include <wolfssl/wolfcrypt/sp_int.h>
 #elif defined(USE_FAST_MATH)
     #include <wolfssl/wolfcrypt/tfm.h>
@@ -42,7 +42,11 @@
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifndef CHAR_BIT
-    #include <limits.h>
+    #if defined(WOLFSSL_LINUXKM)
+        #include <linux/limits.h>
+    #else
+        #include <limits.h>
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/mpi_class.h>
@@ -157,7 +161,7 @@ extern "C" {
 #define MP_OKAY       0   /* ok result */
 #define MP_MEM        -2  /* out of mem */
 #define MP_VAL        -3  /* invalid input */
-#define MP_NOT_INF	  -4  /* point not at infinity */
+#define MP_NOT_INF    -4  /* point not at infinity */
 #define MP_RANGE      MP_NOT_INF
 
 #define MP_YES        1   /* yes response */
@@ -301,6 +305,7 @@ MP_API int  mp_div_2d (mp_int * a, int b, mp_int * c, mp_int * d);
 MP_API void mp_zero (mp_int * a);
 MP_API void mp_clamp (mp_int * a);
 MP_API void mp_exch (mp_int * a, mp_int * b);
+MP_API int  mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m);
 MP_API void mp_rshd (mp_int * a, int b);
 MP_API void mp_rshb (mp_int * a, int b);
 MP_API int  mp_mod_2d (mp_int * a, int b, mp_int * c);
@@ -318,6 +323,7 @@ MP_API int  mp_is_bit_set (mp_int * a, mp_digit b);
 MP_API int  mp_mod (mp_int * a, mp_int * b, mp_int * c);
 MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 MP_API int  mp_div_2(mp_int * a, mp_int * b);
+MP_API int  mp_div_2_mod_ct (mp_int* a, mp_int* b, mp_int* c);
 MP_API int  mp_add (mp_int * a, mp_int * b, mp_int * c);
 int  s_mp_add (mp_int * a, mp_int * b, mp_int * c);
 int  s_mp_sub (mp_int * a, mp_int * b, mp_int * c);
@@ -332,6 +338,7 @@ MP_API int  mp_exptmod_base_2 (mp_int * X, mp_int * P, mp_int * Y);
 MP_API int  mp_montgomery_setup (mp_int * n, mp_digit * rho);
 int  fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho);
 MP_API int  mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho);
+#define mp_montgomery_reduce_ex(x, n, rho, ct) mp_montgomery_reduce (x, n, rho)
 MP_API void mp_dr_setup(mp_int *a, mp_digit *d);
 MP_API int  mp_dr_reduce (mp_int * x, mp_int * n, mp_digit k);
 MP_API int  mp_reduce_2k(mp_int *a, mp_int *n, mp_digit d);
@@ -355,6 +362,8 @@ MP_API int  mp_sqr (mp_int * a, mp_int * b);
 MP_API int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 MP_API int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_submod_ct (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_addmod_ct (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 MP_API int  mp_2expt (mp_int * a, int b);
 MP_API int  mp_set_bit (mp_int * a, int b);

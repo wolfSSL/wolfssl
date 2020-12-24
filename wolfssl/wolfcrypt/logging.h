@@ -100,6 +100,10 @@ WOLFSSL_API int  wolfSSL_Debugging_ON(void);
 /* turn logging off */
 WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 
+#ifdef HAVE_WC_INTROSPECTION
+    WOLFSSL_API const char *wolfSSL_configure_args(void);
+    WOLFSSL_API const char *wolfSSL_global_cflags(void);
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     WOLFSSL_LOCAL int wc_LoggingInit(void);
@@ -185,6 +189,14 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 #else
     #define WOLFSSL_ERROR(e)
     #define WOLFSSL_ERROR_MSG(m)
+#endif
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    extern WOLFSSL_API THREAD_LS_T unsigned char *StackSizeCheck_myStack;
+    extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSize;
+    extern WOLFSSL_API THREAD_LS_T size_t StackSizeCheck_stackSizeHWM;
+    extern WOLFSSL_API THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr;
+    extern WOLFSSL_API THREAD_LS_T void *StackSizeCheck_stackOffsetPointer;
 #endif
 
 #ifdef __cplusplus

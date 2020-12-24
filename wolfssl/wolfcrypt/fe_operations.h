@@ -28,7 +28,9 @@
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
+#ifndef WOLFSSL_LINUXKM
     #include <stdint.h>
+#endif
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>
@@ -79,7 +81,7 @@ Bounds on each t[i] vary depending on context.
 #if !defined(FREESCALE_LTC_ECC)
 WOLFSSL_LOCAL void fe_init(void);
 
-WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
+WOLFSSL_LOCAL int  curve25519(byte * q, const byte * n, const byte * p);
 #endif
 
 /* default to be faster but take more memory */

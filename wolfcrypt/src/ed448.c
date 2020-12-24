@@ -197,7 +197,7 @@ static int ed448_sign_msg(const byte* in, word32 inLen, byte* out,
         if (ret == 0) {
             ret = wc_Shake256_Update(&sha, &contextLen, sizeof(contextLen));
         }
-        if (ret == 0 && context != NULL) {
+        if ((ret == 0) && (context != NULL)) {
             ret = wc_Shake256_Update(&sha, context, contextLen);
         }
         if (ret == 0) {
@@ -230,7 +230,7 @@ static int ed448_sign_msg(const byte* in, word32 inLen, byte* out,
             if (ret == 0) {
                 ret = wc_Shake256_Update(&sha, &contextLen, sizeof(contextLen));
             }
-            if (ret == 0 && context != NULL) {
+            if ((ret == 0) && (context != NULL)) {
                 ret = wc_Shake256_Update(&sha, context, contextLen);
             }
             if (ret == 0) {
@@ -400,7 +400,7 @@ static int ed448_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
             if (ret == 0) {
                 ret = wc_Shake256_Update(&sha, &contextLen, sizeof(contextLen));
             }
-            if (ret == 0 && context != NULL) {
+            if ((ret == 0) && (context != NULL)) {
                 ret = wc_Shake256_Update(&sha, context, contextLen);
             }
             if (ret == 0) {
@@ -615,6 +615,10 @@ int wc_ed448_import_public(const byte* in, word32 inLen, ed448_key* key)
         ret = BAD_FUNC_ARG;
     }
 
+    if  (inLen < ED448_PUB_KEY_SIZE) {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         /* compressed prefix according to draft
          * https://tools.ietf.org/html/draft-ietf-openpgp-rfc4880bis-06 */
@@ -699,7 +703,8 @@ int wc_ed448_import_private_key(const byte* priv, word32 privSz,
     }
 
     /* key size check */
-    if ((ret == 0) && (privSz < ED448_KEY_SIZE || pubSz < ED448_PUB_KEY_SIZE)) {
+    if ((ret == 0) && ((privSz < ED448_KEY_SIZE) ||
+                                                (pubSz < ED448_PUB_KEY_SIZE))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -832,7 +837,7 @@ int wc_ed448_check_key(ed448_key* key)
         ret = BAD_FUNC_ARG;
     }
 
-    if (!key->pubKeySet) {
+    if (ret == 0 && !key->pubKeySet) {
         ret = PUBLIC_KEY_E;
     }
     if (ret == 0) {

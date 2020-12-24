@@ -1,0 +1,2 @@
+EXTRA_DIST += cmake/config.in
+EXTRA_DIST += cmake/functions.cmake

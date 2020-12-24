@@ -17,44 +17,48 @@
     Use on the xcode project in IDE/iOS/wolfssl.xcodeproj
     There is a README in IDE/iOS with more information
 
-3. Building on Windows
+3. Building for Apple ARM64
+
+    When building for an Apple ARM64 platform, ensure the host CPU type is detected as "aarch64" during configure, if not, pass --host=aarch64-apple-darwin to configure.
+
+4. Building on Windows
 
     Use the 32bit Visual Studio Solution wolfssl.sln
     For a 64bit solution please use wolfssl64.sln
 
-4. Building with IAR
+5. Building with IAR
 
     Please see the README in IDE/IAR-EWARM for detailed instructions
 
-5. Building with Keil
+6. Building with Keil
 
     Please see the Keil Projects in IDE/MDK5-ARM/Projects
 
-6. Building with Microchip tools
+7. Building with Microchip tools
 
     Please see the README in mplabx
 
-7. Building with Freescale MQX
+8. Building with Freescale MQX
 
     Please see the README in mqx
 
-8. Building with Rowley CrossWorks for ARM
+9. Building with Rowley CrossWorks for ARM
 
     Use the CrossWorks project in IDE/ROWLEY-CROSSWORKS-ARM/wolfssl.hzp
     There is a README.md in IDE/ROWLEY-CROSSWORKS-ARM with more information
 
-9. Building with Arduino
+10. Building with Arduino
 
     Use the script IDE/ARDUINO/wolfssl-arduino.sh to reformat the wolfSSL
     library for compatibility with the Arduino IDE. There is a README.md in
     IDE/ARDUINO for detailed instructions.
 
-10. Building for Android with Visual Studio 2017
+11. Building for Android with Visual Studio 2017
 
     Please see the README in IDE/VS-ARM.
     Use the Visual Studio solution IDE/VS-ARM/wolfssl.sln.
 
-11. Building for Yocto Project or OpenEmbedded
+12. Building for Yocto Project or OpenEmbedded
 
     Please see the README in the "meta-wolfssl" repository. This repository
     holds wolfSSL's Yocto and OpenEmbedded layer, which contains recipes
@@ -68,8 +72,67 @@
 
     https://github.com/openembedded/meta-openembedded
 
-12. Porting to a new platform
+13. Porting to a new platform
 
     Please see section 2.4 in the manual:
     http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
 
+14. Building with CMake
+    Note: Primary development uses automake (./configure). The support for CMake
+    is still under development.
+
+    For configuring wolfssl using CMake, we recommend downloading the CMake
+    GUI (https://cmake.org/download/). This tool allows you to see all of
+    wolfssl's configuration variables, set them, and view their descriptions.
+    Looking at the GUI or CMakeCache.txt (generated after running cmake once) is
+    the best way to find out what configuration options are available and what
+    they do. You can also invoke CMake from the GUI, which is described in the
+    Windows instructions below. For Unix-based systems, we describe the command
+    line work flow. Regardless of your chosen workflow, cmake will generate
+    a header options.h in the wolfssl directory that contains the options used
+    to configure the build.
+
+    Unix-based Platforms
+    ---
+    1) Navigate to the wolfssl root directory containing "CMakeLists.txt".
+    2) Create a directory called "build" and change into it. This is where
+       CMake will store build files.
+    3) Run `cmake ..` to generate the target build files (e.g. UNIX Makefiles).
+       To enable or disable features, set them using -D<option>=[yes/no]. For
+       example, to disable TLS 1.3 support, run cmake .. -DWOLFSSL_TLS13=no
+       (autoconf equivalent: ./configure --disable-tls13) To enable DSA, run
+       cmake .. -DWOLFSSL_DSA=yes (autoconf equivalent: ./configure
+       --enable-dsa). Again, you can find a list of these options and their
+       descriptions either using the CMake GUI or by looking at CMakeCache.txt.
+    5) The build directory should now contain the generated build files. Build
+       with `cmake --build .`. Under the hood, this runs the target build tool
+       (by default, make). You can also invoke the target build tool directly
+       (e.g. make).
+
+       To build with debugging use: `cmake .. -DCMAKE_BUILD_TYPE=Debug`.
+
+    Windows (Visual Studio)
+    ---
+    1) Go to this page, download the appropriate Windows installer, and install
+       to get the CMake GUI: https://cmake.org/download/ Native CMake support in
+       Visual Studio 16 2019 (and possibly older versions) has proven buggy. We
+       recommend using the CMake GUI in concert with Visual Studio, as described
+    in these steps.
+    2) Open CMake.
+    3) Where is the soure code: <root directory of wolfssl containing
+       CMakeLists.txt>
+    4) Where to build the binaries: <build directory, e.g. wolfssl/build>
+    5) Hit Configure. CMake runs the code in CMakeLists.txt and builds up an
+       internal representation of the project.
+    6) Hit Generate. CMake generates the build files. For Windows, this will
+       be Visual Studio project (.vcxproj) and solution (.sln) files.
+    7) Open Visual Studio and select "Open a project or solution".
+    8) Navigate to the build directory and select wolfssl.sln to load the
+       project.
+
+    Windows (command line)
+    ---
+    1) Open Command Prompt
+    2) Run the Visual Studio batch to setup command line variables, e.g. C:\Program Files (x86)\Microsoft Visual   
+       Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat
+    3) Follow steps in "Unix-based Platforms" above.

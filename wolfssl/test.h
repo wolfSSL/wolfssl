@@ -145,6 +145,9 @@
         #include <netdb.h>
     #endif
 #endif
+    #ifdef FREESCALE_MQX
+        typedef int socklen_t ;
+    #endif
     #define SOCKET_T int
     #ifndef SO_NOSIGPIPE
         #include <signal.h>  /* ignore SIGPIPE */
@@ -156,6 +159,7 @@
         select(0, NULL, NULL, NULL, &tv); \
     } while (0)
     #define XSLEEP_US(u) XSELECT_WAIT(0,u)
+    #define XSLEEP_MS(m) XSELECT_WAIT(0,(m)*1000)
 #endif /* USE_WINDOWS_API */
 
 #ifndef XSLEEP_MS
@@ -242,7 +246,7 @@
         #define WOLFSSL_THREAD
         #define INFINITE -1
         #define WAIT_OBJECT_0 0L
-    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
+    #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET) || defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
         #define WOLFSSL_THREAD
@@ -298,12 +302,16 @@
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_RSAKEY_BITS 2048
 #else
+    #ifndef DEFAULT_MIN_RSAKEY_BITS
     #define DEFAULT_MIN_RSAKEY_BITS 1024
+    #endif
 #endif
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_ECCKEY_BITS 256
 #else
+    #ifndef DEFAULT_MIN_ECCKEY_BITS
     #define DEFAULT_MIN_ECCKEY_BITS 224
+    #endif
 #endif
 
 /* all certs relative to wolfSSL home directory now */
@@ -484,8 +492,6 @@ WC_NORETURN void
 #endif
 err_sys(const char* msg)
 {
-    printf("wolfSSL error: %s\n", msg);
-
 #if !defined(__GNUC__)
     /* scan-build (which pretends to be gnuc) can get confused and think the
      * msg pointer can be null even when hardcoded and then it won't exit,
@@ -496,6 +502,36 @@ err_sys(const char* msg)
     if (msg)
 #endif
     {
+        printf("wolfSSL error: %s\n", msg);
+
+        XEXIT_T(EXIT_FAILURE);
+    }
+}
+
+static WC_INLINE
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+THREAD_RETURN
+#else
+WC_NORETURN void
+#endif
+err_sys_with_errno(const char* msg)
+{
+#if !defined(__GNUC__)
+    /* scan-build (which pretends to be gnuc) can get confused and think the
+     * msg pointer can be null even when hardcoded and then it won't exit,
+     * making null pointer checks above the err_sys() call useless.
+     * We could just always exit() but some compilers will complain about no
+     * possible return, with gcc we know the attribute to handle that with
+     * WC_NORETURN. */
+    if (msg)
+#endif
+    {
+#if defined(HAVE_STRING_H) && defined(HAVE_ERRNO_H)
+        printf("wolfSSL error: %s: %s\n", msg, strerror(errno));
+#else
+        printf("wolfSSL error: %s\n", msg);
+#endif
+
         XEXIT_T(EXIT_FAILURE);
     }
 }
@@ -504,6 +540,17 @@ err_sys(const char* msg)
 extern int   myoptind;
 extern char* myoptarg;
 
+/**
+ *
+ * @param argc Number of argv strings
+ * @param argv Array of string arguments
+ * @param optstring String containing the supported alphanumeric arguments.
+ *                  A ':' following a character means that it requires a
+ *                  value in myoptarg to be set. A ';' means that the
+ *                  myoptarg is optional. myoptarg is set to "" if not
+ *                  present.
+ * @return Option letter in argument
+ */
 static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
 {
     static char* next = NULL;
@@ -553,7 +600,7 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     /* The C++ strchr can return a different value */
     cp = (char*)strchr(optstring, c);
 
-    if (cp == NULL || c == ':')
+    if (cp == NULL || c == ':' || c == ';')
         return '?';
 
     cp++;
@@ -569,6 +616,20 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
         }
         else
             return '?';
+    }
+    else if (*cp == ';') {
+        myoptarg = (char*)"";
+        if (*next != '\0') {
+            myoptarg = next;
+            next     = NULL;
+        }
+        else if (myoptind < argc) {
+            /* Check if next argument is not a parameter argument */
+            if (argv[myoptind] && argv[myoptind][0] != '-') {
+                myoptarg = argv[myoptind];
+                myoptind++;
+            }
+        }
     }
 
     return c;
@@ -947,7 +1008,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         *sockfd = socket(AF_INET_V, SOCK_STREAM, IPPROTO_TCP);
 
     if(WOLFSSL_SOCKET_IS_INVALID(*sockfd)) {
-        err_sys("socket failed\n");
+        err_sys_with_errno("socket failed\n");
     }
 
 #ifndef USE_WINDOWS_API
@@ -957,7 +1018,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         socklen_t len = sizeof(on);
         int       res = setsockopt(*sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_NOSIGPIPE failed\n");
+            err_sys_with_errno("setsockopt SO_NOSIGPIPE failed\n");
     }
 #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS) ||\
                         defined(WOLFSSL_KEIL_TCP_NET) || defined(WOLFSSL_ZEPHYR)
@@ -973,7 +1034,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
         socklen_t len = sizeof(on);
         int       res = setsockopt(*sockfd, IPPROTO_TCP, TCP_NODELAY, &on, len);
         if (res < 0)
-            err_sys("setsockopt TCP_NODELAY failed\n");
+            err_sys_with_errno("setsockopt TCP_NODELAY failed\n");
     }
 #endif
 #endif  /* USE_WINDOWS_API */
@@ -991,7 +1052,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 
     if (!udp) {
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-            err_sys("tcp connect failed");
+            err_sys_with_errno("tcp connect failed");
     }
 }
 
@@ -999,7 +1060,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 static WC_INLINE void udp_connect(SOCKET_T* sockfd, void* addr, int addrSz)
 {
     if (connect(*sockfd, (const struct sockaddr*)addr, addrSz) != 0)
-        err_sys("tcp connect failed");
+        err_sys_with_errno("tcp connect failed");
 }
 
 
@@ -1097,12 +1158,21 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         socklen_t len = sizeof(on);
         res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_REUSEADDR failed\n");
+            err_sys_with_errno("setsockopt SO_REUSEADDR failed\n");
     }
+#ifdef SO_REUSEPORT
+    {
+        int       res, on  = 1;
+        socklen_t len = sizeof(on);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &on, len);
+        if (res < 0)
+            err_sys_with_errno("setsockopt SO_REUSEPORT failed\n");
+    }
+#endif
 #endif
 
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys("tcp bind failed");
+        err_sys_with_errno("tcp bind failed");
     if (!udp) {
         #ifdef WOLFSSL_KEIL_TCP_NET
             #define SOCK_LISTEN_MAX_QUEUE 1
@@ -1110,7 +1180,7 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
             #define SOCK_LISTEN_MAX_QUEUE 5
         #endif
         if (listen(*sockfd, SOCK_LISTEN_MAX_QUEUE) != 0)
-                err_sys("tcp listen failed");
+                err_sys_with_errno("tcp listen failed");
     }
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS) \
                                                      && !defined(WOLFSSL_ZEPHYR)
@@ -1167,12 +1237,21 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         socklen_t len = sizeof(on);
         res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
         if (res < 0)
-            err_sys("setsockopt SO_REUSEADDR failed\n");
+            err_sys_with_errno("setsockopt SO_REUSEADDR failed\n");
     }
+#ifdef SO_REUSEPORT
+    {
+        int       res, on  = 1;
+        socklen_t len = sizeof(on);
+        res = setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &on, len);
+        if (res < 0)
+            err_sys_with_errno("setsockopt SO_REUSEPORT failed\n");
+    }
+#endif
 #endif
 
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
-        err_sys("tcp bind failed");
+        err_sys_with_errno("tcp bind failed");
 
     #if (defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API)) && !defined(WOLFSSL_TIRTOS)
         if (port == 0) {
@@ -1213,8 +1292,8 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
                               int udp, int sctp, int ready_file, int do_listen)
 {
-    SOCKADDR_IN_T client;
-    socklen_t client_len = sizeof(client);
+    SOCKADDR_IN_T client_addr;
+    socklen_t client_len = sizeof(client_addr);
     tcp_ready* ready = NULL;
 
     (void) ready; /* Account for case when "ready" is not used */
@@ -1271,10 +1350,10 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     }
 
-    *clientfd = accept(*sockfd, (struct sockaddr*)&client,
+    *clientfd = accept(*sockfd, (struct sockaddr*)&client_addr,
                       (ACCEPT_THIRD_T)&client_len);
     if(WOLFSSL_SOCKET_IS_INVALID(*clientfd)) {
-        err_sys("tcp accept failed");
+        err_sys_with_errno("tcp accept failed");
     }
 }
 
@@ -1285,7 +1364,7 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         unsigned long blocking = 1;
         int ret = ioctlsocket(*sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
-            err_sys("ioctlsocket failed");
+            err_sys_with_errno("ioctlsocket failed");
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
         || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS) \
         || defined(WOLFSSL_ZEPHYR)
@@ -1293,10 +1372,10 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
-            err_sys("fcntl get failed");
+            err_sys_with_errno("fcntl get failed");
         flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
         if (flags < 0)
-            err_sys("fcntl set failed");
+            err_sys_with_errno("fcntl set failed");
     #endif
 }
 
@@ -1513,8 +1592,7 @@ static WC_INLINE int OCSPIOCb(void* ioCtx, const char* url, int urlSz,
 
 static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 {
-    (void)ioCtx;
-    (void)response;
+    return EmbedOcspRespFree(ioCtx, response);
 }
 #endif
 
@@ -1527,7 +1605,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
     {
         int ret;
         long int fileSz;
-        XFILE file;
+        XFILE lFile;
 
         if (fname == NULL || buf == NULL || bufLen == NULL)
             return BAD_FUNC_ARG;
@@ -1537,15 +1615,15 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         *bufLen = 0;
 
         /* open file (read-only binary) */
-        file = XFOPEN(fname, "rb");
-        if (!file) {
+        lFile = XFOPEN(fname, "rb");
+        if (!lFile) {
             printf("Error loading %s\n", fname);
             return BAD_PATH_ERROR;
         }
 
-        fseek(file, 0, SEEK_END);
-        fileSz = (int)ftell(file);
-        rewind(file);
+        fseek(lFile, 0, SEEK_END);
+        fileSz = (int)ftell(lFile);
+        rewind(lFile);
         if (fileSz  > 0) {
             *bufLen = (size_t)fileSz;
             *buf = (byte*)malloc(*bufLen);
@@ -1554,7 +1632,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
                 printf("Error allocating %lu bytes\n", (unsigned long)*bufLen);
             }
             else {
-                size_t readLen = fread(*buf, *bufLen, 1, file);
+                size_t readLen = fread(*buf, *bufLen, 1, lFile);
 
                 /* check response code */
                 ret = (readLen > 0) ? 0 : -1;
@@ -1563,7 +1641,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         else {
             ret = BUFFER_E;
         }
-        fclose(file);
+        fclose(lFile);
 
         return ret;
     }
@@ -1924,11 +2002,11 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
     {
         #if !defined(NO_FILESYSTEM) || defined(FORCE_BUFFER_TEST)
             int depth, res;
-            XFILE file;
+            XFILE keyFile;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = XFOPEN(ntruKeyFile, "rb");
-                if (file != NULL) {
-                    fclose(file);
+                keyFile = XFOPEN(ntruKeyFile, "rb");
+                if (keyFile != NULL) {
+                    fclose(keyFile);
                     return depth;
                 }
             #ifdef USE_WINDOWS_API
@@ -1955,14 +2033,135 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
 typedef THREAD_RETURN WOLFSSL_THREAD (*thread_func)(void* args);
 #define STACK_CHECK_VAL 0x01
 
+struct stack_size_debug_context {
+  unsigned char *myStack;
+  size_t stackSize;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+  size_t *stackSizeHWM_ptr;
+  thread_func fn;
+  void *args;
+#endif
+};
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+
+/* per-subtest stack high water mark tracking.
+ *
+ * enable with
+ *
+ * ./configure --enable-stacksize=verbose [...]
+ */
+
+static THREAD_RETURN debug_stack_size_verbose_shim(struct stack_size_debug_context *shim_args) {
+  StackSizeCheck_myStack = shim_args->myStack;
+  StackSizeCheck_stackSize = shim_args->stackSize;
+  StackSizeCheck_stackSizeHWM_ptr = shim_args->stackSizeHWM_ptr;
+  return shim_args->fn(shim_args->args);
+}
+
+static WC_INLINE int StackSizeSetOffset(const char *funcname, void *p)
+{
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    StackSizeCheck_stackOffsetPointer = p;
+
+    printf("setting stack relative offset reference mark in %s to +%lu\n",
+        funcname, (unsigned long)((char*)(StackSizeCheck_myStack +
+                                  StackSizeCheck_stackSize) - (char *)p));
+
+    return 0;
+}
+
+static WC_INLINE ssize_t StackSizeHWM(void)
+{
+    size_t i;
+    ssize_t used;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = 0; i < StackSizeCheck_stackSize; i++) {
+        if (StackSizeCheck_myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    used = StackSizeCheck_stackSize - i;
+    if ((ssize_t)*StackSizeCheck_stackSizeHWM_ptr < used)
+      *StackSizeCheck_stackSizeHWM_ptr = used;
+
+    return used;
+}
+
+static WC_INLINE ssize_t StackSizeHWM_OffsetCorrected(void)
+{
+    ssize_t used = StackSizeHWM();
+    if (used < 0)
+        return used;
+    if (StackSizeCheck_stackOffsetPointer)
+        used -= (ssize_t)(((char *)StackSizeCheck_myStack + StackSizeCheck_stackSize) - (char *)StackSizeCheck_stackOffsetPointer);
+    return used;
+}
+
+static
+#ifdef __GNUC__
+__attribute__((unused)) __attribute__((noinline))
+#endif
+int StackSizeHWMReset(void)
+{
+    volatile ssize_t i;
+
+    if (StackSizeCheck_myStack == NULL)
+        return -BAD_FUNC_ARG;
+
+    for (i = (ssize_t)((char *)&i - (char *)StackSizeCheck_myStack) - (ssize_t)sizeof i - 1; i >= 0; --i)
+    {
+        StackSizeCheck_myStack[i] = STACK_CHECK_VAL;
+    }
+
+    return 0;
+}
+
+#define STACK_SIZE_CHECKPOINT(...) ({  \
+    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    __VA_ARGS__;                                     \
+    printf("    relative stack peak usage = %ld bytes\n", HWM);  \
+    StackSizeHWMReset();                             \
+    })
+
+#define STACK_SIZE_CHECKPOINT_WITH_MAX_CHECK(max, ...) ({  \
+    ssize_t HWM = StackSizeHWM_OffsetCorrected();    \
+    int _ret;                                        \
+    __VA_ARGS__;                                     \
+    printf("    relative stack peak usage = %ld bytes\n", HWM);  \
+    _ret = StackSizeHWMReset();                      \
+    if ((max >= 0) && (HWM > (ssize_t)(max))) {      \
+        printf("    relative stack usage at %s L%d exceeds designated max %ld bytes.\n", __FILE__, __LINE__, (ssize_t)(max)); \
+        _ret = -1;                                   \
+    }                                                \
+    _ret;                                            \
+    })
+
+
+#ifdef __GNUC__
+#define STACK_SIZE_INIT() (void)StackSizeSetOffset(__FUNCTION__, __builtin_frame_address(0))
+#endif
+
+#endif /* HAVE_STACK_SIZE_VERBOSE */
+
 static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 {
-    int            ret, i, used;
+    size_t         i;
+    int            ret;
     void*          status;
     unsigned char* myStack = NULL;
-    int            stackSize = 1024*152;
+    size_t         stackSize = 1024*1024;
     pthread_attr_t myAttr;
     pthread_t      threadId;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    struct stack_size_debug_context shim_args;
+#endif
 
 #ifdef PTHREAD_STACK_MIN
     if (stackSize < PTHREAD_STACK_MIN)
@@ -1971,7 +2170,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
     ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
     if (ret != 0 || myStack == NULL)
-        err_sys("posix_memalign failed\n");
+        err_sys_with_errno("posix_memalign failed\n");
 
     XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
 
@@ -1983,7 +2182,17 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     if (ret != 0)
         err_sys("attr_setstackaddr failed");
 
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    StackSizeCheck_stackSizeHWM = 0;
+    shim_args.myStack = myStack;
+    shim_args.stackSize = stackSize;
+    shim_args.stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    shim_args.fn = tf;
+    shim_args.args = args;
+    ret = pthread_create(&threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)&shim_args);
+#else
     ret = pthread_create(&threadId, &myAttr, tf, args);
+#endif
     if (ret != 0) {
         perror("pthread_create failed");
         exit(EXIT_FAILURE);
@@ -2000,9 +2209,100 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     }
 
     free(myStack);
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    printf("stack used = %lu\n", StackSizeCheck_stackSizeHWM > (stackSize - i)
+        ? (unsigned long)StackSizeCheck_stackSizeHWM
+        : (unsigned long)(stackSize - i));
+#else
+    {
+      size_t used = stackSize - i;
+      printf("stack used = %lu\n", (unsigned long)used);
+    }
+#endif
 
-    used = stackSize - i;
-    printf("stack used = %d\n", used);
+    return (int)((size_t)status);
+}
+
+static WC_INLINE int StackSizeCheck_launch(func_args* args, thread_func tf, pthread_t *threadId, void **stack_context)
+{
+    int ret;
+    unsigned char* myStack = NULL;
+    size_t stackSize = 1024*1024;
+    pthread_attr_t myAttr;
+
+#ifdef PTHREAD_STACK_MIN
+    if (stackSize < PTHREAD_STACK_MIN)
+        stackSize = PTHREAD_STACK_MIN;
+#endif
+
+    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)malloc(sizeof *shim_args);
+    if (! shim_args) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    ret = posix_memalign((void**)&myStack, sysconf(_SC_PAGESIZE), stackSize);
+    if (ret != 0 || myStack == NULL)
+        err_sys_with_errno("posix_memalign failed\n");
+
+    XMEMSET(myStack, STACK_CHECK_VAL, stackSize);
+
+    ret = pthread_attr_init(&myAttr);
+    if (ret != 0)
+        err_sys("attr_init failed");
+
+    ret = pthread_attr_setstack(&myAttr, myStack, stackSize);
+    if (ret != 0)
+        err_sys("attr_setstackaddr failed");
+
+    shim_args->myStack = myStack;
+    shim_args->stackSize = stackSize;
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    shim_args->stackSizeHWM_ptr = &StackSizeCheck_stackSizeHWM;
+    shim_args->fn = tf;
+    shim_args->args = args;
+    ret = pthread_create(threadId, &myAttr, (thread_func)debug_stack_size_verbose_shim, (void *)shim_args);
+#else
+    ret = pthread_create(threadId, &myAttr, tf, args);
+#endif
+    if (ret != 0) {
+        fprintf(stderr,"pthread_create failed: %s",strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+    *stack_context = (void *)shim_args;
+
+    return 0;
+}
+
+static WC_INLINE int StackSizeCheck_reap(pthread_t threadId, void *stack_context)
+{
+    struct stack_size_debug_context *shim_args = (struct stack_size_debug_context *)stack_context;
+    size_t i;
+    void *status;
+    int ret = pthread_join(threadId, &status);
+    if (ret != 0)
+        err_sys("pthread_join failed");
+
+    for (i = 0; i < shim_args->stackSize; i++) {
+        if (shim_args->myStack[i] != STACK_CHECK_VAL) {
+            break;
+        }
+    }
+
+    free(shim_args->myStack);
+#ifdef HAVE_STACK_SIZE_VERBOSE
+    printf("stack used = %lu\n",
+        *shim_args->stackSizeHWM_ptr > (shim_args->stackSize - i)
+        ? (unsigned long)*shim_args->stackSizeHWM_ptr
+        : (unsigned long)(shim_args->stackSize - i));
+#else
+    {
+      size_t used = shim_args->stackSize - i;
+      printf("stack used = %lu\n", (unsigned long)used);
+    }
+#endif
+    free(shim_args);
 
     return (int)((size_t)status);
 }
@@ -2010,6 +2310,12 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
 
 #endif /* HAVE_STACK_SIZE */
 
+#ifndef STACK_SIZE_CHECKPOINT
+#define STACK_SIZE_CHECKPOINT(...) (__VA_ARGS__)
+#endif
+#ifndef STACK_SIZE_INIT
+#define STACK_SIZE_INIT()
+#endif
 
 #ifdef STACK_TRAP
 
@@ -2028,13 +2334,11 @@ static WC_INLINE void StackTrap(void)
 {
     struct rlimit  rl;
     if (getrlimit(RLIMIT_STACK, &rl) != 0)
-        err_sys("getrlimit failed");
+        err_sys_with_errno("getrlimit failed");
     printf("rlim_cur = %llu\n", rl.rlim_cur);
     rl.rlim_cur = 1024*21;  /* adjust trap size here */
-    if (setrlimit(RLIMIT_STACK, &rl) != 0) {
-        perror("setrlimit");
-        err_sys("setrlimit failed");
-    }
+    if (setrlimit(RLIMIT_STACK, &rl) != 0)
+        err_sys_with_errno("setrlimit failed");
 }
 
 #else /* STACK_TRAP */
@@ -2397,13 +2701,13 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
     encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
     if (encCtx == NULL)
-        err_sys("AtomicEncCtx malloc failed");
+        err_sys_with_errno("AtomicEncCtx malloc failed");
     XMEMSET(encCtx, 0, sizeof(AtomicEncCtx));
 
     decCtx = (AtomicDecCtx*)malloc(sizeof(AtomicDecCtx));
     if (decCtx == NULL) {
         free(encCtx);
-        err_sys("AtomicDecCtx malloc failed");
+        err_sys_with_errno("AtomicDecCtx malloc failed");
     }
     XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
 
@@ -2672,6 +2976,13 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         ret = BAD_FUNC_ARG;
     }
 
+#if defined(ECC_TIMING_RESISTANT) && !defined(HAVE_FIPS) && \
+                                                         !defined(HAVE_SELFTEST)
+    if (ret == 0) {
+        ret = wc_ecc_set_rng(privKey, wolfSSL_GetRNG(ssl));
+    }
+#endif
+
     /* generate shared secret and return it */
     if (ret == 0) {
         ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
@@ -2881,7 +3192,7 @@ static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret == 0) {
         ret = wc_Ed448PrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
         if (ret == 0)
-            ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey);
+            ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey, NULL, 0);
         wc_ed448_free(&myKey);
     }
 
@@ -2913,7 +3224,8 @@ static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     if (ret == 0) {
         ret = wc_ed448_import_public(key, keySz, &myKey);
         if (ret == 0) {
-            ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey);
+            ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey,
+                                                                       NULL, 0);
         }
         wc_ed448_free(&myKey);
     }
@@ -3506,8 +3818,48 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    static int wantWriteFlag = 1;
 
+    int sent;
+    int sd = *(int*)ctx;
 
+    (void)ssl;
+
+    if (!wantWriteFlag)
+    {
+        wantWriteFlag = 1;
+
+        sent = wolfIO_Send(sd, buf, sz, 0);
+        if (sent < 0) {
+            int err = errno;
+
+            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+            else if (err == SOCKET_ECONNRESET) {
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            }
+            else if (err == SOCKET_EINTR) {
+                return WOLFSSL_CBIO_ERR_ISR;
+            }
+            else if (err == SOCKET_EPIPE) {
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+            else {
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        return sent;
+    }
+    else
+    {
+        wantWriteFlag = 0;
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+}
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)

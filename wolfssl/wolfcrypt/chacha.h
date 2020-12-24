@@ -18,7 +18,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+/*
 
+DESCRIPTION
+This library contains implementation for the ChaCha20 stream cipher.
+
+*/
 /*!
     \file wolfssl/wolfcrypt/chacha.h
 */
@@ -35,9 +40,24 @@
     extern "C" {
 #endif
 
+/*
+Initialization vector starts at 13 with zero being the index origin of a matrix.
+Block counter is located at index 12.
+  0   1   2   3
+  4   5   6   7
+  8   9   10  11
+  12  13  14  15
+*/
+#define CHACHA_MATRIX_CNT_IV 12
+
 /* Size of the IV */
 #define CHACHA_IV_WORDS    3
-#define CHACHA_IV_BYTES    (CHACHA_IV_WORDS * sizeof(word32))
+
+/* Size of IV in bytes*/
+#define CHACHA_IV_BYTES 12
+#ifdef HAVE_XCHACHA
+#define XCHACHA_NONCE_BYTES 24
+#endif
 
 /* Size of ChaCha chunks */
 #define CHACHA_CHUNK_WORDS 16
@@ -57,10 +77,13 @@ enum {
 
 typedef struct ChaCha {
     word32 X[CHACHA_CHUNK_WORDS];           /* state of cipher */
-    word32 left;                            /* number of bytes leftover */
 #ifdef HAVE_INTEL_AVX1
     /* vpshufd reads 16 bytes but we only use bottom 4. */
     byte extra[12];
+#endif
+    word32 left;                            /* number of bytes leftover */
+#if defined(USE_INTEL_CHACHA_SPEEDUP) || defined(WOLFSSL_ARMASM)
+    word32 over[CHACHA_CHUNK_WORDS];
 #endif
 } ChaCha;
 
@@ -72,7 +95,16 @@ WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 
 WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
+
+WOLFSSL_LOCAL void wc_Chacha_purge_current_block(ChaCha* ctx);
+
 WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
+
+#ifdef HAVE_XCHACHA
+WOLFSSL_API int wc_XChacha_SetKey(ChaCha *ctx, const byte *key, word32 keySz,
+				  const byte *nonce, word32 nonceSz,
+				  word32 counter);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -94,6 +94,8 @@
     #elif defined(WOLFSSL_NUCLEUS_1_2)
         #include <externs.h>
         #include <errno.h>
+    #elif defined(WOLFSSL_LINUXKM)
+        /* the requisite linux/net.h is included in wc_port.h, with incompatible warnings masked out. */
     #elif defined(WOLFSSL_ATMEL)
         #include "socket/include/socket.h"
     #elif defined(INTIME_RTOS)
@@ -295,6 +297,9 @@
 
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
+#elif defined(WOLFSSL_LINUXKM)
+    #define SEND_FUNCTION linuxkm_send
+    #define RECV_FUNCTION linuxkm_recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv

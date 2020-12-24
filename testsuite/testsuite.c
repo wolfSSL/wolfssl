@@ -49,7 +49,12 @@ void file_test(const char* file, byte* hash);
 #endif
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
-void simple_test(func_args*);
+
+#ifdef HAVE_STACK_SIZE
+static THREAD_RETURN simple_test(func_args*);
+#else
+static void simple_test(func_args*);
+#endif
 
 enum {
     NUMARGS = 3
@@ -72,6 +77,17 @@ char* myoptarg = NULL;
 
 #endif /* NO_TESTSUITE_MAIN_DRIVER */
 
+#ifdef HAVE_STACK_SIZE
+static void *echoclient_test_wrapper(void* args) {
+    echoclient_test(args);
+
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
+    return (void *)0;
+}
+#endif
 
 int testsuite_test(int argc, char** argv)
 {
@@ -89,6 +105,9 @@ int testsuite_test(int argc, char** argv)
     char tempName[] = "fnXXXXXX";
     int len = 8;
     int num = 6;
+#endif
+#ifdef HAVE_STACK_SIZE
+    void *serverThreadStackContext = 0;
 #endif
 
 #ifdef HAVE_WNR
@@ -121,16 +140,27 @@ int testsuite_test(int argc, char** argv)
 
 #ifndef NO_CRYPT_TEST
     /* wc_ test */
-    wolfcrypt_test(&server_args);
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&server_args, wolfcrypt_test);
+    #else
+	wolfcrypt_test(&server_args);
+    #endif
     if (server_args.return_code != 0) return server_args.return_code;
 #endif
 
     /* Simple wolfSSL client server test */
-    simple_test(&server_args);
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck(&server_args, (THREAD_RETURN (*)(void *))simple_test);
+    #else
+        simple_test(&server_args);
+    #endif
     if (server_args.return_code != 0) return server_args.return_code;
-
     /* Echo input wolfSSL client server test */
-    start_thread(echoserver_test, &server_args, &serverThread);
+    #ifdef HAVE_STACK_SIZE
+        StackSizeCheck_launch(&server_args, echoserver_test, &serverThread, &serverThreadStackContext);
+    #else
+        start_thread(echoserver_test, &server_args, &serverThread);
+    #endif
     wait_tcp_ready(&server_args);
     {
         func_args echo_args;
@@ -160,7 +190,13 @@ int testsuite_test(int argc, char** argv)
         echo_args.signal = server_args.signal;
 
         /* make sure OK */
+
+    #ifdef HAVE_STACK_SIZE
+        fputs("echoclient_test #1: ", stdout);
+        StackSizeCheck(&echo_args, echoclient_test_wrapper);
+    #else
         echoclient_test(&echo_args);
+    #endif
         if (echo_args.return_code != 0) return echo_args.return_code;
 
 #ifdef WOLFSSL_DTLS
@@ -170,9 +206,19 @@ int testsuite_test(int argc, char** argv)
         echo_args.argc = 2;
         strcpy(echo_args.argv[1], "quit");
 
+    #ifdef HAVE_STACK_SIZE
+        fputs("echoclient_test #2: ", stdout);
+        StackSizeCheck(&echo_args, echoclient_test_wrapper);
+    #else
         echoclient_test(&echo_args);
+    #endif
         if (echo_args.return_code != 0) return echo_args.return_code;
-        join_thread(serverThread);
+        #ifdef HAVE_STACK_SIZE
+            fputs("reaping echoserver_test: ", stdout);
+            StackSizeCheck_reap(serverThread, serverThreadStackContext);
+        #else
+            join_thread(serverThread);
+        #endif
         if (server_args.return_code != 0) return server_args.return_code;
     }
 
@@ -223,7 +269,11 @@ int testsuite_test(int argc, char** argv)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
-void simple_test(func_args* args)
+#ifdef HAVE_STACK_SIZE
+static THREAD_RETURN simple_test(func_args* args)
+#else
+static void simple_test(func_args* args)
+#endif
 {
     THREAD_TYPE serverThread;
 
@@ -273,10 +323,17 @@ void simple_test(func_args* args)
     client_test(&cliArgs);
     if (cliArgs.return_code != 0) {
         args->return_code = cliArgs.return_code;
+    #ifdef HAVE_STACK_SIZE
+        return (THREAD_RETURN)0;
+    #else
         return;
+    #endif
     }
     join_thread(serverThread);
     if (svrArgs.return_code != 0) args->return_code = svrArgs.return_code;
+#ifdef HAVE_STACK_SIZE
+    return (THREAD_RETURN)0;
+#endif
 }
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
@@ -369,6 +426,8 @@ void file_test(const char* file, byte* check)
     }
 
     ret = wc_Sha256Final(&sha256, shasum);
+    wc_Sha256Free(&sha256);
+
     if (ret != 0) {
         printf("Can't wc_Sha256Final %d\n", ret);
         fclose(f);

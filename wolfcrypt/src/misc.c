@@ -18,8 +18,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+/*
 
+DESCRIPTION
+This module implements the arithmetic-shift right, left, byte swapping, XOR,
+masking and clearing memory logic.
 
+*/
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -77,13 +82,14 @@
     }
 
 #else /* generic */
+/* This routine performs a left circular arithmetic shift of <x> by <y> value. */
 
     WC_STATIC WC_INLINE word32 rotlFixed(word32 x, word32 y)
     {
         return (x << y) | (x >> (sizeof(y) * 8 - y));
     }
 
-
+/* This routine performs a right circular arithmetic shift of <x> by <y> value. */
     WC_STATIC WC_INLINE word32 rotrFixed(word32 x, word32 y)
     {
         return (x >> y) | (x << (sizeof(y) * 8 - y));
@@ -91,7 +97,24 @@
 
 #endif
 
+#ifdef WC_RC2
 
+/* This routine performs a left circular arithmetic shift of <x> by <y> value */
+WC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
+{
+    return (x << y) | (x >> (sizeof(y) * 8 - y));
+}
+
+
+/* This routine performs a right circular arithmetic shift of <x> by <y> value */
+WC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
+{
+    return (x >> y) | (x << (sizeof(y) * 8 - y));
+}
+
+#endif /* WC_RC2 */
+
+/* This routine performs a byte swap of 32-bit word value. */
 WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 {
 #ifdef PPC_INTRINSICS
@@ -104,6 +127,22 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
 #elif defined(WOLF_ALLOW_BUILTIN) && \
         defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
     return (word32)__builtin_bswap32(value);
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      defined(__aarch64__)
+    __asm__ volatile (
+        "REV32 %0, %0  \n"
+        : "+r" (value)
+        :
+    );
+    return value;
+#elif defined(WOLFSSL_BYTESWAP32_ASM) && defined(__GNUC__) && \
+      (defined(__thumb__) || defined(__arm__))
+    __asm__ volatile (
+        "REV %0, %0  \n"
+        : "+r" (value)
+        :
+    );
+    return value;
 #elif defined(FAST_ROTATE)
     /* 5 instructions with rotate instruction, 9 without */
     return (rotrFixed(value, 8U) & 0xff00ff00) |
@@ -114,8 +153,7 @@ WC_STATIC WC_INLINE word32 ByteReverseWord32(word32 value)
     return rotlFixed(value, 16U);
 #endif
 }
-
-
+/* This routine performs a byte swap of words array of a given count. */
 WC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
                                     word32 byteCount)
 {
@@ -125,7 +163,6 @@ WC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
         out[i] = ByteReverseWord32(in[i]);
 
 }
-
 
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
@@ -172,6 +209,38 @@ WC_STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 #endif /* WORD64_AVAILABLE && !WOLFSSL_NO_WORD64_OPS */
 
 #ifndef WOLFSSL_NO_XOR_OPS
+/* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
+of wolfssl_words, placing the result in <*r>. */
+WC_STATIC WC_INLINE void XorWordsOut(wolfssl_word* r, const wolfssl_word* a,
+                                     const wolfssl_word* b, word32 n)
+{
+    word32 i;
+
+    for (i = 0; i < n; i++) r[i] = a[i] ^ b[i];
+}
+
+/* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
+counts, placing the result in <*buf>. */
+
+WC_STATIC WC_INLINE void xorbufout(void*out, const void* buf, const void* mask,
+                                   word32 count)
+{
+    if (((wolfssl_word)out | (wolfssl_word)buf | (wolfssl_word)mask | count) % \
+                                                         WOLFSSL_WORD_SIZE == 0)
+        XorWordsOut( (wolfssl_word*)out, (wolfssl_word*)buf,
+                     (const wolfssl_word*)mask, count / WOLFSSL_WORD_SIZE);
+    else {
+        word32 i;
+        byte*       o = (byte*)out;
+        byte*       b = (byte*)buf;
+        const byte* m = (const byte*)mask;
+
+        for (i = 0; i < count; i++) o[i] = b[i] ^ m[i];
+    }
+}
+
+/* This routine performs a bitwise XOR operation of <*r> and <*a> for <n> number
+of wolfssl_words, placing the result in <*r>. */
 WC_STATIC WC_INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 {
     word32 i;
@@ -179,6 +248,8 @@ WC_STATIC WC_INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32
     for (i = 0; i < n; i++) r[i] ^= a[i];
 }
 
+/* This routine performs a bitwise XOR operation of <*buf> and <*mask> of n
+counts, placing the result in <*buf>. */
 
 WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 {
@@ -196,7 +267,8 @@ WC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
 #endif
 
 #ifndef WOLFSSL_NO_FORCE_ZERO
-/* Make sure compiler doesn't skip */
+/* This routine fills the first len bytes of the memory area pointed by mem
+   with zeros. It ensures compiler optimizations doesn't skip it  */
 WC_STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
@@ -242,6 +314,7 @@ WC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b, int length
     #if defined(HAVE_FIPS) && !defined(min) /* so ifdef check passes */
         #define min min
     #endif
+    /* returns the smaller of a and b */
     WC_STATIC WC_INLINE word32 min(word32 a, word32 b)
     {
         return a > b ? b : a;
@@ -323,64 +396,79 @@ WC_STATIC WC_INLINE word32 btoi(byte b)
 /* Constant time - mask set when a > b. */
 WC_STATIC WC_INLINE byte ctMaskGT(int a, int b)
 {
-    return (((word32)a - b - 1) >> 31) - 1;
+    return (byte)((((word32)a - b - 1) >> 31) - 1);
 }
 
 /* Constant time - mask set when a >= b. */
 WC_STATIC WC_INLINE byte ctMaskGTE(int a, int b)
 {
-    return (((word32)a - b    ) >> 31) - 1;
+    return (byte)((((word32)a - b    ) >> 31) - 1);
 }
 
 /* Constant time - mask set when a >= b. */
 WC_STATIC WC_INLINE int ctMaskIntGTE(int a, int b)
 {
-    return (((word32)a - b    ) >> 31) - 1;
+    return (int)((((word32)a - b    ) >> 31) - 1);
 }
 
 /* Constant time - mask set when a < b. */
 WC_STATIC WC_INLINE byte ctMaskLT(int a, int b)
 {
-    return (((word32)b - a - 1) >> 31) - 1;
+    return (byte)((((word32)b - a - 1) >> 31) - 1);
 }
 
 /* Constant time - mask set when a <= b. */
 WC_STATIC WC_INLINE byte ctMaskLTE(int a, int b)
 {
-    return (((word32)b - a    ) >> 31) - 1;
+    return (byte)((((word32)b - a    ) >> 31) - 1);
 }
 
 /* Constant time - mask set when a == b. */
 WC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
 {
-    return (~ctMaskGT(a, b)) & (~ctMaskLT(a, b));
+    return (byte)(~ctMaskGT(a, b)) & (byte)(~ctMaskLT(a, b));
 }
 
+/* Constant time - sets 16 bit integer mask when a > b */
 WC_STATIC WC_INLINE word16 ctMask16GT(int a, int b)
 {
-    return (((word32)a - b - 1) >> 31) - 1;
+    return (word16)((((word32)a - b - 1) >> 31) - 1);
 }
 
+/* Constant time - sets 16 bit integer mask when a >= b */
+WC_STATIC WC_INLINE word16 ctMask16GTE(int a, int b)
+{
+    return (word16)((((word32)a - b    ) >> 31) - 1);
+}
+
+/* Constant time - sets 16 bit integer mask when a < b. */
 WC_STATIC WC_INLINE word16 ctMask16LT(int a, int b)
 {
-    return (((word32)b - a - 1) >> 31) - 1;
+    return (word16)((((word32)b - a - 1) >> 31) - 1);
 }
 
+/* Constant time - sets 16 bit integer mask when a <= b. */
+WC_STATIC WC_INLINE word16 ctMask16LTE(int a, int b)
+{
+    return (word16)((((word32)b - a    ) >> 31) - 1);
+}
+
+/* Constant time - sets 16 bit integer mask when a == b. */
 WC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)
 {
-    return (~ctMask16GT(a, b)) & (~ctMask16LT(a, b));
+    return (word16)(~ctMask16GT(a, b)) & (word16)(~ctMask16LT(a, b));
 }
 
 /* Constant time - mask set when a != b. */
 WC_STATIC WC_INLINE byte ctMaskNotEq(int a, int b)
 {
-    return ctMaskGT(a, b) | ctMaskLT(a, b);
+    return (byte)ctMaskGT(a, b) | (byte)ctMaskLT(a, b);
 }
 
 /* Constant time - select a when mask is set and b otherwise. */
 WC_STATIC WC_INLINE byte ctMaskSel(byte m, byte a, byte b)
 {
-    return (b & ((byte)~(word32)m)) | (a & m);
+    return (byte)((b & ((byte)~(word32)m)) | (a & m));
 }
 
 /* Constant time - select integer a when mask is set and integer b otherwise. */
@@ -393,7 +481,7 @@ WC_STATIC WC_INLINE int ctMaskSelInt(byte m, int a, int b)
 /* Constant time - bit set when a <= b. */
 WC_STATIC WC_INLINE byte ctSetLTE(int a, int b)
 {
-    return ((word32)a - b - 1) >> 31;
+    return (byte)(((word32)a - b - 1) >> 31);
 }
 #endif
 

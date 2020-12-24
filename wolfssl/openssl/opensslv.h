@@ -26,7 +26,11 @@
 
 
 /* api version compatibility */
-#if defined(WOLFSSL_APACHE_HTTPD)
+#if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x0090810fL) ||\
+    defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10100000L) ||\
+    defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10001040L)  
+     /* valid version */
+#elif defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIBEST)
     /* For Apache httpd, Use 1.1.0 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10100000L
 #elif defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) || \

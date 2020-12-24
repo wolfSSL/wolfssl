@@ -18,11 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
 /*
- * Based off the public domain implementations by Andrew Moon
- * and Daniel J. Bernstein
- */
+
+DESCRIPTION
+This library contains implementation for the Poly1305 authenticator.
+
+Based off the public domain implementations by Andrew Moon
+and Daniel J. Bernstein
+
+*/
 
 
 #ifdef HAVE_CONFIG_H
@@ -228,10 +232,10 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
     }
 
     static void U32TO8(byte *p, word32 v) {
-        p[0] = (v      ) & 0xff;
-        p[1] = (v >>  8) & 0xff;
-        p[2] = (v >> 16) & 0xff;
-        p[3] = (v >> 24) & 0xff;
+        p[0] = (byte)((v      ) & 0xff);
+        p[1] = (byte)((v >>  8) & 0xff);
+        p[2] = (byte)((v >> 16) & 0xff);
+        p[3] = (byte)((v >> 24) & 0xff);
     }
 #endif
 
@@ -254,12 +258,18 @@ static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 
 
 #if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
-void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+/*
+This local function operates on a message with a given number of bytes
+with a given ctx pointer to a Poly1305 structure.
+*/
+static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
                      size_t bytes)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* AVX2 is handled in wc_Poly1305Update. */
+    SAVE_VECTOR_REGISTERS();
     poly1305_blocks_avx(ctx, m, bytes);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
     const word64 hibit = (ctx->finished) ? 0 : ((word64)1 << 40); /* 1 << 128 */
     word64 r0,r1,r2;
@@ -378,11 +388,17 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 #endif /* end of 64 bit cpu blocks or 32 bit cpu */
 }
 
-void poly1305_block(Poly1305* ctx, const unsigned char *m)
+/*
+This local function is used for the last call when a message with a given
+number of bytes is less than the block size.
+*/
+static void poly1305_block(Poly1305* ctx, const unsigned char *m)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* No call to poly1305_block when AVX2, AVX2 does 4 blocks at a time. */
+    SAVE_VECTOR_REGISTERS();
     poly1305_block_avx(ctx, m);
+    RESTORE_VECTOR_REGISTERS();
 #else
     poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
 #endif
@@ -418,12 +434,14 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         intel_flags = cpuid_get_flags();
         cpu_flags_set = 1;
     }
+    SAVE_VECTOR_REGISTERS();
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_setkey_avx2(ctx, key);
     else
     #endif
         poly1305_setkey_avx(ctx, key);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
 
     /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
@@ -494,16 +512,18 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
 #endif
 
-    if (ctx == NULL)
+    if (ctx == NULL || mac == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
+    SAVE_VECTOR_REGISTERS();
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags))
         poly1305_final_avx2(ctx, mac);
     else
     #endif
         poly1305_final_avx(ctx, mac);
+    RESTORE_VECTOR_REGISTERS();
 #elif defined(POLY130564)
 
     /* process the remaining block */
@@ -663,6 +683,13 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
 {
     size_t i;
 
+    if (ctx == NULL || (m == NULL && bytes > 0))
+        return BAD_FUNC_ARG;
+
+    if (bytes == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
 #ifdef CHACHA_AEAD_TEST
     word32 k;
     printf("Raw input to poly:\n");
@@ -673,9 +700,6 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
     }
     printf("\n");
 #endif
-
-    if (ctx == NULL)
-        return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
@@ -694,11 +718,13 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
             if (ctx->leftover < sizeof(ctx->buffer))
                 return 0;
 
+            SAVE_VECTOR_REGISTERS();
             if (!ctx->started)
                 poly1305_calc_powers_avx2(ctx);
             poly1305_blocks_avx2(ctx, ctx->buffer, sizeof(ctx->buffer));
             ctx->leftover = 0;
-        }
+        } else
+            SAVE_VECTOR_REGISTERS();
 
         /* process full blocks */
         if (bytes >= sizeof(ctx->buffer)) {
@@ -717,6 +743,7 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
                 ctx->buffer[ctx->leftover + i] = m[i];
             ctx->leftover += bytes;
         }
+        RESTORE_VECTOR_REGISTERS();
     }
     else
     #endif
@@ -807,6 +834,30 @@ int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz, word32 dataSz)
 
     return ret;
 }
+
+#ifdef WORD64_AVAILABLE
+int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz)
+{
+    int ret;
+    word64 little64[2];
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef BIG_ENDIAN_ORDER
+    little64[0] = ByteReverseWord64(aadSz);
+    little64[1] = ByteReverseWord64(dataSz);
+#else
+    little64[0] = aadSz;
+    little64[1] = dataSz;
+#endif
+
+    ret = wc_Poly1305Update(ctx, (byte *)little64, sizeof(little64));
+
+    return ret;
+}
+#endif
 
 /*  Takes in an initialized Poly1305 struct that has a key loaded and creates
     a MAC (tag) using recent TLS AEAD padding scheme.

@@ -3,6 +3,16 @@
 # tls13.test
 # copyright wolfSSL 2016
 
+# if we can, isolate the network namespace to eliminate port collisions.
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
 # getting unique port is modeled after resume.test script
 # need a unique port since may run the same time as testsuite
 # use server port zero hack to get one
@@ -15,6 +25,10 @@ counter=0
 # per source tree
 ready_file=`pwd`/wolfssl_tls13_ready$$
 client_file=`pwd`/wolfssl_tls13_client$$
+# Server output
+server_out_file=`pwd`/wolfssl_tls13_server_out$$
+# Client output
+client_out_file=`pwd`/wolfssl_tls13_client_out$$
 
 echo "ready file $ready_file"
 
@@ -30,6 +44,9 @@ create_port() {
 
     if [ -e $ready_file ]; then
         echo -e "found ready file, starting client..."
+
+        # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+        sleep 0.1
 
         # get created port 0 ephemeral port
         port=`cat $ready_file`
@@ -53,11 +70,20 @@ do_cleanup() {
     then
         echo "killing server"
         kill -9 $server_pid
+        server_pid=$no_pid
     fi
     remove_ready_file
     if [ -e $client_file ]; then
         echo -e "removing existing client file"
         rm $client_file
+    fi
+    if [ -e $server_out_file ]; then
+        echo -e "removing existing server output file"
+        rm $server_out_file
+    fi
+    if [ -e $client_out_file ]; then
+        echo -e "removing existing client output file"
+        rm $client_out_file
     fi
 }
 
@@ -106,13 +132,17 @@ RESULT=$?
 remove_ready_file
 if [ $RESULT -eq 0 ]; then
     echo -e "\n\nIssue with mismatched TLS v1.3 cipher suites"
+    do_cleanup
     exit 1
 fi
 do_cleanup
 echo ""
 
 cat ./wolfssl/options.h | grep -- 'NO_CERTS'
-if [ $? -ne 0 ]; then
+NO_CERTS=$?
+cat ./wolfssl/options.h | grep -- 'WOLFSSL_NO_CLIENT_AUTH'
+NO_CLIENT_AUTH=$?
+if [ $NO_CERTS -ne 0 -a $NO_CLIENT_AUTH -ne 0 ]; then
     # TLS 1.3 mutual auth required but client doesn't send certificates.
     echo -e "\n\nTLS v1.3 mutual auth fail"
     port=0
@@ -124,12 +154,14 @@ if [ $? -ne 0 ]; then
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with requiring mutual authentication"
+        do_cleanup
         exit 1
     fi
     do_cleanup
     echo ""
 fi
 
+# Check for TLS 1.2 support
 ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -ne 0 ]; then
     # TLS 1.3 server / TLS 1.2 client.
@@ -143,6 +175,7 @@ if [ $? -ne 0 ]; then
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with TLS v1.3 server downgrading to TLS v1.2"
+        do_cleanup
         exit 1
     fi
     do_cleanup
@@ -159,6 +192,7 @@ if [ $? -ne 0 ]; then
     remove_ready_file
     if [ $RESULT -eq 0 ]; then
         echo -e "\n\nIssue with TLS v1.3 client upgrading server to TLS v1.3"
+        do_cleanup
         exit 1
     fi
     do_cleanup
@@ -189,6 +223,7 @@ if [ $? -ne 0 ]; then
         remove_ready_file
         if [ $RESULT -eq 0 ]; then
             echo -e "\n\nTLS v1.3 downgrading to TLS v1.2 due to ciphers"
+            do_cleanup
             exit 1
         fi
         do_cleanup
@@ -196,6 +231,65 @@ if [ $? -ne 0 ]; then
     else
         echo "No usable TLS 1.2 cipher suite found"
     fi
+fi
+
+# Check for EarlyData support
+./examples/client/client -? 2>&1 | grep -- 'Early data'
+if [ $? -eq 0 ]; then
+    early_data=yes
+fi
+./examples/client/client -? 2>&1 | grep -- 'Shared keys'
+if [ $? -eq 0 ]; then
+    psk=yes
+fi
+
+if [ "$early_data" = "yes" ]; then
+    echo -e "\n\nTLS v1.3 Early Data - session ticket"
+    port=0
+    (./examples/server/server -v 4 -r -0 -R $ready_file -p $port 2>&1 | \
+            tee $server_out_file) &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v 4 -r -0 -p $port 2>&1 >$client_out_file
+    RESULT=$?
+    cat $client_out_file
+    remove_ready_file
+    grep 'Session Ticket' $client_out_file
+    session_ticket=$?
+    early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
+    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 2 ]; then
+        RESULT=1
+    fi
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.3 Early DAta - session ticket"
+        do_cleanup
+        exit 1
+    fi
+    do_cleanup
+    echo ""
+fi
+
+if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
+    echo -e "\n\nTLS v1.3 Early Data - PSK"
+    port=0
+    (./examples/server/server -v 4 -s -0 -R $ready_file -p $port 2>&1 | \
+            tee $server_out_file) &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v 4 -s -0 -p $port
+    RESULT=$?
+    remove_ready_file
+    early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
+    if [ $early_data_cnt -ne 2 ]; then
+        RESULT=1
+    fi
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.3 Early DAta - session ticket"
+        do_cleanup
+        exit 1
+    fi
+else
+    echo "Early data not available"
 fi
 
 do_cleanup

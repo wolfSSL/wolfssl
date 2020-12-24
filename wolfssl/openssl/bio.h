@@ -40,7 +40,14 @@
 #define BIO_FLAGS_SHOULD_RETRY WOLFSSL_BIO_FLAG_RETRY
 
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
+#if defined(OPENSSL_ALL) \
+    || defined(HAVE_STUNNEL) \
+    || defined(HAVE_LIGHTY) \
+    || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+    || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA)
 #define BIO_new_file                    wolfSSL_BIO_new_file
+#endif
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_ctrl                        wolfSSL_BIO_ctrl
 #define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending
@@ -57,6 +64,7 @@
 #define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
 #define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
 
+#define BIO_new_fd                      wolfSSL_BIO_new_fd
 #define BIO_set_fp                      wolfSSL_BIO_set_fp
 #define BIO_get_fp                      wolfSSL_BIO_get_fp
 #define BIO_seek                        wolfSSL_BIO_seek
@@ -123,6 +131,7 @@
 #define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
 #define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
 
+#define BIO_snprintf               XSNPRINTF
 
 /* BIO CTRL */
 #define BIO_CTRL_RESET             1
@@ -149,6 +158,7 @@
 
 #define BIO_CTRL_DGRAM_QUERY_MTU   40
 
+#define BIO_FP_TEXT                0x00
 #define BIO_NOCLOSE                0x00
 #define BIO_CLOSE                  0x01
 

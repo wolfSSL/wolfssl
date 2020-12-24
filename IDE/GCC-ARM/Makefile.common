@@ -27,7 +27,8 @@ INC = -I./Header \
 DEF = -DWOLFSSL_USER_SETTINGS
 
 # Architecture
-ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+ARCHFLAGS = -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+#ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-r5 -mthumb -mabi=aapcs
 #ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs
 
@@ -132,7 +133,10 @@ SRC_C += ../../wolfcrypt/src/signature.c
 SRC_C += ../../wolfcrypt/src/srp.c
 SRC_C += ../../wolfcrypt/src/sp_arm32.c
 SRC_C += ../../wolfcrypt/src/sp_arm64.c
+SRC_C += ../../wolfcrypt/src/sp_armthumb.c
 SRC_C += ../../wolfcrypt/src/sp_c32.c
+SRC_C += ../../wolfcrypt/src/sp_c64.c
+SRC_C += ../../wolfcrypt/src/sp_cortexm.c
 SRC_C += ../../wolfcrypt/src/sp_int.c
 SRC_C += ../../wolfcrypt/src/tfm.c
 SRC_C += ../../wolfcrypt/src/wc_encrypt.c

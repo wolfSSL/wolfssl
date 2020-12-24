@@ -20,6 +20,7 @@ include IDE/CSBENCH/include.am
 include IDE/ECLIPSE/DEOS/include.am
 include IDE/ECLIPSE/MICRIUM/include.am
 include IDE/ECLIPSE/SIFIVE/include.am
+include IDE/ECLIPSE/RTTHREAD/include.am
 include IDE/mynewt/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/cs+/Projects/include.am
@@ -35,3 +36,5 @@ include IDE/RISCV/include.am
 include IDE/XilinxSDK/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif IDE/zephyr
+EXTRA_DIST+= IDE/OPENSTM32/README.md
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/setup_win.bat

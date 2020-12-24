@@ -33,6 +33,7 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -624,7 +625,7 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
 {
     int ret = HASH_TYPE_E; /* Default to hash type error */
 
-    if (hash == NULL || data == NULL)
+    if (hash == NULL || (data == NULL && dataSz > 0))
         return BAD_FUNC_ARG;
 
     switch (type) {
@@ -1026,6 +1027,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     #else
         wc_Sha sha[1];
     #endif
+        int devId = INVALID_DEVID;
 
     #ifdef WOLFSSL_SMALL_STACK
         sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1033,7 +1035,13 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_InitSha(sha)) != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        /* only use devId if its not an empty hash */
+        if (data != NULL && len > 0)
+            devId = wc_CryptoCb_GetDevIdAtIndex(0);
+    #endif
+
+        if ((ret = wc_InitSha_ex(sha, NULL, devId)) != 0) {
             WOLFSSL_MSG("InitSha failed");
         }
         else {
@@ -1101,6 +1109,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     #else
         wc_Sha256 sha256[1];
     #endif
+        int devId = INVALID_DEVID;
 
     #ifdef WOLFSSL_SMALL_STACK
         sha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
@@ -1109,7 +1118,13 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
             return MEMORY_E;
     #endif
 
-        if ((ret = wc_InitSha256(sha256)) != 0) {
+    #ifdef WOLF_CRYPTO_CB
+        /* only use devId if its not an empty hash */
+        if (data != NULL && len > 0)
+            devId = wc_CryptoCb_GetDevIdAtIndex(0);
+    #endif
+
+        if ((ret = wc_InitSha256_ex(sha256, NULL, devId)) != 0) {
             WOLFSSL_MSG("InitSha256 failed");
         }
         else {

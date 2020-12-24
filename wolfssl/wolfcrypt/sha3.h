@@ -58,7 +58,8 @@ enum {
     WC_SHA3_512_DIGEST_SIZE  = 64,
     WC_SHA3_512_COUNT        =  9,
 
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) || \
+    defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION >= 2)
     /* These values are used for HMAC, not SHA-3 directly.
      * They come from from FIPS PUB 202. */
     WC_SHA3_224_BLOCK_SIZE = 144,
@@ -89,7 +90,7 @@ enum {
 #else
 
 /* Sha3 digest */
-struct Sha3 {
+struct wc_Sha3 {
     /* State data that is processed for each block. */
     word64 s[25];
     /* Unprocessed message data. */
@@ -108,7 +109,7 @@ struct Sha3 {
 };
 
 #ifndef WC_SHA3_TYPE_DEFINED
-    typedef struct Sha3 wc_Sha3;
+    typedef struct wc_Sha3 wc_Sha3;
     #define WC_SHA3_TYPE_DEFINED
 #endif
 

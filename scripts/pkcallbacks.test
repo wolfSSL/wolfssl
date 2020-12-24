@@ -2,6 +2,16 @@
 
 #pkcallbacks.test
 
+# if we can, isolate the network namespace to eliminate port collisions.
+if [ "${AM_BWRAPPED-}" != "yes" ]; then
+    bwrap_path="$(command -v bwrap)"
+    if [ -n "$bwrap_path" ]; then
+        export AM_BWRAPPED=yes
+        exec "$bwrap_path" --unshare-net --dev-bind / / "$0" "$@"
+    fi
+    unset AM_BWRAPPED
+fi
+
 exit_code=1
 counter=0
 # need a unique resume port since may run the same time as testsuite
@@ -84,6 +94,9 @@ run_test() {
         echo -e "NO ready file ending test..."
         exit 1
     fi
+
+    # sleep for an additional 0.1 to mitigate race on write/read of $ready_file:
+    sleep 0.1
 
     # get created port 0 ephemeral port
     pk_port=`cat $ready_file`

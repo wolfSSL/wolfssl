@@ -64,10 +64,12 @@
     #undef printf
     #define printf printx
 #elif defined(MICRIUM)
-      #include <bsp_ser.h>
-      void BSP_Ser_Printf (CPU_CHAR* format, ...);
-      #undef printf
-      #define printf BSP_Ser_Printf
+    #if (OS_VERSION < 50000)
+        #include <bsp_ser.h>
+        void BSP_Ser_Printf (CPU_CHAR* format, ...);
+        #undef printf
+        #define printf BSP_Ser_Printf
+    #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
     #define BENCH_EMBEDDED
@@ -597,8 +599,8 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448)
-#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
-    defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
+#if defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
@@ -935,6 +937,27 @@ static int rsa_sign_verify = 0;
 #ifndef NO_DH
 /* Use the FFDHE parameters */
 static int use_ffdhe = 0;
+#endif
+
+
+#ifdef HAVE_ECC
+/* Detect ECC key size to use */
+#ifndef BENCH_ECC_SIZE
+    #ifndef NO_ECC256
+        #define BENCH_ECC_SIZE 32
+    #elif defined(HAVE_ECC384)
+        #define BENCH_ECC_SIZE 48
+    #elif defined(HAVE_ECC224)
+        #define BENCH_ECC_SIZE 28
+    #elif defined(HAVE_ECC521)
+        #define BENCH_ECC_SIZE 66
+    #else
+        #error No ECC keygen size defined for benchmark
+    #endif
+#endif
+#define  BENCH_MAX_ECC_SIZE   BENCH_ECC_SIZE
+
+static int bench_ecc_size = BENCH_ECC_SIZE;
 #endif
 
 /* Don't print out in CSV format by default */
@@ -2674,6 +2697,12 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((bench_additional == NULL) || (bench_tag == NULL)) {
+        printf("malloc failed\n");
+        goto exit;
+    }
+#endif
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
@@ -3113,13 +3142,19 @@ void bench_aesccm(void)
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((bench_additional == NULL) || (bench_tag == NULL)) {
+        printf("malloc failed\n");
+        goto exit;
+    }
+#endif
 
     XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
     XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
 
     if ((ret = wc_AesCcmSetKey(&enc, bench_key, 16)) != 0) {
         printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
-        return;
+        goto exit;
     }
 
     bench_stats_start(&count, &start);
@@ -3144,6 +3179,7 @@ void bench_aesccm(void)
     } while (bench_stats_sym_check(start));
     bench_stats_sym_finish("AES-CCM-Dec", 0, count, bench_size, start, ret);
 
+  exit:
 
     FREE_VAR(bench_additional, HEAP_HINT);
     FREE_VAR(bench_tag, HEAP_HINT);
@@ -4781,7 +4817,7 @@ exit:
 void bench_rsaKeyGen(int doAsync)
 {
     int    k, keySz;
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     const int  keySizes[2] = {1024, 2048};
 #else
     const int  keySizes[1] = {2048};
@@ -4946,7 +4982,21 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+        if (out[0] == NULL) {
+            ret = MEMORY_E;
+            goto exit;
+        }
     #endif
+    if (enc[0] == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (message == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -5104,7 +5154,10 @@ exit_rsa_verify:
 
 void bench_rsa(int doAsync)
 {
-    int         ret = 0, i;
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    int         ret = 0;
+#endif
+    int         i;
     RsaKey      rsaKey[BENCH_MAX_PENDING];
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     int         rsaKeySz; /* used in printf */
@@ -5135,8 +5188,8 @@ void bench_rsa(int doAsync)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an async context for each key */
-        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                        doAsync ? devId : INVALID_DEVID)) < 0) {
+        if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                         doAsync ? devId : INVALID_DEVID) < 0) {
             goto exit_bench_rsa;
         }
 
@@ -5208,8 +5261,8 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
             if (!isPending[i]) { /* if making the key is pending then just call
                                   * wc_MakeRsaKey again */
                 /* setup an async context for each key */
-                if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                    doAsync ? devId : INVALID_DEVID)) < 0) {
+                if (wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                     doAsync ? devId : INVALID_DEVID) < 0) {
                     goto exit_bench_rsa_key;
                 }
 
@@ -5280,8 +5333,8 @@ void bench_dh(int doAsync)
 #endif
     word32 pubSz[BENCH_MAX_PENDING];
     word32 privSz[BENCH_MAX_PENDING];
-    word32 pubSz2;
-    word32 privSz2;
+    word32 pubSz2 = BENCH_DH_KEY_SIZE;
+    word32 privSz2 = BENCH_DH_PRIV_SIZE;
     word32 agreeSz[BENCH_MAX_PENDING];
 #ifdef HAVE_FFDHE_2048
     const DhParams *params = NULL;
@@ -5292,6 +5345,12 @@ void bench_dh(int doAsync)
     DECLARE_ARRAY(agree, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
     DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
     DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if ((pub[0] == NULL) || (pub2 == NULL) || (agree[0] == NULL) || (priv[0] == NULL) || (priv2 == NULL)) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 
     (void)tmp;
 
@@ -5370,7 +5429,8 @@ void bench_dh(int doAsync)
 
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, genTimes, &pending)) {
-                    privSz[i] = 0;
+                    privSz[i] = BENCH_DH_PRIV_SIZE;
+                    pubSz[i] = BENCH_DH_KEY_SIZE;
                     ret = wc_DhGenerateKeyPair(&dhKey[i], &gRng, priv[i], &privSz[i],
                         pub[i], &pubSz[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, &pending)) {
@@ -5644,13 +5704,6 @@ void bench_ntruKeyGen(void)
 #endif
 
 #ifdef HAVE_ECC
-
-/* Default to testing P-256 */
-#ifndef BENCH_ECC_SIZE
-    #define BENCH_ECC_SIZE  32
-#endif
-static int bench_ecc_size = BENCH_ECC_SIZE;
-
 void bench_eccMakeKey(int doAsync)
 {
     int ret = 0, i, times, count, pending = 0;
@@ -5698,7 +5751,7 @@ exit:
 
 void bench_ecc(int doAsync)
 {
-    int ret = 0, i, times, count, pending = 0;
+    int ret = 0, i, times = 0, count = 0, pending = 0;
     const int keySize = bench_ecc_size;
     ecc_key genKey[BENCH_MAX_PENDING];
 #ifdef HAVE_ECC_DHE
@@ -5710,15 +5763,30 @@ void bench_ecc(int doAsync)
 #endif
 #endif
     word32 x[BENCH_MAX_PENDING];
-    double start;
+    double start = 0;
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE
-    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, BENCH_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, 2*BENCH_MAX_ECC_SIZE, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_MAX_ECC_SIZE, HEAP_HINT);
+#endif
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+#ifdef HAVE_ECC_DHE
+    if (shared[0] == NULL) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
+    if ((sig[0] == NULL) || (digest[0] == NULL)) {
+        ret = MEMORY_E;
+        goto exit;
+    }
+#endif
 #endif
 
     /* clear for done cleanup */
@@ -5753,6 +5821,13 @@ void bench_ecc(int doAsync)
     }
 
 #ifdef HAVE_ECC_DHE
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        (void)wc_ecc_set_rng(&genKey[i], &gRng);
+    }
+#endif
 
     /* ECC Shared Secret */
     bench_stats_start(&count, &start);
@@ -5863,6 +5938,13 @@ exit:
     FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
 #endif
+
+    (void)pending;
+    (void)x;
+    (void)count;
+    (void)times;
+    (void)desc;
+    (void)start;
 }
 
 
@@ -5891,6 +5973,19 @@ void bench_eccEncrypt(void)
         wc_ecc_free(&userA);
         return;
     }
+
+#if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
+    !defined(HAVE_SELFTEST)
+    ret = wc_ecc_set_rng(&userA, &gRng);
+    if (ret != 0) {
+        goto exit;
+    }
+    ret = wc_ecc_set_rng(&userB, &gRng);
+    if (ret != 0) {
+        goto exit;
+    }
+#endif
 
     ret = wc_ecc_make_key(&gRng, keySize, &userA);
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6387,10 +6482,23 @@ exit_ed_verify:
 #elif defined(MICRIUM)
     double current_time(int reset)
     {
-        CPU_ERR err;
 
+#if (OS_VERSION < 50000)
+        CPU_ERR err;
         (void)reset;
         return (double) CPU_TS_Get32()/CPU_TS_TmrFreqGet(&err);
+#else
+        RTOS_ERR  err;
+        double ret = 0;
+        OS_TICK tick = OSTimeGet(&err);
+        OS_RATE_HZ rate = OSTimeTickRateHzGet(&err);
+        (void)reset;
+
+        if (RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE) {
+            ret = ((double)tick)/rate;
+        }
+        return ret;
+#endif
     }
 #elif defined(WOLFSSL_ZEPHYR)
 

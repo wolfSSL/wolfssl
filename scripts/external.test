@@ -13,6 +13,18 @@ if [ $? -ne 0 ]; then
 
     # cloudflare seems to change CAs quickly, disabled by default
     if test -n "$WOLFSSL_EXTERNAL_TEST"; then
+
+	BUILD_FLAGS="$(./examples/client/client '-#')"
+	if echo "$BUILD_FLAGS" | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
+	    echo 'skipping WOLFSSL_EXTERNAL_TEST because -DWOLFSSL_SNIFFER configuration of build is incompatible.'
+	    exit 0
+	fi
+
+	if echo "$BUILD_FLAGS" | fgrep -v -q -e ' -DHAVE_ECC '; then
+	    echo 'skipping WOLFSSL_EXTERNAL_TEST because -UHAVE_ECC configuration of build is incompatible.'
+	    exit 0
+	fi
+
         echo "WOLFSSL_EXTERNAL_TEST set, running test..."
     else
         echo "WOLFSSL_EXTERNAL_TEST NOT set, won't run"

@@ -2340,7 +2340,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
     \brief This function associates the client session with the server id.
     If the newSession flag is on, an existing session won’t be reused.
 
-    \return SSL_SUCCESS returned if the finction executed without error.
+    \return SSL_SUCCESS returned if the function executed without error.
     \return BAD_FUNC_ARG returned if the WOLFSSL struct or id parameter
     is NULL or if len is not greater than zero.
 
@@ -2361,7 +2361,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
     …
     int ret = wolfSSL_SetServerID(ssl, id, len, newSession);
 
-    if(ret){
+    if (ret == WOLFSSL_SUCCESS) {
 	    // The Id was successfully set
     }
     \endcode
@@ -2680,7 +2680,7 @@ WOLFSSL_API int  wolfSSL_library_init(void);
     \sa wolfSSL_CTX_SetDevId
     \sa wolfSSL_CTX_GetDevId
 */
-WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
+WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId);
 
 /*!
     \brief This function sets the Device Id at the WOLFSSL_CTX context level.
@@ -2688,7 +2688,7 @@ WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
     \return WOLFSSL_SUCCESS upon success.
     \return BAD_FUNC_ARG if ssl is NULL.
 
-    \param ssl pointer to a SSL object, created with wolfSSL_new().
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
     \param devId ID to use with async hardware
 
     _Example_
@@ -2703,7 +2703,7 @@ WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
     \sa wolfSSL_SetDevId
     \sa wolfSSL_CTX_GetDevId
 */
-WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId)
+WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId);
 
 /*!
     \brief This function retrieves the Device Id.
@@ -13728,3 +13728,27 @@ WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, con
  \param format WOLFSSL_FILETYPE_ASN1 or WOLFSSL_FILETYPE_PEM
  */
 WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, const char* key, unsigned int keySz, int format);
+
+/*!
+ \ingroup SSL
+ \brief Sign a message with the chosen message digest, padding, and RSA key
+ \return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
+ \param type      Hash NID
+ \param m         Message to sign. Most likely this will be the digest of
+                  the message to sign
+ \param mLen      Length of message to sign
+ \param sigRet    Output buffer
+ \param sigLen    On Input: length of sigRet buffer
+                  On Output: length of data written to sigRet
+ \param rsa       RSA key used to sign the input
+ \param flag      1: Output the signature
+                  0: Output the value that the unpadded signature should be
+                     compared to. Note: for RSA_PKCS1_PSS_PADDING the
+                     wc_RsaPSS_CheckPadding_ex function should be used to check
+                     the output of a *Verify* function.
+ \param padding   Padding to use. Only RSA_PKCS1_PSS_PADDING and
+                  RSA_PKCS1_PADDING are currently supported for signing.
+ */
+WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
+                               unsigned int mLen, unsigned char* sigRet,
+                               unsigned int* sigLen, WOLFSSL_RSA*, int, int);

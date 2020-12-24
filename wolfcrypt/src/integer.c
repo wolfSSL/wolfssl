@@ -321,9 +321,14 @@ int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
 
     len = mp_unsigned_bin_size(a);
 
+    if (len > c) {
+      return MP_VAL;
+    }
+
     /* pad front w/ zeros to match length */
-    for (i = 0; i < c - len; i++)
-        b[i] = 0x00;
+    for (i = 0; i < c - len; i++) {
+      b[i] = 0x00;
+    }
     return mp_to_unsigned_bin(a, b + i);
 }
 
@@ -541,6 +546,14 @@ void mp_exch (mp_int * a, mp_int * b)
   *b = t;
 }
 
+int mp_cond_swap_ct (mp_int * a, mp_int * b, int c, int m)
+{
+    (void)c;
+    if (m == 1)
+        mp_exch(a, b);
+    return MP_OKAY;
+}
+
 
 /* shift right a certain number of bits */
 void mp_rshb (mp_int *c, int x)
@@ -549,14 +562,18 @@ void mp_rshb (mp_int *c, int x)
     mp_digit r, rr;
     mp_digit D = x;
 
-    /* shifting by a negative number not supported */
-    if (x < 0) return;
+    /* shifting by a negative number not supported, and shifting by
+     * zero changes nothing.
+     */
+    if (x <= 0) return;
 
     /* shift digits first if needed */
     if (x >= DIGIT_BIT) {
         mp_rshd(c, x / DIGIT_BIT);
         /* recalculate number of bits to shift */
         D = x % DIGIT_BIT;
+        /* check if any more shifting needed */
+        if (D == 0) return;
     }
 
     /* zero shifted is always zero */
@@ -667,8 +684,10 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
     c->dp[x] = 0;
   }
   /* clear the digit that is not completely outside/inside the modulus */
-  c->dp[b / DIGIT_BIT] &= (mp_digit) ((((mp_digit) 1) <<
-              (((mp_digit) b) % DIGIT_BIT)) - ((mp_digit) 1));
+  x = DIGIT_BIT - (b % DIGIT_BIT);
+  if (x != DIGIT_BIT) {
+    c->dp[b / DIGIT_BIT] &= ~((mp_digit)0) >> (x + ((sizeof(mp_digit)*8) - DIGIT_BIT));
+  }
   mp_clamp (c);
   return MP_OKAY;
 }
@@ -678,10 +697,18 @@ int mp_mod_2d (mp_int * a, int b, mp_int * c)
 int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 {
   int     res;
+  int     digits_needed;
 
-  /* make sure there are at least two digits */
-  if (a->alloc < 2) {
-     if ((res = mp_grow(a, 2)) != MP_OKAY) {
+  while (c > 0 && b[0] == 0) {
+      c--;
+      b++;
+  }
+
+  digits_needed = ((c * CHAR_BIT) + DIGIT_BIT - 1) / DIGIT_BIT;
+
+  /* make sure there are enough digits available */
+  if (a->alloc < digits_needed) {
+     if ((res = mp_grow(a, digits_needed)) != MP_OKAY) {
         return res;
      }
   }
@@ -697,11 +724,13 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 
 #ifndef MP_8BIT
       a->dp[0] |= *b++;
-      a->used += 1;
+      if (a->used == 0)
+          a->used = 1;
 #else
       a->dp[0] = (*b & MP_MASK);
       a->dp[1] |= ((*b++ >> 7U) & 1);
-      a->used += 2;
+      if (a->used == 0)
+          a->used = 2;
 #endif
   }
   mp_clamp (a);
@@ -1577,6 +1606,24 @@ int mp_div_2(mp_int * a, mp_int * b)
   return MP_OKAY;
 }
 
+/* c = a / 2 (mod b) - constant time (a < b and positive) */
+int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
+{
+    int res;
+
+    if (mp_isodd(a)) {
+        res = mp_add(a, b, c);
+        if (res == MP_OKAY) {
+            res = mp_div_2(c, c);
+        }
+    }
+    else {
+        res = mp_div_2(a, c);
+    }
+
+    return res;
+}
+
 
 /* high level addition (handles signs) */
 int mp_add (mp_int * a, mp_int * b, mp_int * c)
@@ -2238,13 +2285,15 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
      redux = fast_mp_montgomery_reduce;
   } else
 #endif
-  {
 #ifdef BN_MP_MONTGOMERY_REDUCE_C
+  {
      /* use slower baseline Montgomery method */
      redux = mp_montgomery_reduce;
-#else
-     return MP_VAL;
+  }
 #endif
+
+  if (redux == NULL) {
+      return MP_VAL;
   }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -2446,6 +2495,8 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     return MP_MEM;
 #endif
 
+  XMEMSET(W, 0, (n->used * 2 + 1) * sizeof(mp_word));
+
   /* first we have to get the digits of the input into
    * an array of double precision words W[...]
    */
@@ -2462,11 +2513,6 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     /* copy the digits of a into W[0..a->used-1] */
     for (ix = 0; ix < x->used; ix++) {
       *_W++ = *tmpx++;
-    }
-
-    /* zero the high words of W[a->used..m->used*2] */
-    for (; ix < n->used * 2 + 1; ix++) {
-      *_W++ = 0;
     }
   }
 
@@ -2992,6 +3038,32 @@ int mp_addmod(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
    mp_clear (&t);
 
    return res;
+}
+
+/* d = a - b (mod c) - a < c and b < c and positive */
+int mp_submod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+    int res;
+
+    res = mp_sub(a, b, d);
+    if (res == MP_OKAY && mp_isneg(d)) {
+        res = mp_add(d, c, d);
+    }
+
+    return res;
+}
+
+/* d = a + b (mod c) - a < c and b < c and positive */
+int mp_addmod_ct(mp_int* a, mp_int* b, mp_int* c, mp_int* d)
+{
+    int res;
+
+    res = mp_add(a, b, d);
+    if (res == MP_OKAY && mp_cmp(d, c) != MP_LT) {
+        res = mp_sub(d, c, d);
+    }
+
+    return res;
 }
 
 /* computes b = a*a */
@@ -4511,7 +4583,13 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
      w = (w << ((mp_word)DIGIT_BIT)) | ((mp_word)a->dp[ix]);
 
      if (w >= b) {
+#ifdef WOLFSSL_LINUXKM
+        t = (mp_digit)w;
+	/* Linux kernel macro for in-place 64 bit integer division. */
+        do_div(t, b);
+#else
         t = (mp_digit)(w / b);
+#endif
         w -= ((mp_word)t) * ((mp_word)b);
       } else {
         t = 0;
@@ -4634,21 +4712,21 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
   }
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
-  if (mp_count_bits(a) == 1024)
+  if (mp_count_bits(a) == 1024 && mp_isodd(a))
       err = sp_ModExp_1024(b, &r, a, &y);
-  else if (mp_count_bits(a) == 2048)
+  else if (mp_count_bits(a) == 2048 && mp_isodd(a))
       err = sp_ModExp_2048(b, &r, a, &y);
   else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
-  if (mp_count_bits(a) == 1536)
+  if (mp_count_bits(a) == 1536 && mp_isodd(a))
       err = sp_ModExp_1536(b, &r, a, &y);
-  else if (mp_count_bits(a) == 3072)
+  else if (mp_count_bits(a) == 3072 && mp_isodd(a))
       err = sp_ModExp_3072(b, &r, a, &y);
   else
 #endif
 #ifdef WOLFSSL_SP_4096
-  if (mp_count_bits(a) == 4096)
+  if (mp_count_bits(a) == 4096 && mp_isodd(a))
       err = sp_ModExp_4096(b, &r, a, &y);
   else
 #endif
@@ -5089,8 +5167,8 @@ LBL_U:mp_clear (&u);
     defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
 
 /* chars used in radix conversions */
-const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                         abcdefghijklmnopqrstuvwxyz+/";
+const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                        "abcdefghijklmnopqrstuvwxyz+/";
 #endif
 
 #if !defined(NO_DSA) || defined(HAVE_ECC)
@@ -5178,7 +5256,10 @@ int mp_radix_size (mp_int *a, int radix, int *size)
 
     /* special case for binary */
     if (radix == MP_RADIX_BIN) {
-        *size = mp_count_bits (a) + (a->sign == MP_NEG ? 1 : 0) + 1;
+        *size = mp_count_bits(a);
+        if (*size == 0)
+          *size = 1;
+        *size += (a->sign == MP_NEG ? 1 : 0) + 1; /* "-" sign + null term */
         return MP_OKAY;
     }
 
@@ -5188,17 +5269,17 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
     if (mp_iszero(a) == MP_YES) {
-        *size = 2;
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16)
+            *size = 3;
+        else
+#endif
+            *size = 2;
         return MP_OKAY;
     }
 
     /* digs is the digit count */
     digs = 0;
-
-    /* if it's negative add one for the sign */
-    if (a->sign == MP_NEG) {
-        ++digs;
-    }
 
     /* init a copy of the input */
     if ((res = mp_init_copy (&t, a)) != MP_OKAY) {
@@ -5217,6 +5298,18 @@ int mp_radix_size (mp_int *a, int radix, int *size)
         ++digs;
     }
     mp_clear (&t);
+
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+    /* For hexadecimal output, add zero padding when number of digits is odd */
+    if ((digs & 1) && (radix == 16)) {
+        ++digs;
+    }
+#endif
+
+    /* if it's negative add one for the sign */
+    if (a->sign == MP_NEG) {
+        ++digs;
+    }
 
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
@@ -5238,6 +5331,11 @@ int mp_toradix (mp_int *a, char *str, int radix)
 
     /* quick out if its zero */
     if (mp_iszero(a) == MP_YES) {
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
+        if (radix == 16) {
+            *str++ = '0';
+        }
+#endif
         *str++ = '0';
         *str = '\0';
         return MP_OKAY;

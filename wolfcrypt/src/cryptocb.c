@@ -82,6 +82,16 @@ void wc_CryptoCb_Init(void)
     }
 }
 
+int wc_CryptoCb_GetDevIdAtIndex(int startIdx)
+{
+    int devId = INVALID_DEVID;
+    CryptoCb* dev = wc_CryptoCb_FindDeviceByIndex(startIdx);
+    if (dev) {
+        devId = dev->devId;
+    }
+    return devId;
+}
+
 int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     /* find existing or new */
@@ -166,6 +176,32 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif
+
+int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
+    word32 pubKeySz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_RSA_CHECK_PRIV_KEY;
+        cryptoInfo.pk.rsa_check.key = key;
+        cryptoInfo.pk.rsa_check.pubKey = pubKey;
+        cryptoInfo.pk.rsa_check.pubKeySz = pubKeySz;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
@@ -273,6 +309,32 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
         cryptoInfo.pk.eccverify.hashlen = hashlen;
         cryptoInfo.pk.eccverify.res = res;
         cryptoInfo.pk.eccverify.key = key;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+
+int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
+    word32 pubKeySz)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_EC_CHECK_PRIV_KEY;
+        cryptoInfo.pk.ecc_check.key = key;
+        cryptoInfo.pk.ecc_check.pubKey = pubKey;
+        cryptoInfo.pk.ecc_check.pubKeySz = pubKeySz;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }

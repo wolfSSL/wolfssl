@@ -449,6 +449,7 @@ static int sha512_key_gen(Srp* srp, byte* secret, word32 size)
     r = wc_InitSha512(&hash);
     if (!r) r = wc_Sha512Update(&hash, secret, size);
     if (!r) r = wc_Sha512Final(&hash, srp->key);
+    wc_Sha512Free(&hash);
 
     XMEMSET(&hash, 0, sizeof(wc_Sha512));
 

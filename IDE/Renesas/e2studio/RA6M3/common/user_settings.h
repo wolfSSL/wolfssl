@@ -21,9 +21,15 @@
 #ifndef USER_SETTINGS_H_
 #define USER_SETTINGS_H_
 
+
 /* Temporary defines. Not suitable for production. */
 #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
 /* End temporary defines */
+
+/* TLS 1.3 */
+#define WOLFSSL_TLS13
+#define HAVE_HKDF
+#define WC_RSA_PSS
 
 /* Operating Environment and Threading */
 #define FREERTOS
@@ -73,5 +79,6 @@
 
 void wolfssl_thread_entry(void *pvParameters);
 extern void initialise_monitor_handles(void);
+int strncasecmp(const char *s1, const char * s2, unsigned int sz);
 
 #endif /* USER_SETTINGS_H_ */

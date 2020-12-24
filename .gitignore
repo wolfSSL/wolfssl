@@ -5,18 +5,21 @@ ctaocrypt/src/src/
 *.o
 *.patch
 *.deps
+*.d
 *.libs
 *.cache
 .dirstamp
 *.user
 configure
 config.*
+!cmake/config.in
 *Debug/
 *Release/
 *.ncb
 *.suo
 *.sdf
 *.opensdf
+*.cmd
 ipch/
 build-aux/
 rpm/spec
@@ -78,6 +81,7 @@ tests/unit
 testsuite/testsuite.test
 tests/unit.test
 tests/bio_write_test.txt
+tests/test-log-dump-to-file.txt
 test-write-dhparams.pem
 testsuite/*.der
 testsuite/*.pem
@@ -226,6 +230,17 @@ IDE/MDK-ARM/LPC43xx/LPC43xx/
 *.gcno
 *.gcda
 *.gcov
+!linuxkm/Makefile
+/Kbuild
+linuxkm/*.ko
+linuxkm/Module.symvers
+linuxkm/built-in.a
+linuxkm/modules.order
+linuxkm/wolfcrypt
+linuxkm/libwolfssl.mod
+linuxkm/libwolfssl.mod.c
+linuxkm/module_exports.c
+linuxkm/linuxkm/get_thread_size
 
 # MPLAB Generated Files (OS X)
 mcapi/wolfcrypt_mcapi.X/nbproject/Makefile-*
@@ -335,3 +350,11 @@ IDE/XCODE/Index
 /IDE/Renesas/e2studio/Projects/test/trash
 /IDE/Renesas/e2studio/Projects/test/*.launch
 /IDE/Renesas/e2studio/Projects/test/*.scfg
+
+# Emacs
+*~
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake

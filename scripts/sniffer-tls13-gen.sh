@@ -22,3 +22,8 @@
 ./examples/client/client -v 4 -l TLS13-AES256-GCM-SHA384 -r
 ./examples/server/server -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r &
 ./examples/client/client -v 4 -l TLS13-CHACHA20-POLY1305-SHA256 -r
+
+# TLS v1.3 Hello Retry Request (save this as sniffer-tls13-hrr.pcap)
+# ./configure --enable-sniffer CFLAGS="-DWOLFSSL_SNIFFER_WATCH" --disable-dh && make
+./examples/server/server -v 4 -i -x -g &
+./examples/client/client -v 4 -J

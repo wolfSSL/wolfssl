@@ -320,6 +320,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\rc2.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\ripemd.c"
 				>
 			</File>

@@ -42,26 +42,7 @@
  * OpenSSL compatibility layer. This makes code working with an AES structure
  * to need the size of the structure. */
 typedef struct WOLFSSL_AES_KEY {
-    /* aligned and big enough for Aes from wolfssl/wolfcrypt/aes.h */
-    ALIGN16 void* holder[(376 + WC_ASYNC_DEV_SIZE)/ sizeof(void*)];
-    #ifdef GCM_TABLE
-    /* key-based fast multiplication table. */
-    ALIGN16 void* M0[4096 / sizeof(void*)];
-    #endif /* GCM_TABLE */
-    #if defined(WOLFSSL_DEVCRYPTO) && \
-        (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-    /* large enough for additional devcrypto information */
-    void* devKey[288 / sizeof(void*)];
-    #endif
-    #ifdef WOLFSSL_AFALG
-    void* afalg_holder[288 / sizeof(void*)];
-    #endif
-    #ifdef HAVE_PKCS11
-    void* pkcs11_holder[(AES_MAX_ID_LEN + sizeof(int)) / sizeof(void*)];
-    #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
-    void* async_holder[128 / sizeof(void*)];
-    #endif
+    ALIGN16 void *buf[(sizeof(Aes) / sizeof(void *)) + 1];
 } WOLFSSL_AES_KEY;
 typedef WOLFSSL_AES_KEY AES_KEY;
 

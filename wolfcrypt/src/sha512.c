@@ -188,6 +188,9 @@
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
+#elif defined(WOLFSSL_SILABS_SHA384)
+    /* functions defined in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
 #ifdef WOLFSSL_SHA512
@@ -337,11 +340,28 @@ static int InitSha512(wc_Sha512* sha512)
     static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
     static int transform_check = 0;
     static int intel_flags;
-    #define Transform_Sha512(sha512)     (*Transform_Sha512_p)(sha512)
-    #define Transform_Sha512_Len(sha512, len) \
-                                          (*Transform_Sha512_Len_p)(sha512, len)
+    static int Transform_Sha512_is_vectorized = 0;
 
-    static void Sha512_SetTransform()
+    static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
+        int ret;
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha512_p)(sha512);
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+    static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
+        int ret;
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS();
+        ret = (*Transform_Sha512_Len_p)(sha512, len);
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+
+    static void Sha512_SetTransform(void)
     {
         if (transform_check)
             return;
@@ -354,17 +374,20 @@ static int InitSha512(wc_Sha512* sha512)
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX2_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_RORX_Len;
+                Transform_Sha512_is_vectorized = 1;
             }
             else
         #endif
             if (1) {
                 Transform_Sha512_p = Transform_Sha512_AVX2;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_Len;
+                Transform_Sha512_is_vectorized = 1;
             }
         #ifdef HAVE_INTEL_RORX
             else {
                 Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
+                Transform_Sha512_is_vectorized = 1;
             }
         #endif
         }
@@ -374,10 +397,14 @@ static int InitSha512(wc_Sha512* sha512)
         if (IS_INTEL_AVX1(intel_flags)) {
             Transform_Sha512_p = Transform_Sha512_AVX1;
             Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
+            Transform_Sha512_is_vectorized = 1;
         }
         else
     #endif
+        {
             Transform_Sha512_p = _Transform_Sha512;
+            Transform_Sha512_is_vectorized = 1;
+        }
 
         transform_check = 1;
     }
@@ -398,6 +425,9 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     sha512->heap = heap;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha512->W = NULL;
+#endif
 
     ret = InitSha512(sha512);
     if (ret != 0)
@@ -405,10 +435,6 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     Sha512_SetTransform();
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    sha512->W = NULL;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
@@ -507,8 +533,7 @@ static int _Transform_Sha512(wc_Sha512* sha512)
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W = sha512->W;
     if (W == NULL) {
-        W = (word64*) XMALLOC(sizeof(word64) * 16, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        W = (word64*)XMALLOC(sizeof(word64) * 16, NULL,DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
         sha512->W = W;
@@ -721,7 +746,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #endif /* WOLFSSL_SHA512 */
 
-#endif /* WOLFSSL_IMX6_CAAM */
+#endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA384 */
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 {
@@ -902,6 +927,9 @@ void wc_Sha512Free(wc_Sha512* sha512)
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
+#elif defined(WOLFSSL_SILABS_SHA512)
+    /* functions defined in wolfcrypt/src/port/silabs/silabs_hash.c */
+
 #else
 
 static int InitSha384(wc_Sha384* sha384)
@@ -1019,15 +1047,16 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     }
 
     sha384->heap = heap;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha384->W = NULL;
+#endif
+
     ret = InitSha384(sha384);
     if (ret != 0)
         return ret;
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     Sha512_SetTransform();
-#endif
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    sha384->W = NULL;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
@@ -1040,7 +1069,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     return ret;
 }
 
-#endif /* WOLFSSL_IMX6_CAAM */
+#endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA512 */
 
 int wc_InitSha384(wc_Sha384* sha384)
 {
@@ -1109,6 +1138,11 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
+#endif
+
+#ifdef WOLFSSL_SILABS_SHA512
+    dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+    dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1185,6 +1219,11 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
+#endif
+
+#ifdef WOLFSSL_SILABS_SHA384
+    dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+    dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
