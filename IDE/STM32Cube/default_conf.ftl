@@ -129,7 +129,9 @@ extern ${variable.value} ${variable.name};
         WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4 and WOLFSSL_STM32L5 */
     #define WOLFSSL_STM32F4
 
-    /* Debug UART */
+    /* Debug UART used for printf */
+    /* The UART interface number varies for each board/CPU */
+    /* Typically this is the UART attached to the ST-Link USB CDC UART port */
     #define HAL_CONSOLE_UART huart4
 
     /* Hardware Crypto - uncomment as available on hardware */
@@ -527,7 +529,7 @@ extern ${variable.value} ${variable.name};
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ ${inclusion_protection}_H */
+#endif /* ${inclusion_protection}_H */
 
 /**
   * @}
