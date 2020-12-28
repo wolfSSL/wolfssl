@@ -914,7 +914,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
 
-    if (rng == NULL || output == NULL)
+    if (rng == NULL || output == NULL || sz == 0 )
         return BAD_FUNC_ARG;
 
 #ifdef WOLF_CRYPTO_CB

@@ -12979,7 +12979,7 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 
     (void)heap;
 
-    if ((r == NULL) || (rng == NULL)) {
+    if ((r == NULL) || (rng == NULL) || len <= 0 ) {
         err = MP_VAL;
     }
 
