@@ -3262,7 +3262,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     }
 
-    #if defined(OPENSSL_ALL)
+    #if defined(OPENSSL_ALL) && !defined(NO_SESSION_CACHE)
+
     #ifndef NO_BIO
     /* print out session to stdout */
     {
