@@ -1,4 +1,4 @@
-/* wolfSSL_conf.h (example of generated wolfSSL.wolfSSL_conf.h)
+/* wolfSSL_conf.h (example of generated wolfSSL.I-CUBE-wolfSSL_conf.h)
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *
@@ -26,94 +26,95 @@
  * (and not WOLFSSL_USER_SETTINGS or HAVE_CONF_H).
  */
 
-#ifndef __WOLFSSL_WOLFSSL_CONF_H__
-#define __WOLFSSL_WOLFSSL_CONF_H__
+#ifndef __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
+#define __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/**
+	MiddleWare name : wolfSSL.I-CUBE-wolfSSL.4.6.0
+	MiddleWare fileName : ./wolfSSL.I-CUBE-wolfSSL_conf.h
+	MiddleWare version :
+*/
 
-/*---------- Debug Support -----------*/
-#define WOLF_CONF_DEBUG      0 
- 
-/*---------- wolfCrypt Only -----------*/
-#define WOLF_CONF_WOLFCRYPT_ONLY      0 
- 
-/*---------- TLS v1.3 -----------*/
-#define WOLF_CONF_TLS13      1 
- 
-/*---------- TLS v1.2 -----------*/
-#define WOLF_CONF_TLS12      1 
- 
-/*---------- DTLS Support -----------*/
-#define WOLF_CONF_DTLS      0 
- 
-/*---------- Math Configuration -----------*/
-#define WOLF_CONF_MATH      4 
- 
-/*---------- RTOS -----------*/
-#define WOLF_CONF_RTOS      2 
- 
-/*---------- RSA Support -----------*/
-#define WOLF_CONF_RSA      1 
- 
-/*---------- ECC Support -----------*/
-#define WOLF_CONF_ECC      1 
- 
-/*---------- DH (Diffie–Hellman) Support -----------*/
-#define WOLF_CONF_DH      1 
- 
-/*---------- AES GCM Support -----------*/
-#define WOLF_CONF_AESGCM      1 
- 
-/*---------- AES CBC Support -----------*/
-#define WOLF_CONF_AESCBC      0 
- 
-/*---------- ChaCha20 / Poly1305 Support -----------*/
-#define WOLF_CONF_CHAPOLY      1 
- 
-/*---------- Ed25519 / Curve25519 Support -----------*/
-#define WOLF_CONF_EDCURVE25519      0 
- 
-/*---------- MD5 Support -----------*/
-#define WOLF_CONF_MD5      0 
- 
-/*---------- SHA1 Support -----------*/
-#define WOLF_CONF_SHA1      0 
- 
-/*---------- SHA2-224 Support -----------*/
-#define WOLF_CONF_SHA2_224      0 
- 
-/*---------- SHA2-256 Support -----------*/
-#define WOLF_CONF_SHA2_256      1 
- 
-/*---------- SHA2-384 Support -----------*/
-#define WOLF_CONF_SHA2_384      0 
- 
-/*---------- SHA2-512 Support -----------*/
-#define WOLF_CONF_SHA2_512      0 
- 
-/*---------- SHA3 Support -----------*/
-#define WOLF_CONF_SHA3      0 
- 
-/*---------- Pre-Shared-Key Support -----------*/
-#define WOLF_CONF_PSK      0 
- 
-/*---------- Pwd Based Key Derivation Support -----------*/
-#define WOLF_CONF_PWDBASED      0 
- 
-/*---------- Keep Peer Cert Support -----------*/
-#define WOLF_CONF_KEEP_PEER_CERT      0 
- 
-/*---------- Base64 Encode Support -----------*/
-#define WOLF_CONF_BASE64_ENCODE      0 
- 
-/*---------- OpenSSL Extra Support -----------*/
-#define WOLF_CONF_OPENSSL_EXTRA      0 
- 
-/*---------- wolfCrypt test/benchmark -----------*/
-#define WOLF_CONF_TEST      1 
- 
+/*---------- WOLF_CONF_DEBUG -----------*/
+#define WOLF_CONF_DEBUG      0
+
+/*---------- WOLF_CONF_WOLFCRYPT_ONLY -----------*/
+#define WOLF_CONF_WOLFCRYPT_ONLY      0
+
+/*---------- WOLF_CONF_TLS13 -----------*/
+#define WOLF_CONF_TLS13      1
+
+/*---------- WOLF_CONF_TLS12 -----------*/
+#define WOLF_CONF_TLS12      1
+
+/*---------- WOLF_CONF_DTLS -----------*/
+#define WOLF_CONF_DTLS      0
+
+/*---------- WOLF_CONF_MATH -----------*/
+#define WOLF_CONF_MATH      4
+
+/*---------- WOLF_CONF_RTOS -----------*/
+#define WOLF_CONF_RTOS      2
+
+/*---------- WOLF_CONF_RSA -----------*/
+#define WOLF_CONF_RSA      1
+
+/*---------- WOLF_CONF_ECC -----------*/
+#define WOLF_CONF_ECC      1
+
+/*---------- WOLF_CONF_DH -----------*/
+#define WOLF_CONF_DH      1
+
+/*---------- WOLF_CONF_AESGCM -----------*/
+#define WOLF_CONF_AESGCM      1
+
+/*---------- WOLF_CONF_AESCBC -----------*/
+#define WOLF_CONF_AESCBC      0
+
+/*---------- WOLF_CONF_CHAPOLY -----------*/
+#define WOLF_CONF_CHAPOLY      1
+
+/*---------- WOLF_CONF_EDCURVE25519 -----------*/
+#define WOLF_CONF_EDCURVE25519      0
+
+/*---------- WOLF_CONF_MD5 -----------*/
+#define WOLF_CONF_MD5      0
+
+/*---------- WOLF_CONF_SHA1 -----------*/
+#define WOLF_CONF_SHA1      0
+
+/*---------- WOLF_CONF_SHA2_224 -----------*/
+#define WOLF_CONF_SHA2_224      0
+
+/*---------- WOLF_CONF_SHA2_256 -----------*/
+#define WOLF_CONF_SHA2_256      1
+
+/*---------- WOLF_CONF_SHA2_384 -----------*/
+#define WOLF_CONF_SHA2_384      0
+
+/*---------- WOLF_CONF_SHA2_512 -----------*/
+#define WOLF_CONF_SHA2_512      0
+
+/*---------- WOLF_CONF_SHA3 -----------*/
+#define WOLF_CONF_SHA3      0
+
+/*---------- WOLF_CONF_PSK -----------*/
+#define WOLF_CONF_PSK      0
+
+/*---------- WOLF_CONF_PWDBASED -----------*/
+#define WOLF_CONF_PWDBASED      0
+
+/*---------- WOLF_CONF_KEEP_PEER_CERT -----------*/
+#define WOLF_CONF_KEEP_PEER_CERT      0
+
+/*---------- WOLF_CONF_BASE64_ENCODE -----------*/
+#define WOLF_CONF_BASE64_ENCODE      0
+
+/*---------- WOLF_CONF_OPENSSL_EXTRA -----------*/
+#define WOLF_CONF_OPENSSL_EXTRA      0
+
+/*---------- WOLF_CONF_TEST -----------*/
+#define WOLF_CONF_TEST      1
 
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
@@ -177,9 +178,25 @@ extern "C" {
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST
 #else
-	#warning Please define a hardware platform!
-    #define WOLFSSL_STM32F4 /* default */
+    #warning Please define a hardware platform!
+    /* This means there is not a pre-defined platform for your board/CPU */
+    /* You need to define a CPU type, HW crypto and debug UART */
+    /* CPU Type: WOLFSSL_STM32F1, WOLFSSL_STM32F2, WOLFSSL_STM32F4,
+        WOLFSSL_STM32F7, WOLFSSL_STM32H7, WOLFSSL_STM32L4 and WOLFSSL_STM32L5 */
+    #define WOLFSSL_STM32F4
+
+    /* Debug UART used for printf */
+    /* The UART interface number varies for each board/CPU */
+    /* Typically this is the UART attached to the ST-Link USB CDC UART port */
     #define HAL_CONSOLE_UART huart4
+
+    /* Hardware Crypto - uncomment as available on hardware */
+    //#define WOLFSSL_STM32_PKA
+    //#define NO_STM32_RNG
+    //#undef  NO_STM32_HASH
+    //#undef  NO_STM32_CRYPTO
+    //#define WOLFSSL_GENSEED_FORTEST
+    //#define STM32_HAL_V2
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -257,7 +274,7 @@ extern "C" {
 #if defined(WOLF_CONF_PWDBASED) && WOLF_CONF_PWDBASED == 0
     #define NO_PWDBASED
 #endif
-#if defined(WOLF_CONF_KEEPPEERCERT) && WOLF_CONF_KEEPPEERCERT == 1
+#if defined(WOLF_CONF_KEEP_PEER_CERT) && WOLF_CONF_KEEP_PEER_CERT == 1
     #define KEEP_PEER_CERT
 #endif
 #if defined(WOLF_CONF_BASE64_ENCODE) && WOLF_CONF_BASE64_ENCODE == 1
@@ -380,7 +397,7 @@ extern "C" {
     #define HAVE_AES_DECRYPT
 #endif
 
-/* Other possible AES modes */    
+/* Other possible AES modes */
 //#define WOLFSSL_AES_COUNTER
 //#define HAVE_AESCCM
 //#define WOLFSSL_AES_XTS
@@ -558,4 +575,4 @@ extern "C" {
 }
 #endif
 
-#endif /*__WOLFSSL_WOLFSSL_CONF_H__ */
+#endif /* __WOLFSSL_I_CUBE_WOLFSSL_CONF_H__ */

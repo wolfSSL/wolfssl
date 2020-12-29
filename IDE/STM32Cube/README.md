@@ -14,7 +14,7 @@ These examples use the Cube HAL for STM32.
 
 ## Configuration
 
-The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.wolfSSL_conf.h` file. An example of this is located in `IDE/STM32Cube/wolfSSL_conf.h` (renamed to avoid possible conflicts with generated file).
+The settings for the wolfSSL CubeMX pack are in the generated `wolfSSL.I-CUBE-wolfSSL_conf.h` file. An example of this is located in `IDE/STM32Cube/wolfSSL_conf.h` (renamed to avoid possible conflicts with generated file).
 
 The template used for generation is `IDE/STM32Cube/default_conf.ftl` which can be updated at `STM32Cube/Repository/Packs/wolfSSL/wolfSSL/[Version]/CubeMX/templates/default_conf.ftl`.
 
