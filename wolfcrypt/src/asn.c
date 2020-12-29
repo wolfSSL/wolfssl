@@ -9153,12 +9153,12 @@ static int DecodeCertExtensions(DecodedCert* cert)
     return criticalFail ? ASN_CRIT_EXT_E : 0;
 }
 
-int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
+int ParseCertLockOptional(DecodedCert* cert, int type, int verify, void* cm, int locked)
 {
     int   ret;
     char* ptr;
 
-    ret = ParseCertRelative(cert, type, verify, cm);
+    ret = ParseCertRelativeLockOptional(cert, type, verify, cm, locked);
     if (ret < 0)
         return ret;
 
@@ -9187,10 +9187,17 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
+
+int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
+{
+    return ParseCertLockOptional(cert, type, verify, cm, 0);
+}
+
 /* from SSL proper, for locking can't do find here anymore */
 #ifdef __cplusplus
     extern "C" {
 #endif
+    Signer* GetCALockOptional(void* signers, byte* hash, int locked);
     Signer* GetCA(void* signers, byte* hash);
     #ifndef NO_SKID
         Signer* GetCAByName(void* signers, byte* hash);
@@ -9200,6 +9207,15 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 #endif
 
 #if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
+
+/* dummy functions, not using wolfSSL so don't need actual ones */
+Signer* GetCALockOptional(void* signers, byte* hash, int locked)
+{
+    (void)hash;
+    (void)locked;
+
+    return (Signer*)signers;
+}
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
 Signer* GetCA(void* signers, byte* hash)
@@ -9589,6 +9605,12 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
+    return ParseCertRelativeLockOptional(cert, type, verify, cm, 0);
+}
+
+int ParseCertRelativeLockOptional(DecodedCert* cert, int type, int verify,
+                                  void* cm, int locked)
+{
     int    ret = 0;
     int    checkPathLen = 0;
     int    decrementMaxPathLen = 0;
@@ -9782,11 +9804,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             cert->ca = NULL;
     #ifndef NO_SKID
             if (cert->extAuthKeyIdSet) {
-                cert->ca = GetCA(cm, cert->extAuthKeyId);
+                cert->ca = GetCALockOptional(cm, cert->extAuthKeyId, locked);
             }
             if (cert->ca == NULL && cert->extSubjKeyIdSet
                                  && verify != VERIFY_OCSP) {
-                cert->ca = GetCA(cm, cert->extSubjKeyId);
+                cert->ca = GetCALockOptional(cm, cert->extSubjKeyId, locked);
             }
             if (cert->ca != NULL && XMEMCMP(cert->issuerHash,
                                   cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
@@ -9813,7 +9835,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
     #else
-            cert->ca = GetCA(cm, cert->issuerHash);
+            cert->ca = GetCALockOptional(cm, cert->issuerHash, locked);
     #endif /* !NO_SKID */
 
             if (cert->ca) {

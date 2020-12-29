@@ -1061,6 +1061,8 @@ WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
 WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, const byte*, word32, void*);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
+WOLFSSL_LOCAL int ParseCertLockOptional(DecodedCert*, int type, int verify,
+                                        void* cm, int locked);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz,
@@ -1076,7 +1078,10 @@ WOLFSSL_LOCAL int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void*
 #endif /* WOLFSSL_CERT_REQ */
 WOLFSSL_LOCAL int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
                         int sigAlgoType);
-WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
+WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*, int type, int verify,
+                                    void* cm);
+WOLFSSL_LOCAL int ParseCertRelativeLockOptional(DecodedCert*, int type, int
+                                                verify, void* cm, int locked);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 

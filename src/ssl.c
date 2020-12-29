@@ -3732,7 +3732,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
                             signers->derCert->length, cm->heap);
 
             /* Parse Certificate */
-            if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, cm)) {
+            if (ParseCertLockOptional(dCert, CERT_TYPE, NO_VERIFY, cm, 1)) {
                 goto error;
             }
 
@@ -4337,9 +4337,7 @@ int MatchTrustedPeer(TrustedPeerCert* tp, DecodedCert* cert)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-
-/* return CA if found, otherwise NULL */
-Signer* GetCA(void* vp, byte* hash)
+Signer* GetCALockOptional(void* vp, byte* hash, int locked)
 {
     WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ret = NULL;
@@ -4351,7 +4349,7 @@ Signer* GetCA(void* vp, byte* hash)
 
     row = HashSigner(hash);
 
-    if (wc_LockMutex(&cm->caLock) != 0)
+    if (locked == 0 && wc_LockMutex(&cm->caLock) != 0)
         return ret;
 
     signers = cm->caTable[row];
@@ -4368,11 +4366,17 @@ Signer* GetCA(void* vp, byte* hash)
         }
         signers = signers->next;
     }
-    wc_UnLockMutex(&cm->caLock);
+    if (locked == 0)
+        wc_UnLockMutex(&cm->caLock);
 
     return ret;
 }
 
+/* return CA if found, otherwise NULL */
+Signer* GetCA(void* vp, byte* hash)
+{
+    return GetCALockOptional(vp, hash, 0);
+}
 
 #ifndef NO_SKID
 /* return CA if found, otherwise NULL. Walk through hash table. */
