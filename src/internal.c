@@ -9918,6 +9918,7 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
     OcspRequest* request;
+    WOLFSSL_ENTER("ProcessCSR");
 
     #ifdef WOLFSSL_SMALL_STACK
         CertStatus* status;
@@ -9999,6 +10000,7 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     #endif
 
+    WOLFSSL_LEAVE("ProcessCSR", ret);
     return ret;
 }
 #endif
@@ -11289,7 +11291,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->fatal = TLSX_CSR_InitRequest(ssl->extensions,
                                                     args->dCert, ssl->heap);
                             doLookup = 0;
-                        #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_CLIENT)
+                        #if defined(WOLFSSL_TLS13)
                             if (ssl->options.tls1_3) {
                                 TLSX* ext = TLSX_Find(ssl->extensions,
                                                            TLSX_STATUS_REQUEST);
