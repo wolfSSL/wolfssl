@@ -580,7 +580,7 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
     *outl = inl;
     if (out) {
         /* Buffer input for one-shot API */
-        if (ret == 0) {
+        if (inl > 0) {
             byte* tmp;
             tmp = (byte*)XREALLOC(ctx->gcmBuffer,
                     ctx->gcmBufferLen + inl, NULL,
