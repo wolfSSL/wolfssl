@@ -10402,6 +10402,29 @@ int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
 }
 #endif
 
+int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
+        const WOLFSSL_EVP_MD *digest, unsigned char* buf, unsigned int* len)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_X509_pubkey_digest");
+
+    if (x509 == NULL || digest == NULL) {
+        WOLFSSL_MSG("Null argument found");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (x509->pubKey.buffer == NULL || x509->pubKey.length == 0) {
+        WOLFSSL_MSG("No DER public key stored in X509");
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_EVP_Digest(x509->pubKey.buffer, x509->pubKey.length, buf,
+                              len, digest, NULL);
+    WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
+    return ret;
+}
+
 int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 {
     WOLFSSL_ENTER("wolfSSL_use_PrivateKey");
@@ -52895,6 +52918,17 @@ int wolfSSL_X509_NAME_copy(WOLFSSL_X509_NAME* from, WOLFSSL_X509_NAME* to)
         WOLFSSL_MSG("NULL parameter");
         return BAD_FUNC_ARG;
     }
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)
+    if (from->rawLen > 0) {
+        if (from->rawLen > ASN_NAME_MAX) {
+            WOLFSSL_MSG("Bad raw size");
+            return BAD_FUNC_ARG;
+        }
+        XMEMCPY(to->raw, from->raw, from->rawLen);
+        to->rawLen = from->rawLen;
+    }
+#endif
 
     if (from->dynamicName) {
         to->name = (char*)XMALLOC(from->sz, to->heap, DYNAMIC_TYPE_SUBJECT_CN);

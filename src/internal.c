@@ -3393,15 +3393,9 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
     (void)heap;
 
     if (name != NULL) {
+        XMEMSET(name, 0, sizeof(WOLFSSL_X509_NAME));
         name->name        = name->staticName;
-        name->dynamicName = 0;
-        name->sz = 0;
         name->heap = heap;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XMEMSET(name->entry, 0, sizeof(name->entry));
-        name->x509 = NULL;
-        name->entrySz = 0;
-#endif /* OPENSSL_EXTRA */
     }
 }
 
