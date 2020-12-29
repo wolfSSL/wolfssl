@@ -12838,7 +12838,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         if (cbcE == 0) {
             /* Check enc was not modified */
             for (i = 0; i < (int)sizeof(enc); i++)
-                cbcE |= enc[0];
+                cbcE |= enc[i];
         }
     }
     printf(resultFmt, cbcE == 0 ? passed : failed);
@@ -12872,7 +12872,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         if (cbcD == 0) {
             /* Check dec was not modified */
             for (i = 0; i < (int)sizeof(dec); i++)
-                cbcD |= dec[0];
+                cbcD |= dec[i];
         }
     }
     printf(resultFmt, cbcD == 0 ? passed : failed);
