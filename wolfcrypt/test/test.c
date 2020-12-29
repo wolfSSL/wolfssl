@@ -20381,12 +20381,12 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
 #ifdef HAVE_ECC_KEY_EXPORT
     if (exportBuf == NULL)
-        ERROR_OUT(-9913, done);
+        ERROR_OUT(-9901, done);
 #endif
 
 #ifdef HAVE_ECC_SIGN
     if ((sig == NULL) || (digest == NULL))
-        ERROR_OUT(-9901, done);
+        ERROR_OUT(-9902, done);
 #endif
 #endif /* WOLFSSL_SMALL_STACK */
 
@@ -20398,7 +20398,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if ((userA == NULL) ||
         (userB == NULL) ||
         (pubKey == NULL))
-        ERROR_OUT(-9902, done);
+        ERROR_OUT(-9903, done);
 #endif
 
     XMEMSET(userA, 0, sizeof *userA);
@@ -20407,62 +20407,62 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_init_ex(userA, HEAP_HINT, devId);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9904, done);
     ret = wc_ecc_init_ex(userB, HEAP_HINT, devId);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9905, done);
     ret = wc_ecc_init_ex(pubKey, HEAP_HINT, devId);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9906, done);
 
 #ifdef WOLFSSL_CUSTOM_CURVES
     if (dp != NULL) {
         ret = wc_ecc_set_custom_curve(userA, dp);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9907, done);
         ret = wc_ecc_set_custom_curve(userB, dp);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9908, done);
     }
 #endif
 
     ret = wc_ecc_make_key_ex(rng, keySize, userA, curve_id);
+    if (ret != 0)
+        ERROR_OUT(-9909, done);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9910, done);
     TEST_SLEEP();
 
     if (wc_ecc_get_curve_idx(curve_id) != -1) {
         curveSize = wc_ecc_get_curve_size_from_id(userA->dp->id);
-        if (curveSize != userA->dp->size) {
-            ret = -9903;
-            goto done;
-        }
+        if (curveSize != userA->dp->size)
+            ERROR_OUT(-9911, done);
     }
 
     ret = wc_ecc_check_key(userA);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9912, done);
     TEST_SLEEP();
 
 /* ATECC508/608 configuration may not support more than one ECDH key */
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 
     ret = wc_ecc_make_key_ex(rng, keySize, userB, curve_id);
+    if (ret != 0)
+        ERROR_OUT(-9913, done);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9914, done);
     TEST_SLEEP();
 
     /* only perform the below tests if the key size matches */
-    if (dp == NULL && keySize > 0 && wc_ecc_size(userA) != keySize) {
-        ret = ECC_CURVE_OID_E;
-        goto done;
-    }
+    if (dp == NULL && keySize > 0 && wc_ecc_size(userA) != keySize)
+        ERROR_OUT(ECC_CURVE_OID_E, done);
 
 #ifdef HAVE_ECC_DHE
 #if defined(ECC_TIMING_RESISTANT) && (!defined(HAVE_FIPS) || \
@@ -20470,10 +20470,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     !defined(HAVE_SELFTEST)
     ret = wc_ecc_set_rng(userA, rng);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9915, done);
     ret = wc_ecc_set_rng(userB, rng);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9916, done);
 #endif
 
     x = ECC_SHARED_SIZE;
@@ -20485,7 +20485,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ret = wc_ecc_shared_secret(userA, userB, sharedA, &x);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
-        goto done;
+        ERROR_OUT(-9917, done);
     }
     TEST_SLEEP();
 
@@ -20498,13 +20498,13 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ret = wc_ecc_shared_secret(userB, userA, sharedB, &y);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9918, done);
 
     if (y != x)
-        ERROR_OUT(-9904, done);
+        ERROR_OUT(-9919, done);
 
     if (XMEMCMP(sharedA, sharedB, x))
-        ERROR_OUT(-9905, done);
+        ERROR_OUT(-9920, done);
     TEST_SLEEP();
 #endif /* HAVE_ECC_DHE */
 
@@ -20521,9 +20521,8 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         if (ret == 0)
             ret = wc_ecc_shared_secret(userA, userB, sharedA, &x);
     } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
+    if (ret != 0)
+        ERROR_OUT(-9921, done);
     TEST_SLEEP();
 
     y = ECC_SHARED_SIZE;
@@ -20535,13 +20534,13 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ret = wc_ecc_shared_secret(userB, userA, sharedB, &y);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9922, done);
 
     if (y != x)
-        ERROR_OUT(-9906, done);
+        ERROR_OUT(-9923, done);
 
     if (XMEMCMP(sharedA, sharedB, x))
-        ERROR_OUT(-9907, done);
+        ERROR_OUT(-9924, done);
     TEST_SLEEP();
 
     /* remove cofactor flag */
@@ -20554,18 +20553,19 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = ECC_KEY_EXPORT_BUF_SIZE;
     ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 0);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9925, done);
 
 #ifdef HAVE_ECC_KEY_IMPORT
     #ifdef WOLFSSL_CUSTOM_CURVES
         if (dp != NULL) {
             ret = wc_ecc_set_custom_curve(pubKey, dp);
-            if (ret != 0) goto done;
+            if (ret != 0)
+                ERROR_OUT(-9926, done);
         }
     #endif
     ret = wc_ecc_import_x963_ex(exportBuf, x, pubKey, curve_id);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9927, done);
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 #ifdef HAVE_ECC_DHE
@@ -20578,10 +20578,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
             ret = wc_ecc_shared_secret(userB, pubKey, sharedB, &y);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9928, done);
 
     if (XMEMCMP(sharedA, sharedB, y))
-        ERROR_OUT(-9908, done);
+        ERROR_OUT(-9929, done);
     TEST_SLEEP();
 #endif /* HAVE_ECC_DHE */
 
@@ -20590,21 +20590,22 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         x = ECC_KEY_EXPORT_BUF_SIZE;
         ret = wc_ecc_export_x963_ex(userA, exportBuf, &x, 1);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9930, done);
         wc_ecc_free(pubKey);
 
         ret = wc_ecc_init_ex(pubKey, HEAP_HINT, devId);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9931, done);
     #ifdef WOLFSSL_CUSTOM_CURVES
         if (dp != NULL) {
             ret = wc_ecc_set_custom_curve(pubKey, dp);
-            if (ret != 0) goto done;
+            if (ret != 0)
+                ERROR_OUT(-9932, done);
         }
     #endif
         ret = wc_ecc_import_x963_ex(exportBuf, x, pubKey, curve_id);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9933, done);
 
     #ifdef HAVE_ECC_DHE
         y = ECC_SHARED_SIZE;
@@ -20616,10 +20617,10 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
                 ret = wc_ecc_shared_secret(userB, pubKey, sharedB, &y);
         } while (ret == WC_PENDING_E);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9934, done);
 
         if (XMEMCMP(sharedA, sharedB, y))
-            ERROR_OUT(-9909, done);
+            ERROR_OUT(-9935, done);
         TEST_SLEEP();
     #endif /* HAVE_ECC_DHE */
     #endif /* HAVE_COMP_KEY */
@@ -20647,7 +20648,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
                                                                         userA);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9936, done);
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_VERIFY
@@ -20662,9 +20663,9 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
                                                                &verify, userA);
         } while (ret == WC_PENDING_E);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9937, done);
         if (verify != 1)
-            ERROR_OUT(-9910, done);
+            ERROR_OUT(-9938, done);
         TEST_SLEEP();
     }
 #endif /* HAVE_ECC_VERIFY */
@@ -20685,7 +20686,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
                                                                         userA);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
-        ERROR_OUT(-9911, done);
+        ERROR_OUT(-9939, done);
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_VERIFY
@@ -20700,9 +20701,9 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
                                                                &verify, userA);
         } while (ret == WC_PENDING_E);
         if (ret != 0)
-            goto done;
+            ERROR_OUT(-9940, done);
         if (verify != 1)
-            ERROR_OUT(-9912, done);
+            ERROR_OUT(-9941, done);
         TEST_SLEEP();
     }
 #endif /* HAVE_ECC_VERIFY */
@@ -20713,7 +20714,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     x = ECC_KEY_EXPORT_BUF_SIZE;
     ret = wc_ecc_export_private_only(userA, exportBuf, &x);
     if (ret != 0)
-        goto done;
+        ERROR_OUT(-9942, done);
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 done:
