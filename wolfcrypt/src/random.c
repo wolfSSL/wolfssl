@@ -917,6 +917,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
 
+    if (sz == 0)
+        return 0; 
+
 #ifdef WOLF_CRYPTO_CB
     if (rng->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomBlock(rng, output, sz);
