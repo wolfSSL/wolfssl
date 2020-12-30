@@ -9240,7 +9240,7 @@ int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
                 rem->used = (e + SP_WORD_SIZE - 1) >> SP_WORD_SHIFT;
                 e &= SP_WORD_MASK;
                 if (e > 0) {
-                    rem->dp[rem->used - 1] &= (1 << e) - 1;
+                    rem->dp[rem->used - 1] &= ((sp_int_digit)1 << e) - 1;
                 }
                 sp_clamp(rem);
             }
@@ -12979,9 +12979,12 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 
     (void)heap;
 
-    if ((r == NULL) || (rng == NULL) || len <= 0 ) {
+    if ((r == NULL) || (rng == NULL) || len < 0 ) {
         err = MP_VAL;
     }
+
+    if (len == 0)
+        return MP_OKAY;
 
     if (err == MP_OKAY) {
         /* get type */
