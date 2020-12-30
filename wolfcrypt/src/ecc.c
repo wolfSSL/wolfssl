@@ -5479,13 +5479,17 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                       break;
                    }
 
+                   /* use provided sign_k */
                    err = mp_copy(key->sign_k, &pubkey->k);
                    if (err != MP_OKAY) break;
 
+                   /* free sign_k, so only used once */
                    mp_forcezero(key->sign_k);
                    mp_free(key->sign_k);
                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
                    key->sign_k = NULL;
+
+                   /* compute public key based on provided "k" */
                    err = ecc_make_pub_ex(pubkey, curve, NULL, rng);
                }
                else
@@ -5500,15 +5504,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                err = mp_mod(pubkey->pubkey.x, curve->order, r);
                if (err != MP_OKAY) break;
 
-               if (mp_iszero(r) == MP_YES) {
-                #ifndef ALT_ECC_SIZE
-                   mp_clear(pubkey->pubkey.x);
-                   mp_clear(pubkey->pubkey.y);
-                   mp_clear(pubkey->pubkey.z);
-                #endif
-                   mp_forcezero(&pubkey->k);
-               }
-               else {
+               if (mp_iszero(r) == MP_NO) {
                    /* find s = (e + xr)/k
                              = b.(e/k.b + x.r/k.b) */
 
@@ -5546,9 +5542,17 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    err = mp_mod(s, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   if (mp_iszero(s) == MP_NO)
+                   if (mp_iszero(s) == MP_NO) {
+                       /* sign successful */
                        break;
+                   }
                 }
+            #ifndef ALT_ECC_SIZE
+                mp_clear(pubkey->pubkey.x);
+                mp_clear(pubkey->pubkey.y);
+                mp_clear(pubkey->pubkey.z);
+            #endif
+                mp_forcezero(&pubkey->k);
            }
            mp_clear(b);
        #ifdef WOLFSSL_SMALL_STACK
