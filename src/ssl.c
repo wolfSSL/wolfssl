@@ -2671,8 +2671,19 @@ static int _Rehandshake(WOLFSSL* ssl)
         ssl->options.acceptState != ACCEPT_FIRST_REPLY_DONE) {
 
         if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-            WOLFSSL_MSG("Can't renegotiate until previous handshake complete");
-            return SECURE_RENEGOTIATION_E;
+            if (!ssl->options.handShakeDone) {
+                WOLFSSL_MSG("Can't renegotiate until initial "
+                            "handshake complete");
+                return SECURE_RENEGOTIATION_E;
+            }
+            else {
+                WOLFSSL_MSG("Renegotiation already started. "
+                            "Moving it forward.");
+                ret = wolfSSL_negotiate(ssl);
+                if (ret == WOLFSSL_SUCCESS)
+                    ssl->secure_rene_count++;
+                return ret;
+            }
         }
 
 #ifndef NO_FORCE_SCR_SAME_SUITE
