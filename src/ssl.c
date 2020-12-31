@@ -3663,7 +3663,9 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
             FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
             wc_FreeMutex(&cm->tpLock);
             #endif
-
+            if (wc_FreeMutex(&cm->refMutex) != 0) {
+                WOLFSSL_MSG("Couldn't free refMutex mutex");
+            }
             XFREE(cm, cm->heap, DYNAMIC_TYPE_CERT_MANAGER);
         }
     }
