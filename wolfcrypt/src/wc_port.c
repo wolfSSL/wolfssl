@@ -2464,6 +2464,54 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #endif /* WOLFSSL_NUCLEUS_1_2 */
 
+#ifdef WOLFSSL_LINUXKM
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+    /* adapted from kvrealloc() draft by Changli Gao, 2010-05-13 */
+    void *lkm_realloc(void *ptr, size_t newsize) {
+        void *nptr;
+        size_t oldsize;
+
+        if (unlikely(newsize == 0)) {
+            kvfree(ptr);
+            return ZERO_SIZE_PTR;
+        }
+
+        if (unlikely(ptr == NULL))
+            return kvmalloc(newsize, GFP_KERNEL);
+
+        if (is_vmalloc_addr(ptr)) {
+            /* no way to discern the size of the old allocation,
+             * because the kernel doesn't export find_vm_area().  if
+             * it did, we could then call get_vm_area_size() on the
+             * returned struct vm_struct.
+             */
+            return NULL;
+        } else {
+            struct page *page;
+
+            page = virt_to_head_page(ptr);
+            if (PageSlab(page) || PageCompound(page)) {
+                if (newsize < PAGE_SIZE)
+                    return krealloc(ptr, newsize, GFP_KERNEL);
+                oldsize = ksize(ptr);
+            } else {
+                oldsize = page->private;
+                if (newsize <= oldsize)
+                    return ptr;
+            }
+	}
+
+	nptr = kvmalloc(newsize, GFP_KERNEL);
+	if (nptr != NULL) {
+            memcpy(nptr, ptr, oldsize);
+            kvfree(ptr);
+	}
+
+	return nptr;
+    }
+#endif /* >= 4.12 */
+#endif /* WOLFSSL_LINUXKM */
+
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */

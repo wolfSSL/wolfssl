@@ -81,6 +81,7 @@
     _Pragma("GCC diagnostic ignored \"-Wsign-compare\"");
     _Pragma("GCC diagnostic ignored \"-Wpointer-sign\"");
     _Pragma("GCC diagnostic ignored \"-Wbad-function-cast\"");
+    _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
 
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
@@ -88,6 +89,7 @@
     #include <linux/ctype.h>
     #include <linux/init.h>
     #include <linux/module.h>
+    #include <linux/mm.h>
     #ifndef SINGLE_THREADED
         #include <linux/kthread.h>
     #endif
@@ -155,9 +157,17 @@
      */
     #define _MM_MALLOC_H_INCLUDED
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
+    /* kvmalloc()/kvfree() and friends added in linux commit a7c3e901 */
+    #define malloc(x) kvmalloc(x, GFP_KERNEL)
+    #define free(x) kvfree(x)
+    void *lkm_realloc(void *ptr, size_t newsize);
+    #define realloc(x, y) lkm_realloc(x, y)
+#else
     #define malloc(x) kmalloc(x, GFP_KERNEL)
     #define free(x) kfree(x)
     #define realloc(x,y) krealloc(x, y, GFP_KERNEL)
+#endif
 
     /* min() and max() in linux/kernel.h over-aggressively type-check, producing
      * myriad spurious -Werrors throughout the codebase.
