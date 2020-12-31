@@ -355,7 +355,7 @@ WOLFSSL_TEST_SUBROUTINE int  hmac_sha256_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha384_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha512_test(void);
 WOLFSSL_TEST_SUBROUTINE int  hmac_sha3_test(void);
-WOLFSSL_TEST_SUBROUTINE int  hkdf_test(void);
+/* WOLFSSL_TEST_SUBROUTINE */ static int  hkdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  x963kdf_test(void);
 WOLFSSL_TEST_SUBROUTINE int  arc4_test(void);
 WOLFSSL_TEST_SUBROUTINE int  rc2_test(void);
@@ -19076,7 +19076,7 @@ WOLFSSL_TEST_SUBROUTINE int pwdbased_test(void)
 
 #if defined(HAVE_HKDF) && (!defined(NO_SHA) || !defined(NO_SHA256))
 
-WOLFSSL_TEST_SUBROUTINE int hkdf_test(void)
+/* WOLFSSL_TEST_SUBROUTINE */ static int hkdf_test(void)
 {
     int ret;
     int L = 42;
