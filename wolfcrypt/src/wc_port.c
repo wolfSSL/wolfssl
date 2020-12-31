@@ -2252,14 +2252,14 @@ time_t pic32_time(time_t* timer)
 time_t deos_time(time_t* timer)
 {
     const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-    word32 *systemTickPtr = systemTickPointer();
+    const volatile word32 *systemTickPtr = systemTickPointer();
 
     if (timer != NULL)
         *timer = *systemTickPtr/systemTickTimeInHz;
 
     #if defined(CURRENT_UNIX_TIMESTAMP)
         /* CURRENT_UNIX_TIMESTAMP is seconds since Jan 01 1970. (UTC) */
-        return (time_t) *systemTickPtr/systemTickTimeInHz + CURRENT_UNIX_TIMESTAMP;
+        return (time_t) (*systemTickPtr/systemTickTimeInHz) + CURRENT_UNIX_TIMESTAMP;
     #else
         return (time_t) *systemTickPtr/systemTickTimeInHz;
     #endif

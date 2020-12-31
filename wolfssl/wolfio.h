@@ -248,13 +248,17 @@
     #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
     #define SOCKET_ECONNABORTED NU_NOT_CONNECTED
 #elif defined(WOLFSSL_DEOS)
-     #define SOCKET_EWOULDBLOCK EAGAIN
-     #define SOCKET_EAGAIN      EAGAIN
-     #define SOCKET_ECONNRESET  EINTR
-     #define SOCKET_EINTR       EINTR
-     #define SOCKET_EPIPE       EPIPE
-     #define SOCKET_ECONNREFUSED SOCKET_ERROR
-     #define SOCKET_ECONNABORTED SOCKET_ERROR
+    /* `sockaddr_storage` is not defined in DEOS. This workaround will
+     * work for IPV4, but not IPV6
+     */
+    #define sockaddr_storage   sockaddr_in
+    #define SOCKET_EWOULDBLOCK EAGAIN
+    #define SOCKET_EAGAIN      EAGAIN
+    #define SOCKET_ECONNRESET  EINTR
+    #define SOCKET_EINTR       EINTR
+    #define SOCKET_EPIPE       EPIPE
+    #define SOCKET_ECONNREFUSED SOCKET_ERROR
+    #define SOCKET_ECONNABORTED SOCKET_ERROR
 #elif defined(HAVE_NETX)
     #define SOCKET_EWOULDBLOCK NX_NOT_CONNECTED
     #define SOCKET_EAGAIN      NX_NOT_CONNECTED
