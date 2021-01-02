@@ -8195,8 +8195,10 @@ static int aes_test(void)
     if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
         ERROR_OUT(-5906, out);
 #endif /* HAVE_AES_DECRYPT */
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
         ERROR_OUT(-5907, out);
+#endif  /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #endif /* WOLFSSL_AES_128 */
 
 #if defined(WOLFSSL_AESNI) && defined(HAVE_AES_DECRYPT)
@@ -8328,6 +8330,7 @@ static int aes_test(void)
 
     /* Test of AES IV state with encrypt/decrypt */
 #ifdef WOLFSSL_AES_128
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     {
         /* Test Vector from "NIST Special Publication 800-38A, 2001 Edition"
          * https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-38a.pdf
@@ -8408,6 +8411,7 @@ static int aes_test(void)
 
         #endif /* HAVE_AES_DECRYPT */
     }
+#endif /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #endif /* WOLFSSL_AES_128 */
 #endif /* HAVE_AES_CBC */
 
@@ -8902,10 +8906,10 @@ static int aes256_test(void)
         return -6106;
     }
 #endif
-
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         return -6107;
-
+#endif /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
     wc_AesFree(&enc);
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(&dec);
@@ -8942,8 +8946,11 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
     if (wc_AesInit(&dec, HEAP_HINT, devId) != 0) {
         return -6111;
     }
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    result = wc_AesSetKey(&enc, key,keySz,iv,AES_ENCRYPTION );
+#else
     result = wc_AesGcmSetKey(&enc, key, keySz);
+#endif
     if (result != 0)
         return -6112;
 
@@ -8956,17 +8963,22 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
 #endif
     if (result != 0)
         return -6113;
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (cipher != NULL) {
         if (XMEMCMP(cipher, resultC, cipherSz))
             return -6114;
     }
     if (XMEMCMP(tag, resultT, tagSz))
         return -6115;
-
+#endif /* !(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
     wc_AesFree(&enc);
 
 #ifdef HAVE_AES_DECRYPT
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    result = wc_AesSetKey(&dec, key,keySz,iv,AES_DECRYPTION );
+#else
     result = wc_AesGcmSetKey(&dec, key, keySz);
+#endif
     if (result != 0)
         return -6116;
 
@@ -9290,7 +9302,11 @@ static int aesgcm_test(void)
     }
 
 #ifdef WOLFSSL_AES_256
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    result = wc_AesSetKey(&enc, k1,sizeof(k1),iv1,AES_ENCRYPTION );
+#else
     result = wc_AesGcmSetKey(&enc, k1, sizeof(k1));
+#endif
     if (result != 0)
         ERROR_OUT(-6302, out);
 
@@ -9302,13 +9318,18 @@ static int aesgcm_test(void)
 #endif
     if (result != 0)
         ERROR_OUT(-6303, out);
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(c1, resultC, sizeof(c1)))
         ERROR_OUT(-6304, out);
     if (XMEMCMP(t1, resultT, sizeof(resultT)))
         ERROR_OUT(-6305, out);
-
+#endif /*!WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT*/
 #ifdef HAVE_AES_DECRYPT
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    result = wc_AesSetKey(&dec, k1,sizeof(k1),iv1,AES_DECRYPTION );
+#else
     result = wc_AesGcmSetKey(&dec, k1, sizeof(k1));
+#endif /* WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT*/
     if (result != 0)
         ERROR_OUT(-6306, out);
 
@@ -9495,11 +9516,12 @@ static int aesgcm_test(void)
 #endif
     if (result != 0)
         ERROR_OUT(-6325, out);
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(c3, resultC, sizeof(c3)))
         ERROR_OUT(-6326, out);
     if (XMEMCMP(t3, resultT, sizeof(t3)))
         ERROR_OUT(-6327, out);
-
+#endif /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(c3),
                       iv3, sizeof(iv3), resultT, sizeof(t3), a3, sizeof(a3));
@@ -9531,11 +9553,12 @@ static int aesgcm_test(void)
 #endif
     if (result != 0)
         ERROR_OUT(-6330, out);
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(c1, resultC, sizeof(c1)))
         ERROR_OUT(-6331, out);
     if (XMEMCMP(t1, resultT + 1, sizeof(resultT) - 1))
         ERROR_OUT(-6332, out);
-
+#endif /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(p),
               iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, a, sizeof(a));
@@ -9566,8 +9589,11 @@ static int aesgcm_test(void)
         XMEMSET(resultT, 0, sizeof(resultT));
         XMEMSET(resultC, 0, sizeof(resultC));
         XMEMSET(resultP, 0, sizeof(resultP));
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+        wc_AesSetKey(&enc, k1, sizeof(k1), randIV,AES_ENCRYPTION );
+#else
         wc_AesGcmSetKey(&enc, k1, sizeof(k1));
+#endif  /* WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
         result = wc_AesGcmSetIV(&enc, sizeof(randIV), NULL, 0, &rng);
         if (result != 0)
             ERROR_OUT(-6336, out);
@@ -9594,7 +9620,11 @@ static int aesgcm_test(void)
         }
 
 #ifdef HAVE_AES_DECRYPT
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+        wc_AesSetKey(&dec, k1, sizeof(k1), randIV,AES_DECRYPTION );
+#else
         wc_AesGcmSetKey(&dec, k1, sizeof(k1));
+#endif
         result = wc_AesGcmSetIV(&dec, sizeof(randIV), NULL, 0, &rng);
         if (result != 0)
             ERROR_OUT(-6339, out);
@@ -9697,19 +9727,22 @@ static int gmac_test(void)
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
     wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
+    #if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -6400;
-
+    #endif /*! WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT*/
 #if (!defined(HAVE_FIPS) ||                                  \
      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)) )
 
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
+    #if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -6401;
-
+    #endif /*! WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT*/
 #if !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && !defined(NO_AES_DECRYPT)
+#if !defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
     {
         WOLFSSL_SMALL_STACK_STATIC const byte badT[] =
         {
@@ -9748,6 +9781,7 @@ static int gmac_test(void)
             return -6408;
         wc_FreeRng(&rng);
     }
+#endif /* !WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #endif /* !WC_NO_RNG && !HAVE_SELFTEST && !NO_AES_DECRYPT */
 #endif /* HAVE_FIPS */
 
@@ -14054,7 +14088,13 @@ static int rsa_test(void)
 
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
                                  !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
+#if defined(WOLFSSL_RENESAS_CCRX) /* renesas CC-RX compiler deos not allow this macro*/
+    byte* ptr = (byte*)XMALLOC(sizeof(byte) * inLen, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    if(ptr && inStr) { XMEMCPY( ptr ,inStr, sizeof(byte) * inLen); }
+    byte* in = ptr;
+#else
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+#endif /* WOLFSSL_RENESAS_CCRX */
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
