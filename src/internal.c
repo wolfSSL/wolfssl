@@ -14003,12 +14003,6 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             if (ret != 0)
                 break;
         #endif
-        #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-            !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-            if (tsip_useable(ssl)) {
-                ret = wc_tsip_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
-            } else
-        #endif
             ret = wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E && asyncOkay) {
@@ -14280,12 +14274,6 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                 WC_ASYNC_FLAG_CALL_AGAIN);
             if (ret != 0)
                 break;
-        #endif
-        #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-            !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-            if (tsip_useable(ssl)) {
-                ret = wc_tsip_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
-            } else
         #endif
             ret = wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
