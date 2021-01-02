@@ -2974,6 +2974,10 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
     #endif
+    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+        defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+        ret = tsip_AesGenKey(aes, keylen, iv, dir);
+    #endif
         return ret;
     }
 
@@ -3635,6 +3639,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+
+#elif defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+      defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_aes.c */
 
 #else
 
@@ -6391,6 +6399,12 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 
 
 #if !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_aes.c */
+#else
+
 #ifdef FREESCALE_LTC_AES_GCM
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -6844,11 +6858,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 }
 #endif
-
+#endif /* WOLFSSL_RENESAS_TSIP_TLS &&  WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 
 
 /* AES GCM Decrypt */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_aes.c */
+#else
+
 #ifdef FREESCALE_LTC_AES_GCM
 int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -7329,6 +7349,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 }
 #endif
+#endif /* WOLFSSL_RENESAS_TSIP_TLS &&  WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* WOLFSSL_XILINX_CRYPT */
 #endif /* end of block for AESGCM implementation selection */
