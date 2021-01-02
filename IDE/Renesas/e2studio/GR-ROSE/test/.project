@@ -45,6 +45,11 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/test/test.c</locationURI>
 		</link>
 		<link>
+			<name>src/user_settings.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/common/user_settings.h</locationURI>
+		</link>
+		<link>
 			<name>src/wolfssl_dummy.c</name>
 			<type>1</type>
 			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/common/wolfssl_dummy.c</locationURI>
