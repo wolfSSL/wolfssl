@@ -53,6 +53,18 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #include <wolfssl/wolfcrypt/aes.h>
 
+#ifndef __has_feature
+# define __has_feature(x) 0
+#endif
+#if __has_feature(memory_sanitizer)
+# include <sanitizer/msan_interface.h>
+# define MEM_CHECK_DEFINED(a,len) __msan_check_mem_is_initialized(a,len)
+# define MEM_MAKE_DEFINED(a,len) __msan_unpoison(a,len)
+#else
+# define MEM_CHECK_DEFINED(a,len) ((void) 0)
+# define MEM_MAKE_DEFINED(a,len) ((void) 0)
+#endif
+
 #ifdef WOLFSSL_AESNI
 #include <wmmintrin.h>
 #include <emmintrin.h>
@@ -701,6 +713,21 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                              unsigned char* ivec, unsigned long length,
                              const unsigned char* KS, int nr)
                              XASM_LINK("AES_CBC_encrypt");
+        #if __has_feature(memory_sanitizer)
+        static void AES_CBC_encrypt_msan(const unsigned char* in, unsigned char* out,
+                                         unsigned char* ivec, unsigned long length,
+                                         const unsigned char* KS, int nr)
+        {
+            MEM_CHECK_DEFINED(in, length);
+            MEM_CHECK_DEFINED(ivec, AES_BLOCK_SIZE);
+            /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+            MEM_CHECK_DEFINED(&nr, sizeof nr);
+            AES_CBC_encrypt(in, out, ivec, length, KS, nr);
+            MEM_MAKE_DEFINED(out, length);
+        }
+        #define AES_CBC_encrypt AES_CBC_encrypt_msan
+        #endif
+
 
         #ifdef HAVE_AES_DECRYPT
             #if defined(WOLFSSL_AESNI_BY4)
@@ -708,16 +735,58 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                          unsigned char* ivec, unsigned long length,
                                          const unsigned char* KS, int nr)
                                          XASM_LINK("AES_CBC_decrypt_by4");
+                #if __has_feature(memory_sanitizer)
+                static void AES_CBC_decrypt_by4_msan(const unsigned char* in, unsigned char* out,
+                                                     unsigned char* ivec, unsigned long length,
+                                                     const unsigned char* KS, int nr)
+                {
+                    MEM_CHECK_DEFINED(in, length);
+                    MEM_CHECK_DEFINED(ivec, AES_BLOCK_SIZE);
+                    /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+                    MEM_CHECK_DEFINED(&nr, sizeof nr);
+                    AES_CBC_decrypt_by4(in, out, ivec, length, KS, nr);
+                    MEM_MAKE_DEFINED(out, length);
+                }
+                #define AES_CBC_decrypt_by4 AES_CBC_decrypt_by4_msan
+                #endif
             #elif defined(WOLFSSL_AESNI_BY6)
                 void AES_CBC_decrypt_by6(const unsigned char* in, unsigned char* out,
                                          unsigned char* ivec, unsigned long length,
                                          const unsigned char* KS, int nr)
                                          XASM_LINK("AES_CBC_decrypt_by6");
+                #if __has_feature(memory_sanitizer)
+                static void AES_CBC_decrypt_by6_msan(const unsigned char* in, unsigned char* out,
+                                                     unsigned char* ivec, unsigned long length,
+                                                     const unsigned char* KS, int nr)
+                {
+                    MEM_CHECK_DEFINED(in, length);
+                    MEM_CHECK_DEFINED(ivec, AES_BLOCK_SIZE);
+                    /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+                    MEM_CHECK_DEFINED(&nr, sizeof nr);
+                    AES_CBC_decrypt_by6(in, out, ivec, length, KS, nr);
+                    MEM_MAKE_DEFINED(out, length);
+                }
+                #define AES_CBC_decrypt_by6 AES_CBC_decrypt_by6_msan
+                #endif
             #else /* WOLFSSL_AESNI_BYx */
                 void AES_CBC_decrypt_by8(const unsigned char* in, unsigned char* out,
                                          unsigned char* ivec, unsigned long length,
                                          const unsigned char* KS, int nr)
                                          XASM_LINK("AES_CBC_decrypt_by8");
+                #if __has_feature(memory_sanitizer)
+                static void AES_CBC_decrypt_by8_msan(const unsigned char* in, unsigned char* out,
+                                                     unsigned char* ivec, unsigned long length,
+                                                     const unsigned char* KS, int nr)
+                {
+                    MEM_CHECK_DEFINED(in, length);
+                    MEM_CHECK_DEFINED(ivec, AES_BLOCK_SIZE);
+                    /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+                    MEM_CHECK_DEFINED(&nr, sizeof nr);
+                    AES_CBC_decrypt_by8(in, out, ivec, length, KS, nr);
+                    MEM_MAKE_DEFINED(out, length);
+                }
+                #define AES_CBC_decrypt_by8 AES_CBC_decrypt_by8_msan
+                #endif
             #endif /* WOLFSSL_AESNI_BYx */
         #endif /* HAVE_AES_DECRYPT */
     #endif /* HAVE_AES_CBC */
@@ -725,11 +794,35 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
                          unsigned long length, const unsigned char* KS, int nr)
                          XASM_LINK("AES_ECB_encrypt");
+    #if __has_feature(memory_sanitizer)
+    static void AES_ECB_encrypt_msan(const unsigned char* in, unsigned char* out,
+                                     unsigned long length, const unsigned char* KS, int nr)
+    {
+        MEM_CHECK_DEFINED(in, length);
+        /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+        MEM_CHECK_DEFINED(&nr, sizeof nr);
+        AES_ECB_encrypt(in, out, length, KS, nr);
+        MEM_MAKE_DEFINED(out, length);
+    }
+    #define AES_ECB_encrypt AES_ECB_encrypt_msan
+    #endif
 
     #ifdef HAVE_AES_DECRYPT
         void AES_ECB_decrypt(const unsigned char* in, unsigned char* out,
                              unsigned long length, const unsigned char* KS, int nr)
                              XASM_LINK("AES_ECB_decrypt");
+        #if __has_feature(memory_sanitizer)
+        static void AES_ECB_decrypt_msan(const unsigned char* in, unsigned char* out,
+                                         unsigned long length, const unsigned char* KS, int nr)
+        {
+            MEM_CHECK_DEFINED(in, length);
+            /* MEM_CHECK_DEFINED(KS, aes->keylen); */
+            MEM_CHECK_DEFINED(&nr, sizeof nr);
+            AES_ECB_decrypt(in, out, length, KS, nr);
+            MEM_MAKE_DEFINED(out, length);
+        }
+        #define AES_ECB_decrypt AES_ECB_decrypt_msan
+        #endif
     #endif
 
     void AES_128_Key_Expansion(const unsigned char* userkey,
@@ -743,6 +836,33 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     void AES_256_Key_Expansion(const unsigned char* userkey,
                                unsigned char* key_schedule)
                                XASM_LINK("AES_256_Key_Expansion");
+
+    #if __has_feature(memory_sanitizer)
+        static void AES_128_Key_Expansion_msan(const unsigned char* userkey,
+                                               unsigned char* key_schedule)
+        {
+            AES_128_Key_Expansion(userkey, key_schedule);
+            MEM_MAKE_DEFINED(userkey, 128 / 8);
+        }
+        #define AES_128_Key_Expansion AES_128_Key_Expansion_msan
+
+        static void AES_192_Key_Expansion_msan(const unsigned char* userkey,
+                                               unsigned char* key_schedule)
+        {
+            AES_192_Key_Expansion(userkey, key_schedule);
+            MEM_MAKE_DEFINED(userkey, 192 / 8);
+        }
+        #define AES_192_Key_Expansion AES_192_Key_Expansion_msan
+
+        static void AES_256_Key_Expansion_msan(const unsigned char* userkey,
+                                               unsigned char* key_schedule)
+        {
+            AES_256_Key_Expansion(userkey, key_schedule);
+            MEM_MAKE_DEFINED(userkey, 256 / 8);
+        }
+        #define AES_256_Key_Expansion AES_256_Key_Expansion_msan
+    #endif
+
 
 
     static int AES_set_encrypt_key(const unsigned char *userKey, const int bits,
@@ -4388,6 +4508,29 @@ void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
                      unsigned int abytes, unsigned int ibytes,
                      unsigned int tbytes, const unsigned char* key, int nr)
                      XASM_LINK("AES_GCM_encrypt");
+
+#if __has_feature(memory_sanitizer)
+static void AES_GCM_encrypt_msan(const unsigned char *in, unsigned char *out,
+                                 const unsigned char* addt,
+                                 const unsigned char* ivec,
+                                 unsigned char *tag, unsigned int nbytes,
+                                 unsigned int abytes, unsigned int ibytes,
+                                 unsigned int tbytes, const unsigned char* key,
+                                 int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_encrypt(in, out, addt, ivec, tag, nbytes, abytes, ibytes, tbytes,
+                    key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_encrypt AES_GCM_encrypt_msan
+#endif
+
 #ifdef HAVE_INTEL_AVX1
 void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
@@ -4414,6 +4557,29 @@ void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
                      int ibytes, int tbytes, const unsigned char* key, int nr,
                      int* res)
                      XASM_LINK("AES_GCM_decrypt");
+
+#if __has_feature(memory_sanitizer)
+static void AES_GCM_decrypt_msan(const unsigned char *in, unsigned char *out,
+                                 const unsigned char* addt,
+                                 const unsigned char* ivec,
+                                 unsigned char *tag, unsigned int nbytes,
+                                 unsigned int abytes, unsigned int ibytes,
+                                 unsigned int tbytes, const unsigned char* key,
+                                 int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_encrypt(in, out, addt, ivec, tag, nbytes, abytes, ibytes, tbytes,
+                    key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_decrypt AES_GCM_decrypt_msan
+#endif
+
 #ifdef HAVE_INTEL_AVX1
 void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
@@ -4421,6 +4587,50 @@ void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
                           int ibytes, int tbytes, const unsigned char* key,
                           int nr, int* res)
                           XASM_LINK("AES_GCM_decrypt_avx1");
+
+#if __has_feature(memory_sanitizer)
+static void AES_GCM_encrypt_avx1_msan(const unsigned char *in,
+                                      unsigned char *out,
+                                      const unsigned char* addt,
+                                      const unsigned char* ivec,
+                                      unsigned char *tag, unsigned int nbytes,
+                                      unsigned int abytes, unsigned int ibytes,
+                                      unsigned int tbytes,
+                                      const unsigned char* key, int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_encrypt_avx1(in, out, addt, ivec, tag, nbytes, abytes, ibytes,
+                         tbytes, key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_encrypt_avx1 AES_GCM_encrypt_avx1_msan
+static void AES_GCM_decrypt_avx1_msan(const unsigned char *in,
+                                      unsigned char *out,
+                                      const unsigned char* addt,
+                                      const unsigned char* ivec,
+                                      unsigned char *tag, unsigned int nbytes,
+                                      unsigned int abytes, unsigned int ibytes,
+                                      unsigned int tbytes,
+                                      const unsigned char* key, int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_decrypt_avx1(in, out, addt, ivec, tag, nbytes, abytes, ibytes,
+                         tbytes, key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_decrypt_avx1 AES_GCM_decrypt_avx1_msan
+#endif
+
 #ifdef HAVE_INTEL_AVX2
 void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
@@ -4428,6 +4638,48 @@ void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
                           int ibytes, int tbytes, const unsigned char* key,
                           int nr, int* res)
                           XASM_LINK("AES_GCM_decrypt_avx2");
+#if __has_feature(memory_sanitizer)
+static void AES_GCM_encrypt_avx2_msan(const unsigned char *in,
+                                      unsigned char *out,
+                                      const unsigned char* addt,
+                                      const unsigned char* ivec,
+                                      unsigned char *tag, unsigned int nbytes,
+                                      unsigned int abytes, unsigned int ibytes,
+                                      unsigned int tbytes,
+                                      const unsigned char* key, int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_encrypt_avx2(in, out, addt, ivec, tag, nbytes, abytes, ibytes,
+                         tbytes, key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_encrypt_avx2 AES_GCM_encrypt_avx2_msan
+static void AES_GCM_decrypt_avx2_msan(const unsigned char *in,
+                                      unsigned char *out,
+                                      const unsigned char* addt,
+                                      const unsigned char* ivec,
+                                      unsigned char *tag, unsigned int nbytes,
+                                      unsigned int abytes, unsigned int ibytes,
+                                      unsigned int tbytes,
+                                      const unsigned char* key, int nr)
+{
+    MEM_CHECK_DEFINED(in, nbytes);
+    MEM_CHECK_DEFINED(addt, abytes);
+    MEM_CHECK_DEFINED(tag, tbytes);
+    MEM_CHECK_DEFINED(ivec, ibytes);
+    /* MEM_CHECK_DEFINED(key, aes->keylen); */
+    MEM_CHECK_DEFINED(&nr, sizeof nr);
+    AES_GCM_decrypt_avx2(in, out, addt, ivec, tag, nbytes, abytes, ibytes,
+                         tbytes, key, nr);
+    MEM_MAKE_DEFINED(out, nbytes);
+}
+#define AES_GCM_decrypt_avx2 AES_GCM_decrypt_avx2_msan
+#endif
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* HAVE_INTEL_AVX1 */
 #endif /* HAVE_AES_DECRYPT */
