@@ -205,10 +205,8 @@ typedef struct {
 } TSIP_AES_CTX;
 
 struct Aes;
-int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in,
-                            word32 sz);
-int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in,
-                            word32 sz);
+
+int tsip_AesGenKey(struct Aes* aes, word32 keylen, const byte* iv, int dir);
 #endif /* WOLFSSL_RENESAS_TSIP_TLS_AES */
 
 #if defined(WOLFSSL_RENESAS_TSIP_CRYPT_DEBUG)
