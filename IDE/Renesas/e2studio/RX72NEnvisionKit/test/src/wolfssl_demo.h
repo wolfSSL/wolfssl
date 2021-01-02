@@ -29,7 +29,7 @@
 /* #define CRYPT_TEST    */
 
 /* Enable benchmark               */
-/* can be enabled with cyrpt test */
+/* can be enabled with crypt test */
 /* #define BENCHMARK*/
 
 /* Enable TLS client     */
@@ -42,7 +42,7 @@
 
 void wolfSSL_TLS_client_init();
 void wolfSSL_TLS_client();
-void wolfSSL_TLS_server_init();
+void wolfSSL_TLS_server_init(byte);
 void wolfSSL_TLS_server();
 
 #endif /* WOLFSSL_DEMO_H_ */
