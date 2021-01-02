@@ -102,8 +102,8 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
         const unsigned char *cert       = ca_ecc_der_256;
         #define  SIZEOF_CERT sizeof_ca_ecc_der_256
         #else
-        const unsigned char *cert       = ca_cert_der_2048;
-        #define  SIZEOF_CERT sizeof_ca_cert_der_2048
+        const unsigned char *cert       = client_cert_der_sign;
+        #define  SIZEOF_CERT sizeof_client_cert_der_sign
         #endif
     #endif
 
