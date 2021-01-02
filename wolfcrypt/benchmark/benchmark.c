@@ -189,16 +189,6 @@
     #endif
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP_CRYPT) &&  !defined(NO_AES)
-    #if  defined(HAVE_AES_CBC)
-        static void tsip_bench_aescbc(int doAsync);
-    #endif
-    #if  defined(HAVE_AESGCM)
-        static void tsip_bench_aesgcm(int doAsync);
-    #endif
-#endif
-
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -1465,11 +1455,7 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AES_CBC
     if (bench_all || (bench_cipher_algs & BENCH_AES_CBC)) {
     #ifndef NO_SW_BENCH
-        #ifdef  WOLFSSL_RENESAS_TSIP_CRYPT
-        tsip_bench_aescbc(0);
-        #else
         bench_aescbc(0);
-        #endif
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
@@ -1481,11 +1467,7 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_AESGCM
     if (bench_all || (bench_cipher_algs & BENCH_AES_GCM)) {
     #ifndef NO_SW_BENCH   
-    #ifdef  WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
-        tsip_bench_aesgcm(0);
-    #else
         bench_aesgcm(0);
-    #endif
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
@@ -2142,111 +2124,6 @@ exit_rng:
 
 #ifdef HAVE_AES_CBC
 
-#ifdef WOLFSSL_RENESAS_TSIP_CRYPT
-static  int tsip_bench_aescbc_internal(
-                int             doAsync,
-                const byte*     key,        word32      keySz,
-                const byte*     iv,         word32      ivSz,
-                const char*     encLabel,   const char* decLabel)
-{
-    int     ret     = 0; 
-    int     count   = 0;
-    int     times   = 0;
-    double  start;
-    int     bench_buf_size  = (int)bench_size;
-    Aes     aes;
-
-    /* key size check. only acceptable 128bit and 256bit key */
-    if( keySz != 16 && keySz != 32)
-        return  1;
-
-    if (bench_buf_size % 16)
-        bench_buf_size += 16 - (bench_buf_size % 16);
-    
-    /* buffers passed to TSIP must be 32bit-aligned */  
-    byte* bench_plain  = (byte*)XMALLOC((size_t)bench_buf_size + 16, NULL, DYNAMIC_TYPE_CIPHER);
-    byte* bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16, NULL, DYNAMIC_TYPE_CIPHER);
-
-    XMEMSET(bench_plain,    0x30, bench_buf_size +16);
-    XMEMSET(bench_cipher,   0,    bench_buf_size +16);  
-    XMEMSET(&aes,           0,    sizeof(aes));
-    
-    /* 
-     * The key passed as a parameter of this function should be "installed"
-     * into TSIP with a provisioning key. To avoid this troublesom,   
-     * make TSIP generate AES key in stead and use it for encryption and
-     * decryption.
-     */
-    aes.ctx.keySize = keySz;
-
-    XMEMCPY((byte*)aes.reg, iv,ivSz );  /* copy IV */    
-
-    if(keySz == 16){
-        ret = R_TSIP_GenerateAes128RandomKeyIndex(&aes.ctx.tsip_keyIdx);
-    }
-    else{
-        ret = R_TSIP_GenerateAes256RandomKeyIndex(&aes.ctx.tsip_keyIdx);
-    }
-
-    if( ret== TSIP_SUCCESS)
-    { 
-        bench_stats_start(&count, &start);
-
-        do {
-            for (times = 0; times < numBlocks; times++ ) {
-                ret = wc_tsip_AesCbcEncrypt(
-                        &aes,bench_cipher,bench_plain,bench_size);
-            }
-            count += times;
-        } while (bench_stats_sym_check(start) && ret == 0);
-    
-        if( ret == 0){
-            bench_stats_sym_finish(encLabel,doAsync,count,bench_size,start,ret);
-
-            bench_stats_start(&count, &start);
-
-            do {
-                for (times = 0; times < numBlocks ; times++) {
-                    ret = wc_tsip_AesCbcDecrypt(
-                            &aes,bench_plain,bench_cipher,bench_size);
-                }
-                count += times;
-            } while (bench_stats_sym_check(start) && ret == 0);
-            
-            if( ret == 0 ){
-                bench_stats_sym_finish(decLabel,doAsync, count, bench_size, start, ret);
-            }
-        }
-    }
-    (void)decLabel;
-    
-    XFREE(bench_plain,  NULL, DYNAMIC_TYPE_CIPHER);
-    XFREE(bench_cipher, NULL, DYNAMIC_TYPE_CIPHER);
-    
-    return ret;
-}
-
-static void tsip_bench_aescbc(int doAsync)
-{
-   
-#if defined(WOLFSSL_AES_128) 
-    tsip_bench_aescbc_internal(
-            doAsync, 
-            NULL,               /* AES key ( not used )*/
-            16,                 /* 16 bytes = 128bit lenght */
-            bench_iv_buf, 12,   /* iv and its bytes count */
-            "AES-128-CBC-enc", "AES-128-CBC-dec");
-#endif
-#ifdef WOLFSSL_AES_256
-    tsip_bench_aescbc_internal(
-            doAsync,
-            NULL,
-            32,
-            bench_iv_buf, 12,
-            "AES-256-CBC-enc", "AES-256-CBC-dec");
-#endif
-}
-#endif /*WOLFSSL_RENESAS_TSIP_CRYPT*/
 
 
 static void bench_aescbc_internal(int doAsync, const byte* key, word32 keySz,
@@ -2361,329 +2238,6 @@ void bench_aescbc(int doAsync)
 
 #ifdef HAVE_AESGCM
 
-#ifdef WOLFSSL_RENESAS_TSIP_CRYPT
-static  int wc_tsip_AesGcmEncrypt(
-            Aes*  aes, 
-            byte* out, const byte* in,  word32 sz,
-            byte*       iv,             word32 ivSz,
-            byte*       authTag,        word32 authTagSz,
-            const byte* authIn,         word32 authInSz)
-{
-
-    tsip_gcm_handle_t   hdl;
-    word32              ret;
-    uint32_t            dataLen;  
-    word32              blocks = (sz/ AES_BLOCK_SIZE);
-
-    if ( in == NULL  || out == NULL || aes == NULL ||
-         iv == NULL  || authTag == NULL || authIn == NULL ){   
-        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: Bad Arg");
-      return BAD_FUNC_ARG;
-    }
- 
-    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
-        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: illegal key size");
-        return  BAD_FUNC_ARG;
-    }
-
-    if((ret = tsip_hw_lock()) == 0){
-    
-        if (aes->ctx.keySize == 16) {
-            ret = R_TSIP_Aes128GcmEncryptInit(&hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
-        } else{
-            ret = R_TSIP_Aes256GcmEncryptInit(&hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
-        }
-
-        if( ret == TSIP_SUCCESS){
-
-            if (aes->ctx.keySize == 16){
-                ret = R_TSIP_Aes128GcmEncryptUpdate(
-                    &hdl,(uint8_t*)NULL,(uint8_t*)out,(uint32_t)0,
-                    (uint8_t*)authIn,authInSz);
-            }
-            else{
-                ret = R_TSIP_Aes256GcmEncryptUpdate(
-                    &hdl,(uint8_t*)NULL,(uint8_t*)out,(uint32_t)0,
-                    (uint8_t*)authIn,authInSz);
-            }
-
-            if(ret == TSIP_SUCCESS){
-
-                while (ret == TSIP_SUCCESS && blocks--) {
-
-                    if (aes->ctx.keySize == 16){
-                        ret = R_TSIP_Aes128GcmEncryptUpdate(
-                                &hdl,(uint8_t*)in,(uint8_t*)out,(uint32_t)AES_BLOCK_SIZE,  NULL, 0);
-                    }
-                    else{
-                        ret = R_TSIP_Aes256GcmEncryptUpdate(
-                                &hdl,(uint8_t*)in,(uint8_t*)out,(uint32_t)AES_BLOCK_SIZE,
-                                NULL, 0);
-                    }
-                    in  += AES_BLOCK_SIZE;
-                    out += AES_BLOCK_SIZE;
-                }
-            }
-        }
-
-        /* Once R_TSIP_Aed EncryptInit or R_TSIP_Aed Encrypt Update is called,
-        * R_TSIP_AesxxxGcmEncryptFinal must be called regardless of the result
-        * of the previous call. Otherwise, TSIP can not come out from its 
-        * error state and all the trailing APIs will fail. 
-        */   
-        if (aes->ctx.keySize == 16) {
-            ret = R_TSIP_Aes128GcmEncryptFinal(
-                    &hdl,out,&dataLen,authTag);
-        } 
-        else {
-            ret = R_TSIP_Aes256GcmEncryptFinal(
-                    &hdl,out,&dataLen,authTag);
-        }
-        if(ret != TSIP_SUCCESS){
-            WOLFSSL_MSG("R_TSIP_AesxxxGcmEncryptFinal: failed");
-        }
-
-        tsip_hw_unlock();
-    }
-    return ret;
-}
-static  int wc_tsip_AesGcmDecrypt(
-            Aes*  aes, 
-            byte* out, const byte* in,  word32 sz,
-            byte*       iv,             word32 ivSz,
-            byte*       authTag,        word32 authTagSz,
-            const byte* authIn,         word32 authInSz)
-{                            
-
-    tsip_gcm_handle_t   hdl;
-    word32              ret;
-    word32              blocks = (sz/ AES_BLOCK_SIZE);
-    uint32_t            dataLen;
-    
-    if ( in == NULL  || out == NULL || aes == NULL ||
-         iv == NULL  || authTag == NULL || authIn == NULL ){    
-      return BAD_FUNC_ARG;
-    }
-
-    if (aes->ctx.keySize != 16 && aes->ctx.keySize != 32) {
-        WOLFSSL_MSG("<< wc_tsip_AesGcmEncrypt: illegal key size");
-        return  BAD_FUNC_ARG;
-    }
-
-    if((ret = tsip_hw_lock()) == 0){
- 
-        if (aes->ctx.keySize == 16) {
-            ret = R_TSIP_Aes128GcmDecryptInit(
-                    &hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
-        } 
-        else{
-            ret = R_TSIP_Aes256GcmDecryptInit(
-                    &hdl,&aes->ctx.tsip_keyIdx,iv,ivSz);
-        }
-
-        if( ret == TSIP_SUCCESS ){
-
-            /* pass only AuthTag and it's size before passing cipher text */
-            if (aes->ctx.keySize == 16){
-
-                ret = R_TSIP_Aes128GcmDecryptUpdate(
-                            &hdl,
-                            (uint8_t*)NULL, /* buffer for cipher text*/
-                            (uint8_t*)out, /* buffer for plain text */
-                            (uint32_t)0,
-                            (uint8_t*)authIn,
-                            authInSz);
-            }
-            else{
-                ret = R_TSIP_Aes256GcmDecryptUpdate(
-                            &hdl,
-                            (uint8_t*)NULL, 
-                            (uint8_t*)out,
-                            (uint32_t)0,
-                            (uint8_t*)authIn,
-                            authInSz);
-            }
-
-            if(ret == TSIP_SUCCESS){
-
-                while ((ret == TSIP_SUCCESS) && blocks--) {
-
-                    if (aes->ctx.keySize == 16){ 
-                        ret = R_TSIP_Aes128GcmDecryptUpdate(
-                                &hdl,
-                                (uint8_t*)in, 
-                                (uint8_t*)out,
-                                (uint32_t)AES_BLOCK_SIZE,
-                                NULL,
-                                0);
-                    }
-                    else{
-
-                        ret = R_TSIP_Aes256GcmDecryptUpdate(
-                                &hdl,
-                                (uint8_t*)in, 
-                                (uint8_t*)out,
-                                (uint32_t)AES_BLOCK_SIZE,
-                                NULL,
-                                0);
-                    }
-                    in  += AES_BLOCK_SIZE;
-                    out += AES_BLOCK_SIZE;
-                }
-            }
-        }
-    
-        if (aes->ctx.keySize == 16) {
-            ret = R_TSIP_Aes128GcmDecryptFinal(
-                    &hdl,out,&dataLen,authTag,authTagSz);
-        } 
-        else {
-            ret = R_TSIP_Aes256GcmDecryptFinal(
-                    &hdl,out,&dataLen,authTag,authTagSz);
-        }
-    
-        if( ret != TSIP_SUCCESS ){
-            WOLFSSL_MSG("R_TSIP_AesXXXGcmDecryptFinal: failed");
-        }
-    
-        tsip_hw_unlock();
-    }
-    return ret;
-}
-static  int tsip_bench_aesgcm_internal(
-                int             doAsync,
-                const byte*     key,        word32      keySz,
-                const byte*     iv,         word32      ivSz,
-                const char*     encLabel,   const char* decLabel)
-{
-    #define TSIP_AES_AUTH_ADD_SZ  16
-    #define TSIP_AES_AUTH_TAG_SZ  16
-
-    /* additional authentication data */
-    const byte add_auth_data[] = 
-    {
-        0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,
-        0xAA,0xBB,0xCC,0xDD,0xEE,0xFF,0x00,0x11
-    };
-
-    int     ret     = 0; 
-    int     count   = 0;
-    int     times   = 0;
-    double  start;
-    int     numBlocks       = 25; /* how many megs to test (en/de)cryption */
-    word32  bench_size      = (1024ul);
-    int     bench_buf_size  = (int)bench_size;
-    Aes     aes;
-
-    /* key size check. only acceptable 128bit and 256bit key */
-    if( keySz != 16 && keySz != 32)
-        return  1;
-
-
-    if (bench_buf_size % 16)
-        bench_buf_size += 16 - (bench_buf_size % 16);
-    
-    /* buffers passed to TSIP must be 32bit-aligned */  
-    byte* bench_plain  = (byte*)XMALLOC((size_t)bench_buf_size + 16, NULL, DYNAMIC_TYPE_CIPHER);
-    byte* bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16, NULL, DYNAMIC_TYPE_CIPHER);
-    byte* bench_addtn  = (byte*)XMALLOC((size_t)16, NULL, DYNAMIC_TYPE_CIPHER);
-    byte* bench_tag    = (byte*)XMALLOC((size_t)16, NULL, DYNAMIC_TYPE_CIPHER);
-
-    XMEMCPY(bench_addtn,    add_auth_data,TSIP_AES_AUTH_ADD_SZ );
-    XMEMSET(bench_plain,    0x30, bench_buf_size +16);
-    XMEMSET(bench_cipher,   0,    bench_buf_size +16);  
-    XMEMSET(bench_tag,      0,    TSIP_AES_AUTH_TAG_SZ);
-    XMEMSET(&aes,           0,    sizeof(aes));
-    
-
-    /* 
-     * The key passed as a parameter of this function should be "installed"
-     * into TSIP with a provisioning key. To avoid this troublesom,   
-     * make TSIP generate AES key in stead and use it for encryption and
-     * decryption.
-     */
-    aes.ctx.keySize = keySz;
-    
-    if(keySz == 16){
-        ret = R_TSIP_GenerateAes128RandomKeyIndex(&aes.ctx.tsip_keyIdx);
-    }
-    else{
-        ret = R_TSIP_GenerateAes256RandomKeyIndex(&aes.ctx.tsip_keyIdx);
-    }
-
-    if( ret== TSIP_SUCCESS)
-    { 
-        bench_stats_start(&count, &start);
-
-        do {
-            for (times = 0; times < numBlocks; times++ ) {
-                ret = wc_tsip_AesGcmEncrypt(
-                        &aes,            
-                        bench_cipher,
-                        bench_plain,
-                        bench_size,
-                        (byte*)iv,      ivSz, 
-                        bench_tag,      TSIP_AES_AUTH_TAG_SZ,
-                        bench_addtn,    TSIP_AES_AUTH_ADD_SZ);
-            }
-            count += times;
-        } while (bench_stats_sym_check(start) && ret == 0);
-    
-        if( ret == 0){
-            bench_stats_sym_finish(encLabel,doAsync,count,bench_size,start,ret);
-
-            bench_stats_start(&count, &start);
-
-            do {
-                for (times = 0; times < numBlocks ; times++) {        
-                    ret = wc_tsip_AesGcmDecrypt(
-                            &aes,               
-                            bench_plain,
-                            bench_cipher,
-                            bench_size,
-                            (byte*)iv,      ivSz,
-                            bench_tag,      TSIP_AES_AUTH_TAG_SZ,
-                            bench_addtn,    TSIP_AES_AUTH_ADD_SZ);
-                }
-                count += times;
-            } while (bench_stats_sym_check(start) && ret == 0);
-
-            if( ret == 0 ){
-                bench_stats_sym_finish(decLabel,doAsync,count,bench_size,start,ret);
-            }
-            (void)decLabel;
-        }
-    }
-    
-    XFREE(bench_plain,  NULL, DYNAMIC_TYPE_CIPHER);
-    XFREE(bench_cipher, NULL, DYNAMIC_TYPE_CIPHER);
-    XFREE(bench_tag,    NULL, DYNAMIC_TYPE_CIPHER);
-    XFREE(bench_addtn,  NULL, DYNAMIC_TYPE_CIPHER);
-    
-    return ret;
-}
-static void tsip_bench_aesgcm(int doAsync)
-{
-   
-#if defined(WOLFSSL_AES_128) 
-    tsip_bench_aesgcm_internal(
-            doAsync, 
-            NULL,               /* AES key ( not used )*/
-            16,                 /* 16 bytes = 128bit lenght */
-            bench_iv_buf, 12,   /* iv and its bytes count */
-            "AES-128-GCM-enc", "AES-128-GCM-dec");
-#endif
-#ifdef WOLFSSL_AES_256
-    tsip_bench_aesgcm_internal(
-            doAsync,
-            NULL,
-            32,
-            bench_iv_buf, 12,
-            "AES-256-GCM-enc", "AES-256-GCM-dec");
-#endif
-}
-#endif /*WOLFSSL_RENESAS_TSIP_CRYPT*/
-
 static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
                                   const byte* iv, word32 ivSz,
                                   const char* encLabel, const char* decLabel)
@@ -2725,8 +2279,11 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
             printf("AesInit failed, ret = %d\n", ret);
             goto exit;
         }
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+        ret = wc_AesSetKey(&enc[i], key, keySz, iv, AES_ENCRYPTION);
+#else
         ret = wc_AesGcmSetKey(&enc[i], key, keySz);
+#endif  /* WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
         if (ret != 0) {
             printf("AesGcmSetKey failed, ret = %d\n", ret);
             goto exit;
@@ -2765,8 +2322,11 @@ exit_aes_gcm:
             printf("AesInit failed, ret = %d\n", ret);
             goto exit;
         }
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+        ret = wc_AesSetKey(&dec[i], key, keySz, iv,AES_DECRYPTION);
+#else
         ret = wc_AesGcmSetKey(&dec[i], key, keySz);
+#endif  /* WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT */
         if (ret != 0) {
             printf("AesGcmSetKey failed, ret = %d\n", ret);
             goto exit;
@@ -4957,7 +4517,13 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if defined(WOLFSSL_RENESAS_CCRX) /* renesas CC-RX compiler deos not allow this macro*/
+    byte* ptr = (byte*)XMALLOC(sizeof(byte) * len, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    if(ptr && messageStr) { XMEMCPY( ptr ,messageStr, sizeof(byte) * len); }
+    byte* message =  ptr;
+#else
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
+#endif /*WOLFSSL_RENESAS_CCRX*/
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
