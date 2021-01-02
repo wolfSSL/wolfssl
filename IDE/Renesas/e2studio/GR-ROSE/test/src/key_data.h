@@ -48,7 +48,7 @@ typedef struct st_key_block_data
     extern const unsigned char          ca_cert_der[];
     extern const unsigned char          client_cert_der_sign[];
     extern const int                    sizeof_ca_cert_der;
-
+    extern const int                    sizeof_client_cert_der_sign;
 
 #endif /* (WOLFSSL_RENESAS_TSIP */
 #endif /* KEY_DATA_H_ */
