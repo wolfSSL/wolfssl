@@ -45,7 +45,8 @@ extern const st_key_block_data_t    g_key_block_data;
 
 extern const unsigned char          ca_cert_sig[];
 extern const unsigned char          ca_cert_der[];
-extern const unsigned char          client_cert_der_sign[];
+extern const unsigned char          client_cert_der_sign[];      /* RootCA */
+extern const int                    sizeof_client_cert_der_sign; /* size of RootCA */
 extern const int                    sizeof_ca_cert_der;
 
 
