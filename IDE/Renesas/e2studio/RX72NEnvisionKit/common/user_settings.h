@@ -19,13 +19,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef USER_SETTINGS_H
+#define USER_SETTINGS_H
+
 /*-- Renesas MCU type ---------------------------------------------------------
  *
  *
  *----------------------------------------------------------------------------*/
-/*#define WOLFSSL_RENESAS_RX65N*/
   #define WOLFSSL_RENESAS_RX72N
 
+/*-- Renesas Compiler ---------------------------------------------------------
+ *
+ *----------------------------------------------------------------------------*/
+
+#define WOLFSSL_RENESAS_CCRX
 
 /*-- Renesas TSIP usage and its version ---------------------------------------
  *
@@ -35,10 +42,10 @@
  *  "WOLFSSL_RENESAS_TSIP_VER" takes following value:
  *      106: TSIPv1.06
  *      109: TSIPv1.09
- *      
+ *      110: TSIPv1.10
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
-  #define WOLFSSL_RENESAS_TSIP_VER     109
+  #define WOLFSSL_RENESAS_TSIP_VER     110
 
 
 /*-- TLS version definitions  --------------------------------------------------
@@ -165,6 +172,7 @@
         #define WOLFSSL_RENESAS_TSIP_CRYPT
         #define WOLFSSL_RENESAS_TSIP_TLS
         #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+        #define NO_AES_192        /* TSIP can not handle 192bit key */
     #endif
 
 #else
@@ -179,3 +187,5 @@
     #define HAVE_HKDF
     #define WC_RSA_PSS
 #endif
+
+#endif /* USER_SETTINGS_H */
