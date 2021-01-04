@@ -25743,6 +25743,68 @@ char* wolfSSL_CONF_get1_default_config_file(void)
     return NULL;
 }
 #endif
+
+
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
+{
+    WOLFSSL_X509_VERIFY_PARAM *param = NULL;
+    param = XMALLOC(sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (param != NULL)
+        XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+
+    return(param);
+}
+
+
+void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    if (param != NULL)
+        XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+
+/* Sets flags by OR'ing with existing value. */
+int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        param->flags |= flags;
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    int ret = 0;
+
+    if (param != NULL) {
+        ret = param->flags;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        param->flags &= ~flags;
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
+
 /******************************************************************************
 * wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
 * hostnames is cleared if name is NULL or empty.
