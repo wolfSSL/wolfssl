@@ -30786,6 +30786,9 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     ret = mp_rand_prime(NULL, 32, rng, NULL);
     if (ret != MP_VAL)
         return -12789;
+    ret = mp_rand_prime(a, 0, rng, NULL);
+    if (ret != MP_VAL)
+        return -9969;
 #endif
 
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
