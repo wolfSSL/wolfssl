@@ -7459,7 +7459,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 #endif
     word32 size;
     byte*  buff;
-    int    ret;
+    int    ret = WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_CTX_check_private_key");
 
