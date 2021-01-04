@@ -2052,26 +2052,17 @@ int InitCAAM(void)
 
     CAAM_INIT_MUTEX(&caam.ring.jr_lock);
 
-    caam.ring.VirtualIn =
-//        (void*)CAAM_ADR_TO_VIRTUAL(caam.ring.JobIn,
-//            CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    mmap_device_memory(NULL,
+    caam.ring.VirtualIn = mmap_device_memory(NULL,
             CAAM_JOBRING_SIZE * sizeof(unsigned int),
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.JobIn);
     memset(caam.ring.VirtualIn, 0, CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    caam.ring.VirtualOut  = 
-//        (void*)CAAM_ADR_TO_VIRTUAL(caam.ring.JobOut,
-//            2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
-        mmap_device_memory(NULL,
+    caam.ring.VirtualOut  = mmap_device_memory(NULL,
             2 * CAAM_JOBRING_SIZE * sizeof(unsigned int),
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.JobOut);
     memset(caam.ring.VirtualOut, 0, 2 * CAAM_JOBRING_SIZE * sizeof(unsigned int));
-    caam.ring.VirtualDesc =
-//        (void*)CAAM_ADR_TO_VIRTUAL(caam.ring.Desc,
-//            CAAM_DESC_MAX * CAAM_JOBRING_SIZE);
-            mmap_device_memory(NULL,
+    caam.ring.VirtualDesc = mmap_device_memory(NULL,
             CAAM_DESC_MAX * CAAM_JOBRING_SIZE,
             PROT_READ | PROT_WRITE | PROT_NOCACHE,
             MAP_SHARED | MAP_PHYS, caam.ring.Desc);
