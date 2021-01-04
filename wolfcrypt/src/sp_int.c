@@ -12989,12 +12989,10 @@ int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap)
 
     (void)heap;
 
-    if ((r == NULL) || (rng == NULL) || len < 0 ) {
+    /* Check NULL parameters and 0 is not prime so 0 bytes is invalid. */
+    if ((r == NULL) || (rng == NULL) || (len == 0)) {
         err = MP_VAL;
     }
-
-    if (len == 0)
-        return MP_OKAY;
 
     if (err == MP_OKAY) {
         /* get type */
