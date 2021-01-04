@@ -28,16 +28,16 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 4.5.0 LANGUAGES C)
+project(wolfssl VERSION 4.6.0 LANGUAGES C)
 
 # shared library versioning
 # increment if interfaces have been added, removed or changed
-set(LIBTOOL_CURRENT 26)
+set(LIBTOOL_CURRENT 27)
 # increment if source code has changed  set to zero if current is incremented
 set(LIBTOOL_REVISION 0)
 # increment if interfaces have been added set to zero if interfaces have been
 # removed or changed
-set(LIBTOOL_AGE 2)
+set(LIBTOOL_AGE 3)
 
 math(EXPR LIBTOOL_SO_VERSION "${LIBTOOL_CURRENT} - ${LIBTOOL_AGE}")
 set(LIBTOOL_FULL_VERSION ${LIBTOOL_SO_VERSION}.${LIBTOOL_AGE}.${LIBTOOL_REVISION})
@@ -1203,30 +1203,37 @@ else()
     endif()
 endif()
 
-# TODO: - User settings
+set(WOLFSSL_USER_SETTINGS_HELP_STRING "Use your own user_settings.h and do not add Makefile CFLAGS (default: disabled)")
+option(WOLFSSL_USER_SETTINGS ${WOLFSSL_USER_SETTINGS_HELP_STRING} "no")
 
 set(WOLFSSL_OPTFLAGS_HELP_STRING "Enable default optimization CFLAGS for the compiler (default: enabled)")
 option(WOLFSSL_OPTFLAGS ${WOLFSSL_OPTFLAGS_HELP_STRING} "yes")
 
-# Generates the BUILD_* flags. These control what source files
-# are included in the library. A series of AM_CONDITIONALs
-# handle this in configure.ac.
+# Generates the BUILD_* flags. These control what source files are included in
+# the library. A series of AM_CONDITIONALs handle this in configure.ac.
 generate_build_flags()
 
 # TODO: - Bit of logic after optimization flags option (above)
 #       - Check for build-type conflicts section
-#       - Update CFLAGS based on options section
-#       - User settings section
-#       - BUILD_* flags and the logic they implement to control
-#         what gets built
 
+# USER SETTINGS
+if(WOLFSSL_USER_SETTINGS)
+    # Replace all options and just use WOLFSSL_USER_SETTINGS
+    set(WOLFSSL_DEFINITIONS "-DWOLFSSL_USER_SETTINGS")
+endif()
 
 # TODO: Applying definitions to everything like this, rather than
 #       individual targets, is discouraged in CMake.
 add_definitions(${WOLFSSL_DEFINITIONS})
-add_definitions("-DHAVE_CONFIG_H")
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/config.h" )
+
+set(WOLFSSL_CONFIG_H_HELP_STRING "Enable generation of config.h and define HAVE_CONFIG_H (default: enabled)")
+option(WOLFSSL_CONFIG_H ${WOLFSSL_CONFIG_H_HELP_STRING} "yes")
+
+if(WOLFSSL_CONFIG_H)
+    add_definitions("-DHAVE_CONFIG_H")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.in"
+                   "${CMAKE_CURRENT_BINARY_DIR}/config.h" )
+endif()
 
 # Suppress some warnings about separate compilation, inlining
 add_definitions("-DWOLFSSL_IGNORE_FILE_WARN")
@@ -1291,11 +1298,6 @@ file(APPEND ${CYASSL_OPTION_FILE} " * generated from wolfssl/options.h\n")
 file(APPEND ${CYASSL_OPTION_FILE} " */\n")
 file(READ ${OPTION_FILE} OPTION_FILE_CONTENTS)
 file(APPEND ${CYASSL_OPTION_FILE} ${OPTION_FILE_CONTENTS})
-
-add_definitions(${WOLFSSL_DEFINITIONS})
-
-configure_file("${CMAKE_SOURCE_DIR}/cmake/config.in"
-               "${CMAKE_BINARY_DIR}/config.h" )
 
 ####################################################
 # Library Target
