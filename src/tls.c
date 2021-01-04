@@ -3091,14 +3091,14 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
             case WOLFSSL_CSR_OCSP: {
 
                 /* skip responder_id_list */
-                if (length - offset < OPAQUE16_LEN)
+                if ((int)(length - offset) < OPAQUE16_LEN)
                     return BUFFER_ERROR;
 
                 ato16(input + offset, &size);
                 offset += OPAQUE16_LEN + size;
 
                 /* skip request_extensions */
-                if (length - offset < OPAQUE16_LEN)
+                if ((int)(length - offset) < OPAQUE16_LEN)
                     return BUFFER_ERROR;
 
                 ato16(input + offset, &size);
@@ -3502,7 +3502,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             return BUFFER_ERROR;
 
         while (length > offset) {
-            if (length - offset < ENUM_LEN + OPAQUE16_LEN)
+            if ((int)(length - offset) < ENUM_LEN + OPAQUE16_LEN)
                 return BUFFER_ERROR;
 
             status_type = input[offset++];
@@ -3517,7 +3517,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 case WOLFSSL_CSR2_OCSP:
                 case WOLFSSL_CSR2_OCSP_MULTI:
                     /* skip responder_id_list */
-                    if (length - offset < OPAQUE16_LEN)
+                    if ((int)(length - offset) < OPAQUE16_LEN)
                         return BUFFER_ERROR;
 
                     ato16(input + offset, &size);
@@ -3526,7 +3526,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
                     offset += OPAQUE16_LEN + size;
                     /* skip request_extensions */
-                    if (length - offset < OPAQUE16_LEN)
+                    if ((int)(length - offset) < OPAQUE16_LEN)
                         return BUFFER_ERROR;
 
                     ato16(input + offset, &size);
@@ -8517,7 +8517,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
         TLSX_Remove(&ssl->extensions, TLSX_PRE_SHARED_KEY, ssl->heap);
 
         /* Length of identities and of binders. */
-        if (length - idx < OPAQUE16_LEN + OPAQUE16_LEN)
+        if ((int)(length - idx) < OPAQUE16_LEN + OPAQUE16_LEN)
             return BUFFER_E;
 
         /* Length of identities. */
