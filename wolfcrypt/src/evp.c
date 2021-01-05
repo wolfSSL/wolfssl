@@ -1136,8 +1136,12 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
       return AES_256_OFB_TYPE;
     #endif
 #endif
-
 #endif /* !NO_AES */
+
+#ifndef NO_RC4
+    else if (XSTRNCMP(cipher, EVP_ARC4, EVP_ARC4_SIZE) == 0)
+      return ARC4_TYPE;
+#endif
       else return 0;
 }
 
@@ -1194,12 +1198,18 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
           return 1;
   #endif
 #endif /* NO_AES */
-  #ifndef NO_DES3
+
+#ifndef NO_RC4
+      case ARC4_TYPE:
+          return 1;
+#endif
+
+#ifndef NO_DES3
       case DES_CBC_TYPE: return 8;
       case DES_EDE3_CBC_TYPE: return 8;
       case DES_ECB_TYPE: return 8;
       case DES_EDE3_ECB_TYPE: return 8;
-  #endif
+#endif
       default:
           return 0;
       }
