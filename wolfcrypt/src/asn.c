@@ -15958,8 +15958,9 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
     return ret;
 }
+#endif
 
-
+#if defined(HAVE_ECC) || !defined(NO_DSA)
 int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 {
     word32 idx = 0;
@@ -15992,8 +15993,9 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
 
     return 0;
 }
+#endif
 
-
+#ifdef HAVE_ECC
 int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                         word32 inSz)
 {

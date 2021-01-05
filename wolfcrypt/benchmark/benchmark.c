@@ -584,13 +584,11 @@ static const char* bench_result_words1[][4] = {
 #endif
 };
 
-#if !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
+#if !defined(NO_RSA) || defined(HAVE_NTRU) || \
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448)
-#if defined(HAVE_ECC) || defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
@@ -600,7 +598,6 @@ static const char* bench_desc_words[][9] = {
 #endif
 };
 
-#endif
 #endif
 
 #if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
