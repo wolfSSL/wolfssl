@@ -10056,6 +10056,47 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 
 #endif /* HAVE_SUPPORTED_CURVES */
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
+
+static const word16 preferredGroup[] = {
+#if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
+    defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
+    WOLFSSL_ECC_SECP256R1,
+#endif
+#if defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
+    WOLFSSL_ECC_X25519,
+#endif
+#if defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
+    WOLFSSL_ECC_X448,
+#endif
+#if defined(HAVE_ECC) && (!defined(NO_ECC384) || \
+    defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 384
+    WOLFSSL_ECC_SECP384R1,
+#endif
+#if defined(HAVE_ECC) && (!defined(NO_ECC521) || \
+    defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 521
+    WOLFSSL_ECC_SECP521R1,
+#endif
+#if defined(HAVE_FFDHE_2048)
+    WOLFSSL_FFDHE_2048,
+#endif
+#if defined(HAVE_FFDHE_3072)
+    WOLFSSL_FFDHE_3072,
+#endif
+#if defined(HAVE_FFDHE_4096)
+    WOLFSSL_FFDHE_4096,
+#endif
+#if defined(HAVE_FFDHE_6144)
+    WOLFSSL_FFDHE_6144,
+#endif
+#if defined(HAVE_FFDHE_8192)
+    WOLFSSL_FFDHE_8192,
+#endif
+};
+#define PREFERRED_GROUP_SZ (sizeof(preferredGroup) / sizeof(*preferredGroup))
+
+#endif /* WOLFSSL_TLS13 && HAVE_SUPPORTED_CURVES */
+
 int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 {
     int ret = 0;
@@ -10185,7 +10226,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #else
     ret = 0;
 #endif
-    #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
             /* Add mandatory TLS v1.3 extension: supported version */
             WOLFSSL_MSG("Adding supported versions extension");
@@ -10224,33 +10265,31 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = ssl->session.namedGroup;
                 else
             #endif
-                {
-        #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
-            defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 256
-                    namedGroup = WOLFSSL_ECC_SECP256R1;
-        #elif defined(HAVE_CURVE25519) && ECC_MIN_KEY_SZ <= 256
-                    namedGroup = WOLFSSL_ECC_X25519;
-        #elif defined(HAVE_CURVE448) && ECC_MIN_KEY_SZ <= 448
-                    namedGroup = WOLFSSL_ECC_X448;
-        #elif defined(HAVE_ECC) && (!defined(NO_ECC384) || \
-              defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 384
-                    namedGroup = WOLFSSL_ECC_SECP384R1;
-        #elif defined(HAVE_ECC) && (!defined(NO_ECC521) || \
-              defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP) && ECC_MIN_KEY_SZ <= 521
-                    namedGroup = WOLFSSL_ECC_SECP521R1;
-            #elif defined(HAVE_FFDHE_2048)
-                    namedGroup = WOLFSSL_FFDHE_2048;
-            #elif defined(HAVE_FFDHE_3072)
-                    namedGroup = WOLFSSL_FFDHE_3072;
-            #elif defined(HAVE_FFDHE_4096)
-                    namedGroup = WOLFSSL_FFDHE_4096;
-            #elif defined(HAVE_FFDHE_6144)
-                    namedGroup = WOLFSSL_FFDHE_6144;
-            #elif defined(HAVE_FFDHE_8192)
-                    namedGroup = WOLFSSL_FFDHE_8192;
-            #else
+                if (PREFERRED_GROUP_SZ == 0) {
+                    WOLFSSL_MSG("No groups in preference list");
                     return KEY_SHARE_ERROR;
-            #endif
+                }
+                else if (ssl->numGroups > 0) {
+                    int set = 0;
+                    int i, j;
+
+                    /* Default to first group in supported list. */
+                    namedGroup = ssl->group[0];
+                    /* Try to find preferred in supported list. */
+                    for (i = 0; i < (int)PREFERRED_GROUP_SZ && !set; i++) {
+                        for (j = 0; j < ssl->numGroups; j++) {
+                            if (preferredGroup[i] == ssl->group[j]) {
+                                /* Most preferred that is supported. */
+                                namedGroup = ssl->group[j];
+                                set = 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+                else {
+                    /* Choose the most preferred group. */
+                    namedGroup = preferredGroup[0];
                 }
                 ret = TLSX_KeyShare_Use(ssl, namedGroup, 0, NULL, NULL);
                 if (ret != 0)
@@ -10364,7 +10403,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
         }
 
-    #endif
+#endif
 
     (void)isServer;
     (void)public_key;
