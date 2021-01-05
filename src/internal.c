@@ -16067,13 +16067,18 @@ int SendChangeCipher(WOLFSSL* ssl)
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
 
-    /* setup encrypt keys */
-    if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-        return ret;
+#ifdef WOLFSSL_TLS13
+    if (!ssl->options.tls1_3)
+#endif
+    {
+        /* setup encrypt keys */
+        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+            return ret;
 
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         ssl->options.startedETMWrite = ssl->options.encThenMac;
     #endif
+    }
 
     if (ssl->options.groupMessages)
         return 0;
