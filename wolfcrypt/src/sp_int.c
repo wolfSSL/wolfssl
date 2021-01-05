@@ -2866,8 +2866,8 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
  * @param  [in]   d  Digit to add.
  * @param  [out]  r  SP integer to store result in.
  *
- * @returnn  MP_OKAY on success.
- * @returnn  MP_VAL when result is too large for fixed size dp array.
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when result is too large for fixed size dp array.
  */
 static int _sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
@@ -2958,8 +2958,8 @@ static void _sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @param  [in]   d  Digit to add.
  * @param  [out]  r  SP integer to store result in.
  *
- * @returnn  MP_OKAY on success.
- * @returnn  MP_VAL when result is too large for fixed size dp array.
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when result is too large for fixed size dp array.
  */
 int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
@@ -3000,8 +3000,8 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
  * @param  [in]   d  Digit to subtract.
  * @param  [out]  r  SP integer to store result in.
  *
- * @returnn  MP_OKAY on success.
- * @returnn  MP_VAL when a or r is NULL.
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when a or r is NULL.
  */
 int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
@@ -5002,7 +5002,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -5126,7 +5125,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
@@ -5294,7 +5292,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[13] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[7], b->dp[7]);
             t->dp[14] = l;
             t->dp[15] = h;
@@ -5574,7 +5571,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[21] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[11], b->dp[11]);
             t->dp[22] = l;
             t->dp[23] = h;
@@ -6000,7 +5996,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[29] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[15], b->dp[15]);
             t->dp[30] = l;
             t->dp[31] = h;
@@ -6807,7 +6802,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[45] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[23], b->dp[23]);
             t->dp[46] = l;
             t->dp[47] = h;
@@ -9695,7 +9689,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -9811,7 +9804,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
@@ -9962,7 +9954,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[13] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[7]);
             t->dp[14] = l;
             t->dp[15] = h;
@@ -10195,7 +10186,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[21] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[11]);
             t->dp[22] = l;
             t->dp[23] = h;
@@ -10528,7 +10518,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[29] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[15]);
             t->dp[30] = l;
             t->dp[31] = h;
@@ -11102,7 +11091,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[45] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[23]);
             t->dp[46] = l;
             t->dp[47] = h;
