@@ -28045,6 +28045,50 @@ static void test_wolfSSL_X509_STORE_CTX_set_time(void)
     #endif /* OPENSSL_EXTRA */
 }
 
+static void test_wolfSSL_CTX_get0_set1_param(void)
+{
+#if defined(OPENSSL_EXTRA)
+    int ret;
+    SSL_CTX* ctx;
+    WOLFSSL_X509_VERIFY_PARAM* pParam;
+    WOLFSSL_X509_VERIFY_PARAM* pvpm;
+    char testIPv4[] = "127.0.0.1";
+    char testhostName[] = "foo.hoge.com";
+    
+    printf(testingFmt, "wolfSSL_CTX_get0_set1_param()");
+
+    #ifndef NO_WOLFSSL_SERVER
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    #else
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    #endif
+
+    AssertNotNull(pParam = SSL_CTX_get0_param(ctx));
+
+    pvpm = (WOLFSSL_X509_VERIFY_PARAM *)XMALLOC(
+                sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
+    AssertNotNull(pvpm);
+
+    wolfSSL_X509_VERIFY_PARAM_set1_host(pvpm, testhostName,
+                                        XSTRLEN(testhostName));
+    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(pvpm, testIPv4);
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(pvpm, 0x01);
+
+    ret = SSL_CTX_set1_param(ctx, pvpm);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(pParam->hostName, testhostName, 
+                                         XSTRLEN(testhostName)));
+    AssertIntEQ(0x01, pParam->hostFlags);
+    AssertIntEQ(0, XSTRNCMP(pParam->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
+    
+    SSL_CTX_free(ctx);
+
+    XFREE(pvpm, NULL, DYNAMIC_TYPE_OPENSSL);
+    
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && !defined(NO_RSA)*/
+}
+
 static void test_wolfSSL_get0_param(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
@@ -29903,50 +29947,128 @@ static void test_wolfSSL_X509_ALGOR_get0(void)
 static void test_wolfSSL_X509_VERIFY_PARAM(void)
 {
 #if defined(OPENSSL_EXTRA)
-    WOLFSSL_X509_VERIFY_PARAM *param;
+    WOLFSSL_X509_VERIFY_PARAM *paramTo;
+    WOLFSSL_X509_VERIFY_PARAM *paramFrom;
     int ret;
     char testIPv4[] = "127.0.0.1";
     char testIPv6[] = "0001:0000:0000:0000:0000:0000:0000:0000/32";
-
+    char testhostName1[] = "foo.hoge.com";
+    char testhostName2[] = "foobar.hoge.com";
+    
     printf(testingFmt, "wolfSSL_X509()");
 
-    param = wolfSSL_X509_VERIFY_PARAM_new();
-    AssertNotNull(param);
+    paramTo = wolfSSL_X509_VERIFY_PARAM_new();
+    AssertNotNull(paramTo);
+    XMEMSET(paramTo, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
 
-    XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+    paramFrom = wolfSSL_X509_VERIFY_PARAM_new();
+    AssertNotNull(paramFrom);
+    XMEMSET(paramFrom, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
 
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_host(paramFrom, testhostName1,
+                                         XSTRLEN(testhostName1));
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramFrom->hostName, testhostName1, 
+                                         XSTRLEN(testhostName1)));
+    
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
 
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(param, 0x01);
-    AssertIntEQ(0x01, param->hostFlags);
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
+    AssertIntEQ(0x01, paramFrom->hostFlags);
 
     ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(NULL, testIPv4);
     AssertIntEQ(0, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, testIPv4);
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv4);
     AssertIntEQ(1, ret);
-    AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
+    AssertIntEQ(0, XSTRNCMP(paramFrom->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, NULL);
-    AssertIntEQ(1, ret);
-
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, testIPv6);
-    AssertIntEQ(1, ret);
-    AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
-
-    ret = wolfSSL_X509_VERIFY_PARAM_set_flags(param, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, NULL);
     AssertIntEQ(1, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv6);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramFrom->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
+
+    /* null pointer */
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(NULL, paramFrom);
+    AssertIntEQ(WOLFSSL_FAILURE, ret);
+    /* in the case of "from" null, returns success */
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, NULL);
+    AssertIntEQ(WOLFSSL_SUCCESS, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(NULL, NULL);
+    AssertIntEQ(WOLFSSL_FAILURE, ret);
+
+    /* inherit flags test : VPARAM_DEFAULT */
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
+                                         XSTRLEN(testhostName1)));
+    AssertIntEQ(0x01, paramTo->hostFlags);
+    AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
+
+    /* inherit flags test : VPARAM OVERWRITE */
+    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+                                        XSTRLEN(testhostName2));
+    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
+    
+    paramTo->inherit_flags = WOLFSSL_VPARAM_OVERWRITE;
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
+                                         XSTRLEN(testhostName1)));
+    AssertIntEQ(0x01, paramTo->hostFlags);
+    AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
+
+    /* inherit flags test : VPARAM_RESET_FLAGS */
+    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+                                        XSTRLEN(testhostName2));
+    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x10);
+    
+    paramTo->inherit_flags = WOLFSSL_VPARAM_RESET_FLAGS;
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
+                                         XSTRLEN(testhostName1)));
+    AssertIntEQ(0x01, paramTo->hostFlags);
+    AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
+
+    /* inherit flags test : VPARAM_LOCKED */
+    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+                                        XSTRLEN(testhostName2));
+    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
+    
+    paramTo->inherit_flags = WOLFSSL_VPARAM_LOCKED;
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2, 
+                                         XSTRLEN(testhostName2)));
+    AssertIntEQ(0x00, paramTo->hostFlags);
+    AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
+
+    /* inherit flags test : VPARAM_ONCE, not testable yet */
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set_flags(paramTo, WOLFSSL_CRL_CHECKALL);
+    AssertIntEQ(1, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(paramTo);
     AssertIntEQ(WOLFSSL_CRL_CHECKALL, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_clear_flags(param, WOLFSSL_CRL_CHECKALL);
+    ret = wolfSSL_X509_VERIFY_PARAM_clear_flags(paramTo, WOLFSSL_CRL_CHECKALL);
     AssertIntEQ(1, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(paramTo);
     AssertIntEQ(0, ret);
 
-    wolfSSL_X509_VERIFY_PARAM_free(param);
+    wolfSSL_X509_VERIFY_PARAM_free(paramTo);
+    wolfSSL_X509_VERIFY_PARAM_free(paramFrom);
 
     printf(resultFmt, passed);
 
@@ -40637,6 +40759,7 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE();
     test_wolfSSL_X509_STORE_load_locations();
     test_wolfSSL_BN();
+    test_wolfSSL_CTX_get0_set1_param();
 #ifndef NO_BIO
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();

@@ -26195,6 +26195,68 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 }
 
 
+/*
+* WOLFSSL_VPARAM_DEFAULT          any values in "src" is copied
+*                                 if "src" value is new for "to".
+* WOLFSSL_VPARAM_OVERWRITE        all values of "form" are copied to "to"
+* WOLFSSL_VPARAM_RESET_FLAGS      the flag values are copied, not Ored
+* WOLFSSL_VPARAM_LOCKED           don't copy any values
+* WOLFSSL_VPARAM_ONCE             the current inherit_flags is zerroed
+*/
+static int woflSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
+                                         const WOLFSSL_X509_VERIFY_PARAM *from)
+{
+    int ret = WOLFSSL_FAILURE;
+    int isOverWrite = 0;
+    int isDefault = 0;
+    unsigned int flags;
+    
+    /* sanity check */
+    if (!to || !from) {
+        /* be compatible to openssl return value */
+        return WOLFSSL_SUCCESS;
+    }
+    flags = to->inherit_flags | from->inherit_flags;
+
+    if (flags & WOLFSSL_VPARAM_LOCKED) {
+        return WOLFSSL_SUCCESS;
+    }
+
+    if (flags & WOLFSSL_VPARAM_ONCE) {
+        to->inherit_flags = 0;
+    }
+    
+    isOverWrite = (flags & WOLFSSL_VPARAM_OVERWRITE); 
+    isDefault = (flags & WOLFSSL_VPARAM_DEFAULT);
+
+    /* copy check_time if check time is not set */
+    if ((to->flags & WOLFSSL_USE_CHECK_TIME) == 0 || isOverWrite) {
+           to->check_time = from->check_time;
+           to->flags &= ~WOLFSSL_USE_CHECK_TIME;
+    }
+    /* host name */
+    if (isOverWrite || 
+        (from->hostName[0] != 0 && (to->hostName[0] == 0 || isDefault))) {
+            if (!(ret = wolfSSL_X509_VERIFY_PARAM_set1_host(to, from->hostName,
+                XSTRLEN(from->hostName))))
+                return ret; 
+        to->hostFlags = from->hostFlags;
+    }
+    /* ip ascii */
+    if (isOverWrite ||
+        (from->ipasc[0] != 0 && (to->ipasc[0] == 0 || isDefault))) {
+           
+            if (!(ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(to, from->ipasc)))
+                return ret;
+    }
+
+    if (flags & WOLFSSL_VPARAM_RESET_FLAGS)
+        to->flags = 0;
+
+    to->flags |= from->flags;
+
+    return ret;
+}
 /******************************************************************************
 * wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
 * hostnames is cleared if name is NULL or empty.
@@ -26236,18 +26298,64 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
     return WOLFSSL_SUCCESS;
 }
 /******************************************************************************
-* wolfSSL_get0_param - return a pointer to the SSL verification parameters
+* wolfSSL_CTX_set1_param - set a pointer to the SSL verification parameters
+*
+* RETURNS:
+*   WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE
+*/
+int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx, WOLFSSL_X509_VERIFY_PARAM *vpm)
+{
+    return wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, vpm);
+}
+
+/******************************************************************************
+* wolfSSL_CTX/_get0_param - return a pointer to the SSL verification parameters
 *
 * RETURNS:
 * returns pointer to the SSL verification parameters on success,
 * otherwise returns NULL
 */
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    return ctx->param;
+}
+
 WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl)
 {
     if (ssl == NULL) {
         return NULL;
     }
     return ssl->param;
+}
+
+/* Set VERIFY PARAM from "from" pointer to "to" pointer */
+int wolfSSL_X509_VERIFY_PARAM_set1(WOLFSSL_X509_VERIFY_PARAM *to, 
+                                   const WOLFSSL_X509_VERIFY_PARAM *from)
+{
+    int ret = WOLFSSL_FAILURE;
+    unsigned int _inherit_flags;
+    
+    if (!to) {
+        return ret;
+    }
+    /* keeps the inherit flags for save */
+    _inherit_flags = to->inherit_flags;
+
+    /* Ored DEFAULT inherit flag proerty to copy "from" contents to "to"
+    *  contends 
+    */
+    to->inherit_flags |= WOLFSSL_VPARAM_DEFAULT;
+
+    ret = woflSSL_X509_VERIFY_PARAM_inherit(to, from);
+
+    /* restore inherit flag */
+    to->inherit_flags = _inherit_flags;
+
+    return ret;   
 }
 
 /* Set the host flag in the X509_VERIFY_PARAM structure */

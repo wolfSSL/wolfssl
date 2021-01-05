@@ -1800,6 +1800,15 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     #ifdef OPENSSL_EXTRA
     /* setup WOLFSSL_X509_STORE */
     ctx->x509_store.cm = ctx->cm;
+    
+    /* WOLFSSL_X509_VERIFY_PARAM */
+    if ((ctx->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           ctx->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("ctx->param memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ctx->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
     #endif
 #endif
 
@@ -1947,6 +1956,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     if(ctx->alpn_cli_protos) {
         XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
         ctx->alpn_cli_protos = NULL;
+    }
+    if (ctx->param) {
+        XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
     }
 #endif
 #ifdef WOLFSSL_STATIC_EPHEMERAL
