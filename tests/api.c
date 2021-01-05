@@ -34624,9 +34624,63 @@ static void test_wolfSSL_EVP_CIPHER_block_size(void)
 {
 #if defined(OPENSSL_ALL)
 
+#ifdef HAVE_AES_CBC
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_cbc()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_cbc()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_cbc()), AES_BLOCK_SIZE);
+    #endif
+#endif
+
+#ifdef HAVE_AES_GCM
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_gcm()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_gcm()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_gcm()), 1);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_COUNTER
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), AES_BLOCK_SIZE);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_ECB
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ecb()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ecb()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ecb()), AES_BLOCK_SIZE);
+    #endif
+#endif
+
 #ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ofb()), 1);
+    #endif
     #ifdef WOLFSSL_AES_192
     AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ofb()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ofb()), 1);
     #endif
 #endif
 
