@@ -1122,6 +1122,21 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return AES_256_CFB128_TYPE;
     #endif
 #endif /*HAVE_AES_CBC */
+#if defined(WOLFSSL_AES_OFB)
+    #ifdef WOLFSSL_AES_128
+    else if (XSTRNCMP(cipher, EVP_AES_128_OFB, EVP_AES_SIZE) == 0)
+      return AES_128_OFB_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    else if (XSTRNCMP(cipher, EVP_AES_192_OFB, EVP_AES_SIZE) == 0)
+      return AES_192_OFB_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    else if (XSTRNCMP(cipher, EVP_AES_256_OFB, EVP_AES_SIZE) == 0)
+      return AES_256_OFB_TYPE;
+    #endif
+#endif
+
 #endif /* !NO_AES */
       else return 0;
 }
