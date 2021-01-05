@@ -682,7 +682,8 @@ struct SignatureCtx {
 #if !(defined(NO_RSA) && defined(NO_DSA))
     byte* sigCpy;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    !defined(NO_DSA)
     int verify;
 #endif
     union {
@@ -1209,10 +1210,12 @@ WOLFSSL_LOCAL int FlattenAltNames( byte*, word32, const DNS_entry*);
                                       mp_int* s);
     WOLFSSL_LOCAL int StoreECC_DSA_Sig_Bin(byte* out, word32* outLen, 
         const byte* r, word32 rLen, const byte* s, word32 sLen);
-    WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
-                                       mp_int* r, mp_int* s);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, 
         byte* r, word32* rLen, byte* s, word32* sLen);
+#endif
+#if defined(HAVE_ECC) || !defined(NO_DSA)
+    WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
+                                       mp_int* r, mp_int* s);
 #endif
 #if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_API int EccEnumToNID(int n);
