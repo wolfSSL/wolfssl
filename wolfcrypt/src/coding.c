@@ -100,7 +100,7 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     byte mask;
 
     c -= BASE64_MIN;
-    mask = ctMaskLTE(c, 0x3f);
+    mask = (((byte)(0x3f - c)) >> 7) - 1;
     /* Load a value from the first cache line and use when mask set. */
     v  = base64Decode[ c & 0x3f        ] &   mask ;
     /* Load a value from the second cache line and use when mask not set. */

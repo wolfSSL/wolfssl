@@ -2152,7 +2152,6 @@ int sp_grow(sp_int* a, int l)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_KEY_GEN)
 /* Set the multi-precision number to zero.
  *
  * Assumes a is not NULL.
@@ -2167,7 +2166,6 @@ static void _sp_zero(sp_int* a)
     a->sign = MP_ZPOS;
 #endif
 }
-#endif /* !WOLFSSL_RSA_VERIFY_ONLY || WOLFSSL_KEY_GEN */
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Set the multi-precision number to zero.
@@ -2222,8 +2220,7 @@ void sp_forcezero(sp_int* a)
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
 #if defined(WOLSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(SQR_MUL_ASM)
+    !defined(NO_RSA)
 /* Copy value of multi-precision number a into r.
  *
  * @param  [in]   a  SP integer - source.
@@ -7684,6 +7681,7 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
 }
 /* END SP_MUL implementations. */
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *
  * @param  [in]   a  SP integer to multiply.
@@ -7738,6 +7736,7 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 #endif
     return err;
 }
+#endif /* !WOLFSSL_RSA_VERIFY_ONLY */
 
 #if defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
