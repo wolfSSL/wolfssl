@@ -4530,6 +4530,7 @@ then
         # Have settings.h set FP_MAX_BITS higher if user didn't set directly
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
+    AS_IF([test "x$host_cpu" = "xaarch64"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AARCH64_BUILD"])
 fi
 
 
