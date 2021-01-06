@@ -13236,7 +13236,9 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     size_t bytes;
     int    ret;
     word32 inLen   = 0;
+#ifndef NO_ASN
     word32 idx     = 0;
+#endif
     word32 outSz   = RSA_TEST_BYTES;
     word32 plainSz = RSA_TEST_BYTES;
 #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_3072) && \
@@ -13289,10 +13291,28 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     ERROR_OUT(-7802, exit_rsa_even_mod);
 #endif /* USE_CERT_BUFFERS */
 
+#ifndef NO_ASN
     ret = wc_RsaPrivateKeyDecode(tmp, &idx, key, (word32)bytes);
     if (ret != 0) {
         ERROR_OUT(-7804, exit_rsa_even_mod);
     }
+#else
+    #ifdef USE_CERT_BUFFERS_2048
+        ret = mp_read_unsigned_bin(&key->n, &tmp[12], 256);
+        if (ret != 0) {
+            ERROR_OUT(-7804, exit_rsa_even_mod);
+        }
+        ret = mp_set_int(&key->e, WC_RSA_EXPONENT);
+        if (ret != 0) {
+            ERROR_OUT(-7804, exit_rsa_even_mod);
+        }
+#ifndef NO_SIG_WRAPPER
+        modLen = 2048;
+#endif
+    #else
+        #error Not supported yet!
+    #endif
+#endif
 
     key->n.dp[0] &= (mp_digit)-2;
     if (ret != 0) {
@@ -13345,6 +13365,13 @@ exit_rsa_even_mod:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
+
+    (void)out;
+    (void)outSz;
+    (void)plain;
+    (void)plainSz;
+    (void)inLen;
+    (void)rng;
 
     return ret;
 }
