@@ -1979,7 +1979,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* if desktop type system and fastmath increase default max bits */
-#ifdef WOLFSSL_X86_64_BUILD
+#if defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD)
     #if defined(USE_FAST_MATH) && !defined(FP_MAX_BITS)
         #if MIN_FFDHE_FP_MAX_BITS <= 8192
             #define FP_MAX_BITS 8192

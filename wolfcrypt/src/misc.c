@@ -273,7 +273,8 @@ WC_STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
+#if (defined(WOLFSSL_X86_64_BUILD) || defined(WOLFSSL_AARCH64_BUILD)) \
+            && defined(WORD64_AVAILABLE)
     volatile word64* w;
     #ifndef WOLFSSL_UNALIGNED_64BIT_ACCESS
         word32 l = (sizeof(word64) - ((size_t)z & (sizeof(word64)-1))) &

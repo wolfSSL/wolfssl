@@ -70,7 +70,12 @@
       #define TFM_X86_64
    #endif
 #endif
-#if defined(TFM_X86_64)
+#if defined(__aarch64__)
+    #if !defined(TFM_AARCH_64) && !defined(TFM_NO_ASM)
+        #define TFM_AARCH_64
+    #endif
+#endif
+#if defined(TFM_X86_64) || defined(TFM_AARCH_64)
     #if !defined(FP_64BIT)
        #define FP_64BIT
     #endif
