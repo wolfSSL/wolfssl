@@ -6096,7 +6096,8 @@ static int test_wolfSSL_UseOCSPStaplingV2 (void)
  *----------------------------------------------------------------------------*/
 static void test_wolfSSL_mcast(void)
 {
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST)
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_MULTICAST) && \
+    (defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER))
     WOLFSSL_CTX* ctx;
     WOLFSSL* ssl;
     int result;
@@ -6130,7 +6131,7 @@ static void test_wolfSSL_mcast(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST */
+#endif /* WOLFSSL_DTLS && WOLFSSL_MULTICAST && (WOLFSSL_TLS13 || WOLFSSL_SNIFFER) */
 }
 
 
