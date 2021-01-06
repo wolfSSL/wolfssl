@@ -2626,9 +2626,27 @@ static int ecc_mulmod(mp_int* k, ecc_point* tG, ecc_point* R, ecc_point** M,
 static int wc_ecc_gen_z(WC_RNG* rng, int size, ecc_point* p,
         mp_int* modulus, mp_digit mp, mp_int* tx, mp_int* ty)
 {
-    int err;
+    int err = MP_OKAY;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int*       mu = NULL;
+#else
+    mp_int        mu[1];
+#endif
 
-    err = wc_ecc_gen_k(rng, size, ty, modulus);
+#ifdef WOLFSSL_SMALL_STACK
+    mu = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
+    if (mu == NULL)
+        err = MEMORY_E;
+#endif
+
+    if (err == MP_OKAY)
+        err = mp_init(mu);
+    if (err == MP_OKAY)
+        err = mp_montgomery_calc_normalization(mu, modulus);
+    if (err == MP_OKAY)
+        err = wc_ecc_gen_k(rng, size, ty, modulus);
+    if (err == MP_OKAY)
+        err = mp_mulmod(ty, mu, modulus, ty);
     if (err == MP_OKAY)
         err = mp_mul(p->z, ty, p->z);
     if (err == MP_OKAY)
@@ -2649,6 +2667,15 @@ static int wc_ecc_gen_z(WC_RNG* rng, int size, ecc_point* p,
         err = mp_mul(p->y, ty, p->y);
     if (err == MP_OKAY)
         err = mp_montgomery_reduce(p->y, modulus, mp);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (mu != NULL) {
+        mp_clear(mu);
+        XFREE(mu, NULL, DYNAMIC_TYPE_ECC);
+    }
+#else
+    mp_clear(mu);
+#endif
 
     return err;
 }
