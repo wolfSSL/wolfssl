@@ -45183,6 +45183,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 }
 #endif /* !NO_BIO */
 
+#ifndef NO_FILESYSTEM
 int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
         int indent, unsigned long flags)
 {
@@ -45202,6 +45203,7 @@ int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
 
     return ret;
 }
+#endif /* NO_FILESYSTEM */
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(const WOLFSSL_X509* x)
