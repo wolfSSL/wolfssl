@@ -33297,8 +33297,12 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 
 WOLFSSL_HMAC_CTX* wolfSSL_HMAC_CTX_new(void)
 {
-    return (WOLFSSL_HMAC_CTX*)XMALLOC(sizeof(WOLFSSL_HMAC_CTX), NULL,
-        DYNAMIC_TYPE_OPENSSL);
+    WOLFSSL_HMAC_CTX* hmac_ctx = (WOLFSSL_HMAC_CTX*)XMALLOC(
+        sizeof(WOLFSSL_HMAC_CTX), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (hmac_ctx != NULL) {
+        XMEMSET(hmac_ctx, 0, sizeof(WOLFSSL_HMAC_CTX));
+    }
+    return hmac_ctx;
 }
 
 int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx)
@@ -33536,6 +33540,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 {
     int hmac_error = 0;
     void* heap = NULL;
+    int inited;
 
     WOLFSSL_MSG("wolfSSL_HMAC_Init");
 
@@ -33629,11 +33634,13 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
     }
 
-    /* Make sure and free if needed */
-    if (ctx->hmac.macType != WC_HASH_TYPE_NONE) {
+    /* Check if init has been called before */
+    inited = (ctx->hmac.macType != WC_HASH_TYPE_NONE);
+    /* Free if needed */
+    if (inited) {
         wc_HmacFree(&ctx->hmac);
     }
-    if (key && keylen) {
+    if (key != NULL) {
         WOLFSSL_MSG("keying hmac");
 
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
@@ -33649,6 +33656,9 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                         WC_HMAC_BLOCK_SIZE);
         }
         /* OpenSSL compat, no error */
+    }
+    else if (!inited) {
+        return WOLFSSL_FAILURE;
     }
     else if (ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
