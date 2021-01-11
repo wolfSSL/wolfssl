@@ -1166,7 +1166,7 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case AES_128_CTR_TYPE:
       case AES_192_CTR_TYPE:
       case AES_256_CTR_TYPE:
-          return AES_BLOCK_SIZE;
+          return 1;
   #endif
   #if defined(HAVE_AES_ECB)
       case AES_128_ECB_TYPE:

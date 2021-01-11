@@ -34650,13 +34650,13 @@ static void test_wolfSSL_EVP_CIPHER_block_size(void)
 
 #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), AES_BLOCK_SIZE);
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), 1);
     #endif
     #ifdef WOLFSSL_AES_192
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), AES_BLOCK_SIZE);
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), 1);
     #endif
     #ifdef WOLFSSL_AES_256
-    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), AES_BLOCK_SIZE);
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), 1);
     #endif
 #endif
 
