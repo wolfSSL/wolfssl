@@ -60,6 +60,15 @@ Possible ECC enable options:
                         Requires SP with WOLFSSL_SP_NONBLOCK
  * WC_ECC_NONBLOCK_ONLY Enable the non-blocking function only, no fall-back to 
                         normal blocking API's
+ * WOLFSSL_ECDSA_SET_K: Enables the setting of the 'k' value to use during ECDSA
+ *                      signing. If the value is invalid, a new random 'k' is
+ *                      generated in the loop. (For testing)
+ *                                                              default: off
+ * WOLFSSL_ECDSA_SET_K_ONE_LOOP:
+ *                      Enables the setting of the 'k' value to use during ECDSA
+ *                      signing. If the value is invalid then an error is
+ *                      returned rather than generating a new 'k'. (For testing)
+ *                                                              default: off
  */
 
 /*
@@ -5192,7 +5201,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    mp_int  e_lcl;
 #endif
 
-#if defined(WOLFSSL_ECDSA_SET_K) || \
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
     (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)))
    DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
@@ -5230,7 +5239,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
     #endif
     ) {
-    #ifdef WOLFSSL_ECDSA_SET_K
+    #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
         mp_int* sign_k = key->sign_k;
     #else
         mp_int* sign_k = NULL;
@@ -5329,7 +5338,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    }
 
    /* load curve info */
-#if defined(WOLFSSL_ECDSA_SET_K)
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
    ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
 #else
@@ -5499,7 +5508,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                     err = RNG_FAILURE_E;
                     break;
                }
-       #ifdef WOLFSSL_ECDSA_SET_K
+       #if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
                if (key->sign_k != NULL) {
                    if (loop_check > 1) {
                       err = RNG_FAILURE_E;
@@ -5515,6 +5524,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    mp_free(key->sign_k);
                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
                    key->sign_k = NULL;
+           #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+                   loop_check = 64;
+           #endif
 
                    /* compute public key based on provided "k" */
                    err = ecc_make_pub_ex(pubkey, curve, NULL, rng);
@@ -5603,7 +5615,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    return err;
 }
 
-#ifdef WOLFSSL_ECDSA_SET_K
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
 int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 {
     int ret;
@@ -5642,7 +5654,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
     FREE_CURVE_SPECS();
     return ret;
 }
-#endif /* WOLFSSL_ECDSA_SET_K */
+#endif /* WOLFSSL_ECDSA_SET_K || WOLFSSL_ECDSA_SET_K_ONE_LOOP */
 #endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL */
 
 #endif /* !HAVE_ECC_SIGN */
@@ -5682,7 +5694,7 @@ int wc_ecc_free(ecc_key* key)
         return 0;
     }
 
-#ifdef WOLFSSL_ECDSA_SET_K
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
     if (key->sign_k != NULL) {
         mp_forcezero(key->sign_k);
         mp_free(key->sign_k);
