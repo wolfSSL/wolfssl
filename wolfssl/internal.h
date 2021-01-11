@@ -2931,6 +2931,7 @@ struct WOLFSSL_CTX {
             TicketEncCbCtx ticketKeyCtx;
         #endif
     #endif
+    #endif
     #ifdef HAVE_SUPPORTED_CURVES
         byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
     #endif

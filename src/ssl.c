@@ -15704,6 +15704,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         ctx->mask = wolf_set_options(ctx->mask, opt);
 
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+        if (ctx->mask & SSL_OP_NO_TICKET) {
+            ctx->ticketEncCb = NULL;
+            ctx->ticketCompatCb = NULL;
+            WOLFSSL_MSG("\tSSL_OP_NO_TICKET");
+        }
+#endif
+
         return ctx->mask;
     }
 
@@ -47561,16 +47569,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 
 
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
-/* Expected return values from implementations of OpenSSL ticket key callback.
- */
-#define TICKET_KEY_CB_RET_FAILURE    -1
-#define TICKET_KEY_CB_RET_NOT_FOUND   0
-#define TICKET_KEY_CB_RET_OK          1
-#define TICKET_KEY_CB_RET_RENEW       2
 
-/* The ticket key callback as used in OpenSSL is stored here. */
-static int (*ticketKeyCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
-    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc) = NULL;
 
 /* Implementation of session ticket encryption/decryption using OpenSSL
  * callback to initialize the cipher and HMAC.
@@ -47605,14 +47604,24 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
 
     (void)ctx;
 
-    if (ticketKeyCb == NULL)
+    WOLFSSL_ENTER("wolfSSL_TicketKeyCb");
+
+    if (ssl == NULL || ssl->ctx == NULL || ssl->ctx->ticketCompatCb == NULL) {
+        WOLFSSL_MSG("Bad parameter");
         return WOLFSSL_TICKET_RET_FATAL;
+    }
 
     wolfSSL_EVP_CIPHER_CTX_init(&evpCtx);
-    /* Initialize the cipher and HMAC. */
-    res = ticketKeyCb(ssl, keyName, iv, &evpCtx, &hmacCtx, enc);
-    if (res != TICKET_KEY_CB_RET_OK && res != TICKET_KEY_CB_RET_RENEW)
+    if (wolfSSL_HMAC_CTX_Init(&hmacCtx) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_HMAC_CTX_Init error");
         return WOLFSSL_TICKET_RET_FATAL;
+    }
+    /* Initialize the cipher and HMAC. */
+    res = ssl->ctx->ticketCompatCb(ssl, keyName, iv, &evpCtx, &hmacCtx, enc);
+    if (res != TICKET_KEY_CB_RET_OK && res != TICKET_KEY_CB_RET_RENEW) {
+        WOLFSSL_MSG("Ticket callback error");
+        return WOLFSSL_TICKET_RET_FATAL;
+    }
 
     if (enc)
     {
@@ -47676,7 +47685,7 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
     WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc))
 {
     /* Store callback in a global. */
-    ticketKeyCb = cb;
+    ctx->ticketCompatCb = cb;
     /* Set the ticket encryption callback to be a wrapper around OpenSSL
      * callback.
      */

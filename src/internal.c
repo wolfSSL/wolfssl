@@ -1673,6 +1673,78 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(OPENSSL_EXTRA)
+static int ctxInitTicket(WOLFSSL_CTX* ctx)
+{
+    WC_RNG rng;
+    int ret = 0;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_RNG_GenerateBlock(&rng,
+            ctx->ticketCompatName, sizeof(ctx->ticketCompatName));
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(&rng,
+                ctx->ticketCompatKey, sizeof(ctx->ticketCompatKey));
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(&rng,
+                ctx->ticketCompatHmacKey, sizeof(ctx->ticketCompatHmacKey));
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(&rng,
+                ctx->ticketCompatIV, sizeof(ctx->ticketCompatIV));
+
+    wc_FreeRng(&rng);
+    return ret;
+}
+
+static WC_INLINE int myTicketEncCbCompat(WOLFSSL* ssl,
+                         byte name[WOLFSSL_TICKET_NAME_SZ],
+                         byte iv[WOLFSSL_TICKET_IV_SZ],
+                         WOLFSSL_EVP_CIPHER_CTX *ectx,
+                         WOLFSSL_HMAC_CTX *hctx, int enc) {
+    WOLFSSL_ENTER("myTicketEncCbCompat");
+
+    if (ssl == NULL || name == NULL || iv == NULL || ectx == NULL
+            || hctx == NULL)
+        return TICKET_KEY_CB_RET_FAILURE;
+
+    if (enc) {
+        XMEMCPY(name, ssl->ctx->ticketCompatName, sizeof(ssl->ctx->ticketCompatName));
+        XMEMCPY(iv, ssl->ctx->ticketCompatIV, sizeof(ssl->ctx->ticketCompatIV));
+    }
+    else if (XMEMCMP(name, ssl->ctx->ticketCompatName,
+                sizeof(ssl->ctx->ticketCompatName)) != 0 ||
+             XMEMCMP(iv, ssl->ctx->ticketCompatIV,
+                sizeof(ssl->ctx->ticketCompatIV)) != 0) {
+        WOLFSSL_MSG("myTicketEncCbCompat: name or iv mismatch");
+        return TICKET_KEY_CB_RET_NOT_FOUND;
+    }
+    if (wolfSSL_HMAC_Init(hctx, ssl->ctx->ticketCompatHmacKey,
+            WOLFSSL_TICKET_NAME_SZ, wolfSSL_EVP_sha256()) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_HMAC_Init error");
+        return TICKET_KEY_CB_RET_FAILURE;
+    }
+    if (enc) {
+        if (wolfSSL_EVP_EncryptInit(ectx, wolfSSL_EVP_aes_256_cbc(),
+                ssl->ctx->ticketCompatKey, iv) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_EVP_EncryptInit error");
+            return TICKET_KEY_CB_RET_FAILURE;
+        }
+    }
+    else {
+        if (wolfSSL_EVP_DecryptInit(ectx, wolfSSL_EVP_aes_256_cbc(),
+                ssl->ctx->ticketCompatKey, iv) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_EVP_DecryptInit error");
+            return TICKET_KEY_CB_RET_FAILURE;
+        }
+    }
+    return TICKET_KEY_CB_RET_OK;
+}
+#endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER && OPENSSL_EXTRA */
+
 /* Initialize SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 {
@@ -1825,10 +1897,21 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->ticketEncCtx = (void*)&ctx->ticketKeyCtx;
 #endif
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
+#ifdef OPENSSL_EXTRA
+    if (ret == 0)
+        ret = ctxInitTicket(ctx);
+    /* No need for compat ticket init flag since below callback setter is
+     * only called when the above parameter generation has succeeded */
+    if (ret == 0 &&
+            wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbCompat)
+                != WOLFSSL_SUCCESS)
+        ret = SESSION_SECRET_CB_E;
+#endif
 #endif
 
 #ifdef HAVE_WOLF_EVENT
-    ret = wolfEventQueue_Init(&ctx->event_queue);
+    if (ret == 0)
+        ret = wolfEventQueue_Init(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -1970,6 +2053,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         }
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(OPENSSL_EXTRA)
+    ForceZero(ctx->ticketCompatKey, sizeof(ctx->ticketCompatKey));
+    ForceZero(ctx->ticketCompatHmacKey, sizeof(ctx->ticketCompatHmacKey));
+    ForceZero(ctx->ticketCompatIV, sizeof(ctx->ticketCompatIV));
+#endif
 }
 
 

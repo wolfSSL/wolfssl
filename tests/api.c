@@ -2649,7 +2649,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
     TicketInit();
+#ifdef OPENSSL_EXTRA
+    wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
+#else
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
 #endif
 
 #if defined(USE_WINDOWS_API)

@@ -3252,6 +3252,13 @@ enum TicketEncRet {
 WOLFSSL_API int wolfSSL_CTX_NoTicketTLSv12(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_NoTicketTLSv12(WOLFSSL* ssl);
 
+/* Expected return values from implementations of OpenSSL ticket key callback.
+ */
+#define TICKET_KEY_CB_RET_FAILURE    -1
+#define TICKET_KEY_CB_RET_NOT_FOUND   0
+#define TICKET_KEY_CB_RET_OK          1
+#define TICKET_KEY_CB_RET_RENEW       2
+
 typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],
                                  unsigned char iv[WOLFSSL_TICKET_IV_SZ],

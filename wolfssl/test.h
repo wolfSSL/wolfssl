@@ -3930,10 +3930,71 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
 }
 
 
-
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
       defined(HAVE_AESGCM))
+    static THREAD_LS_T WC_RNG myKey_rng;
+
+    static WC_INLINE void TicketCleanup(void)
+    {
+        wc_FreeRng(&myKey_rng);
+    }
+
+#ifdef OPENSSL_EXTRA
+
+    typedef struct key_ctx {
+        byte name[WOLFSSL_TICKET_NAME_SZ]; /* server name */
+        byte key[AES_256_KEY_SIZE]; /* cipher key */
+        byte hmacKey[WOLFSSL_TICKET_NAME_SZ]; /* hmac key */
+        byte iv[WOLFSSL_TICKET_IV_SZ]; /* cipher iv */
+    } key_ctx;
+
+    static THREAD_LS_T key_ctx myKey_ctx;
+
+    static WC_INLINE int TicketInit(void)
+    {
+        int ret = wc_InitRng(&myKey_rng);
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.name, sizeof(myKey_ctx.name));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.key, sizeof(myKey_ctx.key));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.hmacKey, sizeof(myKey_ctx.hmacKey));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myKey_rng, myKey_ctx.iv,sizeof(myKey_ctx.iv));
+        if (ret != 0) return ret;
+
+        return 0;
+    }
+
+    static WC_INLINE int myTicketEncCbOpenSSL(WOLFSSL* ssl,
+                             byte name[WOLFSSL_TICKET_NAME_SZ],
+                             byte iv[WOLFSSL_TICKET_IV_SZ],
+                             WOLFSSL_EVP_CIPHER_CTX *ectx,
+                             WOLFSSL_HMAC_CTX *hctx, int enc) {
+        (void)ssl;
+        if (enc) {
+            XMEMCPY(name, myKey_ctx.name, sizeof(myKey_ctx.name));
+            XMEMCPY(iv, myKey_ctx.iv, sizeof(myKey_ctx.iv));
+        }
+        else if (XMEMCMP(name, myKey_ctx.name, sizeof(myKey_ctx.name)) != 0 ||
+                XMEMCMP(iv, myKey_ctx.iv, sizeof(myKey_ctx.iv)) != 0) {
+            return 0;
+        }
+        HMAC_Init_ex(hctx, myKey_ctx.hmacKey, WOLFSSL_TICKET_NAME_SZ, EVP_sha256(), NULL);
+        if (enc)
+            EVP_EncryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, myKey_ctx.key, iv);
+        else
+            EVP_DecryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, myKey_ctx.key, iv);
+        return 1;
+    }
+
+#elif ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+        defined(HAVE_AESGCM))
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
@@ -3950,7 +4011,6 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
     } key_ctx;
 
     static THREAD_LS_T key_ctx myKey_ctx;
-    static THREAD_LS_T WC_RNG myKey_rng;
 
     static WC_INLINE int TicketInit(void)
     {
@@ -3964,11 +4024,6 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         if (ret != 0) return ret;
 
         return 0;
-    }
-
-    static WC_INLINE void TicketCleanup(void)
-    {
-        wc_FreeRng(&myKey_rng);
     }
 
     static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
@@ -4068,9 +4123,8 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
 
         return WOLFSSL_TICKET_RET_OK;
     }
-
-#endif /* HAVE_SESSION_TICKET && ((HAVE_CHACHA && HAVE_POLY1305) || HAVE_AESGCM) */
-
+#endif  /* OPENSSL_EXTRA elif ((HAVE_CHACHA && HAVE_POLY1305) || HAVE_AESGCM) */
+#endif  /* HAVE_SESSION_TICKET */
 
 static WC_INLINE word16 GetRandomPort(void)
 {
