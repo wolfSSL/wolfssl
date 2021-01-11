@@ -569,6 +569,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
                                       wolfSSL_X509_STORE_CTX_get0_current_issuer
 #define X509_STORE_CTX_get0_store       wolfSSL_X509_STORE_CTX_get0_store
 #define X509_STORE_CTX_get0_cert        wolfSSL_X509_STORE_CTX_get0_cert
+#define X509_STORE_CTX_trusted_stack    wolfSSL_X509_STORE_CTX_trusted_stack
 
 #define X509_STORE_set_verify_cb(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))

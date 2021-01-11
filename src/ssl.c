@@ -25328,9 +25328,25 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
 void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    (void)ctx;
-    /* Do nothing */
+    if (ctx != NULL) {
+#ifdef OPENSSL_EXTRA
+        if (ctx->param != NULL){
+            XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
+            ctx->param = NULL;
+        }
+#endif
+        wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
+    }
 }
+
+
+void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx, WOLF_STACK_OF(WOLFSSL_X509) *sk)
+{
+    if (ctx != NULL) {
+        ctx->chain = sk;
+    }
+}
+
 
 /* Returns corresponding X509 error from internal ASN error <e> */
 static int GetX509Error(int e)
