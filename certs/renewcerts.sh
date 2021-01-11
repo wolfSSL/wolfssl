@@ -214,6 +214,20 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    ########## update the self-signed ca-cert-chain.der ########
+    ############################################################
+    echo "Updating ca-cert-chain.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key 1024/ca-key.pem -config ./wolfssl.cnf -nodes -out ca-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey 1024/ca-key.pem -outform DER -out ca-cert-chain.der
+    check_result $? "Step 2"
+    rm ca-cert.csr
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ########## update the self-signed ca-ecc-cert.pem ##########
     ############################################################
     echo "Updating ca-ecc-cert.pem"
