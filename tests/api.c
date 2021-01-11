@@ -35900,6 +35900,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 #endif /* OPENSSL_ALL */
 }
 
+#ifndef NO_RSA
 static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 {
 #if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
@@ -35922,6 +35923,7 @@ static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* OPENSSL_ALL && WC_RSA_PSS && !WC_NO_RNG*/
 }
+#endif 
 
 static void test_wolfSSL_EC_get_builtin_curves(void)
 {
@@ -36568,16 +36570,15 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     /* error cases */
 
     AssertIntNE(EVP_PKEY_sign_init(NULL), WOLFSSL_SUCCESS);
-    ctx->pkey->type = EVP_PKEY_RSA2;
-    AssertIntNE(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
+    ctx->pkey->type = EVP_PKEY_RSA;
+    AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
     AssertIntNE(EVP_PKEY_sign(NULL, sig, &siglen, (byte*)in, inlen),
                               WOLFSSL_SUCCESS);
-    AssertIntNE(EVP_PKEY_sign(ctx, sig, &siglen, (byte*)in, inlen),
+    AssertIntEQ(EVP_PKEY_sign(ctx, sig, &siglen, (byte*)in, inlen),
                               WOLFSSL_SUCCESS);
 
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
-    wolfSSL_RSA_free(rsa);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigVerify, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
@@ -40175,7 +40176,9 @@ void ApiTest(void)
     test_wolfSSL_OCSP_resp_count();
     test_wolfSSL_OCSP_resp_get0();
     test_wolfSSL_EVP_PKEY_derive();
+#ifndef NO_RSA   
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
+#endif    
 
 #if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
