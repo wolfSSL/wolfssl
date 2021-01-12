@@ -2111,6 +2111,8 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 /* If we can do ECC, this isn't fatal. Not loading an ECC
                     * key will be fatal, though. */
                 SetError(RSA_DECODE_STR, error, session, 0);
+                if (keys->ecKey == NULL)
+                    keys->ecKey = session->sslServer->buffers.key; /* try ECC */
             #endif
             }
         #ifdef HAVE_ECC
