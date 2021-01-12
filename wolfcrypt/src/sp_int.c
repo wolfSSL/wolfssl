@@ -12794,6 +12794,7 @@ int sp_todecimal(sp_int* a, char* str)
         }
     #endif /* WOLFSSL_SMALL_STACK */
         if (err == MP_OKAY) {
+            sp_init(t);
             sp_copy(a, t);
 
         #ifdef WOLFSSL_SP_INT_NEGATIVE
