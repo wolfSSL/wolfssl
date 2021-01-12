@@ -5005,7 +5005,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[3], b->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -5130,7 +5129,6 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_MUL_ADD_NO(l, h, a->dp[5], b->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
@@ -9709,7 +9707,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[5] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[3]);
             t->dp[6] = l;
             t->dp[7] = h;
@@ -9826,7 +9823,6 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[9] = l;
             l = h;
             h = o;
-            o = 0;
             SP_ASM_SQR_ADD_NO(l, h, a->dp[5]);
             t->dp[10] = l;
             t->dp[11] = h;
