@@ -57,11 +57,23 @@
                 #define WOLFSSL_AESNI
             #endif
 
-            /* Single Precision Support for RSA/DH 1024/2048/3072 and ECC P-256 */
+            /* Single Precision Support for RSA/DH 1024/2048/3072 and
+             * ECC P-256/P-384 */
             #define WOLFSSL_SP
             #define WOLFSSL_HAVE_SP_ECC
             #define WOLFSSL_HAVE_SP_DH
             #define WOLFSSL_HAVE_SP_RSA
+
+            #ifdef _WIN64
+                /* Old versions of MASM compiler do not recognize newer
+                 * instructions. */
+                #if 0
+                    #define NO_AVX2_SUPPORT
+                    #define NO_MOVBE_SUPPORT
+                #endif
+                #define WOLFSSL_SP_ASM
+                #define WOLFSSL_SP_X86_64_ASM
+            #endif
         #endif
 
     #else

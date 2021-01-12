@@ -2364,7 +2364,7 @@ void sp_forcezero(sp_int* a)
  *
  * @return  MP_OKAY on success.
  */
-int sp_copy(sp_int* a, sp_int* r)
+int sp_copy(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -2686,7 +2686,7 @@ int sp_is_bit_set(sp_int* a, unsigned int b)
  *
  * @return  The number of bits in the number.
  */
-int sp_count_bits(sp_int* a)
+int sp_count_bits(const sp_int* a)
 {
     int r = 0;
 
@@ -2997,7 +2997,8 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 
 #if defined(WOLFSSL_SP_INT_NEGATIVE) || !defined(NO_PWDBASED) || \
     defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    ((defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA)) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Add a one digit number to the multi-precision number.
  *
  * @param  [in]   a  SP integer be added to.
@@ -3487,7 +3488,7 @@ static void _sp_div_small(sp_int* a, sp_int_digit d, sp_int* r,
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
-/* Divide a multi-precision number by a digit size number and calcualte
+/* Divide a multi-precision number by a digit size number and calculate
  * remainder.
  *   r = a / d; rem = a % d
  *
@@ -3958,7 +3959,8 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
  ****************************/
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES))
+    (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES)) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Add two value and reduce: r = (a + b) % m
  *
  * @param  [in]   a  SP integer to add.
@@ -4002,7 +4004,8 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     FREE_SP_INT(t, NULL);
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL || (!WOLFSSL_SP_MATH && WOLFSSL_CUSTOM_CURVES) */
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_CUSTOM_CURVES) ||
+        * WOLFCRYPT_HAVE_ECCSI || WOLFCRYPT_HAVE_SAKKE */
 
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Sub b from a and reduce: r = (a - b) % m
@@ -4696,7 +4699,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         err = sp_div(a, m, NULL, r);
     }
 #else
-    ALLOC_SP_INT(t, m->used, err, NULL);
+    ALLOC_SP_INT(t, a->used + 1, err, NULL);
     if (err == MP_OKAY) {
         sp_init_size(t, a->used + 1);
         err = sp_div(a, m, NULL, t);
@@ -7679,7 +7682,8 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
 }
 /* END SP_MUL implementations. */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(WOLFCRYPT_HAVE_ECCSI)
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *
  * @param  [in]   a  SP integer to multiply.
@@ -11667,7 +11671,8 @@ int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
  * Montogmery functions
  **********************/
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Reduce a number in montgomery form.
  *
  * Assumes a and m are not NULL and m is not 0.
@@ -12063,7 +12068,8 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
 
     return err;
 }
-#endif
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH ||
+        * WOLFCRYPT_HAVE_ECCSI || WOLFCRYPT_HAVE_SAKKE */
 
 /*********************************
  * To and from binary and strings.
@@ -12078,7 +12084,7 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
  *
  * @return  The count of 8-bit values.
  */
-int sp_unsigned_bin_size(sp_int* a)
+int sp_unsigned_bin_size(const sp_int* a)
 {
     int cnt = 0;
 

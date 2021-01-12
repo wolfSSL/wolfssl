@@ -255,7 +255,12 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         int err = wolfSSL_LastError(recvd);
         WOLFSSL_MSG("Embed Receive error");
 
-        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+        if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
+#else
+        if (err == SOCKET_EWOULDBLOCK)
+#endif
+        {
             WOLFSSL_MSG("\tWould block");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
@@ -306,7 +311,12 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         int err = wolfSSL_LastError(sent);
         WOLFSSL_MSG("Embed Send error");
 
-        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+        if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
+#else
+        if (err == SOCKET_EWOULDBLOCK)
+#endif
+        {
             WOLFSSL_MSG("\tWould Block");
             return WOLFSSL_CBIO_ERR_WANT_WRITE;
         }
@@ -2273,7 +2283,7 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_so
     if (ssl && ssl->mnCtx) {
         Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx *)ssl->mnCtx;
         mynewt_ctx->mnSocket = mnSocket;
-        memcpy(&mynewt_ctx->mnSockAddrIn, mnSockAddrIn, sizeof(struct mn_sockaddr_in));
+        XMEMCPY(&mynewt_ctx->mnSockAddrIn, mnSockAddrIn, sizeof(struct mn_sockaddr_in));
         mn_socket_set_cbs(mynewt_ctx->mnSocket, mnSocket, &mynewt_sock_cbs);
     }
 }

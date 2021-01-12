@@ -518,6 +518,9 @@ const char* wc_GetErrorString(int error)
     case ASN_SELF_SIGNED_E:
         return "ASN self-signed certificate error";
 
+    case SAKKE_VERIFY_FAIL_E:
+        return "SAKKE derivation verification error";
+
     default:
         return "unknown error number";
 

@@ -1,6 +1,6 @@
 # configure.ac
 #
-# Copyright (C) 2006-2020 wolfSSL Inc.
+# Copyright (C) 2006-2021 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -168,6 +168,9 @@ AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
+AS_IF([test "$ax_enable_debug" = "yes"],
+      [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
+      [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
 
 # Start without certificates enabled and enable if a certificate algorithm is
@@ -449,6 +452,12 @@ then
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
         test "$enable_ed448" = "" && enable_ed448=yes
+
+        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+        then
+            test "$enable_eccsi" = "" && enable_eccsi=yes
+            test "$enable_sakke" = "" && enable_sakke=yes
+        fi
     fi
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
@@ -540,12 +549,18 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
     fi
 
-    if test "$ENABLED_FIPS" != "yes"
+    if test "$ENABLED_FIPS" == "no"
     then
         test "$enable_xchacha" = "" && enable_xchacha=yes
         test "$enable_ed25519" = "" && enable_ed25519=yes
         test "$enable_ed448" = "" && enable_ed448=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes
+
+        if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
+        then
+            test "$enable_eccsi" = "" && enable_eccsi=yes
+            test "$enable_sakke" = "" && enable_sakke=yes
+        fi
     fi
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load
@@ -2222,6 +2237,36 @@ then
         AC_MSG_ERROR([cannot enable eccencrypt without enabling hkdf.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_ENCRYPT"
+fi
+
+# Elliptic Curve-Based Certificateless Signatures for Identity-Based Encryption (ECCSI)
+AC_ARG_ENABLE([eccsi],
+    [AS_HELP_STRING([--enable-eccsi],[Enable ECCSI (default: disabled)])],
+    [ ENABLED_ECCSI=$enableval ],
+    [ ENABLED_ECCSI=no ]
+    )
+
+if test "x$ENABLED_ECCSI" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_ECCSI -DWOLFSSL_PUBLIC_MP"
+fi
+
+# Sakai-Kasahara Key Encryption (SAKKE) - pairing based crypto
+AC_ARG_ENABLE([sakke],
+    [AS_HELP_STRING([--enable-sakke],[Enable SAKKE - paring based crypto (default: disabled)])],
+    [ ENABLED_SAKKE=$enableval ],
+    [ ENABLED_SAKKE=no ]
+    )
+
+if test "x$ENABLED_SAKKE" = "xsmall"
+then
+    ENABLED_SAKKE="yes"
+    ENABLED_SAKKE_SMALL="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_SAKKE_SMALL"
+fi
+if test "x$ENABLED_SAKKE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_HAVE_SAKKE"
 fi
 
 
@@ -4651,6 +4696,11 @@ then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_64_BUILD"
     fi
     AS_IF([test "x$host_cpu" = "xaarch64"],[AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AARCH64_BUILD"])
+
+    if test "$ENABLED_SAKKE" = "yes" && test "$ENABLED_SAKKE_SMALL" != "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -funroll-loops -DTFM_SMALL_SET"
+    fi
 fi
 
 
@@ -4944,6 +4994,7 @@ ENABLED_SP_FF_4096=no
 ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
+ENABLED_SP_SAKKE_1024=$ENABLED_SAKKE
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
 ENABLED_SP_SMALL=no
@@ -4997,6 +5048,15 @@ do
   ec384 | p384 | 384)
     ENABLED_SP_ECC=yes
     ENABLED_SP_EC_384=yes
+    ;;
+  smallec1024 | smallp1024 | small1024)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_SAKKE_1024=yes
+    ;;
+  ec1024 | p1024 | 1024)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SAKKE_1024=yes
     ;;
 
   small2048)
@@ -5115,6 +5175,10 @@ if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then
     if test "$ENABLED_SP_EC_384" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_384"
+    fi
+    if test "$ENABLED_SP_SAKKE_1024" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_1024"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_1024"
     fi
 fi
 if test "$ENABLED_SP_SMALL" = "yes"; then
@@ -6157,6 +6221,8 @@ AM_CONDITIONAL([BUILD_FE448], [test "x$ENABLED_FE448" = "xyes" || test "x$ENABLE
 AM_CONDITIONAL([BUILD_GE448], [test "x$ENABLED_GE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448],[test "x$ENABLED_CURVE448" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_RSA],[test "x$ENABLED_RSA" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DH],[test "x$ENABLED_DH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -6483,6 +6549,8 @@ echo "   * CURVE448:                   $ENABLED_CURVE448"
 echo "   * ED448:                      $ENABLED_ED448"
 echo "   * FPECC:                      $ENABLED_FPECC"
 echo "   * ECC_ENCRYPT:                $ENABLED_ECC_ENCRYPT"
+echo "   * ECCSI                       $ENABLED_ECCSI"
+echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
 echo "   * Anonymous cipher:           $ENABLED_ANON"
 echo "   * CODING:                     $ENABLED_CODING"

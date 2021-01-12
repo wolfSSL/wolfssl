@@ -565,7 +565,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         ret = setsockopt(aes->alFd, SOL_ALG, ALG_SET_AEAD_AUTHSIZE, NULL,
                 authTagSz);
         if (ret != 0) {
-        perror("set tag");
             WOLFSSL_MSG("Unable to set AF_ALG tag size ");
             return WC_AFALG_SOCK_E;
         }

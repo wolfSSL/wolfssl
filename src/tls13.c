@@ -84,6 +84,11 @@
     #include <errno.h>
 #endif
 
+#if defined(__MACH__) || defined(__FreeBSD__)
+#include <sys/time.h>
+#endif /* __MACH__ || __FreeBSD__ */
+
+
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
@@ -174,6 +179,9 @@ static int Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
             len = WC_SHA512_DIGEST_SIZE;
             break;
         #endif
+
+        default:
+            break;
     }
 
     /* When length is 0 then use zeroed data of digest length. */
@@ -385,32 +393,35 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     int         digestAlg = 0;
 
     switch (hashAlgo) {
-        #ifndef NO_SHA256
-            case sha256_mac:
-                hashSz    = WC_SHA256_DIGEST_SIZE;
-                digestAlg = WC_SHA256;
-                if (includeMsgs)
-                    ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
+    #ifndef NO_SHA256
+        case sha256_mac:
+            hashSz    = WC_SHA256_DIGEST_SIZE;
+            digestAlg = WC_SHA256;
+            if (includeMsgs)
+                ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
             break;
-        #endif
+    #endif
 
-        #ifdef WOLFSSL_SHA384
-            case sha384_mac:
-                hashSz    = WC_SHA384_DIGEST_SIZE;
-                digestAlg = WC_SHA384;
-                if (includeMsgs)
-                    ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hashSz    = WC_SHA384_DIGEST_SIZE;
+            digestAlg = WC_SHA384;
+            if (includeMsgs)
+                ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
             break;
-        #endif
+    #endif
 
-        #ifdef WOLFSSL_TLS13_SHA512
-            case sha512_mac:
-                hashSz    = WC_SHA512_DIGEST_SIZE;
-                digestAlg = WC_SHA512;
-                if (includeMsgs)
-                    ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
+    #ifdef WOLFSSL_TLS13_SHA512
+        case sha512_mac:
+            hashSz    = WC_SHA512_DIGEST_SIZE;
+            digestAlg = WC_SHA512;
+            if (includeMsgs)
+                ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
             break;
-        #endif
+    #endif
+
+        default:
+            break;
     }
     if (ret != 0)
         return ret;
@@ -1071,6 +1082,8 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
             ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
             break;
     #endif /* WOLFSSL_TLS13_SHA512 */
+        default:
+            break;
     }
     if (ret != 0)
         return ret;
@@ -1194,6 +1207,9 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
                 if (ret != 0)
                     goto end;
             }
+            break;
+
+        default:
             break;
     }
 
@@ -1725,8 +1741,8 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     /* Add authentication code of encrypted data to end. */
-    ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz, output, sz,
-                          tag, POLY1305_AUTH_SZ);
+    ret = wc_Poly1305_MAC(ssl->auth.poly1305, aad, aadSz, output, sz, tag,
+                                                              POLY1305_AUTH_SZ);
 
     return ret;
 }
@@ -1950,6 +1966,9 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             break;
         }
+
+        default:
+            break;
     }
 
     /* Reset state */
@@ -2002,8 +2021,8 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     /* Generate authentication tag for encrypted data. */
-    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz,
-                                    (byte*)input, sz, tag, sizeof(tag))) != 0) {
+    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, aad, aadSz, input, sz, tag,
+                                                           sizeof(tag))) != 0) {
         return ret;
     }
 
@@ -2233,6 +2252,9 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
 
             break;
         }
+
+       default:
+            break;
     }
 
 #ifndef WOLFSSL_EARLY_DATA
@@ -2402,6 +2424,9 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
             break;
         }
+
+        default:
+            break;
     }
 
 exit_buildmsg:
@@ -3074,8 +3099,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BUFFER_ERROR;
 
         /* Need to negotiate version first. */
-        if ((ret = TLSX_ParseVersion(ssl, (byte*)input + i, totalExtSz,
-                                                 *extMsgType, &foundVersion))) {
+        if ((ret = TLSX_ParseVersion(ssl, input + i, totalExtSz, *extMsgType,
+                                                              &foundVersion))) {
             return ret;
         }
         if (!foundVersion) {
@@ -3091,8 +3116,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         /* Parse and handle extensions. */
-        ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz, *extMsgType,
-                                                                          NULL);
+        ret = TLSX_Parse(ssl, input + i, totalExtSz, *extMsgType, NULL);
         if (ret != 0)
             return ret;
 
@@ -3252,9 +3276,10 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     /* Extension data. */
     if (i - begin + totalExtSz > totalSz)
         return BUFFER_ERROR;
-    if ((ret = TLSX_Parse(ssl, (byte *)(input + i), totalExtSz,
-                          encrypted_extensions, NULL)))
+    if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, encrypted_extensions,
+                                                                       NULL))) {
         return ret;
+    }
 
     /* Move index to byte after message. */
     *inOutIdx = i + totalExtSz;
@@ -3358,8 +3383,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
     if (len == 0)
         return INVALID_PARAMETER;
-    if ((ret = TLSX_Parse(ssl, (byte *)(input + *inOutIdx), len,
-                                           certificate_request, &peerSuites))) {
+    if ((ret = TLSX_Parse(ssl, input + *inOutIdx, len, certificate_request,
+                                                                &peerSuites))) {
         return ret;
     }
     *inOutIdx += len;
@@ -3406,8 +3431,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
  */
 static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 {
-    byte suites[WOLFSSL_MAX_SUITE_SZ];
-    int suiteSz = 0;
+    byte   suites[WOLFSSL_MAX_SUITE_SZ];
+    word16 suiteSz = 0;
     word16 i, j;
 
     XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
@@ -3685,7 +3710,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     ext = TLSX_Find(ssl->extensions, TLSX_PSK_KEY_EXCHANGE_MODES);
     if (ext == NULL)
         return MISSING_HANDSHAKE_DATA;
-    modes = ext->val;
+    modes = (word16)ext->val;
 
 #ifdef HAVE_SUPPORTED_CURVES
     ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
@@ -3952,8 +3977,8 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
             return BUFFER_ERROR;
 
         /* Need to negotiate version first. */
-        if ((ret = TLSX_ParseVersion(ssl, (byte*)input + i, totalExtSz,
-                                                client_hello, &foundVersion))) {
+        if ((ret = TLSX_ParseVersion(ssl, input + i, totalExtSz, client_hello,
+                                                              &foundVersion))) {
             return ret;
         }
     }
@@ -4126,7 +4151,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
 
     /* Parse extensions */
-    if ((ret = TLSX_Parse(ssl, (byte*)input + i, totalExtSz, client_hello,
+    if ((ret = TLSX_Parse(ssl, input + i, totalExtSz, client_hello,
                                                                   &clSuites))) {
         return ret;
     }
@@ -4590,6 +4615,8 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[1] = hashAlgo;
             break;
 #endif
+        default:
+            break;
     }
 }
 
@@ -4671,6 +4698,8 @@ static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash)
                 ret = WC_SHA512_DIGEST_SIZE;
             break;
     #endif /* WOLFSSL_TLS13_SHA512 */
+        default:
+            break;
     }
     return ret;
 }
@@ -4851,6 +4880,8 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
             hashSz = WC_SHA512_DIGEST_SIZE;
             break;
 #endif
+        default:
+            break;
     }
 
     if (ret != 0)
@@ -5995,11 +6026,13 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ssl->options.serverState = SERVER_CERT_VERIFY_COMPLETE;
         #endif
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
             break;
         }
+
         default:
             ret = INPUT_CASE_ERROR;
     } /* switch(ssl->options.asyncState) */
@@ -8143,7 +8176,7 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
             TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
             return ret;
         }
-        ctx->group[i] = groups[i];
+        ctx->group[i] = (word16)groups[i];
     }
     ctx->numGroups = (byte)count;
 
@@ -8178,7 +8211,7 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
             TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
             return ret;
         }
-        ssl->group[i] = groups[i];
+        ssl->group[i] = (word16)groups[i];
     }
     ssl->numGroups = (byte)count;
 

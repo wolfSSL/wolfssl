@@ -1605,11 +1605,11 @@ enum Misc {
     /* Check chosen encryption is available. */
     #if !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) && \
         defined(WOLFSSL_TICKET_ENC_CHACHA20_POLY1305)
-        #error "ChaCha20-Poly1305 not availble for default ticket encryption"
+        #error "ChaCha20-Poly1305 not available for default ticket encryption"
     #endif
     #if !defined(HAVE_AESGCM) && (defined(WOLFSSL_TICKET_ENC_AES128_GCM) || \
         defined(WOLFSSL_TICKET_ENC_AES256_GCM))
-        #error "AES-GCM not availble for default ticket encryption"
+        #error "AES-GCM not available for default ticket encryption"
     #endif
 
     #ifndef WOLFSSL_TICKET_KEY_LIFETIME
@@ -2284,9 +2284,9 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
-WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length,
-                                      byte msgType, int* found);
-WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
+WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
+                                      word16 length, byte msgType, int* found);
+WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType, Suites *suites);
 
 #elif defined(HAVE_SNI)                           \
@@ -2588,7 +2588,7 @@ typedef struct Cookie {
     byte   data;
 } Cookie;
 
-WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len,
+WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, const byte* data, word16 len,
                                   byte* mac, byte macSz, int resp);
 
 
@@ -2642,7 +2642,7 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
                                                  word16* pSz);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
                                                    byte msgType, word16* pSz);
-WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity,
+WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity,
                                         word16 len, word32 age, byte hmac,
                                         byte cipherSuite0, byte cipherSuite,
                                         byte resumption,

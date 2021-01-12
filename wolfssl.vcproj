@@ -360,6 +360,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\sp_x86_64_asm.asm"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\signature.c"
 				>
 			</File>
