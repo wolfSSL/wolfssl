@@ -4648,8 +4648,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[k+1] = h;
             t->used = k + 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -4725,8 +4726,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[k+1] = h;
             t->used = k + 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -4795,8 +4797,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[k+1] = (sp_int_digit)h;
             t->used = k + 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5003,8 +5006,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[6] = l;
             t->dp[7] = h;
             t->used = 8;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5126,8 +5130,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[10] = l;
             t->dp[11] = h;
             t->used = 12;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5293,8 +5298,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[14] = l;
             t->dp[15] = h;
             t->used = 16;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5572,8 +5578,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[22] = l;
             t->dp[23] = h;
             t->used = 24;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5997,8 +6004,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[30] = l;
             t->dp[31] = h;
             t->used = 32;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -6803,8 +6811,9 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             t->dp[46] = l;
             t->dp[47] = h;
             t->used = 48;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -7874,7 +7883,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
             err = MP_VAL;
         }
         else {
-            sp_copy(c, r);
+            err = sp_copy(c, r);
         }
     }
 
@@ -7949,7 +7958,7 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
         sp_init(e);
 
         sp_init(&pre[0]);
-        sp_copy(a, &pre[0]);
+        err = sp_copy(a, &pre[0]);
         for (i = 1; (err == MP_OKAY) && (i < CT_INV_MOD_PRE_CNT); i++) {
             sp_init(&pre[i]);
             err = sp_sqr(&pre[i-1], &pre[i]);
@@ -7972,7 +7981,7 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
                   break;
               }
         }
-        sp_copy(&pre[j-1], t);
+        err = sp_copy(&pre[j-1], t);
         for (j = 0; (err == MP_OKAY) && (i >= 0); i--) {
             int set = sp_is_bit_set(e, i);
 
@@ -8000,7 +8009,7 @@ int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp)
             }
         }
         else {
-            sp_copy(t, r);
+            err = sp_copy(t, r);
         }
     }
 
@@ -8080,13 +8089,13 @@ static int _sp_exptmod_ex(sp_int* b, sp_int* e, int bits, sp_int* m, sp_int* r)
             }
         }
         else {
-            sp_copy(b, &t[0]);
+            err = sp_copy(b, &t[0]);
         }
     }
 
     if ((!done) && (err == MP_OKAY)) {
         /* t[0] is dummy value and t[1] is result */
-        sp_copy(&t[0], &t[1]);
+        err = sp_copy(&t[0], &t[1]);
 
         for (i = bits - 1; (err == MP_OKAY) && (i >= 0); i--) {
 #ifdef WC_NO_CACHE_RESISTANT
@@ -8125,7 +8134,7 @@ static int _sp_exptmod_ex(sp_int* b, sp_int* e, int bits, sp_int* m, sp_int* r)
         }
     }
     if ((!done) && (err == MP_OKAY)) {
-        sp_copy(&t[1], r);
+        err = sp_copy(&t[1], r);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -8190,7 +8199,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
             }
         }
         else {
-            sp_copy(b, &t[0]);
+            err = sp_copy(b, &t[0]);
         }
     }
 
@@ -8247,7 +8256,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
         }
     }
     if ((!done) && (err == MP_OKAY)) {
-        sp_copy(&t[1], r);
+        err = sp_copy(&t[1], r);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -8333,7 +8342,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
             }
         }
         else {
-            sp_copy(b, &t[1]);
+            err = sp_copy(b, &t[1]);
         }
     }
 
@@ -8422,7 +8431,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
         }
     }
     if ((!done) && (err == MP_OKAY)) {
-        sp_copy(tr, r);
+        err = sp_copy(tr, r);
     }
 
     if (t != NULL) {
@@ -8592,7 +8601,7 @@ static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
         }
     }
     if (err == MP_OKAY) {
-        sp_copy(tr, r);
+        err = sp_copy(tr, r);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -8856,7 +8865,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
             }
         }
         else {
-            sp_copy(b, bm);
+            err = sp_copy(b, bm);
         }
     }
 
@@ -8912,7 +8921,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
                     n <<= winBits;
                     c -= winBits;
                 }
-                sp_copy(&t[y], tr);
+                err = sp_copy(&t[y], tr);
             }
             else {
                 /* 1 in Montgomery form. */
@@ -9020,7 +9029,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         }
     }
     if ((!done) && (err == MP_OKAY)) {
-        sp_copy(tr, r);
+        err = sp_copy(tr, r);
     }
 
     if (t != NULL) {
@@ -9077,7 +9086,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
             }
         }
         else {
-            sp_copy(b, &t[0]);
+            err = sp_copy(b, &t[0]);
         }
     }
 
@@ -9117,7 +9126,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         }
     }
     if ((!done) && (err == MP_OKAY)) {
-        sp_copy(&t[0], r);
+        err = sp_copy(&t[0], r);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -9226,7 +9235,7 @@ int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
         else {
             if (rem != NULL) {
                 /* Copy a in to remainder. */
-                sp_copy(a, rem);
+                err = sp_copy(a, rem);
             }
             /* Shift a down by into result. */
             sp_rshb(a, e, r);
@@ -9311,9 +9320,11 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
     if (err == MP_OKAY) {
         /* Copy a into r as left shift function works on the number. */
         if (a != r) {
-            sp_copy(a, r);
+            err = sp_copy(a, r);
         }
+    }
 
+    if (err == MP_OKAY) {
         if (0) {
             sp_print(a, "a");
             sp_print_int(e, "n");
@@ -9423,8 +9434,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[k * 2] = h;
             t->used = a->used * 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
         else if (err == MP_OKAY) {
             sp_int_digit l;
@@ -9433,8 +9445,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[1] = l;
             t->used = a->used * 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -9505,8 +9518,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[k+1] = (sp_int_digit)h;
             t->used = k + 2;
 
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
     #ifdef WOLFSSL_SMALL_STACK
         if (t != NULL) {
@@ -9692,8 +9706,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[6] = l;
             t->dp[7] = h;
             t->used = 8;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -9807,8 +9822,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[10] = l;
             t->dp[11] = h;
             t->used = 12;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -9957,8 +9973,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[14] = l;
             t->dp[15] = h;
             t->used = 16;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -10189,8 +10206,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[22] = l;
             t->dp[23] = h;
             t->used = 24;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -10521,8 +10539,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[30] = l;
             t->dp[31] = h;
             t->used = 32;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -11094,8 +11113,9 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
             t->dp[46] = l;
             t->dp[47] = h;
             t->used = 48;
-            sp_copy(t, r);
-            sp_clamp(r);
+            err = sp_copy(t, r);
+            if (err == MP_OKAY)
+                sp_clamp(r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -12781,8 +12801,9 @@ int sp_todecimal(sp_int* a, char* str)
             err = MP_MEM;
         }
     #endif /* WOLFSSL_SMALL_STACK */
+        if (err == MP_OKAY)
+            err = sp_copy(a, t);
         if (err == MP_OKAY) {
-            sp_copy(a, t);
 
         #ifdef WOLFSSL_SP_INT_NEGATIVE
             if (a->sign == MP_NEG) {
@@ -12921,8 +12942,10 @@ int sp_radix_size(sp_int* a, int radix, int* size)
                 }
             }
         #endif /* WOLFSSL_SMALL_STACK */
+            if (err == MP_OKAY)
+                err = sp_copy(a, t);
+
             if (err == MP_OKAY) {
-                sp_copy(a, t);
 
                 for (i = 0; !sp_iszero(t); i++) {
                     sp_div_d(t, 10, t, &d);
@@ -13531,11 +13554,11 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
             err = MP_VAL;
         }
         else {
-            sp_copy(b, r);
+            err = sp_copy(b, r);
         }
     }
     else if (sp_iszero(b)) {
-        sp_copy(a, r);
+        err = sp_copy(a, r);
     }
     else {
     #ifdef WOLFSSL_SMALL_STACK
@@ -13611,7 +13634,8 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
                 sp_copy(v, u);
                 sp_copy(t, v);
             }
-            sp_copy(u, r);
+            if (err == MP_OKAY)
+                err = sp_copy(u, r);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
