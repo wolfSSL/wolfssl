@@ -7190,6 +7190,13 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                         ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
+        #ifdef WOLFSSL_EARLY_DATA
+                if (ssl->earlyData != no_early_data) {
+                    if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
+                        return ret;
+                }
+                else
+        #endif
                 if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
                     return ret;
             }
