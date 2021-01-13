@@ -682,7 +682,7 @@ struct SignatureCtx {
 #if !(defined(NO_RSA) && defined(NO_DSA))
     byte* sigCpy;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || !defined(NO_DSA)
     int verify;
 #endif
     union {
