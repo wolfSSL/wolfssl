@@ -18284,8 +18284,41 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     return ssl->peerCertChain;
 }
 
+static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_X509 *x);
+/**
+ * Recursively push the issuer CA chain onto the stack
+ * @param cm The cert manager that is queried for the issuer
+ * @param x  This cert's issuer will be queried in cm
+ * @param sk The issuer is pushed onto this stack
+ * @return WOLFSSL_SUCCESS on success
+ *         WOLFSSL_FAILURE on no issuer found
+ *         WOLFSSL_FATAL_ERROR on a fatal error
+ */
+static int pushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_X509 *x, WOLFSSL_STACK* sk)
+{
+    WOLFSSL_X509* issuer = NULL;
+    if (x509GetIssuerFromCM(&issuer, cm, x)
+            == WOLFSSL_SUCCESS) {
+        if (pushCAx509Chain(cm, issuer, sk) == WOLFSSL_FATAL_ERROR) {
+            wolfSSL_X509_free(issuer);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (wolfSSL_sk_X509_push(sk, issuer) != WOLFSSL_SUCCESS) {
+            wolfSSL_X509_free(issuer);
+            return WOLFSSL_FATAL_ERROR;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+    else
+        return WOLFSSL_FAILURE;
+}
+
 /* Builds up and creates a stack of peer certificates for ssl->peerCertChain
-    based off of the ssl session chain. Returns stack of WOLFSSL_X509 certs or
+    based off of the ssl session chain. Attempts to place CA certificates
+    at the bottom of the stack. Returns stack of WOLFSSL_X509 certs or
     NULL on failure */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 {
@@ -18301,10 +18334,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     sk = wolfSSL_sk_X509_new();
     i = ssl->session.chain.count-1;
     for (; i >= 0; i--) {
-        /* For servers, the peer certificate chain does not include the peer
-            certificate, so do not add it to the stack */
-        if (ssl->options.side == WOLFSSL_SERVER_END && i == 0)
-            continue;
         x509 = wolfSSL_X509_new();
         if (x509 == NULL) {
             WOLFSSL_MSG("Error Creating X509");
@@ -18312,6 +18341,14 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         }
         ret = DecodeToX509(x509, ssl->session.chain.certs[i].buffer,
                              ssl->session.chain.certs[i].length);
+        if (ret == 0 && i == ssl->session.chain.count-1) {
+            /* On the last element in the chain try to add the CA chain
+             * first if we have one for this cert */
+            if (pushCAx509Chain(ssl->ctx->cm, x509, sk)
+                    == WOLFSSL_FATAL_ERROR) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
 
         if (ret != 0 || wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error decoding cert");
@@ -47921,16 +47958,74 @@ int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx,
     return WOLFSSL_SUCCESS;
 }
 
-int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
-    WOLFSSL_X509_STORE_CTX *ctx, WOLFSSL_X509 *x)
+/**
+ * Find the issuing cert of the input cert. On a self-signed cert this
+ * function will return an error.
+ * @param issuer The issuer x509 struct is returned here
+ * @param cm     The cert manager that is queried for the issuer
+ * @param x      This cert's issuer will be queried in cm
+ * @return       WOLFSSL_SUCCESS on success
+ *               WOLFSSL_FAILURE on error
+ */
+static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
+        WOLFSSL_X509 *x)
 {
-    WOLFSSL_STACK* node;
     Signer* ca = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert* cert = NULL;
 #else
     DecodedCert  cert[1];
 #endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+    if (cert == NULL)
+        return WOLFSSL_FAILURE;
+#endif
+
+    /* Use existing CA retrieval APIs that use DecodedCert. */
+    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, NULL);
+    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0
+            && !cert->selfSigned) {
+    #ifndef NO_SKID
+        if (cert->extAuthKeyIdSet)
+            ca = GetCA(cm, cert->extAuthKeyId);
+        if (ca == NULL)
+            ca = GetCAByName(cm, cert->issuerHash);
+    #else /* NO_SKID */
+        ca = GetCA(cm, cert->issuerHash);
+    #endif /* NO SKID */
+    }
+    FreeDecodedCert(cert);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+#endif
+
+    if (ca == NULL)
+        return WOLFSSL_FAILURE;
+
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    /* populate issuer with Signer DER */
+    if (wolfSSL_X509_d2i(issuer, ca->derCert->buffer,
+            ca->derCert->length) == NULL)
+        return WOLFSSL_FAILURE;
+#else
+    /* Create an empty certificate as CA doesn't have a certificate. */
+    *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
+        DYNAMIC_TYPE_OPENSSL);
+    if (*issuer == NULL)
+        return WOLFSSL_FAILURE;
+
+    InitX509((*issuer), 1, NULL);
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
+    WOLFSSL_X509_STORE_CTX *ctx, WOLFSSL_X509 *x)
+{
+    WOLFSSL_STACK* node;
 
     if (issuer == NULL || ctx == NULL || x == NULL)
         return WOLFSSL_FATAL_ERROR;
@@ -47944,52 +48039,9 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
         }
     }
 
-
-#ifdef WOLFSSL_SMALL_STACK
-    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
-        return WOLFSSL_FAILURE;
-#endif
-
-    /* Use existing CA retrieval APIs that use DecodedCert. */
-    InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, NULL);
-    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0) {
-    #ifndef NO_SKID
-        if (cert->extAuthKeyIdSet)
-            ca = GetCA(ctx->store->cm, cert->extAuthKeyId);
-        if (ca == NULL)
-            ca = GetCAByName(ctx->store->cm, cert->issuerHash);
-    #else /* NO_SKID */
-        ca = GetCA(ctx->store->cm, cert->issuerHash);
-    #endif /* NO SKID */
-    }
-    FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
-#endif
-
-    if (ca == NULL)
-        return WOLFSSL_FAILURE;
-
-#ifdef WOLFSSL_SIGNER_DER_CERT
-    /* populate issuer with Signer DER */
-    *issuer = wolfSSL_X509_d2i(issuer, ca->derCert->buffer,
-                               ca->derCert->length);
-    if (*issuer == NULL)
-        return WOLFSSL_FAILURE;
-#else
-    /* Create an empty certificate as CA doesn't have a certificate. */
-    *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
-        DYNAMIC_TYPE_OPENSSL);
-    if (*issuer == NULL)
-        return WOLFSSL_FAILURE;
-
-    InitX509((*issuer), 1, NULL);
-#endif
-
     /* Result is ignored when passed to wolfSSL_OCSP_cert_to_id(). */
 
-    return WOLFSSL_SUCCESS;
+    return x509GetIssuerFromCM(issuer, ctx->store->cm, x);
 }
 
 void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
