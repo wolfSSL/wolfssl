@@ -1545,7 +1545,7 @@ static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
 }
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-/* Encrypt with ChaCha20 and create authenication tag with Poly1305.
+/* Encrypt with ChaCha20 and create authentication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.
  * output  The buffer to write encrypted data and authentication tag into.
@@ -1600,7 +1600,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
 #endif
 
 #ifdef HAVE_NULL_CIPHER
-/* Create authenication tag and copy data over input.
+/* Create authentication tag and copy data over input.
  *
  * ssl     The SSL/TLS object.
  * output  The buffer to copy data into.
@@ -1826,7 +1826,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 }
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-/* Decrypt with ChaCha20 and check authenication tag with Poly1305.
+/* Decrypt with ChaCha20 and check authentication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.
  * output  The buffer to write decrypted data into.
@@ -7190,13 +7190,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                         ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
-        #ifdef WOLFSSL_EARLY_DATA
-                if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
-                    return ret;
-        #else
                 if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
                     return ret;
-        #endif
             }
 
             if (type == finished) {
