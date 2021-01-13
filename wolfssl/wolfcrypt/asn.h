@@ -1390,6 +1390,8 @@ struct OcspEntry
     byte* rawCertId;                      /* raw bytes of the CertID   */
     int rawCertIdSize;                    /* num bytes in raw CertID   */
     /* option bits - using 32-bit for alignment */
+    word32 ownStatus:1;                   /* do we need to free the status
+                                           * response list */
     word32 isDynamic:1;                   /* was dynamically allocated */
 
 };
