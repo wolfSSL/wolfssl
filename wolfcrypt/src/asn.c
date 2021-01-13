@@ -2919,6 +2919,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     int ret;
     (void)privKeySz;
     (void)pubKeySz;
+    (void)ks;
 
     if (privKey == NULL || pubKey == NULL) {
         return BAD_FUNC_ARG;
@@ -7293,7 +7294,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case DSAk:
                 {
                     word32 idx = 0;
-                    mp_int r, s;
 
                     if (sigSz < DSA_SIG_SIZE) {
                         WOLFSSL_MSG("Verify Signature is too small");
@@ -7316,7 +7316,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         goto exit_cs;
                     }
                     if (sigSz != DSA_SIG_SIZE) {
+                #ifdef HAVE_ECC
                         /* Try to parse it as the contents of a bitstring */
+                        mp_int r, s;
                         idx = 0;
                         if (DecodeECC_DSA_Sig(sig + idx, sigSz - idx,
                                               &r, &s) != 0) {
@@ -7335,6 +7337,11 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         }
                         mp_free(&r);
                         mp_free(&s);
+                #else
+                        WOLFSSL_MSG("DSA Sig is in unrecognized or "
+                                    "incorrect format");
+                        ERROR_OUT(ASN_SIG_CONFIRM_E, exit_cs);
+                #endif
                     }
                     else {
                         XMEMCPY(sigCtx->sigCpy, sig, DSA_SIG_SIZE);
