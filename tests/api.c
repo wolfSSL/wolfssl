@@ -4271,7 +4271,7 @@ static void test_wolfSSL_UseSNI_connection(void)
 
 static void test_wolfSSL_SNI_GetFromBuffer(void)
 {
-    byte buffer[] = { /* www.paypal.com */
+    byte buff[] = { /* www.paypal.com */
         0x00, 0x00, 0x00, 0x00, 0xff, 0x01, 0x00, 0x00, 0x60, 0x03, 0x03, 0x5c,
         0xc4, 0xb3, 0x8c, 0x87, 0xef, 0xa4, 0x09, 0xe0, 0x02, 0xab, 0x86, 0xca,
         0x76, 0xf0, 0x9e, 0x01, 0x65, 0xf6, 0xa6, 0x06, 0x13, 0x1d, 0x0f, 0xa5,
@@ -4283,7 +4283,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x0d, 0x00, 0x06, 0x00, 0x04, 0x04, 0x01, 0x02, 0x01
     };
 
-    byte buffer2[] = { /* api.textmate.org */
+    byte buff2[] = { /* api.textmate.org */
         0x16, 0x03, 0x01, 0x00, 0xc6, 0x01, 0x00, 0x00, 0xc2, 0x03, 0x03, 0x52,
         0x8b, 0x7b, 0xca, 0x69, 0xec, 0x97, 0xd5, 0x08, 0x03, 0x50, 0xfe, 0x3b,
         0x99, 0xc3, 0x20, 0xce, 0xa5, 0xf6, 0x99, 0xa5, 0x71, 0xf9, 0x57, 0x7f,
@@ -4303,7 +4303,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x0a, 0x05, 0x01, 0x04, 0x01, 0x02, 0x01, 0x04, 0x03, 0x02, 0x03
     };
 
-    byte buffer3[] = { /* no sni extension */
+    byte buff3[] = { /* no sni extension */
         0x16, 0x03, 0x03, 0x00, 0x4d, 0x01, 0x00, 0x00, 0x49, 0x03, 0x03, 0xea,
         0xa1, 0x9f, 0x60, 0xdd, 0x52, 0x12, 0x13, 0xbd, 0x84, 0x34, 0xd5, 0x1c,
         0x38, 0x25, 0xa8, 0x97, 0xd2, 0xd5, 0xc6, 0x45, 0xaf, 0x1b, 0x08, 0xe4,
@@ -4313,7 +4313,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x00, 0x0d, 0x00, 0x06, 0x00, 0x04, 0x04, 0x01, 0x02, 0x01
     };
 
-    byte buffer4[] = { /* last extension has zero size */
+    byte buff4[] = { /* last extension has zero size */
         0x16, 0x03, 0x01, 0x00, 0xba, 0x01, 0x00, 0x00,
         0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
         0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
@@ -4333,7 +4333,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
         0x12, 0x00, 0x00
     };
 
-    byte buffer5[] = { /* SSL v2.0 client hello */
+    byte buff5[] = { /* SSL v2.0 client hello */
         0x00, 0x2b, 0x01, 0x03, 0x01, 0x00, 0x09, 0x00, 0x00,
         /* dummy bytes bellow, just to pass size check */
         0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
@@ -4344,58 +4344,58 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
     byte result[32] = {0};
     word32 length   = 32;
 
-    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer4, sizeof(buffer4),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buff4, sizeof(buff4),
                                                            0, result, &length));
 
-    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer3, sizeof(buffer3),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buff3, sizeof(buff3),
                                                            0, result, &length));
 
-    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+    AssertIntEQ(0, wolfSSL_SNI_GetFromBuffer(buff2, sizeof(buff2),
                                                            1, result, &length));
 
-    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buff, sizeof(buff),
                                                            0, result, &length));
-    buffer[0] = 0x16;
+    buff[0] = 0x16;
 
-    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buff, sizeof(buff),
                                                            0, result, &length));
-    buffer[1] = 0x03;
+    buff[1] = 0x03;
 
-    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer,
-                                           sizeof(buffer), 0, result, &length));
-    buffer[2] = 0x03;
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buff,
+                                           sizeof(buff), 0, result, &length));
+    buff[2] = 0x03;
 
-    AssertIntEQ(INCOMPLETE_DATA, wolfSSL_SNI_GetFromBuffer(buffer,
-                                           sizeof(buffer), 0, result, &length));
-    buffer[4] = 0x64;
+    AssertIntEQ(INCOMPLETE_DATA, wolfSSL_SNI_GetFromBuffer(buff,
+                                           sizeof(buff), 0, result, &length));
+    buff[4] = 0x64;
 
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buffer, sizeof(buffer),
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff, sizeof(buff),
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("www.paypal.com", (const char*) result);
 
     length = 32;
 
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buffer2, sizeof(buffer2),
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SNI_GetFromBuffer(buff2, sizeof(buff2),
                                                            0, result, &length));
     result[length] = 0;
     AssertStrEQ("api.textmate.org", (const char*) result);
 
     /* SSL v2.0 tests */
-    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buffer5,
-                                          sizeof(buffer5), 0, result, &length));
+    AssertIntEQ(SNI_UNSUPPORTED, wolfSSL_SNI_GetFromBuffer(buff5,
+                                          sizeof(buff5), 0, result, &length));
 
-    buffer5[2] = 0x02;
-    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
-                                          sizeof(buffer5), 0, result, &length));
+    buff5[2] = 0x02;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buff5,
+                                          sizeof(buff5), 0, result, &length));
 
-    buffer5[2] = 0x01; buffer5[6] = 0x08;
-    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
-                                          sizeof(buffer5), 0, result, &length));
+    buff5[2] = 0x01; buff5[6] = 0x08;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buff5,
+                                          sizeof(buff5), 0, result, &length));
 
-    buffer5[6] = 0x09; buffer5[8] = 0x01;
-    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buffer5,
-                                          sizeof(buffer5), 0, result, &length));
+    buff5[6] = 0x09; buff5[8] = 0x01;
+    AssertIntEQ(BUFFER_ERROR, wolfSSL_SNI_GetFromBuffer(buff5,
+                                          sizeof(buff5), 0, result, &length));
 }
 
 #endif /* HAVE_SNI */
@@ -5296,7 +5296,7 @@ static void test_wolfSSL_no_password_cb(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) \
     && defined(HAVE_ECC) && defined(WOLFSSL_ENCRYPTED_KEYS)
     WOLFSSL_CTX* ctx;
-    byte buffer[FOURK_BUF];
+    byte buff[FOURK_BUF];
     const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
     const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
     XFILE f;
@@ -5312,17 +5312,17 @@ static void test_wolfSSL_no_password_cb(void)
     wolfSSL_CTX_set_default_passwd_cb(ctx, FailTestCallBack);
 
     AssertTrue((f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb")) != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
-    AssertIntLE(bytes, sizeof(buffer));
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntLE(bytes, sizeof(buff));
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     AssertTrue((f = XFOPEN(eccPkcs8PrivKeyPemFile, "rb")) != XBADFILE);
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
-    AssertIntLE(bytes, sizeof(buffer));
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntLE(bytes, sizeof(buff));
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     wolfSSL_CTX_free(ctx);
@@ -5365,7 +5365,7 @@ static int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
 static void test_wolfSSL_PKCS8(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8)
-    byte buffer[FOURK_BUF];
+    byte buff[FOURK_BUF];
     byte der[FOURK_BUF];
     #ifndef NO_RSA
         const char serverKeyPkcs8PemFile[] = "./certs/server-keyPkcs8.pem";
@@ -5420,36 +5420,36 @@ static void test_wolfSSL_PKCS8(void)
     /* test loading PEM PKCS8 encrypted file */
     f = XFOPEN(serverKeyPkcs8EncPemFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* this next case should fail because of password callback return code */
     flag = 0; /* used by password callback as return code */
-    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+    AssertIntGT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der),
         "yassl123"), 0);
 
     /* test that error value is returned with a bad password */
-    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+    AssertIntLT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der),
         "bad"), 0);
 
     /* test loading PEM PKCS8 encrypted file */
     f = XFOPEN(serverKeyPkcs8EncDerFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
     flag = 1; /* used by password callback as return code */
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* this next case should fail because of password callback return code */
     flag = 0; /* used by password callback as return code */
-    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     #endif /* !NO_RSA && !NO_SHA */
 
@@ -5457,37 +5457,37 @@ static void test_wolfSSL_PKCS8(void)
     /* test loading PEM PKCS8 encrypted ECC Key file */
     f = XFOPEN(eccPkcs8EncPrivKeyPemFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
     flag = 1; /* used by password callback as return code */
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* this next case should fail because of password callback return code */
     flag = 0; /* used by password callback as return code */
-    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+    AssertIntGT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der),
         "yassl123"), 0);
 
     /* test that error value is returned with a bad password */
-    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+    AssertIntLT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der),
         "bad"), 0);
 
     /* test loading DER PKCS8 encrypted ECC Key file */
     f = XFOPEN(eccPkcs8EncPrivKeyDerFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
     flag = 1; /* used by password callback as return code */
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* this next case should fail because of password callback return code */
     flag = 0; /* used by password callback as return code */
-    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* leave flag as "okay" */
@@ -5500,32 +5500,32 @@ static void test_wolfSSL_PKCS8(void)
     /* test loading ASN.1 (DER) PKCS8 private key file (not encrypted) */
     f = XFOPEN(serverKeyPkcs8DerFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* test loading PEM PKCS8 private key file (not encrypted) */
     f = XFOPEN(serverKeyPkcs8PemFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 #endif /* !NO_RSA */
 
     /* Test PKCS8 PEM ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyPemFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
 #ifdef HAVE_ECC
     /* Test PKCS8 PEM ECC key no crypt */
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* decrypt PKCS8 PEM to key in DER format */
-    AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der,
+    AssertIntGT((bytes = wc_KeyPemToDer(buff, bytes, der,
         (word32)sizeof(der), NULL)), 0);
     ret = wc_ecc_init(&key);
     if (ret == 0) {
@@ -5537,15 +5537,15 @@ static void test_wolfSSL_PKCS8(void)
     /* Test PKCS8 DER ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
 
     /* Test using a PKCS8 ECC PEM */
-    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 #else
     /* if HAVE_ECC is not defined then BEGIN EC PRIVATE KEY is not found */
-    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der,
+    AssertIntEQ((bytes = wc_KeyPemToDer(buff, bytes, der,
         (word32)sizeof(der), NULL)), ASN_NO_PEM_HEADER);
 #endif /* HAVE_ECC */
 
@@ -5706,7 +5706,7 @@ static void test_wolfSSL_X509_verify(void)
 #if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
     && defined(OPENSSL_EXTRA)
     WOLFSSL_X509* ca;
-    WOLFSSL_X509* server;
+    WOLFSSL_X509* serv;
     WOLFSSL_EVP_PKEY* pkey;
     unsigned char buf[2048];
     const unsigned char* pt = NULL;
@@ -5730,7 +5730,7 @@ static void test_wolfSSL_X509_verify(void)
     AssertIntEQ(wolfSSL_X509_get_pubkey_type(ca), RSAk);
 
 
-    AssertNotNull(server =
+    AssertNotNull(serv =
           wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM));
 
     /* success case */
@@ -5739,23 +5739,23 @@ static void test_wolfSSL_X509_verify(void)
 
     AssertIntEQ(i2d_PUBKEY(pkey, NULL), bufSz);
 
-    AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_verify(serv, pkey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 
     /* fail case */
     bufSz = 2048;
-    AssertIntEQ(wolfSSL_X509_get_pubkey_buffer(server, buf, &bufSz),
+    AssertIntEQ(wolfSSL_X509_get_pubkey_buffer(serv, buf, &bufSz),
             WOLFSSL_SUCCESS);
     pt = buf;
     AssertNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
-    AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_X509_verify(serv, pkey), WOLFSSL_FAILURE);
 
     AssertIntEQ(wolfSSL_X509_verify(NULL, pkey), WOLFSSL_FATAL_ERROR);
-    AssertIntEQ(wolfSSL_X509_verify(server, NULL), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_X509_verify(serv, NULL), WOLFSSL_FATAL_ERROR);
     wolfSSL_EVP_PKEY_free(pkey);
 
     wolfSSL_FreeX509(ca);
-    wolfSSL_FreeX509(server);
+    wolfSSL_FreeX509(serv);
 
     printf(resultFmt, passed);
 #endif
@@ -26849,7 +26849,7 @@ static void test_wolfSSL_tmp_dh(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_DSA) && !defined(NO_RSA) && !defined(NO_DH) && !defined(NO_BIO)
-    byte buffer[6000];
+    byte buff[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -26875,10 +26875,10 @@ static void test_wolfSSL_tmp_dh(void)
 
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
     XFCLOSE(f);
 
-    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    bio = BIO_new_mem_buf((void*)buff, bytes);
     AssertNotNull(bio);
 
     dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
@@ -28551,7 +28551,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
-    #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_ALL
         STACK_OF(X509)* sk;
         X509* x509;
         int i, num;
@@ -28560,10 +28560,10 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     printf("\n===== msgcb called ====\n");
     #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
-    AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
+    AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 2);
     #endif
 
-    #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_ALL
     bio = BIO_new(BIO_s_file());
     BIO_set_fp(bio, stdout, BIO_NOCLOSE);
     sk = SSL_get_peer_cert_chain(ssl);

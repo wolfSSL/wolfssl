@@ -371,6 +371,7 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
             XMEMCPY(status, newSingle->status, sizeof(CertStatus));
             status->next  = entry->status;
             entry->status = status;
+            entry->ownStatus = 1;
             entry->totalStatus++;
         }
     }
@@ -630,6 +631,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     XMEMSET(certStatus, 0, sizeof(CertStatus));
 
     certId->status = certStatus;
+    certId->ownStatus = 1;
 
     InitDecodedCert(&cert, subject->derCert->buffer,
                     subject->derCert->length, NULL);

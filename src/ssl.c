@@ -10400,7 +10400,6 @@ int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
     WOLFSSL_LEAVE("wolfSSL_X509_digest", ret);
     return ret;
 }
-#endif
 
 int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
         const WOLFSSL_EVP_MD *digest, unsigned char* buf, unsigned int* len)
@@ -10424,6 +10423,7 @@ int wolfSSL_X509_pubkey_digest(const WOLFSSL_X509 *x509,
     WOLFSSL_LEAVE("wolfSSL_X509_pubkey_digest", ret);
     return ret;
 }
+#endif
 
 int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 {
@@ -15704,7 +15704,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         ctx->mask = wolf_set_options(ctx->mask, opt);
 
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(OPENSSL_EXTRA)
         if (ctx->mask & SSL_OP_NO_TICKET) {
             ctx->ticketEncCb = NULL;
             ctx->ticketCompatCb = NULL;
@@ -18298,22 +18299,33 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 static int pushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x, WOLFSSL_STACK* sk)
 {
-    WOLFSSL_X509* issuer = NULL;
-    if (x509GetIssuerFromCM(&issuer, cm, x)
-            == WOLFSSL_SUCCESS) {
-        if (pushCAx509Chain(cm, issuer, sk) == WOLFSSL_FATAL_ERROR) {
-            wolfSSL_X509_free(issuer);
-            return WOLFSSL_FATAL_ERROR;
-        }
+    WOLFSSL_X509* issuer[MAX_CHAIN_DEPTH];
+    int i;
+    int push = 1;
+    int ret = WOLFSSL_SUCCESS;
 
-        if (wolfSSL_sk_X509_push(sk, issuer) != WOLFSSL_SUCCESS) {
-            wolfSSL_X509_free(issuer);
-            return WOLFSSL_FATAL_ERROR;
-        }
-        return WOLFSSL_SUCCESS;
+    for (i = 0; i < MAX_CHAIN_DEPTH; i++) {
+        if (x509GetIssuerFromCM(&issuer[i], cm, x)
+                != WOLFSSL_SUCCESS)
+            break;
+        x = issuer[i];
     }
-    else
+    if (i == 0) /* No further chain found */
         return WOLFSSL_FAILURE;
+    i--;
+    for (; i >= 0; i--) {
+        if (push) {
+            if (wolfSSL_sk_X509_push(sk, issuer[i]) != WOLFSSL_SUCCESS) {
+                wolfSSL_X509_free(issuer[i]);
+                ret = WOLFSSL_FATAL_ERROR;
+                push = 0; /* Free the rest of the unpushed certs */
+            }
+        }
+        else {
+            wolfSSL_X509_free(issuer[i]);
+        }
+    }
+    return ret;
 }
 
 /* Builds up and creates a stack of peer certificates for ssl->peerCertChain
