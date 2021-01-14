@@ -38789,6 +38789,38 @@ static void test_wolfSSL_X509_CRL(void)
         return;
 }
 
+static void test_wolfSSL_X509_load_crl_file(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+    int i;
+    char pem[][100] = {
+        "./certs/crl/crl.pem",
+        "./certs/crl/crl2.pem",
+        "./certs/crl/caEccCrl.pem",
+        "./certs/crl/eccCliCRL.pem",
+        "./certs/crl/eccSrvCRL.pem",
+        ""
+    };
+    WOLFSSL_X509_STORE*  store;
+    WOLFSSL_X509_LOOKUP* lookup;
+
+    printf(testingFmt, "wolfSSL_X509_laod_crl_file");
+
+    AssertNotNull(store = wolfSSL_X509_STORE_new());
+    AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    
+    for (i = 0; pem[i][0] != '\0'; i++)
+    {
+        AssertIntEQ(wolfSSL_X509_load_crl_file(lookup, pem[i], WOLFSSL_FILETYPE_PEM), 1);
+    }
+    
+    wolfSSL_X509_STORE_free(store);
+    
+    printf(resultFmt, passed);
+    
+#endif
+}
+
 static void test_wolfSSL_d2i_X509_REQ(void)
 {
 #if defined(WOLFSSL_CERT_REQ) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
@@ -40758,6 +40790,7 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_CTX_get0_store();
     test_wolfSSL_X509_STORE();
     test_wolfSSL_X509_STORE_load_locations();
+    test_wolfSSL_X509_load_crl_file();
     test_wolfSSL_BN();
     test_wolfSSL_CTX_get0_set1_param();
 #ifndef NO_BIO

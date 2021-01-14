@@ -25980,11 +25980,95 @@ WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
 
 
 #ifdef HAVE_CRL
+
+#ifndef NO_BIO
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp, 
+                                                    WOLFSSL_X509_CRL **x)
+{
+    int derSz;
+    byte* der = NULL;
+    WOLFSSL_X509_CRL* crl = NULL;
+    
+    if ((derSz = wolfSSL_BIO_get_len(bp)) > 0) {
+        der = (byte*)XMALLOC(derSz, 0, DYNAMIC_TYPE_DER);
+        if (der != NULL) {
+            if (wolfSSL_BIO_read(bp, der, derSz) == derSz) {
+                crl = wolfSSL_d2i_X509_CRL(x, der, derSz);
+            }
+        }
+    }
+    
+    if (der != NULL) {
+        XFREE(der, 0, DYNAMIC_TYPE_DER);
+    }
+    
+    return crl;
+}
+#endif
+
 #ifndef NO_FILESYSTEM
 WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
     return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (void **)crl, CRL_TYPE);
+}
+
+WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
+                                             const char *file, int type)
+{
+    int ret = WOLFSSL_FAILURE;
+    int count = 0;
+    WOLFSSL_BIO *bio = NULL;
+    WOLFSSL_X509_CRL *crl =NULL;
+    
+    WOLFSSL_ENTER("wolfSSL_X509_load_crl_file");
+    
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    
+    if ((bio == NULL) || (wolfSSL_BIO_read_filename(bio, file) <= 0)) {
+        return ret;
+    }
+    
+    if (type == WOLFSSL_FILETYPE_PEM) {
+        do {
+            crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
+            if (crl == NULL) {
+                if (count <= 0) {
+                    WOLFSSL_MSG("Load crl failed");
+                }
+                break;
+            }
+            
+            ret = wolfSSL_X509_STORE_add_crl(ctx->store, crl);
+            if (ret == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("Adding crl failed");
+                break;
+            }
+            count++;
+            wolfSSL_X509_CRL_free(crl);
+            crl = NULL;
+        }   while(crl == NULL);
+        
+        ret = count;
+    } else if (type == WOLFSSL_FILETYPE_ASN1) {
+        crl = wolfSSL_d2i_X509_CRL_bio(bio, NULL);
+        if (crl == NULL) {
+            WOLFSSL_MSG("Load crl failed");
+        } else {
+            ret = wolfSSL_X509_STORE_add_crl(ctx->store, crl);
+            if (ret == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("Adding crl failed");
+            }
+        }
+    } else {
+        WOLFSSL_MSG("Invaid file type");
+    }
+    
+    wolfSSL_X509_CRL_free(crl);
+    wolfSSL_BIO_free(bio);
+    
+    WOLFSSL_LEAVE("wolfSSL_X509_load_crl_file", ret);
+    return ret;
 }
 #endif /* !NO_FILESYSTEM */
 

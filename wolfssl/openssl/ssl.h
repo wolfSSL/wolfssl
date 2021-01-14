@@ -629,6 +629,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_nextUpdate         wolfSSL_X509_CRL_get_nextUpdate
 #define X509_CRL_verify                 wolfSSL_X509_CRL_verify
 #define X509_CRL_get_REVOKED            wolfSSL_X509_CRL_get_REVOKED
+#define X509_load_crl_file              wolfSSL_X509_load_crl_file
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
 #define X509_REQ_get_X509_PUBKEY        wolfSSL_X509_get_X509_PUBKEY
