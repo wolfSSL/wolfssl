@@ -1198,13 +1198,15 @@ int wolfSSL_GetHmacMaxSize(void)
 #if defined(WOLFSSL_HAVE_PRF) && defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4)
 
-#ifdef WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA512
+    #define P_HASH_MAX_SIZE WC_SHA512_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA384)
     #define P_HASH_MAX_SIZE WC_SHA384_DIGEST_SIZE
 #else
     #define P_HASH_MAX_SIZE WC_SHA256_DIGEST_SIZE
 #endif
 
-/* Pseudo Random Function for MD5, SHA-1, SHA-256, or SHA-384 */
+/* Pseudo Random Function for MD5, SHA-1, SHA-256, SHA-384, or SHA-512 */
 int wc_PRF(byte* result, word32 resLen, const byte* secret,
                   word32 secLen, const byte* seed, word32 seedLen, int hash,
                   void* heap, int devId)
@@ -1259,6 +1261,13 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         case sha384_mac:
             hash = WC_SHA384;
             len  = WC_SHA384_DIGEST_SIZE;
+        break;
+    #endif
+
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            hash = WC_SHA512;
+            len  = WC_SHA512_DIGEST_SIZE;
         break;
     #endif
 
