@@ -5,6 +5,9 @@
     in a heap identifier, for use with user defined memory overrides
     (see XMALLOC, XFREE, XREALLOC).
 
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
+
     \return 0 Returned upon successfully initializing the RSA structure for
     use with encryption and decryption
     \return BAD_FUNC_ARGS Returned if the RSA key pointer evaluates to NULL
@@ -26,6 +29,7 @@
 
     \sa wc_RsaInitCavium
     \sa wc_FreeRsaKey
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 
@@ -36,6 +40,9 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
     len are used to identify the key on the device while the devId identifies
     the device.  It also takes in a heap identifier, for use with user defined
     memory overrides (see XMALLOC, XFREE, XREALLOC).
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return 0 Returned upon successfully initializing the RSA structure for
     use with encryption and decryption
@@ -72,9 +79,37 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
     \sa wc_InitRsaKey
     \sa wc_RsaInitCavium
     \sa wc_FreeRsaKey
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len,
         void* heap, int devId);
+
+/*!
+    \ingroup RSA
+
+    \brief This function associates RNG with Key. It is needed when WC_RSA_BLINDING
+    is enabled.
+
+    \return 0 Returned upon success
+    \return BAD_FUNC_ARGS Returned if the RSA key, rng pointer evaluates to NULL
+
+    \param key pointer to the RsaKey structure to be associated
+    \param rng pointer to the WC_RNG structure to associate with
+
+    _Example_
+    \code
+    ret = wc_InitRsaKey(&key, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    } else return -1;
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    \endcode
+
+    \sa wc_InitRsaKey
+    \sa wc_RsaSetRNG
+*/
+WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 /*!
     \ingroup RSA
@@ -379,6 +414,7 @@ WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
     \endcode
 
     \sa wc_RsaPSS_Verify
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
                                 word32 outLen, enum wc_HashType hash, int mgf,
@@ -388,7 +424,10 @@ WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
     \ingroup RSA
 
     \brief Decrypt input signature to verify that the message was signed by key.
-
+    
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
+    
     \return Success Length of text on no error.
     \return MEMORY_E memory exception.
 
@@ -430,6 +469,7 @@ WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
     \sa wc_RsaPSS_Sign
     \sa wc_RsaPSS_VerifyInline
     \sa wc_RsaPSS_CheckPadding
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
                                   word32 outLen, enum wc_HashType hash, int mgf,
@@ -440,6 +480,9 @@ WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
 
     \brief Decrypt input signature to verify that the message was signed by RSA key.  
     The output uses the same byte array as the input.
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return >0 Length of text.
     \return <0 An error occurred.
@@ -485,6 +528,7 @@ WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 
 
@@ -496,6 +540,9 @@ WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
 
     \brief Verify the message signed with RSA-PSS.
     Salt length is equal to hash length.
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return  the length of the PSS data on success and negative indicates failure.
     \return MEMORY_E memory exception.
@@ -552,6 +599,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 
 WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
@@ -563,6 +611,9 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
     \ingroup RSA
 
     \brief Verify the message signed with RSA-PSS.
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return  the length of the PSS data on success and negative indicates failure.
     \return MEMORY_E memory exception.
@@ -623,6 +674,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_VerifyCheck_ex(byte* in, word32 inLen,
                                byte* out, word32 outLen,
@@ -636,6 +688,9 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck_ex(byte* in, word32 inLen,
     \brief Verify the message signed with RSA-PSS.
     The input buffer is reused for the output buffer. 
     Salt length is equal to hash length.
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return the length of the PSS data on success and negative indicates failure.
 
@@ -690,6 +745,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck_ex(byte* in, word32 inLen,
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
                                const byte* digest, word32 digentLen,
@@ -700,6 +756,9 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
 
     \brief Verify the message signed with RSA-PSS.
     The input buffer is reused for the output buffer. 
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return the length of the PSS data on success and negative indicates failure.
 
@@ -757,6 +816,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
     \sa wc_RsaPSS_VerifyCheckInline
     \sa wc_RsaPSS_CheckPadding
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** out,
                                const byte* digest, word32 digentLen,
@@ -768,6 +828,9 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** o
 
     \brief Checks the PSS data to ensure that the signature matches.
     Salt length is equal to hash length.
+
+    The key has to be associated with RNG by wc_RsaSetRNG when WC_RSA_BLINDING
+    is enabled.
 
     \return BAD_PADDING_E when the PSS data is invalid, BAD_FUNC_ARG when
     NULL is passed in to in or sig or inSz is not the same as the hash
@@ -820,6 +883,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline_ex(byte* in, word32 inLen, byte** o
     \sa wc_RsaPSS_VerifyCheckInline
     \sa wc_RsaPSS_VerifyCheckInline_ex
     \sa wc_RsaPSS_CheckPadding_ex
+    \sa wc_RsaSetRNG
 */
 WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
                                         word32 sigSz,
