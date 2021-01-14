@@ -9910,18 +9910,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     }
                 }
             }
-            #ifdef HAVE_OCSP
-            if (verify != NO_VERIFY && type != CA_TYPE &&
-                                                    type != TRUSTED_PEER_TYPE) {
-                if (cert->ca) {
-                    /* Need the CA's public key hash for OCSP */
-                    XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
-                                                                    KEYID_SIZE);
-                }
-
-            }
-            #endif /* HAVE_OCSP */
         }
+
+        #ifdef HAVE_OCSP
+        if (verify != NO_VERIFY && type != CA_TYPE &&
+                                                type != TRUSTED_PEER_TYPE) {
+            if (cert->ca) {
+                /* Need the CA's public key hash for OCSP */
+                XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
+                                                                KEYID_SIZE);
+            }
+        }
+        #endif /* HAVE_OCSP */
     }
 #if defined(WOLFSSL_RENESAS_TSIP)
     /* prepare for TSIP TLS cert verification API use */
