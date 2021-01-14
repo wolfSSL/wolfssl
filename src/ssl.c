@@ -15059,7 +15059,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
 
-        bio = wolfSSL_BIO_new_file(fname, "r");
+        bio = wolfSSL_BIO_new_file(fname, "rb");
         if (bio == NULL)
             return NULL;
 
@@ -24166,7 +24166,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     if (type != X509_FILETYPE_PEM)
         return BAD_FUNC_ARG;
 
-    fp = XFOPEN(file, "r");
+    fp = XFOPEN(file, "rb");
     if (fp == XBADFILE)
         return BAD_FUNC_ARG;
 
@@ -42220,7 +42220,7 @@ err:
             XFCLOSE(fp);
         }
 
-        fp = XFOPEN(name, "r");
+        fp = XFOPEN(name, "rb");
         if (fp == XBADFILE)
             return WOLFSSL_BAD_FILE;
 

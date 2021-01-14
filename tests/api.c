@@ -25403,7 +25403,7 @@ static void test_wolfSSL_X509_INFO(void)
 
     printf(testingFmt, "wolfSSL_X509_INFO");
 
-    AssertNotNull(cert = BIO_new_file(cliCertFileExt, "r"));
+    AssertNotNull(cert = BIO_new_file(cliCertFileExt, "rb"));
     AssertNotNull(info_stack = PEM_X509_INFO_read_bio(cert, NULL, NULL, NULL));
     for (i = 0; i < sk_X509_INFO_num(info_stack); i++) {
         AssertNotNull(info = sk_X509_INFO_value(info_stack, i));
@@ -25413,7 +25413,7 @@ static void test_wolfSSL_X509_INFO(void)
     sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
     BIO_free(cert);
 
-    AssertNotNull(cert = BIO_new_file(cliCertFileExt, "r"));
+    AssertNotNull(cert = BIO_new_file(cliCertFileExt, "rb"));
     AssertNotNull(info_stack = PEM_X509_INFO_read_bio(cert, NULL, NULL, NULL));
     sk_X509_INFO_free(info_stack);
     BIO_free(cert);
@@ -30535,7 +30535,7 @@ static void test_wolfSSL_OBJ(void)
 
     for (i = 0; f[i] != NULL; i++)
     {
-        AssertTrue((fp = XFOPEN(f[i], "r")) != XBADFILE);
+        AssertTrue((fp = XFOPEN(f[i], "rb")) != XBADFILE);
         AssertNotNull(x509 = d2i_X509_fp(fp, NULL));
         XFCLOSE(fp);
         AssertNotNull(x509Name = X509_get_issuer_name(x509));
@@ -30574,7 +30574,7 @@ static void test_wolfSSL_OBJ(void)
 
     for (i = 0; p12_f[i] != NULL; i++)
     {
-        AssertTrue((fp = XFOPEN(p12_f[i], "r")) != XBADFILE);
+        AssertTrue((fp = XFOPEN(p12_f[i], "rb")) != XBADFILE);
         AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
         XFCLOSE(fp);
         AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
@@ -38154,7 +38154,7 @@ static void test_wolfSSL_X509_CRL(void)
 #ifndef NO_BIO
     for (i = 0; pem[i][0] != '\0'; i++)
     {
-        AssertNotNull(bio = BIO_new_file(pem[i], "r"));
+        AssertNotNull(bio = BIO_new_file(pem[i], "rb"));
         AssertNotNull(crl = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL));
         X509_CRL_free(crl);
         BIO_free(bio);
@@ -39301,7 +39301,7 @@ static void test_wolfSSL_RSA_verify()
 #endif
 
     /* read privete key file */
-    fp = XFOPEN(svrKeyFile, "r");
+    fp = XFOPEN(svrKeyFile, "rb");
     AssertTrue((fp != XBADFILE));
     XFSEEK(fp, 0, XSEEK_END);
     sz = XFTELL(fp);
@@ -39318,7 +39318,7 @@ static void test_wolfSSL_RSA_verify()
                             signature, &signatureLength, pKey), SSL_SUCCESS);
 
     /* read public key and verify signed data */
-    fp = XFOPEN(svrCertFile,"r");
+    fp = XFOPEN(svrCertFile,"rb");
     AssertTrue((fp != XBADFILE));
     cert = PEM_read_X509(fp, 0, 0, 0 );
     XFCLOSE(fp);
