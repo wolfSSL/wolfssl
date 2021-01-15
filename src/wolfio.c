@@ -354,6 +354,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     else if(IsSCR(ssl)) {
         if (ssl->dtls_start_timeout &&
                 LowResTimer() - ssl->dtls_start_timeout > (word32)dtls_timeout) {
+            ssl->dtls_start_timeout = 0;
             return WOLFSSL_CBIO_ERR_TIMEOUT;
         }
         else if (!ssl->dtls_start_timeout) {
