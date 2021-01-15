@@ -177,4 +177,9 @@ echo "Step 22"
 openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
+# create crl and crl2 der files for unit test
+echo "Step 23"
+openssl crl -in crl.pem -inform PEM -out crl.der -outform DER
+openssl crl -in crl2.pem -inform PEM -out crl2.der -outform DER
+
 exit 0

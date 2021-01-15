@@ -26058,6 +26058,8 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
             ret = wolfSSL_X509_STORE_add_crl(ctx->store, crl);
             if (ret == WOLFSSL_FAILURE) {
                 WOLFSSL_MSG("Adding crl failed");
+            } else {
+                ret = 1;/* handled a file */
             }
         }
     } else {

@@ -38801,6 +38801,11 @@ static void test_wolfSSL_X509_load_crl_file(void)
         "./certs/crl/eccSrvCRL.pem",
         ""
     };
+    char der[][100] = {
+        "./certs/crl/crl.der",
+        "./certs/crl/crl2.der",
+        ""
+    };
     WOLFSSL_X509_STORE*  store;
     WOLFSSL_X509_LOOKUP* lookup;
 
@@ -38809,12 +38814,57 @@ static void test_wolfSSL_X509_load_crl_file(void)
     AssertNotNull(store = wolfSSL_X509_STORE_new());
     AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
     
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/ca-cert.pem",
+                                              X509_FILETYPE_PEM), 1);
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/server-revoked-cert.pem",
+                                              X509_FILETYPE_PEM), 1);
+    if (store) {
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, svrCertFile,
+                    WOLFSSL_FILETYPE_PEM), 1);
+        /* since store hasn't yet known the revoked cert*/
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, "certs/server-revoked-cert.pem",
+                    WOLFSSL_FILETYPE_PEM), 1);
+    }
+    
     for (i = 0; pem[i][0] != '\0'; i++)
     {
         AssertIntEQ(wolfSSL_X509_load_crl_file(lookup, pem[i], WOLFSSL_FILETYPE_PEM), 1);
     }
     
+    if (store) {
+        /* since store knows crl list */
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, "certs/server-revoked-cert.pem",
+                   WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
+    }
+    /* once feeing store */
     wolfSSL_X509_STORE_free(store);
+    store = NULL;
+    
+    AssertNotNull(store = wolfSSL_X509_STORE_new());
+    AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
+    
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/ca-cert.pem",
+                                              X509_FILETYPE_PEM), 1);
+    AssertIntEQ(wolfSSL_X509_LOOKUP_load_file(lookup, "certs/server-revoked-cert.pem",
+                                              X509_FILETYPE_PEM), 1);
+    if (store) {
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, svrCertFile,
+                    WOLFSSL_FILETYPE_PEM), 1);
+        /* since store hasn't yet known the revoked cert*/
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, "certs/server-revoked-cert.pem",
+                    WOLFSSL_FILETYPE_PEM), 1);
+    }
+    
+    for (i = 0; der[i][0] != '\0'; i++)
+    {
+        AssertIntEQ(wolfSSL_X509_load_crl_file(lookup, der[i], WOLFSSL_FILETYPE_ASN1), 1);
+    }
+    
+    if (store) {
+        /* since store knows crl list */
+        AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, "certs/server-revoked-cert.pem",
+                   WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
+    }
     
     printf(resultFmt, passed);
     
