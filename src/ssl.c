@@ -21215,6 +21215,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
             XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
             return NULL;
         }
+        ret->refCount = 1;
     }
 #endif
 
@@ -21265,6 +21266,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
             XFREE(copy, NULL, DYNAMIC_TYPE_OPENSSL);
             return NULL;
         }
+        copy->refCount = 1;
 #endif
 #ifdef HAVE_SESSION_TICKET
         if (session->isDynamic) {
@@ -21301,15 +21303,19 @@ void FreeSession(WOLFSSL_SESSION* session, int isAlloced)
 #endif
 
 #ifdef OPENSSL_EXTRA
-    if (wc_LockMutex(&session->refMutex) != 0) {
-            WOLFSSL_MSG("Failed to lock session mutex");
-    }
+    /* refCount will always be 1 or more if created externally.
+     * Internal cache sessions don't initialize a refMutex. */
     if (session->refCount > 0) {
-        session->refCount--;
+        if (wc_LockMutex(&session->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock session mutex");
+        }
+        if (session->refCount > 1) {
+            session->refCount--;
+            wc_UnLockMutex(&session->refMutex);
+            return;
+        }
         wc_UnLockMutex(&session->refMutex);
-        return;
     }
-    wc_UnLockMutex(&session->refMutex);
 #endif
 #if defined(HAVE_EXT_CACHE) || defined(OPENSSL_EXTRA)
     if (isAlloced) {
