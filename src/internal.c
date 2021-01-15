@@ -6559,6 +6559,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 /* Free any handshake resources no longer needed */
 void FreeHandshakeResources(WOLFSSL* ssl)
 {
+    WOLFSSL_ENTER("FreeHandshakeResources");
 
 #ifdef WOLFSSL_DTLS
     /* DTLS_POOL */
@@ -6929,6 +6930,7 @@ void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
     DtlsMsg* msg;
+    WOLFSSL_ENTER("DtlsMsgNew()");
 
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
@@ -6954,6 +6956,7 @@ DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 void DtlsMsgDelete(DtlsMsg* item, void* heap)
 {
     (void)heap;
+    WOLFSSL_ENTER("DtlsMsgDelete()");
 
     if (item != NULL) {
         DtlsFrag* cur = item->fragList;
@@ -6972,6 +6975,7 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
 void DtlsMsgListDelete(DtlsMsg* head, void* heap)
 {
     DtlsMsg* next;
+    WOLFSSL_ENTER("DtlsMsgListDelete()");
     while (head) {
         next = head->next;
         DtlsMsgDelete(head, heap);
@@ -6986,6 +6990,7 @@ void DtlsTxMsgListClean(WOLFSSL* ssl)
 {
     DtlsMsg* head = ssl->dtls_tx_msg_list;
     DtlsMsg* next;
+    WOLFSSL_ENTER("DtlsTxMsgListClean()");
     while (head) {
         next = head->next;
         if (VerifyForTxDtlsMsgDelete(ssl, head))
@@ -7009,6 +7014,8 @@ static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
     DtlsFrag* newFrag;
     word32 added = end - *begin + 1;
 
+    WOLFSSL_ENTER("CreateFragment()");
+
     (void)heap;
     newFrag = (DtlsFrag*)XMALLOC(sizeof(DtlsFrag), heap,
                                  DYNAMIC_TYPE_DTLS_FRAG);
@@ -7029,6 +7036,7 @@ static DtlsFrag* CreateFragment(word32* begin, word32 end, const byte* data,
 int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte type,
                                    word32 fragOffset, word32 fragSz, void* heap)
 {
+    WOLFSSL_ENTER("DtlsMsgSet()");
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
                                              (fragOffset + fragSz) <= msg->sz) {
         DtlsFrag* cur = msg->fragList;
@@ -7130,6 +7138,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 
 DtlsMsg* DtlsMsgFind(DtlsMsg* head, word32 epoch, word32 seq)
 {
+    WOLFSSL_ENTER("DtlsMsgFind()");
     while (head != NULL && !(head->epoch == epoch && head->seq == seq)) {
         head = head->next;
     }
@@ -7158,6 +7167,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq, const byte* data,
      */
 
     DtlsMsg* head = ssl->dtls_rx_msg_list;
+    WOLFSSL_ENTER("DtlsMsgStore()");
 
     if (head != NULL) {
         DtlsMsg* cur = DtlsMsgFind(head, epoch, seq);
@@ -7199,6 +7209,7 @@ void DtlsMsgStore(WOLFSSL* ssl, word32 epoch, word32 seq, const byte* data,
 /* DtlsMsgInsert() is an in-order insert. */
 DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 {
+    WOLFSSL_ENTER("DtlsMsgInsert()");
     if (head == NULL || (item->epoch <= head->epoch &&
                          item->seq   <  head->seq)) {
         item->next = head;
@@ -7279,6 +7290,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
 int DtlsMsgPoolTimeout(WOLFSSL* ssl)
 {
     int result = -1;
+    WOLFSSL_ENTER("DtlsMsgPoolTimeout()");
     if (ssl->dtls_timeout <  ssl->dtls_timeout_max) {
         ssl->dtls_timeout *= DTLS_TIMEOUT_MULTIPLIER;
         result = 0;
@@ -7326,6 +7338,7 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
  */
 int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
 {
+    WOLFSSL_ENTER("VerifyForTxDtlsMsgDelete()");
     if (item->epoch < ssl->keys.dtls_epoch - 1)
         /* Messages not from current or previous epoch can be deleted */
         return 1;
@@ -15882,8 +15895,21 @@ int ProcessReply(WOLFSSL* ssl)
                     WOLFSSL_MSG("got app DATA");
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls && ssl->options.dtlsHsRetain) {
+                        #ifdef HAVE_SECURE_RENEGOTIATION
+                            /*
+                             * Only free HS resources when not in the process of a
+                             * secure renegotiation and we have received APP DATA
+                             * from the current epoch
+                             */
+                            if (!IsSCR(ssl) && (DtlsUseSCRKeys(ssl)
+                                    || !DtlsSCRKeysSet(ssl))) {
+                                FreeHandshakeResources(ssl);
+                                ssl->options.dtlsHsRetain = 0;
+                            }
+                        #else
                             FreeHandshakeResources(ssl);
                             ssl->options.dtlsHsRetain = 0;
+                        #endif
                         }
                     #endif
                     #ifdef WOLFSSL_TLS13
