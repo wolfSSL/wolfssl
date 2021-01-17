@@ -7587,8 +7587,8 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-        uint32_t *systemTickPtr = systemTickPointer();
+        const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        word32 *systemTickPtr = systemTickPointer();
 
         return (word32) *systemTickPtr/systemTickTimeInHz;
     }

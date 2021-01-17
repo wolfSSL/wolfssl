@@ -45,10 +45,10 @@ Representations:
     typedef byte     ge448;
     #define GE448_WORDS    56
 #elif defined(CURVED448_128BIT)
-    typedef int64_t  ge448;
+    typedef sword64  ge448;
     #define GE448_WORDS    8
 #else
-    typedef int32_t  ge448;
+    typedef sword32  ge448;
     #define GE448_WORDS    16
 #endif
 

@@ -2163,7 +2163,7 @@ time_t pic32_time(time_t* timer)
 #ifdef MICROCHIP_TCPIP_V5
     DWORD sec = 0;
 #else
-    uint32_t sec = 0;
+    word32 sec = 0;
 #endif
     time_t localTime;
 
@@ -2186,8 +2186,8 @@ time_t pic32_time(time_t* timer)
 
 time_t deos_time(time_t* timer)
 {
-    const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-    uint32_t *systemTickPtr = systemTickPointer();
+    const word32 systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+    word32 *systemTickPtr = systemTickPointer();
 
     if (timer != NULL)
         *timer = *systemTickPtr/systemTickTimeInHz;

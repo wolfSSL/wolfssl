@@ -44,12 +44,10 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 
 #ifdef OPENSSL_EXTRA
-#include <stdint.h>
-
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 
-WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings);
+WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
 
 #define CRYPTO_THREADID void
