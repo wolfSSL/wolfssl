@@ -27,10 +27,6 @@
 
 #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
 
-#ifndef WOLFSSL_LINUXKM
-#include <stdint.h>
-#endif
-
 #include <wolfssl/wolfcrypt/types.h>
 
 #if defined(HAVE___UINT128_T) && !defined(NO_CURVED448_128BIT)
@@ -45,19 +41,23 @@
 #if !defined(CURVE448_SMALL) && !defined(ED448_SMALL)
 
 #if defined(CURVED448_128BIT)
-    typedef int64_t fe448;
+    typedef sword64 fe448;
     #ifndef WOLFSSL_UINT128_T_DEFINED
         #ifdef __SIZEOF_INT128__
             typedef __uint128_t uint128_t;
             typedef __int128_t int128_t;
+            typedef __uint128_t word128;
+            typedef __int128_t sword128;
         #else
             typedef unsigned long uint128_t __attribute__ ((mode(TI)));
             typedef long int128_t __attribute__ ((mode(TI)));
+            typedef uint128_t word128;
+            typedef int128_t sword128;
         #endif
         #define WOLFSSL_UINT128_T_DEFINED
     #endif
 #else
-    typedef int32_t fe448;
+    typedef sword32 fe448;
 #endif
 
 WOLFSSL_LOCAL void fe448_init(void);
@@ -94,21 +94,21 @@ WOLFSSL_LOCAL void fe448_init(void);
 WOLFSSL_LOCAL int  curve448(byte* r, const byte* n, const byte* a);
 
 #define fe448_reduce(a)
-WOLFSSL_LOCAL void fe448_neg(uint8_t*,const uint8_t*);
-WOLFSSL_LOCAL void fe448_add(uint8_t*, const uint8_t*, const uint8_t*);
-WOLFSSL_LOCAL void fe448_sub(uint8_t*, const uint8_t*, const uint8_t*);
-WOLFSSL_LOCAL void fe448_mul(uint8_t*,const uint8_t*,const uint8_t*);
-WOLFSSL_LOCAL void fe448_sqr(uint8_t*, const uint8_t*);
-WOLFSSL_LOCAL void fe448_mul39081(uint8_t*, const uint8_t*);
-WOLFSSL_LOCAL void fe448_invert(uint8_t*, const uint8_t*);
+WOLFSSL_LOCAL void fe448_neg(word8*,const word8*);
+WOLFSSL_LOCAL void fe448_add(word8*, const word8*, const word8*);
+WOLFSSL_LOCAL void fe448_sub(word8*, const word8*, const word8*);
+WOLFSSL_LOCAL void fe448_mul(word8*,const word8*,const word8*);
+WOLFSSL_LOCAL void fe448_sqr(word8*, const word8*);
+WOLFSSL_LOCAL void fe448_mul39081(word8*, const word8*);
+WOLFSSL_LOCAL void fe448_invert(word8*, const word8*);
 
-WOLFSSL_LOCAL void fe448_copy(uint8_t*, const uint8_t*);
-WOLFSSL_LOCAL int  fe448_isnonzero(const uint8_t*);
+WOLFSSL_LOCAL void fe448_copy(word8*, const word8*);
+WOLFSSL_LOCAL int  fe448_isnonzero(const word8*);
 
 WOLFSSL_LOCAL void fe448_norm(byte *a);
 
-WOLFSSL_LOCAL void fe448_cmov(uint8_t*,const uint8_t*, int);
-WOLFSSL_LOCAL void fe448_pow_2_446_222_1(uint8_t*,const uint8_t*);
+WOLFSSL_LOCAL void fe448_cmov(word8*,const word8*, int);
+WOLFSSL_LOCAL void fe448_pow_2_446_222_1(word8*,const word8*);
 
 #endif /* !CURVE448_SMALL || !ED448_SMALL */
 

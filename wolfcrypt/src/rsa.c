@@ -505,14 +505,14 @@ static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
     CRYS_RSAKGData_t        KeyGenData;
     CRYS_RSAKGFipsContext_t FipsCtx;
     byte ex[3];
-    uint16_t eSz = sizeof(ex);
+    word16 eSz = sizeof(ex);
     byte n[256];
-    uint16_t nSz = sizeof(n);
+    word16 nSz = sizeof(n);
 
     ret = CRYS_RSA_KG_GenerateKeyPair(&wc_rndState,
                         wc_rndGenVectFunc,
                         (byte*)&e,
-                        3*sizeof(uint8_t),
+                        3*sizeof(byte),
                         size,
                         &key->ctx.privKey,
                         &key->ctx.pubKey,
@@ -2679,7 +2679,7 @@ static int cc310_RsaPublicDecrypt(const byte* in, word32 inLen, byte* out,
 {
     CRYSError_t ret = 0;
     CRYS_RSAPrimeData_t primeData;
-    uint16_t actualOutLen = outLen;
+    word16 actualOutLen = outLen;
 
     ret = CRYS_RSA_PKCS1v15_Decrypt(&key->ctx.privKey,
                                     &primeData,
@@ -2699,7 +2699,7 @@ int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                   word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode)
 {
     CRYSError_t ret = 0;
-    uint16_t actualOutLen = outLen*sizeof(byte);
+    word16 actualOutLen = outLen*sizeof(byte);
     CRYS_RSAPrivUserContext_t  contextPrivate;
 
     ret =  CRYS_RSA_PKCS1v15_Sign(&wc_rndState,

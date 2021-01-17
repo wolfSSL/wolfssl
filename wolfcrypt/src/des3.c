@@ -216,8 +216,8 @@
         hcryp.Instance = CRYP;
         hcryp.Init.KeySize  = CRYP_KEYSIZE_128B;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
-        hcryp.Init.pKey = (uint8_t*)des->key;
-        hcryp.Init.pInitVect = (uint8_t*)des->reg;
+        hcryp.Init.pKey = (byte*)des->key;
+        hcryp.Init.pInitVect = (byte*)des->reg;
 
         HAL_CRYP_Init(&hcryp);
 
@@ -227,21 +227,21 @@
 
             if (mode == DES_CBC) {
                 if (dir == DES_ENCRYPTION) {
-                    HAL_CRYP_DESCBC_Encrypt(&hcryp, (uint8_t*)in,
+                    HAL_CRYP_DESCBC_Encrypt(&hcryp, (byte*)in,
                                     DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
                 }
                 else {
-                    HAL_CRYP_DESCBC_Decrypt(&hcryp, (uint8_t*)in,
+                    HAL_CRYP_DESCBC_Decrypt(&hcryp, (byte*)in,
                                     DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
                 }
             }
             else {
                 if (dir == DES_ENCRYPTION) {
-                    HAL_CRYP_DESECB_Encrypt(&hcryp, (uint8_t*)in,
+                    HAL_CRYP_DESECB_Encrypt(&hcryp, (byte*)in,
                                     DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
                 }
                 else {
-                    HAL_CRYP_DESECB_Decrypt(&hcryp, (uint8_t*)in,
+                    HAL_CRYP_DESECB_Decrypt(&hcryp, (byte*)in,
                                     DES_BLOCK_SIZE, out, STM32_HAL_TIMEOUT);
                 }
             }
@@ -304,14 +304,14 @@
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
-            CRYP_DataIn(*(uint32_t*)&in[0]);
-            CRYP_DataIn(*(uint32_t*)&in[4]);
+            CRYP_DataIn(*(word32*)&in[0]);
+            CRYP_DataIn(*(word32*)&in[4]);
 
             /* wait until the complete message has been processed */
             while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
 
-            *(uint32_t*)&out[0]  = CRYP_DataOut();
-            *(uint32_t*)&out[4]  = CRYP_DataOut();
+            *(word32*)&out[0]  = CRYP_DataOut();
+            *(word32*)&out[4]  = CRYP_DataOut();
 
             /* store iv for next call */
             XMEMCPY(des->reg, des->tmp, DES_BLOCK_SIZE);
@@ -359,8 +359,8 @@
             hcryp.Instance = CRYP;
             hcryp.Init.KeySize  = CRYP_KEYSIZE_128B;
             hcryp.Init.DataType = CRYP_DATATYPE_8B;
-            hcryp.Init.pKey = (uint8_t*)des->key;
-            hcryp.Init.pInitVect = (uint8_t*)des->reg;
+            hcryp.Init.pKey = (byte*)des->key;
+            hcryp.Init.pInitVect = (byte*)des->reg;
 
             HAL_CRYP_Init(&hcryp);
 
@@ -439,14 +439,14 @@
                 /* flush IN/OUT FIFOs */
                 CRYP_FIFOFlush();
 
-                CRYP_DataIn(*(uint32_t*)&in[0]);
-                CRYP_DataIn(*(uint32_t*)&in[4]);
+                CRYP_DataIn(*(word32*)&in[0]);
+                CRYP_DataIn(*(word32*)&in[4]);
 
                 /* wait until the complete message has been processed */
                 while(CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
 
-                *(uint32_t*)&out[0]  = CRYP_DataOut();
-                *(uint32_t*)&out[4]  = CRYP_DataOut();
+                *(word32*)&out[0]  = CRYP_DataOut();
+                *(word32*)&out[4]  = CRYP_DataOut();
 
                 /* store iv for next call */
                 XMEMCPY(des->reg, out + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);

@@ -190,7 +190,7 @@
 
     int wc_ShaFinal(wc_Sha* sha, byte* hash)
     {
-        uint32_t hashlen = WC_SHA_DIGEST_SIZE;
+        word32 hashlen = WC_SHA_DIGEST_SIZE;
         LTC_HASH_Finish(&sha->ctx, hash, &hashlen);
         return wc_InitSha(sha);  /* reset state */
     }
@@ -224,7 +224,7 @@
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_sha1_initialize_output(sha->digest);
     #else
-        MMCAU_SHA1_InitializeOutput((uint32_t*)sha->digest);
+        MMCAU_SHA1_InitializeOutput((word32*)sha->digest);
     #endif
         wolfSSL_CryptHwMutexUnLock();
 
@@ -242,7 +242,7 @@
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha1_hash_n((byte*)data, 1, sha->digest);
     #else
-            MMCAU_SHA1_HashN((byte*)data, 1, (uint32_t*)sha->digest);
+            MMCAU_SHA1_HashN((byte*)data, 1, (word32*)sha->digest);
     #endif
             wolfSSL_CryptHwMutexUnLock();
         }
@@ -276,7 +276,7 @@
             cau_sha1_hash_n((byte*)data, len/WC_SHA_BLOCK_SIZE, sha->digest);
     #else
             MMCAU_SHA1_HashN((byte*)data, len/WC_SHA_BLOCK_SIZE,
-                (uint32_t*)sha->digest);
+                (word32*)sha->digest);
     #endif
             }
             wolfSSL_CryptHwMutexUnLock();

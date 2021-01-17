@@ -70,8 +70,7 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
-#include <stdint.h>
-WOLFSSL_API int wolfSSL_OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings);
+WOLFSSL_API int wolfSSL_OPENSSL_init_ssl(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
 
 typedef WOLFSSL          SSL;

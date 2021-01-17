@@ -1957,7 +1957,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 ((wolfssl_word)&output[i] % sizeof(word32)) != 0
             ) {
                 /* Single byte at a time */
-                uint32_t tmpRng = 0;
+                word32 tmpRng = 0;
                 if (HAL_RNG_GenerateRandomNumber(&hrng, &tmpRng) != HAL_OK) {
                     wolfSSL_CryptHwMutexUnLock();
                     return RAN_BLOCK_E;
@@ -1966,7 +1966,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             else {
                 /* Use native 32 instruction */
-                if (HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&output[i]) != HAL_OK) {
+                if (HAL_RNG_GenerateRandomNumber(&hrng, (word32*)&output[i]) != HAL_OK) {
                     wolfSSL_CryptHwMutexUnLock();
                     return RAN_BLOCK_E;
                 }
@@ -2169,9 +2169,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int remaining = sz, length, pos = 0;
-        uint32_t err_code;
-        uint8_t available;
-        static uint8_t initialized = 0;
+        word32 err_code;
+        byte available;
+        static byte initialized = 0;
 
         (void)os;
 
@@ -2410,10 +2410,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
-        uint32_t buffer[4];
+        word32 buffer[4];
 
         while (sz > 0) {
-            uint32_t len = sizeof(buffer);
+            word32 len = sizeof(buffer);
 
             if (sz < len) {
                 len = sz;
@@ -2439,9 +2439,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        uint32_t ret;
-        uint32_t blocks;
-        word32   len = sz;
+        word32 ret;
+        word32 blocks;
+        word32 len = sz;
 
         ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->open(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
                                                   WOLFSSL_SCE_TRNG_HANDLE.p_cfg);
@@ -2450,28 +2450,28 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return -1;
         }
 
-        blocks = sz / sizeof(uint32_t);
+        blocks = sz / sizeof(word32);
         if (blocks > 0) {
             ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
-                                                      (uint32_t*)output, blocks);
+                                                       (word32*)output, blocks);
             if (ret != SSP_SUCCESS) {
                 return -1;
             }
         }
 
-        len = len - (blocks * sizeof(uint32_t));
+        len = len - (blocks * sizeof(word32));
         if (len > 0) {
-            uint32_t tmp;
+            word32 tmp;
 
-            if (len > sizeof(uint32_t)) {
+            if (len > sizeof(word32)) {
                 return -1;
             }
             ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
-                                                      (uint32_t*)tmp, 1);
+                                                      (word32*)tmp, 1);
             if (ret != SSP_SUCCESS) {
                 return -1;
             }
-            XMEMCPY(output + (blocks * sizeof(uint32_t)), (byte*)&tmp, len);
+            XMEMCPY(output + (blocks * sizeof(word32)), (byte*)&tmp, len);
         }
 
         ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->close(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl);
