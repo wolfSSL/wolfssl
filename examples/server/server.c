@@ -1739,8 +1739,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
     }
 
-#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
-                                    defined(HAVE_POLY1305)
+#if defined(HAVE_SESSION_TICKET) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
     if (TicketInit() != 0)
         err_sys_ex(catastrophic, "unable to setup Session Ticket Key context");
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
