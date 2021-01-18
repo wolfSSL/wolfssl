@@ -64,12 +64,18 @@ decouple library dependencies with standard string, memory and so on.
     #ifndef WOLFSSL_TYPES
         #ifndef byte
             typedef unsigned char  byte;
+            typedef          char  sword8;
+            typedef unsigned char  word8;
         #endif
         #ifdef WC_16BIT_CPU
+            typedef          int   sword16;
             typedef unsigned int   word16;
+            typedef          long  sword32;
             typedef unsigned long  word32;
         #else
+            typedef          short sword16;
             typedef unsigned short word16;
+            typedef          int   sword32;
             typedef unsigned int   word32;
         #endif
         typedef byte           word24[3];
@@ -114,22 +120,27 @@ decouple library dependencies with standard string, memory and so on.
     #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##ui64
+        typedef          __int64 sword64;
         typedef unsigned __int64 word64;
     #elif defined(__EMSCRIPTEN__)
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##ull
+        typedef          long long sword64;
         typedef unsigned long long word64;
     #elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##LL
+        typedef          long sword64;
         typedef unsigned long word64;
     #elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##LL
+        typedef          long long sword64;
         typedef unsigned long long word64;
     #elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##LL
+        typedef          long long sword64;
         typedef unsigned long long word64;
     #endif
 

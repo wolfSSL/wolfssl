@@ -33886,14 +33886,14 @@ void *wolfSSL_OPENSSL_malloc(size_t a)
     return (void *)XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
-int wolfSSL_OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
+int wolfSSL_OPENSSL_init_ssl(word64 opts, const OPENSSL_INIT_SETTINGS *settings)
 {
     (void)opts;
     (void)settings;
     return wolfSSL_library_init();
 }
 
-int wolfSSL_OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS* settings)
+int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS* settings)
 {
     (void)opts;
     (void)settings;

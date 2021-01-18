@@ -461,7 +461,7 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_sha256_initialize_output(sha256->digest);
     #else
-        MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
+        MMCAU_SHA256_InitializeOutput((word32*)sha256->digest);
     #endif
         wolfSSL_CryptHwMutexUnLock();
 
