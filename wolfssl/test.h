@@ -3935,6 +3935,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
     #define WOLFSSL_TICKET_KEY_SZ CHACHA20_POLY1305_AEAD_KEYSIZE
 #elif defined(HAVE_AESGCM)
     #include <wolfssl/wolfcrypt/aes.h>
+    #include <wolfssl/wolfcrypt/wc_encrypt.h> /* AES IV sizes in FIPS mode */
     #define WOLFSSL_TICKET_KEY_SZ AES_256_KEY_SIZE
 #endif
 
