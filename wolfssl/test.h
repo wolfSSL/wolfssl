@@ -3926,14 +3926,21 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
 
 
 
-#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
-                                    defined(HAVE_POLY1305)
+#if defined(HAVE_SESSION_TICKET) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
 
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+    #define WOLFSSL_TICKET_KEY_SZ CHACHA20_POLY1305_AEAD_KEYSIZE
+#elif defined(HAVE_AESGCM)
+    #include <wolfssl/wolfcrypt/aes.h>
+    #define WOLFSSL_TICKET_KEY_SZ AES_256_KEY_SIZE
+#endif
 
     typedef struct key_ctx {
-        byte name[WOLFSSL_TICKET_NAME_SZ];        /* name for this context */
-        byte key[CHACHA20_POLY1305_AEAD_KEYSIZE]; /* cipher key */
+        byte name[WOLFSSL_TICKET_NAME_SZ]; /* name for this context */
+        byte key[WOLFSSL_TICKET_KEY_SZ];   /* cipher key */
     } key_ctx;
 
     static THREAD_LS_T key_ctx myKey_ctx;
@@ -3970,6 +3977,11 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
         int  aadSz = WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2;
         byte* tmp = aad;
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        /* chahca20/poly1305 */
+    #elif defined(HAVE_AESGCM)
+        Aes aes;
+    #endif
 
         (void)ssl;
         (void)userCtx;
@@ -3986,22 +3998,35 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
             tmp += WOLFSSL_TICKET_NAME_SZ;
             XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
             tmp += WOLFSSL_TICKET_IV_SZ;
-            XMEMCPY(tmp, &sLen, 2);
+            XMEMCPY(tmp, &sLen, sizeof(sLen));
 
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             ret = wc_ChaCha20Poly1305_Encrypt(myKey_ctx.key, iv,
                                               aad, aadSz,
                                               ticket, inLen,
                                               ticket,
                                               mac);
+        #elif defined(HAVE_AESGCM)
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+
+            ret = wc_AesGcmSetKey(&aes, myKey_ctx.key, sizeof(myKey_ctx.key));
+            if (ret == 0) {
+                ret = wc_AesGcmEncrypt(&aes, ticket, ticket, inLen,
+                                       iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                       aad, aadSz);
+            }
+            wc_AesFree(&aes);
+        #endif
+            
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
         }
         /* decrypt */
         else {
-
             /* see if we know this key */
             if (XMEMCMP(key_name, myKey_ctx.name, WOLFSSL_TICKET_NAME_SZ) != 0){
-                printf("client presented unknown ticket key name ");
+                printf("client presented unknown ticket key name %s\n", key_name);
                 return WOLFSSL_TICKET_RET_FATAL;
             }
 
@@ -4010,13 +4035,27 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
             tmp += WOLFSSL_TICKET_NAME_SZ;
             XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
             tmp += WOLFSSL_TICKET_IV_SZ;
-            XMEMCPY(tmp, &sLen, 2);
+            XMEMCPY(tmp, &sLen, sizeof(sLen));
 
+        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
             ret = wc_ChaCha20Poly1305_Decrypt(myKey_ctx.key, iv,
                                               aad, aadSz,
                                               ticket, inLen,
                                               mac,
                                               ticket);
+        #elif defined(HAVE_AESGCM)
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
+
+            ret = wc_AesGcmSetKey(&aes, myKey_ctx.key, sizeof(myKey_ctx.key));
+            if (ret == 0) {
+                ret = wc_AesGcmDecrypt(&aes, ticket, ticket, inLen,
+                                        iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                        aad, aadSz);
+            }
+            wc_AesFree(&aes);
+        #endif
+
             if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
             *outLen = inLen;  /* no padding in this mode */
         }
@@ -4024,7 +4063,8 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         return WOLFSSL_TICKET_RET_OK;
     }
 
-#endif  /* HAVE_SESSION_TICKET && HAVE_CHACHA && HAVE_POLY1305 */
+#endif /* HAVE_SESSION_TICKET && ((HAVE_CHACHA && HAVE_POLY1305) || HAVE_AESGCM) */
+
 
 static WC_INLINE word16 GetRandomPort(void)
 {
