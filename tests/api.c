@@ -12776,7 +12776,6 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     int     cbcD    =   WOLFSSL_FATAL_ERROR;
     int     cbcDWK  =   WOLFSSL_FATAL_ERROR;
     byte    dec2[sizeof(vector)];
-    int     i;
 
     /* Init stack variables. */
     XMEMSET(enc, 0, sizeof(enc));
@@ -12838,8 +12837,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         cbcE = wc_AesCbcEncrypt(&aes, enc, vector, 0);
         if (cbcE == 0) {
             /* Check enc was not modified */
-            for (i = 0; i < (int)sizeof(enc); i++)
-                cbcE |= enc[0];
+            cbcE |= enc[0];
         }
     }
     printf(resultFmt, cbcE == 0 ? passed : failed);
@@ -12872,8 +12870,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         cbcD = wc_AesCbcDecrypt(&aes, dec, enc, 0);
         if (cbcD == 0) {
             /* Check dec was not modified */
-            for (i = 0; i < (int)sizeof(dec); i++)
-                cbcD |= dec[0];
+            cbcD |= dec[0];
         }
     }
     printf(resultFmt, cbcD == 0 ? passed : failed);
