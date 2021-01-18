@@ -13420,6 +13420,9 @@ int AddSession(WOLFSSL* ssl)
     WOLFSSL_SESSION* session;
     int i;
     int overwrite = 0;
+#ifdef HAVE_EXT_CACHE
+    int cbRet = 0;
+#endif
 
     if (ssl->options.sessionCacheOff)
         return 0;
@@ -13686,9 +13689,9 @@ int AddSession(WOLFSSL* ssl)
 
 #ifdef HAVE_EXT_CACHE
     if (error == 0 && ssl->ctx->new_sess_cb != NULL)
-        ssl->ctx->new_sess_cb(ssl, session);
-    if (ssl->options.internalCacheOff)
-        FreeSession(session, 0);
+        cbRet = ssl->ctx->new_sess_cb(ssl, session);
+    if (ssl->options.internalCacheOff && cbRet == 0)
+        FreeSession(session, 1);
 #endif
 
     return error;
@@ -42170,7 +42173,9 @@ err:
         }
         #endif
 
-        ctx->ownOurCert = 0;
+        /* We own the cert because either we up its reference counter
+         * or we create our own copy of the cert object. */
+        ctx->ownOurCert = 1;
 #endif
 
         /* Update the available options with public keys. */
