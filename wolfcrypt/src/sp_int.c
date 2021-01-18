@@ -12297,6 +12297,7 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
     if ((err == MP_OKAY) && (bits == SP_WORD_SIZE)) {
         norm->dp[0] %= m->dp[0];
     }
+    sp_clamp(norm);
 
     return err;
 }
