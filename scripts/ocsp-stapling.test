@@ -408,7 +408,7 @@ openssl ciphers -tls1_3
 openssl_tls13=$?
 ./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
 wolfssl_not_tls13=$?
-if [ "$openssl_tls13" = "0" -a "wolfssl_not_tls13" != "0" ]; then
+if [ "$openssl_tls13" = "0" -a "$wolfssl_not_tls13" != "0" ]; then
     printf '%s\n\n' "------------- TEST CASE 8 SHOULD PASS --------------------"
     # client asks for OCSP staple but doesn't fail when none returned
     ./examples/client/client -p $port -g -v 4 -W 1

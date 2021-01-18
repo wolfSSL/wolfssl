@@ -628,9 +628,11 @@ if test "$ENABLED_TLS13_POST_AUTH" = "yes"
 then
     if test "x$ENABLED_TLS13" = "xno"
     then
-        AC_MSG_ERROR([cannot enable postauth without enabling tls13.])
+        AC_MSG_NOTICE([TLS 1.3 is disabled - disabling Post-handshake Authentication])
+        ENABLED_TLS13_POST_AUTH="no"
+    else
+        AM_CFLAGS="-DWOLFSSL_POST_HANDSHAKE_AUTH $AM_CFLAGS"
     fi
-  AM_CFLAGS="-DWOLFSSL_POST_HANDSHAKE_AUTH $AM_CFLAGS"
 fi
 
 
@@ -644,9 +646,11 @@ if test "$ENABLED_SEND_HRR_COOKIE" = "yes"
 then
     if test "x$ENABLED_TLS13" = "xno"
     then
-        AC_MSG_ERROR([cannot enable hrrcookie without enabling tls13.])
+        AC_MSG_NOTICE([TLS 1.3 is disabled - disabling HRR Cookie])
+        ENABLED_SEND_HRR_COOKIE="no"
+    else
+        AM_CFLAGS="-DWOLFSSL_SEND_HRR_COOKIE $AM_CFLAGS"
     fi
-  AM_CFLAGS="-DWOLFSSL_SEND_HRR_COOKIE $AM_CFLAGS"
 fi
 
 
