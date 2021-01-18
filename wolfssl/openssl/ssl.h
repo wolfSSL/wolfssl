@@ -112,6 +112,11 @@ typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAMES  GENERAL_NAMES;
 typedef WOLFSSL_GENERAL_NAME GENERAL_NAME;
 
+#define X509_L_FILE_LOAD  WOLFSSL_X509_L_FILE_LOAD
+#define X509_L_ADD_DIR    WOLFSSL_X509_L_ADD_DIR
+#define X509_L_ADD_STORE  WOLFSSL_X509_L_ADD_STORE
+#define X509_L_LOAD_STORE WOLFSSL_X509_L_LOAD_STORE
+
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
 
@@ -601,6 +606,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_LOOKUP_load_file           wolfSSL_X509_LOOKUP_load_file
 #define X509_LOOKUP_hash_dir            wolfSSL_X509_LOOKUP_hash_dir
 #define X509_LOOKUP_file                wolfSSL_X509_LOOKUP_file
+#define X509_LOOKUP_ctrl                wolfSSL_X509_LOOKUP_ctrl
 
 #define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp

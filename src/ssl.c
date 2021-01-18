@@ -24298,6 +24298,37 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 }
 
 
+int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
+        const char *argc, long argl, char **ret)
+{
+    /* control commands:
+     * X509_L_FILE_LOAD, X509_L_ADD_DIR, X509_L_ADD_STORE, X509_L_LOAD_STORE
+     */
+
+    /* returns -1 if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
+
+
+
+    if (ctx != NULL) {
+        switch (cmd) {
+        case WOLFSSL_X509_L_FILE_LOAD:
+        case WOLFSSL_X509_L_ADD_DIR:
+        case WOLFSSL_X509_L_ADD_STORE:
+        case WOLFSSL_X509_L_LOAD_STORE:
+            return WOLFSSL_SUCCESS;
+
+        default:
+            break;
+        }
+
+    }
+
+    (void)argc; (void)argl; (void)ret;
+
+    return WOLFSSL_FAILURE;
+}
+
+
 WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
@@ -25764,8 +25795,8 @@ char* wolfSSL_CONF_get1_default_config_file(void)
 WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
 {
     WOLFSSL_X509_VERIFY_PARAM *param = NULL;
-    param = XMALLOC(sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL,
-            DYNAMIC_TYPE_OPENSSL);
+    param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+            sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
     if (param != NULL)
         XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
 
@@ -25800,7 +25831,7 @@ int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param)
     int ret = 0;
 
     if (param != NULL) {
-        ret = param->flags;
+        ret = (int)param->flags;
     }
 
     return ret;

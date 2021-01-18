@@ -520,6 +520,11 @@ typedef struct WOLFSSL_COMP {
     WOLFSSL_COMP_METHOD *method;
 } WOLFSSL_COMP;
 
+#define WOLFSSL_X509_L_FILE_LOAD  0x1
+#define WOLFSSL_X509_L_ADD_DIR    0x2
+#define WOLFSSL_X509_L_ADD_STORE  0x3
+#define WOLFSSL_X509_L_LOAD_STORE 0x4
+
 struct WOLFSSL_X509_LOOKUP_METHOD {
     int type;
 };
@@ -1449,6 +1454,8 @@ WOLFSSL_API int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP*, const char*,
                                             long);
 WOLFSSL_API WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_hash_dir(void);
 WOLFSSL_API WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void);
+WOLFSSL_API int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
+        const char *argc, long argl, char **ret);
 
 WOLFSSL_API WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE*,
                                                     WOLFSSL_X509_LOOKUP_METHOD*);
