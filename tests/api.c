@@ -34620,6 +34620,78 @@ static void test_wolfSSL_EVP_X_STATE_LEN(void)
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_wolfSSL_EVP_CIPHER_block_size(void)
+{
+#if defined(OPENSSL_ALL)
+
+#ifdef HAVE_AES_CBC
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_cbc()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_cbc()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_cbc()), AES_BLOCK_SIZE);
+    #endif
+#endif
+
+#ifdef HAVE_AES_GCM
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_gcm()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_gcm()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_gcm()), 1);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_COUNTER
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ctr()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ctr()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ctr()), 1);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_ECB
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ecb()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ecb()), AES_BLOCK_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ecb()), AES_BLOCK_SIZE);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_128_ofb()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_192_ofb()), 1);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    AssertIntEQ(EVP_CIPHER_block_size(EVP_aes_256_ofb()), 1);
+    #endif
+#endif
+
+#ifndef NO_RC4
+    AssertIntEQ(EVP_CIPHER_block_size(wolfSSL_EVP_rc4()), 1);
+#endif
+
+#endif /* OPENSSL_ALL */
+}
+
 static void test_wolfSSL_EVP_CIPHER_iv_length(void)
 {
 #if defined(OPENSSL_ALL)
@@ -40146,6 +40218,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_PKEY_get0_EC_KEY();
     test_wolfSSL_EVP_X_STATE();
     test_wolfSSL_EVP_X_STATE_LEN();
+    test_wolfSSL_EVP_CIPHER_block_size();
     test_wolfSSL_EVP_CIPHER_iv_length();
     test_wolfSSL_EVP_SignInit_ex();
     test_wolfSSL_EVP_DigestFinal_ex();

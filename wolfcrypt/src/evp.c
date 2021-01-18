@@ -1122,7 +1122,26 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
         return AES_256_CFB128_TYPE;
     #endif
 #endif /*HAVE_AES_CBC */
+#if defined(WOLFSSL_AES_OFB)
+    #ifdef WOLFSSL_AES_128
+    else if (XSTRNCMP(cipher, EVP_AES_128_OFB, EVP_AES_SIZE) == 0)
+      return AES_128_OFB_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_192
+    else if (XSTRNCMP(cipher, EVP_AES_192_OFB, EVP_AES_SIZE) == 0)
+      return AES_192_OFB_TYPE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    else if (XSTRNCMP(cipher, EVP_AES_256_OFB, EVP_AES_SIZE) == 0)
+      return AES_256_OFB_TYPE;
+    #endif
+#endif
 #endif /* !NO_AES */
+
+#ifndef NO_RC4
+    else if (XSTRNCMP(cipher, EVP_ARC4, EVP_ARC4_SIZE) == 0)
+      return ARC4_TYPE;
+#endif
       else return 0;
 }
 
@@ -1147,7 +1166,7 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case AES_128_CTR_TYPE:
       case AES_192_CTR_TYPE:
       case AES_256_CTR_TYPE:
-          return AES_BLOCK_SIZE;
+          return 1;
   #endif
   #if defined(HAVE_AES_ECB)
       case AES_128_ECB_TYPE:
@@ -1179,12 +1198,18 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
           return 1;
   #endif
 #endif /* NO_AES */
-  #ifndef NO_DES3
+
+#ifndef NO_RC4
+      case ARC4_TYPE:
+          return 1;
+#endif
+
+#ifndef NO_DES3
       case DES_CBC_TYPE: return 8;
       case DES_EDE3_CBC_TYPE: return 8;
       case DES_ECB_TYPE: return 8;
       case DES_EDE3_ECB_TYPE: return 8;
-  #endif
+#endif
       default:
           return 0;
       }
