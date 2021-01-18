@@ -13325,12 +13325,12 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     outSz   = wc_RsaEncryptSize(key);
     XMEMSET(tmp, 7, plainSz);
     ret = wc_RsaSSL_Sign(tmp, inLen, out, outSz, key, rng);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != MP_INVMOD_E) {
         ERROR_OUT(-7806, exit_rsa_even_mod);
     }
 
     ret = wc_RsaSSL_Verify(out, outSz, tmp, inLen, key);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-7808, exit_rsa_even_mod);
     }
 #endif
@@ -13345,14 +13345,14 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     /* test encrypt and decrypt using WC_RSA_NO_PAD */
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-7812, exit_rsa_even_mod);
     }
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_RsaPrivateDecrypt(out, outSz, plain, (int)plainSz, key);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E && ret != MP_INVMOD_E) {
         ERROR_OUT(-7813, exit_rsa_even_mod);
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -15645,23 +15645,24 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
     }
 
 #ifdef WOLFSSL_HAVE_SP_DH
+    /* Make p even */
     key->p.dp[0] &= (mp_digit)-2;
     if (ret != 0) {
         ERROR_OUT(-8058, done);
     }
 
     ret = wc_DhGenerateKeyPair(key, rng, priv, &privSz, pub, &pubSz);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-8058, done);
     }
 
     ret = wc_DhAgree(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
-    if (ret != MP_VAL) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-8057, done);
     }
 
     ret = wc_DhCheckKeyPair(key, pub, pubSz, priv, privSz);
-    if (ret != MP_EXPTMOD_E) {
+    if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-8057, done);
     }
 
