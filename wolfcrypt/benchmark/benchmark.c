@@ -888,7 +888,14 @@ static THREAD_LS_T int devId = INVALID_DEVID;
 
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+    #if !defined(AES_AUTH_ADD_SZ) && \
+            defined(STM32_CRYPTO) && !defined(STM32_AESGCM_PARTIAL)
+        /* For STM32 use multiple of 4 to leverage crypto hardware */
+        #define AES_AUTH_ADD_SZ 16
+    #endif
+    #ifndef AES_AUTH_ADD_SZ
     #define AES_AUTH_ADD_SZ 13
+    #endif
     #define AES_AUTH_TAG_SZ 16
     #define BENCH_CIPHER_ADD AES_AUTH_TAG_SZ
     static word32 aesAuthAddSz = AES_AUTH_ADD_SZ;
@@ -1474,6 +1481,8 @@ static void* benchmarks_do(void* args)
         !defined(NO_HW_BENCH)
         bench_aesgcm(1);
     #endif
+
+        bench_gmac();
     }
 #endif
 #ifdef WOLFSSL_AES_DIRECT
@@ -2384,6 +2393,47 @@ void bench_aesgcm(int doAsync)
                           "AES-256-GCM-enc", "AES-256-GCM-dec");
 #endif
 }
+
+/* GMAC */
+void bench_gmac(void)
+{
+    int ret, count = 0;
+    Gmac gmac;
+    double start;
+    byte tag[AES_AUTH_TAG_SZ];
+
+    /* determine GCM GHASH method */
+#ifdef GCM_SMALL
+    const char* gmacStr = "GMAC Small";
+#elif defined(GCM_TABLE)
+    const char* gmacStr = "GMAC Table";
+#elif defined(GCM_TABLE_4BIT)
+    const char* gmacStr = "GMAC Table 4-bit";
+#elif defined(GCM_WORD32)
+    const char* gmacStr = "GMAC Word32";
+#else
+    const char* gmacStr = "GMAC Default";
+#endif
+
+    /* init keys */
+    XMEMSET(bench_plain, 0, bench_size);
+    XMEMSET(tag, 0, sizeof(tag));
+    XMEMSET(&gmac, 0, sizeof(Gmac)); /* clear context */
+    (void)wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID);
+    wc_GmacSetKey(&gmac, bench_key, 16);
+    
+    bench_stats_start(&count, &start);
+    do {                        
+        ret = wc_GmacUpdate(&gmac, bench_iv, 12, bench_plain, bench_size, 
+            tag, sizeof(tag));
+
+        count++;
+    } while (bench_stats_sym_check(start));
+    wc_AesFree((Aes*)&gmac);
+
+    bench_stats_sym_finish(gmacStr, 0, count, bench_size, start, ret);    
+}
+
 #endif /* HAVE_AESGCM */
 
 
