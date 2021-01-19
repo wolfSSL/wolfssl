@@ -37,6 +37,11 @@
  *     Default wolfSSL behavior is to require validation of all presented peer
  *     certificates. This also allows loading intermediate CA's as trusted
  *     and ignoring no signer failures for CA's up the chain to root.
+ * WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT:
+ *     Enable resending the previous DTLS handshake flight only on a network
+ *     read timeout. By default we resend in two more cases, when we receive:
+ *     - an out of order last msg of the peer's flight
+ *     - a duplicate of the first msg from the peer's flight
  */
 
 
@@ -13433,10 +13438,12 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             *inOutIdx += ssl->keys.padSz;
             ret = 0;
+            #ifndef WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT
             /* If we receive an out of order last flight msg then retransmit */
             if (type == server_hello_done || type == finished) {
                 ret = DtlsMsgPoolSend(ssl, 0);
             }
+            #endif
         }
         else {
             ret = DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
@@ -13472,11 +13479,13 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 return BUFFER_E;
             }
         }
+        #ifndef WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT
         if (IsDtlsNotSctpMode(ssl) &&
             VerifyForDtlsMsgPoolSend(ssl, type, fragOffset)) {
 
             ret = DtlsMsgPoolSend(ssl, 0);
         }
+        #endif
         *inOutIdx += ssl->keys.padSz;
     }
     else if (fragSz < size) {
