@@ -598,7 +598,9 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     (void)dgst;
 
     cm = wolfSSL_CertManagerNew();
-    if (cm == NULL)
+    if (cm == NULL
+            || subject == NULL || subject->derCert == NULL
+            || issuer  == NULL || issuer->derCert  == NULL)
         return NULL;
 
     ret = AllocDer(&derCert, issuer->derCert->length,

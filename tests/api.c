@@ -28547,7 +28547,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
-    #ifdef WOLFSSL_QT
+    #ifdef OPENSSL_EXTRA
         STACK_OF(X509)* sk;
         X509* x509;
         int i, num;
@@ -28559,7 +28559,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
     #endif
 
-    #ifdef WOLFSSL_QT
+    #ifdef OPENSSL_EXTRA
     bio = BIO_new(BIO_s_file());
     BIO_set_fp(bio, stdout, BIO_NOCLOSE);
     sk = SSL_get_peer_cert_chain(ssl);

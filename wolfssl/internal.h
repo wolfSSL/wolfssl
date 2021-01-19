@@ -4369,7 +4369,7 @@ struct WOLFSSL {
 #ifdef OPENSSL_ALL
     long verifyCallbackResult;
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
 #endif

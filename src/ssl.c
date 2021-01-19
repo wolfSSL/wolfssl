@@ -18260,37 +18260,22 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 #endif /* KEEP_PEER_CERT */
 
-#if defined(SESSION_CERTS)
-/*  Return stack of peer certs.
- *      If Qt or OPENSSL_ALL is defined then return ssl->peerCertChain.
- *      All other cases return &ssl->session.chain
- * ssl->peerCertChain is type WOLFSSL_STACK*
- * ssl->session.chain is type WOLFSSL_X509_CHAIN
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+/* Return stack of peer certs.
  * Caller does not need to free return. The stack is Free'd when WOLFSSL* ssl is.
  */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
-    WOLFSSL_STACK* sk;
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
 
     if (ssl == NULL)
         return NULL;
 
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-        if (ssl->peerCertChain == NULL)
-            wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
-        sk = ssl->peerCertChain;
-    #else
-        sk = (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
-    #endif
-
-    if (sk == NULL) {
-        WOLFSSL_MSG("Error: Null Peer Cert Chain");
-    }
-    return sk;
+    if (ssl->peerCertChain == NULL)
+        wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
+    return ssl->peerCertChain;
 }
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 /* Builds up and creates a stack of peer certificates for ssl->peerCertChain
     based off of the ssl session chain. Returns stack of WOLFSSL_X509 certs or
     NULL on failure */
@@ -18335,8 +18320,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     ssl->peerCertChain = sk;
     return sk;
 }
-#endif /* OPENSSL_ALL || WOLFSSL_QT */
-#endif /* SESSION_CERTS */
+#endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
@@ -29759,6 +29743,8 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
 
         switch (sk->type) {
             case STACK_TYPE_X509:
+                if (!sk->data.x509)
+                    break;
                 cur->data.x509 = wolfSSL_X509_dup(sk->data.x509);
                 if (!cur->data.x509) {
                     WOLFSSL_MSG("wolfSSL_X509_dup error");
@@ -29769,6 +29755,8 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                 wolfSSL_CIPHER_copy(&sk->data.cipher, &cur->data.cipher);
                 break;
             case STACK_TYPE_GEN_NAME:
+                if (!sk->data.gn)
+                    break;
                 cur->data.gn = wolfSSL_GENERAL_NAME_dup(sk->data.gn);
                 if (!cur->data.gn) {
                     WOLFSSL_MSG("wolfSSL_GENERAL_NAME_new error");
@@ -29776,6 +29764,8 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                 }
                 break;
             case STACK_TYPE_OBJ:
+                if (!sk->data.obj)
+                    break;
                 cur->data.obj = wolfSSL_ASN1_OBJECT_dup(sk->data.obj);
                 if (!cur->data.obj) {
                     WOLFSSL_MSG("wolfSSL_ASN1_OBJECT_dup error");
@@ -48010,7 +48000,7 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
     WOLFSSL_STACK* list = NULL;
     char*          url;
 
-    if (x->authInfoSz == 0)
+    if (x == NULL || x->authInfoSz == 0)
         return NULL;
 
     list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoSz + 1,

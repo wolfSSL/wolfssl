@@ -31113,15 +31113,21 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 #ifdef HAVE_SNI
     int SNI_Callback(WOLFSSL* ssl)
     {
+        int ad = 0;
+        int sniRet = 0;
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
             WOLFSSL_MSG("Calling custom sni callback");
-            if(ssl->ctx->sniRecvCb(ssl, NULL, ssl->ctx->sniRecvCbArg)
-                    == alert_fatal) {
+            sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+            if (sniRet == alert_fatal) {
                 WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
-                SendAlert(ssl, alert_fatal, unrecognized_name);
+                SendAlert(ssl, alert_fatal, ad);
                 return FATAL_ERROR;
+            }
+            else if (sniRet == alert_warning) {
+                WOLFSSL_MSG("Error in custom sni callback. Warning alert");
+                SendAlert(ssl, alert_warning, ad);
             }
         }
         return 0;

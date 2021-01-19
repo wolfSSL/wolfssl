@@ -1128,6 +1128,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL3_AD_BAD_CERTIFICATE          bad_certificate
 #define SSL_AD_BAD_CERTIFICATE           SSL3_AD_BAD_CERTIFICATE
 #define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
+#define SSL_AD_NO_RENEGOTIATION          no_renegotiation
+#define SSL_AD_INTERNAL_ERROR            80
 
 #define ASN1_STRFLGS_ESC_MSB             4
 
@@ -1168,6 +1170,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
 #define SSL_TLSEXT_ERR_ALERT_FATAL      alert_fatal
+#define SSL_TLSEXT_ERR_ALERT_WARNING    alert_warning
 #define SSL_TLSEXT_ERR_NOACK            alert_warning
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
 

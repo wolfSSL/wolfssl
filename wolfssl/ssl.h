@@ -2114,8 +2114,8 @@ WOLFSSL_API int  wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX*);
 WOLFSSL_API int  wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX*,
                                             const unsigned char*, unsigned int);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL*);
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL*);
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl);
 #endif
 
