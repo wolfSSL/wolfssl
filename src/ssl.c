@@ -30943,6 +30943,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 #else
     WC_RNG  tmpRNG[1];
 #endif
+    int used_global = 0;
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
 
@@ -30952,8 +30953,15 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         return ret;
 #endif
 
-    if (initGlobalRNG)
+    if (initGlobalRNG) {
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
+            return ret;
+        }
+
         rng = &globalRNG;
+        used_global = 1;
+    }
     else if(wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
         initTmpRng = 1;
@@ -30963,6 +30971,10 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         else
             ret = WOLFSSL_SUCCESS;
+    }
+
+    if (used_global == 1) {
+        wc_UnLockMutex(&globalRNGMutex);
     }
 
     if (initTmpRng)
