@@ -29070,6 +29070,9 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
             break;
 
         case WOLFSSL_BIO_MEMORY:
+    /* In Visual Studio versions prior to Visual Studio 2013, the va_* symbols
+       aren't defined. If using Visual Studio 2013 or later, define
+       HAVE_VA_COPY. */
     #if defined(OPENSSL_EXTRA) && (!defined(_WIN32) || defined(HAVE_VA_COPY))
         case WOLFSSL_BIO_SSL:
             {
@@ -48618,9 +48621,8 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
     return ret;
 }
 
-#if !defined(_WIN32) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
 int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                           unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
@@ -48672,7 +48674,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
     }
     return tlen;
 }
-#endif /* !defined(_WIN32) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) */
+#endif /* !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) */
 
 /* RSA private encrypt calls wc_RsaSSL_Sign. Similar function set up as RSA
  * public decrypt.
