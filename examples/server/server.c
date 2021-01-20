@@ -1729,8 +1729,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             != WOLFSSL_SUCCESS)
         err_sys_ex(catastrophic, "unable to load static memory and create ctx");
 #else
-    else {
-        /* method is not NULL */
+    if (method != NULL) {
         ctx = SSL_CTX_new(method(NULL));
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
