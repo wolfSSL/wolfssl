@@ -3032,8 +3032,9 @@ int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
 #endif /* (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || !NO_DH || HAVE_ECC ||
         * !NO_DSA */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_SMALL) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA))
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_SMALL) && \
+    (!defined(NO_DH) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)))
 /* Multiply a by digit n and put result into r shifting up o digits.
  *   r = (a * n) << (o * SP_WORD_SIZE)
  *
