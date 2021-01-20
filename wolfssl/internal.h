@@ -59,6 +59,9 @@
 #ifdef HAVE_POLY1305
     #include <wolfssl/wolfcrypt/poly1305.h>
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
@@ -2930,6 +2933,7 @@ struct WOLFSSL_CTX {
         #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
             TicketEncCbCtx ticketKeyCtx;
         #endif
+    #endif
     #endif
     #endif
     #ifdef HAVE_SUPPORTED_CURVES
