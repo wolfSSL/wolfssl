@@ -1792,7 +1792,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
@@ -4252,7 +4253,8 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                ssl->options.haveDH, ssl->options.haveNTRU,
                ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.side);
+               ssl->options.haveStaticECC, ssl->options.haveAnon,
+               ssl->options.side);
 
     return WOLFSSL_SUCCESS;
 }
@@ -5931,7 +5933,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
     return WOLFSSL_SUCCESS;
@@ -14482,7 +14485,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
     void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX* ctx,
@@ -14516,7 +14520,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
@@ -27593,9 +27598,10 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     if (ssl->suites != NULL && ssl->options.side != WOLFSSL_NEITHER_END)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                           ssl->options.haveDH, ssl->options.haveNTRU,
-                           ssl->options.haveECDSAsig, ssl->options.haveECC,
-                           ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
 
     return ssl->options.mask;
 }

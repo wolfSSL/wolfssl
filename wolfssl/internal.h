@@ -1873,7 +1873,7 @@ WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveAnon,
                                          int tls1_2, int keySz);
 WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, int, word16, word16,
-                              word16, word16, word16, word16, word16, int);
+                              word16, word16, word16, word16, word16, word16, int);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
@@ -3539,9 +3539,7 @@ typedef struct Options {
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
-#ifdef HAVE_ANON
     word16            haveAnon:1;       /* User wants to allow Anon suites */
-#endif
 #ifdef HAVE_SESSION_TICKET
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
