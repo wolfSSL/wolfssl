@@ -257,7 +257,7 @@ if [ "$early_data" = "yes" ]; then
     grep 'Session Ticket' $client_out_file
     session_ticket=$?
     early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
-    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 2 ]; then
+    if [ $session_ticket -eq 0 -a $early_data_cnt -ne 4 ]; then
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then

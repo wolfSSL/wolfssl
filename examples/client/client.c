@@ -329,6 +329,29 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 #endif
 
 #ifdef WOLFSSL_EARLY_DATA
+static void EarlyDataStatus(WOLFSSL* ssl)
+{
+    int earlyData_status;
+    
+    earlyData_status = wolfSSL_get_early_data_status(ssl);
+    if (earlyData_status < 0) return;
+    
+    printf("Early Data was ");
+    
+    switch(earlyData_status) {
+        case WOLFSSL_EARLY_DATA_NOT_SENT:
+                printf("not setn.\n");
+                break;
+        case WOLFSSL_EARLY_DATA_REJECTED:
+                printf("rejected.\n");
+                break;
+        case WOLFSSL_EARLY_DATA_ACCEPTED:
+                printf("accepted\n");
+                break;
+        default:
+                printf("unknown...\n");
+    }
+}
 static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
                       int msgSz, char* buffer)
 {
@@ -466,6 +489,9 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             do {
                 err = 0; /* reset error */
                 ret = wolfSSL_connect(ssl);
+#ifdef WOLFSSL_EARLY_DATA
+                EarlyDataStatus(ssl);
+#endif
                 if (ret != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT

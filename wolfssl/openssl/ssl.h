@@ -1333,6 +1333,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
+
+#if defined(WOLFSSL_EARLY_DATA)
+#define SSL_get_early_data_status       wolfSSL_get_early_data_status
+#endif
+
 #endif  /* OPENSSL_EXTRA */
 
 /* cipher suites for compatibility */

@@ -947,6 +947,11 @@ WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL*);
 
 #ifdef WOLFSSL_EARLY_DATA
+
+#define WOLFSSL_EARLY_DATA_NOT_SENT    0
+#define WOLFSSL_EARLY_DATA_REJECTED    1
+#define WOLFSSL_EARLY_DATA_ACCEPTED    2
+
 WOLFSSL_API int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
                                                 unsigned int sz);
 WOLFSSL_API int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
@@ -954,6 +959,7 @@ WOLFSSL_API int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
                                           int sz, int* outSz);
 WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
                                          int* outSz);
+WOLFSSL_API int  wolfSSL_get_early_data_status(const WOLFSSL* ssl);
 #endif /* WOLFSSL_EARLY_DATA */
 #endif /* WOLFSSL_TLS13 */
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX*);
