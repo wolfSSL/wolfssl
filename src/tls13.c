@@ -6696,8 +6696,10 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->buffers.outputBuffer.length += sendSz;
 
-    if (!ssl->options.groupMessages)
-        ret = SendBuffered(ssl);
+    /* Always send as this is either directly after server's Finished or only
+     * message after client's Finished.
+     */
+    ret = SendBuffered(ssl);
 
     WOLFSSL_LEAVE("SendTls13NewSessionTicket", 0);
     WOLFSSL_END(WC_FUNC_NEW_SESSION_TICKET_SEND);
