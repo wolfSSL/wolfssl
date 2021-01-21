@@ -7328,7 +7328,7 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
              ((ssl->options.verifyPeer) && (type == certificate)) ||
              ((!ssl->options.verifyPeer) && (type == client_key_exchange)))) ||
             ((ssl->options.side == WOLFSSL_CLIENT_END) &&
-             (type == server_hello))));
+             (type == hello_request || type == server_hello))));
 }
 
 
