@@ -86,6 +86,7 @@ extern ${variable.value} ${variable.name};
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
     #define HAL_CONSOLE_UART huart2
+    #define STM32_AESGCM_PARTIAL /* allow partial blocks and add auth info (header) */
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
