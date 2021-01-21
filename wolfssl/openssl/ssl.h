@@ -173,7 +173,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 /* at the moment only returns ok */
 #define SSL_get_verify_result           wolfSSL_get_verify_result
-#define SSL_get_verify_mode             wolfSSL_SSL_get_mode
+#define SSL_get_verify_mode             wolfSSL_SSL_get_verify_mode
 #define SSL_get_verify_depth            wolfSSL_get_verify_depth
 #define SSL_CTX_get_verify_mode         wolfSSL_CTX_get_verify_mode
 #define SSL_CTX_get_verify_depth        wolfSSL_CTX_get_verify_depth
