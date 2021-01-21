@@ -36039,7 +36039,6 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     return ret;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #ifdef USE_ECC_B_PARAM
 int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
@@ -36063,6 +36062,7 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
             == MP_OKAY ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 #endif /* USE_ECC_B_PARAM */
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {

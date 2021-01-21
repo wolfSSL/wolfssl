@@ -21044,11 +21044,14 @@ static int ecc_point_test(void)
         goto done;
     }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     ret = wc_ecc_import_point_der_ex(derComp0, sizeof(derComp0), curve_idx, point4, 0);
     if (ret != 0) {
         ret = -10027;
         goto done;
     }
+#endif
 
     ret = wc_ecc_cmp_point(point3, point4);
     if (ret != MP_EQ) {
@@ -21062,11 +21065,14 @@ static int ecc_point_test(void)
         goto done;
     }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
     ret = wc_ecc_import_point_der_ex(derComp1, sizeof(derComp1), curve_idx, point4, 0);
     if (ret != 0) {
         ret = -10030;
         goto done;
     }
+#endif
 
     ret = wc_ecc_cmp_point(point3, point4);
     if (ret != MP_EQ) {
