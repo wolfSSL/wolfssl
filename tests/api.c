@@ -15236,9 +15236,14 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     word32  cipherLen = 256;
     #endif
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(in, byte, inLen, NULL);
     DECLARE_VAR(plain, byte, plainLen, NULL);
     DECLARE_VAR(cipher, byte, cipherLen, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in && inStr)
+        XMEMCPY(in, inStr, inLen);
+#endif
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -15326,9 +15331,14 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     const word32 cipherSz = 256;
     #endif
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(in, byte, inLen, NULL);
     DECLARE_VAR(plain, byte, plainSz, NULL);
     DECLARE_VAR(cipher, byte, cipherSz, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in && && inStr)
+        XMEMCPY(in, inStr, inLen);
+#endif
 
     /* Initialize stack structures. */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -15443,9 +15453,14 @@ static int test_wc_RsaSSL_SignVerify (void)
     const word32 outSz = 256;
     #endif
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(in, byte, inLen, NULL);
     DECLARE_VAR(out, byte, outSz, NULL);
     DECLARE_VAR(plain, byte, plainSz, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in && inStr)
+        XMEMCPY(in, inStr, inLen);
+#endif
 
     ret = wc_InitRsaKey(&key, NULL);
 

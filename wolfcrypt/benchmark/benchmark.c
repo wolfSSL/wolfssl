@@ -4507,7 +4507,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
+    DECLARE_VAR(message, byte, len, HEAP_HINT);
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
@@ -4546,6 +4546,10 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
+    #ifndef WOLFSSL_RSA_VERIFY_ONLY
+    if (message && messageStr)
+        XMEMCPY(message, messageStr, len);
+    #endif
 #endif
 
     if (!rsa_sign_verify) {
