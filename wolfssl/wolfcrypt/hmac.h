@@ -245,6 +245,30 @@ WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
                     const byte* info, word32 infoSz,
                     byte* out, word32 outSz);
 
+#if (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 4))) && \
+    !defined(HAVE_SELFTEST)
+
+enum {
+/*
+    MAX_HKDF_LABEL_SZ   = OPAQUE16_LEN +
+                          OPAQUE8_LEN + PROTOCOL_LABEL_SZ + MAX_LABEL_SZ +
+                          OPAQUE8_LEN + WC_MAX_DIGEST_SIZE
+*/
+    MAX_TLS13_HKDF_LABEL_SZ = 47 + WC_MAX_DIGEST_SIZE
+};
+
+WOLFSSL_API int wc_Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
+                             byte* ikm, int ikmLen, int digest);
+
+WOLFSSL_API int wc_Tls13_HKDF_Expand_Label(byte* okm, word32 okmLen,
+                             const byte* prk, word32 prkLen,
+                             const byte* protocol, word32 protocolLen,
+                             const byte* label, word32 labelLen,
+                             const byte* info, word32 infoLen,
+                             int digest);
+
+#endif /* HAVE_FIPS */
 #endif /* HAVE_HKDF */
 
 #ifdef WOLFSSL_WOLFSSH
