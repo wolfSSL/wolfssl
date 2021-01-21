@@ -1826,7 +1826,10 @@ static void* benchmarks_do(void* args)
             (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
 
         if (bench_asym_algs & BENCH_ECC_ALL) {
-            enum ecc_curve_id curveId = ECC_SECP192R1;
+            #ifdef HAVE_FIPS
+            printf("not supported in FIPS mode (no ending enum value)\n");
+            #else
+            int curveId = (int)ECC_SECP192R1;
 
             /* set make key and encrypt */
             bench_asym_algs |= BENCH_ECC_MAKEKEY | BENCH_ECC |
@@ -1836,15 +1839,16 @@ static void* benchmarks_do(void* args)
             }
 
             do {
-                if (wc_ecc_get_curve_size_from_id((int)curveId) !=
+                if (wc_ecc_get_curve_size_from_id(curveId) !=
                         ECC_BAD_ARG_E) {
-                    bench_ecc_curve((int)curveId);
+                    bench_ecc_curve(curveId);
                     if (csv_format != 1) {
                         printf("\n");
                     }
                 }
                 curveId++;
-            } while (curveId != ECC_CURVE_MAX);
+            } while (curveId != (int)ECC_CURVE_MAX);
+            #endif
         }
         else if (bench_asym_algs & BENCH_ECC_P256) {
             bench_ecc_curve((int)ECC_SECP256R1);
