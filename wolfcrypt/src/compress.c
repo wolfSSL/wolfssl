@@ -217,6 +217,9 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
     word32 tmpSz = 0;
     byte*  tmp;
 
+    (void)memoryType;
+    (void)heap;
+
     if (out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
