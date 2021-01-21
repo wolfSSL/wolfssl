@@ -12729,13 +12729,16 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+    DECLARE_VAR(in, byte, inLen, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
     if ((in == NULL) || (out == NULL) || (sig == NULL))
         ERROR_OUT(MEMORY_E, exit_rsa_pss);
+
+    if (in && inStr)
+        XMEMCPY(in, inStr, inLen);
 #endif
 
     /* Test all combinations of hash and MGF. */
@@ -14084,7 +14087,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
                                  !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+    DECLARE_VAR(in, byte, inLen, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
@@ -14092,6 +14095,9 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
     if ((in == NULL) || (out == NULL) || (plain == NULL))
         ERROR_OUT(MEMORY_E, exit_rsa);
+
+    if (in && inStr)
+        XMEMCPY(in, inStr, inLen);
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
