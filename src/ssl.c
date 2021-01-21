@@ -45677,6 +45677,14 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 
+int wolfSSL_get_verify_mode(WOLFSSL* ssl) {
+    if(ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wolfSSL_CTX_get_verify_mode(ssl->ctx);
+}
+
 int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
 {
     int mode = 0;
