@@ -275,6 +275,7 @@
 #define BENCH_ECC_MAKEKEY        0x00001000
 #define BENCH_ECC                0x00002000
 #define BENCH_ECC_ENCRYPT        0x00004000
+#define BENCH_ECC_ALL            0x00008000
 #define BENCH_CURVE25519_KEYGEN  0x00010000
 #define BENCH_CURVE25519_KA      0x00020000
 #define BENCH_ED25519_KEYGEN     0x00040000
@@ -283,6 +284,9 @@
 #define BENCH_CURVE448_KA        0x00200000
 #define BENCH_ED448_KEYGEN       0x00400000
 #define BENCH_ED448_SIGN         0x00800000
+#define BENCH_ECC_P256           0x01000000
+#define BENCH_ECC_P384           0x02000000
+
 /* Other */
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
@@ -480,6 +484,7 @@ static const bench_alg bench_asym_opt[] = {
     #ifdef HAVE_ECC_ENCRYPT
     { "-ecc-enc",            BENCH_ECC_ENCRYPT       },
     #endif
+    { "-ecc-all",            BENCH_ECC_ALL           },
 #endif
 #ifdef HAVE_CURVE25519
     { "-curve25519-kg",      BENCH_CURVE25519_KEYGEN },
@@ -534,7 +539,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][16] = {
+static const char* bench_Usage_msg1[][17] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
@@ -547,6 +552,7 @@ static const char* bench_Usage_msg1[][16] = {
         "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-p256       Measure ECC using P-256 curve.\n",
         "-p384       Measure ECC using P-384 curve.\n",
+        "-ecc-all    Bench all enabled ECC curves.\n",
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
@@ -566,6 +572,7 @@ static const char* bench_Usage_msg1[][16] = {
         "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-p256       Measure ECC using P-256 curve.\n",
         "-p384       Measure ECC using P-384 curve.\n",
+        "-ecc-all    Bench all enabled ECC curves.\n",
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
@@ -931,27 +938,6 @@ static int rsa_sign_verify = 0;
 #ifndef NO_DH
 /* Use the FFDHE parameters */
 static int use_ffdhe = 0;
-#endif
-
-
-#ifdef HAVE_ECC
-/* Detect ECC key size to use */
-#ifndef BENCH_ECC_SIZE
-    #ifndef NO_ECC256
-        #define BENCH_ECC_SIZE 32
-    #elif defined(HAVE_ECC384)
-        #define BENCH_ECC_SIZE 48
-    #elif defined(HAVE_ECC224)
-        #define BENCH_ECC_SIZE 28
-    #elif defined(HAVE_ECC521)
-        #define BENCH_ECC_SIZE 66
-    #else
-        #error No ECC keygen size defined for benchmark
-    #endif
-#endif
-#define  BENCH_MAX_ECC_SIZE   BENCH_ECC_SIZE
-
-static int bench_ecc_size = BENCH_ECC_SIZE;
 #endif
 
 /* Don't print out in CSV format by default */
@@ -1840,28 +1826,51 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifdef HAVE_ECC
-    if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY)) {
-    #ifndef NO_SW_BENCH
-        bench_eccMakeKey(0);
-    #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-        !defined(NO_HW_BENCH)
-        bench_eccMakeKey(1);
-    #endif
+    if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY) ||
+            (bench_asym_algs & BENCH_ECC) ||
+            (bench_asym_algs & BENCH_ECC_ALL) ||
+            (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
+
+        if (bench_asym_algs & BENCH_ECC_ALL) {
+            #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+            printf("not supported in FIPS mode (no ending enum value)\n");
+            #else
+            int curveId = (int)ECC_SECP192R1;
+
+            /* set make key and encrypt */
+            bench_asym_algs |= BENCH_ECC_MAKEKEY | BENCH_ECC |
+                               BENCH_ECC_ENCRYPT;
+            if (csv_format != 1) {
+                printf("\nECC Benchmarks:\n");
+            }
+
+            do {
+                if (wc_ecc_get_curve_size_from_id(curveId) !=
+                        ECC_BAD_ARG_E) {
+                    bench_ecc_curve(curveId);
+                    if (csv_format != 1) {
+                        printf("\n");
+                    }
+                }
+                curveId++;
+            } while (curveId != (int)ECC_CURVE_MAX);
+            #endif
+        }
+        else if (bench_asym_algs & BENCH_ECC_P256) {
+            bench_ecc_curve((int)ECC_SECP256R1);
+        }
+        else if (bench_asym_algs & BENCH_ECC_P384) {
+            bench_ecc_curve((int)ECC_SECP384R1);
+        }
+        else {
+            #ifndef NO_ECC256
+            bench_ecc_curve((int)ECC_SECP256R1);
+            #endif
+            #ifdef HAVE_ECC_BRAINPOOL
+            bench_ecc_curve((int)ECC_BRAINPOOLP256R1);
+            #endif
+        }
     }
-    if (bench_all || (bench_asym_algs & BENCH_ECC)) {
-    #ifndef NO_SW_BENCH
-        bench_ecc(0);
-    #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-        !defined(NO_HW_BENCH)
-        bench_ecc(1);
-    #endif
-    }
-    #ifdef HAVE_ECC_ENCRYPT
-    if (bench_all || (bench_asym_algs & BENCH_ECC_ENCRYPT))
-        bench_eccEncrypt();
-    #endif
 #endif
 
 #ifdef HAVE_CURVE25519
@@ -5301,13 +5310,48 @@ void bench_ntruKeyGen(void)
 #endif
 
 #ifdef HAVE_ECC
-void bench_eccMakeKey(int doAsync)
+
+/* +8 for 'ECDSA [%s]' and null terminator */
+#define BENCH_ECC_NAME_SZ (ECC_MAXNAME + 8)
+
+/* run all benchmarks on a curve */
+void bench_ecc_curve(int curveId)
+{
+    if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY)) {
+    #ifndef NO_SW_BENCH
+        bench_eccMakeKey(0, curveId);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+        !defined(NO_HW_BENCH)
+        bench_eccMakeKey(1, curveId);
+    #endif
+    }
+    if (bench_all || (bench_asym_algs & BENCH_ECC)) {
+    #ifndef NO_SW_BENCH
+        bench_ecc(0, curveId);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+        !defined(NO_HW_BENCH)
+        bench_ecc(1, curveId);
+    #endif
+    }
+    #ifdef HAVE_ECC_ENCRYPT
+    if (bench_all || (bench_asym_algs & BENCH_ECC_ENCRYPT))
+        bench_eccEncrypt(curveId);
+    #endif
+}
+
+
+void bench_eccMakeKey(int doAsync, int curveId)
 {
     int ret = 0, i, times, count, pending = 0;
-    const int keySize = bench_ecc_size;
+    int keySize;
     ecc_key genKey[BENCH_MAX_PENDING];
+    char name[BENCH_ECC_NAME_SZ];
     double start;
     const char**desc = bench_desc_words[lng_index];
+
+    keySize = wc_ecc_get_curve_size_from_id(curveId);
 
     /* clear for done cleanup */
     XMEMSET(&genKey, 0, sizeof(genKey));
@@ -5320,16 +5364,21 @@ void bench_eccMakeKey(int doAsync)
             bench_async_poll(&pending);
 
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, genTimes, &pending)) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0,
+                            &times, genTimes, &pending)) {
 
                     wc_ecc_free(&genKey[i]);
-                    ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, doAsync ? devId : INVALID_DEVID);
+                    ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, doAsync ?
+                            devId : INVALID_DEVID);
                     if (ret < 0) {
                         goto exit;
                     }
 
-                    ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
+                    ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey[i],
+                            curveId);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times,
+                                &pending)) {
                         goto exit;
                     }
                 }
@@ -5338,7 +5387,10 @@ void bench_eccMakeKey(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit:
-    bench_stats_asym_finish("ECC", keySize * 8, desc[2], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]",
+            wc_ecc_get_name(curveId));
+    bench_stats_asym_finish(name, keySize * 8, desc[2], doAsync, count, start,
+            ret);
 
     /* cleanup */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5346,10 +5398,12 @@ exit:
     }
 }
 
-void bench_ecc(int doAsync)
+
+void bench_ecc(int doAsync, int curveId)
 {
-    int ret = 0, i, times = 0, count = 0, pending = 0;
-    const int keySize = bench_ecc_size;
+    int ret = 0, i, times, count, pending = 0;
+    int  keySize;
+    char name[BENCH_ECC_NAME_SZ];
     ecc_key genKey[BENCH_MAX_PENDING];
 #ifdef HAVE_ECC_DHE
     ecc_key genKey2[BENCH_MAX_PENDING];
@@ -5364,26 +5418,11 @@ void bench_ecc(int doAsync)
     const char**desc = bench_desc_words[lng_index];
 
 #ifdef HAVE_ECC_DHE
-    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, 2*BENCH_MAX_ECC_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(shared, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_MAX_ECC_SIZE, HEAP_HINT);
-#endif
-
-#ifdef DECLARE_VAR_IS_HEAP_ALLOC
-#ifdef HAVE_ECC_DHE
-    if (shared[0] == NULL) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
-#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
-    if ((sig[0] == NULL) || (digest[0] == NULL)) {
-        ret = MEMORY_E;
-        goto exit;
-    }
-#endif
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
     /* clear for done cleanup */
@@ -5391,6 +5430,7 @@ void bench_ecc(int doAsync)
 #ifdef HAVE_ECC_DHE
     XMEMSET(&genKey2, 0, sizeof(genKey2));
 #endif
+    keySize = wc_ecc_get_curve_size_from_id(curveId);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -5399,7 +5439,7 @@ void bench_ecc(int doAsync)
                                     doAsync ? devId : INVALID_DEVID)) < 0) {
             goto exit;
         }
-        ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
+        ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey[i], curveId);
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wc_AsyncWait(ret, &genKey[i].asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
@@ -5411,7 +5451,8 @@ void bench_ecc(int doAsync)
         if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, INVALID_DEVID)) < 0) {
             goto exit;
         }
-        if ((ret = wc_ecc_make_key(&gRng, keySize, &genKey2[i])) > 0) {
+        if ((ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey2[i],
+                    curveId)) > 0) {
             goto exit;
         }
     #endif
@@ -5434,10 +5475,14 @@ void bench_ecc(int doAsync)
 
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, agreeTimes, &pending)) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
                     x[i] = (word32)keySize;
-                    ret = wc_ecc_shared_secret(&genKey[i], &genKey2[i], shared[i], &x[i]);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
+                    ret = wc_ecc_shared_secret(&genKey[i], &genKey2[i],
+                            shared[i], &x[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
                         goto exit_ecdhe;
                     }
                 }
@@ -5446,7 +5491,10 @@ void bench_ecc(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdhe:
-    bench_stats_asym_finish("ECDHE", keySize * 8, desc[3], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDHE [%15s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[3], doAsync, count, start,
+            ret);
 
     if (ret < 0) {
         goto exit;
@@ -5470,12 +5518,15 @@ exit_ecdhe:
 
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, agreeTimes, &pending)) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
                     if (genKey[i].state == 0)
                         x[i] = ECC_MAX_SIG_SIZE;
-                    ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i], &x[i],
-                                                            &gRng, &genKey[i]);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
+                    ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i],
+                            &x[i], &gRng, &genKey[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
                         goto exit_ecdsa_sign;
                     }
                 }
@@ -5484,7 +5535,10 @@ exit_ecdhe:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_sign:
-    bench_stats_asym_finish("ECDSA", keySize * 8, desc[4], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[4], doAsync, count, start,
+            ret);
 
     if (ret < 0) {
         goto exit;
@@ -5500,12 +5554,15 @@ exit_ecdsa_sign:
 
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, agreeTimes, &pending)) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1,
+                            &times, agreeTimes, &pending)) {
                     if (genKey[i].state == 0)
                         verify[i] = 0;
                     ret = wc_ecc_verify_hash(sig[i], x[i], digest[i],
-                                        (word32)keySize, &verify[i], &genKey[i]);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
+                                       (word32)keySize, &verify[i], &genKey[i]);
+                    if (!bench_async_handle(&ret,
+                                BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times,
+                                &pending)) {
                         goto exit_ecdsa_verify;
                     }
                 }
@@ -5514,7 +5571,10 @@ exit_ecdsa_sign:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_ecdsa_verify:
-    bench_stats_asym_finish("ECDSA", keySize * 8, desc[5], doAsync, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECDSA [%15s]", wc_ecc_get_name(curveId));
+
+    bench_stats_asym_finish(name, keySize * 8, desc[5], doAsync, count, start,
+            ret);
 #endif /* HAVE_ECC_VERIFY */
 #endif /* !NO_ASN && HAVE_ECC_SIGN */
 
@@ -5546,10 +5606,10 @@ exit:
 
 
 #ifdef HAVE_ECC_ENCRYPT
-void bench_eccEncrypt(void)
+void bench_eccEncrypt(int curveId)
 {
     ecc_key userA, userB;
-    const int keySize = bench_ecc_size;
+    int     keySize;
     byte    msg[48];
     byte    out[80];
     word32  outSz   = sizeof(out);
@@ -5557,7 +5617,9 @@ void bench_eccEncrypt(void)
     int     ret, i, count;
     double start;
     const char**desc = bench_desc_words[lng_index];
+    char name[BENCH_ECC_NAME_SZ];
 
+    keySize = wc_ecc_get_curve_size_from_id(curveId);
     ret = wc_ecc_init_ex(&userA, HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_ecc_encrypt make key A failed: %d\n", ret);
@@ -5584,13 +5646,13 @@ void bench_eccEncrypt(void)
     }
 #endif
 
-    ret = wc_ecc_make_key(&gRng, keySize, &userA);
+    ret = wc_ecc_make_key_ex(&gRng, keySize, &userA, curveId);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         goto exit;
-    ret = wc_ecc_make_key(&gRng, keySize, &userB);
+    ret = wc_ecc_make_key_ex(&gRng, keySize, &userB, curveId);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -5604,7 +5666,8 @@ void bench_eccEncrypt(void)
     do {
         for (i = 0; i < ntimes; i++) {
             /* encrypt msg to B */
-            ret = wc_ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz, NULL);
+            ret = wc_ecc_encrypt(&userA, &userB, msg, sizeof(msg), out, &outSz,
+                    NULL);
             if (ret != 0) {
                 printf("wc_ecc_encrypt failed! %d\n", ret);
                 goto exit_enc;
@@ -5613,13 +5676,15 @@ void bench_eccEncrypt(void)
         count += i;
     } while (bench_stats_sym_check(start));
 exit_enc:
-    bench_stats_asym_finish("ECC", keySize * 8, desc[6], 0, count, start, ret);
+    XSNPRINTF(name, BENCH_ECC_NAME_SZ, "ECC   [%15s]", wc_ecc_get_name(curveId));
+    bench_stats_asym_finish(name, keySize * 8, desc[6], 0, count, start, ret);
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < ntimes; i++) {
             /* decrypt msg from A */
-            ret = wc_ecc_decrypt(&userB, &userA, out, outSz, bench_plain, &bench_plainSz, NULL);
+            ret = wc_ecc_decrypt(&userB, &userA, out, outSz, bench_plain,
+                    &bench_plainSz, NULL);
             if (ret != 0) {
                 printf("wc_ecc_decrypt failed! %d\n", ret);
                 goto exit_dec;
@@ -5628,7 +5693,7 @@ exit_enc:
         count += i;
     } while (bench_stats_sym_check(start));
 exit_dec:
-    bench_stats_asym_finish("ECC", keySize * 8, desc[7], 0, count, start, ret);
+    bench_stats_asym_finish(name, keySize * 8, desc[7], 0, count, start, ret);
 
 exit:
 
@@ -6255,8 +6320,11 @@ static void Usage(void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC384)
     printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -p384 */
 #endif
+#if defined(HAVE_ECC)
+    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -ecc-all */
+#endif
 #ifndef WOLFSSL_BENCHMARK_ALL
-    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -<alg> */
+    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -<alg> */
     printf("             ");
     line = 13;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
@@ -6279,12 +6347,12 @@ static void Usage(void)
         print_alg(bench_other_opt[i].str + 1, &line);
     printf("\n");
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -lng */
-    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option <num> */
+    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -lng */
+    printf("%s", bench_Usage_msg1[lng_index][14]);   /* option <num> */
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    printf("%s", bench_Usage_msg1[lng_index][14]);   /* option -threads <num> */
+    printf("%s", bench_Usage_msg1[lng_index][15]);   /* option -threads <num> */
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][15]);   /* option -print */
+    printf("%s", bench_Usage_msg1[lng_index][16]);   /* option -print */
 }
 
 /* Match the command line argument with the string.
@@ -6374,11 +6442,11 @@ int main(int argc, char** argv)
 #endif
 #if defined(HAVE_ECC) && !defined(NO_ECC256)
         else if (string_matches(argv[1], "-p256"))
-            bench_ecc_size = 32;
+            bench_asym_algs |= BENCH_ECC_P256;
 #endif
 #if defined(HAVE_ECC) && defined(HAVE_ECC384)
         else if (string_matches(argv[1], "-p384"))
-            bench_ecc_size = 48;
+            bench_asym_algs |= BENCH_ECC_P384;
 #endif
 #ifdef BENCH_ASYM
         else if (string_matches(argv[1], "-csv")) {
