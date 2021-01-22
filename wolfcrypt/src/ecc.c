@@ -5564,12 +5564,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    if (err != MP_OKAY) break;
 
                    /* e = e/k.b */
-                   err = mp_mulmod(&pubkey->k, e, curve->order, e);
+                   err = mp_mulmod(&pubkey->k, e, curve->order, &pubkey->k);
                    if (err != MP_OKAY) break;
 
                    /* s = e/k.b + x.r/k.b
                         = (e + x.r)/k.b */
-                   err = mp_add(e, s, s);
+                   err = mp_add(&pubkey->k, s, s);
                    if (err != MP_OKAY) break;
 
                    /* s = b.(e + x.r)/k.b
