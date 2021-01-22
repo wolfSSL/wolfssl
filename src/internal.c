@@ -209,15 +209,14 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
 
 static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 {
-    (void)isSend;
-
     #ifdef WOLFSSL_DTLS
     /* For DTLS, epoch 0 is always not encrypted. */
     if (ssl->options.dtls && !isSend && ssl->keys.curEpoch == 0)
         return 0;
     #endif /* WOLFSSL_DTLS */
 
-    return ssl->keys.encryptionOn;
+    return ssl->keys.encryptionOn &&
+        (isSend ? ssl->encrypt.setup : ssl->decrypt.setup);
 }
 
 
@@ -29560,7 +29559,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                            #ifdef WOLFSSL_EXTRA_ALERTS
+                            #if defined(WOLFSSL_EXTRA_ALERTS) || \
+                                defined(WOLFSSL_PSK_IDENTITY_ALERT)
                                 SendAlert(ssl, alert_fatal,
                                         unknown_psk_identity);
                             #endif
@@ -30444,7 +30444,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         if (ssl->arrays->psk_keySz == 0 ||
                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-                            #ifdef WOLFSSL_EXTRA_ALERTS
+                            #if defined(WOLFSSL_EXTRA_ALERTS) || \
+                                defined(WOLFSSL_PSK_IDENTITY_ALERT)
                                 SendAlert(ssl, alert_fatal,
                                         unknown_psk_identity);
                             #endif
