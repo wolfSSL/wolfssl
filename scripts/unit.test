@@ -1,9 +1,14 @@
 #!/bin/sh
 
-DIRNAME="$(dirname "$0")"
 bwrap_path="$(command -v bwrap)"
 if [ -n "$bwrap_path" ]; then
-    exec "$bwrap_path" --unshare-net --dev-bind / / "$DIRNAME/../tests/unit.test" "$@"
+    exec "$bwrap_path" --unshare-net --dev-bind / / "./tests/unit.test" "$@"
 else
-    exec "$DIRNAME/../tests/unit.test" "$@"
+    ./tests/unit.test
 fi
+if [ $? -ne 0 ]; then
+    echo "unit test failed"
+    exit 1
+fi
+
+exit 0

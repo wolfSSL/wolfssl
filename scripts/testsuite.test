@@ -1,0 +1,9 @@
+#!/bin/sh
+
+./testsuite/testsuite.test no_tmp_files
+if [ $? -ne 0 ]; then
+    echo "testsuite failed"
+    exit 1
+fi
+
+exit 0

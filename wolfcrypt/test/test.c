@@ -37,6 +37,7 @@
     #define HAVE_WOLFCRYPT_TEST_OPTIONS
 #endif
 
+static int tmp_files = 1; /* should temp files be created */
 #ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
     #include <wolfssl/ssl.h>
     #define err_sys err_sys_remap /* remap err_sys */
@@ -619,11 +620,16 @@ int wolfcrypt_test(void* args)
     printf("------------------------------------------------------------------------------\n");
 
     if (args) {
-#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
+    #ifndef HAVE_WOLFCRYPT_TEST_OPTIONS
+        if (((func_args*)args)->argc > 1) {
+            if (XSTRCMP(((func_args*)args)->argv[1], "no_tmp_files") == 0) {
+                tmp_files = 0;
+            }
+        }
+    #else
         int ch;
-#endif
+
         ((func_args*)args)->return_code = -1; /* error state */
-#ifdef HAVE_WOLFCRYPT_TEST_OPTIONS
         while ((ch = mygetopt(((func_args*)args)->argc, ((func_args*)args)->argv, "s:m:a:h")) != -1) {
             switch(ch) {
             case 's':
@@ -655,7 +661,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
                 return err_sys("unknown test option.  try -h.", -1);
             }
         }
-#endif
+    #endif
     }
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -1452,16 +1458,18 @@ static int _SaveDerAndPem(const byte* der, int derSz,
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
     int ret;
-    XFILE derFile;
+    if (tmp_files) {
+        XFILE derFile;
 
-    derFile = XFOPEN(fileDer, "wb");
-    if (!derFile) {
-        return errBase + 0;
-    }
-    ret = (int)XFWRITE(der, 1, derSz, derFile);
-    XFCLOSE(derFile);
-    if (ret != derSz) {
-        return errBase + 1;
+        derFile = XFOPEN(fileDer, "wb");
+        if (!derFile) {
+            return errBase + 0;
+        }
+        ret = (int)XFWRITE(der, 1, derSz, derFile);
+        XFCLOSE(derFile);
+        if (ret != derSz) {
+            return errBase + 1;
+        }
     }
 #endif
 
@@ -1489,16 +1497,18 @@ static int _SaveDerAndPem(const byte* der, int derSz,
             return errBase + 2;
         }
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = XFOPEN(filePem, "wb");
-        if (!pemFile) {
-            XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return errBase + 3;
-        }
-        ret = (int)XFWRITE(pem, 1, pemSz, pemFile);
-        XFCLOSE(pemFile);
-        if (ret != pemSz) {
-            XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            return errBase + 4;
+        if (tmp_files) {
+            pemFile = XFOPEN(filePem, "wb");
+            if (!pemFile) {
+                XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return errBase + 3;
+            }
+            ret = (int)XFWRITE(pem, 1, pemSz, pemFile);
+            XFCLOSE(pemFile);
+            if (ret != pemSz) {
+                XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                return errBase + 4;
+            }
         }
     #endif
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

@@ -17,6 +17,16 @@ tests_unit_test_CFLAGS       = -DNO_MAIN_DRIVER $(AM_CFLAGS)
 tests_unit_test_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 tests_unit_test_DEPENDENCIES = src/libwolfssl.la
 endif
+
+dist_example_DATA+= \
+                  tests/unit.c \
+                  tests/api.c \
+                  tests/suites.c \
+                  tests/hash.c \
+                  tests/srp.c \
+                  examples/client/client.c \
+                  examples/server/server.c
+
 EXTRA_DIST += tests/unit.h
 EXTRA_DIST += tests/test.conf \
               tests/test-sha2.conf \

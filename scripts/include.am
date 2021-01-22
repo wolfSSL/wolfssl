@@ -82,6 +82,7 @@ dist_noinst_SCRIPTS+= scripts/ocsp.test
 endif
 
 dist_noinst_SCRIPTS+= scripts/unit.test
+dist_noinst_SCRIPTS+= scripts/testsuite.test
 
 endif
 endif
