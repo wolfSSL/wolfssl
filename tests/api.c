@@ -15225,16 +15225,17 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
-    word32  plainLen = 25;
-    word32  inLen = (word32)XSTRLEN(inStr);
+    const char inStr[] = "Everyone gets Friday off.";
+    const word32 plainLen = 25;
+    const word32 inLen = (word32)(sizeof(inStr)-1); /* exclude NULL term */
     #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    int         bits = 1024;
-    word32  cipherLen = 128;
+    int          bits = 1024;
+    const word32 cipherLen = 128;
     #else
-    int         bits = 2048;
-    word32  cipherLen = 256;
+    int          bits = 2048;
+    const word32 cipherLen = 256;
     #endif
+    word32 cipherLenResult = cipherLen;
 
     DECLARE_VAR(in, byte, inLen, NULL);
     DECLARE_VAR(plain, byte, plainLen, NULL);
@@ -15261,7 +15262,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     if (ret == 0) {
         ret = wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng);
         if (ret >= 0) {
-            cipherLen = ret;
+            cipherLenResult = ret;
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -15284,7 +15285,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
         }
     #endif
     if (ret == 0) {
-        ret = wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key);
+        ret = wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain, plainLen, &key);
     }
     if (ret >= 0) {
         ret = XMEMCMP(plain, inStr, plainLen);
@@ -15321,8 +15322,8 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         && !defined(NO_SHA)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
-    word32  inLen = (word32)XSTRLEN(inStr);
+    const char inStr[] = "Everyone gets Friday off.";
+    const word32 inLen = (word32)(sizeof(inStr)-1); /* exclude NULL term */
     const word32 plainSz = 25;
     byte*   res = NULL;
     int     idx = 0;
@@ -15447,9 +15448,9 @@ static int test_wc_RsaSSL_SignVerify (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
+    const char inStr[] = "Everyone gets Friday off.";
     const word32 plainSz = 25;
-    word32  inLen = (word32)XSTRLEN(inStr);
+    const word32 inLen = (word32)(sizeof(inStr)-1); /* exclude NULL term */
     word32  idx = 0;
     #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     int          bits = 1024;
