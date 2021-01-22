@@ -32114,6 +32114,18 @@ static void test_wolfSSL_verify_mode(void)
                 WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
     AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_PEER);
 
+    wolfSSL_set_verify(ssl, SSL_VERIFY_NONE, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_NONE);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_FAIL_EXCEPT_PSK, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_FAIL_EXCEPT_PSK);
+
+    AssertIntEQ(SSL_CTX_get_verify_mode(ctx),
+                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+
     SSL_free(ssl);
 
     SSL_CTX_free(ctx);
