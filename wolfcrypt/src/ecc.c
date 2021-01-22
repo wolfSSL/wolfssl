@@ -5149,6 +5149,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 #endif
     if (err < 0) {
+        mp_clear(r);
+        mp_clear(s);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
