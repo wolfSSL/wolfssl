@@ -4396,7 +4396,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifdef WC_RSA_BLINDING
 int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 {
-    if (key == NULL)
+    if (key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
     key->rng = rng;
