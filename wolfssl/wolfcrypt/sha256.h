@@ -216,9 +216,12 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
+#if !defined(NO_OLD_SHA_NAMES)
+    #define SHA224             WC_SHA224
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha224             wc_Sha224
-    #define SHA224             WC_SHA224
     #define SHA224_BLOCK_SIZE  WC_SHA224_BLOCK_SIZE
     #define SHA224_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
     #define SHA224_PAD_SIZE    WC_SHA224_PAD_SIZE

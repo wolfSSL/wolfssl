@@ -99,6 +99,11 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
 #define SHA224_Init   wolfSSL_SHA224_Init
 #define SHA224_Update wolfSSL_SHA224_Update
 #define SHA224_Final  wolfSSL_SHA224_Final
+#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    /* SHA224 is only available in non-fips mode because of SHA224 enum in FIPS
+     * build. */
+    #define SHA224 wolfSSL_SHA224
+#endif
 
 #endif /* WOLFSSL_SHA224 */
 
