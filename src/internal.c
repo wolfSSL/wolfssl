@@ -13270,11 +13270,11 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 
     if (cur_hi == *next_hi) {
         curLT = cur_lo < *next_lo;
-        diff = curLT ? *next_lo - cur_lo : cur_lo - *next_lo;
+        diff = curLT ? *next_lo - cur_lo - 1 : cur_lo - *next_lo + 1;
     }
     else {
         curLT = cur_hi < *next_hi;
-        diff = curLT ? cur_lo - *next_lo : *next_lo - cur_lo;
+        diff = curLT ? cur_lo - *next_lo - 1 : *next_lo - cur_lo + 1;
     }
 
     if (curLT) {
@@ -13292,7 +13292,6 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
             word32 oldWindow[WOLFSSL_DTLS_WINDOW_WORDS];
 
             temp = 0;
-            diff++;
             idx = diff / DTLS_WORD_BITS;
             newDiff = diff % DTLS_WORD_BITS;
 
