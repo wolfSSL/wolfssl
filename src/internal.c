@@ -904,6 +904,7 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 #ifdef HAVE_SESSION_TICKET
     exp[idx++] = options->createTicket;
     exp[idx++] = options->useTicket;
+    exp[idx++] = options->noTicketTls12;
 #ifdef WOLFSSL_TLS13
     if (ver > DTLS_EXPORT_VERSION_3) {
         exp[idx++] = options->noTicketTls13;
@@ -1069,6 +1070,7 @@ static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
 #ifdef HAVE_SESSION_TICKET
     options->createTicket  = exp[idx++]; /* Server to create new Ticket */
     options->useTicket     = exp[idx++]; /* Use Ticket not session cache */
+    options->noTicketTls12 = exp[idx++]; /* Server won't create new Ticket */
 #ifdef WOLFSSL_TLS13
     if (ver > DTLS_EXPORT_VERSION_3) {
         options->noTicketTls13 = exp[idx++];/* Server won't create new Ticket */
@@ -5946,6 +5948,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 #ifdef HAVE_SESSION_TICKET
+    ssl->options.noTicketTls12 = ctx->noTicketTls12;
     ssl->session.ticket = ssl->session.staticTicket;
 #endif
 

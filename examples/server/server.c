@@ -669,31 +669,42 @@ static const char* server_usage_msg[][56] = {
 #ifdef HAVE_CURVE25519
         "-t          Pre-generate Key share using Curve25519 only\n",   /* 43 */
 #endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_SESSION_TICKET
+#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS)
         "-T          Do not generate session ticket\n",                 /* 44 */
+#else
+        "-T [aon]    Do not generate session ticket\n",                 /* 44 */
+        "            No option affects TLS 1.3 only, 'a' affects all"
+            " protocol versions,\n",                                    /* 45 */
+        "            'o' affects TLS 1.2 and below only\n",             /* 46 */
+        "            'n' affects TLS 1.3 only\n",                       /* 47 */
 #endif
-        "-F          Send alert if no mutual authentication\n",         /* 45 */
+#endif
+#ifdef WOLFSSL_TLS13
+        "-F          Send alert if no mutual authentication\n",         /* 48 */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-        "-Q          Request certificate from client post-handshake\n", /* 46 */
+        "-Q          Request certificate from client post-handshake\n", /* 49 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          Server sends Cookie Extension containing state\n", /* 47 */
+        "-J          Server sends Cookie Extension containing state\n", /* 50 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data read from client (0-RTT handshake)\n",  /* 48 */
+        "-0          Early data read from client (0-RTT handshake)\n",  /* 51 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 49 */
+        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 52 */
 #endif
         "-1 <num>    Display a result by specified language."
-                             "\n            0: English, 1: Japanese\n", /* 50 */
+                             "\n            0: English, 1: Japanese\n", /* 53 */
 #ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 53 */
+        "-5          Use Trusted CA Key Indication\n",                  /* 54 */
 #endif
         "-6          Simulate WANT_WRITE errors on every other IO send\n",
+                                                                        /* 55 */
 #ifdef HAVE_CURVE448
-        "-8          Pre-generate Key share using Curve448 only\n",     /* 55 */
+        "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
 #endif
         NULL,
     },
@@ -791,32 +802,42 @@ static const char* server_usage_msg[][56] = {
 #ifdef HAVE_CURVE25519
         "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 43 */
 #endif
-#ifdef HAVE_SESSION_TICKET
-        "-T         セッションチケットを生成しない\n",                  /* 44 */
+#endif /* WOLFSSL_TLS13 */
+#if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS)
+        "-T          セッションチケットを生成しない\n",                 /* 44 */
+#else
+        "-T [aon]    セッションチケットを生成しない\n",                 /* 44 */
+        "            No option affects TLS 1.3 only, 'a' affects all"
+            " protocol versions,\n",                                    /* 45 */
+        "            'o' affects TLS 1.2 and below only\n",             /* 46 */
+        "            'n' affects TLS 1.3 only\n",                       /* 47 */
 #endif
-        "-F          Send alert if no mutual authentication\n",         /* 45 */
+#ifdef WOLFSSL_TLS13
+        "-F          Send alert if no mutual authentication\n",         /* 48 */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          クライアントのポストハンドシェイクから"
-                                              "証明書を要求する\n",     /* 46 */
+                                              "証明書を要求する\n",     /* 49 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 47 */
+        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 50 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
         "-0          クライアントからの Early Data 読み取り"
-                                      "（0-RTTハンドシェイク）\n",      /* 48 */
+                                      "（0-RTTハンドシェイク）\n",      /* 51 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 49 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 52 */
 #endif
         "-1 <num>    指定された言語で結果を表示します。"
-                                 "\n            0: 英語、 1: 日本語\n", /* 50 */
+                                 "\n            0: 英語、 1: 日本語\n", /* 53 */
 #ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 53 */
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 54 */
 #endif
+        "-6          Simulate WANT_WRITE errors on every other IO send\n",
+                                                                        /* 55 */
 #ifdef HAVE_CURVE448
-        "-8          Pre-generate Key share using Curve448 only\n",     /* 55 */
+        "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
 #endif
         NULL,
     },
@@ -910,9 +931,16 @@ static void Usage(void)
 #ifdef HAVE_CURVE25519
     printf("%s", msg[++msgId]);     /* -t */
 #endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_SESSION_TICKET
     printf("%s", msg[++msgId]);     /* -T */
+    #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    printf("%s", msg[++msgId]);     /* -T */
+    printf("%s", msg[++msgId]);     /* -T */
+    printf("%s", msg[++msgId]);     /* -T */
+    #endif
 #endif
+#ifdef WOLFSSL_TLS13
     printf("%s", msg[++msgId]);     /* -F */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     printf("%s", msg[++msgId]);     /* -Q */
@@ -1081,7 +1109,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 #ifdef WOLFSSL_TLS13
     int onlyKeyShare = 0;
-    int noTicket = 0;
+#endif
+#if defined(HAVE_SESSION_TICKET)
+#ifdef WOLFSSL_TLS13
+    int noTicketTls13 = 0;
+#endif
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    int noTicketTls12 = 0;
+#endif
 #endif
     int useX25519 = 0;
     int useX448 = 0;
@@ -1152,10 +1187,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* Reinitialize the global myVerifyAction. */
     myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
-    /* Not Used: h, z, F, T, V, W, X */
+    /* Not Used: h, z, W, X, 7, 9 */
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
-                "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:TUVYZ:"
+                "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:568"
 		        "@#")) != -1) {
         switch (ch) {
@@ -1464,8 +1499,32 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'T' :
-                #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
-                    noTicket = 1;
+                #if defined(HAVE_SESSION_TICKET)
+                    if (XSTRLEN(myoptarg) == 0) {
+                    #if defined(WOLFSSL_TLS13)
+                        noTicketTls13 = 1;
+                    #endif
+                    }
+                #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+                    else if (XSTRNCMP(myoptarg, "a", 2) == 0) {
+                        noTicketTls12 = 1;
+                    #if defined(WOLFSSL_TLS13)
+                        noTicketTls13 = 1;
+                    #endif
+                    }
+                    else if (XSTRNCMP(myoptarg, "o", 2) == 0) {
+                        noTicketTls12 = 1;
+                    }
+                    else if (XSTRNCMP(myoptarg, "n", 2) == 0) {
+                    #if defined(WOLFSSL_TLS13)
+                        noTicketTls13 = 1;
+                    #endif
+                    }
+                #endif
+                    else {
+                        Usage();
+                        XEXIT_T(MY_EX_USAGE);
+                    }
                 #endif
                 break;
 
@@ -2005,8 +2064,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)
         wolfSSL_CTX_no_dhe_psk(ctx);
-    if (noTicket)
+#endif
+#ifdef HAVE_SESSION_TICKET
+#ifdef WOLFSSL_TLS13
+    if (noTicketTls13)
         wolfSSL_CTX_no_ticket_TLSv13(ctx);
+#endif
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    if (noTicketTls12)
+        wolfSSL_CTX_NoTicketTLSv12(ctx);
+#endif
 #endif
 
     while (1) {

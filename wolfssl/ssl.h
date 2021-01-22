@@ -3201,6 +3201,9 @@ enum TicketEncRet {
 
 #ifndef NO_WOLFSSL_SERVER
 
+WOLFSSL_API int wolfSSL_CTX_NoTicketTLSv12(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_NoTicketTLSv12(WOLFSSL* ssl);
+
 typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],
                                  unsigned char iv[WOLFSSL_TICKET_IV_SZ],
