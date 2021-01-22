@@ -2248,8 +2248,8 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((bench_additional == NULL) || (bench_tag == NULL)) {
-        printf("malloc failed\n");
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesgcm_internal malloc failed\n");
         goto exit;
     }
 #endif
@@ -2692,9 +2692,10 @@ void bench_aesccm(void)
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((bench_additional == NULL) || (bench_tag == NULL)) {
-        printf("malloc failed\n");
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesccm malloc failed\n");
         goto exit;
     }
 #endif
@@ -4546,10 +4547,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
-    #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    if (message && messageStr)
-        XMEMCPY(message, messageStr, len);
-    #endif
+    XMEMCPY(message, messageStr, len);
 #endif
 
     if (!rsa_sign_verify) {
@@ -4900,7 +4898,7 @@ void bench_dh(int doAsync)
     DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
     DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((pub[0] == NULL) || (pub2 == NULL) || (agree[0] == NULL) || (priv[0] == NULL) || (priv2 == NULL)) {
+    if (pub[0] == NULL || pub2 == NULL || agree[0] == NULL || priv[0] == NULL || priv2 == NULL) {
         ret = MEMORY_E;
         goto exit;
     }

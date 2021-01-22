@@ -15241,9 +15241,12 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     DECLARE_VAR(cipher, byte, cipherLen, NULL);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (in && inStr)
-        XMEMCPY(in, inStr, inLen);
+    if (in == NULL || plain == NULL || cipher == NULL) {
+        printf("test_wc_RsaPublicEncryptDecrypt malloc failed\n");
+        return MEMORY_E;
+    }
 #endif
+    XMEMCPY(in, inStr, inLen);
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -15336,9 +15339,12 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     DECLARE_VAR(cipher, byte, cipherSz, NULL);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (in && && inStr)
-        XMEMCPY(in, inStr, inLen);
+    if (in == NULL || plain == NULL || cipher == NULL) {
+        printf("test_wc_RsaPublicEncryptDecrypt_exmalloc failed\n");
+        return MEMORY_E;
+    }
 #endif
+    XMEMCPY(in, inStr, inLen);
 
     /* Initialize stack structures. */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -15458,9 +15464,12 @@ static int test_wc_RsaSSL_SignVerify (void)
     DECLARE_VAR(plain, byte, plainSz, NULL);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (in && inStr)
-        XMEMCPY(in, inStr, inLen);
+    if (in == NULL || plain == NULL || cipher == NULL) {
+        printf("test_wc_RsaSSL_SignVerify failed\n");
+        return MEMORY_E;
+    }
 #endif
+    XMEMCPY(in, inStr, inLen);
 
     ret = wc_InitRsaKey(&key, NULL);
 
