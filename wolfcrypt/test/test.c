@@ -12687,8 +12687,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
     int              ret     = 0;
-    const char*      inStr   = "Everyone gets Friday off.";
-    word32           inLen   = (word32)XSTRLEN((char*)inStr);
+    const char       inStr[] = "Everyone gets Friday off.";
+    word32           inLen   = (word32)(sizeof(inStr)-1); /* do not include NULL term */
     word32           outSz;
     word32           plainSz;
     word32           digestSz;
@@ -14058,8 +14058,8 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
                                  !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    const char* inStr = "Everyone gets Friday off.";
-    word32      inLen = (word32)XSTRLEN((char*)inStr);
+    const char inStr[] = "Everyone gets Friday off.";
+    const word32 inLen = (word32)(sizeof(inStr)-1); /* do not include NULL */
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
 #endif
