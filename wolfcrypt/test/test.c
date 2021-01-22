@@ -12734,12 +12734,10 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((in == NULL) || (out == NULL) || (sig == NULL))
+    if (in == NULL || out == NULL || sig == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_pss);
-
-    if (in && inStr)
-        XMEMCPY(in, inStr, inLen);
 #endif
+    XMEMCPY(in, inStr, inLen);
 
     /* Test all combinations of hash and MGF. */
     for (j = 0; j < (int)(sizeof(hash)/sizeof(*hash)); j++) {
@@ -13027,7 +13025,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((key == NULL) || (out == NULL) || (plain == NULL))
+    if (key == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_nopadding);
 #endif
 
@@ -13252,7 +13250,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((out == NULL) || (plain == NULL))
+    if (out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_even_mod);
 #endif
 
@@ -14093,12 +14091,10 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((in == NULL) || (out == NULL) || (plain == NULL))
+    if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
-
-    if (in && inStr)
-        XMEMCPY(in, inStr, inLen);
 #endif
+    XMEMCPY(in, inStr, inLen);
 
 #ifdef WOLFSSL_SMALL_STACK
     if (key == NULL)
@@ -19416,7 +19412,7 @@ static int ecc_test_vector_item(const eccVector* vector)
     if (sig == NULL)
         ERROR_OUT(MEMORY_E, done);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
-    if (sigRaw == NULL)
+    if (sigRaw == NULL || r == NULL || s == NULL)
         ERROR_OUT(MEMORY_E, done);
 #endif
 #endif
@@ -20412,7 +20408,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
-    if ((sharedA == NULL) || (sharedB == NULL))
+    if (sharedA == NULL || sharedB == NULL)
         ERROR_OUT(-9900, done);
 #endif
 
@@ -20422,7 +20418,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif
 
 #ifdef HAVE_ECC_SIGN
-    if ((sig == NULL) || (digest == NULL))
+    if (sig == NULL || digest == NULL)
         ERROR_OUT(-9902, done);
 #endif
 #endif /* WOLFSSL_SMALL_STACK */
