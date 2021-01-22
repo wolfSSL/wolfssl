@@ -10632,6 +10632,11 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     if (ctx == NULL)
         return;
 
+    ctx->verifyPeer     = 0;
+    ctx->verifyNone     = 0;
+    ctx->failNoCert     = 0;
+    ctx->failNoCertxPSK = 0;
+
     if (mode & WOLFSSL_VERIFY_PEER) {
         ctx->verifyPeer = 1;
         ctx->verifyNone = 0;  /* in case previously set */
@@ -10673,6 +10678,11 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
     WOLFSSL_ENTER("wolfSSL_set_verify");
     if (ssl == NULL)
         return;
+
+    ssl->options.verifyPeer     = 0;
+    ssl->options.verifyNone     = 0;
+    ssl->options.failNoCert     = 0;
+    ssl->options.failNoCertxPSK = 0;
 
     if (mode & WOLFSSL_VERIFY_PEER) {
         ssl->options.verifyPeer = 1;
@@ -45678,11 +45688,25 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 
 int wolfSSL_get_verify_mode(WOLFSSL* ssl) {
-    if(ssl == NULL) {
-        return BAD_FUNC_ARG;
-    }
+    int mode = 0;
+    WOLFSSL_ENTER("wolfSSL_get_verify_mode");
 
-    return wolfSSL_CTX_get_verify_mode(ssl->ctx);
+    if(!ssl)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (ssl->options.verifyPeer)
+        mode |= WOLFSSL_VERIFY_PEER;
+    else if (ssl->options.verifyNone)
+        mode |= WOLFSSL_VERIFY_NONE;
+
+    if (ssl->options.failNoCert)
+        mode |= WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    if (ssl->options.failNoCertxPSK)
+        mode |= WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
+
+    WOLFSSL_LEAVE("wolfSSL_get_verify_mode", mode);
+    return mode;
 }
 
 int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
