@@ -1826,7 +1826,7 @@ static void* benchmarks_do(void* args)
             (bench_asym_algs & BENCH_ECC_ENCRYPT)) {
 
         if (bench_asym_algs & BENCH_ECC_ALL) {
-            #ifdef HAVE_FIPS
+            #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
             printf("not supported in FIPS mode (no ending enum value)\n");
             #else
             int curveId = (int)ECC_SECP192R1;
