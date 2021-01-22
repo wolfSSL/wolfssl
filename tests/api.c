@@ -15464,7 +15464,7 @@ static int test_wc_RsaSSL_SignVerify (void)
     DECLARE_VAR(plain, byte, plainSz, NULL);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (in == NULL || plain == NULL || cipher == NULL) {
+    if (in == NULL || out == NULL || plain == NULL) {
         printf("test_wc_RsaSSL_SignVerify failed\n");
         return MEMORY_E;
     }
