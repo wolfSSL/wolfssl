@@ -6497,7 +6497,6 @@ static int DoTls13EndOfEarlyData(WOLFSSL* ssl, const byte* input,
     }
 
     ssl->earlyData = done_early_data;
-    ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
 
     /* Always encrypted. */
     *inOutIdx += ssl->keys.padSz;
@@ -8657,13 +8656,13 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)
             return WOLFSSL_FATAL_ERROR;
-	/* on client side, status is set to rejected  */
-	/* until sever accepts early data             */
+        /* on client side, status is set to rejected        */
+        /* until sever accepts the early data extension.    */
         ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
     }
     if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {
 #ifdef OPENSSL_EXTRA
-	/* when processed early data exceeds max size */
+        /* when processed early data exceeds max size */
         if (ssl->earlyDataSz + sz > ssl->session.maxEarlyDataSz) {
             ssl->error = TOO_MUCH_EARLY_DATA;
             return WOLFSSL_FATAL_ERROR;

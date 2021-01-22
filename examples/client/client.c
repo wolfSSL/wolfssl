@@ -340,7 +340,7 @@ static void EarlyDataStatus(WOLFSSL* ssl)
     
     switch(earlyData_status) {
         case WOLFSSL_EARLY_DATA_NOT_SENT:
-                printf("not setn.\n");
+                printf("not sent.\n");
                 break;
         case WOLFSSL_EARLY_DATA_REJECTED:
                 printf("rejected.\n");

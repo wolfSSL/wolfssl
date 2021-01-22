@@ -9107,12 +9107,17 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (length != 0)
             return BUFFER_E;
 
-        if (ssl->earlyData == expecting_early_data)
+        if (ssl->earlyData == expecting_early_data) {
+            
+            if (ssl->options.maxEarlyDataSz != 0)
+                ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
+            else
+                ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
+            
             return TLSX_EarlyData_Use(ssl, 0);
+        }
         ssl->earlyData = early_data_ext;
-        /* client wants to send early data. set this to rejected here.      */
-        /* Later, it is set to accepted if the server accepts the data.     */
-        ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
+        
         return 0;
     }
     if (msgType == encrypted_extensions) {
@@ -9125,9 +9130,10 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (ssl->options.pskIdIndex != 1)
             return PSK_KEY_ERROR;
 
-        if (ssl->options.side == WOLFSSL_CLIENT_END)
-	    /* server could accept early data. */
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            /* the extension from server comes in */
             ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
+        }
 
         return TLSX_EarlyData_Use(ssl, 1);
     }
