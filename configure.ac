@@ -166,6 +166,21 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
     ])
 
+case "$FIPS_VERSION" in
+none) if test -s wolfcrypt/src/fips.c || test -s ctaocrypt/src/fips.c; then
+        AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])
+    fi
+    ;;
+v1) if ! test -s ctaocrypt/src/fips.c; then
+        AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])
+    fi
+    ;;
+*) if ! test -s wolfcrypt/src/fips.c; then
+        AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])
+   fi
+   ;;
+esac
+
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
