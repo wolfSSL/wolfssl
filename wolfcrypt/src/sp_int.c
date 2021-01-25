@@ -12065,7 +12065,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         a->dp[1] = w;
         w >>= SP_WORD_SIZE;
         a->dp[2] = w;
-        a->used = m->used * 2;
+        a->used = m->used * 2 + 1;
         /* mp is SP_WORD_SIZE */
         bits = SP_WORD_SIZE;
     }
