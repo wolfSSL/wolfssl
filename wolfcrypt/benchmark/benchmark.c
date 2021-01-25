@@ -210,6 +210,9 @@
     #define TEST_SLEEP()
 #endif
 
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
+
 
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
@@ -2263,8 +2266,8 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((bench_additional == NULL) || (bench_tag == NULL)) {
-        printf("malloc failed\n");
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesgcm_internal malloc failed\n");
         goto exit;
     }
 #endif
@@ -2748,9 +2751,10 @@ void bench_aesccm(void)
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
+
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((bench_additional == NULL) || (bench_tag == NULL)) {
-        printf("malloc failed\n");
+    if (bench_additional == NULL || bench_tag == NULL) {
+        printf("bench_aesccm malloc failed\n");
         goto exit;
     }
 #endif
@@ -4557,13 +4561,13 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     int         ret = 0, i, times, count = 0, pending = 0;
     word32      idx = 0;
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    const char* messageStr = "Everyone gets Friday off.";
-    const int   len = (int)XSTRLEN((char*)messageStr);
+    const char* messageStr = TEST_STRING;
+    const int   len = (int)TEST_STRING_SZ;
 #endif
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
+    DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
@@ -4602,6 +4606,9 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
+#endif
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
+    XMEMCPY(message, messageStr, len);
 #endif
 
     if (!rsa_sign_verify) {
@@ -4952,7 +4959,7 @@ void bench_dh(int doAsync)
     DECLARE_ARRAY(priv, byte, BENCH_MAX_PENDING, BENCH_DH_PRIV_SIZE, HEAP_HINT);
     DECLARE_VAR(priv2, byte, BENCH_DH_PRIV_SIZE, HEAP_HINT);
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((pub[0] == NULL) || (pub2 == NULL) || (agree[0] == NULL) || (priv[0] == NULL) || (priv2 == NULL)) {
+    if (pub[0] == NULL || pub2 == NULL || agree[0] == NULL || priv[0] == NULL || priv2 == NULL) {
         ret = MEMORY_E;
         goto exit;
     }

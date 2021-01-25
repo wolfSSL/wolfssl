@@ -396,6 +396,16 @@ typedef struct testVector {
 static const char* passed = "passed";
 static const char* failed = "failed";
 
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
+
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#define TEST_RSA_BITS 1024
+#else
+#define TEST_RSA_BITS 2048
+#endif
+#define TEST_RSA_BYTES (TEST_RSA_BITS/8)
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
     static const char* bogusFile  =
@@ -2312,8 +2322,8 @@ static void test_ED25519(void)
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED25519_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
-    const char*  msg = "Everyone gets Friday off.";
-    unsigned int msglen = (unsigned int)XSTRLEN(msg);
+    const char*  msg = TEST_STRING;
+    unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED25519_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
 
@@ -2338,8 +2348,8 @@ static void test_ED448(void)
     unsigned int privSz = (unsigned int)sizeof(priv);
     byte         pub[ED448_PUB_KEY_SIZE];
     unsigned int pubSz = (unsigned int)sizeof(pub);
-    const char*  msg = "Everyone gets Friday off.";
-    unsigned int msglen = (unsigned int)XSTRLEN(msg);
+    const char*  msg = TEST_STRING;
+    unsigned int msglen = (unsigned int)TEST_STRING_SZ;
     byte         sig[ED448_SIG_SIZE];
     unsigned int sigSz = (unsigned int)sizeof(sig);
 
@@ -9228,8 +9238,8 @@ static int test_wc_Sha3_224_Copy (void)
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
     wc_Sha3        sha3, sha3Cpy;
-    const char* msg = "Everyone gets Friday off.";
-    word32      msglen = (word32)XSTRLEN(msg);
+    const char* msg = TEST_STRING;
+    word32      msglen = (word32)TEST_STRING_SZ;
     byte        hash[WC_SHA3_224_DIGEST_SIZE];
     byte        hashCpy[WC_SHA3_224_DIGEST_SIZE];
 
@@ -9293,8 +9303,8 @@ static int test_wc_Sha3_256_Copy (void)
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
     wc_Sha3        sha3, sha3Cpy;
-    const char* msg = "Everyone gets Friday off.";
-    word32      msglen = (word32)XSTRLEN(msg);
+    const char* msg = TEST_STRING;
+    word32      msglen = (word32)TEST_STRING_SZ;
     byte        hash[WC_SHA3_256_DIGEST_SIZE];
     byte        hashCpy[WC_SHA3_256_DIGEST_SIZE];
 
@@ -9358,8 +9368,8 @@ static int test_wc_Sha3_384_Copy (void)
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
     wc_Sha3        sha3, sha3Cpy;
-    const char* msg = "Everyone gets Friday off.";
-    word32      msglen = (word32)XSTRLEN(msg);
+    const char* msg = TEST_STRING;
+    word32      msglen = (word32)TEST_STRING_SZ;
     byte        hash[WC_SHA3_384_DIGEST_SIZE];
     byte        hashCpy[WC_SHA3_384_DIGEST_SIZE];
 
@@ -9423,8 +9433,8 @@ static int test_wc_Sha3_512_Copy (void)
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
     wc_Sha3        sha3, sha3Cpy;
-    const char* msg = "Everyone gets Friday off.";
-    word32      msglen = (word32)XSTRLEN(msg);
+    const char* msg = TEST_STRING;
+    word32      msglen = (word32)TEST_STRING_SZ;
     byte        hash[WC_SHA3_512_DIGEST_SIZE];
     byte        hashCpy[WC_SHA3_512_DIGEST_SIZE];
 
@@ -9665,8 +9675,8 @@ static int test_wc_Shake256_Copy (void)
     int         ret = 0;
 #if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
     wc_Shake    shake, shakeCpy;
-    const char* msg = "Everyone gets Friday off.";
-    word32      msglen = (word32)XSTRLEN(msg);
+    const char* msg = TEST_STRING;
+    word32      msglen = (word32)TEST_STRING_SZ;
     byte        hash[144];
     byte        hashCpy[144];
     word32      hashLen = sizeof(hash);
@@ -13887,8 +13897,8 @@ static int test_wc_RabbitProcess (void)
     const char* key     =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
                             "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
     const char* iv      =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
-    const char* input   =   "Everyone gets Friday off.";
-    unsigned long int inlen = XSTRLEN(input);
+    const char* input   =   TEST_STRING;
+    unsigned long int inlen = (unsigned long int)TEST_STRING_SZ;
 
     /* Initialize stack variables. */
     XMEMSET(cipher, 0, sizeof(cipher));
@@ -15225,20 +15235,24 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
-    word32  plainLen = 25;
-    word32  inLen = (word32)XSTRLEN(inStr);
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    int         bits = 1024;
-    word32  cipherLen = 128;
-    #else
-    int         bits = 2048;
-    word32  cipherLen = 256;
-    #endif
+    const char inStr[] = TEST_STRING;
+    const word32 plainLen = (word32)TEST_STRING_SZ;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    int          bits = TEST_RSA_BITS;
+    const word32 cipherLen = TEST_RSA_BYTES;
+    word32 cipherLenResult = cipherLen;
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(plain, byte, plainLen, NULL);
-    DECLARE_VAR(cipher, byte, cipherLen, NULL);
+    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || plain == NULL || cipher == NULL) {
+        printf("test_wc_RsaPublicEncryptDecrypt malloc failed\n");
+        return MEMORY_E;
+    }
+#endif
+    XMEMCPY(in, inStr, inLen);
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -15253,7 +15267,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     if (ret == 0) {
         ret = wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng);
         if (ret >= 0) {
-            cipherLen = ret;
+            cipherLenResult = ret;
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -15276,7 +15290,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
         }
     #endif
     if (ret == 0) {
-        ret = wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key);
+        ret = wc_RsaPrivateDecrypt(cipher, cipherLenResult, plain, plainLen, &key);
     }
     if (ret >= 0) {
         ret = XMEMCMP(plain, inStr, plainLen);
@@ -15313,22 +15327,25 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         && !defined(NO_SHA)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
-    word32  inLen = (word32)XSTRLEN(inStr);
-    const word32 plainSz = 25;
+    const char inStr[] = TEST_STRING;
+    const word32 inLen = (word32)TEST_STRING_SZ;
+    const word32 plainSz = (word32)TEST_STRING_SZ;
     byte*   res = NULL;
     int     idx = 0;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    int          bits = 1024;
-    const word32 cipherSz = 128;
-    #else
-    int          bits = 2048;
-    const word32 cipherSz = 256;
-    #endif
+    int          bits = TEST_RSA_BITS;
+    const word32 cipherSz = TEST_RSA_BYTES;
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(plain, byte, plainSz, NULL);
-    DECLARE_VAR(cipher, byte, cipherSz, NULL);
+    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+    DECLARE_VAR(cipher, byte, TEST_RSA_BYTES, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || plain == NULL || cipher == NULL) {
+        printf("test_wc_RsaPublicEncryptDecrypt_exmalloc failed\n");
+        return MEMORY_E;
+    }
+#endif
+    XMEMCPY(in, inStr, inLen);
 
     /* Initialize stack structures. */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -15431,21 +15448,24 @@ static int test_wc_RsaSSL_SignVerify (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    const char* inStr = "Everyone gets Friday off.";
-    const word32 plainSz = 25;
-    word32  inLen = (word32)XSTRLEN(inStr);
+    const char inStr[] = TEST_STRING;
+    const word32 plainSz = (word32)TEST_STRING_SZ;
+    const word32 inLen = (word32)TEST_STRING_SZ;
     word32  idx = 0;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    int          bits = 1024;
-    const word32 outSz = 128;
-    #else
-    int          bits = 2048;
-    const word32 outSz = 256;
-    #endif
+    int          bits = TEST_RSA_BITS;
+    const word32 outSz = TEST_RSA_BYTES;
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(out, byte, outSz, NULL);
-    DECLARE_VAR(plain, byte, plainSz, NULL);
+    DECLARE_VAR(in, byte, TEST_STRING_SZ, NULL);
+    DECLARE_VAR(out, byte, TEST_RSA_BYTES, NULL);
+    DECLARE_VAR(plain, byte, TEST_STRING_SZ, NULL);
+
+#ifdef DECLARE_VAR_IS_HEAP_ALLOC
+    if (in == NULL || out == NULL || plain == NULL) {
+        printf("test_wc_RsaSSL_SignVerify failed\n");
+        return MEMORY_E;
+    }
+#endif
+    XMEMCPY(in, inStr, inLen);
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -20206,8 +20226,8 @@ static int test_wc_ecc_signVerify_hash (void)
     #endif
     word32      siglen = ECC_BUFSIZE;
     byte        sig[ECC_BUFSIZE];
-    byte        digest[] = "Everyone gets Friday off.";
-    word32      digestlen = (word32)XSTRLEN((char*)digest);
+    byte        digest[] = TEST_STRING;
+    word32      digestlen = (word32)TEST_STRING_SZ;
 
     /* Init stack var */
     XMEMSET(sig, 0, siglen);
@@ -21753,7 +21773,7 @@ static int test_wc_ecc_verify_hash_ex (void)
     mp_int          s;
     unsigned char   hash[] = "Everyone gets Friday off.EccSig";
     unsigned char   iHash[] = "Everyone gets Friday off.......";
-    unsigned char   shortHash[] = "Everyone gets Friday off.";
+    unsigned char   shortHash[] = TEST_STRING;
     word32          hashlen = sizeof(hash);
     word32          iHashLen = sizeof(iHash);
     word32          shortHashLen = sizeof(shortHash);
@@ -30286,7 +30306,7 @@ static int test_WOLFSSL_ERROR_MSG (void)
     int ret = 0;
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
-    const char* msg = "Everyone gets Friday off.";
+    const char* msg = TEST_STRING;
 
     printf(testingFmt, "WOLFSSL_ERROR_MSG()");
 

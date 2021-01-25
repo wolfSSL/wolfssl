@@ -322,6 +322,9 @@ static int devId = INVALID_DEVID;
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
 
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
+
 typedef struct testVector {
     const char*  input;
     const char*  output;
@@ -12143,7 +12146,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
     int ret;
     word32 sigSz;
-    WOLFSSL_SMALL_STACK_STATIC const byte in[] = "Everyone gets Friday off.";
+    WOLFSSL_SMALL_STACK_STATIC const byte in[] = TEST_STRING;
     WOLFSSL_SMALL_STACK_STATIC const byte hash[] = {
         0xf2, 0x02, 0x95, 0x65, 0xcb, 0xf6, 0x2a, 0x59,
         0x39, 0x2c, 0x05, 0xff, 0x0e, 0x29, 0xaf, 0xfe,
@@ -12687,8 +12690,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 {
     byte             digest[WC_MAX_DIGEST_SIZE];
     int              ret     = 0;
-    const char*      inStr   = "Everyone gets Friday off.";
-    word32           inLen   = (word32)XSTRLEN((char*)inStr);
+    const char       inStr[] = TEST_STRING;
+    word32           inLen   = (word32)TEST_STRING_SZ;
     word32           outSz;
     word32           plainSz;
     word32           digestSz;
@@ -12729,14 +12732,15 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #endif
                                };
 
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+    DECLARE_VAR(in, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((in == NULL) || (out == NULL) || (sig == NULL))
+    if (in == NULL || out == NULL || sig == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_pss);
 #endif
+    XMEMCPY(in, inStr, inLen);
 
     /* Test all combinations of hash and MGF. */
     for (j = 0; j < (int)(sizeof(hash)/sizeof(*hash)); j++) {
@@ -13024,7 +13028,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((key == NULL) || (out == NULL) || (plain == NULL))
+    if (key == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_nopadding);
 #endif
 
@@ -13249,7 +13253,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((out == NULL) || (plain == NULL))
+    if (out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa_even_mod);
 #endif
 
@@ -14057,8 +14061,8 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
                                  !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    const char* inStr = "Everyone gets Friday off.";
-    word32      inLen = (word32)XSTRLEN((char*)inStr);
+    const char inStr[] = TEST_STRING;
+	const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
 #endif
@@ -14084,15 +14088,16 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
                                  !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
-    DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+    DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 #endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if ((in == NULL) || (out == NULL) || (plain == NULL))
+    if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
+    XMEMCPY(in, inStr, inLen);
 
 #ifdef WOLFSSL_SMALL_STACK
     if (key == NULL)
@@ -18276,7 +18281,7 @@ WOLFSSL_TEST_SUBROUTINE int openssl_pkey0_test(void)
     EVP_PKEY_CTX *enc = NULL;
     EVP_PKEY_CTX *dec = NULL;
 
-    byte   in[] = "Everyone gets Friday off.";
+    byte   in[] = TEST_STRING;
     byte   out[256];
     size_t outlen;
     size_t keySz;
@@ -19410,7 +19415,7 @@ static int ecc_test_vector_item(const eccVector* vector)
     if (sig == NULL)
         ERROR_OUT(MEMORY_E, done);
 #if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
-    if (sigRaw == NULL)
+    if (sigRaw == NULL || r == NULL || s == NULL)
         ERROR_OUT(MEMORY_E, done);
 #endif
 #endif
@@ -20406,7 +20411,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
 #if (defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
-    if ((sharedA == NULL) || (sharedB == NULL))
+    if (sharedA == NULL || sharedB == NULL)
         ERROR_OUT(-9900, done);
 #endif
 
@@ -20416,7 +20421,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif
 
 #ifdef HAVE_ECC_SIGN
-    if ((sig == NULL) || (digest == NULL))
+    if (sig == NULL || digest == NULL)
         ERROR_OUT(-9902, done);
 #endif
 #endif /* WOLFSSL_SMALL_STACK */
@@ -21100,7 +21105,7 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
     word32  sigSz;
     int     size;
     byte    out[ECC_MAX_SIG_SIZE];
-    byte    in[] = "Everyone gets Friday off.";
+    byte    in[] = TEST_STRING;
     WOLFSSL_SMALL_STACK_STATIC const byte hash[] = {
         0xf2, 0x02, 0x95, 0x65, 0xcb, 0xf6, 0x2a, 0x59,
         0x39, 0x2c, 0x05, 0xff, 0x0e, 0x29, 0xaf, 0xfe,
