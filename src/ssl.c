@@ -10639,7 +10639,8 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
 
     if (mode == WOLFSSL_VERIFY_NONE) {
         ctx->verifyNone = 1;
-    } else {
+    }
+    else {
         if (mode & WOLFSSL_VERIFY_PEER) {
             ctx->verifyPeer = 1;
         }
@@ -10681,7 +10682,8 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
 
     if (mode == WOLFSSL_VERIFY_NONE) {
         ssl->options.verifyNone = 1;
-    } else {
+    }
+    else {
         if (mode & WOLFSSL_VERIFY_PEER) {
             ssl->options.verifyPeer = 1;
         }
@@ -45683,18 +45685,23 @@ int wolfSSL_get_verify_mode(WOLFSSL* ssl) {
     int mode = 0;
     WOLFSSL_ENTER("wolfSSL_get_verify_mode");
 
-    if(!ssl)
-        return WOLFSSL_FATAL_ERROR;
+    if (!ssl) {
+        return WOLFSSL_FAILURE;
+    }
 
     if (ssl->options.verifyNone) {
         mode = WOLFSSL_VERIFY_NONE;
-    } else {
-        if (ssl->options.verifyPeer)
+    }
+    else {
+        if (ssl->options.verifyPeer) {
             mode |= WOLFSSL_VERIFY_PEER;
-        if (ssl->options.failNoCert)
+        }
+        if (ssl->options.failNoCert) {
             mode |= WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-        if (ssl->options.failNoCertxPSK)
+        }
+        if (ssl->options.failNoCertxPSK) {
             mode |= WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
+        }
     }
 
     WOLFSSL_LEAVE("wolfSSL_get_verify_mode", mode);
@@ -45706,18 +45713,23 @@ int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
     int mode = 0;
     WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
 
-    if(!ctx)
-        return WOLFSSL_FATAL_ERROR;
+    if (!ctx) {
+        return WOLFSSL_FAILURE;
+    }
 
     if (ctx->verifyNone) {
         mode = WOLFSSL_VERIFY_NONE;
-    } else {
-        if (ctx->verifyPeer)
+    }
+    else {
+        if (ctx->verifyPeer) {
             mode |= WOLFSSL_VERIFY_PEER;
-        if (ctx->failNoCert)
+        }
+        if (ctx->failNoCert) {
             mode |= WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-        if (ctx->failNoCertxPSK)
+        }
+        if (ctx->failNoCertxPSK) {
             mode |= WOLFSSL_VERIFY_FAIL_EXCEPT_PSK;
+        }
     }
 
     WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
