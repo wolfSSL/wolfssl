@@ -1850,8 +1850,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     FreeDer(&ctx->certificate);
     #ifdef KEEP_OUR_CERT
         if (ctx->ourCert && ctx->ownOurCert) {
-            FreeX509(ctx->ourCert);
-            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+            wolfSSL_X509_free(ctx->ourCert);
             ctx->ourCert = NULL;
         }
     #endif /* KEEP_OUR_CERT */

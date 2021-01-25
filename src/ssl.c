@@ -5461,11 +5461,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
             #ifdef KEEP_OUR_CERT
-                FreeX509(ssl->ourCert);
-                if (ssl->ourCert) {
-                    XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
-                    ssl->ourCert = NULL;
-                }
+                wolfSSL_X509_free(ssl->ourCert);
+                ssl->ourCert = NULL;
             #endif
             }
             ssl->buffers.certificate = der;
@@ -5478,10 +5475,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
         #ifdef KEEP_OUR_CERT
             if (ctx->ourCert) {
-                if (ctx->ownOurCert) {
-                    FreeX509(ctx->ourCert);
-                    XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
-                }
+                if (ctx->ownOurCert)
+                    wolfSSL_X509_free(ctx->ourCert);
                 ctx->ourCert = NULL;
             }
         #endif
@@ -14772,11 +14767,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
             #ifdef KEEP_OUR_CERT
-                FreeX509(ssl->ourCert);
-                if (ssl->ourCert) {
-                    XFREE(ssl->ourCert, ssl->heap, DYNAMIC_TYPE_X509);
-                    ssl->ourCert = NULL;
-                }
+            wolfSSL_X509_free(ssl->ourCert);
+            ssl->ourCert = NULL;
             #endif
             ssl->buffers.weOwnCert = 0;
         }
@@ -42189,8 +42181,7 @@ err:
                 x->derCert->length);
 #ifdef KEEP_OUR_CERT
         if (ctx->ourCert != NULL && ctx->ownOurCert) {
-            FreeX509(ctx->ourCert);
-            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+            wolfSSL_X509_free(ctx->ourCert);
         }
         #ifndef WOLFSSL_X509_STORE_CERTS
         ctx->ourCert = x;
