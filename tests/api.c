@@ -2646,8 +2646,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         ctx = wolfSSL_CTX_new(method);
     }
 
-#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
-                                    defined(HAVE_POLY1305)
+#if defined(HAVE_SESSION_TICKET) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
+      defined(HAVE_AESGCM))
     TicketInit();
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
@@ -31486,7 +31487,7 @@ static void test_wolfSSL_SESSION(void)
     /* CHACHA and POLY1305 required for myTicketEncCb */
 #if defined(WOLFSSL_TLS13) && (!defined(HAVE_SESSION_TICKET) && \
     !defined(WOLFSSL_NO_TLS12) || !(defined(HAVE_CHACHA) && \
-            defined(HAVE_POLY1305)))
+            defined(HAVE_POLY1305) && !defined(HAVE_AESGCM)))
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
