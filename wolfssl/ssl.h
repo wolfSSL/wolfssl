@@ -3834,8 +3834,8 @@ WOLFSSL_API int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names);
     defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
-WOLFSSL_API int wolfSSL_get_verify_mode(WOLFSSL* ssl);
-WOLFSSL_API int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx);
+WOLFSSL_API int wolfSSL_get_verify_mode(const WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_CTX_get_verify_mode(const WOLFSSL_CTX* ctx);
 
 #endif
 

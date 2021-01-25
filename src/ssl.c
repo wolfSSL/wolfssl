@@ -45681,7 +45681,7 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 
 /* TODO: Doesn't currently track SSL_VERIFY_CLIENT_ONCE */
-int wolfSSL_get_verify_mode(WOLFSSL* ssl) {
+int wolfSSL_get_verify_mode(const WOLFSSL* ssl) {
     int mode = 0;
     WOLFSSL_ENTER("wolfSSL_get_verify_mode");
 
@@ -45708,7 +45708,7 @@ int wolfSSL_get_verify_mode(WOLFSSL* ssl) {
     return mode;
 }
 
-int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
+int wolfSSL_CTX_get_verify_mode(const WOLFSSL_CTX* ctx)
 {
     int mode = 0;
     WOLFSSL_ENTER("wolfSSL_CTX_get_verify_mode");
