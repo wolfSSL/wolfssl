@@ -6201,29 +6201,29 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 
 #if defined(HAVE_ECC)
 /* try and populate public pkey_sz and pkey.ptr */
-static void ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
+static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 {
-    int ret;
+    word32 derSz = 0;
     if (!pkey || !ecc)
-        return;
-    if ((ret = wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
-        int derSz = ret;
-        char* derBuf = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
+        byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
         if (derBuf) {
-            ret = wc_EccPublicKeyToDer(ecc, (byte*)derBuf, derSz, 1);
-            if (ret >= 0) {
+            if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) >= 0) {
                 if (pkey->pkey.ptr) {
                     XFREE(pkey->pkey.ptr, NULL, DYNAMIC_TYPE_OPENSSL);
                 }
-                pkey->pkey_sz = ret;
-                pkey->pkey.ptr = derBuf;
+                pkey->pkey_sz = (int)derSz;
+                pkey->pkey.ptr = (char*)derBuf;
+                return WOLFSSL_SUCCESS;
             }
-            else { /* failure - okay to ignore */
-                XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            else {
+                XFREE(derBuf, NULL, DYNAMIC_TYPE_OPENSSL);
                 derBuf = NULL;
             }
         }
     }
+    return WOLFSSL_FAILURE;
 }
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
@@ -6255,8 +6255,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_
     pkey->ecc    = key;
     pkey->ownEcc = 0; /* pkey does not own EC key */
     pkey->type   = EVP_PKEY_EC;
-    ECC_populate_EVP_PKEY(pkey, (ecc_key*)key->internal);
-    return WOLFSSL_SUCCESS;
+    return ECC_populate_EVP_PKEY(pkey, (ecc_key*)key->internal);
 #else
     (void)pkey;
     (void)key;
@@ -6292,9 +6291,7 @@ int wolfSSL_EVP_PKEY_assign_EC_KEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
     pkey->ownEcc = 1;
 
     /* try and populate public pkey_sz and pkey.ptr */
-    ECC_populate_EVP_PKEY(pkey, (ecc_key*)key->internal);
-
-    return WOLFSSL_SUCCESS;
+    return ECC_populate_EVP_PKEY(pkey, (ecc_key*)key->internal);
 }
 #endif /* HAVE_ECC */
 
