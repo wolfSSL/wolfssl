@@ -7168,9 +7168,12 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
-   if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
-      return ECC_BAD_ARG_E;
+   if (key->type == ECC_STATE_NONE ||
+       wc_ecc_is_valid_idx(key->idx) == 0 ||
+       key->dp == NULL) {
+       return ECC_BAD_ARG_E;
    }
+
    numlen = key->dp->size;
 
     /* verify room in out buffer */
@@ -11235,9 +11238,15 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
    if (key == NULL || out == NULL || outLen == NULL)
        return BAD_FUNC_ARG;
 
-   if (wc_ecc_is_valid_idx(key->idx) == 0) {
-      return ECC_BAD_ARG_E;
+   if (key->type == ECC_PRIVATEKEY_ONLY)
+       return ECC_PRIVATEONLY_E;
+
+   if (key->type == ECC_STATE_NONE ||
+       wc_ecc_is_valid_idx(key->idx) == 0 ||
+       key->dp == NULL) {
+       return ECC_BAD_ARG_E;
    }
+
    numlen = key->dp->size;
 
    if (*outLen < (1 + numlen)) {
