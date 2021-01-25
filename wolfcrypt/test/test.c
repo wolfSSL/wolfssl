@@ -13715,7 +13715,7 @@ exit_rsa_nopadding:
 }
 #endif /* WC_RSA_NO_PADDING */
 
-#ifdef WOLFSSL_HAVE_SP_RSA
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(USE_FAST_MATH)
 static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 {
     byte*  tmp = NULL;
@@ -15601,8 +15601,9 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #endif
 
-#ifdef WOLFSSL_HAVE_SP_RSA
+#if defined(WOLFSSL_HAVE_SP_RSA) && defined(USE_FAST_MATH)
 #ifdef WOLFSSL_SMALL_STACK
+    /* New key to be loaded in rsa_even_mod_test(). */
     if (key != NULL)
 #endif
         wc_FreeRsaKey(key);
@@ -16140,7 +16141,7 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
         ERROR_OUT(-8059, done);
     }
 
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(USE_FAST_MATH)
     /* Make p even */
     key->p.dp[0] &= (mp_digit)-2;
     if (ret != 0) {

@@ -3061,6 +3061,7 @@ exit:
 
    (void)a;
 
+#ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
    if (mp_count_bits(modulus) == 256) {
        return sp_ecc_mulmod_256(k, G, R, map, heap);
@@ -3070,6 +3071,11 @@ exit:
    if (mp_count_bits(modulus) == 384) {
        return sp_ecc_mulmod_384(k, G, R, map, heap);
    }
+#endif
+#else
+   (void)map;
+   (void)map;
+   (void)heap;
 #endif
    return ECC_BAD_ARG_E;
 }
@@ -3213,6 +3219,7 @@ exit:
    (void)order;
    (void)rng;
 
+#ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
    if (mp_count_bits(modulus) == 256) {
        return sp_ecc_mulmod_256(k, G, R, map, heap);
@@ -3222,6 +3229,10 @@ exit:
    if (mp_count_bits(modulus) == 384) {
        return sp_ecc_mulmod_384(k, G, R, map, heap);
    }
+#endif
+#else
+   (void)map;
+   (void)heap;
 #endif
    return ECC_BAD_ARG_E;
 }
@@ -3881,6 +3892,11 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     }
     else
 #endif
+#else
+    (void)point;
+    (void)out;
+    (void)outlen;
+    (void)k;
 #endif
 #if defined(WOLFSSL_SP_MATH)
     {
@@ -5244,8 +5260,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_HAVE_SP_ECC) || \
-                  (defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_HAVE_SP_ECC))
+#if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+                                                    defined(WOLFSSL_HAVE_SP_ECC)
     if (key->idx != ECC_CUSTOM_IDX
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
@@ -5304,6 +5320,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         }
     #endif
     }
+#else
+   (void)inlen;
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
@@ -6518,9 +6536,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     }
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_HAVE_SP_ECC) || \
-             (defined(WOLFSSL_SP_MATH_ALL) && defined(WOLFSSL_HAVE_SP_ECC)) && \
-                                                     !defined(FREESCALE_LTC_ECC)
+#if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+                                                    defined(WOLFSSL_HAVE_SP_ECC)
     if (key->idx != ECC_CUSTOM_IDX
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         && key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC
@@ -7365,6 +7382,7 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
    (void)a;
    (void)b;
 
+#ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
    if (mp_count_bits(prime) == 256) {
        return sp_ecc_is_point_256(ecp->x, ecp->y);
@@ -7374,6 +7392,10 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
    if (mp_count_bits(prime) == 384) {
        return sp_ecc_is_point_384(ecp->x, ecp->y);
    }
+#endif
+#else
+   (void)ecp;
+   (void)prime;
 #endif
    return WC_KEY_SIZE_E;
 #endif
