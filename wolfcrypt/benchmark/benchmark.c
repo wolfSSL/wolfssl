@@ -210,6 +210,9 @@
     #define TEST_SLEEP()
 #endif
 
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
+
 
 /* Bit values for each algorithm that is able to be benchmarked.
  * Common grouping of algorithms also.
@@ -4502,13 +4505,13 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     int         ret = 0, i, times, count = 0, pending = 0;
     word32      idx = 0;
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    const char* messageStr = "Everyone gets Friday off.";
-    const int   len = (int)XSTRLEN((char*)messageStr);
+    const char* messageStr = TEST_STRING;
+    const int   len = (int)TEST_STRING_SZ;
 #endif
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    DECLARE_VAR(message, byte, len, HEAP_HINT);
+    DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
@@ -4547,6 +4550,8 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         ret = MEMORY_E;
         goto exit;
     }
+#endif
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     XMEMCPY(message, messageStr, len);
 #endif
 
