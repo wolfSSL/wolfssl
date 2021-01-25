@@ -5068,6 +5068,8 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
             WOLFSSL_MSG("Process client ticket rejected, TLS 1.3 no support");
             ssl->options.rejectTicket = 1;
             ret = 0;  /* not fatal */
+        } else if (ssl->options.noTicketTls12) {
+            /* ignore ticket request */
         } else if (length == 0) {
             /* blank ticket */
             ret = TLSX_UseSessionTicket(&ssl->extensions, NULL, ssl->heap);

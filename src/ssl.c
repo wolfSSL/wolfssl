@@ -2788,8 +2788,30 @@ long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+#if defined(HAVE_SESSION_TICKET)
 /* Session Ticket */
-#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SESSION_TICKET)
+
+#if !defined(NO_WOLFSSL_SERVER)
+int wolfSSL_CTX_NoTicketTLSv12(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->noTicketTls12 = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_NoTicketTLSv12(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->options.noTicketTls12 = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_CTX_set_TicketEncCb(WOLFSSL_CTX* ctx, SessionTicketEncCb cb)
 {
@@ -2823,10 +2845,9 @@ int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void* userCtx)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET) */
+#endif /* !NO_WOLFSSL_SERVER */
 
-/* Session Ticket */
-#if !defined(NO_WOLFSSL_CLIENT) && defined(HAVE_SESSION_TICKET)
+#if !defined(NO_WOLFSSL_CLIENT)
 int wolfSSL_UseSessionTicket(WOLFSSL* ssl)
 {
     if (ssl == NULL)
@@ -2907,7 +2928,9 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL* ssl,
 
     return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* !NO_WOLFSSL_CLIENT */
+
+#endif /* HAVE_SESSION_TICKET */
 
 
 #ifdef HAVE_EXTENDED_MASTER
@@ -12805,7 +12828,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case ACCEPT_SECOND_REPLY_DONE :
 #ifdef HAVE_SESSION_TICKET
-            if (ssl->options.createTicket) {
+            if (ssl->options.createTicket && !ssl->options.noTicketTls12) {
                 if ( (ssl->error = SendTicket(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;

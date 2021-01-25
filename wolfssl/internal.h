@@ -2719,8 +2719,11 @@ struct WOLFSSL_CTX {
     byte        minDowngrade;     /* minimum downgrade version */
     byte        haveEMS:1;        /* have extended master secret extension */
     byte        useClientOrder:1; /* Use client's cipher preference order */
+#if defined(HAVE_SESSION_TICKET)
+    byte        noTicketTls12:1;  /* TLS 1.2 server won't send ticket */
+#endif
 #ifdef WOLFSSL_TLS13
-    byte        noTicketTls13:1;  /* Server won't create new Ticket */
+    byte        noTicketTls13:1;  /* TLS 1.3 Server won't create new Ticket */
     byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #endif
     byte        mutualAuth:1;     /* Mutual authentication required */
@@ -3476,6 +3479,7 @@ typedef struct Options {
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
     word16            rejectTicket:1;     /* Callback rejected ticket */
+    word16            noTicketTls12:1;    /* TLS 1.2 server won't send ticket */
 #ifdef WOLFSSL_TLS13
     word16            noTicketTls13:1;    /* Server won't create new Ticket */
 #endif
