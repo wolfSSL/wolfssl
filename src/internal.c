@@ -7222,8 +7222,8 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
         DtlsMsg* cur = head->next;
         DtlsMsg* prev = head;
         while (cur) {
-            if (item->epoch <= head->epoch &&
-                item->seq   <  head->seq) {
+            if (item->epoch <= cur->epoch &&
+                item->seq   <  cur->seq) {
                 item->next = cur;
                 prev->next = item;
                 break;
