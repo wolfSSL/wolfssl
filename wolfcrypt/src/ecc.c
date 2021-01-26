@@ -5544,41 +5544,44 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                if (err != MP_OKAY) break;
 
                if (mp_iszero(r) == MP_NO) {
+                   mp_int* ep = &pubkey->k;
+                   mp_int* kp = &pubkey->k;
+                   mp_int* x  = &key->k;
+
                    /* find s = (e + xr)/k
                              = b.(e/k.b + x.r/k.b) */
 
-                   /* k = k.b */
-                   err = mp_mulmod(&pubkey->k, b, curve->order, &pubkey->k);
+                   /* k' = k.b */
+                   err = mp_mulmod(&pubkey->k, b, curve->order, kp);
                    if (err != MP_OKAY) break;
 
-                   /* k = 1/k.b */
-                   err = mp_invmod(&pubkey->k, curve->order, &pubkey->k);
+                   /* k' = 1/k.b
+                         = 1/k' */
+                   err = mp_invmod(kp, curve->order, kp);
                    if (err != MP_OKAY) break;
 
                    /* s = x.r */
-                   err = mp_mulmod(&key->k, r, curve->order, s);
+                   err = mp_mulmod(x, r, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = x.r/k.b */
-                   err = mp_mulmod(&pubkey->k, s, curve->order, s);
+                   /* s = x.r/k.b
+                        = k'.s */
+                   err = mp_mulmod(kp, s, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   /* e = e/k.b */
-                   err = mp_mulmod(&pubkey->k, e, curve->order, &pubkey->k);
+                   /* e' = e/k.b
+                         = e.k' */
+                   err = mp_mulmod(kp, e, curve->order, ep);
                    if (err != MP_OKAY) break;
 
-                   /* s = e/k.b + x.r/k.b
-                        = (e + x.r)/k.b */
-                   err = mp_add(&pubkey->k, s, s);
+                   /* s = e/k.b + x.r/k.b = (e + x.r)/k.b
+                        = e' + s */
+                   err = mp_addmod_ct(ep, s, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = b.(e + x.r)/k.b
-                        = (e + x.r)/k */
+                   /* s = b.(e + x.r)/k.b = (e + x.r)/k
+                        = b.s */
                    err = mp_mulmod(s, b, curve->order, s);
-                   if (err != MP_OKAY) break;
-
-                   /* s = (e + xr)/k */
-                   err = mp_mod(s, curve->order, s);
                    if (err != MP_OKAY) break;
 
                    if (mp_iszero(s) == MP_NO) {
