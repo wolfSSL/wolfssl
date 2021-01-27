@@ -167,6 +167,8 @@ extern "C" {
         #define SP_WORD_SIZE 16
         #undef WOLFSSL_SP_ASM
     #endif
+#elif defined(WOLFSSL_SP_X86)
+    #define SP_WORD_SIZE 32
 #elif defined(WOLFSSL_SP_ARM64_ASM) || defined(WOLFSSL_SP_ARM64)
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM32)
