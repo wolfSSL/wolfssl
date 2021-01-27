@@ -629,23 +629,12 @@ typedef struct sp_ecc_ctx {
 #define CheckFastMathSettings()   (SP_WORD_SIZE == CheckRunTimeFastMath())
 
 
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    #ifdef HAVE_WOLF_BIGINT
-        #define SP_INT_EXTRA_OVERHEAD    sizeof(int) + sizeof(struct WC_BIGINT)
-    #else
-        #define SP_INT_EXTRA_OVERHEAD    sizeof(int)
-    #endif
-#elif defined(HAVE_WOLF_BIGINT)
-    #define SP_INT_EXTRA_OVERHEAD    sizeof(struct WC_BIGINT)
-#else
-    #define SP_INT_EXTRA_OVERHEAD    0
-#endif
-#define WOLFSSL_SP_INT_OVERHEAD \
-    (sizeof(int) + sizeof(int) + SP_INT_EXTRA_OVERHEAD)
-
+/* The number of bytes to a sp_int with 'cnt' digits. */
 #define MP_INT_SIZEOF(cnt) \
-    (WOLFSSL_SP_INT_OVERHEAD + ((cnt) * SP_WORD_SIZEOF))
-
+    (sizeof(sp_int) - (SP_INT_DIGITS - (cnt)) * sizeof(sp_int_digit))
+/* The address of the next sp_int after one with 'cnt' digits. */
+#define MP_INT_NEXT(t, cnt) \
+        (sp_int*)(((byte*)(t)) + MP_INT_SIZEOF(cnt))
 
 /**
  * A reuslt of NO.
