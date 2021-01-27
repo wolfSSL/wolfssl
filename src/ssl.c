@@ -16464,33 +16464,21 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     switch (version) {
-#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case SSL3_VERSION:
             ctx->minDowngrade = SSLv3_MINOR;
             break;
-#endif
-#ifndef NO_TLS
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_TLSV10
         case TLS1_VERSION:
             ctx->minDowngrade = TLSv1_MINOR;
             break;
-        #endif
         case TLS1_1_VERSION:
             ctx->minDowngrade = TLSv1_1_MINOR;
             break;
-    #endif
-    #ifndef WOLFSSL_NO_TLS12
         case TLS1_2_VERSION:
             ctx->minDowngrade = TLSv1_2_MINOR;
             break;
-    #endif
-    #ifdef WOLFSSL_TLS13
         case TLS1_3_VERSION:
             ctx->minDowngrade = TLSv1_3_MINOR;
             break;
-    #endif
-#endif
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
         case DTLS1_VERSION:
