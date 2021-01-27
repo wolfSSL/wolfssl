@@ -5099,6 +5099,10 @@ do
     AM_CFLAGS="$AM_CFLAGS -DSP_INT_BITS=$v"
     ENABLED_SP_MATH_ALL="yes"
     ;;
+  nomalloc)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
+    ENABLED_SP_MATH_ALL="yes"
+    ;;
   *)
     AC_MSG_ERROR([Support SP int bit sizes: 256, 384, 521, 1024, 2048, 3072, 4096. $ENABLED_SP_MATH_ALL not supported])
     ;;
