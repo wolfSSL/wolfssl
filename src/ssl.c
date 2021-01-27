@@ -39910,6 +39910,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         /* set serial number */
         if (x509->serialSz > 0) {
+        #if defined(OPENSSL_EXTRA)
             byte serial[EXTERNAL_SERIAL_SIZE];
             int  serialSz = EXTERNAL_SERIAL_SIZE;
 
@@ -39920,6 +39921,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             }
             XMEMCPY(cert->serial, serial, serialSz);
             cert->serialSz = serialSz;
+        #else
+            WOLFSSL_MSG("Getting X509 serial number not supported");
+            return WOLFSSL_FAILURE;
+        #endif
         }
 
         /* copy over Name structures */
@@ -39946,6 +39951,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         cert->heap = x509->heap;
 
+        (void)ret;
         return WOLFSSL_SUCCESS;
     }
 
@@ -40141,6 +40147,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if ((x509->serialSz == 0) &&
                 (cert.serialSz <= EXTERNAL_SERIAL_SIZE) &&
                 (cert.serialSz > 0)) {
+        #if defined(OPENSSL_EXTRA)
             WOLFSSL_ASN1_INTEGER *i = wolfSSL_ASN1_INTEGER_new();
 
             if (i == NULL) {
@@ -40161,6 +40168,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 }
                 wolfSSL_ASN1_INTEGER_free(i);
             }
+        #else
+            WOLFSSL_MSG("ASN1_INTEGER API not in build");
+
+            ret = WOLFSSL_FAILURE;
+            goto cleanup;
+        #endif /* OPENSSL_EXTRA */
         }
 
         if (includeSig) {
@@ -40349,6 +40362,7 @@ cleanup:
         return ret;
     }
 
+#if defined(OPENSSL_EXTRA)
     int wolfSSL_X509_sign_ctx(WOLFSSL_X509 *x509, WOLFSSL_EVP_MD_CTX *ctx)
     {
         WOLFSSL_ENTER("wolfSSL_X509_sign_ctx");
@@ -40360,6 +40374,7 @@ cleanup:
 
         return wolfSSL_X509_sign(x509, ctx->pctx->pkey, wolfSSL_EVP_MD_CTX_md(ctx));
     }
+#endif /* OPENSSL_EXTRA */
 #endif /* WOLFSSL_CERT_GEN */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
