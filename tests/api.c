@@ -33026,6 +33026,49 @@ static void test_wolfSSL_SHA224(void)
 #endif
 }
 
+
+static void test_wolfSSL_SHA256_Transform(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
+    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA256_BLOCK_SIZE];
+    word32 sLen = 0;
+    unsigned char output1[] = 
+        "\xbe\x98\x56\xda\x69\xb4\xb9\x17\x99\x57\x33\x62\xca\xbe\x9f\x77"
+        "\x91\xd4\xe5\x8c\x43\x62\xd2\xc0\xea\xf9\xfe\xba\xd8\xa9\x37\x18";
+    unsigned char output2[] =
+        "\x67\xd4\x4e\x1d\x67\x61\x7c\x67\x26\x76\x10\x44\xb8\xff\x10\x78"
+        "\x39\x9a\xc8\x40\x8c\x60\x16\x73\x05\xd6\x61\xa6\x35\x8c\xf2\x91";
+    
+    WOLFSSL_SHA256_CTX sha256;
+    
+    printf(testingFmt, "wolfSSL_SHA256_Transform()");
+    
+    XMEMSET(&sha256, 0, sizeof(sha256));
+    XMEMSET(&local, 0, sizeof(local));
+    
+    /* Init SHA256 CTX */
+    AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
+    /* Do Transform*/
+    sLen = XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1, WC_SHA256_DIGEST_SIZE), 0);
+    
+    /* Init SHA256 CTX */
+    AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
+    sLen = XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output2, WC_SHA256_DIGEST_SIZE), 0);
+    
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_SHA256(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
@@ -40936,6 +40979,7 @@ void ApiTest(void)
     test_wolfSSL_PEM_write_DHparams();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
+    test_wolfSSL_SHA256_Transform();
     test_wolfSSL_SHA224();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();

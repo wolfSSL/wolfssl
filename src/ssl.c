@@ -17007,8 +17007,29 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
+    
+    #if defined(OPENSSL_EXTRA)
+    int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256, 
+                                                const unsigned char* data)
+    {
+       int ret;
+       
+       WOLFSSL_ENTER("SHA256_Transform");
+       #if defined(LITTLE_ENDIAN_ORDER)
+       {
+            ByteReverseWords((word32*)data, (word32*)data, WC_SHA256_BLOCK_SIZE);
+       }
+       #endif
+       ret = wc_Sha256Transform((wc_Sha256*)sha256, data);
 
-
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+            
+       return ret;
+    }
+    #endif
+    
 #ifdef WOLFSSL_SHA384
 
     int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha)
@@ -17111,7 +17132,20 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
-
+    #if defined(OPENSSL_EXTRA)
+    int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha, 
+                                          const unsigned char* data)
+    {
+       int ret = WOLFSSL_SUCCESS;
+       
+       WOLFSSL_ENTER("SHA512_Transform");
+       (void)sha;
+       (void)data;
+       
+       return ret;
+    }
+    #endif
+    
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3

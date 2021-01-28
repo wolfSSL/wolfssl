@@ -198,7 +198,9 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256*);
-
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha256Transform(wc_Sha256*, const byte*);
+#endif
 WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
 

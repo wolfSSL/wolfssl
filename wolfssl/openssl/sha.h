@@ -118,9 +118,10 @@ typedef struct WOLFSSL_SHA256_CTX {
 
 WOLFSSL_API int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX*);
 WOLFSSL_API int wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX*, const void*,
-	                                 unsigned long);
+                                 unsigned long);
 WOLFSSL_API int wolfSSL_SHA256_Final(unsigned char*, WOLFSSL_SHA256_CTX*);
-
+WOLFSSL_API int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX*, 
+                                                const unsigned char *data);
 enum {
     SHA256_DIGEST_LENGTH = 32
 };
@@ -131,6 +132,8 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 #define SHA256_Init   wolfSSL_SHA256_Init
 #define SHA256_Update wolfSSL_SHA256_Update
 #define SHA256_Final  wolfSSL_SHA256_Final
+#define SHA256_Transform wolfSSL_SHA256_Transform
+
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* SHA256 is only available in non-fips mode because of SHA256 enum in FIPS
      * build. */
@@ -176,9 +179,10 @@ typedef struct WOLFSSL_SHA512_CTX {
 
 WOLFSSL_API int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX*);
 WOLFSSL_API int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX*, const void*,
-	                                 unsigned long);
+                                     unsigned long);
 WOLFSSL_API int wolfSSL_SHA512_Final(unsigned char*, WOLFSSL_SHA512_CTX*);
-
+WOLFSSL_API int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX*, 
+                                        const unsigned char*);
 enum {
     SHA512_DIGEST_LENGTH = 64
 };
@@ -189,6 +193,7 @@ typedef WOLFSSL_SHA512_CTX SHA512_CTX;
 #define SHA512_Init   wolfSSL_SHA512_Init
 #define SHA512_Update wolfSSL_SHA512_Update
 #define SHA512_Final  wolfSSL_SHA512_Final
+#define SHA512_Transform wolfSSL_SHA512_Transform
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* SHA512 is only available in non-fips mode because of SHA512 enum in FIPS
      * build. */
