@@ -52,12 +52,14 @@ typedef struct WOLFSSL_SHA_CTX {
 WOLFSSL_API int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX*);
 WOLFSSL_API int wolfSSL_SHA_Update(WOLFSSL_SHA_CTX*, const void*, unsigned long);
 WOLFSSL_API int wolfSSL_SHA_Final(unsigned char*, WOLFSSL_SHA_CTX*);
-
+WOLFSSL_API int wolfSSL_SHA_Transform(WOLFSSL_SHA_CTX*, 
+                                          const unsigned char *data);
 /* SHA1 points to above, shouldn't use SHA0 ever */
 WOLFSSL_API int wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX*);
 WOLFSSL_API int wolfSSL_SHA1_Update(WOLFSSL_SHA_CTX*, const void*, unsigned long);
 WOLFSSL_API int wolfSSL_SHA1_Final(unsigned char*, WOLFSSL_SHA_CTX*);
-
+WOLFSSL_API int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX*, 
+                                          const unsigned char *data);
 enum {
     SHA_DIGEST_LENGTH = 20
 };
@@ -68,6 +70,13 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 #define SHA_Init wolfSSL_SHA_Init
 #define SHA_Update wolfSSL_SHA_Update
 #define SHA_Final wolfSSL_SHA_Final
+#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    /* SHA is only available in non-fips mode or fips version > 2 mode 
+     * because of SHA enum in FIPS build. */
+    #define SHA wolfSSL_SHA
+#endif
 
 #define SHA1_Init wolfSSL_SHA1_Init
 #define SHA1_Update wolfSSL_SHA1_Update
@@ -99,9 +108,11 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
 #define SHA224_Init   wolfSSL_SHA224_Init
 #define SHA224_Update wolfSSL_SHA224_Update
 #define SHA224_Final  wolfSSL_SHA224_Final
-#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    /* SHA224 is only available in non-fips mode because of SHA224 enum in FIPS
-     * build. */
+#if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    /* SHA224 is only available in non-fips mode or fips version > 2 mode 
+     * because of SHA224 enum in FIPS build. */
     #define SHA224 wolfSSL_SHA224
 #endif
 

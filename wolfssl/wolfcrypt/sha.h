@@ -169,6 +169,9 @@ WOLFSSL_API void wc_ShaFree(wc_Sha*);
 
 WOLFSSL_API int wc_ShaGetHash(wc_Sha*, byte*);
 WOLFSSL_API int wc_ShaCopy(wc_Sha*, wc_Sha*);
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_ShaTransform(wc_Sha*, const byte*);
+#endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 WOLFSSL_API void wc_ShaSizeSet(wc_Sha* sha, word32 len);

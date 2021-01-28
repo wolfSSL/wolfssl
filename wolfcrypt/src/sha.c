@@ -773,6 +773,13 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA)
+int wc_ShaTransform(wc_Sha* sha, const unsigned char* data)
+{
+    return (Transform(sha, data));
+}
+#endif
+
 #endif /* USE_SHA_SOFTWARE_IMPL */
 
 

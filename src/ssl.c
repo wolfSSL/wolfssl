@@ -16884,7 +16884,28 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
+    #if defined(OPENSSL_EXTRA)
+    int wolfSSL_SHA_Transform(WOLFSSL_SHA_CTX* sha, 
+                                         const unsigned char* data)
+    {
+       int ret;
+       
+       WOLFSSL_ENTER("SHA_Transform");
+       #if defined(LITTLE_ENDIAN_ORDER)
+       {
+            ByteReverseWords((word32*)data, (word32*)data, WC_SHA_BLOCK_SIZE);
+       }
+       #endif
+       ret = wc_ShaTransform((wc_Sha*)sha, data);
 
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+            
+       return ret;
+    }
+    #endif
+    
     int wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX* sha)
     {
         WOLFSSL_ENTER("SHA1_Init");
@@ -16905,6 +16926,14 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA1_Final");
         return SHA_Final(input, sha);
     }
+    #if defined(OPENSSL_EXTRA)
+    int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX* sha, 
+                                         const unsigned char* data)
+    {
+       WOLFSSL_ENTER("SHA1_Transform");
+       return (wolfSSL_SHA_Transform(sha, data));
+    }
+    #endif
 #endif /* !NO_SHA */
 
 #ifdef WOLFSSL_SHA224
@@ -42919,6 +42948,16 @@ err:
     defined(WOLFSSL_HAPROXY)
 
 #ifndef NO_SHA
+    /* One shot SHA hash of message.
+     *
+     * Wrap SHA1 one shot
+     */
+      unsigned char *wolfSSL_SHA(const unsigned char *d, size_t n,
+            unsigned char *md)
+     {
+        return wolfSSL_SHA1(d, n, md);
+    }
+
     /* One shot SHA1 hash of message.
      *
      * d  message to hash

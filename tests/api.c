@@ -32794,6 +32794,11 @@ static void test_wolfSSL_SHA(void)
         XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
         AssertNotNull(SHA1(in, XSTRLEN((char*)in), out));
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
+        
+        /* SHA interface test */
+        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
+        AssertNotNull(SHA(in, XSTRLEN((char*)in), out));
+        AssertIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
     }
     #endif
 
@@ -33025,7 +33030,51 @@ static void test_wolfSSL_SHA224(void)
     printf(resultFmt, passed);
 #endif
 }
+static void test_wolfSSL_SHA_Transform(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
+    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA_BLOCK_SIZE];
+    word32 sLen = 0;
+    word32 i;
+    unsigned char output1[] = 
+        "\xe5\x04\xb4\x92\xed\x8c\x58\x56\x4e\xcd\x1a\x6c\x68\x3f\x05\xbf"
+        "\x93\x3a\xf7\x09";
+    unsigned char output2[] =
+        "\x8b\x74\xb2\x97\xca\xbc\x5b\x4f\xea\xe6\xc0\x5b\xa0\xb4\x40\x2d"
+        "\xb8\x08\x6e\x7c";
 
+    WOLFSSL_SHA_CTX sha;
+    
+    printf(testingFmt, "wolfSSL_SHA_Transform()");
+    
+    XMEMSET(&sha, 0, sizeof(sha));
+    XMEMSET(&local, 0, sizeof(local));
+    
+    /* Init SHA CTX */
+    AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
+    /* Do Transform*/
+    sLen = XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
+    for(i = 0; i< 5; i++) {
+        printf("sha->diges[%d] = 0x%08x\n", i, ((wc_Sha*)&sha)->digest[i]);
+    }
+    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1, WC_SHA_DIGEST_SIZE), 0);
+    
+    /* Init SHA256 CTX */
+    AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
+    sLen = XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output2, WC_SHA_DIGEST_SIZE), 0);
+    
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_SHA256_Transform(void)
 {
@@ -40978,6 +41027,7 @@ void ApiTest(void)
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_PEM_write_DHparams();
     test_wolfSSL_AES_ecb_encrypt();
+    test_wolfSSL_SHA_Transform();
     test_wolfSSL_SHA256();
     test_wolfSSL_SHA256_Transform();
     test_wolfSSL_SHA224();
