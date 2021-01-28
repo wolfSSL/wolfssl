@@ -4156,35 +4156,42 @@ int sp_lshd(sp_int* a, int s)
  */
 static int sp_lshb(sp_int* a, int n)
 {
+    int err = MP_OKAY;
+
     if (a->used != 0) {
         int s = n >> SP_WORD_SHIFT;
         int i;
 
-        n &= SP_WORD_MASK;
-        if (n != 0) {
-            sp_int_digit v;
+        if (a->used + s >= a->size) {
+            err = MP_VAL;
+        }
+        if (err == MP_OKAY) {
+            n &= SP_WORD_MASK;
+            if (n != 0) {
+                sp_int_digit v;
 
-            v = a->dp[a->used - 1] >> (SP_WORD_SIZE - n);
-            a->dp[a->used - 1 + s] = a->dp[a->used - 1] << n;
-            for (i = a->used - 2; i >= 0; i--) {
-                a->dp[i + 1 + s] |= a->dp[i] >> (SP_WORD_SIZE - n);
-                a->dp[i     + s] = a->dp[i] << n;
+                v = a->dp[a->used - 1] >> (SP_WORD_SIZE - n);
+                a->dp[a->used - 1 + s] = a->dp[a->used - 1] << n;
+                for (i = a->used - 2; i >= 0; i--) {
+                    a->dp[i + 1 + s] |= a->dp[i] >> (SP_WORD_SIZE - n);
+                    a->dp[i     + s] = a->dp[i] << n;
+                }
+                if (v != 0) {
+                    a->dp[a->used + s] = v;
+                    a->used++;
+                }
             }
-            if (v != 0) {
-                a->dp[a->used + s] = v;
-                a->used++;
+            else if (s > 0) {
+                for (i = a->used - 1; i >= 0; i--) {
+                    a->dp[i + s] = a->dp[i];
+                }
             }
+            a->used += s;
+            XMEMSET(a->dp, 0, SP_WORD_SIZEOF * s);
         }
-        else if (s > 0) {
-            for (i = a->used - 1; i >= 0; i--) {
-                a->dp[i + s] = a->dp[i];
-            }
-        }
-        a->used += s;
-        XMEMSET(a->dp, 0, SP_WORD_SIZEOF * s);
     }
 
-    return MP_OKAY;
+    return err;
 }
 #endif /* WOLFSSL_SP_MATH_ALL || !NO_DH || HAVE_ECC ||
         * (!NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) */
@@ -4287,14 +4294,14 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     int ret;
     int done = 0;
     int i;
-    int s;
+    int s = 0;
     sp_int_digit dt;
     sp_int_digit t;
 #ifdef WOLFSSL_SMALL_STACK
     sp_int* sa = NULL;
-    sp_int* sd;
-    sp_int* tr;
-    sp_int* trial;
+    sp_int* sd = NULL;
+    sp_int* tr = NULL;
+    sp_int* trial = NULL;
 #else
     sp_int sa[1];
     sp_int sd[1];
@@ -4393,10 +4400,12 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         s = SP_WORD_SIZE - (s & SP_WORD_MASK);
         sp_copy(a, sa);
         if (s != SP_WORD_SIZE) {
-            sp_lshb(sa, s);
-            sp_copy(d, sd);
-            sp_lshb(sd, s);
-            d = sd;
+            err = sp_lshb(sa, s);
+            if (err == MP_OKAY) {
+                sp_copy(d, sd);
+                d = sd;
+                err = sp_lshb(sd, s);
+            }
         }
     }
     if ((!done) && (err == MP_OKAY) && (d->used > 0)) {
