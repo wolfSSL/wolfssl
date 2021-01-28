@@ -23553,6 +23553,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 6: /* MULBASE */
         err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_256_iszero_4(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 7;
         }
@@ -23560,6 +23563,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 7: /* MULMOD */
         err = sp_256_ecc_mulmod_4_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_256_iszero_4(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 8;
         }
@@ -23774,6 +23780,9 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 #endif
             err = sp_256_ecc_mulmod_base_4(p1, u1, 0, 0, heap);
     }
+    if ((err == MP_OKAY) && sp_256_iszero_4(p1->z)) {
+        p1->infinity = 1;
+    }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -23781,6 +23790,9 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         else
 #endif
             err = sp_256_ecc_mulmod_4(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_4(p2->z)) {
+        p2->infinity = 1;
     }
 
     if (err == MP_OKAY) {
@@ -30664,6 +30676,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 6: /* MULBASE */
         err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_384_iszero_6(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 7;
         }
@@ -30671,6 +30686,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 7: /* MULMOD */
         err = sp_384_ecc_mulmod_6_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_384_iszero_6(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 8;
         }
@@ -30879,6 +30897,9 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
 #endif
             err = sp_384_ecc_mulmod_base_6(p1, u1, 0, 0, heap);
     }
+    if ((err == MP_OKAY) && sp_384_iszero_6(p1->z)) {
+        p1->infinity = 1;
+    }
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
@@ -30886,6 +30907,9 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
         else
 #endif
             err = sp_384_ecc_mulmod_6(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_384_iszero_6(p2->z)) {
+        p2->infinity = 1;
     }
 
     if (err == MP_OKAY) {
