@@ -75,6 +75,7 @@ struct DhKey {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+    int trustedGroup;
 };
 
 #ifndef WC_DH_TYPE_DEFINED
