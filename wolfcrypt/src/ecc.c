@@ -10617,7 +10617,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                {
 #ifdef WOLFSSL_SMALL_STACK
                    Aes *aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                             DYNAMIC_TYPE_ECC_BUFFER);
+                                             DYNAMIC_TYPE_AES);
                    if (aes == NULL) {
                        ret = MEMORY_E;
                        break;
@@ -10639,7 +10639,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                        wc_AesFree(aes);
                    }
 #ifdef WOLFSSL_SMALL_STACK
-                   XFREE(aes, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+                   XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
                    if (ret != 0)
                       break;
@@ -10658,7 +10658,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                {
 #ifdef WOLFSSL_SMALL_STACK
                    Hmac *hmac = (Hmac *)XMALLOC(sizeof *hmac, NULL,
-                                                DYNAMIC_TYPE_ECC_BUFFER);
+                                                DYNAMIC_TYPE_HMAC);
                    if (hmac == NULL) {
                        ret = MEMORY_E;
                        break;
@@ -10678,7 +10678,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                        wc_HmacFree(hmac);
                    }
 #ifdef WOLFSSL_SMALL_STACK
-                   XFREE(hmac, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+                   XFREE(hmac, NULL, DYNAMIC_TYPE_HMAC);
 #endif
                }
                break;
@@ -10810,7 +10810,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            {
                byte verify[WC_SHA256_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-               Hmac *hmac = (Hmac *)XMALLOC(sizeof *hmac, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+               Hmac *hmac = (Hmac *)XMALLOC(sizeof *hmac, NULL, DYNAMIC_TYPE_HMAC);
                if (hmac == NULL) {
                    ret = MEMORY_E;
                    break;
@@ -10835,7 +10835,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    wc_HmacFree(hmac);
                }
 #ifdef WOLFSSL_SMALL_STACK
-               XFREE(hmac, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+               XFREE(hmac, NULL, DYNAMIC_TYPE_HMAC);
 #endif
                break;
            }
@@ -10853,7 +10853,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                {
 #ifdef WOLFSSL_SMALL_STACK
                    Aes *aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                             DYNAMIC_TYPE_ECC_BUFFER);
+                                             DYNAMIC_TYPE_AES);
                    if (aes == NULL) {
                        ret = MEMORY_E;
                        break;
@@ -10876,7 +10876,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                        wc_AesFree(aes);
                    }
 #ifdef WOLFSSL_SMALL_STACK
-                   XFREE(aes, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+                   XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
                    if (ret != 0)
                       break;

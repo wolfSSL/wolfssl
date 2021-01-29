@@ -788,13 +788,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((temp_key = (Aes *)XMALLOC(sizeof *aes, aes->heap,
-                                           DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                           DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
 
             if (AES_set_encrypt_key(userKey,bits,temp_key) == BAD_FUNC_ARG) {
 #ifdef WOLFSSL_SMALL_STACK
-                XFREE(temp_key, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
 #endif
                 return BAD_FUNC_ARG;
             }
@@ -833,7 +833,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             RESTORE_VECTOR_REGISTERS();
 
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(temp_key, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
 #endif
 
             return 0;
@@ -7509,7 +7509,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                              DYNAMIC_TYPE_AES)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -7525,7 +7525,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     }
     ForceZero(aes, sizeof *aes);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 
     return ret;
@@ -7552,7 +7552,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                              DYNAMIC_TYPE_AES)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -7566,7 +7566,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
     }
     ForceZero(aes, sizeof *aes);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 #else
     (void)key;
@@ -8925,7 +8925,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                              DYNAMIC_TYPE_AES)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -8980,7 +8980,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
         wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 
     if (ret != 0)
@@ -9022,7 +9022,7 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                              DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                              DYNAMIC_TYPE_AES)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -9081,7 +9081,7 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
         wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 
     if (ret != 0)

@@ -620,7 +620,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         {
 #ifdef WOLFSSL_SMALL_STACK
             Aes *aes;
-            aes = (Aes *)XMALLOC(sizeof *aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            aes = (Aes *)XMALLOC(sizeof *aes, NULL, DYNAMIC_TYPE_AES);
             if (aes == NULL)
                 return MEMORY_E;
 #else
@@ -645,7 +645,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             }
             ForceZero(aes, sizeof(Aes));
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK

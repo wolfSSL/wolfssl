@@ -757,6 +757,8 @@ decouple library dependencies with standard string, memory and so on.
         DYNAMIC_TYPE_NAME_ENTRY   = 90,
         DYNAMIC_TYPE_CURVE448     = 91,
         DYNAMIC_TYPE_ED448        = 92,
+        DYNAMIC_TYPE_AES          = 93,
+        DYNAMIC_TYPE_CMAC         = 94,
         DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
         DYNAMIC_TYPE_SNIFFER_PB         = 1002,
