@@ -3288,6 +3288,8 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     const struct alias  *al;
     const struct s_ent *ent;
 
+    XMEMSET(nameUpper, 0, sizeof(nameUpper));
+
     for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
         nameUpper[i] = (char)XTOUPPER(name[i]);
     }
