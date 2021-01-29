@@ -2845,7 +2845,7 @@ int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
         content == NULL || contentSz == 0 || output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0)
         return ret;
 
@@ -2952,7 +2952,7 @@ int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
     XMEMCPY(encrypted, output, encryptedSz);
     ForceZero(output, outputSz);
 
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(encrypted, encryptedSz);
         XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -3050,7 +3050,7 @@ int wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7, byte* privateKey,
     XMEMCPY(compressed, output, compressedSz);
     ForceZero(output, outputSz);
 
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(compressed, compressedSz);
         XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -3186,7 +3186,7 @@ int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(PKCS7* pkcs7, byte* encryptKey,
     XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     ForceZero(output, outputSz);
 
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         ForceZero(encrypted, encryptedSz);
         XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -6450,7 +6450,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 #endif
 
     /* EncryptedKey */
-    ret = wc_InitRsaKey_ex(pubKey, pkcs7->heap, INVALID_DEVID);
+    ret = wc_InitRsaKey_ex(pubKey, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
         FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
@@ -8407,7 +8407,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             }
         #endif
 
-            ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, INVALID_DEVID);
+            ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, pkcs7->devId);
             if (ret != 0) {
         #ifdef WOLFSSL_SMALL_STACK
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
