@@ -207,30 +207,13 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   return 0;
 }
 
-static int blake2b_compress( blake2b_state *S,
-                             const byte block[BLAKE2B_BLOCKBYTES] )
+static WC_INLINE int blake2b_compress(
+    blake2b_state *S,
+    const byte block[BLAKE2B_BLOCKBYTES],
+    word64* m,
+    word64* v)
 {
   int i;
-
-#ifdef WOLFSSL_SMALL_STACK
-  word64* m;
-  word64* v;
-
-  m = (word64*)XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-  if ( m == NULL ) return MEMORY_E;
-
-  v = (word64*)XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-  if ( v == NULL )
-  {
-    XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return MEMORY_E;
-  }
-#else
-  word64 m[16];
-  word64 v[16];
-#endif
 
   for( i = 0; i < 16; ++i )
     m[i] = load64( block + i * sizeof( m[i] ) );
@@ -287,17 +270,27 @@ static int blake2b_compress( blake2b_state *S,
 #undef G
 #undef ROUND
 
-#ifdef WOLFSSL_SMALL_STACK
-  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
   return 0;
 }
 
 /* inlen now in bytes */
 int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
 {
+  int ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+  word64* m;
+  word64* v;
+
+  m = (word64*)XMALLOC(sizeof(word64) * 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+  if ( m == NULL ) return MEMORY_E;
+
+  v = &m[16];
+#else
+  word64 m[16];
+  word64 v[16];
+#endif
+
   while( inlen > 0 )
   {
     word64 left = S->buflen;
@@ -310,8 +303,8 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
       blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
 
       {
-	int ret = blake2b_compress( S, S->buf );
-	if (ret < 0) return ret;
+	ret = blake2b_compress( S, S->buf, m, v );
+	if (ret < 0) break;
       }
 
       XMEMCPY( S->buf, S->buf + BLAKE2B_BLOCKBYTES, BLAKE2B_BLOCKBYTES );
@@ -328,22 +321,40 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
     }
   }
 
-  return 0;
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+  return ret;
 }
 
 /* Is this correct? */
 int blake2b_final( blake2b_state *S, byte *out, byte outlen )
 {
+  int ret = 0;
   byte buffer[BLAKE2B_OUTBYTES];
   int     i;
+#ifdef WOLFSSL_SMALL_STACK
+  word64* m;
+  word64* v;
+
+  m = (word64*)XMALLOC(sizeof(word64) * 32, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+  if ( m == NULL ) return MEMORY_E;
+
+  v = &m[16];
+#else
+  word64 m[16];
+  word64 v[16];
+#endif
 
   if( S->buflen > BLAKE2B_BLOCKBYTES )
   {
     blake2b_increment_counter( S, BLAKE2B_BLOCKBYTES );
 
     {
-      int ret = blake2b_compress( S, S->buf );
-      if (ret < 0) return ret;
+      ret = blake2b_compress( S, S->buf, m, v );
+      if (ret < 0) goto out;
     }
 
     S->buflen -= BLAKE2B_BLOCKBYTES;
@@ -355,15 +366,22 @@ int blake2b_final( blake2b_state *S, byte *out, byte outlen )
   XMEMSET( S->buf + S->buflen, 0, (wolfssl_word)(2 * BLAKE2B_BLOCKBYTES - S->buflen) );
          /* Padding */
   {
-    int ret = blake2b_compress( S, S->buf );
-    if (ret < 0) return ret;
+    ret = blake2b_compress( S, S->buf, m, v );
+    if (ret < 0) goto out;
   }
 
   for( i = 0; i < 8; ++i ) /* Output full hash to temp buffer */
     store64( buffer + sizeof( S->h[i] ) * i, S->h[i] );
 
   XMEMCPY( out, buffer, outlen );
-  return 0;
+
+ out:
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+  return ret;
 }
 
 /* inlen, at least, should be word64. Others can be size_t. */
