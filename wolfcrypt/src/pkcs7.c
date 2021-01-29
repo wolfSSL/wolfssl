@@ -6668,7 +6668,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6679,7 +6679,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
     #ifdef HAVE_AESGCM
@@ -6699,7 +6699,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6711,7 +6711,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
         #endif
@@ -6733,7 +6733,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6745,7 +6745,7 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
         #endif
@@ -6846,7 +6846,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                 return BAD_FUNC_ARG;
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6857,7 +6857,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
     #ifdef HAVE_AESGCM
@@ -6877,7 +6877,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6889,7 +6889,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
         #endif
@@ -6911,7 +6911,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
-                                      DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                      DYNAMIC_TYPE_AES)) == NULL)
                 return MEMORY_E;
 #endif
             ret = wc_AesInit(aes, NULL, INVALID_DEVID);
@@ -6923,7 +6923,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                 wc_AesFree(aes);
             }
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(aes, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             break;
         #endif

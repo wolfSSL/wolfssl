@@ -177,7 +177,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, NULL,
-                                DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+                                DYNAMIC_TYPE_CMAC)) == NULL)
         return MEMORY_E;
 #endif
 
@@ -197,7 +197,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (cmac)
-        XFREE(cmac, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #endif
 
     return ret;
