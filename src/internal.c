@@ -12950,7 +12950,25 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         && ssl->error != WC_PENDING_E && ssl->error != OCSP_WANT_READ
     #endif
     ) {
-        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+        if (IsEncryptionOn(ssl, 0)) {
+            word32 extra = ssl->keys.padSz;
+
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.startedETMRead)
+                extra += MacSize(ssl);
+        #endif
+
+            if (extra > ssl->buffers.inputBuffer.idx)
+                return BUFFER_E;
+
+            ssl->buffers.inputBuffer.idx -= extra;
+            ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            ssl->buffers.inputBuffer.idx += extra;
+        }
+        else {
+            ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+        }
+        
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
