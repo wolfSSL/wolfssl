@@ -944,6 +944,9 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 #else
     (void)devId;
 #endif
+
+    key->trustedGroup = 0;
+
 #ifdef WOLFSSL_KCAPI_DH
     key->handle = NULL;
 #endif
@@ -1073,7 +1076,9 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     pSz = mp_unsigned_bin_size(&key->p);
 
     /* verify (L,N) pair bit lengths */
-    if (CheckDhLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0) {
+    /* Trusted primes don't need to be checked. */
+    if (!key->trustedGroup &&
+            CheckDhLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0) {
         WOLFSSL_MSG("DH param sizes do not match SP 800-56A requirements");
         return BAD_FUNC_ARG;
     }
@@ -2311,6 +2316,8 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && q != NULL) {
         if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
             ret = MP_INIT_E;
+        else
+            key->trustedGroup = trusted;
     }
 
     if (ret != 0 && key != NULL) {
@@ -2345,7 +2352,6 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 {
     return _DhSetKey(key, p, pSz, g, gSz, NULL, 0, 1, NULL);
 }
-
 
 #ifdef WOLFSSL_KEY_GEN
 

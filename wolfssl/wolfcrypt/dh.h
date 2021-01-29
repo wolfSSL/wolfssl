@@ -72,6 +72,7 @@ struct DhKey {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
+    int trustedGroup;
 #ifdef WOLFSSL_KCAPI_DH
     struct kcapi_handle* handle;
 #endif
