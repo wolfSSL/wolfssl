@@ -1,3 +1,7 @@
+<a href="https://repology.org/project/wolfssl/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/wolfssl.svg" alt="Packaging status" align="right">
+</a>
+
 *** Description ***
 
 The wolfSSL embedded SSL library (formerly CyaSSL) is a lightweight SSL/TLS
