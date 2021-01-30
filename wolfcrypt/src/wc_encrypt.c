@@ -618,31 +618,41 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         case PBE_AES256_CBC:
         case PBE_AES128_CBC:
         {
-            Aes aes;
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            Aes *aes;
+            aes = (Aes *)XMALLOC(sizeof *aes, NULL, DYNAMIC_TYPE_AES);
+            if (aes == NULL)
+                return MEMORY_E;
+#else
+            Aes aes[1];
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
                 if (enc) {
-                    ret = wc_AesSetKey(&aes, key, derivedLen, cbcIv,
+                    ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
                                                                 AES_ENCRYPTION);
                 }
                 else {
-                    ret = wc_AesSetKey(&aes, key, derivedLen, cbcIv,
+                    ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
                                                                 AES_DECRYPTION);
                 }
             }
             if (ret == 0) {
                 if (enc)
-                    ret = wc_AesCbcEncrypt(&aes, input, input, length);
+                    ret = wc_AesCbcEncrypt(aes, input, input, length);
                 else
-                    ret = wc_AesCbcDecrypt(&aes, input, input, length);
+                    ret = wc_AesCbcDecrypt(aes, input, input, length);
             }
+            ForceZero(aes, sizeof(Aes));
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
                 return ret;
             }
-            ForceZero(&aes, sizeof(Aes));
             break;
         }
     #endif /* WOLFSSL_AES_256 */

@@ -6628,7 +6628,11 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 {
     int ret;
 #ifndef NO_AES
-    Aes  aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes  *aes;
+#else
+    Aes  aes[1];
+#endif
 #endif
 #ifndef NO_DES3
     Des  des;
@@ -6662,13 +6666,21 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                     (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
+                ret = wc_AesSetKey(aes, key, keySz, iv, AES_ENCRYPTION);
                 if (ret == 0)
-                    ret = wc_AesCbcEncrypt(&aes, out, in, inSz);
-                wc_AesFree(&aes);
+                    ret = wc_AesCbcEncrypt(aes, out, in, inSz);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
@@ -6685,14 +6697,22 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesGcmSetKey(&aes, key, keySz);
+                ret = wc_AesGcmSetKey(aes, key, keySz);
                 if (ret == 0)
-                    ret = wc_AesGcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                    ret = wc_AesGcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
-                wc_AesFree(&aes);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -6711,14 +6731,22 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesCcmSetKey(&aes, key, keySz);
+                ret = wc_AesCcmSetKey(aes, key, keySz);
                 if (ret == 0)
-                    ret = wc_AesCcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                    ret = wc_AesCcmEncrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
-                wc_AesFree(&aes);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -6770,7 +6798,11 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 {
     int ret;
 #ifndef NO_AES
-    Aes  aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes  *aes;
+#else
+    Aes  aes[1];
+#endif
 #endif
 #ifndef NO_DES3
     Des  des;
@@ -6812,13 +6844,21 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
                 #endif
                     (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
+                ret = wc_AesSetKey(aes, key, keySz, iv, AES_DECRYPTION);
                 if (ret == 0)
-                    ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
-                wc_AesFree(&aes);
+                    ret = wc_AesCbcDecrypt(aes, out, in, inSz);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
@@ -6835,14 +6875,22 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesGcmSetKey(&aes, key, keySz);
+                ret = wc_AesGcmSetKey(aes, key, keySz);
                 if (ret == 0)
-                    ret = wc_AesGcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                    ret = wc_AesGcmDecrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
-                wc_AesFree(&aes);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -6861,14 +6909,22 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+            if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                                      DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
             if (ret == 0) {
-                ret = wc_AesCcmSetKey(&aes, key, keySz);
+                ret = wc_AesCcmSetKey(aes, key, keySz);
                 if (ret == 0)
-                    ret = wc_AesCcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                    ret = wc_AesCcmDecrypt(aes, out, in, inSz, iv, ivSz,
                                            authTag, authTagSz, aad, aadSz);
-                wc_AesFree(&aes);
+                wc_AesFree(aes);
             }
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -10695,7 +10751,6 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     const byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
                              0x09, 0x03 };
-
     if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0)
         return BAD_FUNC_ARG;
 

@@ -775,17 +775,34 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                                                     const int bits, Aes* aes)
         {
             int nr;
-            Aes temp_key;
-            __m128i *Key_Schedule = (__m128i*)aes->key;
-            __m128i *Temp_Key_Schedule = (__m128i*)temp_key.key;
+#ifdef WOLFSSL_SMALL_STACK
+            Aes *temp_key;
+#else
+            Aes temp_key[1];
+#endif
+            __m128i *Key_Schedule;
+            __m128i *Temp_Key_Schedule;
 
             if (!userKey || !aes)
                 return BAD_FUNC_ARG;
 
-            if (AES_set_encrypt_key(userKey,bits,&temp_key) == BAD_FUNC_ARG)
-                return BAD_FUNC_ARG;
+#ifdef WOLFSSL_SMALL_STACK
+            if ((temp_key = (Aes *)XMALLOC(sizeof *aes, aes->heap,
+                                           DYNAMIC_TYPE_AES)) == NULL)
+                return MEMORY_E;
+#endif
 
-            nr = temp_key.rounds;
+            if (AES_set_encrypt_key(userKey,bits,temp_key) == BAD_FUNC_ARG) {
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
+#endif
+                return BAD_FUNC_ARG;
+            }
+
+            Key_Schedule = (__m128i*)aes->key;
+            Temp_Key_Schedule = (__m128i*)temp_key->key;
+
+            nr = temp_key->rounds;
             aes->rounds = nr;
 
             SAVE_VECTOR_REGISTERS();
@@ -814,6 +831,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             Key_Schedule[0] = Temp_Key_Schedule[nr];
 
             RESTORE_VECTOR_REGISTERS();
+
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
+#endif
 
             return 0;
         }
@@ -7473,7 +7494,11 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
             const byte* authIn, word32 authInSz,
             byte* authTag, word32 authTagSz, WC_RNG* rng)
 {
-    Aes aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
     int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
@@ -7482,17 +7507,26 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_AesGcmSetKey(&aes, key, keySz);
+        ret = wc_AesGcmSetKey(aes, key, keySz);
         if (ret == 0)
-            ret = wc_AesGcmSetIV(&aes, ivSz, NULL, 0, rng);
+            ret = wc_AesGcmSetIV(aes, ivSz, NULL, 0, rng);
         if (ret == 0)
-            ret = wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, iv, ivSz,
+            ret = wc_AesGcmEncrypt_ex(aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
-        wc_AesFree(&aes);
+        wc_AesFree(aes);
     }
-    ForceZero(&aes, sizeof(aes));
+    ForceZero(aes, sizeof *aes);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -7504,7 +7538,11 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 {
     int ret;
 #ifdef HAVE_AES_DECRYPT
-    Aes aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
         authTag == NULL || authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
@@ -7512,15 +7550,24 @@ int wc_GmacVerify(const byte* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_AesGcmSetKey(&aes, key, keySz);
+        ret = wc_AesGcmSetKey(aes, key, keySz);
         if (ret == 0)
-            ret = wc_AesGcmDecrypt(&aes, NULL, NULL, 0, iv, ivSz,
+            ret = wc_AesGcmDecrypt(aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
-        wc_AesFree(&aes);
+        wc_AesFree(aes);
     }
-    ForceZero(&aes, sizeof(aes));
+    ForceZero(aes, sizeof *aes);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
 #else
     (void)key;
     (void)keySz;
@@ -8854,7 +8901,12 @@ static WC_INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
 int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
                   byte* out, word32 outSz, const byte* iv)
 {
-    Aes aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    int aes_inited = 0;
     byte* r;
     word32 i;
     int ret, j;
@@ -8871,6 +8923,12 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     if (inSz % KEYWRAP_BLOCK_SIZE != 0)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
     /* user IV is optional */
     if (iv == NULL) {
         XMEMSET(tmp, 0xA6, KEYWRAP_BLOCK_SIZE);
@@ -8882,13 +8940,15 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     XMEMCPY(r, in, inSz);
     XMEMSET(t, 0, sizeof(t));
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0)
-        return ret;
+        goto out;
+    else
+        aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
     if (ret != 0)
-        return ret;
+        goto out;
 
     for (j = 0; j <= 5; j++) {
         for (i = 1; i <= inSz / KEYWRAP_BLOCK_SIZE; i++) {
@@ -8896,7 +8956,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
             /* load R[i] */
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
 
-            wc_AesEncryptDirect(&aes, tmp, tmp);
+            wc_AesEncryptDirect(aes, tmp, tmp);
 
             /* calculate new A */
             IncrementKeyWrapCounter(t);
@@ -8912,15 +8972,32 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
 
-    wc_AesFree(&aes);
+    ret = 0;
 
-    return inSz + KEYWRAP_BLOCK_SIZE;
+  out:
+
+    if (aes_inited)
+        wc_AesFree(aes);
+#ifdef WOLFSSL_SMALL_STACK
+    if (aes)
+        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    if (ret != 0)
+        return ret;
+    else
+        return inSz + KEYWRAP_BLOCK_SIZE;
 }
 
 int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
                     byte* out, word32 outSz, const byte* iv)
 {
-    Aes aes;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    int aes_inited = 0;
     byte* r;
     word32 i, n;
     int ret, j;
@@ -8943,6 +9020,12 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     if (inSz % KEYWRAP_BLOCK_SIZE != 0)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
     /* user IV optional */
     if (iv != NULL) {
         expIv = iv;
@@ -8955,13 +9038,15 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
     XMEMSET(t, 0, sizeof(t));
 
-    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret != 0)
-        return ret;
+        goto out;
+    else
+        aes_inited = 1;
 
-    ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_DECRYPTION);
+    ret = wc_AesSetKey(aes, key, keySz, NULL, AES_DECRYPTION);
     if (ret != 0)
-        return ret;
+        goto out;
 
     /* initialize counter to 6n */
     n = (inSz - 1) / KEYWRAP_BLOCK_SIZE;
@@ -8977,20 +9062,32 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
             /* load R[i], starting at end of R */
             r = out + ((i - 1) * KEYWRAP_BLOCK_SIZE);
             XMEMCPY(tmp + KEYWRAP_BLOCK_SIZE, r, KEYWRAP_BLOCK_SIZE);
-            wc_AesDecryptDirect(&aes, tmp, tmp);
+            wc_AesDecryptDirect(aes, tmp, tmp);
 
             /* save R[i] */
             XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
         }
     }
 
-    wc_AesFree(&aes);
-
     /* verify IV */
-    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
-        return BAD_KEYWRAP_IV_E;
+    if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0) {
+        ret = BAD_KEYWRAP_IV_E;
+        goto out;
+    }
 
-    return inSz - KEYWRAP_BLOCK_SIZE;
+  out:
+
+    if (aes_inited)
+        wc_AesFree(aes);
+#ifdef WOLFSSL_SMALL_STACK
+    if (aes)
+        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    if (ret != 0)
+        return ret;
+    else
+        return inSz - KEYWRAP_BLOCK_SIZE;
 }
 
 #endif /* HAVE_AES_KEYWRAP */
