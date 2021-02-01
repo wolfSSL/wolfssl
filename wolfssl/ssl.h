@@ -1064,11 +1064,6 @@ WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
 
 #ifdef HAVE_KEYING_MATERIAL
-#define TLS_PRF_LABEL_CLIENT_FINISHED     "client finished"
-#define TLS_PRF_LABEL_SERVER_FINISHED     "server finished"
-#define TLS_PRF_LABEL_MASTER_SECRET       "master secret"
-#define TLS_PRF_LABEL_EXT_MASTER_SECRET   "extended master secret"
-#define TLS_PRF_LABEL_KEY_EXPANSION       "key expansion"
 /* Keying Material Exporter for TLS */
 WOLFSSL_API int wolfSSL_export_keying_material(WOLFSSL *ssl,
         unsigned char *out, size_t outLen,
@@ -3168,13 +3163,9 @@ enum {
 };
 
 #ifdef HAVE_SUPPORTED_CURVES
-#ifndef NO_WOLFSSL_CLIENT
-
 WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name);
 WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
                                                            word16 name);
-
-#endif
 #endif
 
 #ifdef WOLFSSL_TLS13
