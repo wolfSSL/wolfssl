@@ -803,17 +803,17 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     /* Derive-Secret(Secret, label, "") */
     ret = HKDF_Expand_Label(firstExpand, hashLen,
             ssl->arrays->exporterSecret, hashLen,
-            protocol, protocolLen, (byte*)label, labelLen,
+            protocol, protocolLen, (byte*)label, (word32)labelLen,
             emptyHash, hashLen, hashType);
     if (ret != 0)
         return ret;
 
     /* Hash(context_value) */
-    ret = wc_Hash(hashType, context, contextLen, hashOut, WC_MAX_DIGEST_SIZE);
+    ret = wc_Hash(hashType, context, (word32)contextLen, hashOut, WC_MAX_DIGEST_SIZE);
     if (ret != 0)
         return ret;
 
-    ret = HKDF_Expand_Label(out, outLen, firstExpand, hashLen,
+    ret = HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
             protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
             hashOut, hashLen, hashType);
 
@@ -8051,7 +8051,7 @@ int wolfSSL_preferred_group(WOLFSSL* ssl)
 }
 #endif
 
-#ifdef HAVE_SUPPORTED_CURVES
+#if defined(HAVE_SUPPORTED_CURVES)
 /* Sets the key exchange groups in rank order on a context.
  *
  * ctx     SSL/TLS context object.

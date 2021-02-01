@@ -2376,7 +2376,7 @@ int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
 /* Elliptic Curves */
-#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_SUPPORTED_CURVES)
 
 static int isValidCurveGroup(word16 name)
 {
@@ -2403,16 +2403,16 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_4096:
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
-            return 0;
+            return 1;
 
         default:
-            return BAD_FUNC_ARG;
+            return 0;
     }
 }
 
 int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
 {
-    if (ssl == NULL || isValidCurveGroup(name) != 0)
+    if (ssl == NULL || !isValidCurveGroup(name))
         return BAD_FUNC_ARG;
 
     ssl->options.userCurves = 1;
@@ -2423,7 +2423,7 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
 
 int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 {
-    if (ctx == NULL || isValidCurveGroup(name) != 0)
+    if (ctx == NULL || !isValidCurveGroup(name))
         return BAD_FUNC_ARG;
 
     ctx->userCurves = 1;
@@ -2431,7 +2431,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13)
 int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count)
 {
@@ -2443,9 +2443,10 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
         return WOLFSSL_FAILURE;
     }
     for (i = 0; i < count; i++) {
-        if (isValidCurveGroup(groups[i]) == 0) {
+        if (isValidCurveGroup((word16)groups[i])) {
             _groups[i] = groups[i];
         }
+#ifdef HAVE_ECC
         else {
             /* groups may be populated with curve NIDs */
             int oid = nid2oid(groups[i], oidCurveType);
@@ -2456,6 +2457,12 @@ int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
             }
             _groups[i] = name;
         }
+#else
+        else {
+            WOLFSSL_MSG("Invalid group name");
+            return WOLFSSL_FAILURE;
+        }
+#endif
     }
     return wolfSSL_CTX_set_groups(ctx, _groups, count) == WOLFSSL_SUCCESS ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -2471,9 +2478,10 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
         return WOLFSSL_FAILURE;
     }
     for (i = 0; i < count; i++) {
-        if (isValidCurveGroup(groups[i]) == 0) {
+        if (isValidCurveGroup((word16)groups[i])) {
             _groups[i] = groups[i];
         }
+#ifdef HAVE_ECC
         else {
             /* groups may be populated with curve NIDs */
             int oid = nid2oid(groups[i], oidCurveType);
@@ -2484,12 +2492,18 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
             }
             _groups[i] = name;
         }
+#else
+        else {
+            WOLFSSL_MSG("Invalid group name");
+            return WOLFSSL_FAILURE;
+        }
+#endif
     }
     return wolfSSL_set_groups(ssl, _groups, count) == WOLFSSL_SUCCESS ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
-#endif
-#endif /* HAVE_SUPPORTED_CURVES && !NO_WOLFSSL_CLIENT */
+#endif /* OPENSSL_EXTRA && WOLFSSL_TLS13 */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 /* QSH quantum safe handshake */
 #ifdef HAVE_QSH
@@ -11915,6 +11929,13 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 }
 
 #ifdef HAVE_KEYING_MATERIAL
+
+#define TLS_PRF_LABEL_CLIENT_FINISHED     "client finished"
+#define TLS_PRF_LABEL_SERVER_FINISHED     "server finished"
+#define TLS_PRF_LABEL_MASTER_SECRET       "master secret"
+#define TLS_PRF_LABEL_EXT_MASTER_SECRET   "extended master secret"
+#define TLS_PRF_LABEL_KEY_EXPANSION       "key expansion"
+
 static const struct ForbiddenLabels {
     const char* label;
     size_t labelLen;
@@ -11942,7 +11963,7 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
     /* clientRandom + serverRandom
      * OR
      * clientRandom + serverRandom + ctx len encoding + ctx */
-    word32 seedLen = !use_context ? SEED_LEN : SEED_LEN + 2 + contextLen;
+    word32 seedLen = !use_context ? SEED_LEN : SEED_LEN + 2 + (word32)contextLen;
     const struct ForbiddenLabels* fl;
 
     WOLFSSL_ENTER("wolfSSL_export_keying_material");
@@ -11977,7 +11998,7 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
             context = (byte*)""; /* Give valid pointer for 0 length memcpy */
         }
 
-        if (Tls13_Exporter(ssl, out, outLen, label, labelLen,
+        if (Tls13_Exporter(ssl, out, (word32)outLen, label, labelLen,
                 context, contextLen) != 0) {
             WOLFSSL_MSG("Tls13_Exporter error");
             return WOLFSSL_FAILURE;
@@ -12006,8 +12027,8 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         }
     }
 
-    if (wc_PRF_TLS(out, outLen, ssl->arrays->masterSecret, SECRET_LEN,
-            (byte*)label, labelLen, seed, seedLen, IsAtLeastTLSv1_2(ssl),
+    if (wc_PRF_TLS(out, (word32)outLen, ssl->arrays->masterSecret, SECRET_LEN,
+            (byte*)label, (word32)labelLen, seed, seedLen, IsAtLeastTLSv1_2(ssl),
             ssl->specs.mac_algorithm, ssl->heap, ssl->devId) != 0) {
         WOLFSSL_MSG("wc_PRF_TLS error");
         XFREE(seed, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16464,21 +16485,33 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     switch (version) {
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case SSL3_VERSION:
             ctx->minDowngrade = SSLv3_MINOR;
             break;
+#endif
+#ifndef NO_TLS
+    #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
         case TLS1_VERSION:
             ctx->minDowngrade = TLSv1_MINOR;
             break;
+        #endif
         case TLS1_1_VERSION:
             ctx->minDowngrade = TLSv1_1_MINOR;
             break;
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
         case TLS1_2_VERSION:
             ctx->minDowngrade = TLSv1_2_MINOR;
             break;
+    #endif
+    #ifdef WOLFSSL_TLS13
         case TLS1_3_VERSION:
             ctx->minDowngrade = TLSv1_3_MINOR;
             break;
+    #endif
+#endif
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
         case DTLS1_VERSION:
@@ -16490,18 +16523,15 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
             break;
 #endif
         default:
+            WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
             return WOLFSSL_FAILURE;
     }
 
     switch (version) {
+#ifndef NO_TLS
     case TLS1_3_VERSION:
-#ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_2);
         FALL_THROUGH;
-#else
-        WOLFSSL_MSG("wolfSSL TLS1.3 support not compiled in");
-        return WOLFSSL_FAILURE;
-#endif
     case TLS1_2_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_1);
         FALL_THROUGH;
@@ -16510,11 +16540,13 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
         FALL_THROUGH;
     case TLS1_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_SSLv3);
-        FALL_THROUGH;
+        break;
+#endif
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     case SSL3_VERSION:
-        FALL_THROUGH;
     case SSL2_VERSION:
         /* Nothing to do here */
+#endif
         break;
 #ifdef WOLFSSL_DTLS
 #ifndef NO_OLD_TLS
@@ -16524,7 +16556,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
         break;
 #endif
     default:
-        WOLFSSL_MSG("Unrecognized protocol version");
+        WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
         return WOLFSSL_FAILURE;
     }
 
@@ -16544,6 +16576,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     case SSL2_VERSION:
         WOLFSSL_MSG("wolfSSL does not support SSLv2");
         return WOLFSSL_FAILURE;
+#if (defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)) || !defined(NO_TLS)
     case SSL3_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1);
         FALL_THROUGH;
@@ -16555,12 +16588,11 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         FALL_THROUGH;
     case TLS1_2_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1_3);
-#ifdef WOLFSSL_TLS13
         FALL_THROUGH;
     case TLS1_3_VERSION:
         /* Nothing to do here */
-#endif
         break;
+#endif
 #ifdef WOLFSSL_DTLS
 #ifndef NO_OLD_TLS
     case DTLS1_VERSION:
@@ -16569,7 +16601,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         break;
 #endif
     default:
-        WOLFSSL_MSG("Unrecognized protocol version");
+        WOLFSSL_MSG("Unrecognized protocol version or not compiled in");
         return WOLFSSL_FAILURE;
     }
 
@@ -27373,10 +27405,11 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     keySz = ssl->buffers.keySz;
 #endif
 
-    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                       ssl->options.haveDH, ssl->options.haveNTRU,
-                       ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+    if (ssl->suites != NULL && ssl->options.side != WOLFSSL_NEITHER_END)
+        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                           ssl->options.haveDH, ssl->options.haveNTRU,
+                           ssl->options.haveECDSAsig, ssl->options.haveECC,
+                           ssl->options.haveStaticECC, ssl->options.side);
 
     return ssl->options.mask;
 }
@@ -28354,7 +28387,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_value");
-    return wolfSSL_sk_value(sk, i);
+    return (WOLFSSL_CIPHER*)wolfSSL_sk_value(sk, i);
 }
 
 WOLFSSL_API void ERR_load_SSL_strings(void)
@@ -46756,8 +46789,16 @@ static WC_INLINE int sslCipherMinMaxCheck(const WOLFSSL *ssl, byte suite0,
             break;
     if (i == cipherSz)
         return 1;
-    if (cipher_names[i].minor < ssl->options.minDowngrade)
+    /* Check min version */
+    if (cipher_names[i].minor < ssl->options.minDowngrade) {
+        if (ssl->options.minDowngrade <= TLSv1_2_MINOR &&
+                cipher_names[i].minor >= TLSv1_MINOR)
+            /* 1.0 ciphersuites are in general available in 1.1 and
+             * 1.1 ciphersuites are in general available in 1.2 */
+            return 0;
         return 1;
+    }
+    /* Check max version */
     switch (cipher_names[i].minor) {
     case SSLv3_MINOR :
         return ssl->options.mask & WOLFSSL_OP_NO_SSLv3;
@@ -48497,10 +48538,12 @@ word32 nid2oid(int nid, int grp)
 
         default:
             WOLFSSL_MSG("NID not in table");
-            return -1;
+            /* MSVC warns without the cast */
+            return (word32)-1;
     }
 
-    return -1;
+    /* MSVC warns without the cast */
+    return (word32)-1;
 }
 
 int oid2nid(word32 oid, int grp)
