@@ -44,6 +44,11 @@
     #undef err_sys
 #endif
 
+#if defined(WC_ECC_NONBLOCK) && defined(WOLFSSL_PUBLIC_MP) && \
+    defined(HAVE_ECC_SIGN) && defined(HAVE_ECC_VERIFY)
+    #include <stdint.h>
+#endif
+
 #if defined(HAVE_STACK_SIZE_VERBOSE)
 #ifdef WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES
     static ssize_t max_relative_stack = WOLFSSL_TEST_MAX_RELATIVE_STACK_BYTES;
