@@ -10576,9 +10576,8 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef ECC_TIMING_RESISTANT
-    ret = wc_ecc_set_rng(privKey, ctx->rng);
-    if (ret != 0)
-        return ret;
+    if (ctx->rng != NULL && privKey->rng == NULL)
+        privKey->rng = ctx->rng;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -10775,9 +10774,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef ECC_TIMING_RESISTANT
-    ret = wc_ecc_set_rng(privKey, ctx->rng);
-    if (ret != 0)
-        return ret;
+    if (ctx->rng != NULL && privKey->rng == NULL)
+        privKey->rng = ctx->rng;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
