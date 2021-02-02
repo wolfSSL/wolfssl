@@ -10300,6 +10300,7 @@ struct ecEncCtx {
     byte      protocol;    /* are we REQ_RESP client or server ? */
     byte      cliSt;       /* protocol state, for sanity checks */
     byte      srvSt;       /* protocol state, for sanity checks */
+    WC_RNG*   rng;
 };
 
 
@@ -10397,20 +10398,20 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
 }
 
 
-static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags, WC_RNG* rng)
+static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags)
 {
     byte* saltBuffer = NULL;
 
-    if (ctx == NULL || rng == NULL || flags == 0)
+    if (ctx == NULL || flags == 0)
         return BAD_FUNC_ARG;
 
     saltBuffer = (flags == REQ_RESP_CLIENT) ? ctx->clientSalt : ctx->serverSalt;
 
-    return wc_RNG_GenerateBlock(rng, saltBuffer, EXCHANGE_SALT_SZ);
+    return wc_RNG_GenerateBlock(ctx->rng, saltBuffer, EXCHANGE_SALT_SZ);
 }
 
 
-static void ecc_ctx_init(ecEncCtx* ctx, int flags)
+static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
 {
     if (ctx) {
         XMEMSET(ctx, 0, sizeof(ecEncCtx));
@@ -10419,6 +10420,7 @@ static void ecc_ctx_init(ecEncCtx* ctx, int flags)
         ctx->kdfAlgo  = ecHKDF_SHA256;
         ctx->macAlgo  = ecHMAC_SHA256;
         ctx->protocol = (byte)flags;
+        ctx->rng      = rng;
 
         if (flags == REQ_RESP_CLIENT)
             ctx->cliSt = ecCLI_INIT;
@@ -10434,8 +10436,8 @@ int wc_ecc_ctx_reset(ecEncCtx* ctx, WC_RNG* rng)
     if (ctx == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
-    ecc_ctx_init(ctx, ctx->protocol);
-    return ecc_ctx_set_salt(ctx, ctx->protocol, rng);
+    ecc_ctx_init(ctx, ctx->protocol, rng);
+    return ecc_ctx_set_salt(ctx, ctx->protocol);
 }
 
 
@@ -10539,7 +10541,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BAD_FUNC_ARG;
 
     if (ctx == NULL) {  /* use defaults */
-        ecc_ctx_init(&localCtx, 0);
+        ecc_ctx_init(&localCtx, 0, NULL);
         ctx = &localCtx;
     }
 
@@ -10572,6 +10574,12 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     if (*outSz < (msgSz + digestSz))
         return BUFFER_E;
+
+#ifdef ECC_TIMING_RESISTANT
+    ret = wc_ecc_set_rng(privKey, ctx->rng);
+    if (ret != 0)
+        return ret;
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
@@ -10732,7 +10740,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BAD_FUNC_ARG;
 
     if (ctx == NULL) {  /* use defaults */
-        ecc_ctx_init(&localCtx, 0);
+        ecc_ctx_init(&localCtx, 0, NULL);
         ctx = &localCtx;
     }
 
@@ -10765,6 +10773,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 
     if (*outSz < (msgSz - digestSz))
         return BUFFER_E;
+
+#ifdef ECC_TIMING_RESISTANT
+    ret = wc_ecc_set_rng(privKey, ctx->rng);
+    if (ret != 0)
+        return ret;
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
