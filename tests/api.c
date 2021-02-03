@@ -29922,6 +29922,35 @@ static void test_wolfSSL_BUF(void)
     #endif /* OPENSSL_EXTRA */
 }
 
+static void test_wolfSSL_RAND_bytes(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    const int size1 = RNG_MAX_BLOCK_LEN;        /* in bytes */
+    const int size2 = RNG_MAX_BLOCK_LEN + 1;    /* in bytes */ 
+    const int size3 = RNG_MAX_BLOCK_LEN * 2;    /* in bytes */
+    const int size4 = RNG_MAX_BLOCK_LEN * 4;    /* in bytes */
+    int  max_bufsize;
+    byte *buffer;
+     
+    printf(testingFmt, "test_wolfSSL_RAND_bytes()");
+
+    max_bufsize = size4;
+    
+    buffer = (byte*)XMALLOC(max_bufsize * sizeof(byte), NULL, 
+                                                     DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(buffer);
+    XMEMSET(buffer, 0, max_bufsize);
+    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size1), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size2), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size3), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size4), 1);
+    
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    printf(resultFmt, passed);
+
+    #endif
+}
 
 static void test_wolfSSL_pseudo_rand(void)
 {
@@ -40129,6 +40158,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_client_CA();
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
+    test_wolfSSL_RAND_bytes();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_PKCS8_d2i();
