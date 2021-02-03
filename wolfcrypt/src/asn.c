@@ -13115,7 +13115,19 @@ static int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+
+
+/* Guarded by either
+ * A) WOLFSSL_WPAS_SMALL is on or
+ * B) (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) + WOLFSSL_CERT_GEN +
+ *    (WOLFSSL_CERT_REQ or WOLFSSL_CERT_EXT or OPENSSL_EXTRA) has been
+ *    defined
+ */
+#if defined(WOLFSSL_WPAS_SMALL) || \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
+     defined(OPENSSL_EXTRA))
 /* Converts from NID_* value to wolfSSL value if needed */
 static int ConvertNIDToWolfSSL(int nid)
 {

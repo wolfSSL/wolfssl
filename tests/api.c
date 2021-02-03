@@ -25322,8 +25322,11 @@ static void test_wolfSSL_lhash(void)
 
 static void test_wolfSSL_X509_NAME(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
-        && !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
+        && !defined(NO_RSA) && defined(WOLFSSL_CERT_GEN) && \
+        (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
+         defined(OPENSSL_EXTRA))
     X509* x509;
     const unsigned char* c;
     unsigned char buf[4096];
@@ -25331,10 +25334,11 @@ static void test_wolfSSL_X509_NAME(void)
     XFILE f;
     const X509_NAME* a;
     const X509_NAME* b;
-    X509_NAME* d2i_name;
+    X509_NAME* d2i_name = NULL;
     int sz;
     unsigned char* tmp;
     char file[] = "./certs/ca-cert.der";
+#ifndef OPENSSL_EXTRA_X509_SMALL
     byte empty[] = { /* CN=empty emailAddress= */
         0x30, 0x21, 0x31, 0x0E, 0x30, 0x0C, 0x06, 0x03,
         0x55, 0x04, 0x03, 0x0C, 0x05, 0x65, 0x6D, 0x70,
@@ -25342,11 +25346,14 @@ static void test_wolfSSL_X509_NAME(void)
         0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09,
         0x01, 0x16, 0x00
     };
+#endif
 
     printf(testingFmt, "wolfSSL_X509_NAME()");
 
+#ifndef OPENSSL_EXTRA_X509_SMALL
     /* test compile of deprecated function, returns 0 */
     AssertIntEQ(CRYPTO_thread_id(), 0);
+#endif
 
     AssertNotNull(a = X509_NAME_new());
     X509_NAME_free((X509_NAME*)a);
@@ -25357,14 +25364,15 @@ static void test_wolfSSL_X509_NAME(void)
     XFCLOSE(f);
 
     c = buf;
-    AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(c, bytes,
-                SSL_FILETYPE_ASN1));
+    AssertNotNull(x509 = wolfSSL_X509_d2i(NULL, c, bytes));
 
     /* test cmp function */
     AssertNotNull(a = X509_get_issuer_name(x509));
     AssertNotNull(b = X509_get_subject_name(x509));
 
+#ifndef OPENSSL_EXTRA_X509_SMALL
     AssertIntEQ(X509_NAME_cmp(a, b), 0); /* self signed should be 0 */
+#endif
 
     tmp = buf;
     AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)a, &tmp)), 0);
@@ -25374,8 +25382,10 @@ static void test_wolfSSL_X509_NAME(void)
         abort();
     }
 
+#ifndef OPENSSL_EXTRA_X509_SMALL
     tmp = buf;
     AssertNotNull(d2i_name = d2i_X509_NAME(NULL, &tmp, sz));
+#endif
 
     /* retry but with the function creating a buffer */
     tmp = NULL;
@@ -25384,12 +25394,14 @@ static void test_wolfSSL_X509_NAME(void)
 
 
     AssertNotNull(b = X509_NAME_dup((X509_NAME*)a));
+#ifndef OPENSSL_EXTRA_X509_SMALL
     AssertIntEQ(X509_NAME_cmp(a, b), 0);
+#endif
     X509_NAME_free((X509_NAME*)b);
     X509_NAME_free(d2i_name);
-
     X509_free(x509);
 
+#ifndef OPENSSL_EXTRA_X509_SMALL
     /* test with an empty domain component */
     tmp = empty;
     sz  = sizeof(empty);
@@ -25406,6 +25418,7 @@ static void test_wolfSSL_X509_NAME(void)
     AssertIntEQ(X509_NAME_get_text_by_NID(d2i_name, NID_organizationName,
                 (char*)tmp, sizeof(buf)), -1);
     X509_NAME_free(d2i_name);
+#endif
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
