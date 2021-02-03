@@ -2273,6 +2273,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     tmp = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL)
         return MEMORY_E;
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 #ifdef WC_RSA_BLINDING
     rnd = (mp_int*)XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
     if (rnd == NULL) {
@@ -2281,11 +2282,13 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
     rndi = rnd + 1;
 #endif /* WC_RSA_BLINDING */
+#endif
 #endif /* WOLFSSL_SMALL_STACK */
 
     if (mp_init(tmp) != MP_OKAY)
         ret = MP_INIT_E;
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 #ifdef WC_RSA_BLINDING
     if (ret == 0) {
         if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
@@ -2296,6 +2299,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         }
     }
 #endif
+#endif
 
 #ifndef TEST_UNPAD_CONSTANT_TIME
     if (ret == 0 && mp_read_unsigned_bin(tmp, (byte*)in, inLen) != MP_OKAY)
@@ -2303,7 +2307,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     if (ret == 0) {
         switch(type) {
-    #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         case RSA_PRIVATE_DECRYPT:
         case RSA_PRIVATE_ENCRYPT:
         {
@@ -2762,6 +2766,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
 #ifndef TEST_UNPAD_CONSTANT_TIME
 #ifndef NO_RSA_BOUNDS_CHECK
     if (type == RSA_PRIVATE_DECRYPT &&
@@ -2811,6 +2816,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             return ret;
     }
 #endif /* NO_RSA_BOUNDS_CHECK */
+#endif
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)

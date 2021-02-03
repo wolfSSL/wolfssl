@@ -776,7 +776,7 @@ MP_API int sp_invmod_mont_ct(sp_int* a, sp_int* m, sp_int* r, sp_int_digit mp);
 MP_API int sp_exptmod_ex(sp_int* b, sp_int* e, int digits, sp_int* m,
                          sp_int* r);
 MP_API int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
-#ifdef WOLFSSL_SP_MATH_ALL
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
 MP_API int sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
 #endif
 
@@ -789,11 +789,9 @@ MP_API int sp_mul_2d(sp_int* a, int e, sp_int* r);
 MP_API int sp_sqr(sp_int* a, sp_int* r);
 MP_API int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r);
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 MP_API int sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
 MP_API int sp_mont_setup(sp_int* m, sp_int_digit* rho);
 MP_API int sp_mont_norm(sp_int* norm, sp_int* m);
-#endif
 
 MP_API int sp_unsigned_bin_size(sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);

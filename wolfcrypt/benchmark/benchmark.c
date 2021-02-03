@@ -594,7 +594,8 @@ static const char* bench_result_words1[][4] = {
 #endif
 };
 
-#if !defined(NO_RSA) || defined(HAVE_NTRU) || \
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_NTRU) || \
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
@@ -738,8 +739,9 @@ static const char* bench_desc_words[][9] = {
 #endif
 
 #if defined(BENCH_ASYM)
-#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
-                                   defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
+#if defined(HAVE_ECC) || (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+           !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP) || \
+           !defined(NO_DH)
 static const char* bench_result_words2[][5] = {
     { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
 #ifndef NO_MULTIBYTE_PRINT
@@ -1276,8 +1278,9 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 }
 
 #ifdef BENCH_ASYM
-#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
-                                   defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
+#if defined(HAVE_ECC) || (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+           !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP) || \
+           !defined(NO_DH)
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start, int ret)
 {
@@ -4554,7 +4557,8 @@ static unsigned char rsa_3072_sig[] = {
     #endif
 #endif
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP)
 static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         int rsaKeySz)
 {
@@ -4676,7 +4680,7 @@ exit:
 #endif
     }
     else {
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         /* begin RSA sign */
         bench_stats_start(&count, &start);
         do {
@@ -4772,7 +4776,8 @@ void bench_rsa(int doAsync)
 #endif
     int         i;
     RsaKey      rsaKey[BENCH_MAX_PENDING];
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP)
     int         rsaKeySz; /* used in printf */
     size_t      bytes;
     const byte* tmp;
@@ -4814,7 +4819,7 @@ void bench_rsa(int doAsync)
     #endif
 #endif
 
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         /* decode the private key */
         idx = 0;
         if ((ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey[i],
@@ -4843,7 +4848,8 @@ void bench_rsa(int doAsync)
 
     }
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP)
     bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
 #endif
 exit_bench_rsa:
