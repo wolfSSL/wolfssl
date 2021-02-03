@@ -550,7 +550,12 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 
     return ret;
 }
-
+#ifdef OPENSSL_EXTRA
+int wc_Md5Transform(wc_Md5* md5, const byte* data)
+{
+    return Transform(md5, data);
+}
+#endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
 {

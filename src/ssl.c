@@ -16832,6 +16832,26 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
+
+    int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX* md5, const unsigned char* data)
+    {
+        int ret;
+
+       WOLFSSL_ENTER("MD5_Transform");
+       #if defined(LITTLE_ENDIAN_ORDER)
+       {
+            ByteReverseWords((word32*)data, (word32*)data, WC_MD5_BLOCK_SIZE);
+       }
+       #endif
+
+       ret = wc_Md5Transform((wc_Md5*)md5, data);
+
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+            
+       return ret;
+    }
 #endif /* !NO_MD5 */
 
 
