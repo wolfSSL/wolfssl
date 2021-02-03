@@ -54,6 +54,8 @@ WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX*, const void*, unsigned long)
 WOLFSSL_API int wolfSSL_MD5_Final(unsigned char*, WOLFSSL_MD5_CTX*);
 WOLFSSL_API int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX*, const unsigned char*);
 
+WOLFSSL_API unsigned char *wolfSSL_MD5(const unsigned char*, size_t, unsigned char*);
+
 typedef WOLFSSL_MD5_CTX MD5_CTX;
 
 #define MD5_Init wolfSSL_MD5_Init
@@ -67,9 +69,7 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
     #define MD5Final wolfSSL_MD5_Final
 #endif
 
-#ifndef MD5
-#define MD5(d, n, md) wc_Md5Hash((d), (n), (md))
-#endif
+#define MD5               wolfSSL_MD5
 
 #define MD5_DIGEST_LENGTH MD5_DIGEST_SIZE
 

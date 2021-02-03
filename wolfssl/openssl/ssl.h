@@ -1098,6 +1098,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_renegotiate_pending         wolfSSL_SSL_renegotiate_pending
 #define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
 #define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
+#define SSL_get_tlsext_status_type      wolfSSL_get_tlsext_status_type
 #define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts
 #define SSL_get_tlsext_status_ids       wolfSSL_get_tlsext_status_ids
 #define SSL_set_tlsext_status_ids       wolfSSL_set_tlsext_status_ids
@@ -1135,6 +1136,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTRL_SET_SESS_CACHE_MODE              44
 #define SSL_CTRL_SET_TLSEXT_DEBUG_ARG             57
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE       65
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_TYPE       651
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_EXTS       66
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_EXTS       67
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_IDS        68
@@ -1261,6 +1263,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_clear_options           wolfSSL_CTX_clear_options
 
 #define SSL_CTX_add_server_custom_ext(...) 0
+
+#define SSL_get0_verified_chain         wolfSSL_get0_verified_chain
+#define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
 
 #endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 
