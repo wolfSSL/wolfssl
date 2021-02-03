@@ -47412,10 +47412,78 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
 
     return WOLFSSL_SUCCESS;
 }
+
 #endif /* HAVE_SESSION_TICKET */
 
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
     OPENSSL_EXTRA || HAVE_LIGHTY */
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER)
+/* Serialize the session ticket encryption keys.
+ *
+ * @param [in]  ctx     SSL/TLS context object.
+ * @param [in]  keys    Buffer to hold session ticket keys.
+ * @param [in]  keylen  Length of buffer.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
+ *          correct length.
+ */
+long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+     unsigned char *keys, int keylen)
+{
+    if (ctx == NULL || keys == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (keylen != WOLFSSL_TICKET_KEYS_SZ) {
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(keys, ctx->ticketKeyCtx.name, WOLFSSL_TICKET_NAME_SZ);
+    keys += WOLFSSL_TICKET_NAME_SZ;
+    XMEMCPY(keys, ctx->ticketKeyCtx.key[0], WOLFSSL_TICKET_KEY_SZ);
+    keys += WOLFSSL_TICKET_KEY_SZ;
+    XMEMCPY(keys, ctx->ticketKeyCtx.key[1], WOLFSSL_TICKET_KEY_SZ);
+    keys += WOLFSSL_TICKET_KEY_SZ;
+    c32toa(ctx->ticketKeyCtx.expirary[0], keys);
+    keys += OPAQUE32_LEN;
+    c32toa(ctx->ticketKeyCtx.expirary[1], keys);
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Deserialize the session ticket encryption keys.
+ *
+ * @param [in]  ctx     SSL/TLS context object.
+ * @param [in]  keys    Session ticket keys.
+ * @param [in]  keylen  Length of data.
+ * @return  WOLFSSL_SUCCESS on success.
+ * @return  WOLFSSL_FAILURE when ctx is NULL, keys is NULL or keylen is not the
+ *          correct length.
+ */
+long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+     unsigned char *keys, int keylen)
+{
+    if (ctx == NULL || keys == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (keylen != WOLFSSL_TICKET_KEYS_SZ) {
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(ctx->ticketKeyCtx.name, keys, WOLFSSL_TICKET_NAME_SZ);
+    keys += WOLFSSL_TICKET_NAME_SZ;
+    XMEMCPY(ctx->ticketKeyCtx.key[0], keys, WOLFSSL_TICKET_KEY_SZ);
+    keys += WOLFSSL_TICKET_KEY_SZ;
+    XMEMCPY(ctx->ticketKeyCtx.key[1], keys, WOLFSSL_TICKET_KEY_SZ);
+    keys += WOLFSSL_TICKET_KEY_SZ;
+    ato32(keys, &ctx->ticketKeyCtx.expirary[0]);
+    keys += OPAQUE32_LEN;
+    ato32(keys, &ctx->ticketKeyCtx.expirary[1]);
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_OCSP

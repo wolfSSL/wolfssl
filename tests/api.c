@@ -2646,9 +2646,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         ctx = wolfSSL_CTX_new(method);
     }
 
-#if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
-      defined(HAVE_AESGCM))
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
     TicketInit();
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
@@ -2834,8 +2833,8 @@ done:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
-                                    defined(HAVE_POLY1305)
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
     TicketCleanup();
 #endif
 
@@ -31665,6 +31664,53 @@ static void test_wolfSSL_SESSION(void)
 #endif
 }
 
+static void test_wolfSSL_ticket_keys(void)
+{
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx;
+    byte keys[WOLFSSL_TICKET_KEYS_SZ];
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(NULL, NULL, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx, NULL, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx, keys, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(NULL, keys, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(NULL, NULL, sizeof(keys)),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx, NULL, sizeof(keys)),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(NULL, keys, sizeof(keys)),
+                WOLFSSL_FAILURE);
+
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(NULL, NULL, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx, NULL, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx, keys, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(NULL, keys, 0),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(NULL, NULL, sizeof(keys)),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx, NULL, sizeof(keys)),
+                WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(NULL, keys, sizeof(keys)),
+                WOLFSSL_FAILURE);
+
+    AssertIntEQ(wolfSSL_CTX_get_tlsext_ticket_keys(ctx, keys, sizeof(keys)),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_tlsext_ticket_keys(ctx, keys, sizeof(keys)),
+                WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
 
 #ifndef NO_BIO
 
@@ -40255,6 +40301,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_f_md();
 #endif
     test_wolfSSL_SESSION();
+    test_wolfSSL_ticket_keys();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
     test_wolfSSL_MD4();
