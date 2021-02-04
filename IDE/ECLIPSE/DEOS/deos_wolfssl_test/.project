@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>wolfssl_test</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>com.ddci.common.ide.Builder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.ddci.common.ide.DdciNature</nature>
+		<nature>com.ddci.common.ide.ExecutableNature</nature>
+		<nature>com.ddci.deos.common.deosLoadListNature</nature>
+		<nature>com.ddci.common.ide.DEOS_EXE</nature>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+	</natures>
+</projectDescription>

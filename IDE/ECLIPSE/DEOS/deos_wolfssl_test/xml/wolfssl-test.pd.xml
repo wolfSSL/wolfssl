@@ -1,0 +1,122 @@
+<?xml version = "1.0" encoding="ISO-8859-1"?>
+<processTemplate
+     name = "wolfssl-test"
+     pomSizeInPages = "automatic"
+     mailboxQuota = "0"
+     systemMemoryObjectQuota = "0"
+     validityKey = "-1061063713"
+     breakAtStartup = "yes"
+     mutexQuota = "0"
+     semaphoreQuota = "0"
+     envelopeQuota = "0"
+     memoryObjectQuota = "1"
+     crcAtProcessCreation = "no"
+     largestAMOSizeInPages = "1"
+     processAliasQuota = "0"
+     toolVersion = "3.49.0"
+     inDebugSet = "no"
+     attachedMemoryObjectQuota = "1"
+     eventQuota = "0"
+     executeFromRAM = "no"
+     threadQuota = "1"
+     comment = "This comment block is the one place in the file that users can add comments to the file."
+     addlRamPagesForExecuteOutOfRam = "0"
+     executableName = "wolfssl_test.exe"
+     attachedResourceQuota = "1"
+     threadStackVASGap = "yes"
+     tlsSpaceInBytes = "0"
+     addTLSToStack = "no"
+     argumentQuota = "32"
+     mountQuota = "0"
+     pipc_consumeHandlePrefix = "deprecated"
+     pipc_produceHandlePrefix = "deprecated"
+     pipc_declareConsumeFail = "deprecated"
+     pipc_declareProduceFail = "deprecated"
+     pipc_includeFileFail = "deprecated"
+     pipc_initializeConsumeHandles = "no"
+     pipc_codeStyle = "C"
+     capabilities = "interprocessInterrogationServices"
+     exceptionHandlerProtocolVersion = "1"
+     xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance"
+     xsi:noNamespaceSchemaLocation = "ddci:/xsd/pd.xsd"
+   >
+   <logicalMemoryPools>
+      <pool
+           platformMemoryPool = "0"
+           id = "0"
+           name = ""
+           pagesNeeded = "600"
+           initialPool = "yes"
+           singleMappingRequired = "no"
+      ></pool>
+   </logicalMemoryPools>
+   <usedFeatureSets>
+      <usedFeatureSet
+           name = "libansi"
+           versionRequirement = "none"
+           versionNumber = "none"
+           featureSetUndefinedAction = "error"
+         >
+      </usedFeatureSet>
+      <usedFeatureSet
+           name = "libtime"
+           versionRequirement = "none"
+           versionNumber = "none"
+           featureSetUndefinedAction = "error"
+         >
+         <usedFeature
+              name = "time-control"
+            >
+            <usedFeatureParameter
+                 name = "processInstanceName"
+                 value = "^wolfSSL-test-process^"
+            ></usedFeatureParameter>
+         </usedFeature>
+      </usedFeatureSet>
+   </usedFeatureSets>
+   <processInstances>
+      <processInstance
+           name = "wolfSSL-test-process"
+           dataParameter = "0"
+           autoCreated = "yes"
+           username = "default"
+           groupname = "default"
+           reservedProcessNames = ""
+           reservedMemoryObjectNames = ""
+           argvCommandLineParameters = ""
+           envpCommandLineParameters = "^ MALLOC_PAGES=512^"
+           fileSystemSearchPath = "/"
+         >
+         <autoCreatedMemoryObjects>
+            <autoCreatedMemoryObject
+                 name = "wolfSSL-test"
+                 initializeToZeros = "yes"
+                 accessRights = "r"
+                 sizeInPages = "1"
+                 platformMemoryPool = "0"
+            ></autoCreatedMemoryObject>
+         </autoCreatedMemoryObjects>
+      </processInstance>
+   </processInstances>
+   <threadTemplates>
+      <threadTemplate
+           name = "mainThreadTemplate"
+           budget = "2000"
+           instanceCount = "1"
+           slackEnabled = "yes"
+           stackSizeInPages = "50"
+           period = "fastest"
+           namesOfMutexesLocked = ""
+           usedToCreateISRThread = "no"
+           schedulerName = "default-core-0"
+      ></threadTemplate>
+   </threadTemplates>
+   <threadNames>
+      <threadName
+           name = "PrimaryThread"
+           isMainThread = "yes"
+           period = "fastest"
+           schedulerName = "default-core-0"
+      ></threadName>
+   </threadNames>
+</processTemplate>

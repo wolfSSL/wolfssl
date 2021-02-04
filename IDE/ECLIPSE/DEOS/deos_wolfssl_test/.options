@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project xmlns="http://www.ddci.com/DEOS_EXEoptions" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="ddci:/xsd/DEOS_EXE.xsd http://www.ddci.com/DEOS_EXEoptions">
+  <version>26</version>
+  <targetArch>ppc</targetArch>
+  <fpuType>none</fpuType>
+  <variant>diagnostic</variant>
+  <depend>kernel</depend>
+  <depend variant="diagnostic">video</depend>
+  <depend>printx</depend>
+  <depend>wolfssl</depend>
+  <depend>deos-time</depend>
+  <depend>ansi</depend>
+  <kernelFile kfs="hypstart">$(PROJECT_NAME).exe</kernelFile>
+  <copyToAppbin>$(BINARY)</copyToAppbin>
+  <copyToAppbin>$(BINARY).dbg</copyToAppbin>
+  <gccCCompileDirectories targetArch="arm">$(DESK_DIR)/arm/include</gccCCompileDirectories>
+  <gccCCompileDirectories targetArch="ppc">$(DESK_DIR)/ppc/include</gccCCompileDirectories>
+  <gccCCompileDirectories targetArch="x86">$(DESK_DIR)/x86/include</gccCCompileDirectories>
+  <gccCCompileDirectories>$(DESK_DIR)/include</gccCCompileDirectories>
+  <gccCCompileDirectories>$(PROJECT_DIR.printx)/code</gccCCompileDirectories>
+  <gccCCompileDirectories>$(PROJECT_DIR.wolfssl)/../../../..</gccCCompileDirectories>
+</project>
