@@ -75,6 +75,8 @@ This library provides single precision (SP) integer math functions.
  * WOLFSSL_SP_NONBLOCK          Enables "non blocking" mode for SP math, which
  *      will return FP_WOULDBLOCK for long operations and function must be
  *      called again until complete.
+ * WOLFSSL_SP_FAST_NCT_EXPTMOD  Enables the faster non-constant time modular
+ *      exponentation implementation.
  */
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
@@ -8851,7 +8853,7 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         * WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
-#ifndef WOLFSSL_SP_SMALL
+#if defined(WOLFSSL_SP_FAST_NCT_EXPTMOD) || !defined(WOLFSSL_SP_SMALL)
 /* Internal. Exponentiates b to the power of e modulo m into r: r = b ^ e mod m
  * Creates a window of precalculated exponents with base in montgomery form.
  * Sliding window and is NOT constant time.
@@ -8880,8 +8882,6 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     sp_int* t = NULL;
     sp_int* tr = NULL;
     sp_int* bm = NULL;
-    sp_int_digit mp;
-    sp_int_digit n;
     sp_int_digit mask;
 
     bits = sp_count_bits(e);
@@ -8937,6 +8937,9 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     }
 
     if ((!done) && (err == MP_OKAY)) {
+        sp_int_digit mp;
+        sp_int_digit n;
+
         err = sp_mont_setup(m, &mp);
         if (err == MP_OKAY) {
             err = sp_mont_norm(&t[0], m);
@@ -12077,7 +12080,7 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     sp_rshb(a, bits, a);
 
     if (_sp_cmp(a, m) != MP_LT) {
-        sp_sub(a, m, a);
+        _sp_sub_off(a, m, a, 0);
     }
 
     if (0) {
