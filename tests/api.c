@@ -33008,10 +33008,96 @@ static void test_wolfSSL_AES_ecb_encrypt(void)
 #endif
 }
 
+static void test_wolfSSL_MD5(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
+    byte input1[] = "";
+    byte input2[] = "message digest";
+    byte hash[WC_MD5_DIGEST_SIZE];
+    unsigned char output1[] = 
+        "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42\x7e";
+    unsigned char output2[] =
+        "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d\x52\x5a\x2f\x31\xaa\xf1\x61\xd0";
+    WOLFSSL_MD5_CTX md5;
+    
+    printf(testingFmt, "wolfSSL_MD5()");
+    
+    XMEMSET(&md5, 0, sizeof(md5));
+    
+    /* Init MD5 CTX */
+    AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    AssertIntEQ(wolfSSL_MD5_Update(&md5, input1, 
+                                        XSTRLEN((const char*)&input1)), 1);
+    AssertIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
+    AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
+    
+    /* Init MD5 CTX */
+    AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    AssertIntEQ(wolfSSL_MD5_Update(&md5, input2, 
+                                        XSTRLEN((const char*)input2)), 1);
+    AssertIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
+    AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+    AssertIntEQ(MD5(input1, XSTRLEN((const char*)&input1), (byte*)&hash), 0);
+    AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
+
+    AssertIntEQ(MD5(input2, XSTRLEN((const char*)&input2), (byte*)&hash), 0);
+    AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_MD5_Transform(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_MD5_BLOCK_SIZE];
+    word32 sLen = 0;
+    unsigned char output1[] = 
+        "\xac\x1d\x1f\x03\xd0\x8e\xa5\x6e\xb7\x67\xab\x1f\x91\x77\x31\x74";
+    unsigned char output2[] =
+        "\x8d\x79\xd3\xef\x90\x25\x17\x67\xc7\x79\x13\xa4\xbc\x7b\xa7\xe3";
+
+    WOLFSSL_MD5_CTX md5;
+    
+    printf(testingFmt, "wolfSSL_MD5_Transform()");
+    
+    XMEMSET(&md5, 0, sizeof(md5));
+    XMEMSET(&local, 0, sizeof(local));
+    
+    /* Init MD5 CTX */
+    AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    /* Do Transform*/
+    sLen = XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    AssertIntEQ(wolfSSL_MD5_Transform(&md5, (const byte*)&local[0]), 1);
+    
+    AssertIntEQ(XMEMCMP(&((wc_Md5*)&md5)->digest[0], output1, 
+                                                    WC_MD5_DIGEST_SIZE), 0);
+    
+    /* Init MD5 CTX */
+    AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
+    sLen = XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_MD5_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    AssertIntEQ(wolfSSL_MD5_Transform(&md5, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(&((wc_Md5*)&md5)->digest[0], output2, 
+                                                    WC_MD5_DIGEST_SIZE), 0);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_SHA224(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA224) && \
-    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
     unsigned char input[] =
         "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     unsigned char output[] =
@@ -33032,13 +33118,11 @@ static void test_wolfSSL_SHA224(void)
 }
 static void test_wolfSSL_SHA_Transform(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
-    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA_BLOCK_SIZE];
     word32 sLen = 0;
-    word32 i;
     unsigned char output1[] = 
         "\xe5\x04\xb4\x92\xed\x8c\x58\x56\x4e\xcd\x1a\x6c\x68\x3f\x05\xbf"
         "\x93\x3a\xf7\x09";
@@ -33059,10 +33143,8 @@ static void test_wolfSSL_SHA_Transform(void)
     sLen = XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
-    for(i = 0; i< 5; i++) {
-        printf("sha->diges[%d] = 0x%08x\n", i, ((wc_Sha*)&sha)->digest[i]);
-    }
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1, WC_SHA_DIGEST_SIZE), 0);
+    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1, 
+                                                        WC_SHA_DIGEST_SIZE), 0);
     
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
@@ -33070,7 +33152,8 @@ static void test_wolfSSL_SHA_Transform(void)
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output2, WC_SHA_DIGEST_SIZE), 0);
+    AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output2, 
+                                                        WC_SHA_DIGEST_SIZE), 0);
     
     printf(resultFmt, passed);
 #endif
@@ -33104,7 +33187,8 @@ static void test_wolfSSL_SHA256_Transform(void)
     sLen = XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1, WC_SHA256_DIGEST_SIZE), 0);
+    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1, 
+                                                    WC_SHA256_DIGEST_SIZE), 0);
     
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
@@ -33112,7 +33196,8 @@ static void test_wolfSSL_SHA256_Transform(void)
     XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
-    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output2, WC_SHA256_DIGEST_SIZE), 0);
+    AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output2, 
+                                                    WC_SHA256_DIGEST_SIZE), 0);
     
     printf(resultFmt, passed);
 #endif
@@ -41027,6 +41112,8 @@ void ApiTest(void)
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_PEM_write_DHparams();
     test_wolfSSL_AES_ecb_encrypt();
+    test_wolfSSL_MD5();
+    test_wolfSSL_MD5_Transform();
     test_wolfSSL_SHA_Transform();
     test_wolfSSL_SHA256();
     test_wolfSSL_SHA256_Transform();

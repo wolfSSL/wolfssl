@@ -16838,7 +16838,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         int ret;
 
        WOLFSSL_ENTER("MD5_Transform");
-       #if defined(LITTLE_ENDIAN_ORDER)
+       #if defined(BIG_ENDIAN_ORDER)
        {
             ByteReverseWords((word32*)data, (word32*)data, WC_MD5_BLOCK_SIZE);
        }
