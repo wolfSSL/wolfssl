@@ -5,7 +5,6 @@
 
 if BUILD_TESTS
 check_PROGRAMS += testsuite/testsuite.test
-noinst_PROGRAMS += testsuite/testsuite.test
 testsuite_testsuite_test_SOURCES = \
 			      wolfcrypt/test/test.c \
 			      examples/client/client.c \
