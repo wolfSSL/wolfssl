@@ -17181,19 +17181,27 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
-    #if defined(OPENSSL_EXTRA)
-    int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha, 
+
+    int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512, 
                                           const unsigned char* data)
     {
        int ret = WOLFSSL_SUCCESS;
        
        WOLFSSL_ENTER("SHA512_Transform");
-       (void)sha;
-       (void)data;
+       #if defined(LITTLE_ENDIAN_ORDER)
+       {
+            ByteReverseWords64((word64*)data, (word64*)data, 
+                                                        WC_SHA512_BLOCK_SIZE);
+       }
+       #endif
+       ret = wc_Sha512Transform((wc_Sha512*)sha512, data);
+
+       /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
        
        return ret;
     }
-    #endif
     
 #endif /* WOLFSSL_SHA512 */
 

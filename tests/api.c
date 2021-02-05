@@ -33161,8 +33161,7 @@ static void test_wolfSSL_SHA_Transform(void)
 
 static void test_wolfSSL_SHA256_Transform(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
-    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA256_BLOCK_SIZE];
@@ -33223,6 +33222,54 @@ static void test_wolfSSL_SHA256(void)
     AssertNotNull(SHA256(input, inLen, hash));
     AssertIntEQ(XMEMCMP(hash, output, WC_SHA256_DIGEST_SIZE), 0);
 
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_SHA512_Transform(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA512)
+    byte input1[] = "";
+    byte input2[] = "abc";
+    byte local[WC_SHA512_BLOCK_SIZE];
+    word32 sLen = 0;
+    unsigned char output1[] = 
+        "\xe8\xcb\x4a\x77\xd5\x81\x78\xcf\x70\x80\xc7\xfb\xe0\x62\x33\x53"
+        "\xda\x0e\x46\x87\x9d\x63\x67\x02\xb0\x31\x59\xe8\x40\xcb\x86\x30"
+        "\xa3\x23\xa0\x88\x52\xc9\x7d\x71\xe0\xb5\xe0\x4c\xc1\xb2\xba\x96"
+        "\x0b\x3e\xe3\xea\x04\xfe\xc4\x6f\xee\x8b\x66\xbd\x0c\xd8\xf4\x91";
+   unsigned char output2[] =
+        "\x0d\xcc\xa0\xeb\x4e\x93\x10\x11\x21\xc8\x04\xfb\x9c\x43\x33\xfd"
+        "\x41\x31\xab\xca\x3d\x26\xb4\xa9\xab\xd7\x67\xe1\xaf\xaa\xc6\xe2"
+        "\x83\x4e\xba\x2c\x54\x2e\x8f\x31\x98\x38\x2b\x8f\x9d\xec\x88\xbe"
+        "\x4d\x5e\x8b\x53\x9d\x4e\xd2\x14\xf0\x96\x20\xaf\x69\x6c\x68\xde";
+    
+    WOLFSSL_SHA512_CTX sha512;
+    
+    printf(testingFmt, "wolfSSL_SHA512_Transform()");
+    
+    XMEMSET(&sha512, 0, sizeof(sha512));
+    XMEMSET(&local, 0, sizeof(local));
+    
+    /* Init SHA512 CTX */
+    AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);
+
+    /* Do Transform*/
+    sLen = XSTRLEN((char*)input1);
+    XMEMCPY(local, input1, sLen);
+    AssertIntEQ(wolfSSL_SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
+   AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output1, 
+                                                    WC_SHA512_DIGEST_SIZE), 0);
+    
+    /* Init SHA512 CTX */
+    AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);
+    sLen = XSTRLEN((char*)input2);
+    XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(local, input2, sLen);
+    AssertIntEQ(wolfSSL_SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
+    AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output2, 
+                                                    WC_SHA512_DIGEST_SIZE), 0);
+    (void)input1;
     printf(resultFmt, passed);
 #endif
 }
@@ -41118,6 +41165,7 @@ void ApiTest(void)
     test_wolfSSL_SHA256();
     test_wolfSSL_SHA256_Transform();
     test_wolfSSL_SHA224();
+    test_wolfSSL_SHA512_Transform();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
     test_wolfSSL_d2i_X509_REQ();

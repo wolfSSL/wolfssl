@@ -180,6 +180,9 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
+#endif
 #endif /* WOLFSSL_SHA512 */
 
 #if defined(WOLFSSL_SHA384)

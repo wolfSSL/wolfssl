@@ -916,7 +916,32 @@ void wc_Sha512Free(wc_Sha512* sha512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
+#if defined(OPENSSL_EXTRA)
+int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
+{
+    int ret ;
+    /* back up buffer */
+    #if defined(WOLFSSL_SMALL_STACK)
+    word64* buffer;
+    buffer = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buffer == NULL)
+        return MEMORY_E;
+    #else
+    word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
+    #endif
+    
+    XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
+    XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
+    
+    ret = Transform_Sha512(sha);
 
+    XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);
+    #if defined(WOLFSSL_SMALL_STACK)
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    return ret;
+}
+#endif
 #endif /* WOLFSSL_SHA512 */
 
 /* -------------------------------------------------------------------------- */
