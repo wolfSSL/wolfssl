@@ -10233,6 +10233,12 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
         0x89, 0xd8, 0xd2, 0x02, 0xc5, 0xcf, 0xae, 0xf4
     };
 
+    /* tag - authentication - empty plaintext */
+    WOLFSSL_SMALL_STACK_STATIC const byte t_empty[] =
+    {
+        0xe4, 0x28, 0x8a, 0xc3, 0x78, 0x00, 0x0f, 0xf5
+    };
+
     byte t2[sizeof(t)];
     byte p2[sizeof(p)];
     byte c2[sizeof(c)];
@@ -10240,6 +10246,7 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
     byte pl2[sizeof(pl)];
     byte cl2[sizeof(cl)];
     byte tl2[sizeof(tl)];
+    byte t_empty2[sizeof(t_empty)];
 
     int result;
 
@@ -10342,6 +10349,40 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
         ERROR_OUT(-6519, out);
     if (XMEMCMP(pl, pl2, sizeof(pl2)))
         ERROR_OUT(-6520, out);
+
+    /* test empty message as null input and output --
+     * must work, or fail early with BAD_FUNC_ARG.
+     */
+    result = wc_AesCcmEncrypt(enc, NULL /* out */, NULL /* in */, 0 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (result != BAD_FUNC_ARG) {
+        if (result != 0)
+            ERROR_OUT(-6521, out);
+        if (XMEMCMP(t_empty, t_empty2, sizeof(t_empty2)))
+            ERROR_OUT(-6522, out);
+
+        result = wc_AesCcmDecrypt(enc, NULL /* out */, NULL /* in */,
+                                  0 /* inSz */, iv, sizeof(iv), t_empty2,
+                                  sizeof(t_empty2), a, sizeof(a));
+        if (result != 0)
+            ERROR_OUT(-6523, out);
+    }
+
+    /* test empty message as zero-length string -- must work. */
+    result = wc_AesCcmEncrypt(enc, pl2, (const byte *)"", 0 /* inSz */, iv,
+                              sizeof(iv), t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6524, out);
+    if (XMEMCMP(t_empty, t_empty2, sizeof(t_empty2)))
+        ERROR_OUT(-6525, out);
+
+    result = wc_AesCcmDecrypt(enc, pl2, (const byte *)"", 0 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6526, out);
 
     ret = 0;
 
