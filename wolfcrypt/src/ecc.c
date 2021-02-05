@@ -6931,6 +6931,14 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
                     (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                         ECC_CURVE_FIELD_BF));
 
+            /* validate prime is prime */
+            if (err == MP_OKAY) {
+                int isPrime = MP_NO;
+                err = mp_prime_is_prime(curve->prime, 8, &isPrime);
+                if (err == MP_OKAY && isPrime == MP_NO)
+                    err = MP_VAL;
+            }
+
             /* compute x^3 */
             if (err == MP_OKAY)
                 err = mp_sqr(point->x, &t1);
@@ -7827,6 +7835,14 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             err = wc_ecc_curve_load(key->dp, &curve,
                 (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                  ECC_CURVE_FIELD_BF));
+
+        /* validate prime is prime */
+        if (err == MP_OKAY) {
+            int isPrime = MP_NO;
+            err = mp_prime_is_prime(curve->prime, 8, &isPrime);
+            if (err == MP_OKAY && isPrime == MP_NO)
+                err = MP_VAL;
+        }
 
         /* compute x^3 */
         if (err == MP_OKAY)
