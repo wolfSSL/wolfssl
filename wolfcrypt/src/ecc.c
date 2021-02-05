@@ -6931,8 +6931,8 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
                     (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                         ECC_CURVE_FIELD_BF));
 
-            /* validate prime is prime */
-            if (err == MP_OKAY) {
+            /* validate prime is prime for custom curves */
+            if (err == MP_OKAY && curve->id == ECC_CURVE_CUSTOM) {
                 int isPrime = MP_NO;
                 err = mp_prime_is_prime(curve->prime, 8, &isPrime);
                 if (err == MP_OKAY && isPrime == MP_NO)
@@ -7836,8 +7836,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                 (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                  ECC_CURVE_FIELD_BF));
 
-        /* validate prime is prime */
-        if (err == MP_OKAY) {
+        /* validate prime is prime for custom curves */
+        if (err == MP_OKAY && curve->id == ECC_CURVE_CUSTOM) {
             int isPrime = MP_NO;
             err = mp_prime_is_prime(curve->prime, 8, &isPrime);
             if (err == MP_OKAY && isPrime == MP_NO)
