@@ -5748,6 +5748,7 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
     word64* pZ;
     word64* pm;
     word64* px = (word64*)(x);
+    int i;
 
     pZ = (word64*)(Z + 15 + 1);
     pm = (word64*)(m[x[15]]);
@@ -5756,7 +5757,6 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
     a = Z[16 + 15];
     Z[15]  = R[a][0];
     Z[16] ^= R[a][1];
-    int i;
     for (i = 14; i > 0; i--) {
         pZ = (word64*)(Z + i + 1);
         pm = (word64*)(m[x[i]]);
