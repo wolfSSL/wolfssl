@@ -23,11 +23,15 @@ noinst_DATA =
 SUBDIRS_OPT =
 DIST_SUBDIRS_OPT =
 
+DISTCHECK_CONFIGURE_FLAGS = CPPFLAGS=-DDISTCHECK_BUILD
+
 #includes additional rules from aminclude.am
 @INC_AMINCLUDE@
 DISTCLEANFILES+= aminclude.am
 
-CLEANFILES+= cert.der \
+CLEANFILES+= ecc-key.der \
+             ecc-public-key.der \
+             cert.der \
              cert.pem \
              certecc.der \
              certecc.pem \

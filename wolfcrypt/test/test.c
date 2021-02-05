@@ -11647,6 +11647,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif
 #define CERT_ROOT CERT_PREFIX "certs" CERT_PATH_SEP
 
+#ifdef DISTCHECK_BUILD
+/* This is the path used during distcheck by autotools.
+ * Using a temp directory passed in would be more flexible */
+    #define CERT_TEMPDIR "./_build/sub/"
+#else
+    #define CERT_TEMPDIR CERT_PREFIX
+#endif
+
 /* Generated Test Certs */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
     !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
@@ -11738,44 +11746,44 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_CERT_GEN
-         static const char* certEccPemFile =   CERT_PREFIX "certecc.pem";
+         static const char* certEccPemFile =   CERT_TEMPDIR "certecc.pem";
     #endif
     #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-        static const char* certEccRsaPemFile = CERT_PREFIX "certeccrsa.pem";
-        static const char* certEccRsaDerFile = CERT_PREFIX "certeccrsa.der";
+        static const char* certEccRsaPemFile = CERT_TEMPDIR "certeccrsa.pem";
+        static const char* certEccRsaDerFile = CERT_TEMPDIR "certeccrsa.der";
     #endif
-        static const char* eccCaKeyPemFile  = CERT_PREFIX "ecc-key.pem";
-        static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
-        static const char* eccCaKeyTempFile = CERT_PREFIX "ecc-key.der";
+        static const char* eccCaKeyPemFile  = CERT_TEMPDIR "ecc-key.pem";
+        static const char* eccPubKeyDerFile = CERT_TEMPDIR "ecc-public-key.der";
+        static const char* eccCaKeyTempFile = CERT_TEMPDIR "ecc-key.der";
     #ifdef HAVE_PKCS8
-        static const char* eccPkcs8KeyDerFile = CERT_PREFIX "ecc-key-pkcs8.der";
+        static const char* eccPkcs8KeyDerFile = CERT_TEMPDIR "ecc-key-pkcs8.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
-        static const char* certEccDerFile = CERT_PREFIX "certecc.der";
+        static const char* certEccDerFile = CERT_TEMPDIR "certecc.der";
     #endif
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
     #if defined(WOLFSSL_CERT_GEN) || \
         (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
-        static const char* otherCertDerFile = CERT_PREFIX "othercert.der";
-        static const char* certDerFile = CERT_PREFIX "cert.der";
+        static const char* otherCertDerFile = CERT_TEMPDIR "othercert.der";
+        static const char* certDerFile = CERT_TEMPDIR "cert.der";
     #endif
     #ifdef WOLFSSL_CERT_GEN
-        static const char* otherCertPemFile = CERT_PREFIX "othercert.pem";
-        static const char* certPemFile = CERT_PREFIX "cert.pem";
+        static const char* otherCertPemFile = CERT_TEMPDIR "othercert.pem";
+        static const char* certPemFile = CERT_TEMPDIR "cert.pem";
     #endif
     #ifdef WOLFSSL_CERT_REQ
-        static const char* certReqDerFile = CERT_PREFIX "certreq.der";
-        static const char* certReqPemFile = CERT_PREFIX "certreq.pem";
+        static const char* certReqDerFile = CERT_TEMPDIR "certreq.der";
+        static const char* certReqPemFile = CERT_TEMPDIR "certreq.pem";
     #endif
 #endif /* !NO_RSA */
 
 #if !defined(NO_RSA) || !defined(NO_DSA)
     #ifdef WOLFSSL_KEY_GEN
-        static const char* keyDerFile = CERT_PREFIX "key.der";
-        static const char* keyPemFile = CERT_PREFIX "key.pem";
+        static const char* keyDerFile = CERT_TEMPDIR "key.der";
+        static const char* keyPemFile = CERT_TEMPDIR "key.pem";
     #endif
 #endif
 
