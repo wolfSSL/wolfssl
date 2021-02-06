@@ -1094,7 +1094,7 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
 
         /* save remainder */
-        if (len > 0) {
+        if (ret == 0 && len > 0) {
             XMEMCPY(local, data, len);
             sha256->buffLen = len;
         }

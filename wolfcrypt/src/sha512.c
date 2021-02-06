@@ -717,7 +717,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     }
 #endif
 
-    if (len > 0) {
+    if (ret == 0 && len > 0) {
         XMEMCPY(local, data, len);
         sha512->buffLen = len;
     }
