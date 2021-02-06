@@ -7854,8 +7854,10 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         }
         if (err == MP_OKAY) {
             _sp_sub_d(r, 1, r);
-            sp_div(r, a, r, NULL);
-            sp_sub(m, r, r);
+            err = sp_div(r, a, r, NULL);
+            if ( err == MP_OKAY ) {
+                sp_sub(m, r, r);
+            }
         }
     }
     else {
@@ -13671,7 +13673,10 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
                     }
                 }
                 else {
-                    sp_mod(u, v, t);
+                    err = sp_mod(u, v, t);
+                }
+                if (err != MP_OKAY) {
+                    break;
                 }
                 sp_copy(v, u);
                 sp_copy(t, v);
