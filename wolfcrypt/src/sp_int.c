@@ -7855,7 +7855,7 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
         if (err == MP_OKAY) {
             _sp_sub_d(r, 1, r);
             err = sp_div(r, a, r, NULL);
-            if ( err == MP_OKAY ) {
+            if (err == MP_OKAY) {
                 sp_sub(m, r, r);
             }
         }
@@ -8593,7 +8593,10 @@ static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
                 /* Square for number of bits in window. */
                 for (j = 0; (j < EXP2_WINSIZE) && (err == MP_OKAY); j++) {
                     err = sp_sqr(tr, tr);
-                    if ((err == MP_OKAY) && (m->used > 1)) {
+                    if (err != MP_OKAY) {
+                        break;
+                    }
+                    if (m->used > 1) {
                         err = _sp_mont_red(tr, m, mp);
                     }
                     else {
@@ -8611,6 +8614,9 @@ static int _sp_exptmod_base_2(sp_int* e, int digits, sp_int* m, sp_int* r)
                 }
                 if (err == MP_OKAY) {
                     err = sp_mod(tr, m, tr);
+                }
+                if (err != MP_OKAY) {
+                    break;
                 }
             }
         }
