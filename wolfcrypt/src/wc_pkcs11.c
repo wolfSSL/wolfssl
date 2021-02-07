@@ -935,6 +935,8 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         if (len >= ASN_LONG_LENGTH)
             ecPoint[i++] = ASN_LONG_LENGTH | 1;
         ecPoint[i++] = len;
+        if (public_key->type == 0)
+            public_key->type = ECC_PUBLICKEY;
         ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
     }
     if (ret == 0) {
@@ -1936,6 +1938,8 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         if (len >= ASN_LONG_LENGTH)
             ecPoint[i++] = (ASN_LONG_LENGTH | 1);
         ecPoint[i++] = len;
+        if (public_key->type == 0)
+            public_key->type = ECC_PUBLICKEY;
         ret = wc_ecc_export_x963(eccKey, ecPoint + i, &len);
     }
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
