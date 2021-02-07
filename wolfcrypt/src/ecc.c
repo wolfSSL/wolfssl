@@ -6931,13 +6931,15 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
                     (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                         ECC_CURVE_FIELD_BF));
 
+        #ifdef WOLFSSL_CUSTOM_CURVES
             /* validate prime is prime for custom curves */
-            if (err == MP_OKAY && curve->id == ECC_CURVE_CUSTOM) {
+            if (err == MP_OKAY && curve_idx == ECC_CUSTOM_IDX) {
                 int isPrime = MP_NO;
                 err = mp_prime_is_prime(curve->prime, 8, &isPrime);
                 if (err == MP_OKAY && isPrime == MP_NO)
                     err = MP_VAL;
             }
+        #endif
 
             /* compute x^3 */
             if (err == MP_OKAY)
@@ -7836,13 +7838,15 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                 (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
                  ECC_CURVE_FIELD_BF));
 
+    #ifdef WOLFSSL_CUSTOM_CURVES
         /* validate prime is prime for custom curves */
-        if (err == MP_OKAY && curve->id == ECC_CURVE_CUSTOM) {
+        if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
             int isPrime = MP_NO;
             err = mp_prime_is_prime(curve->prime, 8, &isPrime);
             if (err == MP_OKAY && isPrime == MP_NO)
                 err = MP_VAL;
         }
+    #endif
 
         /* compute x^3 */
         if (err == MP_OKAY)
