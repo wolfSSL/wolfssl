@@ -10350,8 +10350,30 @@ WOLFSSL_TEST_SUBROUTINE int aesccm_test(void)
     if (XMEMCMP(pl, pl2, sizeof(pl2)))
         ERROR_OUT(-6520, out);
 
-    /* test empty message as null input and output --
-     * must work, or fail early with BAD_FUNC_ARG.
+    /* test empty message as null input or output with nonzero inSz. */
+    result = wc_AesCcmEncrypt(enc, pl2 /* out */, NULL /* in */, 1 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (result != BAD_FUNC_ARG)
+        ERROR_OUT(-6527, out);
+    result = wc_AesCcmEncrypt(enc, NULL /* out */, (const byte *)"" /* in */, 1 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2),
+                              a, sizeof(a));
+    if (result != BAD_FUNC_ARG)
+        ERROR_OUT(-6528, out);
+    result = wc_AesCcmDecrypt(enc, pl2, NULL /* in */, 1 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+    if (result != BAD_FUNC_ARG)
+        ERROR_OUT(-6529, out);
+    result = wc_AesCcmDecrypt(enc, NULL /* out */, (const byte *)"" /* in */, 1 /* inSz */,
+                              iv, sizeof(iv), t_empty2, sizeof(t_empty2), a,
+                              sizeof(a));
+    if (result != BAD_FUNC_ARG)
+        ERROR_OUT(-6530, out);
+
+    /* test empty message as null input and output with zero inSz --
+     * must either succeed, or fail early with BAD_FUNC_ARG.
      */
     result = wc_AesCcmEncrypt(enc, NULL /* out */, NULL /* in */, 0 /* inSz */,
                               iv, sizeof(iv), t_empty2, sizeof(t_empty2),
