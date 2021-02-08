@@ -121,6 +121,10 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
             b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
         }
         b->used ^= (a->used ^ b->used) & (int)mask;
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+    defined(WOLFSSL_SP_INT_NEGATIVE)
+        b->sign ^= (a->sign ^ b->sign) & (int)mask;
+#endif
     }
 
     return err;
