@@ -7985,9 +7985,9 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     const word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || (inSz != 0 && (in == NULL || out == NULL)) || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
-            authTagSz > AES_BLOCK_SIZE)
+    if (aes == NULL || (inSz != 0 && (in == NULL || out == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
+        authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
