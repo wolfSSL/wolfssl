@@ -99,7 +99,11 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 {
     int err = MP_OKAY;
     int i;
+#if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
+    unsigned int mask = (unsigned int)0 - copy;
+#else
     mp_digit mask = (mp_digit)0 - copy;
+#endif
 
     if (a == NULL || b == NULL)
         err = BAD_FUNC_ARG;
