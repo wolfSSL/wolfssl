@@ -12,8 +12,7 @@ noinst_PROGRAMS+= wolfcrypt/test/testwolfcrypt
 wolfcrypt_test_testwolfcrypt_SOURCES      = wolfcrypt/test/test.c
 wolfcrypt_test_testwolfcrypt_LDADD        = src/libwolfssl.la $(LIB_STATIC_ADD)
 wolfcrypt_test_testwolfcrypt_DEPENDENCIES = src/libwolfssl.la
-noinst_HEADERS += wolfcrypt/test/test.h
-
+noinst_HEADERS += wolfcrypt/test/test.h wolfcrypt/test/test_paths.h.in
 endif
 endif
 

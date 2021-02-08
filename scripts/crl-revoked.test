@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 #crl.test
+CERT_DIR=certs
 
 # if we can, isolate the network namespace to eliminate port collisions.
 if [ "${AM_BWRAPPED-}" != "yes" ]; then
@@ -70,7 +71,8 @@ run_test() {
     # mutex lock, -c loads the revoked certificate. We capture the processid
     # into the variable server_pid
     ./examples/server/server -R $ready_file -p $crl_port \
-             -c certs/server-revoked-cert.pem -k certs/server-revoked-key.pem &
+                             -c ${CERT_DIR}/server-revoked-cert.pem \
+                             -k ${CERT_DIR}/server-revoked-key.pem &
     server_pid=$!
 
     while [ ! -s $ready_file -a "$counter" -lt 20 ]; do

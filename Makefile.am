@@ -27,7 +27,9 @@ DIST_SUBDIRS_OPT =
 @INC_AMINCLUDE@
 DISTCLEANFILES+= aminclude.am
 
-CLEANFILES+= cert.der \
+CLEANFILES+= ecc-key.der \
+             ecc-public-key.der \
+             cert.der \
              cert.pem \
              certecc.der \
              certecc.pem \
