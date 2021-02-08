@@ -25,6 +25,41 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
+
+/* xctime - should it move to wc_port.h? */
+#ifndef XCTIME
+   #define XCTIME ctime
+#endif
+
+/* should next ifdef move to wc_port.h? */
+#ifdef FUSION_RTOS
+    #include <fcl_network.h>
+    #define XINET_NTOA FNS_INET_NTOA
+    #define XINET_ATON FNS_INET_ATON
+    #define XINET_PTON(a,b,c,d) FNS_INET_PTON((a),(b),(c),(d),NULL)
+    #define XINET_NTOP(a,b,c,d) FNS_INET_NTOP((a),(b),(c),(d),NULL)
+    #define XINET_ADDR FNS_INET_ADDR
+    #define XHTONS FNS_HTONS
+    #define XNTOHS FNS_NTOHS
+    #define XHTONL FNS_HTONL
+    #define XNTOHL FNS_NTOHL
+    #define XINADDR_NONE FNS_INADDR_NONE
+#else
+    #define XINET_NTOA inet_ntoa
+    #define XINET_ATON inet_aton
+    #define XINET_PTON(a,b,c,d) inet_pton((a),(b),(c))
+    #define XINET_NTOP inet_ntop
+    #define XINET_ADDR inet_addr
+    #define XHTONS htons
+    #define XNTOHS ntohs
+    #define XHTONL htonl
+    #define XNTOHL ntohl
+    #define XINADDR_NONE INADDR_NONE
+#endif
+
+#include <wolfssl/ssl.h>
+
 
 #ifndef WOLFCRYPT_ONLY
 #ifdef WOLFSSL_SNIFFER
@@ -32,10 +67,17 @@
 #include <assert.h>
 #include <time.h>
 
-#ifndef _WIN32
-  #include <arpa/inet.h>
+#ifdef FUSION_RTOS
+    #include <fns_inet.h>
+    #ifdef TCP_PROTOCOL
+        #undef TCP_PROTOCOL
+    #endif
 #else
-  #include <WS2tcpip.h>
+    #ifndef _WIN32
+        #include <arpa/inet.h>
+    #else
+        #include <WS2tcpip.h>
+    #endif
 #endif
 
 #ifdef _WIN32
@@ -138,7 +180,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
 
 static WOLFSSL_GLOBAL int TraceOn = 0;         /* Trace is off by default */
-static WOLFSSL_GLOBAL FILE* TraceFile = 0;
+static WOLFSSL_GLOBAL XFILE TraceFile = 0;
 
 
 /* windows uses .rc table for this */
@@ -655,7 +697,7 @@ void ssl_FreeSniffer(void)
 
     if (TraceFile) {
         TraceOn = 0;
-        fclose(TraceFile);
+        XFCLOSE(TraceFile);
         TraceFile = NULL;
     }
 
@@ -899,9 +941,9 @@ static void Trace(int idx)
     if (TraceOn) {
         char myBuffer[MAX_ERROR_LEN];
         GetError(idx, myBuffer);
-        fprintf(TraceFile, "\t%s\n", myBuffer);
+        XFPRINTF(TraceFile, "\t%s\n", myBuffer);
 #ifdef DEBUG_SNIFFER
-        fprintf(stderr,    "\t%s\n", myBuffer);
+        XFPRINTF(stderr,    "\t%s\n", myBuffer);
 #endif
     }
 }
@@ -911,8 +953,8 @@ static void Trace(int idx)
 static void TraceHeader(void)
 {
     if (TraceOn) {
-        time_t ticks = time(NULL);
-        fprintf(TraceFile, "\n%s", ctime(&ticks));
+        time_t ticks = XTIME(NULL);
+        XFPRINTF(TraceFile, "\n%s", XCTIME(&ticks));
     }
 }
 
@@ -921,8 +963,8 @@ static void TraceHeader(void)
 static void TraceSetServer(const char* srv, int port, const char* keyFile)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
-        fprintf(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n", srv, port,
+        XFPRINTF(TraceFile, "\tTrying to install a new Sniffer Server with\n");
+        XFPRINTF(TraceFile, "\tserver: %s, port: %d, keyFile: %s\n", srv, port,
                                                                     keyFile);
     }
 }
@@ -935,8 +977,8 @@ static void TraceSetNamedServer(const char* name,
                                  const char* srv, int port, const char* keyFile)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tTrying to install a new Sniffer Server with\n");
-        fprintf(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
+        XFPRINTF(TraceFile, "\tTrying to install a new Sniffer Server with\n");
+        XFPRINTF(TraceFile, "\tname: %s, server: %s, port: %d, keyFile: %s\n",
                                                       name, srv, port, keyFile);
     }
 }
@@ -949,7 +991,7 @@ static void TracePacket(void)
 {
     if (TraceOn) {
         static word32 packetNumber = 0;
-        fprintf(TraceFile, "\tGot a Packet to decode, packet %u\n",
+        XFPRINTF(TraceFile, "\tGot a Packet to decode, packet %u\n",
                 ++packetNumber);
     }
 }
@@ -958,7 +1000,7 @@ static void TracePacket(void)
 /* Convert network byte order address into human readable */
 static const char* IpToS(int version, void* src, char* dst)
 {
-    return inet_ntop(version, src, dst, TRACE_MSG_SZ);
+    return XINET_NTOP(version, src, dst, TRACE_MSG_SZ);
 }
 
 
@@ -968,7 +1010,7 @@ static void TraceIP(IpHdr* iphdr)
     if (TraceOn) {
         char src[TRACE_MSG_SZ];
         char dst[TRACE_MSG_SZ];
-        fprintf(TraceFile, "\tdst:%s src:%s\n",
+        XFPRINTF(TraceFile, "\tdst:%s src:%s\n",
                 IpToS(AF_INET, &iphdr->dst, dst),
                 IpToS(AF_INET, &iphdr->src, src));
     }
@@ -981,7 +1023,7 @@ static void TraceIP6(Ip6Hdr* iphdr)
     if (TraceOn) {
         char src[TRACE_MSG_SZ];
         char dst[TRACE_MSG_SZ];
-        fprintf(TraceFile, "\tdst: %s src: %s\n",
+        XFPRINTF(TraceFile, "\tdst: %s src: %s\n",
                 IpToS(AF_INET6, iphdr->dst, dst),
                 IpToS(AF_INET6, iphdr->src, src));
     }
@@ -992,8 +1034,8 @@ static void TraceIP6(Ip6Hdr* iphdr)
 static void TraceTcp(TcpHdr* tcphdr)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tdstPort:%u srcPort:%u\n", ntohs(tcphdr->dstPort),
-                ntohs(tcphdr->srcPort));
+        XFPRINTF(TraceFile, "\tdstPort:%u srcPort:%u\n", XNTOHS(tcphdr->dstPort),
+                XNTOHS(tcphdr->srcPort));
     }
 }
 
@@ -1002,7 +1044,7 @@ static void TraceTcp(TcpHdr* tcphdr)
 static void TraceSequence(word32 seq, int len)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tSequence:%u, payload length:%d\n", seq, len);
+        XFPRINTF(TraceFile, "\tSequence:%u, payload length:%d\n", seq, len);
     }
 }
 
@@ -1011,7 +1053,7 @@ static void TraceSequence(word32 seq, int len)
 static void TraceAck(word32 ack, word32 expected)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tAck:%u Expected:%u\n", ack, expected);
+        XFPRINTF(TraceFile, "\tAck:%u Expected:%u\n", ack, expected);
     }
 }
 
@@ -1020,7 +1062,7 @@ static void TraceAck(word32 ack, word32 expected)
 static void TraceRelativeSequence(word32 expected, word32 got)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tExpected sequence:%u, received sequence:%u\n",
+        XFPRINTF(TraceFile, "\tExpected sequence:%u, received sequence:%u\n",
                 expected, got);
     }
 }
@@ -1030,7 +1072,7 @@ static void TraceRelativeSequence(word32 expected, word32 got)
 static void TraceServerSyn(word32 seq)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tServer SYN, Sequence Start:%u\n", seq);
+        XFPRINTF(TraceFile, "\tServer SYN, Sequence Start:%u\n", seq);
     }
 }
 
@@ -1039,7 +1081,7 @@ static void TraceServerSyn(word32 seq)
 static void TraceClientSyn(word32 seq)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tClient SYN, Sequence Start:%u\n", seq);
+        XFPRINTF(TraceFile, "\tClient SYN, Sequence Start:%u\n", seq);
     }
 }
 
@@ -1048,7 +1090,7 @@ static void TraceClientSyn(word32 seq)
 static void TraceClientFin(word32 finSeq, word32 relSeq)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tClient FIN capture:%u, current SEQ:%u\n",
+        XFPRINTF(TraceFile, "\tClient FIN capture:%u, current SEQ:%u\n",
                 finSeq, relSeq);
     }
 }
@@ -1058,7 +1100,7 @@ static void TraceClientFin(word32 finSeq, word32 relSeq)
 static void TraceServerFin(word32 finSeq, word32 relSeq)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tServer FIN capture:%u, current SEQ:%u\n",
+        XFPRINTF(TraceFile, "\tServer FIN capture:%u, current SEQ:%u\n",
                 finSeq, relSeq);
     }
 }
@@ -1068,7 +1110,7 @@ static void TraceServerFin(word32 finSeq, word32 relSeq)
 static void TraceGotData(int bytes)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\t%d bytes of SSL App data processed\n", bytes);
+        XFPRINTF(TraceFile, "\t%d bytes of SSL App data processed\n", bytes);
     }
 }
 
@@ -1077,7 +1119,7 @@ static void TraceGotData(int bytes)
 static void TraceAddedData(int newBytes, int existingBytes)
 {
     if (TraceOn) {
-        fprintf(TraceFile,
+        XFPRINTF(TraceFile,
                 "\t%d bytes added to %d existing bytes in User Buffer\n",
                 newBytes, existingBytes);
     }
@@ -1088,7 +1130,7 @@ static void TraceAddedData(int newBytes, int existingBytes)
 static void TraceStaleSession(void)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tFound a stale session\n");
+        XFPRINTF(TraceFile, "\tFound a stale session\n");
     }
 }
 
@@ -1097,7 +1139,7 @@ static void TraceStaleSession(void)
 static void TraceFindingStale(void)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tTrying to find Stale Sessions\n");
+        XFPRINTF(TraceFile, "\tTrying to find Stale Sessions\n");
     }
 }
 
@@ -1106,7 +1148,7 @@ static void TraceFindingStale(void)
 static void TraceRemovedSession(void)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tRemoved it\n");
+        XFPRINTF(TraceFile, "\tRemoved it\n");
     }
 }
 
@@ -1116,7 +1158,7 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
 {
     if (TraceOn) {
         if (sslInfo != NULL && sslInfo->isValid) {
-            fprintf(TraceFile,
+            XFPRINTF(TraceFile,
                     "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s) "
                     #ifdef HAVE_SNI
                     "sni:(%s) "
@@ -1142,7 +1184,7 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
 static void TraceStat(const char* name, int add)
 {
     if (TraceOn) {
-        fprintf(TraceFile, "\tAdding %d to %s\n", add, name);
+        XFPRINTF(TraceFile, "\tAdding %d to %s\n", add, name);
     }
 }
 
@@ -1309,7 +1351,7 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;
-    time_t          currTime = time(NULL);
+    time_t          currTime = XTIME(NULL);
     word32          row = SessionHash(ipInfo, tcpInfo);
 
     assert(row <= HASH_SIZE);
@@ -1509,9 +1551,14 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 #endif
 
     serverIp.version = IPV4;
-    serverIp.ip4 = inet_addr(address);
-    if (serverIp.ip4 == INADDR_NONE) {
-        if (inet_pton(AF_INET6, address, serverIp.ip6) == 1) {
+    serverIp.ip4 = XINET_ADDR(address);
+    if (serverIp.ip4 == XINADDR_NONE) {
+    #ifdef FUSION_RTOS
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6,
+                       sizeof(serverIp.ip4)) == 1) {
+    #else
+        if (XINET_PTON(AF_INET6, address, serverIp.ip6) == 1) {
+    #endif
             serverIp.version = IPV6;
         }
     }
@@ -1676,7 +1723,7 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
 #endif
 
     info->length = exthdrsz;
-    info->total = ntohs(iphdr->length) + info->length;
+    info->total = XNTOHS(iphdr->length) + info->length;
         /* IPv6 doesn't include its own header size in the length like v4. */
     info->src.version = IPV6;
     XMEMCPY(info->src.ip6, iphdr->src, sizeof(info->src.ip6));
@@ -1718,7 +1765,7 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 #endif
 
     info->length  = IP_HL(iphdr);
-    info->total   = ntohs(iphdr->length);
+    info->total   = XNTOHS(iphdr->length);
     info->src.version = IPV4;
     info->src.ip4 = iphdr->src;
     info->dst.version = IPV4;
@@ -1737,16 +1784,16 @@ static int CheckTcpHdr(TcpHdr* tcphdr, TcpInfo* info, char* error)
 {
     TraceTcp(tcphdr);
     Trace(TCP_CHECK_STR);
-    info->srcPort   = ntohs(tcphdr->srcPort);
-    info->dstPort   = ntohs(tcphdr->dstPort);
+    info->srcPort   = XNTOHS(tcphdr->srcPort);
+    info->dstPort   = XNTOHS(tcphdr->dstPort);
     info->length    = TCP_LEN(tcphdr);
-    info->sequence  = ntohl(tcphdr->sequence);
+    info->sequence  = XNTOHL(tcphdr->sequence);
     info->fin       = tcphdr->flags & TCP_FIN;
     info->rst       = tcphdr->flags & TCP_RST;
     info->syn       = tcphdr->flags & TCP_SYN;
     info->ack       = tcphdr->flags & TCP_ACK;
     if (info->ack)
-        info->ackNumber = ntohl(tcphdr->ack);
+        info->ackNumber = XNTOHL(tcphdr->ack);
 
 #ifndef WOLFSSL_SNIFFER_WATCH
     if (!IsPortRegistered(info->srcPort) && !IsPortRegistered(info->dstPort)) {
@@ -2942,7 +2989,7 @@ static void RemoveStaleSessions(void)
         session = SessionTable[i];
         while (session) {
             SnifferSession* next = session->next;
-            if (time(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
+            if (XTIME(NULL) >= session->lastUsed + WOLFSSL_SNIFFER_TIMEOUT) {
                 TraceStaleSession();
                 RemoveSession(session, NULL, NULL, i);
             }
@@ -2991,7 +3038,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliPort = (word16)tcpInfo->srcPort;
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
-    session->lastUsed= time(NULL);
+    session->lastUsed= XTIME(NULL);
     session->keySz = 0;
 #ifdef HAVE_SNI
     session->sni = NULL;

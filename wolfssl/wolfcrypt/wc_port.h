@@ -161,7 +161,11 @@
     #endif
     #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
         !defined(NO_FILESYSTEM)
+        #ifdef FUSION_RTOS
+            #include <fclunistd.h>
+        #else
         #include <unistd.h>      /* for close of BIO */
+    #endif
     #endif
 #endif
 
@@ -419,6 +423,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include <fclunistd.h>
     #include <fcldirent.h>
     #include <sys/fclstat.h>
+   #include <fclstring.h>
+   #include <fcl_os.h>
     #define XFILE     FCL_FILE*
     #define XFOPEN    FCL_FOPEN
     #define XFSEEK    FCL_FSEEK
@@ -427,9 +433,15 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFREAD    FCL_FREAD
     #define XFWRITE   FCL_FWRITE
     #define XFCLOSE   FCL_FCLOSE
-    #define XSEEK_END FCL_SEEK_END
-    #define XBADFILE  FCL_BADFILE
+    #define XSEEK_END SEEK_END
+    #define XBADFILE  NULL
     #define XFGETS    FCL_FGETS
+    #define XFPUTS    FCL_FPUTS
+    #define XFPRINTF  FCL_FPRINTF
+    #define XVFPRINTF FCL_VFPRINTF
+    #define XVSNPRINTF  FCL_VSNPRINTF
+    #define XSNPRINTF  FCL_SNPRINTF
+    #define XSPRINTF  FCL_SPRINTF
     #define DIR       FCL_DIR
     #define stat      FCL_STAT
     #define opendir   FCL_OPENDIR
@@ -459,6 +471,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
     #define XFGETS     fgets
+    #define XFPRINTF   fprintf
 
     #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
@@ -660,7 +673,21 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   gmtime((c))
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
+/*
+#elif defined(FUSION_RTOS)
+    typedef u32 time_t;
+    #include "fcltime.h"
 
+    extern fclTime_t FCL_TIME(fclTime_t* tp);
+    #define XTIME(t1)       FCL_TIME((t1))
+    extern FCL_TM* FCL_GMTIME(const fclTime_t* tp);
+    #define XGMTIME(c, t)   FCL_GMTIME((c))
+
+    #define TIME_T_NOT_64BIT
+
+    //#define USE_WOLF_TM      // TBD?
+    //#define USE_WOLF_TIME_T  // TBD?
+*/
 #else
     /* default */
     /* uses complete <time.h> facility */

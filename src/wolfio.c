@@ -94,6 +94,9 @@ static WC_INLINE int wolfSSL_LastError(void)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
+#elif defined(FUSION_RTOS)
+    #include <fclerrno.h>
+    return FCL_GET_ERRNO;
 #else
     return errno;
 #endif
@@ -181,7 +184,7 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (ssl->biowr->method && ssl->biowr->method->writeCb) {
         WOLFSSL_MSG("Calling custom biowr");
         sent = ssl->biowr->method->writeCb(ssl->biowr, buf, sz);
-        if (sent < 0) {
+        if ((sent < 0) && (sent != WOLFSSL_CBIO_ERR_WANT_WRITE)) {
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
         return sent;
@@ -641,7 +644,24 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 {
     int recvd;
 
+#ifdef FUSION_RTOS
+    int err;
+retry:
+    recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags, &err);
+
+    if(recvd < 0) {
+       if(err==63)
+       {
+           UARTF("FUSION IO RETRY %d\r\n", err);
+           fclThreadSleep(10);
+           goto retry; 
+       }
+       UARTF("FUSION IO ERROR %d\r\n", err);
+    }
+    //TODO handle return value in err
+#else
     recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
+#endif
     recvd = TranslateReturnCode(recvd, sd);
 
     return recvd;
@@ -650,8 +670,22 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
 {
     int sent;
-
+#ifdef FUSION_RTOS
+    int err;
+retry:
+    sent = (int)SEND_FUNCTION(sd, buf, sz, wrFlags, &err);
+    if(sent < 0) {
+       if(err==63)
+       {
+           UARTF("FUSION IO SEND RETRY %d\r\n", err);
+           fclThreadSleep(10);
+           goto retry; 
+       }
+       UARTF("FUSION IO SEND ERROR %d\r\n", err);
+    }
+#else
     sent = (int)SEND_FUNCTION(sd, buf, sz, wrFlags);
+#endif
     sent = TranslateReturnCode(sent, sd);
 
     return sent;
@@ -732,6 +766,8 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
                 }
             }
         }
+                    WOLFSSL_MSG("Select` error");
+
         return SOCKET_ERROR_E;
     }
 #endif /* HAVE_IO_TIMEOUT */
@@ -1400,8 +1436,12 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                 ret = wolfIO_HttpProcessResponseOcsp(sfd, ocspRespBuf, httpBuf,
                                                  HTTP_SCRATCH_BUFFER_SIZE, ctx);
             }
-
+#ifdef FUSION_RTOS
+           int err;
+            CloseSocket(sfd, &err);
+#else
             CloseSocket(sfd);
+#endif
             XFREE(httpBuf, ctx, DYNAMIC_TYPE_OCSP);
         }
     }

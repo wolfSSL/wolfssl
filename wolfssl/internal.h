@@ -187,7 +187,11 @@
         #include <pthread.h>
     #endif
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+        #ifdef FUSION_RTOS
+           #include <fclunistd.h>
+        #else
         #include <unistd.h>      /* for close of BIO */
+    #endif
     #endif
 #endif
 

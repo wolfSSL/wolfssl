@@ -32,6 +32,19 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#if !defined(HAVE_PKCS7) && \
+    ((defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION >= 2)) || defined(HAVE_SELFTEST))
+enum {
+    /* In the event of fips cert 3389 or CAVP selftest build, these enums are
+     * not in aes.h for use with evp so enumerate it here outside the fips
+     * boundary */
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+    CCM_NONCE_MIN_SZ = 7,
+};
+#endif
+
+
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
 
@@ -1311,6 +1324,7 @@ int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY
 }
 
 #if !defined(NO_DH) && defined(HAVE_ECC)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
     int len;
@@ -1388,6 +1402,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
     }
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
@@ -5813,6 +5828,7 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* with set1 functions the pkey struct does not own the DH structure
  * Build the following DH Key format from the passed in WOLFSSL_DH
  * then store in WOLFSSL_EVP_PKEY in DER format.
@@ -5891,6 +5907,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
 {
@@ -5900,6 +5917,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
     return key->dh;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DH* local = NULL;
@@ -5933,6 +5951,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 
     return local;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* NO_DH && NO_FILESYSTEM */
 
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
@@ -6179,12 +6198,15 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("AES CBC");
             return AES_BLOCK_SIZE;
 #endif
+#ifndef FUSION_RTOS
+//TODO check those chifers unsused in the project
 #ifdef HAVE_AESGCM
         case AES_128_GCM_TYPE :
         case AES_192_GCM_TYPE :
         case AES_256_GCM_TYPE :
             WOLFSSL_MSG("AES GCM");
             return GCM_NONCE_MID_SZ;
+#endif
 #endif
 #ifdef WOLFSSL_AES_COUNTER
         case AES_128_CTR_TYPE :
@@ -6276,6 +6298,8 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return AES_BLOCK_SIZE;
     #endif
 #endif /* HAVE_AES_CBC */
+#ifndef FUSION_RTOS
+//TODO check those chifers unsused in the project
 #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     if (EVP_AES_128_GCM && XSTRNCMP(name, EVP_AES_128_GCM, XSTRLEN(EVP_AES_128_GCM)) == 0)
@@ -6290,6 +6314,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return GCM_NONCE_MID_SZ;
     #endif
 #endif /* HAVE_AESGCM */
+#endif
 #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
     if (EVP_AES_128_CTR && XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0)

@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* For heap debug - inemsoft */
+//#include <fusionos.h>
+//extern fosMemPool mallocPool;
+
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -29,6 +33,7 @@
     /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
+    #include <stdarg.h>
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) || defined(OPENSSL_EXTRA) || \
@@ -72,6 +77,9 @@
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
+
+
+int wolfSSL_EVP_PKEY_get_der(WOLFSSL_EVP_PKEY* key, unsigned char** der);
 
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
@@ -3840,7 +3848,7 @@ void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 
     WOLFSSL_ENTER("wolfSSL_ERR_print_errors_fp");
     SetErrorString(err, data);
-    fprintf(fp, "%s", data);
+    XFPRINTF(fp, "%s", data);
 }
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -4960,7 +4968,13 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             return MEMORY_E;
     #endif
 
+ //   fosMemoryCheckLinks(&mallocPool);
+        #ifndef HAVE_FIPS
         ret = wc_InitRsaKey_ex(key, heap, devId);
+        #else
+        ret = wc_InitRsaKey(key, heap);
+        #endif
+//        fosMemoryCheckLinks(&mallocPool);
         if (ret == 0) {
             *idx = 0;
             if (wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length)
@@ -4971,6 +4985,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                             "enabled to try");
                 ret = WOLFSSL_BAD_FILE;
             #endif
+//            fosMemoryCheckLinks(&mallocPool);
             }
             else {
                 /* check that the size of the RSA key is enough */
@@ -4997,16 +5012,24 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     ssl->options.haveStaticECC = 0;
                     *resetSuites = 1;
                 }
+//                fosMemoryCheckLinks(&mallocPool);
             }
-
+//             fosMemoryCheckLinks(&mallocPool);
             wc_FreeRsaKey(key);
+//            fosMemoryCheckLinks(&mallocPool);
         }
+
+
+//        fosMemoryCheckLinks(&mallocPool);
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, heap, DYNAMIC_TYPE_RSA);
     #endif
     }
 #endif
+
+//fosMemoryCheckLinks(&mallocPool);
+
 #ifdef HAVE_ECC
     if (ret == 0 && (*keyFormat == 0 || *keyFormat == ECDSAk)) {
         /* make sure ECC key can be used */
@@ -5060,6 +5083,9 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ECC */
+
+//fosMemoryCheckLinks(&mallocPool);
+
 #ifdef HAVE_ED25519
     if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED25519k)) {
         /* make sure Ed25519 key can be used */
@@ -5114,6 +5140,10 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ED25519 */
+
+
+//fosMemoryCheckLinks(&mallocPool);
+
 #ifdef HAVE_ED448
     if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED448k)) {
         /* make sure Ed448 key can be used */
@@ -5171,6 +5201,10 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ED448 */
+
+
+//fosMemoryCheckLinks(&mallocPool);
+
     return ret;
 }
 
@@ -5230,6 +5264,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 #endif
 
+//fosMemoryCheckLinks(&mallocPool);
+
     if (format == WOLFSSL_FILETYPE_PEM) {
     #ifdef WOLFSSL_PEM_TO_DER
         ret = PemToDer(buff, sz, type, &der, heap, info, &keyFormat);
@@ -5278,6 +5314,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
 
+//    fosMemoryCheckLinks(&mallocPool);
+
     if (used) {
         *used = info->consumed;
     }
@@ -5295,6 +5333,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
 
+//  fosMemoryCheckLinks(&mallocPool);
+
     /* info is only used for private key with DER or PEM, so free now */
     if (ret < 0 || type != PRIVATEKEY_TYPE || format == WOLFSSL_FILETYPE_RAW) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -5307,6 +5347,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         FreeDer(&der);
         done = 1;
     }
+
+//    fosMemoryCheckLinks(&mallocPool);
 
     if (done == 1) {
         /* No operation, just skip the next section */
@@ -5386,6 +5428,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         return WOLFSSL_BAD_CERTTYPE;
     }
 
+  //      fosMemoryCheckLinks(&mallocPool);
+
+
     if (done == 1) {
         /* No operation, just skip the next section */
     }
@@ -5396,6 +5441,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
                 &keyFormat, heap, devId);
+
+    //                fosMemoryCheckLinks(&mallocPool);
+
 
     #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
         /* for WOLFSSL_FILETYPE_PEM, PemToDer manages the decryption */
@@ -5441,6 +5489,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
+ //       fosMemoryCheckLinks(&mallocPool);
+
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
     #endif
@@ -5469,6 +5519,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return MEMORY_E;
     #endif
 
+  //      fosMemoryCheckLinks(&mallocPool);
+
+
         WOLFSSL_MSG("Checking cert signature type");
         InitDecodedCert(cert, der->buffer, der->length, heap);
 
@@ -5488,6 +5541,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             WOLFSSL_MSG("SSL layer setting cert, CTX had ECDSA, turning off");
             ssl->options.haveECDSAsig = 0;   /* may turn back on next */
         }
+
+ //           fosMemoryCheckLinks(&mallocPool);
+
 
         switch (cert->signatureOID) {
             case CTC_SHAwECDSA:
@@ -5518,6 +5574,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 WOLFSSL_MSG("Not ECDSA cert signature");
                 break;
         }
+
+  //          fosMemoryCheckLinks(&mallocPool);
+
 
     #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
         if (ssl) {
@@ -5561,6 +5620,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
         }
     #endif
+
+//        fosMemoryCheckLinks(&mallocPool);
 
         /* check key size of cert unless specified not to */
         switch (cert->keyOID) {
@@ -5701,6 +5762,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 break; /* do no check if not a case for the key */
         }
 
+ //           fosMemoryCheckLinks(&mallocPool);
+
+
     #ifdef HAVE_PK_CALLBACKS
         if (ssl && ssl->buffers.keyType == 0) {
             ssl->buffers.keyType = keyType;
@@ -5722,6 +5786,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
 
+
+ //       fosMemoryCheckLinks(&mallocPool);
+
     if (done == 1) {
     #ifndef NO_WOLFSSL_CM_VERIFY
         if ((type == CA_TYPE) || (type == CERT_TYPE)) {
@@ -5736,6 +5803,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
         return ret;
     }
+
+   //     fosMemoryCheckLinks(&mallocPool);
 
 
     if (ssl && resetSuites) {
@@ -5760,6 +5829,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
+
+  //      fosMemoryCheckLinks(&mallocPool);
+
 
     return WOLFSSL_SUCCESS;
 }
@@ -7510,6 +7582,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* NO_DSA */
 
     #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     {
         DhKey dh;
         word32 keyIdx = 0;
@@ -7553,6 +7627,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
         }
         wc_FreeDhKey(&dh);
     }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
     return pkey;
@@ -7677,6 +7752,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
             break;
 #endif /* NO_DSA */
 #ifndef NO_DH
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
         case EVP_PKEY_DH:
             local->ownDh = 1;
             local->dh = wolfSSL_DH_new();
@@ -7691,6 +7767,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
                 return NULL;
             }
             break;
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* HAVE_DH */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
         default:
@@ -14737,7 +14814,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("BIO_set_write_buffer_size");
         WOLFSSL_STUB("BIO_set_write_buffer_size");
         (void)bio;
-        return size;
+        * return 1 if the buffer was successfully resized or 0 for failure. */
+        return WOLFSSL_SUCCESS;
     }
     #endif
 
@@ -14963,8 +15041,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
                 if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
+                {
+                #ifdef FUSION_RTOS
+                    int err;
+                    CloseSocket(bio->num, &err);
+                #else
                     CloseSocket(bio->num);
             #endif
+
+                }
+             #endif
             }
 
         #ifndef NO_FILESYSTEM
@@ -18506,6 +18592,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Converts DER encoded DH parameters to a WOLFSSL_DH structure.
  *
  * dh   : structure to copy DH parameters into.
@@ -18554,6 +18641,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
 
     return newDH;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 /* Converts internal WOLFSSL_DH structure to DER encoded DH.
  *
@@ -21502,6 +21590,7 @@ void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
     WOLFSSL_ENTER("wolfSSL_BIO_set_flags");
 
     if (bio != NULL) {
+       
         bio->flags |= flags;
     }
 }
@@ -26322,7 +26411,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
                 va_end(args);
                 return -1;
             }
-            ret = vfprintf((XFILE)bio->ptr, format, args);
+            ret = XVFPRINTF((XFILE)bio->ptr, format, args);
             break;
 
         case WOLFSSL_BIO_MEMORY:
@@ -26333,15 +26422,19 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
                 char* pt = NULL;
                 va_list copy;
 
+                #ifdef FUSION_RTOS
+                   copy = args;    // bad hack, relies on internal implementation of va_list in VisualDSP++
+                #else
                 va_copy(copy, args);
-                count = vsnprintf(NULL, 0, format, args);
+                #endif
+                count = XVSNPRINTF(NULL, 0, format, args);
                 if (count >= 0)
                 {
                     pt = (char*)XMALLOC(count + 1, bio->heap,
                                         DYNAMIC_TYPE_TMP_BUFFER);
                     if (pt != NULL)
                     {
-                        count = vsnprintf(pt, count + 1, format, copy);
+                        count = XVSNPRINTF(pt, count + 1, format, copy);
                         if (count >= 0)
                         {
                             ret = wolfSSL_BIO_write(bio, pt, count);
@@ -26397,24 +26490,24 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
         char line[80];
 
         if (!buf) {
-            return fputs("\tNULL", (XFILE)bio->ptr);
+            return XFPUTS("\tNULL", (XFILE)bio->ptr);
         }
 
-        sprintf(line, "\t");
+        XSPRINTF(line, "\t");
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length)
-                sprintf(line + 1 + i * 3,"%02x ", buf[i]);
+                XSPRINTF(line + 1 + i * 3,"%02x ", buf[i]);
             else
-                sprintf(line + 1 + i * 3, "   ");
+                XSPRINTF(line + 1 + i * 3, "   ");
         }
-        sprintf(line + 1 + LINE_LEN * 3, "| ");
+        XSPRINTF(line + 1 + LINE_LEN * 3, "| ");
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length) {
-                sprintf(line + 3 + LINE_LEN * 3 + i,
+                XSPRINTF(line + 3 + LINE_LEN * 3 + i,
                      "%c", 31 < buf[i] && buf[i] < 127 ? buf[i] : '.');
             }
         }
-        ret += fputs(line, (XFILE)bio->ptr);
+        ret += XFPUTS(line, (XFILE)bio->ptr);
 
         if (length > LINE_LEN)
             ret += wolfSSL_BIO_dump(bio, buf + LINE_LEN, length - LINE_LEN);
@@ -27740,6 +27833,10 @@ static int wolfSSL_RAND_Init(void)
 {
     if (initGlobalRNG == 0) {
         if (wc_InitRng(&globalRNG) < 0) {
+           int ret = wc_InitRng(&globalRNG);
+           FCL_PRINTF("ret = %d\n", ret);
+           if (ret == -197)
+               FCL_PRINTF("Are you USING_JTAG or not? Check user_settings.h");
             WOLFSSL_MSG("wolfSSL Init Global RNG failed");
             return 0;
         }
@@ -27897,7 +27994,9 @@ int wolfSSL_RAND_write_file(const char* fname)
 #ifndef FREERTOS_TCP
 
 /* These constant values are protocol values made by egd */
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
+#if defined(FUSION_RTOS)
+// #include <sys/_un.h>
+#elif defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
     #define WOLFSSL_EGD_NBLOCK 0x01
     #include <sys/un.h>
 #endif
@@ -28473,6 +28572,7 @@ void wolfSSL_DH_free(WOLFSSL_DH* dh)
     }
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int SetDhInternal(WOLFSSL_DH* dh)
 {
     int            ret = WOLFSSL_FATAL_ERROR;
@@ -28612,6 +28712,7 @@ int SetDhExternal(WOLFSSL_DH *dh)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
 /* return code compliant with OpenSSL :
@@ -29014,6 +29115,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
     return bn;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -29228,6 +29330,7 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     return WOLFSSL_SUCCESS;
 }
 #endif /* v1.1.0 or later */
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #endif /* NO_DH */
 
@@ -32517,6 +32620,7 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -32727,6 +32831,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     return ret;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {
@@ -32859,6 +32964,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 }
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(HAVE_SELFTEST)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -32998,6 +33104,7 @@ cleanup:
     wc_ecc_del_point(tmp);
     return ret;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
         * !defined(HAVE_SELFTEST) */
 
@@ -33121,6 +33228,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 
 /* End EC_POINT */
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
 {
     size_t i, min_nitems;
@@ -33142,6 +33250,7 @@ size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
 
     return ecc_sets_count;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 /* Start ECDSA_SIG */
 void wolfSSL_ECDSA_SIG_free(WOLFSSL_ECDSA_SIG *sig)
@@ -34897,6 +35006,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
 
 #if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
         defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 static int hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -35146,7 +35256,10 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* WC_RSA_PSS && (OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY
+        *                || WOLFSSL_NGINX)
+        */
 
 #if defined(OPENSSL_EXTRA)
 WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
@@ -35447,6 +35560,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 {
     word32 idx = 0;
@@ -35470,6 +35584,7 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* ! NO_DH && WOLFSSL_QT || OPENSSL_ALL */
 
 #endif /* OPENSSL_EXTRA */
@@ -39543,6 +39658,7 @@ WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
 
 
 #ifndef NO_DH
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         pem_password_cb *cb, void *u)
 {
@@ -39672,6 +39788,7 @@ end:
     return NULL;
 #endif
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #ifndef NO_FILESYSTEM
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
@@ -39757,6 +39874,7 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     return idx;
 }
 
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
 {
     word32 sz = 0;
@@ -40022,6 +40140,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* !NO_FILESYSTEM */
 #endif /* !NO_DH */
@@ -45825,7 +45944,7 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
         return WOLFSSL_FAILURE;
     }
 
-    fprintf(fp, "%s", buf);
+    XFPRINTF(fp, "%s", buf);
     XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
     return WOLFSSL_SUCCESS;
@@ -46107,7 +46226,10 @@ err_exit:
     return WOLFSSL_FAILURE;
 }
 
-#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+//#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+#if !defined(NO_ASN_TIME) && !defined(TIME_OVERRIDES)
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void)
 {
     WOLFSSL_ASN1_TIME* ret = (WOLFSSL_ASN1_TIME*)

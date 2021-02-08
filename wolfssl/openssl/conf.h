@@ -29,7 +29,7 @@
 #endif
 
 struct WOLFSSL_CONF_VALUE {
-    char *section;
+    char *wolf_section;
     char *name;
     char *value;
 };

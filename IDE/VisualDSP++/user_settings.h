@@ -28,6 +28,7 @@
 extern "C" {
 #endif
 
+#include "fusioncfg.h"
 
 /* ------------------------------------------------------------------------- */
 /* Platform */
@@ -44,6 +45,7 @@ extern "C" {
 #undef  WOLFSSL_USER_IO
 // #define WOLFSSL_USER_IO
 
+#define HAVE_PKCS8
 
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
@@ -386,7 +388,7 @@ extern "C" {
 
 #undef DEBUG_WOLFSSL
 #undef NO_ERROR_STRINGS
-#if 0
+#if 1 //for debug wolfssl_init.
     #define DEBUG_WOLFSSL
 #else
     #if 0
@@ -400,20 +402,17 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 /* Override Memory API's */
-#if 0
+#if 1
     #undef  XMALLOC_OVERRIDE
     #define XMALLOC_OVERRIDE
 
-    /* prototypes for user heap override functions */
-    /* Note: Realloc only required for normal math */
-    #include <stddef.h>  /* for size_t */
-    extern void *myMalloc(size_t n, void* heap, int type);
-    extern void myFree(void *p, void* heap, int type);
-    extern void *myRealloc(void *p, size_t n, void* heap, int type);
+    #include <fclstdlib.h>
 
-    #define XMALLOC(n, h, t)     myMalloc(n, h, t)
-    #define XFREE(p, h, t)       myFree(p, h, t)
-    #define XREALLOC(p, n, h, t) myRealloc(p, n, h, t)
+    #define XMALLOC(n, h, t)     FCL_MALLOC(n)
+    #define XFREE(p, h, t)       FCL_FREE(p)
+    #define XREALLOC(p, n, h, t) FCL_REALLOC(p, n)
+
+    #define XATOI(s)     FCL_ATOI(s)
 #endif
 
 #if 0
@@ -459,7 +458,15 @@ extern "C" {
 //#define USER_TICKS
 //extern unsigned long my_time(unsigned long* timer);
 //#define XTIME my_time
-
+#if 1
+    #include "fcltime.h"
+    #define time_t fclTime_t
+    #define USER_TIME
+    time_t fclTime( time_t* tod );
+    #define XTIME fclTime
+    #define XCTIME fclCtime
+    #define HAVE_TIME_T_TYPE
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* RNG */
@@ -496,10 +503,10 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Allows override of all standard library functions */
 #undef STRING_USER
-#if 0
+#if 1
     #define STRING_USER
 
-    #include <string.h>
+    #include <fclstring.h>
 
     #undef  USE_WOLF_STRSEP
     #define USE_WOLF_STRSEP
@@ -509,22 +516,24 @@ extern "C" {
     #define USE_WOLF_STRTOK
     #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
 
-    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+    // TBD drowe: add a new FCL_STRNSTR and implement the new fclStrnstr code in common/clib/string/fclstrstr.c
+    // For now use the unsafe version
+    #define XSTRNSTR(s1,s2,n) FCL_STRSTR((s1),(s2))
 
-    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-    #define XMEMSET(b,c,l)    memset((b),(c),(l))
-    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+    #define XMEMCPY(d,s,l)    FCL_MEMCPY((d),(s),(l))
+    #define XMEMSET(b,c,l)    FCL_MEMSET((b),(c),(l))
+    #define XMEMCMP(s1,s2,n)  FCL_MEMCMP((s1),(s2),(n))
+    #define XMEMMOVE(d,s,l)   FCL_MEMMOVE((d),(s),(l))
 
-    #define XSTRLEN(s1)       strlen((s1))
-    #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-    #define XSTRSTR(s1,s2)    strstr((s1),(s2))
+    #define XSTRLEN(s1)       FCL_STRLEN((s1))
+    #define XSTRNCPY(s1,s2,n) FCL_STRNCPY((s1),(s2),(n))
+    #define XSTRSTR(s1,s2)    FCL_STRSTR((s1),(s2))
 
-    #define XSTRNCMP(s1,s2,n)     strncmp((s1),(s2),(n))
-    #define XSTRNCAT(s1,s2,n)     strncat((s1),(s2),(n))
-    #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+    #define XSTRNCMP(s1,s2,n)     FCL_STRNCMP((s1),(s2),(n))
+    #define XSTRNCAT(s1,s2,n)     FCL_STRNCAT((s1),(s2),(n))
+    #define XSTRNCASECMP(s1,s2,n) FCL_STRNCASECMP((s1),(s2),(n))
 
-    #define XSNPRINTF snprintf
+    #define XSNPRINTF FCL_SNPRINTF
 #endif
 
 
@@ -565,8 +574,15 @@ extern "C" {
 #if 0
     #define SMALL_SESSION_CACHE
 #else
-    #define NO_SESSION_CACHE
+ //   #define NO_SESSION_CACHE
 #endif
+
+
+#undef WOLFSSL_ALLOW_SSLV3
+#define WOLFSSL_ALLOW_SSLV3
+
+#undef WOLFSSL_ALLOW_TLSV10
+#define WOLFSSL_ALLOW_TLSV10
 
 
 /* ------------------------------------------------------------------------- */
@@ -585,7 +601,7 @@ extern "C" {
 //#define NO_CRYPT_BENCHMARK
 
 #undef  WOLFCRYPT_ONLY
-#define WOLFCRYPT_ONLY
+//#define WOLFCRYPT_ONLY
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */
@@ -597,7 +613,7 @@ extern "C" {
 //#define NO_FILESYSTEM
 
 #undef  NO_WRITEV
-//#define NO_WRITEV
+#define NO_WRITEV
 
 #undef  NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
@@ -612,7 +628,7 @@ extern "C" {
 #define NO_RC4
 
 #undef  NO_OLD_TLS
-#define NO_OLD_TLS
+//#define NO_OLD_TLS
 
 #undef  NO_HC128
 #define NO_HC128
@@ -627,7 +643,7 @@ extern "C" {
 #define NO_MD4
 
 #undef  NO_PWDBASED
-#define NO_PWDBASED
+//#define NO_PWDBASED
 
 #undef  NO_CODING
 //#define NO_CODING
@@ -696,6 +712,37 @@ extern "C" {
     int wolf_task_results(void* voidinfo, char* argline);
     void wolfFIPS_Module_start(void);
 
+    /* For op testing */
+   #define USE_CERT_BUFFERS_2048
+   #define USE_CERT_BUFFERS_256
+   //#define NO_FILESYSTEM
+   
+// #define HAVE_FORCE_FIPS_FAILURE
+
+   #define OPENSSL_EXTRA  //to test if iprgw project need it. AES_xxx wolfSSL_AES_xxx Aes_EncryptDirect
+   #define OPENSSL_ALL
+   #define HAVE_EX_DATA
+    #define WOLFSSL_EVP_DECRYPT_LEGACY
+
+   
+   /* TLS 1.3 support */
+   
+   #define WOLFSSL_TLS13
+   #define HAVE_TLS_EXTENSIONS
+   #define HAVE_SUPPORTED_CURVES
+   #define HAVE_ECC
+   #define HAVE_HKDF
+   #define HAVE_FFDHE_4096
+   #define WC_RSA_PSS
+   
+   /* for static ciphers */
+   #define WOLFSSL_STATIC_RSA
+    #define WOLFSSL_STATIC_PSK
+    #define WOLFSSL_STATIC_EPHEMERAL
+   #define WOLFSSL_SNIFFER
+   
+   /* TEMPORARY */
+   #define USING_JTAG
 #endif /* BLACKFIN_BUILD */
 
 #ifdef __cplusplus

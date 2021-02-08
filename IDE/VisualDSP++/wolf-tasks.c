@@ -21,8 +21,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfcrypt/test/test.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
-#include <fips/emb-agent-v2/harness/cavp_common.h>
 #ifdef FUSION_RTOS
 #include <fcl_os.h>
 
@@ -53,7 +53,7 @@ static void myFipsCb(int ok, int err, const char* hash)
 
 static fclThreadHandle _task = NULL;
 #define WOLF_TASK_STACK_SIZE (1024 * 100)
-#define WOLF_TASK_PRIORITY FCL_THREAD_PRIORITY_TIME_CRITICAL+1
+fclThreadPriority WOLF_TASK_PRIORITY = (fclThreadPriority) (FCL_THREAD_PRIORITY_TIME_CRITICAL+1);
 
 int wolfcrypt_test_taskEnter(void *args)
 {
@@ -61,8 +61,10 @@ int wolfcrypt_test_taskEnter(void *args)
 
     wolfCrypt_SetCb_fips(myFipsCb);
 
-    ret = aes_test_for_fips_hash();
-    //wolfcrypt_test(args);
+    //ret = aes_test_for_fips_hash();
+    ret = wolfcrypt_test(args);
+    //printf("Calling op test with %s\n", args);
+    //ret = wolf_op_test(args);
 
     printf("Result of test was %d\n", ret);
 
@@ -71,6 +73,7 @@ int wolfcrypt_test_taskEnter(void *args)
     return 0;
 }
 
+/* Was only needed for CAVP testing purposes, not required for release.
 int wolfcrypt_harness_taskEnter(void *args)
 {
     wolfCrypt_SetCb_fips(myFipsCb);
@@ -81,11 +84,12 @@ int wolfcrypt_harness_taskEnter(void *args)
     fosTaskDelete(_task);
     return 0;
 }
+*/
 
 int wolf_task_start(void* voidinfo, char* argline)
 {
     char optionA[] = "wolfcrypt_test";
-    char optionB[] = "wolfcrypt_harness";
+    //char optionB[] = "wolfcrypt_harness";
     fssShellInfo *info = (fssShellInfo*)voidinfo;
     struct wolfArgs args;
 

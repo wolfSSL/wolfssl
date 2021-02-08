@@ -231,7 +231,14 @@ void WOLFSSL_TIME(int count)
 #elif defined(WOLFSSL_ANDROID_DEBUG)
     #include <android/log.h>
 #else
-    #include <stdio.h>   /* for default printf stuff */
+        #ifndef FUSION_RTOS
+            #include <stdio.h>/* for default printf stuff */
+        #endif
+        #ifdef FUSION_RTOS
+            #include <fclstdio.h>
+            #include <wolfssl/wolfcrypt/wc_port.h>
+            #define fprintf FCL_FPRINTF
+        #endif
 #endif
 
 #if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
@@ -817,7 +824,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         while (current != NULL)
         {
             next = current->next;
-            cb(current->error, strlen(current->error), u);
+            cb(current->error, XSTRLEN(current->error), u);
             XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
             current = next;
         }
