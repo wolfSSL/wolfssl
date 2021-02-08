@@ -32095,6 +32095,66 @@ static void test_wolfSSL_RSA_meth(void)
 #endif
 }
 
+static void test_wolfSSL_verify_mode(void)
+{
+#if defined(OPENSSL_ALL)
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+
+    printf(testingFmt, "test_wolfSSL_verify()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_CTX_get_verify_mode(ctx));
+    SSL_free(ssl);
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_CTX_get_verify_mode(ctx));
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_PEER);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_NONE, 0);
+    AssertIntEQ(SSL_CTX_get_verify_mode(ctx), SSL_VERIFY_PEER);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_NONE);
+
+    SSL_free(ssl);
+
+    wolfSSL_CTX_set_verify(ctx,
+                  WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_CTX_get_verify_mode(ctx));
+    AssertIntEQ(SSL_get_verify_mode(ssl),
+                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_PEER, 0);
+    AssertIntEQ(SSL_CTX_get_verify_mode(ctx),
+                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_PEER);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_NONE, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_NONE);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+
+    wolfSSL_set_verify(ssl, SSL_VERIFY_FAIL_EXCEPT_PSK, 0);
+    AssertIntEQ(SSL_get_verify_mode(ssl), SSL_VERIFY_FAIL_EXCEPT_PSK);
+
+    AssertIntEQ(SSL_CTX_get_verify_mode(ctx),
+                WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT);
+
+    SSL_free(ssl);
+
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif
+}
+
+
 static void test_wolfSSL_verify_depth(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
@@ -40164,6 +40224,7 @@ void ApiTest(void)
     test_wolfSSL_RSA_DER();
     test_wolfSSL_RSA_get0_key();
     test_wolfSSL_RSA_meth();
+    test_wolfSSL_verify_mode();
     test_wolfSSL_verify_depth();
     test_wolfSSL_HMAC_CTX();
     test_wolfSSL_msg_callback();
