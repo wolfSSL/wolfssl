@@ -12246,6 +12246,9 @@ int sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
     if ((a == NULL) || (m == NULL) || sp_iszero(m)) {
         err = MP_VAL;
     }
+    else if (a->size < m->used * 2 + 1) {
+        err = MP_VAL;
+    }
     else {
         err = _sp_mont_red(a, m, mp);
     }
