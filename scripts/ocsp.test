@@ -4,6 +4,8 @@
 
 # Note, this script makes connection(s) to the public Internet.
 
+SCRIPT_DIR="$(dirname "$0")"
+
 server=www.globalsign.com
 ca=certs/external/ca-globalsign-root.pem
 
@@ -25,7 +27,7 @@ if [ "$OUTPUT" = "SNI is: ON" ]; then
     printf '\n\n%s\n\n' "SNI is on, proceed with globalsign test"
 
     # is our desired server there?
-    ./scripts/ping.test $server 2
+    ${SCRIPT_DIR}/ping.test $server 2
     RESULT=$?
     if [ $RESULT -ne 0 ]; then
         GL_UNREACHABLE=1
@@ -45,10 +47,10 @@ else
 fi
 
 server=www.google.com
-ca=certs/external/ca-google-root.pem
+ca=${SCRIPT_DIR}/../certs/external/ca-google-root.pem
 
 # is our desired server there?
-./scripts/ping.test $server 2
+${SCRIPT_DIR}/ping.test $server 2
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
     # client test against the server

@@ -3,6 +3,8 @@
 # ocsp-stapling2.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
+SCRIPT_DIR="$(dirname "$0")"
+
 # if we can, isolate the network namespace to eliminate port collisions.
 if [ "${AM_BWRAPPED-}" != "yes" ]; then
     bwrap_path="$(command -v bwrap)"
@@ -51,7 +53,7 @@ PARENTDIR="$PWD"
 WORKSPACE="${PARENTDIR}/workspace.pid$$"
 
 mkdir "${WORKSPACE}" || exit $?
-cp -pR certs "${WORKSPACE}"/ || exit $?
+cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
 ln -s ../examples
 
