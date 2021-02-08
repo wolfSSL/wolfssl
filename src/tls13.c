@@ -5624,28 +5624,36 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #ifdef HAVE_ED25519
             if (args->sigAlgo == ed25519_sa_algo &&
                                                   !ssl->peerEd25519KeyPresent) {
-                WOLFSSL_MSG("Oops, peer sent ED25519 key but not in verify");
+                WOLFSSL_MSG("Peer sent ED22519 sig but not ED22519 cert");
+                ret = SIG_VERIFY_E;
+                goto exit_dcv;
             }
         #endif
         #ifdef HAVE_ED448
             if (args->sigAlgo == ed448_sa_algo && !ssl->peerEd448KeyPresent) {
-                WOLFSSL_MSG("Oops, peer sent ED448 key but not in verify");
+                WOLFSSL_MSG("Peer sent ED448 sig but not ED448 cert");
+                ret = SIG_VERIFY_E;
+                goto exit_dcv;
             }
         #endif
         #ifdef HAVE_ECC
             if (args->sigAlgo == ecc_dsa_sa_algo &&
                                                    !ssl->peerEccDsaKeyPresent) {
-                WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
+                WOLFSSL_MSG("Peer sent ECC sig but not ECC cert");
+                ret = SIG_VERIFY_E;
+                goto exit_dcv;
             }
         #endif
         #ifndef NO_RSA
             if (args->sigAlgo == rsa_sa_algo) {
-                WOLFSSL_MSG("Oops, peer sent PKCS#1.5 signature");
+                WOLFSSL_MSG("Peer sent PKCS#1.5 algo but not in certificate");
                 ERROR_OUT(INVALID_PARAMETER, exit_dcv);
             }
             if (args->sigAlgo == rsa_pss_sa_algo &&
                          (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)) {
-                WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
+                WOLFSSL_MSG("Peer sent RSA sig but not RSA cert");
+                ret = SIG_VERIFY_E;
+                goto exit_dcv;
             }
         #endif
 
