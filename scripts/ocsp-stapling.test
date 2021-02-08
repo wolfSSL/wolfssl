@@ -5,6 +5,8 @@
 
 # Note, this script makes connection(s) to the public Internet.
 
+SCRIPT_DIR="$(dirname "$0")"
+
 if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
@@ -51,7 +53,7 @@ PARENTDIR="$PWD"
 WORKSPACE="${PARENTDIR}/workspace.pid$$"
 
 mkdir "${WORKSPACE}" || exit $?
-cp -pR certs "${WORKSPACE}"/ || exit $?
+cp -pR ${SCRIPT_DIR}/../certs "${WORKSPACE}"/ || exit $?
 cd "$WORKSPACE" || exit $?
 ln -s ../examples
 
@@ -270,7 +272,7 @@ sleep 0.1
 # client test against the server
 server=login.live.com
 #ca=certs/external/baltimore-cybertrust-root.pem
-ca=certs/external/ca_collection.pem
+ca=./certs/external/ca_collection.pem
 
 if [[ "$V4V6" == "4" ]]; then
     ./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
