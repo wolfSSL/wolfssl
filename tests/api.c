@@ -7892,26 +7892,6 @@ static int test_wc_Md5Final (void)
 }
 
 /*
- *  Unit test on wolfSSL_MD5() in src/ssl.c
- */
-static void test_wolfSSL_MD5(void)
-{
-#if defined(OPENSSL_EXTRA) && !defined(NO_MD5)
-    printf(testingFmt, "wc_Md5Final()");
-
-    byte data[] = "Data to be hashed.";
-    byte hash[WC_MD5_DIGEST_SIZE] = { 0 };
-
-    AssertNotNull(MD5(data, sizeof(data), NULL));
-    AssertNotNull(MD5(data, sizeof(data), hash));
-    AssertNotNull(MD5(NULL, 0, hash));
-    AssertNull(MD5(NULL, sizeof(data), hash));
-
-    printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA && !NO_MD5 */
-}
-
-/*
  * Unit test for the wc_InitSha()
  */
 static int test_wc_InitSha(void)
@@ -31361,9 +31341,8 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 2);
-    #endif
-
     AssertNotNull(SSL_get0_verified_chain(ssl));
+    #endif
 
     #if defined(OPENSSL_ALL) && defined(SESSION_CERTS)
     bio = BIO_new(BIO_s_file());
@@ -35061,7 +35040,7 @@ static void test_wolfSSL_BIO_f_md(void)
 
 #endif /* !NO_BIO */
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
 /* test that the callback arg is correct */
 static int certCbArg = 0;
@@ -35126,7 +35105,7 @@ static void serverCertClearCb(WOLFSSL* ssl)
 
 static void test_wolfSSL_cert_cb(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 
     callback_functions func_cb_client;
     callback_functions func_cb_server;
@@ -36507,6 +36486,15 @@ static void test_wolfSSL_MD5(void)
 
     AssertIntEQ(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash), 0);
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
+    {
+        byte data[] = "Data to be hashed.";
+        XMEMSET(hash, 0, WC_MD5_DIGEST_SIZE);
+
+        AssertNotNull(MD5(data, sizeof(data), NULL));
+        AssertNotNull(MD5(data, sizeof(data), hash));
+        AssertNotNull(MD5(NULL, 0, hash));
+        AssertNull(MD5(NULL, sizeof(data), hash));
+    }
 #endif
 
     printf(resultFmt, passed);
@@ -46371,7 +46359,6 @@ void ApiTest(void)
     AssertFalse(test_wc_InitMd5());
     AssertFalse(test_wc_Md5Update());
     AssertFalse(test_wc_Md5Final());
-    test_wolfSSL_MD5();
     AssertFalse(test_wc_InitSha());
     AssertFalse(test_wc_ShaUpdate());
     AssertFalse(test_wc_ShaFinal());

@@ -19674,14 +19674,17 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 }
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
-#ifndef NO_CERTS
-#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
-    defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef OPENSSL_EXTRA
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
         WOLF_STACK_OF(WOLFSSL_X509) *sk)
 {
     return wolfSSL_sk_dup(sk);
 }
+#endif
+
+#ifndef NO_CERTS
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
  * don't */
