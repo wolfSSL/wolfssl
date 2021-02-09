@@ -524,6 +524,8 @@ decouple library dependencies with standard string, memory and so on.
             #endif
             #if defined(WOLFSSL_DEOS)
                 #define XSTRNCASECMP(s1,s2,n) strnicmp((s1),(s2),(n))
+            #elif defined(WOLFSSL_CMSIS_RTOSv2)
+                #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
             #else
                 #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
             #endif
