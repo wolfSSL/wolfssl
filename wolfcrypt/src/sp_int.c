@@ -12069,7 +12069,8 @@ static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp)
         bits = SP_WORD_SIZE;
     }
     else {
-        sp_int_digit mask = (1UL << (bits & (SP_WORD_SIZE - 1))) - 1;
+        sp_int_digit mask = (sp_int_digit)
+                            ((1UL << (bits & (SP_WORD_SIZE - 1))) - 1);
         sp_int_word o = 0;
         for (i = 0; i < m->used; i++) {
             int j;
