@@ -37,7 +37,6 @@
 #define PKCS7_NOINTERN         0x0010
 #define PKCS7_NOVERIFY         0x0020
 
-
 typedef struct WOLFSSL_PKCS7
 {
     PKCS7 pkcs7;
@@ -53,6 +52,8 @@ WOLFSSL_API void wolfSSL_PKCS7_free(PKCS7* p7);
 WOLFSSL_API void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7);
 WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in,
     int len);
+WOLFSSL_LOCAL PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in,
+    int len, byte* content, word32 contentSz);
 WOLFSSL_API PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7);
 WOLFSSL_API int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7);
 WOLFSSL_API int wolfSSL_PKCS7_verify(PKCS7* p7, WOLFSSL_STACK* certs,
@@ -63,6 +64,10 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* p7,
     WOLFSSL_STACK* certs, int flags);
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7);
+#if defined(HAVE_SMIME)
+WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in, WOLFSSL_BIO** bcont);
+#endif /* HAVE_SMIME */
+
 
 #define PKCS7_new                      wolfSSL_PKCS7_new
 #define PKCS7_SIGNED_new               wolfSSL_PKCS7_SIGNED_new
@@ -74,6 +79,9 @@ WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7);
 #define PKCS7_verify                   wolfSSL_PKCS7_verify
 #define PKCS7_get0_signers             wolfSSL_PKCS7_get0_signers
 #define PEM_write_bio_PKCS7            wolfSSL_PEM_write_bio_PKCS7
+#if defined(HAVE_SMIME)
+#define SMIME_read_PKCS7               wolfSSL_SMIME_read_PKCS7
+#endif /* HAVE_SMIME */
 
 #endif /* OPENSSL_ALL && HAVE_PKCS7 */
 

@@ -47,6 +47,9 @@ EXTRA_DIST += \
          certs/test/server-badaltname.pem \
          certs/test/server-localhost.der \
          certs/test/server-localhost.pem \
+         certs/test/smime-test.p7s \
+         certs/test/smime-test-multipart.p7s \
+         certs/test/smime-test-multipart-badsig.p7s \
          certs/crl/server-goodaltCrl.pem \
          certs/crl/server-goodcnCrl.pem \
          certs/crl/server-goodaltwildCrl.pem \
