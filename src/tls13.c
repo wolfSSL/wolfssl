@@ -2881,8 +2881,19 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((i - begin) + RAN_LEN + ENUM_LEN > helloSz)
         return BUFFER_ERROR;
 
-    if (XMEMCMP(input + i, helloRetryRequestRandom, RAN_LEN) == 0)
+    if (XMEMCMP(input + i, helloRetryRequestRandom, RAN_LEN) == 0) {
         *extMsgType = hello_retry_request;
+        /* A HelloRetryRequest comes in as an ServerHello for MiddleBox compat.
+         * Found message to be a HelloRetryRequest.
+         * Don't allow more than one HelloRetryRequest or ServerHello.
+         */
+        if (ssl->msgsReceived.got_hello_retry_request == 1) {
+            return DUPLICATE_MSG_E;
+        }
+        /* Update counts to reflect change of message type. */
+        ssl->msgsReceived.got_hello_retry_request++;
+        ssl->msgsReceived.got_server_hello--;
+    }
 
     /* Server random - keep for debugging. */
     XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
@@ -6757,7 +6768,7 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 return OUT_OF_ORDER_E;
             }
         #endif
-            if (ssl->msgsReceived.got_server_hello == 2) {
+            if (ssl->msgsReceived.got_server_hello == 1) {
                 WOLFSSL_MSG("Duplicate ServerHello received");
                 return DUPLICATE_MSG_E;
             }
