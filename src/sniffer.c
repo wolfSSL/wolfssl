@@ -27,12 +27,13 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 
-/* xctime - should it move to wc_port.h? */
+/* xctime */
 #ifndef XCTIME
    #define XCTIME ctime
 #endif
 
-/* should next ifdef move to wc_port.h? */
+/* only in this file, to avoid confusing future ports leave
+ * these defines here. Do not move to wc_port.h */
 #ifdef FUSION_RTOS
     #include <fcl_network.h>
     #define XINET_NTOA FNS_INET_NTOA
