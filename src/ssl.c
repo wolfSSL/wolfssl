@@ -30976,6 +30976,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     WC_RNG  tmpRNG[1];
 #endif
     int used_global = 0;
+    int blockCount = 0;
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
 
@@ -30999,7 +31000,22 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         initTmpRng = 1;
     }
     if (rng) {
-        if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
+        /* handles size grater than RNG_MAX_BLOCK_LEN */
+        blockCount = num / RNG_MAX_BLOCK_LEN;
+        
+        while(blockCount--) {
+            if((ret = wc_RNG_GenerateBlock(rng, buf, RNG_MAX_BLOCK_LEN) != 0)){
+                WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+                break;
+            }
+            num -= RNG_MAX_BLOCK_LEN;
+            buf += RNG_MAX_BLOCK_LEN;
+        }
+        
+        if (ret == 0 && num)
+            ret = wc_RNG_GenerateBlock(rng, buf, num);
+        
+        if (ret != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         else
             ret = WOLFSSL_SUCCESS;
