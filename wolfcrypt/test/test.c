@@ -12451,7 +12451,8 @@ WOLFSSL_TEST_SUBROUTINE int decodedCertCache_test(void)
 
 #define RSA_TEST_BYTES 512 /* up to 4096-bit key */
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                                               !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
@@ -13805,7 +13806,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     }
 
     /* after loading in key use tmp as the test buffer */
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     inLen = 32;
     outSz   = wc_RsaEncryptSize(key);
     XMEMSET(tmp, 7, plainSz);
@@ -13828,7 +13829,7 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 #endif
 
     /* test encrypt and decrypt using WC_RSA_NO_PAD */
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
     if (ret != MP_VAL && ret != MP_EXPTMOD_E) {
         ERROR_OUT(-7812, exit_rsa_even_mod);
@@ -14549,7 +14550,8 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
 #endif
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP)
     byte*  res;
 #endif
 #ifndef NO_SIG_WRAPPER
@@ -14580,7 +14582,9 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     XMEMCPY(in, inStr, inLen);
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     if (key == NULL)
@@ -14834,7 +14838,8 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     }
 #endif
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(WOLFSSL_PUBLIC_MP)
     idx = (word32)ret;
     XMEMSET(plain, 0, plainSz);
     do {
@@ -15195,7 +15200,8 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
         return ret;
 #endif
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+                                               !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = rsa_flatten_test(key);
     if (ret != 0)
         return ret;

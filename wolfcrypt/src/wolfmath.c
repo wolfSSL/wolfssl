@@ -87,6 +87,7 @@ mp_digit get_digit(mp_int* a, int n)
     return (n >= a->used || n < 0) ? 0 : a->dp[n];
 }
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)
 /* Conditionally copy a into b. Performed in constant time.
  *
  * a     MP integer to copy.
@@ -125,6 +126,7 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 
     return err;
 }
+#endif
 
 #ifndef WC_NO_RNG
 int get_rand_digit(WC_RNG* rng, mp_digit* d)
@@ -191,6 +193,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif /* WC_RSA_BLINDING */
 #endif
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_EXPORT_INT)
 /* export an mp_int as unsigned char or hex string
  * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
  * return MP_OKAY on success */
@@ -224,6 +227,7 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
 
     return err;
 }
+#endif
 
 
 #ifdef HAVE_WOLF_BIGINT
