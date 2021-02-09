@@ -376,6 +376,25 @@ typedef struct sp_ecc_ctx {
     #define SP_INT_MAX_BITS     (SP_INT_DIGITS * SP_WORD_SIZE)
 #endif
 
+#if SP_WORD_SIZE < 32
+    /* Maximum number of digits in a number to mul or sqr. */
+    #define SP_MUL_SQR_DIGITS       (SP_INT_MAX_BITS / 2 / SP_WORD_SIZE)
+    /* Maximum value of partial in mul/sqr. */
+    #define SP_MUL_SQR_MAX_PARTIAL  \
+                                 (SP_MUL_SQR_DIGITS * ((1 << SP_WORD_SIZE) - 1))
+    /* Maximim value in an sp_int_word. */
+    #define SP_INT_WORD_MAX         ((1 << (SP_WORD_SIZE * 2)) - 1)
+
+    #if SP_MUL_SQR_MAX_PARTIAL > SP_INT_WORD_MAX
+        /* The sum of the partials in the multiplicaiton/square can exceed the
+         * size of a word. This will overflow the word and loose data.
+         * Use an implementation that handles carry after every add and uses an
+         * extra temporary word for overflowing high word.
+         */
+        #define SP_WORD_OVERFLOW
+    #endif
+#endif
+
 
 /* For debugging only - format string for different digit sizes. */
 #if SP_WORD_SIZE == 64

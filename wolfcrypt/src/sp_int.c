@@ -4817,11 +4817,17 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
             sp_int_word w;
             sp_int_word l;
             sp_int_word h;
+        #ifdef SP_WORD_OVERFLOW
+            sp_int_word o;
+        #endif
 
             w = (sp_int_word)a->dp[0] * b->dp[0];
             t->dp[0] = (sp_int_digit)w;
             l = (sp_int_digit)(w >> SP_WORD_SIZE);
             h = 0;
+        #ifdef SP_WORD_OVERFLOW
+            o = 0;
+        #endif
             for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
                 i = k - (b->used - 1);
                 i &= ~(i >> (sizeof(i) * 8 - 1));
@@ -4830,11 +4836,21 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
                     w = (sp_int_word)a->dp[i] * b->dp[j];
                     l += (sp_int_digit)w;
                     h += (sp_int_digit)(w >> SP_WORD_SIZE);
+                #ifdef SP_WORD_OVERFLOW
+                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                    l &= SP_MASK;
+                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                    h &= SP_MASK;
+                #endif
                 }
                 t->dp[k] = (sp_int_digit)l;
                 l >>= SP_WORD_SIZE;
                 l += (sp_int_digit)h;
                 h >>= SP_WORD_SIZE;
+            #ifdef SP_WORD_OVERFLOW
+                h += o & SP_MASK;
+                o >>= SP_WORD_SIZE;
+            #endif
             }
             t->dp[k] = (sp_int_digit)l;
             t->dp[k+1] = (sp_int_digit)h;
@@ -9590,12 +9606,20 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
     #endif
 
         if (err == MP_OKAY) {
-            sp_int_word w, l, h;
+            sp_int_word w;
+            sp_int_word l;
+            sp_int_word h;
+        #ifdef SP_WORD_OVERFLOW
+            sp_int_word o;
+        #endif
 
             w = (sp_int_word)a->dp[0] * a->dp[0];
             t->dp[0] = (sp_int_digit)w;
             l = (sp_int_digit)(w >> SP_WORD_SIZE);
             h = 0;
+        #ifdef SP_WORD_OVERFLOW
+            o = 0;
+        #endif
             for (k = 1; k <= (a->used - 1) * 2; k++) {
                 i = k / 2;
                 j = k - i;
@@ -9603,18 +9627,40 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
                     w = (sp_int_word)a->dp[i] * a->dp[j];
                     l += (sp_int_digit)w;
                     h += (sp_int_digit)(w >> SP_WORD_SIZE);
+                #ifdef SP_WORD_OVERFLOW
+                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                    l &= SP_MASK;
+                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                    h &= SP_MASK;
+                #endif
                 }
                 for (++i, --j; (i < a->used) && (j >= 0); i++, j--) {
                     w = (sp_int_word)a->dp[i] * a->dp[j];
                     l += (sp_int_digit)w;
                     h += (sp_int_digit)(w >> SP_WORD_SIZE);
+                #ifdef SP_WORD_OVERFLOW
+                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                    l &= SP_MASK;
+                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                    h &= SP_MASK;
+                #endif
                     l += (sp_int_digit)w;
                     h += (sp_int_digit)(w >> SP_WORD_SIZE);
+                #ifdef SP_WORD_OVERFLOW
+                    h += (sp_int_digit)(l >> SP_WORD_SIZE);
+                    l &= SP_MASK;
+                    o += (sp_int_digit)(h >> SP_WORD_SIZE);
+                    h &= SP_MASK;
+                #endif
                 }
                 t->dp[k] = (sp_int_digit)l;
                 l >>= SP_WORD_SIZE;
                 l += (sp_int_digit)h;
                 h >>= SP_WORD_SIZE;
+            #ifdef SP_WORD_OVERFLOW
+                h += o & SP_MASK;
+                o >>= SP_WORD_SIZE;
+            #endif
             }
             t->dp[k] = (sp_int_digit)l;
             t->dp[k+1] = (sp_int_digit)h;
