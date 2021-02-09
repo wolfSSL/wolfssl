@@ -37123,6 +37123,50 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 
 #endif
 }
+
+#ifdef HAVE_SMIME
+static void test_wolfSSL_SMIME_read_PKCS7(void)
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
+    PKCS7* pkcs7 = NULL;
+    BIO* bio = NULL;
+    BIO* bcont = NULL;
+    XFILE smimeTestFile = XFOPEN("./certs/test/smime-test.p7s", "r");
+
+    printf(testingFmt, "wolfSSL_SMIME_read_PKCS7()");
+
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    AssertNotNull(bio);
+    AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
+    pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
+    XFCLOSE(smimeTestFile);
+    if (bcont) BIO_free(bcont);
+    wolfSSL_PKCS7_free(pkcs7);
+
+    smimeTestFile = XFOPEN("./certs/test/smime-test-multipart.p7s", "r");
+    AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
+    pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
+    XFCLOSE(smimeTestFile);
+    if (bcont) BIO_free(bcont);
+    wolfSSL_PKCS7_free(pkcs7);
+
+    smimeTestFile = XFOPEN("./certs/test/smime-test-multipart-badsig.p7s", "r");
+    AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
+    pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
+    AssertNull(pkcs7);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_FAILURE);
+    BIO_free(bio);
+    if (bcont) BIO_free(bcont);
+    wolfSSL_PKCS7_free(pkcs7);
+
+    printf(resultFmt, passed);
+#endif
+}
+#endif /* HAVE_SMIME*/
 #endif /* !NO_BIO */
 
 /*----------------------------------------------------------------------------*
@@ -40377,6 +40421,9 @@ void ApiTest(void)
     test_wolfSSL_PKCS7_SIGNED_new();
 #ifndef NO_BIO
     test_wolfSSL_PEM_write_bio_PKCS7();
+#ifdef HAVE_SMIME
+    test_wolfSSL_SMIME_read_PKCS7();
+#endif
 #endif
 
     /* wolfCrypt ASN tests */
