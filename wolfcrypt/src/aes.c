@@ -7640,7 +7640,7 @@ int wc_AesCcmCheckTagSize(int sz)
     /* implemented in wolfcrypt/src/port/caam_aes.c */
 
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
-    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
+    /* implemented in wolfcrypt/src/port/silabs/silabs_aes.c */
 int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* nonce, word32 nonceSz,
                    byte* authTag, word32 authTagSz,
@@ -7679,6 +7679,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     status_t status;
 
     /* sanity check on arguments */
+    /* note, LTC_AES_EncryptTagCcm() doesn't allow null src or dst
+     * ptrs even if inSz is zero (ltc_aes_ccm_check_input_args()), so
+     * don't allow it here either.
+     */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
             || authTag == NULL || nonceSz < 7 || nonceSz > 13) {
         return BAD_FUNC_ARG;
@@ -7879,8 +7883,8 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     const word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
+    if (aes == NULL || (inSz != 0 && (in == NULL || out == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
             authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
@@ -7981,9 +7985,9 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     const word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
-            authTagSz > AES_BLOCK_SIZE)
+    if (aes == NULL || (inSz != 0 && (in == NULL || out == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
+        authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
@@ -8075,7 +8079,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             defined(ACVP_VECTOR_TESTING)
             WOLFSSL_MSG("Preserve output for vector responses");
         #else
-            XMEMSET(out, 0, inSz);
+            if (inSz > 0)
+                XMEMSET(out, 0, inSz);
         #endif
         result = AES_CCM_AUTH_E;
     }
