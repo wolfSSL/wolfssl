@@ -500,6 +500,8 @@ typedef struct sp_ecc_ctx {
  * @return 0 when not zero.
  */
 #define sp_iszero(a)     ((a)->used == 0)
+
+#ifndef WOLFSSL_SP_INT_NEGATIVE
 /* Returns whether multi-precision number has the value one.
  *
  * Assumes a is not NULL.
@@ -509,6 +511,20 @@ typedef struct sp_ecc_ctx {
  * @return 0 when not one.
  */
 #define sp_isone(a)      (((a)->used == 1) && ((a)->dp[0] == 1))
+#else
+/* Returns whether multi-precision number has the value of positive one.
+ *
+ * Assumes a is not NULL.
+ *
+ * @param  [in]  a  SP integer to check.
+ * @return 1 when one.
+ * @return 0 when not one.
+ */
+#define sp_isone(a)      \
+    (((a)->used == 1) && ((a)->dp[0] == 1) && ((a)->sign == MP_ZPOS))
+#endif
+
+#ifndef WOLFSSL_SP_INT_NEGATIVE
 /* Returns whether multi-precision number has the value 'd'.
  *
  * Assumes a is not NULL.
@@ -518,7 +534,23 @@ typedef struct sp_ecc_ctx {
  * @return 1 when one.
  * @return 0 when not one.
  */
-#define sp_isword(a, d)  (((a)->used == 1) && ((a)->dp[0] == d))
+#define sp_isword(a, d)  \
+    ((((d) == 0) && sp_iszero(a)) || (((a)->used == 1) && ((a)->dp[0] == (d))))
+#else
+/* Returns whether multi-precision number has the value 'd'.
+ *
+ * Assumes a is not NULL.
+ *
+ * @param  [in]  a  SP integer to check.
+ * @param  [in]  d  SP integer digit.
+ * @return 1 when one.
+ * @return 0 when not one.
+ */
+#define sp_isword(a, d)                                                     \
+    ((((d) == 0) && sp_iszero(a)) ||                                        \
+     (((a)->used == 1) && ((a)->dp[0] == (d)) && ((a)->sign == MP_ZPOS)))
+#endif
+
 #ifndef WOLFSSL_SP_INT_NEGATIVE
 /* Calculate the absolute value of the multi-precision number.
  *
@@ -552,6 +584,7 @@ typedef struct sp_ecc_ctx {
  */
 #define sp_isneg(a)      ((a)->sign == MP_NEG)
 #endif
+
 /* Updates the used count to exclude leading zeros.
  *
  * Assumes a is not NULL.

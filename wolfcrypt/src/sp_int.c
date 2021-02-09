@@ -1991,6 +1991,20 @@ WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
 static int _sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
 #endif
 
+/* Set the multi-precision number to zero.
+ *
+ * Assumes a is not NULL.
+ *
+ * @param  [out]  a  SP integer to set to zero.
+ */
+static void _sp_zero(sp_int* a)
+{
+    a->used = 0;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    a->sign = MP_ZPOS;
+#endif
+}
+
 /* Initialize the multi-precision number to be zero.
  *
  * @param  [out]  a  SP integer.
@@ -2006,11 +2020,8 @@ int sp_init(sp_int* a)
         err = MP_VAL;
     }
     if (err == MP_OKAY) {
-        a->used = 0;
+        _sp_zero(a);
         a->size = SP_INT_DIGITS;
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        a->sign = MP_ZPOS;
-    #endif
     #ifdef HAVE_WOLF_BIGINT
         wc_bigint_init(&a->raw);
     #endif
@@ -2046,46 +2057,34 @@ int sp_init_multi(sp_int* n1, sp_int* n2, sp_int* n3, sp_int* n4, sp_int* n5,
                   sp_int* n6)
 {
     if (n1 != NULL) {
-        n1->used = 0;
+        _sp_zero(n1);
+        n1->dp[0] = 0;
         n1->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n1->sign = MP_ZPOS;
-#endif
     }
     if (n2 != NULL) {
-        n2->used = 0;
+        _sp_zero(n2);
+        n2->dp[0] = 0;
         n2->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n2->sign = MP_ZPOS;
-#endif
     }
     if (n3 != NULL) {
-        n3->used = 0;
+        _sp_zero(n3);
+        n3->dp[0] = 0;
         n3->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n3->sign = MP_ZPOS;
-#endif
     }
     if (n4 != NULL) {
-        n4->used = 0;
+        _sp_zero(n4);
+        n4->dp[0] = 0;
         n4->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n4->sign = MP_ZPOS;
-#endif
     }
     if (n5 != NULL) {
-        n5->used = 0;
+        _sp_zero(n5);
+        n5->dp[0] = 0;
         n5->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n5->sign = MP_ZPOS;
-#endif
     }
     if (n6 != NULL) {
-        n6->used = 0;
+        _sp_zero(n6);
+        n6->dp[0] = 0;
         n6->size = SP_INT_DIGITS;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        n6->sign = MP_ZPOS;
-#endif
     }
 
     return MP_OKAY;
@@ -2137,21 +2136,6 @@ int sp_grow(sp_int* a, int l)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-/* Set the multi-precision number to zero.
- *
- * Assumes a is not NULL.
- *
- * @param  [out]  a  SP integer to set to zero.
- */
-static void _sp_zero(sp_int* a)
-{
-    a->dp[0] = 0;
-    a->used = 0;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    a->sign = MP_ZPOS;
-#endif
-}
-
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Set the multi-precision number to zero.
  *
@@ -2177,10 +2161,7 @@ void sp_clear(sp_int* a)
         for (i = 0; i < a->used; i++) {
             a->dp[i] = 0;
         }
-        a->used = 0;
-    #ifdef WOLFSSL_SP_INT_NEGATIVE
-        a->sign = MP_ZPOS;
-    #endif
+        _sp_zero(a);
     }
 }
 
@@ -2194,10 +2175,7 @@ void sp_clear(sp_int* a)
 void sp_forcezero(sp_int* a)
 {
     ForceZero(a->dp, a->used * sizeof(sp_int_digit));
-    a->used = 0;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-    a->sign = MP_ZPOS;
-#endif
+    _sp_zero(a);
 #ifdef HAVE_WOLF_BIGINT
     wc_bigint_zero(&a->raw);
 #endif
@@ -2323,14 +2301,23 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int c, int m)
 #endif
 
     t->used = (int)((a->used ^ b->used) & mask);
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    t->sign = (int)((a->sign ^ b->sign) & mask);
+#endif
     for (i = 0; i < c; i++) {
         t->dp[i] = (a->dp[i] ^ b->dp[i]) & mask;
     }
     a->used ^= t->used;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    a->sign ^= t->sign;
+#endif
     for (i = 0; i < c; i++) {
         a->dp[i] ^= t->dp[i];
     }
     b->used ^= t->used;
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    b->sign ^= b->sign;
+#endif
     for (i = 0; i < c; i++) {
         b->dp[i] ^= t->dp[i];
     }
@@ -2709,12 +2696,12 @@ int sp_set_bit(sp_int* a, int i)
  */
 int sp_2expt(sp_int* a, int e)
 {
-    int err = 0;
+    int err = MP_OKAY;
 
     if (a == NULL) {
         err = MP_VAL;
     }
-    else {
+    if (err == MP_OKAY) {
         _sp_zero(a);
         err = sp_set_bit(a, e);
     }
@@ -2973,7 +2960,7 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
             r->sign = MP_ZPOS;
             err = _sp_add_d(a, d, r);
         }
-        else if ((a->used > 1) || (a->dp[0] >= d)) {
+        else if ((a->used > 1) || (a->dp[0] > d)) {
             r->sign = MP_NEG;
             _sp_sub_d(a, d, r);
         }
@@ -3097,7 +3084,12 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
     if (err == MP_OKAY) {
         _sp_mul_d(a, d, r, 0);
     #ifdef WOLFSSL_SP_INT_NEGATIVE
-        r->sign = a->sign;
+        if (d == 0) {
+            r->sign = MP_ZPOS;
+        }
+        else {
+            r->sign = a->sign;
+        }
     #endif
     }
 
@@ -3724,12 +3716,22 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
             err = _sp_add_off(a, b, r, 0);
         }
         else if (_sp_cmp_abs(a, b) != MP_LT) {
-            r->sign = a->sign;
             err = _sp_sub_off(a, b, r, 0);
+            if (sp_iszero(r)) {
+                r->sign = MP_ZPOS;
+            }
+            else {
+                r->sign = a->sign;
+            }
         }
         else {
-            r->sign = b->sign;
             err = _sp_sub_off(b, a, r, 0);
+            if (sp_iszero(r)) {
+                r->sign = MP_ZPOS;
+            }
+            else {
+                r->sign = b->sign;
+            }
         }
     #endif
     }
@@ -3767,12 +3769,22 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
             err = _sp_add_off(a, b, r, 0);
         }
         else if (_sp_cmp_abs(a, b) != MP_LT) {
-            r->sign = a->sign;
             err = _sp_sub_off(a, b, r, 0);
+            if (sp_iszero(r)) {
+                r->sign = MP_ZPOS;
+            }
+            else {
+                r->sign = a->sign;
+            }
         }
         else {
-            r->sign = 1 - a->sign;
             err = _sp_sub_off(b, a, r, 0);
+            if (sp_iszero(r)) {
+                r->sign = MP_ZPOS;
+            }
+            else {
+                r->sign = 1 - a->sign;
+            }
         }
     #endif
     }
@@ -4205,8 +4217,7 @@ void sp_rshd(sp_int* a, int c)
         int j;
 
         if (c >= a->used) {
-            a->dp[0] = 0;
-            a->used = 0;
+            _sp_zero(a);
         }
         else {
             for (i = c, j = 0; i < a->used; i++, j++) {
@@ -4233,11 +4244,7 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
     int i = n >> SP_WORD_SHIFT;
 
     if (i >= a->used) {
-        r->dp[0] = 0;
-        r->used = 0;
-#ifdef WOLFSSL_SP_INT_NEGATIVE
-        r->sign = MP_ZPOS;
-#endif
+        _sp_zero(r);
     }
     else {
         int j;
@@ -4256,7 +4263,12 @@ void sp_rshb(sp_int* a, int n, sp_int* r)
             sp_clamp(r);
         }
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-        r->sign = a->sign;
+        if (sp_iszero(r)) {
+            r->sign = MP_ZPOS;
+        }
+        else {
+            r->sign = a->sign;
+        }
 #endif
     }
 }
@@ -4491,12 +4503,22 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
             }
             sp_copy(sa, rem);
             sp_clamp(rem);
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+            if (sp_iszero(rem)) {
+                rem->sign = MP_ZPOS;
+            }
+#endif
         }
         if (r != NULL) {
             sp_copy(tr, r);
             sp_clamp(r);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-            r->sign = (aSign == dSign) ? MP_ZPOS : MP_NEG;
+            if (sp_iszero(r)) {
+                r->sign = MP_ZPOS;
+            }
+            else {
+                r->sign = (aSign == dSign) ? MP_ZPOS : MP_NEG;
+            }
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
         }
     }
@@ -9296,7 +9318,7 @@ int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
 
         if (remBits <= 0) {
             /* Shifting down by more bits than in number. */
-            sp_set(r, 0);
+            _sp_zero(r);
             sp_copy(a, rem);
         }
         else {
@@ -9314,6 +9336,9 @@ int sp_div_2d(sp_int* a, int e, sp_int* r, sp_int* rem)
                     rem->dp[rem->used - 1] &= ((sp_int_digit)1 << e) - 1;
                 }
                 sp_clamp(rem);
+            #ifdef WOLFSSL_SP_INT_NEGATIVE
+                rem->sign = MP_ZPOS;
+            #endif
             }
         }
     }
@@ -9344,9 +9369,6 @@ int sp_mod_2d(sp_int* a, int e, sp_int* r)
         int digits = (e + SP_WORD_SIZE - 1) >> SP_WORD_SHIFT;
         if (a != r) {
             XMEMCPY(r->dp, a->dp, digits * sizeof(sp_int_digit));
-        #ifdef WOLFSSL_SP_INT_NEGATIVE
-            r->sign = a->sign;
-        #endif /* WOLFSSL_SP_INT_NEGATIVE */
         }
         /* Set used and mask off top digit of result. */
         r->used = digits;
@@ -9355,6 +9377,14 @@ int sp_mod_2d(sp_int* a, int e, sp_int* r)
             r->dp[r->used - 1] &= ((sp_int_digit)1 << e) - 1;
         }
         sp_clamp(r);
+    #ifdef WOLFSSL_SP_INT_NEGATIVE
+        if (sp_iszero(r)) {
+            r->sign = MP_ZPOS;
+        }
+        else if (a != r) {
+            r->sign = a->sign;
+        }
+    #endif
     }
 
     return err;
@@ -12653,8 +12683,12 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
     if (err == MP_OKAY) {
         a->used = j + 1;
         sp_clamp(a);
+    #ifdef WOLFSSL_SP_INT_NEGATIVE
+        if (sp_iszero(a)) {
+            a->sign = MP_ZPOS;
+        }
+    #endif
     }
-
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
@@ -12679,6 +12713,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
     int  len;
     char ch;
 
+    _sp_zero(a);
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     if (*in == '-') {
         a->sign = MP_NEG;
@@ -12690,8 +12725,6 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
         in++;
     }
 
-    a->dp[0] = 0;
-    a->used = 0;
     len = (int)XSTRLEN(in);
     for (i = 0; i < len; i++) {
         ch = in[i];
@@ -12709,6 +12742,11 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
         _sp_mul_d(a, 10, a, 0);
         (void)_sp_add_d(a, ch, a);
     }
+#ifdef WOLFSSL_SP_INT_NEGATIVE
+    if ((err == MP_OKAY) && sp_iszero(a)) {
+        a->sign = MP_ZPOS;
+    }
+#endif
 
     return err;
 }
