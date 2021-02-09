@@ -77,7 +77,12 @@
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || \
     defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
     #ifndef NO_STDIO_FILESYSTEM
+        #ifndef FUSION_RTOS
         #include <stdio.h>
+    #endif
+        #ifdef FUSION_RTOS
+          #include <fclstdio.h>
+         #endif
     #endif
 #endif
 

@@ -29,6 +29,7 @@
     /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
+    #include <stdarg.h>
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) || defined(OPENSSL_EXTRA) || \
@@ -547,7 +548,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 
     ssl = (WOLFSSL*) XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
     if (ssl)
-        if (InitSSL(ssl, ctx, 0) < 0) {
+        if ( (ret = InitSSL(ssl, ctx, 0)) < 0) {
             FreeSSL(ssl, ctx->heap);
             ssl = 0;
         }
@@ -3967,7 +3968,7 @@ void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 
     WOLFSSL_ENTER("wolfSSL_ERR_print_errors_fp");
     SetErrorString(err, data);
-    fprintf(fp, "%s", data);
+    XFPRINTF(fp, "%s", data);
 }
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
@@ -5103,7 +5104,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         if (key == NULL)
             return MEMORY_E;
     #endif
-
+        
         ret = wc_InitRsaKey_ex(key, heap, devId);
         if (ret == 0) {
             *idx = 0;
@@ -15669,6 +15670,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("BIO_set_write_buffer_size");
         WOLFSSL_STUB("BIO_set_write_buffer_size");
         (void)bio;
+        /* return 1 if the buffer was successfully resized or 0 for failure. */
         return size;
     }
     #endif
@@ -15977,8 +15979,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
                 if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
+                {
+                #ifdef FUSION_RTOS
+                    int err;
+                    CloseSocket(bio->num, &err);
+                #else
                     CloseSocket(bio->num);
-            #endif
+                #endif
+                }
+             #endif
             }
 
         #ifndef NO_FILESYSTEM
@@ -29095,7 +29104,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
                 va_end(args);
                 return -1;
             }
-            ret = vfprintf((XFILE)bio->ptr, format, args);
+            ret = XVFPRINTF((XFILE)bio->ptr, format, args);
             break;
 
         case WOLFSSL_BIO_MEMORY:
@@ -29109,15 +29118,20 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
                 char* pt = NULL;
                 va_list copy;
 
-                va_copy(copy, args);
-                count = vsnprintf(NULL, 0, format, args);
+                #ifdef FUSION_RTOS
+                   copy = args;    /* hack, depends on internal implementation
+                                    * of va_list in VisualDSP++ */
+                #else
+                    va_copy(copy, args);
+                #endif
+                count = XVSNPRINTF(NULL, 0, format, args);
                 if (count >= 0)
                 {
                     pt = (char*)XMALLOC(count + 1, bio->heap,
                                         DYNAMIC_TYPE_TMP_BUFFER);
                     if (pt != NULL)
                     {
-                        count = vsnprintf(pt, count + 1, format, copy);
+                        count = XVSNPRINTF(pt, count + 1, format, copy);
                         if (count >= 0)
                         {
                             ret = wolfSSL_BIO_write(bio, pt, count);
@@ -29173,24 +29187,24 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
         char line[80];
 
         if (!buf) {
-            return fputs("\tNULL", (XFILE)bio->ptr);
+            return XFPUTS("\tNULL", (XFILE)bio->ptr);
         }
 
-        sprintf(line, "\t");
+        XSPRINTF(line, "\t");
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length)
-                sprintf(line + 1 + i * 3,"%02x ", buf[i]);
+                XSPRINTF(line + 1 + i * 3,"%02x ", buf[i]);
             else
-                sprintf(line + 1 + i * 3, "   ");
+                XSPRINTF(line + 1 + i * 3, "   ");
         }
-        sprintf(line + 1 + LINE_LEN * 3, "| ");
+        XSPRINTF(line + 1 + LINE_LEN * 3, "| ");
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length) {
-                sprintf(line + 3 + LINE_LEN * 3 + i,
+                XSPRINTF(line + 3 + LINE_LEN * 3 + i,
                      "%c", 31 < buf[i] && buf[i] < 127 ? buf[i] : '.');
             }
         }
-        ret += fputs(line, (XFILE)bio->ptr);
+        ret += XFPUTS(line, (XFILE)bio->ptr);
 
         if (length > LINE_LEN)
             ret += wolfSSL_BIO_dump(bio, buf + LINE_LEN, length - LINE_LEN);
@@ -31486,7 +31500,8 @@ int SetDhInternal(WOLFSSL_DH* dh)
     return ret;
 }
 
-#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) \
+    || defined(WOLFSSL_OPENSSH))
 
 #ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_DH* wolfSSL_DH_dup(WOLFSSL_DH* dh)
@@ -36090,6 +36105,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     return ret;
 }
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 #ifdef USE_ECC_B_PARAM
 int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
@@ -36113,7 +36129,6 @@ int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
             == MP_OKAY ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 #endif /* USE_ECC_B_PARAM */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {
@@ -49917,7 +49932,7 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
         return WOLFSSL_FAILURE;
     }
 
-    fprintf(fp, "%s", buf);
+    XFPRINTF(fp, "%s", buf);
     XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
     return WOLFSSL_SUCCESS;

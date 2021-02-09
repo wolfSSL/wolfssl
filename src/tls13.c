@@ -1371,9 +1371,14 @@ end:
     word32 TimeNowInMilliseconds(void)
     {
         struct timeval now;
-
+#ifdef FUSION_RTOS
+        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
+            return (word32)GETTIME_ERROR;
+            //TODO research why negative error code returns as word32
+#else
         if (gettimeofday(&now, 0) < 0)
-            return GETTIME_ERROR;
+            return (word32)GETTIME_ERROR;
+#endif
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
     }

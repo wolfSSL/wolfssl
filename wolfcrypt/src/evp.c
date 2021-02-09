@@ -41,7 +41,6 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
-
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
 

@@ -3,8 +3,13 @@
 #ifndef wolfSSL_TEST_H
 #define wolfSSL_TEST_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#ifdef FUSION_RTOS
+    #include <fclstdio.h>
+    #include <fclstdlib.h>
+#else
+    #include <stdio.h>
+    #include <stdlib.h>
+#endif
 #include <assert.h>
 #include <ctype.h>
 #include <wolfssl/wolfcrypt/types.h>
