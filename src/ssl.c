@@ -24301,6 +24301,37 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 }
 
 
+int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
+        const char *argc, long argl, char **ret)
+{
+    /* control commands:
+     * X509_L_FILE_LOAD, X509_L_ADD_DIR, X509_L_ADD_STORE, X509_L_LOAD_STORE
+     */
+
+    /* returns -1 if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
+
+
+
+    if (ctx != NULL) {
+        switch (cmd) {
+        case WOLFSSL_X509_L_FILE_LOAD:
+        case WOLFSSL_X509_L_ADD_DIR:
+        case WOLFSSL_X509_L_ADD_STORE:
+        case WOLFSSL_X509_L_LOAD_STORE:
+            return WOLFSSL_SUCCESS;
+
+        default:
+            break;
+        }
+
+    }
+
+    (void)argc; (void)argl; (void)ret;
+
+    return WOLFSSL_FAILURE;
+}
+
+
 WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
@@ -25331,9 +25362,25 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
 void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    (void)ctx;
-    /* Do nothing */
+    if (ctx != NULL) {
+#ifdef OPENSSL_EXTRA
+        if (ctx->param != NULL){
+            XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
+            ctx->param = NULL;
+        }
+#endif
+        wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
+    }
 }
+
+
+void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx, WOLF_STACK_OF(WOLFSSL_X509) *sk)
+{
+    if (ctx != NULL) {
+        ctx->chain = sk;
+    }
+}
+
 
 /* Returns corresponding X509 error from internal ASN error <e> */
 static int GetX509Error(int e)
@@ -25746,6 +25793,68 @@ char* wolfSSL_CONF_get1_default_config_file(void)
     return NULL;
 }
 #endif
+
+
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
+{
+    WOLFSSL_X509_VERIFY_PARAM *param = NULL;
+    param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+            sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (param != NULL)
+        XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+
+    return(param);
+}
+
+
+void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    if (param != NULL)
+        XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+
+/* Sets flags by OR'ing with existing value. */
+int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        param->flags |= flags;
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    int ret = 0;
+
+    if (param != NULL) {
+        ret = (int)param->flags;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        param->flags &= ~flags;
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
+
 /******************************************************************************
 * wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
 * hostnames is cleared if name is NULL or empty.

@@ -112,6 +112,11 @@ typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAMES  GENERAL_NAMES;
 typedef WOLFSSL_GENERAL_NAME GENERAL_NAME;
 
+#define X509_L_FILE_LOAD  WOLFSSL_X509_L_FILE_LOAD
+#define X509_L_ADD_DIR    WOLFSSL_X509_L_ADD_DIR
+#define X509_L_ADD_STORE  WOLFSSL_X509_L_ADD_STORE
+#define X509_L_LOAD_STORE WOLFSSL_X509_L_LOAD_STORE
+
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
 
@@ -569,6 +574,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
                                       wolfSSL_X509_STORE_CTX_get0_current_issuer
 #define X509_STORE_CTX_get0_store       wolfSSL_X509_STORE_CTX_get0_store
 #define X509_STORE_CTX_get0_cert        wolfSSL_X509_STORE_CTX_get0_cert
+#define X509_STORE_CTX_trusted_stack    wolfSSL_X509_STORE_CTX_trusted_stack
 
 #define X509_STORE_set_verify_cb(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
@@ -586,6 +592,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_STORE_get_by_subject       wolfSSL_X509_STORE_get_by_subject
 #define X509_STORE_CTX_get1_issuer      wolfSSL_X509_STORE_CTX_get1_issuer
 #define X509_STORE_CTX_set_time         wolfSSL_X509_STORE_CTX_set_time
+#define X509_VERIFY_PARAM_new           wolfSSL_X509_VERIFY_PARAM_new
+#define X509_VERIFY_PARAM_free          wolfSSL_X509_VERIFY_PARAM_free
+#define X509_VERIFY_PARAM_set_flags     wolfSSL_X509_VERIFY_PARAM_set_flags
+#define X509_VERIFY_PARAM_get_flags     wolfSSL_X509_VERIFY_PARAM_get_flags
+#define X509_VERIFY_PARAM_clear_flags   wolfSSL_X509_VERIFY_PARAM_clear_flags
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
@@ -595,6 +606,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_LOOKUP_load_file           wolfSSL_X509_LOOKUP_load_file
 #define X509_LOOKUP_hash_dir            wolfSSL_X509_LOOKUP_hash_dir
 #define X509_LOOKUP_file                wolfSSL_X509_LOOKUP_file
+#define X509_LOOKUP_ctrl                wolfSSL_X509_LOOKUP_ctrl
 
 #define d2i_X509_CRL                    wolfSSL_d2i_X509_CRL
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp

@@ -29793,11 +29793,7 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
 
     printf(testingFmt, "wolfSSL_X509()");
 
-    /* Initializer function is not ported */
-    /* param = wolfSSL_X509_VERIFY_PARAM_new(); */
-
-    param = (WOLFSSL_X509_VERIFY_PARAM *)XMALLOC(
-                sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
+    param = wolfSSL_X509_VERIFY_PARAM_new();
     AssertNotNull(param);
 
     XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
@@ -29821,7 +29817,19 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
-    XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+    ret = wolfSSL_X509_VERIFY_PARAM_set_flags(param, WOLFSSL_CRL_CHECKALL);
+    AssertIntEQ(1, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    AssertIntEQ(WOLFSSL_CRL_CHECKALL, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_clear_flags(param, WOLFSSL_CRL_CHECKALL);
+    AssertIntEQ(1, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+    AssertIntEQ(0, ret);
+
+    wolfSSL_X509_VERIFY_PARAM_free(param);
 
     printf(resultFmt, passed);
 

@@ -520,6 +520,11 @@ typedef struct WOLFSSL_COMP {
     WOLFSSL_COMP_METHOD *method;
 } WOLFSSL_COMP;
 
+#define WOLFSSL_X509_L_FILE_LOAD  0x1
+#define WOLFSSL_X509_L_ADD_DIR    0x2
+#define WOLFSSL_X509_L_ADD_STORE  0x3
+#define WOLFSSL_X509_L_LOAD_STORE 0x4
+
 struct WOLFSSL_X509_LOOKUP_METHOD {
     int type;
 };
@@ -1449,6 +1454,8 @@ WOLFSSL_API int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP*, const char*,
                                             long);
 WOLFSSL_API WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_hash_dir(void);
 WOLFSSL_API WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void);
+WOLFSSL_API int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
+        const char *argc, long argl, char **ret);
 
 WOLFSSL_API WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE*,
                                                     WOLFSSL_X509_LOOKUP_METHOD*);
@@ -1472,6 +1479,8 @@ WOLFSSL_API int  wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX*,
                       WOLFSSL_X509_STORE*, WOLFSSL_X509*, WOLF_STACK_OF(WOLFSSL_X509)*);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX*);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx,
+        WOLF_STACK_OF(WOLFSSL_X509) *sk);
 
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL*);
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL*);
@@ -1505,6 +1514,13 @@ WOLFSSL_API int       wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED*);
 WOLFSSL_API void      wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX*,
                                                       unsigned long flags,
                                                       time_t t);
+WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void);
+WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param);
+WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags);
+WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_get_flags(WOLFSSL_X509_VERIFY_PARAM *param);
+WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
+        unsigned long flags);
 WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
                 WOLFSSL_X509_VERIFY_PARAM* param, unsigned int flags);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
