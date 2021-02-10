@@ -34,7 +34,10 @@
 
 /* only in this file, to avoid confusing future ports leave
  * these defines here. Do not move to wc_port.h */
-#ifdef FUSION_RTOS
+#ifdef USER_CUSTOM_SNIFFX
+    /* To be implemented in user_settings.h */
+    #warning "Please implement Sniffer porting in user_settings.h"
+#elif defined(FUSION_RTOS)
     #include <fcl_network.h>
     #define XINET_NTOA FNS_INET_NTOA
     #define XINET_ATON FNS_INET_ATON
@@ -47,6 +50,7 @@
     #define XNTOHL FNS_NTOHL
     #define XINADDR_NONE FNS_INADDR_NONE
 #else
+    /* default */
     #define XINET_NTOA inet_ntoa
     #define XINET_ATON inet_aton
     #define XINET_PTON(a,b,c) inet_pton((a),(b),(c))
