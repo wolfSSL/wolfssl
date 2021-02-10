@@ -15839,6 +15839,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         /* wolfSSL has internal buffer, compatibility only */
         WOLFSSL_ENTER("BIO_set_write_buffer_size");
+        WOLFSSL_MSG("Buffer resize failed");
         WOLFSSL_STUB("BIO_set_write_buffer_size");
         (void)bio;
         (void) size;
