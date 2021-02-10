@@ -51106,10 +51106,27 @@ void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7)
 
 PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
 {
+    return wolfSSL_d2i_PKCS7_ex(p7, in, len, NULL, 0);
+}
+
+/*****************************************************************************
+* wolfSSL_d2i_PKCS7_ex - Converts the given unsigned char buffer of size len
+* into a PKCS7 object.  Optionally, accepts a byte buffer of content which
+* is stored as the PKCS7 object's content, to support detached signatures.
+* @param content The content which is signed, in case the signature is
+*                detached.  Ignored if NULL.
+* @param contentSz The size of the passed in content.
+*
+* RETURNS:
+* returns pointer to a PKCS7 structure on success, otherwise returns NULL
+*/
+PKCS7* wolfSSL_d2i_PKCS7_ex(PKCS7** p7, const unsigned char** in, int len,
+                            byte* content, word32 contentSz)
+{
     WOLFSSL_PKCS7* pkcs7 = NULL;
     word32 idx = 0;
 
-    WOLFSSL_ENTER("wolfSSL_d2i_PKCS7");
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS7_ex");
 
     if (in == NULL || *in == NULL)
         return NULL;
@@ -51129,10 +51146,16 @@ PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
         return NULL;
     }
     XMEMCPY(pkcs7->data, *in, pkcs7->len);
+
+    if (content != NULL) {
+        pkcs7->pkcs7.content = content;
+        pkcs7->pkcs7.contentSz = contentSz;
+    }
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len) != 0) {
         wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }
+
     if (p7 != NULL)
         *p7 = (PKCS7*)pkcs7;
     *in += pkcs7->len;
@@ -51567,6 +51590,296 @@ error:
     }
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_SMIME
+/*****************************************************************************
+* wolfSSL_SMIME_read_PKCS7 - Reads the given S/MIME message and parses it into
+* a PKCS7 object. In case of a multipart message, stores the signed data in
+* bcont.
+*
+* RETURNS:
+* returns pointer to a PKCS7 structure on success, otherwise returns NULL
+*/
+WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
+                                            WOLFSSL_BIO** bcont)
+{
+    MimeHdr* allHdrs = NULL;
+    MimeHdr* curHdr = NULL;
+    MimeParam* curParam = NULL;
+    int inLen = 0;
+    byte* bcontMem = NULL;
+    int bcontMemSz = 0;
+    int sectionLen = 0;
+    int ret = -1;
+    char* section = NULL;
+    PKCS7* pkcs7 = NULL;
+    word32 outLen = 0;
+    byte* out = NULL;
+    byte* outHead = NULL;
+
+    int lineLen = 0;
+    int remainLen = 0;
+    byte isEnd = 0;
+    size_t boundLen = 0;
+    char* boundary = NULL;
+
+    static const char* kContType = "Content-Type";
+    static const char* kCTE = "Content-Transfer-Encoding";
+    static const char* kMultSigned = "multipart/signed";
+    static const char* kAppPkcsSign = "application/pkcs7-signature";
+    static const char* kAppXPkcsSign = "application/x-pkcs7-signature";
+    static const char* kAppPkcs7Mime = "application/pkcs7-mime";
+    static const char* kAppXPkcs7Mime = "application/x-pkcs7-mime";
+
+
+    if (in == NULL || bcont == NULL) {
+        goto error;
+    }
+    inLen = wolfSSL_BIO_get_len(in);
+    if (inLen <= 0) {
+        goto error;
+    }
+    remainLen = wolfSSL_BIO_get_len(in);
+    if (remainLen <= 0) {
+        goto error;
+    }
+
+    section = (char*)XMALLOC((remainLen+1)*sizeof(char), NULL,
+                             DYNAMIC_TYPE_PKCS7);
+    if (section == NULL) {
+        goto error;
+    }
+    lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+    if (lineLen <= 0) {
+        goto error;
+    }
+    while(isEnd == 0 && remainLen > 0) {
+        sectionLen += lineLen;
+        remainLen -= lineLen;
+        lineLen = wolfSSL_BIO_gets(in, &section[sectionLen], remainLen);
+        if (lineLen <= 0) {
+            goto error;
+        }
+        /* Line with just newline signals end of headers. */
+        if ((lineLen==2 && !XSTRNCMP(&section[sectionLen],
+                                     "\r\n", 2)) ||
+            (lineLen==1 && (section[sectionLen] == '\r' ||
+                            section[sectionLen] == '\n'))) {
+            isEnd = 1;
+        }
+    }
+    section[sectionLen] = '\0';
+    ret = wc_MIME_parse_headers(section, sectionLen, &allHdrs);
+    if (ret < 0) {
+        WOLFSSL_MSG("Parsing MIME headers failed.\n");
+        goto error;
+    }
+    isEnd = 0;
+    section[0] = '\0';
+    sectionLen = 0;
+
+    curHdr = wc_MIME_find_header_name(kContType, allHdrs);
+    if (curHdr && !XSTRNCMP(curHdr->body, kMultSigned,
+                            XSTR_SIZEOF(kMultSigned))) {
+        curParam = wc_MIME_find_param_attr("protocol", curHdr->params);
+        if (curParam && (!XSTRNCMP(curParam->value, kAppPkcsSign,
+                                   XSTR_SIZEOF(kAppPkcsSign)) ||
+                         !XSTRNCMP(curParam->value, kAppXPkcsSign,
+                                   XSTR_SIZEOF(kAppXPkcsSign)))) {
+            curParam = wc_MIME_find_param_attr("boundary", curHdr->params);
+            if (curParam == NULL) {
+                goto error;
+            }
+
+            boundLen = XSTRLEN(curParam->value) + 2;
+            boundary = (char*)XMALLOC((boundLen+1)*sizeof(char), NULL,
+                                      DYNAMIC_TYPE_PKCS7);
+            if (boundary == NULL) {
+                goto error;
+            }
+            XMEMSET(boundary, 0, (word32)((boundLen+1)*sizeof(char)));
+            boundary[0] = boundary[1] = '-';
+            XSTRNCPY(&boundary[2], curParam->value, boundLen-2);
+
+            /* Parse up to first boundary, ignore everything here. */
+            lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+            if (lineLen <= 0) {
+                goto error;
+            }
+            while(XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
+                  remainLen > 0) {
+                sectionLen += lineLen;
+                remainLen -= lineLen;
+                lineLen = wolfSSL_BIO_gets(in, &section[sectionLen],
+                                           remainLen);
+                if (lineLen <= 0) {
+                    goto error;
+                }
+            }
+
+            section[0] = '\0';
+            sectionLen = 0;
+            lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+            while(XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
+                           remainLen > 0) {
+                sectionLen += lineLen;
+                remainLen -= lineLen;
+                lineLen = wolfSSL_BIO_gets(in, &section[sectionLen],
+                                           remainLen);
+                if (lineLen <= 0) {
+                    goto error;
+                }
+            }
+            sectionLen--;
+            /* Strip the final trailing newline.  Support \r, \n or \r\n. */
+            if (section[sectionLen] == '\n') {
+                sectionLen--;
+                if (section[sectionLen] == '\r') {
+                    sectionLen--;
+                }
+            }
+            else if (section[sectionLen] == '\r') {
+                sectionLen--;
+            }
+            section[sectionLen+1] = '\0';
+
+            *bcont = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+            ret = wolfSSL_BIO_write(*bcont, section, (int)XSTRLEN(section));
+            if (ret != (int)XSTRLEN(section)) {
+                goto error;
+            }
+            if ((bcontMemSz = wolfSSL_BIO_get_mem_data(*bcont, &bcontMem)) < 0) {
+                goto error;
+            }
+
+
+            wc_MIME_free_hdrs(allHdrs);
+            section[0] = '\0';
+            sectionLen = 0;
+            lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+            if (lineLen <= 0) {
+                goto error;
+            }
+            while(isEnd == 0 && remainLen > 0) {
+                sectionLen += lineLen;
+                remainLen -= lineLen;
+                lineLen = wolfSSL_BIO_gets(in, &section[sectionLen],
+                                           remainLen);
+                if (lineLen <= 0) {
+                    goto error;
+                }
+                /* Line with just newline signals end of headers. */
+                if ((lineLen==2 && !XSTRNCMP(&section[sectionLen],
+                                             "\r\n", 2)) ||
+                    (lineLen==1 && (section[sectionLen] == '\r' ||
+                                    section[sectionLen] == '\n'))) {
+                    isEnd = 1;
+                }
+            }
+            section[sectionLen] = '\0';
+            ret = wc_MIME_parse_headers(section, sectionLen, &allHdrs);
+            if (ret < 0) {
+                WOLFSSL_MSG("Parsing MIME headers failed.\n");
+                goto error;
+            }
+            curHdr = wc_MIME_find_header_name(kContType, allHdrs);
+            if (curHdr == NULL || (XSTRNCMP(curHdr->body, kAppPkcsSign,
+                                   XSTR_SIZEOF(kAppPkcsSign)) &&
+                                   XSTRNCMP(curHdr->body, kAppXPkcsSign,
+                                   XSTR_SIZEOF(kAppXPkcsSign)))) {
+                WOLFSSL_MSG("S/MIME headers not found inside "
+                            "multipart message.\n");
+                goto error;
+            }
+
+            section[0] = '\0';
+            sectionLen = 0;
+            lineLen = wolfSSL_BIO_gets(in, section, remainLen);
+            while(XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
+                  remainLen > 0) {
+                sectionLen += lineLen;
+                remainLen -= lineLen;
+                lineLen = wolfSSL_BIO_gets(in, &section[sectionLen],
+                                           remainLen);
+                if (lineLen <= 0) {
+                    goto error;
+                }
+            }
+
+            XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
+        }
+    }
+    else if (curHdr && (!XSTRNCMP(curHdr->body, kAppPkcs7Mime,
+                                  XSTR_SIZEOF(kAppPkcs7Mime)) ||
+                        !XSTRNCMP(curHdr->body, kAppXPkcs7Mime,
+                                  XSTR_SIZEOF(kAppXPkcs7Mime)))) {
+        sectionLen = wolfSSL_BIO_get_len(in);
+        if (sectionLen <= 0) {
+            goto error;
+        }
+        ret = wolfSSL_BIO_read(in, section, sectionLen);
+        if (ret < 0 || ret != sectionLen) {
+            WOLFSSL_MSG("Error reading input BIO.\n");
+            goto error;
+        }
+    }
+    else {
+        WOLFSSL_MSG("S/MIME headers not found.\n");
+        goto error;
+    }
+
+    curHdr = wc_MIME_find_header_name(kCTE, allHdrs);
+    if (curHdr == NULL) {
+        WOLFSSL_MSG("Content-Transfer-Encoding header not found, "
+                    "assuming base64 encoding.");
+    }
+    else if (XSTRNCMP(curHdr->body, "base64", XSTRLEN("base64"))) {
+        WOLFSSL_MSG("S/MIME encodings other than base64 are not "
+                    "currently supported.\n");
+        goto error;
+    }
+
+    if (section == NULL || sectionLen <= 0) {
+        goto error;
+    }
+    outLen = ((sectionLen*3+3)/4)+1;
+    out = (byte*)XMALLOC(outLen*sizeof(byte), NULL, DYNAMIC_TYPE_PKCS7);
+    outHead = out;
+    if (outHead == NULL) {
+        goto error;
+    }
+    /* Strip trailing newlines. */
+    while ((section[sectionLen-1] == '\r' || section[sectionLen-1] == '\n') &&
+           sectionLen > 0) {
+        sectionLen--;
+    }
+    section[sectionLen] = '\0';
+    ret = Base64_Decode((const byte*)section, sectionLen, out, &outLen);
+    if (ret < 0) {
+        WOLFSSL_MSG("Error base64 decoding S/MIME message.\n");
+        goto error;
+    }
+    pkcs7 = wolfSSL_d2i_PKCS7_ex(NULL, (const unsigned char**)&out, outLen,
+                                 bcontMem, bcontMemSz);
+
+
+    wc_MIME_free_hdrs(allHdrs);
+    XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
+
+
+    return pkcs7;
+
+error:
+    wc_MIME_free_hdrs(allHdrs);
+    XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
+    wolfSSL_BIO_free(*bcont);
+
+    return NULL;
+}
+#endif /* HAVE_SMIME */
 #endif /* !NO_BIO */
 #endif /* OPENSSL_ALL && HAVE_PKCS7 */
 

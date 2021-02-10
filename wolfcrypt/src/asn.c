@@ -18502,6 +18502,291 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 #endif /* WOLFSSL_CERT_PIV */
 
 
+
+#ifdef HAVE_SMIME
+
+/*****************************************************************************
+* wc_MIME_parse_headers - Reads the char array in and parses out MIME headers
+* and parameters into headers.  Will continue until in has no more content.
+*
+* RETURNS:
+* returns zero on success, non-zero on error.
+*/
+int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
+{
+    MimeHdr* nextHdr = NULL;
+    MimeHdr* curHdr = NULL;
+    MimeParam* nextParam = NULL;
+    size_t start = 0;
+    size_t end = 0;
+    char* nameAttr = NULL;
+    char* bodyVal = NULL;
+    MimeTypes mimeType = MIME_HDR;
+    MimeStatus mimeStatus = MIME_NAMEATTR;
+    int ret = -1;
+    size_t pos = 0;
+    size_t lineLen = 0;
+    char* curLine = NULL;
+    char* ptr = NULL;
+
+    if (in == NULL || inLen <= 0 || in[inLen] != '\0' || headers == NULL) {
+        ret = BAD_FUNC_ARG;
+        goto error;
+    }
+    nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL, DYNAMIC_TYPE_PKCS7);
+    nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
+                                    DYNAMIC_TYPE_PKCS7);
+    if (nextHdr == NULL || nextParam == NULL) {
+        ret = MEMORY_E;
+        goto error;
+    }
+    XMEMSET(nextHdr, 0, (word32)sizeof(MimeHdr));
+    XMEMSET(nextParam, 0, (word32)sizeof(MimeParam));
+
+    curLine = XSTRTOK(in, "\r\n", &ptr);
+    if (curLine == NULL) {
+        ret = ASN_PARSE_E;
+        goto error;
+    }
+
+    while (curLine != NULL) {
+        /* Leftover from previous line, add params to previous header. */
+        if (curLine[0] == ' ' && curHdr) {
+            mimeType = MIME_PARAM;
+        }
+        else {
+            mimeType = MIME_HDR;
+        }
+        start = end = 0;
+        lineLen = XSTRLEN(curLine);
+
+        for (pos = 0; pos < lineLen; pos++) {
+            char cur = curLine[pos];
+
+            if (mimeStatus == MIME_NAMEATTR && ((cur == ':' &&
+                mimeType == MIME_HDR) || (cur == '=' &&
+                mimeType == MIME_PARAM))) {
+                mimeStatus = MIME_BODYVAL;
+                end = pos-1;
+                ret = wc_MIME_header_strip(curLine, &nameAttr, start, end);
+                if (ret) {
+                    goto error;
+                }
+                start = pos+1;
+            }
+            else if (mimeStatus == MIME_BODYVAL && cur == ';') {
+                end = pos-1;
+                ret = wc_MIME_header_strip(curLine, &bodyVal, start, end);
+                if (ret) {
+                    goto error;
+                }
+                if (mimeType == MIME_HDR) {
+                    nextHdr->name = nameAttr;
+                    nextHdr->body = bodyVal;
+                    nextHdr->next = curHdr;
+                    curHdr = nextHdr;
+                    nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL,
+                                                DYNAMIC_TYPE_PKCS7);
+                    if (nextHdr == NULL) {
+                        ret = MEMORY_E;
+                        goto error;
+                    }
+                    XMEMSET(nextHdr, 0, (word32)sizeof(MimeHdr));
+                }
+                else {
+                    nextParam->attribute = nameAttr;
+                    nextParam->value = bodyVal;
+                    nextParam->next = curHdr->params;
+                    curHdr->params = nextParam;
+                    nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
+                                                    DYNAMIC_TYPE_PKCS7);
+                    if (nextParam == NULL) {
+                        ret = MEMORY_E;
+                        goto error;
+                    }
+                    XMEMSET(nextParam, 0, (word32)sizeof(MimeParam));
+                }
+                mimeType = MIME_PARAM;
+                mimeStatus = MIME_NAMEATTR;
+                start = pos+1;
+            }
+        }
+
+        end = lineLen-1;
+        /* Omit newline characters. */
+        while ((curLine[end] == '\r' || curLine[end] == '\n') && end > 0) {
+            end--;
+        }
+        if (end >= start && mimeStatus == MIME_BODYVAL) {
+            ret = wc_MIME_header_strip(curLine, &bodyVal, start, end);
+            if (ret) {
+                goto error;
+            }
+            if (mimeType == MIME_HDR) {
+                nextHdr->name = nameAttr;
+                nextHdr->body = bodyVal;
+                nextHdr->next = curHdr;
+                curHdr = nextHdr;
+                nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL,
+                                            DYNAMIC_TYPE_PKCS7);
+                if (nextHdr == NULL) {
+                    ret = MEMORY_E;
+                    goto error;
+                }
+                XMEMSET(nextHdr, 0, (word32)sizeof(MimeHdr));
+            } else {
+                nextParam->attribute = nameAttr;
+                nextParam->value = bodyVal;
+                nextParam->next = curHdr->params;
+                curHdr->params = nextParam;
+                nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
+                                                DYNAMIC_TYPE_PKCS7);
+                if (nextParam == NULL) {
+                    ret = MEMORY_E;
+                    goto error;
+                }
+                XMEMSET(nextParam, 0, (word32)sizeof(MimeParam));
+            }
+        }
+
+        curLine = XSTRTOK(NULL, "\r\n", &ptr);
+        mimeStatus = MIME_NAMEATTR;
+    }
+
+    *headers = curHdr;
+    XFREE(nextHdr, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
+
+    return 0;
+
+error:
+    wc_MIME_free_hdrs(curHdr);
+    wc_MIME_free_hdrs(nextHdr);
+    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
+
+    return ret;
+}
+
+/*****************************************************************************
+* wc_MIME_header_strip - Reads the string in from indices start to end, strips
+* out disallowed/separator characters and places the rest into *out.
+*
+* RETURNS:
+* returns zero on success, non-zero on error.
+*/
+int wc_MIME_header_strip(char* in, char** out, size_t start, size_t end)
+{
+    size_t inPos = start;
+    size_t outPos = 0;
+    size_t inLen = 0;
+
+    if (end < start || in == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    inLen = XSTRLEN(in);
+    if (start > inLen || end > inLen) {
+        return BAD_FUNC_ARG;
+    }
+
+    *out = (char*)XMALLOC(((end-start)+2)*sizeof(char), NULL,
+                          DYNAMIC_TYPE_PKCS7);
+    if (*out == NULL) {
+        return MEMORY_E;
+    }
+
+    while (inPos <= end) {
+        if (in[inPos] >= MIME_HEADER_ASCII_MIN && in[inPos] <=
+            MIME_HEADER_ASCII_MAX && in[inPos] != ';' && in[inPos] != '\"') {
+            (*out)[outPos] = in[inPos];
+            outPos++;
+        }
+        inPos++;
+    }
+    (*out)[outPos] = '\0';
+
+    return 0;
+}
+
+/*****************************************************************************
+* wc_MIME_find_header_name - Searches through all given headers until a header with
+* a name matching the provided name is found.
+*
+* RETURNS:
+* returns a pointer to the found header, if no match was found, returns NULL.
+*/
+MimeHdr* wc_MIME_find_header_name(const char* name, MimeHdr* header)
+{
+    size_t len = XSTRLEN(name);
+
+    while (header) {
+        if (!XSTRNCMP(name, header->name, len)) {
+            return header;
+        }
+        header = header->next;
+    }
+
+    return header;
+}
+
+/*****************************************************************************
+* wc_MIME_find_param_attr - Searches through all parameters until a parameter
+* with a attribute matching the provided attribute is found.
+*
+* RETURNS:
+* returns a pointer to the found parameter, if no match was found,
+* returns NULL.
+*/
+MimeParam* wc_MIME_find_param_attr(const char* attribute,
+                                    MimeParam* param)
+{
+    size_t len = XSTRLEN(attribute);
+
+    while (param) {
+        if (!XSTRNCMP(attribute, param->attribute, len)) {
+            return param;
+        }
+        param = param->next;
+    }
+
+    return param;
+}
+
+/*****************************************************************************
+* wc_MIME_free_hdrs - Frees all MIME headers, parameters and strings starting from
+* the provided header pointer.
+*
+* RETURNS:
+* returns zero on success, non-zero on error.
+*/
+int wc_MIME_free_hdrs(MimeHdr* head)
+{
+    MimeHdr* curHdr = NULL;
+    MimeParam* curParam = NULL;
+
+    while (head) {
+        while (head->params) {
+            curParam = head->params;
+            head->params = head->params->next;
+            XFREE(curParam->attribute, NULL, DYNAMIC_TYPE_PKCS7);
+            XFREE(curParam->value, NULL, DYNAMIC_TYPE_PKCS7);
+            XFREE(curParam, NULL, DYNAMIC_TYPE_PKCS7);
+        }
+        curHdr = head;
+        head = head->next;
+        XFREE(curHdr->name, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(curHdr->body, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(curHdr, NULL, DYNAMIC_TYPE_PKCS7);
+    }
+
+    return 0;
+}
+
+#endif /* HAVE_SMIME */
+
+
 #undef ERROR_OUT
 
 #endif /* !NO_ASN */

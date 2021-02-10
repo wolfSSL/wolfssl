@@ -394,6 +394,8 @@ then
             if test "$ENABLED_FIPS" = "no"
             then
                 test "$enable_openssh" = "" && enable_openssh=yes
+                # S/MIME support requires PKCS7, which requires no FIPS.
+                test "$enable_smime" = "" && enable_smime=yes
             fi
             test "$enable_opensslextra" = "" && enable_opensslextra=yes
             test "$enable_opensslall" = "" && enable_opensslall=yes
@@ -862,6 +864,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
 fi
 
+# S/MIME
+AC_ARG_ENABLE([smime],
+    [AS_HELP_STRING([--enable-smime],[Enable S/MIME (default: disabled)])],
+    [ ENABLED_SMIME=$enableval ],
+    [ ENABLED_SMIME=no ]
+    )
 
 # OPENSSL Compatibility ALL
 AC_ARG_ENABLE([opensslall],
@@ -869,7 +877,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -3672,7 +3680,6 @@ AC_ARG_ENABLE([pkcs7],
     [ ENABLED_PKCS7=no ]
     )
 
-
 # wolfSSH Options
 AC_ARG_ENABLE([ssh],
     [AS_HELP_STRING([--enable-ssh],[Enable wolfSSH options (default: disabled)])],
@@ -3721,6 +3728,15 @@ then
     fi
 fi
 
+if test "x$ENABLED_SMIME" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SMIME"
+    # Requires PKCS7
+    if test "x$ENABLED_PKCS7" = "xno"
+    then
+        ENABLED_PKCS7="yes"
+    fi
+fi
 
 # Simple Certificate Enrollment Protocol (SCEP)
 AC_ARG_ENABLE([scep],
@@ -5660,6 +5676,10 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_ASN" = "xno"],
       [AC_MSG_ERROR([please enable asn if enabling ocsp.])])
 
+AS_IF([test "x$ENABLED_SMIME" = "xyes" && \
+       test "x$ENABLED_ASN" = "xno"],
+       [AC_MSG_ERROR([please enable asn if enabling S/MIME.])])
+
 AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_RSA" = "xno" && \
        test "x$ENABLED_ECC" = "xno"],
@@ -6122,6 +6142,7 @@ AM_CONDITIONAL([BUILD_TRUST_PEER_CERT],[test "x$ENABLED_TRUSTED_PEER_CERT" = "xy
 AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
@@ -6426,6 +6447,7 @@ echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
+echo "   * S/MIME                      $ENABLED_SMIME"
 echo "   * wolfSSH                     $ENABLED_WOLFSSH"
 echo "   * wolfTPM                     $ENABLED_WOLFTPM"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
