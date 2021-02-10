@@ -18358,6 +18358,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 6: /* MULBASE */
         err = sp_256_ecc_mulmod_10_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p256_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_256_iszero_10(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 7;
         }
@@ -18365,6 +18368,9 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 7: /* MULMOD */
         err = sp_256_ecc_mulmod_10_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_256_iszero_10(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 8;
         }
@@ -18544,8 +18550,14 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 #endif /* WOLFSSL_SP_SMALL */
             err = sp_256_ecc_mulmod_base_10(p1, u1, 0, 0, heap);
     }
+    if ((err == MP_OKAY) && sp_256_iszero_10(p1->z)) {
+        p1->infinity = 1;
+    }
     if (err == MP_OKAY) {
             err = sp_256_ecc_mulmod_10(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_256_iszero_10(p2->z)) {
+        p2->infinity = 1;
     }
 
     if (err == MP_OKAY) {
@@ -25861,6 +25873,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 6: /* MULBASE */
         err = sp_384_ecc_mulmod_15_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p1, &p384_base, ctx->u1, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_384_iszero_15(ctx->p1.z)) {
+                ctx->p1.infinity = 1;
+            }
             XMEMSET(&ctx->mulmod_ctx, 0, sizeof(ctx->mulmod_ctx));
             ctx->state = 7;
         }
@@ -25868,6 +25883,9 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen,
     case 7: /* MULMOD */
         err = sp_384_ecc_mulmod_15_nb((sp_ecc_ctx_t*)&ctx->mulmod_ctx, &ctx->p2, &ctx->p2, ctx->u2, 0, 0, heap);
         if (err == MP_OKAY) {
+            if (sp_384_iszero_15(ctx->p2.z)) {
+                ctx->p2.infinity = 1;
+            }
             XMEMSET(&ctx->add_ctx, 0, sizeof(ctx->add_ctx));
             ctx->state = 8;
         }
@@ -26047,8 +26065,14 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, mp_int* pX,
 #endif /* WOLFSSL_SP_SMALL */
             err = sp_384_ecc_mulmod_base_15(p1, u1, 0, 0, heap);
     }
+    if ((err == MP_OKAY) && sp_384_iszero_15(p1->z)) {
+        p1->infinity = 1;
+    }
     if (err == MP_OKAY) {
             err = sp_384_ecc_mulmod_15(p2, p2, u2, 0, 0, heap);
+    }
+    if ((err == MP_OKAY) && sp_384_iszero_15(p2->z)) {
+        p2->infinity = 1;
     }
 
     if (err == MP_OKAY) {
