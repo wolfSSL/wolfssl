@@ -36,7 +36,6 @@
  * these defines here. Do not move to wc_port.h */
 #ifdef USER_CUSTOM_SNIFFX
     /* To be implemented in user_settings.h */
-    #warning "Please implement Sniffer porting in user_settings.h"
 #elif defined(FUSION_RTOS)
     #include <fcl_network.h>
     #define XINET_NTOA FNS_INET_NTOA
