@@ -2605,6 +2605,75 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 }
 #endif /* WOLFSSL_SESSION_EXPORT */
 
+
+#if defined(HAVE_SESSION_TICKET) && \
+    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM)) && \
+    defined(OPENSSL_EXTRA)
+
+    typedef struct openssl_key_ctx {
+        byte name[WOLFSSL_TICKET_NAME_SZ]; /* server name */
+        byte key[AES_256_KEY_SIZE]; /* cipher key */
+        byte hmacKey[WOLFSSL_TICKET_NAME_SZ]; /* hmac key */
+        byte iv[WOLFSSL_TICKET_IV_SZ]; /* cipher iv */
+    } openssl_key_ctx;
+
+    static THREAD_LS_T openssl_key_ctx myOpenSSLKey_ctx;
+    static THREAD_LS_T WC_RNG myOpenSSLKey_rng;
+
+    static WC_INLINE int OpenSSLTicketInit(void)
+    {
+        int ret = wc_InitRng(&myOpenSSLKey_rng);
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myOpenSSLKey_rng, myOpenSSLKey_ctx.name,
+                sizeof(myOpenSSLKey_ctx.name));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myOpenSSLKey_rng, myOpenSSLKey_ctx.key,
+                sizeof(myOpenSSLKey_ctx.key));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myOpenSSLKey_rng, myOpenSSLKey_ctx.hmacKey,
+                sizeof(myOpenSSLKey_ctx.hmacKey));
+        if (ret != 0) return ret;
+
+        ret = wc_RNG_GenerateBlock(&myOpenSSLKey_rng, myOpenSSLKey_ctx.iv,
+                sizeof(myOpenSSLKey_ctx.iv));
+        if (ret != 0) return ret;
+
+        return 0;
+    }
+
+    static WC_INLINE int myTicketEncCbOpenSSL(WOLFSSL* ssl,
+                             byte name[WOLFSSL_TICKET_NAME_SZ],
+                             byte iv[WOLFSSL_TICKET_IV_SZ],
+                             WOLFSSL_EVP_CIPHER_CTX *ectx,
+                             WOLFSSL_HMAC_CTX *hctx, int enc) {
+        (void)ssl;
+        if (enc) {
+            XMEMCPY(name, myOpenSSLKey_ctx.name, sizeof(myOpenSSLKey_ctx.name));
+            XMEMCPY(iv, myOpenSSLKey_ctx.iv, sizeof(myOpenSSLKey_ctx.iv));
+        }
+        else if (XMEMCMP(name, myOpenSSLKey_ctx.name,
+                            sizeof(myOpenSSLKey_ctx.name)) != 0 ||
+                 XMEMCMP(iv, myOpenSSLKey_ctx.iv,
+                            sizeof(myOpenSSLKey_ctx.iv)) != 0) {
+            return 0;
+        }
+        HMAC_Init_ex(hctx, myOpenSSLKey_ctx.hmacKey, WOLFSSL_TICKET_NAME_SZ, EVP_sha256(), NULL);
+        if (enc)
+            EVP_EncryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, myOpenSSLKey_ctx.key, iv);
+        else
+            EVP_DecryptInit_ex(ectx, EVP_aes_256_cbc(), NULL, myOpenSSLKey_ctx.key, iv);
+        return 1;
+    }
+
+    static WC_INLINE void OpenSSLTicketCleanup(void)
+    {
+        wc_FreeRng(&myOpenSSLKey_rng);
+    }
+#endif
+
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -2646,12 +2715,13 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         ctx = wolfSSL_CTX_new(method);
     }
 
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+#if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-    TicketInit();
 #ifdef OPENSSL_EXTRA
+    OpenSSLTicketInit();
     wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
-#else
+#elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    TicketInit();
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 #endif
@@ -2837,9 +2907,13 @@ done:
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
-#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+#if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
+#ifdef OPENSSL_EXTRA
+    OpenSSLTicketCleanup();
+#elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     TicketCleanup();
+#endif
 #endif
 
 #ifndef WOLFSSL_TIRTOS

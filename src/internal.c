@@ -1673,123 +1673,6 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(OPENSSL_EXTRA)
-static int ctxInitTicket(WOLFSSL_CTX* ctx)
-{
-    int ret = 0;
-#if (defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) \
-    || (!defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AESGCM))
-    WC_RNG rng;
-
-    ret = wc_InitRng(&rng);
-    if (ret != 0)
-        return ret;
-
-    ret = wc_RNG_GenerateBlock(&rng,
-            ctx->ticketCompatName, sizeof(ctx->ticketCompatName));
-    if (ret == 0)
-        ret = wc_RNG_GenerateBlock(&rng,
-                ctx->ticketCompatKey, sizeof(ctx->ticketCompatKey));
-
-    wc_FreeRng(&rng);
-#else
-    (void)ctx;
-#endif
-    return ret;
-}
-
-static WC_INLINE int myTicketEncCbCompat(WOLFSSL* ssl,
-        byte key_name[WOLFSSL_TICKET_NAME_SZ],
-        byte iv[WOLFSSL_TICKET_IV_SZ],
-        byte mac[WOLFSSL_TICKET_MAC_SZ],
-        int enc, byte* ticket, int inLen, int* outLen,
-        void* userCtx) {
-    int ret;
-    word16 sLen = XHTONS(inLen);
-    byte aad[WOLFSSL_TICKET_NAME_SZ + WOLFSSL_TICKET_IV_SZ + 2];
-    byte* tmp = aad;
-
-    WOLFSSL_ENTER("myTicketEncCbCompat");
-
-    if (ssl == NULL || key_name == NULL || iv == NULL || mac == NULL
-            || ticket == NULL || outLen == NULL)
-        return WOLFSSL_TICKET_RET_FATAL;
-
-    (void)userCtx;
-
-    if (enc) {
-        XMEMCPY(key_name, ssl->ctx->ticketCompatName, WOLFSSL_TICKET_NAME_SZ);
-        ret = wc_RNG_GenerateBlock(ssl->rng, iv, WOLFSSL_TICKET_IV_SZ);
-        if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-    }
-    else {
-        /* see if we know this key */
-        if (XMEMCMP(key_name, ssl->ctx->ticketCompatName,
-                WOLFSSL_TICKET_NAME_SZ) != 0){
-            WOLFSSL_MSG("client presented unknown ticket key name");
-            return WOLFSSL_TICKET_RET_FATAL;
-        }
-    }
-
-    /* build aad from key name, iv, and length */
-    XMEMCPY(tmp, key_name, WOLFSSL_TICKET_NAME_SZ);
-    tmp += WOLFSSL_TICKET_NAME_SZ;
-    XMEMCPY(tmp, iv, WOLFSSL_TICKET_IV_SZ);
-    tmp += WOLFSSL_TICKET_IV_SZ;
-    XMEMCPY(tmp, &sLen, 2);
-
-    /* encrypt */
-    if (enc) {
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        ret = wc_ChaCha20Poly1305_Encrypt(ssl->ctx->ticketCompatKey, iv,
-                aad, sizeof(aad), ticket, inLen, ticket, mac);
-#elif !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
-        Aes aes;
-        ret = wc_AesInit(&aes, ssl->heap, INVALID_DEVID);
-        if (ret == 0) {
-            ret = wc_AesGcmSetKey(&aes, ssl->ctx->ticketCompatKey, AES_256_KEY_SIZE);
-            if (ret == 0)
-                ret = wc_AesGcmEncrypt(&aes, ticket, ticket, inLen, iv,
-                        WOLFSSL_TICKET_IV_SZ, mac, AES_BLOCK_SIZE,
-                        aad, sizeof(aad));
-            wc_AesFree(&aes);
-        }
-#else
-        WOLFSSL_MSG("Neither chacha20-poly1305 or aes-gcm available for "
-                    "session ticket generation");
-        return WOLFSSL_TICKET_RET_FATAL;
-#endif
-    }
-    /* decrypt */
-    else {
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        ret = wc_ChaCha20Poly1305_Decrypt(ssl->ctx->ticketCompatKey, iv,
-                aad, sizeof(aad), ticket, inLen, mac, ticket);
-#elif !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
-        Aes aes;
-        ret = wc_AesInit(&aes, ssl->heap, INVALID_DEVID);
-        if (ret == 0) {
-            ret = wc_AesGcmSetKey(&aes, ssl->ctx->ticketCompatKey, AES_256_KEY_SIZE);
-            if (ret == 0)
-                ret = wc_AesGcmDecrypt(&aes, ticket, ticket, inLen, iv,
-                        WOLFSSL_TICKET_IV_SZ, mac, AES_BLOCK_SIZE,
-                        aad, sizeof(aad));
-            wc_AesFree(&aes);
-        }
-#else
-        WOLFSSL_MSG("Neither chacha20-poly1305 or aes-gcm available for "
-                    "session ticket decryption");
-        return WOLFSSL_TICKET_RET_FATAL;
-#endif
-    }
-    if (ret != 0) return WOLFSSL_TICKET_RET_REJECT;
-    *outLen = inLen;  /* no padding in this mode */
-
-    return WOLFSSL_TICKET_RET_OK;
-}
-#endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER && OPENSSL_EXTRA */
-
 /* Initialize SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 {
@@ -1942,19 +1825,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->ticketEncCtx = (void*)&ctx->ticketKeyCtx;
 #endif
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
-#ifdef OPENSSL_EXTRA
-    if (ret == 0)
-        ret = ctxInitTicket(ctx);
-#if (defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) \
-    || (!defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AESGCM))
-    /* No need for compat ticket init flag since below callback setter is
-     * only called when the above parameter generation has succeeded */
-    if (ret == 0 &&
-            wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCbCompat)
-                != WOLFSSL_SUCCESS)
-        ret = SESSION_SECRET_CB_E;
-#endif
-#endif
 #endif
 
 #ifdef HAVE_WOLF_EVENT
@@ -2101,11 +1971,6 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         }
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(OPENSSL_EXTRA) && ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) \
-            || (!defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AESGCM)))
-    ForceZero(ctx->ticketCompatKey, sizeof(ctx->ticketCompatKey));
-#endif
 }
 
 

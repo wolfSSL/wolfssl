@@ -2935,11 +2935,9 @@ struct WOLFSSL_CTX {
         #endif
     #endif
     #endif
-    #endif
     #ifdef HAVE_SUPPORTED_CURVES
         byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
     #endif
-#endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
     CallbackDecryptVerify DecryptVerifyCb; /* Atomic User Decrypt/Verify Cb */

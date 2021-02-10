@@ -15714,12 +15714,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ctx->mask & SSL_OP_NO_TICKET) {
             ctx->ticketEncCb = NULL;
             ctx->ticketEncCtx = NULL;
-            XMEMSET(ctx->ticketCompatName, 0, WOLFSSL_TICKET_NAME_SZ);
-#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    defined(OPENSSL_EXTRA) && ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) \
-            || (!defined(NO_AES) && defined(HAVE_AESGCM) && defined(HAVE_AESGCM)))
-            ForceZero(ctx->ticketCompatKey, sizeof(ctx->ticketCompatKey));
-#endif
             WOLFSSL_MSG("\tSSL_OP_NO_TICKET");
         }
 #endif

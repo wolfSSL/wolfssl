@@ -169,13 +169,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
     if (TicketInit() != 0)
         err_sys("unable to setup Session Ticket Key context");
-#ifdef OPENSSL_EXTRA
-    /* In OpenSSL compat case, the compat layer handles the session
-     * tickets internally by default */
-#elif ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
-      defined(HAVE_AESGCM))
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
-#endif
 #endif
 
 #ifndef NO_FILESYSTEM
