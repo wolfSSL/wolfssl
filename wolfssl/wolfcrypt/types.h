@@ -64,7 +64,7 @@ decouple library dependencies with standard string, memory and so on.
     #ifndef WOLFSSL_TYPES
         #ifndef byte
             typedef unsigned char  byte;
-            typedef          char  sword8;
+            typedef   signed char  sword8;
             typedef unsigned char  word8;
         #endif
         #ifdef WC_16BIT_CPU

@@ -10612,7 +10612,7 @@ void ge448_scalarmult_base(ge448_p2* r, const byte* a)
  * r  [in]  Array of indeces.
  * a  [in]  Scalar to break up.
  */
-static void slide(char *r, const byte *a)
+static void slide(sword8 *r, const byte *a)
 {
     int i;
     int b;
@@ -10666,13 +10666,13 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const byte *a,
 #define GE448_WINDOW_BUF_SIZE 448
 
 #if defined(WOLFSSL_SMALL_STACK) && (!defined(WOLFSSL_NO_MALLOC) ||                                                           defined(XMALLOC_USER))
-    char         *aslide = NULL;
-    char         *bslide = NULL;
+    sword8       *aslide = NULL;
+    sword8       *bslide = NULL;
     ge448_p2     *pi = NULL; /* p,3p,..,31p */
     ge448_p2     *p2 = NULL;
 #else
-    char         aslide[448];
-    char         bslide[448];
+    sword8       aslide[448];
+    sword8       bslide[448];
     ge448_p2     pi[16]; /* p,3p,..,31p */
     ge448_p2     p2[1];
 #endif
@@ -10680,13 +10680,13 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const byte *a,
     int          ret = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && (!defined(WOLFSSL_NO_MALLOC) ||                                                           defined(XMALLOC_USER))
-    aslide = (char *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL,
+    aslide = (sword8 *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (aslide == NULL) {
         ret = MEMORY_E;
     }
     if (ret == 0) {
-        bslide = (char *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL,
+        bslide = (sword8 *)XMALLOC(GE448_WINDOW_BUF_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (bslide == NULL) {
             ret = MEMORY_E;
