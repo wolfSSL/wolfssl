@@ -188,7 +188,7 @@ extern "C" {
     #ifdef HAVE_FIPS
         #undef  HAVE_ECC_CDH
         #define HAVE_ECC_CDH
-        
+
         #define NO_STRICT_ECDSA_LEN
     #endif
 
@@ -722,7 +722,7 @@ extern "C" {
    #define OPENSSL_EXTRA
    #define OPENSSL_ALL
    #define HAVE_EX_DATA
-    #define WOLFSSL_EVP_DECRYPT_LEGACY
+   #define WOLFSSL_EVP_DECRYPT_LEGACY
 
 
    /* TLS 1.3 support */
@@ -736,8 +736,8 @@ extern "C" {
 
    /* for static ciphers */
    #define WOLFSSL_STATIC_RSA
-    #define WOLFSSL_STATIC_PSK
-    #define WOLFSSL_STATIC_EPHEMERAL
+   #define WOLFSSL_STATIC_PSK
+   #define WOLFSSL_STATIC_EPHEMERAL
    #define WOLFSSL_SNIFFER
 
    /* TEMPORARY */

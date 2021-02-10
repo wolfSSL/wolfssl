@@ -15669,8 +15669,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("BIO_set_write_buffer_size");
         WOLFSSL_STUB("BIO_set_write_buffer_size");
         (void)bio;
-        /* return 1 if the buffer was successfully resized or 0 for failure. */
-        return size;
+        (void) size;
+
+        /* Even though this is only a STUB at the moment many user applications
+         * may attempt to use this. OpenSSL documentation specifies the return
+         * "return 1 if the buffer was successfully resized or 0 for failure."
+         * since wolfSSL does not resize the buffer will always return failure
+         * by default due to memory concerns until this stub is promoted to
+         * a non-stub function */
+        return WOLFSSL_FAILURE; /* 0, no resize happened */
     }
     #endif
 
