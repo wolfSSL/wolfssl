@@ -1,4 +1,4 @@
-/* wolfcaam_qnx.h
+/* wolfcaam_qnx.c
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *

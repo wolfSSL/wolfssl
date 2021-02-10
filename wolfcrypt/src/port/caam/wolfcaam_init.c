@@ -132,7 +132,8 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
         case WC_ALGO_TYPE_SEED:
         case WC_ALGO_TYPE_HMAC:
         default:
-            WOLFSSL_MSG("Not implemented yet with CAAM");
+            /* Not implemented yet with CAAM */
+            ret = CRYPTOCB_UNAVAILABLE;
     }
 
     return ret;

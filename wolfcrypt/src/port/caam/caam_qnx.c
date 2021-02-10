@@ -122,7 +122,8 @@ unsigned int CAAM_ADR_TO_PHYSICAL(void* in, int inSz)
 CAAM_ADDRESS CAAM_ADR_TO_VIRTUAL(CAAM_ADDRESS in, int len)
 {
     void* ret;
-    ret = mmap_device_memory(NULL, len, PROT_READ|PROT_WRITE, 0, in);
+    ret = mmap_device_memory(NULL, len, PROT_READ | PROT_WRITE | PROT_NOCACHE,
+            0, in);
     return (CAAM_ADDRESS)ret;
 }
 
@@ -140,7 +141,7 @@ void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy)
         sz = 1;
     }
 
-    vaddr = mmap(NULL, sz, PROT_READ | PROT_WRITE,
+    vaddr = mmap(NULL, sz, PROT_READ | PROT_WRITE | PROT_NOCACHE,
                     MAP_PHYS | MAP_SHARED | MAP_ANON, NOFD, 0);
     if (vaddr == MAP_FAILED) {
         WOLFSSL_MSG("Failed to map memory");
@@ -179,7 +180,7 @@ void CAAM_ADR_UNMAP(void* vaddr, unsigned int out, int outSz,
            unmap it */
     }
 
-    if (copy && outSz > 0) {
+    if (copy && out != 0 && outSz > 0) {
         memcpy((unsigned char*)out, (unsigned char*)vaddr, outSz);
     }
     munmap(vaddr, sz);
@@ -285,14 +286,13 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     SETIOV(&in_iovs[0], keybuf, keySz);
     SETIOV(&in_iovs[1], ctx, sizeof(ctx));
     msgSz = args[3];
-
-    /* sanity check that enough data was sent */
-    if ((msgSz + keySz + sizeof(ctx)) > (ctp->size - idx)) {
-        return EOVERFLOW;
+    if (msgSz < 0) {
+        WOLFSSL_MSG("CMAC msg size was a negative value");
+        return EBADMSG;
     }
 
     if (msgSz > 0) {
-        buf = (unsigned char*)malloc(msgSz);
+        buf = (unsigned char*)CAAM_ADR_MAP(0, msgSz, 0);
         if (buf == NULL) {
             return ECANCELED;
         }
@@ -301,6 +301,13 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     ret = resmgr_msgreadv(ctp, in_iovs, numBuf, idx);
+    if (ret < (msgSz + keySz + sizeof(ctx))) {
+        /* sanity check that enough data was sent */
+        if (buf != NULL)
+            CAAM_ADR_UNMAP(buf, 0, msgSz, 0);
+        return EOVERFLOW;
+    }
+
     tmp[0].TheAddress = (CAAM_ADDRESS)keybuf;
     tmp[0].Length = args[1];
 
@@ -315,20 +322,22 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     ret = caamAesCmac(&desc, numBuf, args);
     if (msgSz > 0) {
         if (buf != NULL)
-            free(buf);
+            CAAM_ADR_UNMAP(buf, 0, msgSz, 0);
     }
 
     if (ret != Success) {
         return EBADMSG;
     }
-
     SETIOV(&out_iov, ctx, sizeof(ctx));
 
     /* extra sanity check that out buffer is large enough */
     if (sizeof(ctx) > msg->o.nbytes) {
         return EOVERFLOW;
     }
-    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
+    ret = resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
+    if (ret < 0) {
+        return ECANCELED;
+    }
 
     return EOK;
 }
@@ -353,7 +362,7 @@ static int doTRNG(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (length > 0) {
-        buf = (unsigned char*)malloc(length);
+        buf = (unsigned char*)CAAM_ADR_MAP(0, length, 0);
         if (buf == NULL) {
             return ECANCELED;
         }
@@ -361,13 +370,16 @@ static int doTRNG(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         ret = caamTRNG(buf, length);
         if (ret == CAAM_WAITING) {
             /* waiting for more entropy */
-            free(buf);
+            CAAM_ADR_UNMAP(buf, 0, length, 0);
             return EAGAIN;
         }
 
         SETIOV(&out_iov, buf, length);
-        resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-        free(buf);
+        ret = resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
+        CAAM_ADR_UNMAP(buf, 0, length, 0);
+        if (ret < 0) {
+            return ECANCELED;
+        }
     }
     return EOK;
 }
@@ -395,7 +407,12 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     else {
         dir = CAAM_BLOB_DECAP;
     }
+
     inSz = args[2];
+    if (inSz < 0) {
+        return EBADMSG;
+    }
+
     if (args[0] == 1 && dir == CAAM_BLOB_ENCAP) {
         /* black blob, add 16 for MAC */
         inSz = inSz + 16;
@@ -406,12 +423,15 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
         return EOVERFLOW;
     }
 
-    inBuf = (unsigned char*)malloc(inSz);
+    inBuf = (unsigned char*)CAAM_ADR_MAP(0, inSz, 0);
     if (inBuf == NULL) {
         return ECANCELED;
     }
     SETIOV(&in_iovs[1], inBuf, inSz);
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
+    if (ret < inSz + args[3]) {
+        return EBADMSG;
+    }
 
     /* key mod */
     tmp[0].TheAddress = (CAAM_ADDRESS)keymod;
@@ -429,10 +449,19 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     else {
         outSz = outSz - WC_CAAM_BLOB_SZ;
     }
+    if (outSz < 0) {
+        return EBADMSG;
+    }
 
-    outBuf = (unsigned char*)malloc(outSz);
+    if (args[0] == 1 && dir == CAAM_BLOB_DECAP) {
+        /* 16 for MAC tag */
+        outBuf = (unsigned char*)CAAM_ADR_MAP(0, outSz + 16, 0);
+    }
+    else {
+        outBuf = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
+    }
     if (outBuf == NULL) {
-        free(inBuf);
+        CAAM_ADR_UNMAP(inBuf, 0, inSz, 0);
         return ECANCELED;
     }
     tmp[2].TheAddress = (CAAM_ADDRESS)outBuf;
@@ -440,19 +469,29 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     caamDescInit(&desc, dir, args, tmp, 3);
     ret = caamBlob(&desc);
-    free(inBuf);
+    CAAM_ADR_UNMAP(inBuf, 0, inSz, 0);
+
+    /* adjust outSz for MAC tag at the end of black key */
+    if (args[0] == 1 && dir == CAAM_BLOB_DECAP) {
+        outSz = outSz + 16;
+    }
+
     if (ret != Success) {
-        free(outBuf);
+        CAAM_ADR_UNMAP(outBuf, 0, outSz, 0);
         return ECANCELED;
     }
 
+    CAAM_ADR_SYNC(outBuf, outSz);
     SETIOV(&out_iov, outBuf, outSz);
     if (outSz > msg->o.nbytes) {
-        free(outBuf);
+        CAAM_ADR_UNMAP(outBuf, 0, outSz, 0);
         return EOVERFLOW;
     }
-    resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    free(outBuf);
+    ret = resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
+    CAAM_ADR_UNMAP(outBuf, 0, outSz, 0);
+    if (ret < 0) {
+        return ECANCELED;
+    }
     return EOK;
 }
 
@@ -468,11 +507,6 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int
     CAAM_BUFFER tmp[2];
     iov_t in_iovs[2], out_iovs[3];
 
-    if (((2 * sizeof(CAAM_BUFFER)) > (ctp->size - idx)) ||
-        (((sizeof(int) * 4) + (2 * sizeof(CAAM_BUFFER)))) > msg->o.nbytes) {
-            return EOVERFLOW;
-    }
-
     SETIOV(&in_iovs[0], &tmp[0], sizeof(CAAM_BUFFER));
     SETIOV(&in_iovs[1], &tmp[1], sizeof(CAAM_BUFFER));
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
@@ -486,8 +520,12 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int
     SETIOV(&out_iovs[0], &tmp[0], sizeof(CAAM_BUFFER));
     SETIOV(&out_iovs[1], &tmp[1], sizeof(CAAM_BUFFER));
     SETIOV(&out_iovs[2], args, sizeof(int) * 4);
-    resmgr_msgwritev(ctp, &out_iovs[0], 3, sizeof(msg->o));
+    ret = resmgr_msgwritev(ctp, &out_iovs[0], 3, sizeof(msg->o));
+    if (ret < 0) {
+        return ECANCELED;
+    }
 
+    /* claim ownership of a secure memory location */
     pthread_mutex_lock(&sm_mutex);
     sm_ownerId[args[2]] = ctp->rcvid;
     pthread_mutex_unlock(&sm_mutex);
@@ -499,8 +537,8 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int
 /* helper function to setup and do ECC verify
  * returns EOK on success
  */
-static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     DESCSTRUCT  desc;
     CAAM_BUFFER tmp[5];
@@ -517,7 +555,7 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int 
     }
     else {
         pubSz  = args[3]*2;
-        pubkey = (unsigned char*)malloc(pubSz);
+        pubkey = (unsigned char*)CAAM_ADR_MAP(0, pubSz, 0);
         if (pubkey == NULL) {
             return ECANCELED;
         }
@@ -525,39 +563,42 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int 
         SETIOV(&in_iovs[0], pubkey, args[3]*2);
     }
 
-    if (((args[3] * 2) + args[2] + pubSz) > (ctp->size - idx)) {
-        if (pubkey != NULL)
-            free(pubkey);
-        return EOVERFLOW;
-    }
-
-    hash = (unsigned char*)malloc(args[2]);
+    hash = (unsigned char*)CAAM_ADR_MAP(0, args[2], 0);
     if (hash == NULL) {
         if (pubkey != NULL)
-            free(pubkey);
+            CAAM_ADR_UNMAP(pubkey, 0, pubSz, 0);
         return ECANCELED;
     }
     SETIOV(&in_iovs[1], hash, args[2]);
 
-    r = (unsigned char*)malloc(args[3]);
+    r = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
     if (r == NULL) {
         if (pubkey != NULL)
-            free(pubkey);
-        free(hash);
+            CAAM_ADR_UNMAP(pubkey, 0, pubSz, 0);
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
         return ECANCELED;
     }
     SETIOV(&in_iovs[2], r, args[3]);
 
-    s = (unsigned char*)malloc(args[3]);
+    s = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
     if (s == NULL) {
         if (pubkey != NULL)
-            free(pubkey);
-        free(hash);
-        free(r);
+            CAAM_ADR_UNMAP(pubkey, 0, pubSz, 0);
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
+        CAAM_ADR_UNMAP(r, 0, args[3], 0);
         return ECANCELED;
     }
     SETIOV(&in_iovs[3], s, args[3]);
+
     ret = resmgr_msgreadv(ctp, in_iovs, 4, idx);
+    if (((args[3] * 2) + args[2] + pubSz) > ret) {
+        if (pubkey != NULL)
+            CAAM_ADR_UNMAP(pubkey, 0, pubSz, 0);
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
+        CAAM_ADR_UNMAP(r, 0, args[3], 0);
+        CAAM_ADR_UNMAP(s, 0, args[3], 0);
+        return EOVERFLOW;
+    }
 
     /* setup CAAM buffers to pass to driver */
     if (args[0] == 1) {
@@ -577,15 +618,20 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int 
     tmp[3].TheAddress = (CAAM_ADDRESS)s;
     tmp[3].Length = args[3];
 
+    if (pubkey != NULL)
+        CAAM_ADR_SYNC(pubkey, pubSz);
+    CAAM_ADR_SYNC(hash, args[2]);
+    CAAM_ADR_SYNC(r, args[3]);
+    CAAM_ADR_SYNC(s, args[3]);
     caamDescInit(&desc, CAAM_ECDSA_VERIFY, args, tmp, 4);
     ret = caamECDSAVerify(&desc, tmp, 4, args);
 
     /* free all buffers before inspecting the return value */
-    free(hash);
-    free(r);
-    free(s);
+    CAAM_ADR_UNMAP(hash, 0, args[2], 0);
+    CAAM_ADR_UNMAP(r, 0, args[3], 0);
+    CAAM_ADR_UNMAP(s, 0, args[3], 0);
     if (pubkey != NULL)
-        free(pubkey);
+        CAAM_ADR_UNMAP(pubkey, 0, pubSz, 0);
 
     if (ret != Success) {
         return EBADMSG;
@@ -597,8 +643,8 @@ static int doECDSA_VERIFY(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int 
 /* helper function to setup and do ECC sign
  * returns EOK on success
  */
-static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int ret, keySz;
     DESCSTRUCT  desc;
@@ -615,27 +661,28 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
     }
     else {
         keySz = args[3];
-        key   = (unsigned char*)malloc(keySz);
+        key   = (unsigned char*)CAAM_ADR_MAP(0, keySz, 0);
         if (key == NULL) {
             return ECANCELED;
         }
         SETIOV(&in_iovs[0], key, keySz);
     }
 
-    if ((keySz + args[2]) > (ctp->size - idx)) {
-        if (key != NULL)
-            free(key);
-        return EOVERFLOW;
-    }
-
-    hash = (unsigned char*)malloc(args[2]);
+    hash = (unsigned char*)CAAM_ADR_MAP(0, args[2], 0);
     if (hash == NULL) {
         if (key != NULL)
-            free(key);
+            CAAM_ADR_UNMAP(key, 0, keySz, 0);
         return ECANCELED;
     }
     SETIOV(&in_iovs[1], hash, args[2]);
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
+    if ((keySz + args[2]) > ret) {
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
+        if (key != NULL)
+            CAAM_ADR_UNMAP(key, 0, keySz, 0);
+        return EOVERFLOW;
+    }
+
 
     /* setup CAAM buffers to pass to driver */
     if (args[0] == 1) {
@@ -649,22 +696,22 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
     tmp[1].TheAddress = (CAAM_ADDRESS)hash;
     tmp[1].Length = args[2];
 
-    r = (unsigned char*)malloc(args[3]);
+    r = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
     if (r == NULL) {
-        free(hash);
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
         if (key != NULL)
-            free(key);
+            CAAM_ADR_UNMAP(key, 0, keySz, 0);
         return ECANCELED;
     }
     tmp[2].TheAddress = (CAAM_ADDRESS)r;
     tmp[2].Length = args[3];
 
-    s = (unsigned char*)malloc(args[3]);
+    s = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
     if (s == NULL) {
-        free(r);
-        free(hash);
+        CAAM_ADR_UNMAP(r, 0, args[3], 0);
+        CAAM_ADR_UNMAP(hash, 0, args[2], 0);
         if (key != NULL)
-            free(key);
+            CAAM_ADR_UNMAP(key, 0, keySz, 0);
         return ECANCELED;
     }
     tmp[3].TheAddress = (CAAM_ADDRESS)s;
@@ -672,29 +719,32 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
 
     caamDescInit(&desc, CAAM_ECDSA_SIGN, args, tmp, 4);
     ret = caamECDSASign(&desc, 4, args);
-
-    free(hash);
+    CAAM_ADR_UNMAP(hash, 0, args[2], 0);
     if (key != NULL)
-        free(key);
-
+        CAAM_ADR_UNMAP(key, 0, keySz, 0);
     if (ret != Success) {
-        free(s);
-        free(r);
+        CAAM_ADR_UNMAP(s, 0, args[3], 0);
+        CAAM_ADR_UNMAP(r, 0, args[3], 0);
         return EBADMSG;
     }
 
     if ((args[3] * 2) > msg->o.nbytes) {
-        free(s);
-        free(r);
+        CAAM_ADR_UNMAP(s, 0, args[3], 0);
+        CAAM_ADR_UNMAP(r, 0, args[3], 0);
         return EOVERFLOW;
     }
 
+    CAAM_ADR_SYNC(r, args[3]);
+    CAAM_ADR_SYNC(s, args[3]);
     SETIOV(&out_iovs[0], r, args[3]);
     SETIOV(&out_iovs[1], s, args[3]);
-    resmgr_msgwritev(ctp, &out_iovs[0], 2, sizeof(msg->o));
 
-    free(s);
-    free(r);
+    ret = resmgr_msgwritev(ctp, &out_iovs[0], 2, sizeof(msg->o));
+    CAAM_ADR_UNMAP(s, 0, args[3], 0);
+    CAAM_ADR_UNMAP(r, 0, args[3], 0);
+    if (ret < 0) {
+        return ECANCELED;
+    }
     return EOK;
 }
 
@@ -702,8 +752,8 @@ static int doECDSA_SIGN(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
 /* helper function to setup and get an ECC shared secret
  * returns EOK on success
  */
-static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int ret;
     DESCSTRUCT desc;
@@ -720,7 +770,7 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
         expectedSz += sizeof(CAAM_ADDRESS);
     }
     else {
-        pubkey = (unsigned char*)malloc(args[3]*2);
+        pubkey = (unsigned char*)CAAM_ADR_MAP(0, args[3]*2, 0);
         if (pubkey == NULL) {
             return ECANCELED;
         }
@@ -734,10 +784,10 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
         expectedSz += sizeof(CAAM_ADDRESS);
     }
     else {
-        key = (unsigned char*)malloc(args[3]);
+        key = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
         if (key == NULL) {
             if (pubkey != NULL)
-                free(pubkey);
+                CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
             return ECANCELED;
         }
 
@@ -745,14 +795,14 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
         expectedSz += args[3];
     }
 
-    if (idx + expectedSz > ctp->size) {
-        if (pubkey != NULL)
-            free(pubkey);
-        if (key != NULL)
-            free(key);
-        return EOVERFLOW;
-    }
     ret = resmgr_msgreadv(ctp, in_iovs, 2, idx);
+    if (expectedSz > ret) {
+        if (pubkey != NULL)
+            CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
+        if (key != NULL)
+            CAAM_ADR_UNMAP(key, 0, args[3], 0);
+        return ECANCELED;
+    }
 
     /* setup CAAM buffers to pass to driver */
     if (args[1] == 1) {
@@ -771,12 +821,12 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
     }
     tmp[1].Length = args[3];
 
-    shared = (unsigned char*)malloc(args[3]);
+    shared = (unsigned char*)CAAM_ADR_MAP(0, args[3], 0);
     if (shared == NULL) {
         if (pubkey != NULL)
-            free(pubkey);
+            CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
         if (key != NULL)
-            free(key);
+            CAAM_ADR_UNMAP(key, 0, args[3], 0);
         return ECANCELED;
     }
 
@@ -785,22 +835,23 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
     caamDescInit(&desc, CAAM_ECDSA_ECDH, args, tmp, 3);
     ret = caamECDSA_ECDH(&desc, 3, args);
     if (pubkey != NULL)
-        free(pubkey);
+        CAAM_ADR_UNMAP(pubkey, 0, args[3]*2, 0);
     if (key != NULL)
-        free(key);
+        CAAM_ADR_UNMAP(key, 0, args[3], 0);
 
     if (ret != Success) {
-        free(shared);
+        CAAM_ADR_UNMAP(shared, 0, args[3], 0);
         return EBADMSG;
     }
 
     if (args[3] > msg->o.nbytes) {
-        free(shared);
+        CAAM_ADR_UNMAP(shared, 0, args[3], 0);
         return EOVERFLOW;
     }
+    CAAM_ADR_SYNC(shared, args[3]);
     SETIOV(&out_iov, shared, args[3]);
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    free(shared);
+    CAAM_ADR_UNMAP(shared, 0, args[3], 0);
     return EOK;
 }
 
@@ -808,8 +859,8 @@ static int doECDSA_ECDH(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
 /* helper function to setup and cover data
  * returns EOK on success
  */
-static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int ret;
     DESCSTRUCT desc;
@@ -817,22 +868,21 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4
     iov_t in_iov, out_iov;
     unsigned char *inBuf, *outBuf;
 
-    if (args[1] > (ctp->size - idx)) {
-        WOLFSSL_MSG("would cause input read overflow");
-        return EOVERFLOW;
-    }
-
-    inBuf = (unsigned char*)malloc(args[1]);
+    inBuf = (unsigned char*)CAAM_ADR_MAP(0, args[1], 0);
     if (inBuf == NULL) {
         return ECANCELED;
     }
 
     SETIOV(&in_iov, inBuf, args[1]);
     ret = resmgr_msgreadv(ctp, &in_iov, 1, idx);
+    if (ret < args[1]) {
+        return EBADMSG;
+    }
 
-    outBuf = (unsigned char*)malloc(args[1] + 16); /* plus 16 for MAC */
+    /* plus 16 for MAC */
+    outBuf = (unsigned char*)CAAM_ADR_MAP(0, args[1] + 16, 0);
     if (outBuf == NULL) {
-        free(inBuf);
+        CAAM_ADR_UNMAP(inBuf, 0, args[1], 0);
         return ECANCELED;
     }
 
@@ -844,22 +894,21 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4
 
     caamDescInit(&desc, CAAM_FIFO_S, args, tmp, 2);
     ret = caamKeyCover(&desc, 2, args);
-    free(inBuf);
-
+    CAAM_ADR_UNMAP(inBuf, 0, args[1], 0);
     if (ret != Success) {
-        free(outBuf);
+        CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
         return EBADMSG;
     }
 
     if (args[1] + 16 > msg->o.nbytes) {
-        free(outBuf);
+        CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
         WOLFSSL_MSG("would cause output buffer overflow");
         return EOVERFLOW;
     }
 
     SETIOV(&out_iov, outBuf, args[1] + 16);
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    free(outBuf);
+    CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
     return EOK;
 }
 
@@ -867,8 +916,8 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4
 /* helper function to get partition
  * returns EOK on success
  */
-static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int partNumber;
     int partSz;
@@ -892,41 +941,37 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args
 /* helper function to write to a partition
  * returns EOK on success
  */
-static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int partSz, ret;
     CAAM_ADDRESS partAddr;
     unsigned char *buf;
     iov_t in_iov;
 
-    if (args[1] > (ctp->size - idx)) {
-        return EOVERFLOW;
-    }
-
-    buf = (unsigned char*)malloc(args[1]);
-    if (buf == NULL) {
-        return ECANCELED;
-    }
-
-    SETIOV(&in_iov, buf, args[1]);
-    ret = resmgr_msgreadv(ctp, &in_iov, 1, idx);
-    if (ret != args[1]) {
-        free(buf);
-        return EBADMSG;
-    }
-
     /* get arguments */
     partAddr = args[0];
     partSz   = args[1];
 
-    /* sanity check on address and length */
-    if (sanityCheckPartitionAddress(partAddr, partSz) != 0) {
-        free(buf);
+    buf = (unsigned char*)CAAM_ADR_MAP(0, partSz, 0);
+    if (buf == NULL) {
+        return ECANCELED;
+    }
+
+    SETIOV(&in_iov, buf, partSz);
+    ret = resmgr_msgreadv(ctp, &in_iov, 1, idx);
+    if (ret != partSz) {
+        CAAM_ADR_UNMAP(buf, 0, partSz, 0);
         return EBADMSG;
     }
 
-    memcpy((unsigned int*)partAddr, buf, partSz);
+    /* sanity check on address and length */
+    if (sanityCheckPartitionAddress(partAddr, partSz) != 0) {
+        CAAM_ADR_UNMAP(buf, 0, partSz, 0);
+        return EBADMSG;
+    }
+
+    CAAM_ADR_UNMAP(buf, partAddr, partSz, 1);
     return EOK;
 }
 
@@ -934,8 +979,8 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int ar
 /* helper function to read a partition
  * returns EOK on success
  */
-static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg,
+        unsigned int args[4], unsigned int idx)
 {
     int partSz;
     CAAM_ADDRESS partAddr;
@@ -956,20 +1001,19 @@ static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int arg
         return EBADMSG;
     }
 
-    buf = (unsigned char*)malloc(partSz);
+    buf = (unsigned char*)CAAM_ADR_MAP(0, partSz, 0);
     if (buf == NULL) {
         return ECANCELED;
     }
     memcpy(buf, (unsigned int*)partAddr, partSz);
     SETIOV(&out_iov, buf, partSz);
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    free(buf);
+    CAAM_ADR_UNMAP(buf, 0, partSz, 0);
     return EOK;
 }
 
 
-int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg,
-           iofunc_ocb_t *ocb)
+int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
 {
     int ret = EBADMSG;
     unsigned int idx = sizeof(msg->i);
@@ -1144,7 +1188,7 @@ int io_read (resmgr_context_t *ctp, io_read_t *msg, RESMGR_OCB_T *ocb)
         return (ENOSYS);
     }
 
-    if (ocb->offset == 0) { /* not doing anything fancy here, just fill up what can */
+    if (ocb->offset == 0) { /* just fill up what can */
         int sz = min(msg->i.nbytes, sizeof(cannedResponse));
         MsgReply(ctp->rcvid, sz, cannedResponse, sz);
         ocb->offset += sz;

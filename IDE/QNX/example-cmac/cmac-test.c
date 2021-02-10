@@ -23,6 +23,11 @@
 #include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
+#include <sys/mman.h>
+#include <hw/inout.h>
+#include <sys/iofunc.h>
+#include <sys/neutrino.h>
+
 const byte k256[] =
 {
     0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe,
