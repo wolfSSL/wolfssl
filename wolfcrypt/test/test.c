@@ -15602,9 +15602,11 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_RSA
-    /* New key to be loaded in rsa_even_mod_test(). */
+#ifdef WOLFSSL_SMALL_STACK
     if (key != NULL)
+#endif
         wc_FreeRsaKey(key);
+    /* New key to be loaded in rsa_even_mod_test(). */
     ret = rsa_even_mod_test(&rng, key);
 #endif
 
