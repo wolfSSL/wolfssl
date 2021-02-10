@@ -788,8 +788,8 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
                 }
             }
         }
-                    WOLFSSL_MSG("Select error");
 
+        WOLFSSL_MSG("Select error");
         return SOCKET_ERROR_E;
     }
 #endif /* HAVE_IO_TIMEOUT */

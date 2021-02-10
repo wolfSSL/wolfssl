@@ -16150,14 +16150,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
                 if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
-                {
-                #ifdef FUSION_RTOS
-                    int err;
-                    CloseSocket(bio->num, &err);
-                #else
                     CloseSocket(bio->num);
-                #endif
-                }
              #endif
             }
 
