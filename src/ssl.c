@@ -29,7 +29,6 @@
     /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
-    #include <stdarg.h>
 #endif
 
 #if !defined(WOLFCRYPT_ONLY) || defined(OPENSSL_EXTRA) || \

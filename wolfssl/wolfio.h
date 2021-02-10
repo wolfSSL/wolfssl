@@ -389,7 +389,10 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
     #define StartTCP()
 #elif defined(FUSION_RTOS)
     #ifndef CloseSocket
-        #define CloseSocket FNS_CLOSE
+        #define CloseSocket(s) do {                     \
+                                    int err;            \
+                                    FNS_CLOSE(s, &err); \
+                                } while(0)
     #endif
 #else
     #ifndef CloseSocket

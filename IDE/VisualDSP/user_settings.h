@@ -30,6 +30,11 @@ extern "C" {
 
 #include "fusioncfg.h"
 
+/* Previously was included in ssl.c but for the sake of portability and existing
+ * projects, moved to IDE specific user_settings.h (stdarg.h include)
+ */
+#include <stdarg.h>
+
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
@@ -95,6 +100,12 @@ extern "C" {
         #undef  NO_THREAD_LS
         #define NO_THREAD_LS
     #endif
+
+    #define NO_ATTRIBUTE_CONSTRUCTOR /* Required on ADSP BLACKFIN where memory
+                                      * is zeroized after
+                                      * __attribute__((constructor)) and before
+                                      * main();
+                                      */
 #endif
 
 
@@ -515,8 +526,6 @@ extern "C" {
     #define USE_WOLF_STRTOK
     #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
 
-    // TBD drowe: add a new FCL_STRNSTR and implement the new fclStrnstr code in common/clib/string/fclstrstr.c
-    // For now use the unsafe version
     #define XSTRNSTR(s1,s2,n) FCL_STRSTR((s1),(s2))
 
     #define XMEMCPY(d,s,l)    FCL_MEMCPY((d),(s),(l))
@@ -696,13 +705,7 @@ extern "C" {
 
     #define printf FCL_PRINTF
 
-    /* CAVP TESTING */
-    #define NO_WOLFCAVP_MAIN_DRIVER
     #define WOLFSSL_BASE16
-    #define USE_UART_READ_LINE
-    #define USE_NORMAL_PRINTF
-    #define VERIFY_GENERATED_PSS_SIGS
-    #define NO_ATTRIBUTE_CONSTRUCTOR
 
     extern int aes_test_for_fips_hash(void);
     int wolfcrypt_test_taskEnter(void *args);
@@ -715,17 +718,14 @@ extern "C" {
    #define USE_CERT_BUFFERS_2048
    #define USE_CERT_BUFFERS_256
    //#define NO_FILESYSTEM
-   
-// #define HAVE_FORCE_FIPS_FAILURE
 
-   #define OPENSSL_EXTRA  //to test if iprgw project need it. AES_xxx wolfSSL_AES_xxx Aes_EncryptDirect
+   #define OPENSSL_EXTRA
    #define OPENSSL_ALL
    #define HAVE_EX_DATA
     #define WOLFSSL_EVP_DECRYPT_LEGACY
 
-   
+
    /* TLS 1.3 support */
-   
    #define WOLFSSL_TLS13
    #define HAVE_TLS_EXTENSIONS
    #define HAVE_SUPPORTED_CURVES
@@ -733,13 +733,13 @@ extern "C" {
    #define HAVE_HKDF
    #define HAVE_FFDHE_4096
    #define WC_RSA_PSS
-   
+
    /* for static ciphers */
    #define WOLFSSL_STATIC_RSA
     #define WOLFSSL_STATIC_PSK
     #define WOLFSSL_STATIC_EPHEMERAL
    #define WOLFSSL_SNIFFER
-   
+
    /* TEMPORARY */
    #define USING_JTAG
 #endif /* BLACKFIN_BUILD */

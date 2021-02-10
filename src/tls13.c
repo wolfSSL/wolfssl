@@ -1361,6 +1361,23 @@ end:
         return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
     #endif
     }
+#elif defined(FUSION_RTOS)
+    /* The time in milliseconds.
+     * Used for tickets to represent difference between when first seen and when
+     * sending.
+     *
+     * returns the time in milliseconds as a 32-bit value.
+     */
+    word32 TimeNowInMilliseconds(void)
+    {
+        struct timeval now;
+        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
+            return (word32)GETTIME_ERROR;
+
+        /* Convert to milliseconds number. */
+        return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
+    }
+
 #else
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -1371,14 +1388,10 @@ end:
     word32 TimeNowInMilliseconds(void)
     {
         struct timeval now;
-#ifdef FUSION_RTOS
-        if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return (word32)GETTIME_ERROR;
-            //TODO research why negative error code returns as word32
-#else
+
         if (gettimeofday(&now, 0) < 0)
             return (word32)GETTIME_ERROR;
-#endif
+
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
     }
