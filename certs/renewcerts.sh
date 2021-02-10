@@ -690,8 +690,6 @@ then
 
     #run the function to renew the certs
     run_renewcerts
-    # run_renewcerts will end in the wolfssl/certs/crl dir, backup to root.
-    cd ../ || exit 1
     CURRDIR=${PWD##*/}
     if [ "$CURRDIR" = "certs" ]; then
         cd ../ || exit 1
@@ -800,8 +798,6 @@ else
     # if now defined
     if grep HAVE_NTRU "wolfssl/options.h"; then
         run_renewcerts
-        #run_renewcerts leaves us in wolfssl/certs/crl, backup to root
-        cd ../ || exit 1
         CURRDIR=${PWD##*/}
         if [ "$CURRDIR" = "certs" ]; then
             cd ../ || exit 1

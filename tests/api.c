@@ -5689,7 +5689,7 @@ static void test_wolfSSL_TBS(void)
     AssertNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
     AssertNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
     AssertNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
-    AssertIntEQ(tbsSz, 1003);
+    AssertIntEQ(tbsSz, 981);
 
     wolfSSL_FreeX509(x509);
 
@@ -26007,7 +26007,7 @@ static void test_wolfSSL_ASN1_TIME_print(void)
                 sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
-    AssertIntEQ(XMEMCMP(buf, "Jun 19 13:23:41 2020 GMT", sizeof(buf) - 1), 0);
+    AssertIntEQ(XMEMCMP(buf, "Feb 10 19:49:52 2021 GMT", sizeof(buf) - 1), 0);
 
     /* create a bad time and test results */
     AssertNotNull(t = X509_get_notAfter(x509));
@@ -39423,13 +39423,13 @@ static void test_wolfSSL_ASN1_get_object(void)
     /* Read a couple TLV triplets and make sure they match the expected values */
 
     AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &cls, len) & 0x80, 0);
-    AssertIntEQ(asnLen, 863);
+    AssertIntEQ(asnLen, 841);
     AssertIntEQ(tag, 0x10);
     AssertIntEQ(cls, 0);
 
     AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &cls,
             len - (derBuf - cliecc_cert_der_256)) & 0x80, 0);
-    AssertIntEQ(asnLen, 772);
+    AssertIntEQ(asnLen, 750);
     AssertIntEQ(tag, 0x10);
     AssertIntEQ(cls, 0);
 
@@ -39448,7 +39448,7 @@ static void test_wolfSSL_ASN1_get_object(void)
 
     AssertIntEQ(ASN1_get_object(&derBuf, &asnLen, &tag, &cls,
             len - (derBuf - cliecc_cert_der_256)) & 0x80, 0);
-    AssertIntEQ(asnLen, 20);
+    AssertIntEQ(asnLen, 9);
     AssertIntEQ(tag, 0x2);
     AssertIntEQ(cls, 0);
     derBuf += asnLen;
