@@ -271,7 +271,7 @@ void WOLFSSL_TIME(int count)
     #include <wolfssl/wolfcrypt/wc_port.h>
     #define fprintf FCL_FPRINTF
 #else
-    #include <stdio.h>/* for default printf stuff */
+    #include <stdio.h>  /* for default printf stuff */
 #endif
 
 #if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
