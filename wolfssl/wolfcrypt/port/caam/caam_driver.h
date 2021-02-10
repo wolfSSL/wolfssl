@@ -309,9 +309,9 @@ int caamECDSAMake(DESCSTRUCT *desc, CAAM_BUFFER *buf, unsigned int args[4]);
 int caamAesCmac(DESCSTRUCT *desc, int sz, unsigned int args[4]);
 int caamBlob(DESCSTRUCT *desc);
 
-CAAM_ADDRESS caamGetPartition(int part, int partSz, unsigned int* phys,
+CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int* phys,
         unsigned int flag);
-int caamFreePart(int part);
+int caamFreePart(unsigned int part);
 int caamFindUnusuedPartition(void);
 
 
@@ -379,4 +379,8 @@ struct DESCSTRUCT {
 #define CAAM_FREE_PART 0xFFFFFFFD
 #define CAAM_READ_PART 0xFFFFFFFC
 #define CAAM_WRITE_PART 0xFFFFFFFB
+
+
+#define MAX_ECDSA_VERIFY_ADDR 8
+#define MAX_ECDSA_SIGN_ADDR 8
 #endif /* CAAM_DRIVER_H */

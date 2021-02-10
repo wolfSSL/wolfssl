@@ -91,7 +91,7 @@ static Error caamDebugDesc(struct DescStruct* desc)
 
     printf("Descriptor input :\n");
     /* write descriptor into descriptor buffer */
-    for (z = 0; z < sz; z++) {
+    for (z = 0; z < sz; z = z + 1) {
         CAAM_WRITE(CAAM_DODESB + (z*4), desc->desc[z]);
         printf("\t0x%08X\n", desc->desc[z]);
     }
@@ -113,8 +113,9 @@ static Error caamDebugDesc(struct DescStruct* desc)
     printf("DECO BUFFER [0x%08X]:\n", CAAM_READ(CAAM_DODAR+4));
     printf("\tSTATUS : 0x%08X\n", CAAM_READ(CAAM_DOOPSTA_MS));
     printf("\tJRSTAR_JR0 : 0x%08X\n", CAAM_READ(0x1044));
-    for (z = 0; z < sz; z++)
+    for (z = 0; z < sz; z = z + 1) {
         printf("\t0x%08X\n", CAAM_READ(CAAM_DODESB + (z*4)));
+    }
 
 
     //D0JQCR_LS
@@ -126,13 +127,15 @@ static Error caamDebugDesc(struct DescStruct* desc)
     printf("DECO BUFFER [0x%08X]:\n", CAAM_READ(CAAM_DODAR+4));
     printf("\tSTATUS : 0x%08X\n", CAAM_READ(CAAM_DOOPSTA_MS));
     printf("\tJRSTAR_JR0 : 0x%08X\n", CAAM_READ(0x1044));
-    for (z = 0; z < sz; z++)
+    for (z = 0; z < sz; z = z + 1) {
         printf("\t0x%08X\n", CAAM_READ(CAAM_DODESB + (z*4)));
+    }
 
     printf("Next command to be executed = 0x%08X\n", CAAM_READ(0x8804));
     printf("CAAM STATUS : 0x%08X\n", CAAM_READ(0x0FD4));
-    while (CAAM_READ(0x8E04) & 0x80000000) {
-        printf("DECO DRG (bit 32 is valid -- running) : 0x%08X\n", CAAM_READ(0x8E04));
+    while ((CAAM_READ(0x8E04) & 0x80000000U) != 0U) {
+        printf("DECO DRG (bit 32 is valid -- running) : 0x%08X\n",
+                CAAM_READ(0x8E04));
         sleep(1);
     }
     CAAM_WRITE(CAAM_DECORR, 0); /* free DECO */
@@ -151,9 +154,9 @@ static void printSecureMemoryInfo()
     printf("SMPO = 0x%08X\n", CAAM_READ(CAAM_SM_SMPO));
     SMVID_MS = CAAM_READ(CAAM_SM_SMVID_MS);
     SMVID_LS = CAAM_READ(CAAM_SM_SMVID_LS);
-    printf("\tNumber Partitions : %d\n", (SMVID_MS >> 12 & 0xF));
-    printf("\tNumber Pages : %d\n", (SMVID_MS & 0x3FF));
-    printf("\tPage Size : 2^%d\n", ((SMVID_LS >> 16) & 0x7));
+    printf("\tNumber Partitions : %d\n", ((SMVID_MS >> 12) & 0xFU));
+    printf("\tNumber Pages : %d\n", (SMVID_MS & 0x3FFU));
+    printf("\tPage Size : 2^%d\n", ((SMVID_LS >> 16) & 0x7U));
 }
 #endif
 
@@ -169,7 +172,7 @@ static Error caamReset(void)
     CAAM_WRITE(0x106C, 1);
 
     /* check register JRINTR for if halt is in progress */
-    while (t > 0 && ((CAAM_READ(0x104C) & 0x4) == 0x4)) t--;
+    while (t > 0 && ((CAAM_READ(0x104C) & 0x4) == 0x4)) { t = t - 1; }
     if (t == 0) {
         /*unrecoverable failure, the job ring is locked, up hard reset needed*/
         return -1;//NotRestartable;
@@ -178,7 +181,7 @@ static Error caamReset(void)
     /* now that flush has been done restart the job ring */
     t = 100000;
     CAAM_WRITE(0x106C, 1);
-    while (t > 0 && ((CAAM_READ(0x106C) & 1) == 1)) t--;
+    while (t > 0 && ((CAAM_READ(0x106C) & 1) == 1)) { t = t - 1; }
     if (t == 0) {
         /*unrecoverable failure, reset bit did not return to 0 */
         return -1;//NotRestartable;
@@ -198,10 +201,10 @@ static Error caamReset(void)
 
 
 /* free the page and dealloc */
-static Error caamFreePage(unsigned char page)
+static Error caamFreePage(unsigned int page)
 {
     /* owns the page can dealloc it */
-    CAAM_WRITE(CAAM_SM_CMD, (page << 16) | 0x2);
+    CAAM_WRITE(CAAM_SM_CMD, (page << 16U) | 0x2U);
     while ((CAAM_READ(CAAM_SM_STATUS) & 0x00004000) > 0 &&
         (CAAM_READ(CAAM_SM_STATUS) & 0x00003000)  == 0) {
         CAAM_CPU_CHILL();
@@ -216,22 +219,22 @@ static Error caamFreePage(unsigned char page)
 }
 
 /* free the partition and dealloc */
-Error caamFreePart(int part)
+Error caamFreePart(unsigned int part)
 {
     unsigned int status;
 
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
     printf("freeing partition %d\n", part);
     #endif
-    CAAM_WRITE(CAAM_SM_CMD, (part << 8) | 0x3);
+    CAAM_WRITE(CAAM_SM_CMD, (part << 8U) | 0x3U);
 
     status = CAAM_READ(CAAM_SM_STATUS);
-    while ((status & 0x00004000) > 0 && (status & 0x00003000) == 0) {
+    while (((status & 0x00004000U) > 0U) && ((status & 0x00003000U) == 0U)) {
         CAAM_CPU_CHILL();
         status = CAAM_READ(CAAM_SM_STATUS);
     }
 
-    if (((status & 0x00003000) > 0) || ((status & 0x0000C000) > 0)) {
+    if (((status & 0x00003000U) > 0U) || ((status & 0x0000C000U) > 0U)) {
         /* error while deallocating page */
         WOLFSSL_MSG("error while deallocating partition");
         return MemoryMapMayNotBeEmpty; /* PSP set on page or is unavailable */
@@ -245,12 +248,12 @@ Error caamFreePart(int part)
 static Error caamFreeAllPart()
 {
     unsigned int SMPO;
-    int i;
+    unsigned int i;
 
     WOLFSSL_MSG("Free all partitions");
     SMPO = CAAM_READ(0x1FBC);
-    for (i = 0; i < 15; i++) {
-        if ((SMPO & (0x3 << (i * 2))) == (0x3U << (i * 2))) {
+    for (i = 0; i < 15U; i = i + 1U) {
+        if ((SMPO & (0x3U << (i * 2U))) == (0x3U << (i * 2U))) {
             caamFreePart(i);
         }
     }
@@ -265,12 +268,13 @@ static Error caamFreeAllPart()
 int caamFindUnusuedPartition()
 {
     unsigned int SMPO;
-    int i, ret = -1;
+    unsigned int i;
+    int ret = -1;
 
     SMPO = CAAM_READ(0x1FBC);
-    for (i = 0; i < 15; i++) {
-        if ((SMPO & (0x3 << (i * 2))) == 0) {
-            ret = i;
+    for (i = 0; i < 15U; i = i + 1) {
+        if ((SMPO & (0x3U << (i * 2U))) == 0U) {
+            ret = (int)i;
             break;
         }
     }
@@ -282,7 +286,7 @@ int caamFindUnusuedPartition()
 /* flag contains how the parition is set i.e CSP flag and read/write access
  *      it also contains if locked
  */
-static Error caamCreatePartition(unsigned char page, unsigned char par,
+static Error caamCreatePartition(unsigned int page, unsigned int par,
         unsigned int flag)
 {
 
@@ -290,8 +294,8 @@ static Error caamCreatePartition(unsigned char page, unsigned char par,
 
     /* check ownership of partition */
     status = CAAM_READ(0x1FBC);
-    if ((status & (0x3 << (par * 2))) > 0) {
-        if ((status & (0x3 << (par * 2))) == (0x3U << (par * 2))) {
+    if ((status & (0x3U << (par * 2))) > 0) {
+        if ((status & (0x3U << (par * 2))) == (0x3U << (par * 2))) {
             WOLFSSL_MSG("we own this partition!");
         }
         else {
@@ -332,7 +336,7 @@ static Error caamCreatePartition(unsigned char page, unsigned char par,
 
 
 /* return a mapped address to the partition on success, returns 0 on fail */
-CAAM_ADDRESS caamGetPartition(int part, int partSz, unsigned int* phys,
+CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int* phys,
         unsigned int flag)
 {
     int err;
@@ -432,7 +436,7 @@ static void print_jdkek()
     int i;
 
     printf("JDKEK = ");
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i = i + 1) {
         printf("%08X ", CAAM_READ(0x0400 + (i*4)));
     }
     printf("\n");
@@ -493,7 +497,7 @@ int caamInitRng(struct CAAM_DEVICE* dev)
         caamReset();
     }
 
-    if (reg & (1 << 30)) {
+    if (reg & (1U << 30)) {
         WOLFSSL_MSG("JKDKEK rng was setup using a non determinstic key");
         return 0;
     }
@@ -501,15 +505,17 @@ int caamInitRng(struct CAAM_DEVICE* dev)
     if (CAAM_READ(0x1014) > 0) {
         int i;
     #ifdef CAAM_DEBUG_MODE
-        for (i = 0; i < 6; i++)
+        for (i = 0; i < 6; i = i + 1) {
             desc.desc[desc.idx++] = wc_rng_start[i];
+        }
 
         desc.caam = dev;
         ret = caamDoJob(&desc);
     #else
        unsigned int *pt = (unsigned int*)caam.ring.VirtualDesc;
-       for (i = 0; i < 6; i++)
+       for (i = 0; i < 6; i = i + 1) {
           pt[i] = wc_rng_start[i];
+       }
        pt    = (unsigned int*)caam.ring.VirtualIn;
        pt[0] = (unsigned int)caam.ring.Desc;
 
@@ -553,7 +559,7 @@ Error caamAddJob(DESCSTRUCT* desc)
     #if defined(WOLFSSL_CAAM_PRINT)
         printf("Doing Job :\n");
     #endif
-        for (i = 0; i < desc->idx; i++) {
+        for (i = 0; i < desc->idx; i = i + 1) {
             pt[i] = desc->desc[i];
     #if defined(WOLFSSL_CAAM_PRINT)
             printf("\tCMD %02d [%p] = 0x%08X\n", i+1, pt + i,
@@ -621,7 +627,7 @@ Error caamDoJob(DESCSTRUCT* desc)
         /* try to reset after error */
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
         int i;
-        for (i = 0; i < desc->idx; i++) {
+        for (i = 0; i < desc->idx; i = i + 1) {
             printf("\tCMD %02d = 0x%08X\n", i+1, desc->desc[i]);
         }
         printf("\n");
@@ -780,7 +786,7 @@ int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
     desc->desc[desc->idx++] = CAAM_OP | CAAM_CLASS1 | desc->type | desc->state;
 
     /* add in all input buffers */
-    for (i = 2; i < sz; i++) {
+    for (i = 2; i < sz; i = i + 1) {
         desc->desc[desc->idx] = (CAAM_FIFO_L | CAAM_CLASS1 | FIFOL_TYPE_MSG)
             + desc->buf[i].dataSz;
         if (i+1 == sz) {
@@ -835,7 +841,7 @@ int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
 
     CAAM_ADR_UNMAP(vaddr[0], desc->buf[1].data, desc->buf[1].dataSz, 1);
     CAAM_ADR_UNMAP(vaddr[1], desc->buf[0].data, desc->buf[0].dataSz + macSz, 0);
-    for (vidx = 2, i = 2; i < sz; i++) { /* unmap the input buffers */
+    for (vidx = 2, i = 2; i < sz; i = i + 1) { /* unmap the input buffers */
         CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
     }
     return err;
@@ -850,7 +856,7 @@ int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
 int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 {
     Error err;
-    int part = 0;
+    unsigned int part = 0;
     unsigned int isBlackKey = 0;
     unsigned int pdECDSEL   = 0;
     unsigned int phys;
@@ -864,7 +870,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
     vaddr[1] = NULL;
 
     desc->desc[desc->idx++] = pdECDSEL;
-    if (isBlackKey) {
+    if (isBlackKey == 1) {
         /* create secure partition for private key out */
         part = caamFindUnusuedPartition();
         if (part < 0) {
@@ -903,7 +909,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
     /* add operation command               OPTYPE        PROTOID */
     desc->desc[desc->idx] = CAAM_OP | CAAM_PROT_UNIDI | desc->type;
-    if (isBlackKey) {
+    if (isBlackKey == 1) {
         desc->desc[desc->idx] |= CAAM_PKHA_ENC_PRI_AESCCM;
     }
     desc->desc[desc->idx++] |= CAAM_PKHA_ECC;
@@ -912,7 +918,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         err = caamDoJob(desc);
     } while (err == CAAM_WAITING);
 
-    if (isBlackKey) {
+    if (isBlackKey == 1) {
         /* store partition number holding black keys */
         if (err != Success)
             caamFreePart(part);
@@ -927,6 +933,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
     return err;
 }
+
 
 
 /* ECDSA verify signature
@@ -944,12 +951,16 @@ int caamECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
     unsigned int L;
     int i = 0;
     Error err;
-    void* vaddr[sz];
+    void *vaddr[MAX_ECDSA_VERIFY_ADDR];
 
     if (args != NULL) {
         isBlackKey = args[0];
         pdECDSEL   = args[1];
         msgSz      = args[2];
+    }
+
+    if (sz > MAX_ECDSA_VERIFY_ADDR) {
+       return -1;
     }
 
     if (pdECDSEL == 0) {
@@ -965,31 +976,31 @@ int caamECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
         vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
         desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
-        vidx++;
+        vidx = vidx + 1;
     }
     else {
         desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL((void*)desc->buf[i].data,
                 desc->buf[i].dataSz);
     }
-    i++;
+    i = i + 1;
 
     /* message */
     vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
-    vidx++; i++;
+    vidx = vidx + 1; i = i + 1;
 
     /* r */
     vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
-    vidx++; i++;
+    vidx = vidx + 1; i = i + 1;
 
     /* s */
     vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
-    vidx++; i++;
+    vidx = vidx + 1; i = i + 1;
 
     /* tmp buffer */
     vaddr[vidx] = CAAM_ADR_MAP(0, 2*L, 0);
@@ -1016,12 +1027,15 @@ int caamECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
     if (!isBlackKey) {
         CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
     }
-    i++;
+    i = i + 1;
 
     /* msg , r, s, tmp */
-    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0); i++;
-    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0); i++;
-    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0); i++;
+    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
+    i = i + 1;
+    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
+    i = i + 1;
+    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
+    i = i + 1;
     CAAM_ADR_UNMAP(vaddr[vidx++], 0, 2*L, 0);
 
     return err;
@@ -1041,9 +1055,9 @@ int caamECDSASign(DESCSTRUCT* desc, int sz, unsigned int args[4])
     unsigned int msgSz = 0;
     unsigned int vidx = 0;
     int i = 0;
-    void* vaddr[sz];
+    void *vaddr[MAX_ECDSA_SIGN_ADDR];
 
-    if (args == NULL) {
+    if ((args == NULL) || (sz > MAX_ECDSA_SIGN_ADDR)) {
         return -1;
     }
 
@@ -1058,7 +1072,7 @@ int caamECDSASign(DESCSTRUCT* desc, int sz, unsigned int args[4])
     desc->desc[desc->idx++] = pdECDSEL;
 
     /* private key */
-    if (!isBlackKey) {
+    if (isBlackKey != 1) {
         vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
         desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
@@ -1080,7 +1094,7 @@ int caamECDSASign(DESCSTRUCT* desc, int sz, unsigned int args[4])
     }
     i++;
 
-    for (; i < sz; i++) {
+    for (; i < sz; i = i + 1) {
         vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
     #if 0
         {
@@ -1185,7 +1199,7 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
     i++;
 
     /* private key */
-    if (!isBlackKey) {
+    if (isBlackKey != 1) {
         vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz, 1);
         desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
                 desc->buf[i].dataSz);
@@ -1218,7 +1232,7 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
 
     /* add operation command               OPTYPE        PROTOID */
     desc->desc[desc->idx] = CAAM_OP | CAAM_PROT_UNIDI | desc->type;
-    if (isBlackKey) {
+    if (isBlackKey == 1) {
         desc->desc[desc->idx] |= CAAM_PKHA_ENC_PRI_AESCCM;
     }
 
@@ -1236,13 +1250,13 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
         vidx++; i++;
     }
 
-    if (!peerBlackKey) {
+    if (peerBlackKey != 1) {
         CAAM_ADR_UNMAP(vaddr[vidx], desc->buf[i].data, desc->buf[i].dataSz, 0);
         vidx++;
     }
     i++;
 
-    if (!isBlackKey) {
+    if (isBlackKey != 1) {
         CAAM_ADR_UNMAP(vaddr[vidx], desc->buf[i].data, desc->buf[i].dataSz, 0);
         vidx++;
     }
@@ -1319,9 +1333,13 @@ int caamKeyCover(DESCSTRUCT* desc, int sz, unsigned int args[4])
     Error err;
     unsigned int vidx = 0;
     int i = 0;
-    void* vaddr[sz];
+    void* vaddr[2];
 
     (void)args;
+
+    if (sz > 2) {
+        return -1;
+    }
 
     /* add input key */
     desc->desc[desc->idx++] = (CAAM_KEY | CAAM_CLASS1) +
@@ -1388,7 +1406,7 @@ void caamDescInit(DESCSTRUCT* desc, int type, unsigned int args[4],
     desc->startIdx = 0;
     desc->desc[desc->idx++] = CAAM_HEAD; /* later will put size to header*/
 
-    for (i = 0; i < sz; i++) {
+    for (i = 0; i < sz; i = i + 1) {
         desc->buf[i].data   = buf[i].TheAddress;
         desc->buf[i].dataSz = buf[i].Length;
     }
@@ -1420,7 +1438,8 @@ int InitCAAM(void)
     #endif
 
     ret = Failure;
-    for (caam.ring.page = 1; caam.ring.page < 7; caam.ring.page++) {
+    for (caam.ring.page = 1; caam.ring.page < 7;
+            caam.ring.page = caam.ring.page + 1) {
         ret = caamCreatePartition(caam.ring.page, caam.ring.page,
                 CAAM_SM_CSP | CAAM_SM_ALL_RW);
         if (ret == Success)
@@ -1430,7 +1449,7 @@ int InitCAAM(void)
         return -1;
     }
 
-    caam.ring.JobIn  =  CAAM_PAGE + (caam.ring.page << 12);
+    caam.ring.JobIn  =  CAAM_PAGE + (caam.ring.page << 12U);
     caam.ring.JobOut = caam.ring.JobIn  + (CAAM_JOBRING_SIZE *
             sizeof(unsigned int));
     caam.ring.Desc   = caam.ring.JobOut + (2 * CAAM_JOBRING_SIZE *
