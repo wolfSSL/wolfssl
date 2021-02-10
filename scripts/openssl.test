@@ -2,7 +2,8 @@
 
 #openssl.test
 
-CERT_DIR="$(realpath $(dirname $0)/../certs)"
+CERT_DIR="$PWD/$(dirname "$0")/../certs"
+
 if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
     echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
     exit 0
