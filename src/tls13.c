@@ -1372,7 +1372,7 @@ end:
     {
         struct timeval now;
         if (FCL_GETTIMEOFDAY(&now, 0) < 0)
-            return WOLFSSL_FAILURE; /* return 0 for failure */
+            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
@@ -1390,7 +1390,7 @@ end:
         struct timeval now;
 
         if (gettimeofday(&now, 0) < 0)
-            return WOLFSSL_FAILURE; /* return 0 for failure */
+            return (word32)GETTIME_ERROR; /* TODO: return 0 for failure */
 
         /* Convert to milliseconds number. */
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
