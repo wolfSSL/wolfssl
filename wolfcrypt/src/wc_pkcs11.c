@@ -2068,6 +2068,10 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
         ret = wc_ecc_import_point_der(point + i, pointSz - i, curveIdx,
                                                                   &key->pubkey);
     }
+    /* make sure the ecc_key type has been set */
+    if (ret == 0 && key->type == 0) {
+        key->type = ECC_PUBLICKEY;
+    }
 
     if (point != NULL)
         XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
