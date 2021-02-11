@@ -24759,7 +24759,7 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
     && !defined(NO_AES) && defined(HAVE_LIBZ)
     PKCS7* pkcs7;
     void*  heap = NULL;
-    byte   out[3072];
+    byte   out[4096];
     byte   *decompressed;
     int    outSz, decompressedSz;
 
