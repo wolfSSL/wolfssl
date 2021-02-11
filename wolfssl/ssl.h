@@ -1104,7 +1104,7 @@ WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
 
 #endif
 
-WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
+WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
                                       VerifyCallback verify_callback);
 
 #ifdef OPENSSL_ALL
