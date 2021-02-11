@@ -6374,6 +6374,9 @@ int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len, byte* mac,
     if (mac != NULL)
         XMEMCPY(&cookie->data + len, mac, macSz);
 
+    if (extension->data != NULL)
+        XFREE(extension->data, ssl->heap, DYNAMIC_TYPE_TLSX);
+
     extension->data = (void*)cookie;
     extension->resp = (byte)resp;
 
