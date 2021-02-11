@@ -114,6 +114,15 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
+#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+        !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
+        !defined(WOLFSSL_TICKET_ENC_AES256_GCM)
+        #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+    #else
+        #include <wolfssl/wolfcrypt/aes.h>
+    #endif
+#endif
 
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -1585,6 +1594,26 @@ enum Misc {
     #define SESSION_TICKET_HINT_DEFAULT 300
 #endif
 
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(WOLFSSL_NO_SERVER)
+    /* Check chosen encryption is available. */
+    #if !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) && \
+        defined(WOLFSSL_TICKET_ENC_CHACHA20_POLY1305)
+        #error "ChaCha20-Poly1305 not availble for default ticket encryption"
+    #endif
+    #if !defined(HAVE_AESGCM) && (defined(WOLFSSL_TICKET_ENC_AES128_GCM) || \
+        defined(WOLFSSL_TICKET_ENC_AES256_GCM))
+        #error "AES-GCM not availble for default ticket encryption"
+    #endif
+
+    #ifndef WOLFSSL_TICKET_KEY_LIFETIME
+        /* Default lifetime is 1 hour from issue of first ticket with key. */
+        #define WOLFSSL_TICKET_KEY_LIFETIME       (60 * 60)
+    #endif
+    #if WOLFSSL_TICKET_KEY_LIFETIME <= SESSION_TICKET_HINT_DEFAULT
+        #error "Ticket Key lifetime must be longer than ticket life hint."
+    #endif
+#endif
+
 
 /* don't use extra 3/4k stack space unless need to */
 #ifdef HAVE_NTRU
@@ -2473,6 +2502,28 @@ typedef struct SessionTicket {
     word16 size;
 } SessionTicket;
 
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(WOLFSSL_NO_SERVER)
+
+/* Data passed to default SessionTicket enc/dec callback. */
+typedef struct TicketEncCbCtx {
+    /* Name for this context. */
+    byte name[WOLFSSL_TICKET_NAME_SZ];
+    /* Current keys - current and next. */
+    byte key[2][WOLFSSL_TICKET_KEY_SZ];
+    /* Expirary date of keys. */
+    word32 expirary[2];
+    /* Random number generator to use for generating name, keys and IV. */
+    WC_RNG rng;
+#ifndef SINGLE_THREADED
+    /* Mutex for access to changing keys. */
+    wolfSSL_Mutex mutex;
+#endif
+    /* Pointer back to SSL_CTX. */
+    WOLFSSL_CTX* ctx;
+} TicketEncCbCtx;
+
+#endif /* !WOLFSSL_NO_DEF_TICKET_ENC_CB && !WOLFSSL_NO_SERVER */
+
 WOLFSSL_LOCAL int  TLSX_UseSessionTicket(TLSX** extensions,
                                              SessionTicket* ticket, void* heap);
 WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
@@ -2868,6 +2919,9 @@ struct WOLFSSL_CTX {
         SessionTicketEncCb ticketEncCb;   /* enc/dec session ticket Cb */
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
+        #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+            TicketEncCbCtx ticketKeyCtx;
+        #endif
     #endif
     #ifdef HAVE_SUPPORTED_CURVES
         byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */

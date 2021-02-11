@@ -3193,6 +3193,22 @@ WOLFSSL_API long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl);
 /* Session Ticket */
 #ifdef HAVE_SESSION_TICKET
 
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(WOLFSSL_NO_SERVER)
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+        !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
+        !defined(WOLFSSL_TICKET_ENC_AES256_GCM)
+        #define WOLFSSL_TICKET_KEY_SZ       CHACHA20_POLY1305_AEAD_KEYSIZE
+    #elif defined(WOLFSSL_TICKET_ENC_AES256_GCM)
+        #define WOLFSSL_TICKET_KEY_SZ       AES_256_KEY_SIZE
+    #else
+        #define WOLFSSL_TICKET_KEY_SZ       AES_128_KEY_SIZE
+    #endif
+
+    #define WOLFSSL_TICKET_KEYS_SZ     (WOLFSSL_TICKET_NAME_SZ +    \
+                                        2 * WOLFSSL_TICKET_KEY_SZ + \
+                                        sizeof(word32) * 2)
+#endif
+
 #ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_API int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
@@ -3986,6 +4002,14 @@ WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
 
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
     OPENSSL_EXTRA || HAVE_LIGHTY */
+
+#if defined(HAVE_SESSION_TICKET) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+    !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_API long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+     unsigned char *keys, int keylen);
+WOLFSSL_API long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
+     unsigned char *keys, int keylen);
+#endif
 
 WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
         const unsigned char **data, unsigned int *len);

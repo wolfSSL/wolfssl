@@ -3926,7 +3926,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
 
 
 
-#if defined(HAVE_SESSION_TICKET) && \
+#if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || \
       defined(HAVE_AESGCM))
 
