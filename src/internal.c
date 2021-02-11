@@ -10876,7 +10876,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             while (listSz) {
                 word32 certSz;
 
-            #if !defined(OPENSSL_EXTRA) && !defined(OPENSS_EXTRA_X509_SMALL)
+
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                if (args->totalCerts > ssl->verifyDepth) {
+                    ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+                    ret = MAX_CHAIN_ERROR;
+                    break; /* break out to do certificate verify callback */
+                }
+            #else
                 if (args->totalCerts >= ssl->verifyDepth ||
                         args->totalCerts >= MAX_CHAIN_DEPTH) {
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
