@@ -24818,16 +24818,33 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
 {
     /* control commands:
-     * X509_L_FILE_LOAD, X509_L_ADD_DIR, X509_L_ADD_STORE, X509_L_LOAD_STORE
+     * X509_L_FILE_LOAD, X509_L_ADD_DIR
+     * X509_L_ADD_STORE, X509_L_LOAD_STORE
      */
+    int lret = WOLFSSL_FAILURE;
 
-    /* returns -1 if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
-
-
+    /* returns FAILURE 
+     *if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
 
     if (ctx != NULL) {
         switch (cmd) {
         case WOLFSSL_X509_L_FILE_LOAD:
+            if (argl == WOLFSSL_FILETYPE_PEM) {
+#ifdef HAVE_CRL
+                lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, 
+                                                    X509_FILETYPE_PEM);
+#else
+                lret = 0;
+#endif
+            } else {
+                lret = wolfSSL_X509_LOOKUP_load_file(ctx, argc, (int)argl);
+            }
+            /* expects to return a number of processed cert or crl file */
+            if (lret != 0)
+                lret = WOLFSSL_SUCCESS;
+            else
+                lret = WOLFSSL_FAILURE;
+            break;
         case WOLFSSL_X509_L_ADD_DIR:
         case WOLFSSL_X509_L_ADD_STORE:
         case WOLFSSL_X509_L_LOAD_STORE:
@@ -24841,7 +24858,7 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
 
     (void)argc; (void)argl; (void)ret;
 
-    return WOLFSSL_FAILURE;
+    return lret;
 }
 
 
@@ -26253,6 +26270,67 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     WOLFSSL_LEAVE("wolfSSL_X509_load_crl_file", ret);
     return ret;
 }
+
+WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
+    const char *file, int type)
+{
+    STACK_OF(WOLFSSL_X509_INFO) *info;
+    WOLFSSL_X509_INFO *info_tmp;
+    WOLFSSL_BIO *bio;
+
+    int i;
+    int cnt = 0;
+    int num = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_load_ceretificate_crl_file");
+
+    if (type != WOLFSSL_FILETYPE_PEM) {
+        cnt = wolfSSL_X509_LOOKUP_load_file(ctx, file, type);
+    } else {
+#ifdef OPENSSL_ALL
+        bio = wolfSSL_BIO_new_file(file, "rb");
+        if(!bio) {
+            WOLFSSL_MSG("wolfSSL_BIO_new error");
+            return cnt;
+        }
+        
+        info = wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL);
+
+        wolfSSL_BIO_free(bio);
+
+        if (!info) {
+            WOLFSSL_MSG("wolfSSL_PEM_X509_INFO_read_bio error");
+            return cnt;
+        }
+        
+        for (i=0; i < num; i++) {
+            info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
+
+            if (info_tmp->x509) {
+                wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509);
+                cnt ++;
+            }
+
+            if (info_tmp->crl) {
+                 wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509);
+                cnt ++;
+            }
+        }
+        wolfSSL_sk_X509_INFO_pop_free(info, X509_INFO_free);
+#else
+    (void)i;
+    (void)cnt;
+    (void)num;
+    (void)info_tmp;
+    (void)info;
+    (void)bio;
+#endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", count);
+    return cnt;
+}
+
 #endif /* !NO_FILESYSTEM */
 
 
