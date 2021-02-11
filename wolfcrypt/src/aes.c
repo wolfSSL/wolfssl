@@ -4405,24 +4405,24 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
                      const unsigned char* addt, const unsigned char* ivec,
-                     unsigned char *tag, unsigned int nbytes,
-                     unsigned int abytes, unsigned int ibytes,
-                     unsigned int tbytes, const unsigned char* key, int nr)
+                     unsigned char *tag, word32 nbytes,
+                     word32 abytes, word32 ibytes,
+                     word32 tbytes, const unsigned char* key, int nr)
                      XASM_LINK("AES_GCM_encrypt");
 #ifdef HAVE_INTEL_AVX1
 void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
-                          unsigned char *tag, unsigned int nbytes,
-                          unsigned int abytes, unsigned int ibytes,
-                          unsigned int tbytes, const unsigned char* key,
+                          unsigned char *tag, word32 nbytes,
+                          word32 abytes, word32 ibytes,
+                          word32 tbytes, const unsigned char* key,
                           int nr)
                           XASM_LINK("AES_GCM_encrypt_avx1");
 #ifdef HAVE_INTEL_AVX2
 void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
-                          unsigned char *tag, unsigned int nbytes,
-                          unsigned int abytes, unsigned int ibytes,
-                          unsigned int tbytes, const unsigned char* key,
+                          unsigned char *tag, word32 nbytes,
+                          word32 abytes, word32 ibytes,
+                          word32 tbytes, const unsigned char* key,
                           int nr)
                           XASM_LINK("AES_GCM_encrypt_avx2");
 #endif /* HAVE_INTEL_AVX2 */
@@ -4431,23 +4431,23 @@ void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
 #ifdef HAVE_AES_DECRYPT
 void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
                      const unsigned char* addt, const unsigned char* ivec,
-                     const unsigned char *tag, int nbytes, int abytes,
-                     int ibytes, int tbytes, const unsigned char* key, int nr,
-                     int* res)
+                     const unsigned char *tag, word32 nbytes, word32 abytes,
+                     word32 ibytes, word32 tbytes, const unsigned char* key,
+                     int nr, int* res)
                      XASM_LINK("AES_GCM_decrypt");
 #ifdef HAVE_INTEL_AVX1
 void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
-                          const unsigned char *tag, int nbytes, int abytes,
-                          int ibytes, int tbytes, const unsigned char* key,
-                          int nr, int* res)
+                          const unsigned char *tag, word32 nbytes,
+                          word32 abytes, word32 ibytes, word32 tbytes,
+                          const unsigned char* key, int nr, int* res)
                           XASM_LINK("AES_GCM_decrypt_avx1");
 #ifdef HAVE_INTEL_AVX2
 void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
                           const unsigned char* addt, const unsigned char* ivec,
-                          const unsigned char *tag, int nbytes, int abytes,
-                          int ibytes, int tbytes, const unsigned char* key,
-                          int nr, int* res)
+                          const unsigned char *tag, word32 nbytes,
+                          word32 abytes, word32 ibytes, word32 tbytes,
+                          const unsigned char* key, int nr, int* res)
                           XASM_LINK("AES_GCM_decrypt_avx2");
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* HAVE_INTEL_AVX1 */
@@ -4794,14 +4794,11 @@ static __m128i gfmul8(__m128i a1, __m128i a2, __m128i a3, __m128i a4,
 #endif
 
 
-static void AES_GCM_encrypt(const unsigned char *in,
-                              unsigned char *out,
-                              const unsigned char* addt,
-                              const unsigned char* ivec,
-                              unsigned char *tag, unsigned int nbytes,
-                              unsigned int abytes, unsigned int ibytes,
-                              unsigned int tbytes,
-                              const unsigned char* key, int nr)
+static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
+                            const unsigned char* addt,
+                            const unsigned char* ivec, unsigned char *tag,
+                            word32 nbytes, word32 abytes, word32 ibytes,
+                            wrd32 tbytes, const unsigned char* key, int nr)
 {
     int i, j ,k;
     __m128i ctr1;
@@ -5222,8 +5219,8 @@ static void AES_GCM_encrypt(const unsigned char *in,
         X =_mm_xor_si128(X, tmp1);
         X = gfmul_shifted(X, H);
     }
-    tmp1 = _mm_insert_epi64(tmp1, nbytes*8, 0);
-    tmp1 = _mm_insert_epi64(tmp1, abytes*8, 1);
+    tmp1 = _mm_insert_epi64(tmp1, ((word64)nbytes)*8, 0);
+    tmp1 = _mm_insert_epi64(tmp1, ((word64)abytes)*8, 1);
     X = _mm_xor_si128(X, tmp1);
     X = gfmul_shifted(X, H);
     X = _mm_shuffle_epi8(X, BSWAP_MASK);
@@ -5235,13 +5232,12 @@ static void AES_GCM_encrypt(const unsigned char *in,
 
 #ifdef HAVE_AES_DECRYPT
 
-static void AES_GCM_decrypt(const unsigned char *in,
-                           unsigned char *out,
-                           const unsigned char* addt,
-                           const unsigned char* ivec,
-                           const unsigned char *tag, int nbytes, int abytes,
-                           int ibytes, word32 tbytes, const unsigned char* key,
-                           int nr, int* res)
+static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
+                            const unsigned char* addt,
+                            const unsigned char* ivec, const unsigned char *tag,
+                            word32 nbytes, word32 abytes, word32 ibytes,
+                            word32 tbytes, const unsigned char* key, int nr,
+                            int* res)
 {
     int i, j ,k;
     __m128i H, Y, T;
@@ -5547,8 +5543,8 @@ static void AES_GCM_decrypt(const unsigned char *in,
         X = gfmul_shifted(XV, H);
     }
 
-    tmp1 = _mm_insert_epi64(tmp1, nbytes*8, 0);
-    tmp1 = _mm_insert_epi64(tmp1, abytes*8, 1);
+    tmp1 = _mm_insert_epi64(tmp1, ((word64)nbytes)*8, 0);
+    tmp1 = _mm_insert_epi64(tmp1, ((word64)abytes)*8, 1);
     /* 128 x 128 Carryless Multiply */
     X = _mm_xor_si128(X, tmp1);
     X = gfmul_shifted(X, H);
