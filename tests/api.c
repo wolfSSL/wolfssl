@@ -29957,22 +29957,22 @@ static void test_wolfSSL_RAND_bytes(void)
     const int size3 = RNG_MAX_BLOCK_LEN * 2;    /* in bytes */
     const int size4 = RNG_MAX_BLOCK_LEN * 4;    /* in bytes */
     int  max_bufsize;
-    byte *buffer;
+    byte *my_buf;
      
     printf(testingFmt, "test_wolfSSL_RAND_bytes()");
 
     max_bufsize = size4;
     
-    buffer = (byte*)XMALLOC(max_bufsize * sizeof(byte), NULL, 
+    my_buf = (byte*)XMALLOC(max_bufsize * sizeof(byte), NULL,
                                                      DYNAMIC_TYPE_TMP_BUFFER);
-    AssertNotNull(buffer);
-    XMEMSET(buffer, 0, max_bufsize);
-    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size1), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size2), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size3), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(buffer, size4), 1);
+    AssertNotNull(my_buf);
+    XMEMSET(my_buf, 0, max_bufsize);
+    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size1), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size2), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size3), 1);
+    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size4), 1);
     
-    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(my_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     printf(resultFmt, passed);
 
