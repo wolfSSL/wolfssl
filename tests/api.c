@@ -5030,6 +5030,7 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(tmp_ca);
     AssertIntEQ(sk_X509_num(tmp_ca), sk_X509_num(ca));
     /* Check that the main cert is also set */
+    AssertNotNull(SSL_CTX_get0_certificate(ctx));
     AssertNotNull(ssl = SSL_new(ctx));
     AssertNotNull(SSL_get_certificate(ssl));
     SSL_free(ssl);
@@ -27071,6 +27072,12 @@ static void test_wolfSSL_EVP_MD_size(void)
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA1"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 #endif
     /* error case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
@@ -37414,12 +37421,24 @@ static int test_tls13_apis(void)
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
 #endif
-#ifdef HAVE_SUPPORTED_CURVES
+#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_X25519, WOLFSSL_ECC_X448 };
     int          numGroups = 2;
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
-    char         groupList[] = "P-521:P-384:P-256";
+    char         groupList[] =
+#ifndef NO_ECC_SECP
+#if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
+            "P-521:"
+#endif
+#if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
+            "P-384:"
+#endif
+#if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+            "P-256"
+#endif
+            "";
+#endif /* !defined(NO_ECC_SECP) */
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
 
 #ifndef WOLFSSL_NO_TLS12
@@ -37626,6 +37645,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
+#ifdef HAVE_ECC
 #ifndef WOLFSSL_NO_SERVER_GROUPS_EXT
     AssertIntEQ(wolfSSL_preferred_group(NULL), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
@@ -37681,7 +37701,7 @@ static int test_tls13_apis(void)
                 WOLFSSL_SUCCESS);
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#ifdef OPENSSL_EXTRA
     AssertIntEQ(wolfSSL_CTX_set1_groups_list(NULL, NULL), WOLFSSL_FAILURE);
 #ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_CTX_set1_groups_list(clientCtx, NULL), WOLFSSL_FAILURE);
@@ -37717,8 +37737,9 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_set1_groups_list(serverSsl, groupList),
                 WOLFSSL_SUCCESS);
 #endif
-#endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SUPPORTED_CURVES */
+#endif /* HAVE_ECC */
 
 #ifdef WOLFSSL_EARLY_DATA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
@@ -40147,6 +40168,86 @@ static int test_various_pathlen_chains(void)
 }
 #endif /* !NO_RSA && !NO_SHA && !NO_FILESYSTEM && !NO_CERTS */
 
+#ifdef HAVE_KEYING_MATERIAL
+static int test_export_keying_material_cb(WOLFSSL_CTX *ctx, WOLFSSL *ssl)
+{
+    byte ekm[100] = {0};
+
+    (void)ctx;
+
+    /* Succes Cases */
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 0), 1);
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), NULL, 0, 1), 1);
+    /* Use some random context */
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "Test label", XSTR_SIZEOF("Test label"), ekm, 10, 1), 1);
+    /* Failure cases */
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "client finished", XSTR_SIZEOF("client finished"), NULL, 0, 0), 0);
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "server finished", XSTR_SIZEOF("server finished"), NULL, 0, 0), 0);
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "master secret", XSTR_SIZEOF("master secret"), NULL, 0, 0), 0);
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "extended master secret", XSTR_SIZEOF("extended master secret"), NULL, 0, 0), 0);
+    AssertIntEQ(wolfSSL_export_keying_material(ssl, ekm, sizeof(ekm),
+            "key expansion", XSTR_SIZEOF("key expansion"), NULL, 0, 0), 0);
+    return 0;
+}
+
+static void test_export_keying_material_ssl_cb(WOLFSSL* ssl)
+{
+    wolfSSL_KeepArrays(ssl);
+}
+
+static void test_export_keying_material(void)
+{
+#ifndef SINGLE_THREADED
+    tcp_ready ready;
+    callback_functions clientCb;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&clientCb, 0, sizeof(callback_functions));
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    clientCb.ssl_ready = test_export_keying_material_ssl_cb;
+    client_args.callbacks = &clientCb;
+
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, test_export_keying_material_cb);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+#endif /* !SINGLE_THREADED */
+}
+#endif /* HAVE_KEYING_MATERIAL */
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -40556,6 +40657,11 @@ void ApiTest(void)
     test_DhCallbacks();
 #endif
 
+
+#ifdef HAVE_KEYING_MATERIAL
+    test_export_keying_material();
+#endif /* HAVE_KEYING_MATERIAL */
+
     /*wolfcrypt */
     printf("\n-----------------wolfcrypt unit tests------------------\n");
     AssertFalse(test_wolfCrypt_Init());
@@ -40857,7 +40963,6 @@ void ApiTest(void)
     test_wc_PKCS7_SetOriEncryptCtx();
     test_wc_PKCS7_SetOriDecryptCtx();
     test_wc_PKCS7_DecodeCompressedData();
-
 
     test_wc_i2d_PKCS12();
 

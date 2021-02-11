@@ -926,6 +926,12 @@ WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count);
 WOLFSSL_API int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
+                                        int count);
+WOLFSSL_API int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count);
+#endif
+
 WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL*);
 
@@ -1061,6 +1067,15 @@ WOLFSSL_API int  wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX*);
 /* only supports full name from cipher_name[] delimited by : */
 WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
+
+#ifdef HAVE_KEYING_MATERIAL
+/* Keying Material Exporter for TLS */
+WOLFSSL_API int wolfSSL_export_keying_material(WOLFSSL *ssl,
+        unsigned char *out, size_t outLen,
+        const char *label, size_t labelLen,
+        const unsigned char *context, size_t contextLen,
+        int use_context);
+#endif /* HAVE_KEYING_MATERIAL */
 
 /* Nonblocking DTLS helper functions */
 WOLFSSL_API void wolfSSL_dtls_set_using_nonblock(WOLFSSL*, int);
@@ -2416,6 +2431,7 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         defined(KEEP_OUR_CERT)
         WOLFSSL_API WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl);
+        WOLFSSL_API WOLFSSL_X509* wolfSSL_CTX_get0_certificate(WOLFSSL_CTX* ctx);
     #endif
 #endif
 
@@ -3163,13 +3179,9 @@ enum {
 };
 
 #ifdef HAVE_SUPPORTED_CURVES
-#ifndef NO_WOLFSSL_CLIENT
-
 WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name);
 WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
                                                            word16 name);
-
-#endif
 #endif
 
 #ifdef WOLFSSL_TLS13
@@ -4086,7 +4098,7 @@ WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_find(
 WOLFSSL_API void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st);
 WOLFSSL_API int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk);
-WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx);
+WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(WOLFSSL_STACK* sk, int i);
 WOLFSSL_API void ERR_load_SSL_strings(void);
 WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p);
 

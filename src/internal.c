@@ -5381,6 +5381,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
+
 #ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
 #endif
@@ -5505,6 +5506,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             ret = InitSSL_Suites(ssl);
         }
     }  /* writeDup check */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+    if (ctx->mask != 0 && wolfSSL_set_options(ssl, ctx->mask) == 0) {
+        WOLFSSL_MSG("wolfSSL_set_options error");
+        return BAD_FUNC_ARG;
+    }
+#endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
     #ifdef WOLFSSL_DTLS
@@ -5801,6 +5809,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
 #endif
 
+#if defined(WOLFSSL_OPENVPN) && defined(HAVE_KEYING_MATERIAL)
+    /* Save arrays by default for OpenVPN */
+    ssl->options.saveArrays = 1;
+#endif
 
     ssl->cipher.ssl = ssl;
 

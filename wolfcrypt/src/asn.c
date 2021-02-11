@@ -5603,9 +5603,10 @@ int wc_OBJ_sn2nid(const char *sn)
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
         {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
         {NULL, -1}};
-
     int i;
     #ifdef HAVE_ECC
+    char curveName[16]; /* Same as MAX_CURVE_NAME_SZ but can't include that
+                         * symbol in this file */
     int eccEnum;
     #endif
     WOLFSSL_ENTER("OBJ_sn2nid");
@@ -5618,8 +5619,11 @@ int wc_OBJ_sn2nid(const char *sn)
     /* Nginx uses this OpenSSL string. */
     if (XSTRNCMP(sn, "prime256v1", 10) == 0)
         sn = "SECP256R1";
-    if (XSTRNCMP(sn, "secp384r1", 10) == 0)
-        sn = "SECP384R1";
+    /* OpenSSL allows lowercase curve names */
+    for (i = 0; i < (int)(sizeof(curveName) - 1) && *sn; i++) {
+        curveName[i] = (char)XTOUPPER(*sn++);
+    }
+    curveName[i] = '\0';
     /* find based on name and return NID */
     for (i = 0;
 #ifndef WOLFSSL_ECC_CURVE_STATIC
@@ -5628,7 +5632,7 @@ int wc_OBJ_sn2nid(const char *sn)
          ecc_sets[i].size != 0;
 #endif
          i++) {
-        if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+        if (XSTRNCMP(curveName, ecc_sets[i].name, ECC_MAXNAME) == 0) {
             eccEnum = ecc_sets[i].id;
             /* Convert enum value in ecc_curve_id to OpenSSL NID */
             return EccEnumToNID(eccEnum);

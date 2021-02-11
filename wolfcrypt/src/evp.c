@@ -772,39 +772,16 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_256_GCM_TYPE:
             if ((ctx->gcmBuffer && ctx->gcmBufferLen > 0)
              || (ctx->gcmBufferLen == 0)) {
-                ret = 0;
-                if (ctx->gcmAuthIn) {
-                    /* authenticated, non-confidential data*/
-                    if (ctx->enc) {
-                        XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                                  ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                                  ctx->gcmAuthIn, ctx->gcmAuthInSz);
-                    }
-                    else {
-                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                                  ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                                  ctx->gcmAuthIn, ctx->gcmAuthInSz);
-                        /* Reset partial authTag error for AAD*/
-                        if (ret == AES_GCM_AUTH_E)
-                            ret = 0;
-                    }
-                }
-
-                if (ret == 0) {
-                    if (ctx->enc)
-                        /* encrypt confidential data*/
-                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out,
-                                ctx->gcmBuffer, ctx->gcmBufferLen,
-                                ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                                NULL, 0);
-                    else
-                        /* decrypt confidential data*/
-                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
-                                ctx->gcmBuffer, ctx->gcmBufferLen,
-                                ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                                NULL, 0);
-                }
+                if (ctx->enc)
+                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out,
+                            ctx->gcmBuffer, ctx->gcmBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                            ctx->gcmAuthIn, ctx->gcmAuthInSz);
+                else
+                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                            ctx->gcmBuffer, ctx->gcmBufferLen,
+                            ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                            ctx->gcmAuthIn, ctx->gcmAuthInSz);
 
                 if (ret == 0) {
                     ret = WOLFSSL_SUCCESS;
@@ -1229,7 +1206,8 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            return WOLFSSL_EVP_CIPH_GCM_MODE;
+            return WOLFSSL_EVP_CIPH_GCM_MODE &
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
     #endif
     #if defined(WOLFSSL_AES_COUNTER)
         case AES_128_CTR_TYPE:
@@ -2105,7 +2083,8 @@ static const struct s_ent {
 #endif /* NO_MD5 */
 
 #ifndef NO_SHA
-    {WC_HASH_TYPE_SHA, NID_sha1, "SHA"},
+    {WC_HASH_TYPE_SHA, NID_sha1, "SHA1"},
+    {WC_HASH_TYPE_SHA, NID_sha1, "SHA"}, /* Leave for backwards compatibility */
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
@@ -3278,8 +3257,8 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     {
         {"MD4", "ssl3-md4"},
         {"MD5", "ssl3-md5"},
-        {"SHA", "ssl3-sha1"},
-        {"SHA", "SHA1"},
+        {"SHA1", "ssl3-sha1"},
+        {"SHA1", "SHA"},
         { NULL, NULL}
     };
     char nameUpper[15]; /* 15 bytes should be enough for any name */
@@ -3357,7 +3336,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void)
     {
         WOLFSSL_ENTER("EVP_sha1");
-        return EVP_get_digestbyname("SHA");
+        return EVP_get_digestbyname("SHA1");
     }
 #endif /* NO_SHA */
 
@@ -4387,7 +4366,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_128_GCM");
             ctx->cipherType = AES_128_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
@@ -4411,7 +4391,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_192_GCM");
             ctx->cipherType = AES_192_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
@@ -4435,7 +4416,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             WOLFSSL_MSG("EVP_AES_256_GCM");
             ctx->cipherType = AES_256_GCM_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
-            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_GCM_MODE |
+                    WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
@@ -5284,39 +5266,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = wolfSSL_EVP_CipherUpdate_GCM_AAD(ctx, src, len);
                 }
                 else {
-                    ret = 0;
-                    if (ctx->gcmAuthIn) {
-                        /* authenticated, non-confidential data*/
-                        if (ctx->enc) {
-                            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
-                            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL,
-                                    NULL, 0, ctx->iv, ctx->ivSz, ctx->authTag,
-                                    ctx->authTagSz, ctx->gcmAuthIn,
-                                    ctx->gcmAuthInSz);
-                        }
-                        else {
-                            ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL,
-                                    NULL, 0, ctx->iv, ctx->ivSz, ctx->authTag,
-                                    ctx->authTagSz, ctx->gcmAuthIn,
-                                    ctx->gcmAuthInSz);
-                            /* Reset partial authTag error for AAD*/
-                            if (ret == AES_GCM_AUTH_E)
-                                ret = 0;
-                        }
-                    }
-
-                    if (ret == 0) {
-                        if (ctx->enc)
-                            /* encrypt confidential data*/
-                            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, dst, src,
-                                    len, ctx->iv, ctx->ivSz, ctx->authTag,
-                                    ctx->authTagSz, NULL, 0);
-                        else
-                            /* decrypt confidential data*/
-                            ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
-                                    len, ctx->iv, ctx->ivSz, ctx->authTag,
-                                    ctx->authTagSz, NULL, 0);
-                    }
+                    if (ctx->enc)
+                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, dst, src,
+                                len, ctx->iv, ctx->ivSz, ctx->authTag,
+                                ctx->authTagSz, ctx->gcmAuthIn, ctx->gcmAuthInSz);
+                    else
+                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src,
+                                len, ctx->iv, ctx->ivSz, ctx->authTag,
+                                ctx->authTagSz, ctx->gcmAuthIn, ctx->gcmAuthInSz);
                 }
                 if (ret == 0)
                     ret = len;
@@ -6879,7 +6836,10 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
             }
             else
         #endif
-            {
+            if (XSTRNCMP("SHA1", evp, 4) == 0) {
+                hash = WC_HASH_TYPE_SHA;
+            }
+            else {
                 WOLFSSL_MSG("Unknown SHA hash");
             }
         }

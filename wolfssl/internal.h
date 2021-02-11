@@ -2676,6 +2676,10 @@ WOLFSSL_LOCAL int DeriveMasterSecret(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen, byte* secret);
 WOLFSSL_LOCAL int DeriveResumptionSecret(WOLFSSL* ssl, byte* key);
 
+WOLFSSL_LOCAL int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
+        const char *label, size_t labelLen,
+        const unsigned char *context, size_t contextLen);
+
 /* The key update request values for KeyUpdate message. */
 enum KeyUpdateRequest {
     update_not_requested,
@@ -3645,6 +3649,9 @@ typedef struct Arrays {
     byte            sessionIDSz;
 #ifdef WOLFSSL_TLS13
     byte            secret[SECRET_LEN];
+#endif
+#ifdef HAVE_KEYING_MATERIAL
+    byte            exporterSecret[WC_MAX_DIGEST_SIZE];
 #endif
     byte            masterSecret[SECRET_LEN];
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \

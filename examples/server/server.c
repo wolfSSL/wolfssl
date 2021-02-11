@@ -1107,7 +1107,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         WOLFSSL_MEM_STATS mem_stats;
     #endif
 #endif
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13)
     int onlyKeyShare = 0;
 #endif
 #if defined(HAVE_SESSION_TICKET)
