@@ -133,6 +133,10 @@
     #elif defined(HAVE_NETX)
         #include "nx_api.h"
         #include "errno.h"
+    #elif defined(FUSION_RTOS)
+        #include <sys/fcltypes.h>
+        #include <fclerrno.h>
+        #include <fclfcntl.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -259,6 +263,14 @@
     #define SOCKET_EPIPE       NX_NOT_CONNECTED
     #define SOCKET_ECONNREFUSED NX_NOT_CONNECTED
     #define SOCKET_ECONNABORTED NX_NOT_CONNECTED
+#elif defined(FUSION_RTOS)
+    #define SOCKET_EWOULDBLOCK FCL_EWOULDBLOCK
+    #define SOCKET_EAGAIN      FCL_EAGAIN
+    #define SOCKET_ECONNRESET  FNS_ECONNRESET
+    #define SOCKET_EINTR       FCL_EINTR
+    #define SOCKET_EPIPE       FCL_EPIPE
+    #define SOCKET_ECONNREFUSED FCL_ECONNREFUSED
+    #define SOCKET_ECONNABORTED FNS_ECONNABORTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -290,6 +302,9 @@
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
+#elif defined(FUSION_RTOS)
+    #define SEND_FUNCTION FNS_SEND
+    #define RECV_FUNCTION FNS_RECV
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef WOLFSSL_MAX_SEND_SZ
         #define WOLFSSL_MAX_SEND_SZ       256
@@ -372,6 +387,13 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
         #define CloseSocket(s) closesocket(s)
     #endif
     #define StartTCP()
+#elif defined(FUSION_RTOS)
+    #ifndef CloseSocket
+        #define CloseSocket(s) do {                     \
+                                    int err;            \
+                                    FNS_CLOSE(s, &err); \
+                                } while(0)
+    #endif
 #else
     #ifndef CloseSocket
         #define CloseSocket(s) close(s)

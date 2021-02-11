@@ -1883,7 +1883,11 @@ enum {
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* wolfSSL extension, provide last error from SSL_get_error
    since not using thread storage error queue */
-#include <stdio.h>
+#ifdef FUSION_RTOS
+    #include <fclstdio.h>
+#else
+    #include <stdio.h>
+#endif
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(XFILE, int err);
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);

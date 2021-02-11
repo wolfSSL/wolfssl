@@ -266,8 +266,12 @@ void WOLFSSL_TIME(int count)
     #include "xil_printf.h"
 #elif defined(WOLFSSL_LINUXKM)
     /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
+#elif defined(FUSION_RTOS)
+    #include <fclstdio.h>
+    #include <wolfssl/wolfcrypt/wc_port.h>
+    #define fprintf FCL_FPRINTF
 #else
-    #include <stdio.h>   /* for default printf stuff */
+    #include <stdio.h>  /* for default printf stuff */
 #endif
 
 #if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
@@ -856,7 +860,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         while (current != NULL)
         {
             next = current->next;
-            cb(current->error, strlen(current->error), u);
+            cb(current->error, XSTRLEN(current->error), u);
             XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
             current = next;
         }

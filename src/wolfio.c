@@ -98,6 +98,9 @@ static WC_INLINE int wolfSSL_LastError(int err)
     return xn_getlasterror();
 #elif defined(WOLFSSL_LINUXKM)
     return err; /* Return provided error value */
+#elif defined(FUSION_RTOS)
+    #include <fclerrno.h>
+    return FCL_GET_ERRNO;
 #else
     return errno;
 #endif
@@ -785,6 +788,8 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
                 }
             }
         }
+
+        WOLFSSL_MSG("Select error");
         return SOCKET_ERROR_E;
     }
 #endif /* HAVE_IO_TIMEOUT */

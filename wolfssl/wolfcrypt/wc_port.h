@@ -323,7 +323,11 @@
     #endif
     #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
         !defined(NO_FILESYSTEM)
-        #include <unistd.h>      /* for close of BIO */
+        #ifdef FUSION_RTOS
+            #include <fclunistd.h>
+        #else
+            #include <unistd.h>      /* for close of BIO */
+        #endif
     #endif
 #endif
 
@@ -487,6 +491,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END                VSEEK_END
     #define XBADFILE                 -1
     #define XFGETS(b,s,f)            -2 /* Not ported yet */
+
 #elif defined(LSR_FS)
     #include <fs.h>
     #define XFILE                   struct fs_file*
@@ -499,7 +504,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE                 fs_close
     #define XSEEK_END               0
     #define XBADFILE                NULL
-    #define XFGETS(b,s,f)            -2 /* Not ported yet */
+    #define XFGETS(b,s,f)           -2 /* Not ported yet */
+
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #define XFILE                   MQX_FILE_PTR
     #define XFOPEN                  fopen
@@ -512,10 +518,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
     #define XFGETS                  fgets
+
 #elif defined(WOLFSSL_DEOS)
     #define NO_FILESYSTEM
     #warning "TODO - DDC-I Certifiable Fast File System for Deos is not integrated"
-    //#define XFILE      bfd *
+    /* #define XFILE      bfd * */
 
 #elif defined(MICRIUM)
     #include <fs_api.h>
@@ -530,6 +537,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  FS_SEEK_END
     #define XBADFILE   NULL
     #define XFGETS(b,s,f) -2 /* Not ported yet */
+
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #include "fal/inc/fal.h"
     #define XFILE      FILE*
@@ -542,6 +550,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE    fclose
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
+
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     #include <fs/fs.h>
     #define XFILE  struct fs_file*
@@ -556,6 +565,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  2
     #define XBADFILE   NULL
     #define XFGETS(b,s,f) -2 /* Not ported yet */
+
 #elif defined(WOLFSSL_ZEPHYR)
     #include <fs.h>
 
@@ -607,6 +617,41 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE                 NULL
     #define XFGETS(b,s,f)            f_gets((b), (s), (f))
 
+#elif defined(FUSION_RTOS)
+    #include <fclstdio.h>
+    #include <fclunistd.h>
+    #include <fcldirent.h>
+    #include <sys/fclstat.h>
+    #include <fclstring.h>
+    #include <fcl_os.h>
+    #define XFILE     FCL_FILE*
+    #define XFOPEN    FCL_FOPEN
+    #define XFSEEK    FCL_FSEEK
+    #define XFTELL    FCL_FTELL
+    #define XREWIND   FCL_REWIND
+    #define XFREAD    FCL_FREAD
+    #define XFWRITE   FCL_FWRITE
+    #define XFCLOSE   FCL_FCLOSE
+    #define XSEEK_END SEEK_END
+    #define XBADFILE  NULL
+    #define XFGETS    FCL_FGETS
+    #define XFPUTS    FCL_FPUTS
+    #define XFPRINTF  FCL_FPRINTF
+    #define XVFPRINTF FCL_VFPRINTF
+    #define XVSNPRINTF  FCL_VSNPRINTF
+    #define XSNPRINTF  FCL_SNPRINTF
+    #define XSPRINTF  FCL_SPRINTF
+    #define DIR       FCL_DIR
+    #define stat      FCL_STAT
+    #define opendir   FCL_OPENDIR
+    #define closedir  FCL_CLOSEDIR
+    #define readdir   FCL_READDIR
+    #define dirent    fclDirent 
+    #define strncasecmp FCL_STRNCASECMP
+
+    /* FUSION SPECIFIC ERROR CODE */
+    #define FUSION_IO_SEND_E 63
+
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
 #else
@@ -629,6 +674,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
     #define XFGETS     fgets
+    #define XFPRINTF   fprintf
 
     #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
@@ -639,6 +685,22 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XREAD       read
         #define XCLOSE      close
     #endif
+#endif
+
+/* Defaults, user may over-ride with user_settings.h or in a porting section
+ * above
+ */
+#ifndef XVFPRINTF
+    #define XVFPRINTF  vfprintf
+#endif
+#ifndef XVSNPRINTF
+    #define XVSNPRINTF vsnprintf
+#endif
+#ifndef XFPUTS
+    #define XFPUTS     fputs
+#endif
+#ifndef XSPRINTF
+    #define XSPRINTF   sprintf
 #endif
 
     #ifndef MAX_FILENAME_SZ

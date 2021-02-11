@@ -208,7 +208,11 @@
         #endif
     #endif
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
-        #include <unistd.h>      /* for close of BIO */
+        #ifdef FUSION_RTOS
+           #include <fclunistd.h>
+        #else
+            #include <unistd.h>      /* for close of BIO */
+        #endif
     #endif
 #endif
 
