@@ -14,9 +14,30 @@ AC_CONFIG_AUX_DIR([build-aux])
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
-# Test ar for the "U" option. Should be checked before the libtool macros.
+# For reproducible builds, gate out from the build anything that might
+# introduce semantically frivolous jitter, maximizing chance of
+# identical object files.
+AC_ARG_ENABLE([reproducible-build],
+    [AS_HELP_STRING([--enable-reproducible-builds],[Enable maximally reproducible build (default: disabled)])],
+    [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
+    [ ENABLED_REPRODUCIBLE_BUILD=no ]
+    )
+
+# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
 xxx_ar_flags=$(ar --help 2>&1)
-AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
+if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
+then
+    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[: ${AR_FLAGS="Dcr"}])
+else
+    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
+fi
+xxx_ranlib_flags=$(ranlib --help 2>&1)
+if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
+then
+    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[: ${RANLIB="ranlib -D"}])
+else
+    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[: ${RANLIB="ranlib -U"}])
+fi
 
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -6329,6 +6350,7 @@ echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
 echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
+echo "   * Reproducible Build:         $ENABLED_REPRODUCIBLE_BUILD"
 echo "   * fastmath:                   $ENABLED_FASTMATH"
 echo "   * Assembly Allowed:           $ENABLED_ASM"
 echo "   * sniffer:                    $ENABLED_SNIFFER"
@@ -6489,10 +6511,13 @@ echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo ""
 echo "---"
 
-echo >> config.h
-echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
-echo >> config.h
-echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
+if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes"
+then
+    echo >> config.h
+    echo "#define LIBWOLFSSL_CONFIGURE_ARGS \"$ac_configure_args\"" >> config.h
+    echo >> config.h
+    echo "#define LIBWOLFSSL_GLOBAL_CFLAGS \"$CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS\"" >> config.h
+fi
 
 ################################################################################
 # Show warnings at bottom so they are noticed
