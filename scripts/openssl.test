@@ -2,6 +2,8 @@
 
 #openssl.test
 
+CERT_DIR="$PWD/$(dirname "$0")/../certs"
+
 if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
     echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
     exit 0
@@ -133,11 +135,11 @@ start_openssl_server() {
 
         if [ "$cert_file" != "" ]
         then
-            echo "# " $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         else
-            echo "# " $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         fi
         server_pid=$!
         # wait to see if s_server successfully starts before continuing
@@ -451,7 +453,7 @@ esac
 if [ "$wolf_certs" != "" ]
 then
     # Check if ECC certificates supported in wolfSSL
-    wolf_ecc=`$WOLFSSL_CLIENT -A ./certs/ed25519/ca-ecc-cert.pem 2>&1`
+    wolf_ecc=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed25519/ca-ecc-cert.pem 2>&1`
     case $wolf_ecc in
     *"ca file"*)
         wolf_ecc=""
@@ -460,7 +462,7 @@ then
         ;;
     esac
     # Check if Ed25519 certificates supported in wolfSSL
-    wolf_ed25519=`$WOLFSSL_CLIENT -A ./certs/ed25519/root-ed25519.pem 2>&1`
+    wolf_ed25519=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed25519/root-ed25519.pem 2>&1`
     case $wolf_ed25519 in
     *"ca file"*)
         wolf_ed25519=""
@@ -469,7 +471,7 @@ then
         ;;
     esac
     # Check if Ed25519 certificates supported in OpenSSL
-    openssl_ed25519=`$OPENSSL s_client -cert ./certs/ed25519/client-ed25519.pem -key ./certs/ed25519/client-ed25519-priv.pem 2>&1`
+    openssl_ed25519=`$OPENSSL s_client -cert ${CERT_DIR}/ed25519/client-ed25519.pem -key ${CERT_DIR}/ed25519/client-ed25519-priv.pem 2>&1`
     case $openssl_ed25519 in
     *"unable to load"*)
         wolf_ed25519=""
@@ -478,7 +480,7 @@ then
         ;;
     esac
     # Check if Ed448 certificates supported in wolfSSL
-    wolf_ed448=`$WOLFSSL_CLIENT -A ./certs/ed448/root-ed448.pem 2>&1`
+    wolf_ed448=`$WOLFSSL_CLIENT -A ${CERT_DIR}/ed448/root-ed448.pem 2>&1`
     case $wolf_ed448 in
     *"ca file"*)
         wolf_ed448=""
@@ -487,7 +489,7 @@ then
         ;;
     esac
     # Check if Ed448 certificates supported in OpenSSL
-    openssl_ed448=`$OPENSSL s_client -cert ./certs/ed448/client-ed448.pem -key ./certs/ed448/client-ed448-priv.pem 2>&1`
+    openssl_ed448=`$OPENSSL s_client -cert ${CERT_DIR}/ed448/client-ed448.pem -key ${CERT_DIR}/ed448/client-ed448-priv.pem 2>&1`
     case $openssl_ed448 in
     *"unable to load"*)
         wolf_ed448=""
@@ -572,9 +574,9 @@ if [ "$wolf_rsa" != "" -o "$wolf_tls_psk" != "" ]
 then
     if [ "$wolf_rsa" != "" ]
     then
-        cert_file="./certs/server-cert.pem"
-        key_file="./certs/server-key.pem"
-        ca_file="./certs/client-ca.pem"
+        cert_file="${CERT_DIR}/server-cert.pem"
+        key_file="${CERT_DIR}/server-key.pem"
+        ca_file="${CERT_DIR}/client-ca.pem"
     else
         cert_file=
         key_file=
@@ -601,9 +603,9 @@ fi
 # If ECDH-RSA cipher suites supported in wolfSSL then start servers
 if [ "$wolf_ecdh_rsa" != "" ]
 then
-    cert_file="./certs/server-ecc-rsa.pem"
-    key_file="./certs/ecc-key.pem"
-    ca_file="./certs/client-ca.pem"
+    cert_file="${CERT_DIR}/server-ecc-rsa.pem"
+    key_file="${CERT_DIR}/ecc-key.pem"
+    ca_file="${CERT_DIR}/client-ca.pem"
 
     openssl_suite="ECDH-RSA"
     start_openssl_server
@@ -618,9 +620,9 @@ fi
 
 if [ "$wolf_ecdsa" != "" -a "$wolf_ecc" != "" ]
 then
-    cert_file="./certs/server-ecc.pem"
-    key_file="./certs/ecc-key.pem"
-    ca_file="./certs/client-ca.pem"
+    cert_file="${CERT_DIR}/server-ecc.pem"
+    key_file="${CERT_DIR}/ecc-key.pem"
+    ca_file="${CERT_DIR}/client-ca.pem"
 
     openssl_suite="ECDH[E]-ECDSA"
     start_openssl_server
@@ -636,9 +638,9 @@ fi
 # If Ed25519 certificates supported in wolfSSL then start servers
 if [ "$wolf_ed25519" != "" ];
 then
-    cert_file="./certs/ed25519/server-ed25519.pem"
-    key_file="./certs/ed25519/server-ed25519-priv.pem"
-    ca_file="./certs/ed25519/root-ed25519.pem"
+    cert_file="${CERT_DIR}/ed25519/server-ed25519.pem"
+    key_file="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
+    ca_file="${CERT_DIR}/ed25519/root-ed25519.pem"
 
     openssl_suite="Ed25519"
     start_openssl_server
@@ -656,9 +658,9 @@ fi
 # If Ed448 certificates supported in wolfSSL then start servers
 if [ "$wolf_ed448" != "" ];
 then
-    cert_file="./certs/ed448/server-ed448.pem"
-    key_file="./certs/ed448/server-ed448-priv.pem"
-    ca_file="./certs/ed448/client-ed448.pem"
+    cert_file="${CERT_DIR}/ed448/server-ed448.pem"
+    key_file="${CERT_DIR}/ed448/server-ed448-priv.pem"
+    ca_file="${CERT_DIR}/ed448/client-ed448.pem"
 
     openssl_suite="Ed448"
     start_openssl_server
@@ -729,7 +731,7 @@ do
 
         # double check that can actually do a sslv3 connection using
         # client-cert.pem to send but any file with EOF works
-        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ./certs/client-cert.pem
+        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ${CERT_DIR}/client-cert.pem
         sslv3_sup=$?
         if [ $sslv3_sup != 0 ]
         then
@@ -922,9 +924,9 @@ do
         caCert=""
         case $wolfSuite in
         *ECDH-RSA*)
-            cert="./certs/client-cert.pem"
-            key="./certs/client-key.pem"
-            caCert="./certs/ca-cert.pem"
+            cert="${CERT_DIR}/client-cert.pem"
+            key="${CERT_DIR}/client-key.pem"
+            caCert="${CERT_DIR}/ca-cert.pem"
             port=$ecdh_openssl_port
             do_wolfssl_client
             port=$ecdh_wolfssl_port
@@ -933,9 +935,9 @@ do
         *ECDHE-ECDSA*|*ECDH-ECDSA*)
             if [ "$wolf_ecc" != "" ]
             then
-                cert="./certs/client-cert.pem"
-                key="./certs/client-key.pem"
-                caCert="./certs/ca-ecc-cert.pem"
+                cert="${CERT_DIR}/client-cert.pem"
+                key="${CERT_DIR}/client-key.pem"
+                caCert="${CERT_DIR}/ca-ecc-cert.pem"
 
                 port=$ecdsa_openssl_port
                 do_wolfssl_client
@@ -946,9 +948,9 @@ do
             fi
             if [ $ed25519_openssl_pid != $no_pid -a "$version" != "0" -a "$version" != "1" -a "$version" != "2" ]
             then
-                cert="./certs/ed25519/server-ed25519.pem"
-                key="./certs/ed25519/server-ed25519-priv.pem"
-                caCert="./certs/ed25519/server-ed25519.pem"
+                cert="${CERT_DIR}/ed25519/server-ed25519.pem"
+                key="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
+                caCert="${CERT_DIR}/ed25519/server-ed25519.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$ed25519_openssl_port
@@ -960,9 +962,9 @@ do
             fi
             if [ $ed448_openssl_pid != $no_pid -a "$version" != "0" -a "$version" != "1" -a "$version" != "2" ]
             then
-                cert="./certs/ed448/client-ed448.pem"
-                key="./certs/ed448/client-ed448-priv.pem"
-                caCert="./certs/ed448/server-ed448.pem"
+                cert="${CERT_DIR}/ed448/client-ed448.pem"
+                key="${CERT_DIR}/ed448/client-ed448-priv.pem"
+                caCert="${CERT_DIR}/ed448/server-ed448.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$ed448_openssl_port
@@ -974,9 +976,9 @@ do
             fi
             ;;
         *DHE-PSK*)
-            cert="./certs/client-cert.pem"
-            key="./certs/client-key.pem"
-            caCert="./certs/ca-cert.pem"
+            cert="${CERT_DIR}/client-cert.pem"
+            key="${CERT_DIR}/client-key.pem"
+            caCert="${CERT_DIR}/ca-cert.pem"
 
             port=$openssl_port
             psk="-s"
@@ -992,9 +994,9 @@ do
             fi
             ;;
         *PSK*)
-            cert="./certs/client-cert.pem"
-            key="./certs/client-key.pem"
-            caCert="./certs/ca-cert.pem"
+            cert="${CERT_DIR}/client-cert.pem"
+            key="${CERT_DIR}/client-key.pem"
+            caCert="${CERT_DIR}/ca-cert.pem"
 
             port=$openssl_port
             psk="-s"
@@ -1004,9 +1006,9 @@ do
             do_openssl_client
             ;;
         *ADH*)
-            cert="./certs/client-cert.pem"
-            key="./certs/client-key.pem"
-            caCert="./certs/ca-cert.pem"
+            cert="${CERT_DIR}/client-cert.pem"
+            key="${CERT_DIR}/client-key.pem"
+            caCert="${CERT_DIR}/ca-cert.pem"
 
             if [ "$version" != "0" -a "$version" != "1" -a "$version" != "2" -a "$openssl_adh_reneg_bug" != "" ]
             then
@@ -1028,9 +1030,9 @@ do
             # RSA
             if [ $openssl_pid != $no_pid -a "$ecdhe_avail" = "yes" ]
             then
-                cert="./certs/client-cert.pem"
-                key="./certs/client-key.pem"
-                caCert="./certs/ca-cert.pem"
+                cert="${CERT_DIR}/client-cert.pem"
+                key="${CERT_DIR}/client-key.pem"
+                caCert="${CERT_DIR}/ca-cert.pem"
 
                 port=$openssl_port
                 do_wolfssl_client
@@ -1068,25 +1070,25 @@ do
             # ECDSA
             if [ $ecdsa_openssl_pid != $no_pid -a "$wolf_ecc" != "" ]
             then
-                cert="./certs/client-ecc-cert.pem"
-                key="./certs/ecc-client-key.pem"
-                caCert="./certs/ca-ecc-cert.pem"
+                cert="${CERT_DIR}/client-ecc-cert.pem"
+                key="${CERT_DIR}/ecc-client-key.pem"
+                caCert="${CERT_DIR}/ca-ecc-cert.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$ecdsa_openssl_port
-                caCert="./certs/ca-ecc-cert.pem"
+                caCert="${CERT_DIR}/ca-ecc-cert.pem"
                 do_wolfssl_client
                 open_temp_cases_total=$((open_temp_cases_total + 1))
                 port=$ecdsa_wolfssl_port
-                caCert="./certs/ca-ecc-cert.pem"
+                caCert="${CERT_DIR}/ca-ecc-cert.pem"
                 do_openssl_client
             fi
             # Ed25519
             if [ $ed25519_openssl_pid != $no_pid ]
             then
-                cert="./certs/ed25519/server-ed25519.pem"
-                key="./certs/ed25519/server-ed25519-priv.pem"
-                caCert="./certs/ed25519/server-ed25519.pem"
+                cert="${CERT_DIR}/ed25519/server-ed25519.pem"
+                key="${CERT_DIR}/ed25519/server-ed25519-priv.pem"
+                caCert="${CERT_DIR}/ed25519/server-ed25519.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$ed25519_openssl_port
@@ -1099,9 +1101,9 @@ do
             # Ed448
             if [ $ed448_openssl_pid != $no_pid ]
             then
-                cert="./certs/ed448/client-ed448.pem"
-                key="./certs/ed448/client-ed448-priv.pem"
-                caCert="./certs/ed448/server-ed448.pem"
+                cert="${CERT_DIR}/ed448/client-ed448.pem"
+                key="${CERT_DIR}/ed448/client-ed448-priv.pem"
+                caCert="${CERT_DIR}/ed448/server-ed448.pem"
 
                 wolf_temp_cases_total=$((wolf_temp_cases_total + 1))
                 port=$ed448_openssl_port
@@ -1114,9 +1116,9 @@ do
             tls13_cipher=
             ;;
         *)
-            cert="./certs/client-cert.pem"
-            key="./certs/client-key.pem"
-            caCert="./certs/ca-cert.pem"
+            cert="${CERT_DIR}/client-cert.pem"
+            key="${CERT_DIR}/client-key.pem"
+            caCert="${CERT_DIR}/ca-cert.pem"
 
             port=$openssl_port
             do_wolfssl_client
