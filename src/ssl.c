@@ -11957,11 +11957,8 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         const unsigned char *context, size_t contextLen,
         int use_context)
 {
-    byte* seed = NULL;
-    /* clientRandom + serverRandom
-     * OR
-     * clientRandom + serverRandom + ctx len encoding + ctx */
-    word32 seedLen = !use_context ? SEED_LEN : SEED_LEN + 2 + (word32)contextLen;
+    byte*  seed = NULL;
+    word32 seedLen;
     const struct ForbiddenLabels* fl;
 
     WOLFSSL_ENTER("wolfSSL_export_keying_material");
@@ -11971,6 +11968,12 @@ int wolfSSL_export_keying_material(WOLFSSL *ssl,
         WOLFSSL_MSG("Bad argument");
         return WOLFSSL_FAILURE;
     }
+
+    /* clientRandom + serverRandom
+     * OR
+     * clientRandom + serverRandom + ctx len encoding + ctx */
+    seedLen = !use_context ? (word32)SEED_LEN :
+                             (word32)SEED_LEN + 2 + (word32)contextLen;
 
     if (ssl->options.saveArrays == 0 || ssl->arrays == NULL) {
         WOLFSSL_MSG("To export keying material wolfSSL needs to keep handshake "
