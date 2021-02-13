@@ -6853,7 +6853,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
     !defined(WOLFSSL_NO_TLS12) || \
     ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
-     && defined(HAVE_AEAD))
+     && defined(HAVE_AEAD)) || defined(HAVE_AES_CBC)
 
 #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
 static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
