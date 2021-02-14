@@ -1998,6 +1998,8 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     mp_clear(z);
     mp_clear(y);
     mp_forcezero(x);
+#else
+    ret = WC_KEY_SIZE_E;
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
