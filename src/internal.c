@@ -10857,21 +10857,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
             /* allocate buffer for certs */
-        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            args->certs = (buffer*)XMALLOC(sizeof(buffer) *
-                    (ssl->verifyDepth + 1), ssl->heap, DYNAMIC_TYPE_DER);
-            if (args->certs == NULL) {
-                ERROR_OUT(MEMORY_E, exit_ppc);
-            }
-            XMEMSET(args->certs, 0, sizeof(buffer) * (ssl->verifyDepth + 1));
-        #else
             args->certs = (buffer*)XMALLOC(sizeof(buffer) * MAX_CHAIN_DEPTH,
                                             ssl->heap, DYNAMIC_TYPE_DER);
             if (args->certs == NULL) {
                 ERROR_OUT(MEMORY_E, exit_ppc);
             }
             XMEMSET(args->certs, 0, sizeof(buffer) * MAX_CHAIN_DEPTH);
-        #endif /* OPENSSL_EXTRA */
 
             /* Certificate List */
             if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
@@ -10892,7 +10883,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             while (listSz) {
                 word32 certSz;
 
-            #if !defined(OPENSSL_EXTRA) && !defined(OPENSS_EXTRA_X509_SMALL)
+
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                if (args->totalCerts >= MAX_CHAIN_DEPTH) {
+                    ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+                    ret = MAX_CHAIN_ERROR;
+                    WOLFSSL_MSG("Too many certs for MAX_CHAIN_DEPTH");
+                    break; /* break out to avoid reading more certs then buffer
+                            * can hold */
+                }
+            #else
                 if (args->totalCerts >= ssl->verifyDepth ||
                         args->totalCerts >= MAX_CHAIN_DEPTH) {
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
@@ -11131,15 +11131,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         (void)doCrlLookup;
                     }
             #endif /* HAVE_OCSP || HAVE_CRL */
-#ifdef OPENSSL_EXTRA
-                    if (ret == 0 && 
-                        /* extend the limit "+1" until reaching 
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    if (ret == 0 &&
+                        /* extend the limit "+1" until reaching
                          * an ultimately trusted issuer.*/
                         args->count > (ssl->verifyDepth + 1)) {
                         ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                         ret = MAX_CHAIN_ERROR;
                     }
-#endif
+            #endif
                     /* Do verify callback */
                     ret = DoVerifyCallback(ssl->ctx->cm, ssl, ret, args);
                     if (ssl->options.verifyNone &&
