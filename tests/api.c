@@ -24759,7 +24759,7 @@ static void test_wc_PKCS7_DecodeCompressedData(void)
     && !defined(NO_AES) && defined(HAVE_LIBZ)
     PKCS7* pkcs7;
     void*  heap = NULL;
-    byte   out[3072];
+    byte   out[4096];
     byte   *decompressed;
     int    outSz, decompressedSz;
 
@@ -40234,7 +40234,7 @@ static void test_export_keying_material(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, test_export_keying_material_cb);
+    test_client_nofail(&client_args, (void*)test_export_keying_material_cb);
     join_thread(serverThread);
 
     AssertTrue(client_args.return_code);

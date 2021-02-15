@@ -37,6 +37,7 @@
 #include <wolfssl/openssl/ssl.h>
 #endif
 #include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/ecc.h>
 
 #include <examples/echoclient/echoclient.h>
 #include <examples/echoserver/echoserver.h>

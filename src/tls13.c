@@ -777,24 +777,24 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
         case sha256_mac:
-            hashType = WC_SHA256;
-            hashLen = WC_SHA256_DIGEST_SIZE;
+            hashType  = WC_HASH_TYPE_SHA256;
+            hashLen   = WC_SHA256_DIGEST_SIZE;
             emptyHash = emptySHA256Hash;
             break;
         #endif
 
         #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            hashType = WC_SHA384;
-            hashLen = WC_SHA384_DIGEST_SIZE;
+            hashType  = WC_HASH_TYPE_SHA384;
+            hashLen   = WC_SHA384_DIGEST_SIZE;
             emptyHash = emptySHA384Hash;
             break;
         #endif
 
         #ifdef WOLFSSL_TLS13_SHA512
         case sha512_mac:
-            hashType = WC_SHA512;
-            hashLen = WC_SHA512_DIGEST_SIZE;
+            hashType  = WC_HASH_TYPE_SHA512;
+            hashLen   = WC_SHA512_DIGEST_SIZE;
             emptyHash = emptySHA512Hash;
             break;
         #endif
