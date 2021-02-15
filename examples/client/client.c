@@ -949,7 +949,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][66] = {
+static const char* client_usage_msg[][67] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1120,8 +1120,15 @@ static const char* client_usage_msg[][66] = {
 #ifdef HAVE_CURVE448
         "-8          Use X448 for key exchange\n",                      /* 66 */
 #endif
-#ifdef HAVE_CRL
-        "-C          Disable CRL\n",
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+        "-9          Use hash dir look up for certificate loading\n"
+        "            loading from <wolfSSL home>/certs folder\n"
+        "            files in the folder would have the form \"hash.N\" file name\n"
+        "            e.g symbolic link to the file at certs folder\n"
+        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+                                                                       /* 67 */
 #endif
         NULL,
     },
@@ -1294,8 +1301,19 @@ static const char* client_usage_msg[][66] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
 #endif
+        "-6          WANT_WRITE エラーを全てのIO 送信でシュミレートします\n",
 #ifdef HAVE_CURVE448
         "-8          Use X448 for key exchange\n",                      /* 66 */
+#endif
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+        "-9          証明書の読み込みに hash dir 機能を使用する\n"
+        "            <wolfSSL home>/certs フォルダーからロードします\n"
+        "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である必要があります\n"
+        "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
+        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+                                                                        /* 67 */
 #endif
         NULL,
     },
@@ -1465,8 +1483,14 @@ static void Usage(void)
 #ifdef HAVE_TRUSTED_CA
     printf("%s", msg[++msgid]);  /* -5 */
 #endif
+    printf("%s", msg[++msgid]);  /* -6 */
 #ifdef HAVE_CURVE448
     printf("%s", msg[++msgid]); /* -8 */
+#endif
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    printf("%s", msg[++msgid]); /* -9 */
 #endif
 }
 
@@ -1602,6 +1626,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
 #endif
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    int useCertFolder = 0;
+#endif
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 
     int     argc = ((func_args*)args)->argc;
@@ -1686,7 +1715,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:4568"
+            "01:23:45689"
             "@#")) != -1) {
         switch (ch) {
             case '?' :
@@ -2162,7 +2191,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     #endif
                 #endif
                 break;
-
+            case '9' :
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+                    useCertFolder = 1;
+                    break;
+#endif
             case '@' :
             {
 #ifdef HAVE_WC_INTROSPECTION
@@ -2622,6 +2657,29 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     if (!usePsk && !useAnon && !useVerifyCb && myVerifyAction != VERIFY_FORCE_FAIL) {
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+        if (useCertFolder) {
+            WOLFSSL_X509_STORE      *store;
+            WOLFSSL_X509_LOOKUP     *lookup;
+            
+            store = wolfSSL_CTX_get_cert_store(ctx);
+            if (store == NULL) {
+                wolfSSL_CTX_free(ctx); ctx = NULL;
+                err_sys("can't get WOLFSSL_X509_STORE");
+            }
+            lookup = wolfSSL_X509_STORE_add_lookup(store, X509_LOOKUP_hash_dir());
+            if (lookup == NULL) {
+                wolfSSL_CTX_free(ctx); ctx = NULL;
+                err_sys("can't add lookup");
+            }
+            if (wolfSSL_X509_LOOKUP_ctrl(lookup, WOLFSSL_X509_L_ADD_DIR, caCertFolder,
+                            X509_FILETYPE_PEM, NULL) != WOLFSSL_SUCCESS) {
+                err_sys("X509_LOOKUP_ctrl w/ L_ADD_DIR failed");
+            }
+        } else {
+    #endif
     #ifdef NO_FILESYSTEM
         if (wolfSSL_CTX_load_verify_buffer(ctx, ca_cert_der_2048,
             sizeof_ca_cert_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
@@ -2669,6 +2727,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         }
     #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    }
+    #endif
     }
     if (useVerifyCb || myVerifyAction == VERIFY_FORCE_FAIL ||
             myVerifyAction == VERIFY_USE_PREVERFIY) {

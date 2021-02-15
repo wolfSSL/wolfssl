@@ -676,14 +676,25 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
 
-    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
+    #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
+    #if defined(USE_WINDOWS_API)
+        #define XSTAT       _stat
+        #define SEPARATOR_CHAR ';'
+    #elif defined(WOLFSSL_ZEPHYR)
+        #define XSTAT       fs_stat
+    #elif defined(WOLFSSL_TELIT_M2MB)
+        #define XSTAT       m2mb_fs_stat
+    #else
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
         #define XWRITE      write
         #define XREAD       read
         #define XCLOSE      close
+        #define XSTAT       stat
+        #define SEPARATOR_CHAR ':'
+    #endif
     #endif
 #endif
 
@@ -732,7 +743,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #else
         struct dirent* entry;
         DIR*   dir;
-        struct stat s;
+        struct XSTAT s;
     #endif
         char name[MAX_FILENAME_SZ];
     } ReadDirCtx;
@@ -743,6 +754,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     WOLFSSL_API int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API void wc_ReadDirClose(ReadDirCtx* ctx);
 #endif /* !NO_WOLFSSL_DIR */
+    #define WC_ISFILEEXIST_NOFILE -1
+
+    WOLFSSL_API int wc_FileExists(const char* fname);
 
 #endif /* !NO_FILESYSTEM */
 

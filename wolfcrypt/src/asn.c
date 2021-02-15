@@ -13172,6 +13172,86 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
     return idx;
 }
 
+/*
+*  this wrappes wc_EncodeName for EMAIL OID
+ */
+int wc_EncodeName_cano(EncodedName* name, const char* nameStr, char nameType,
+        byte type)
+{
+    word32 idx = 0;
+
+    if (nameStr) {
+        /* bottom up */
+        byte firstLen[1 + MAX_LENGTH_SZ];
+        byte secondLen[MAX_LENGTH_SZ];
+        byte sequence[MAX_SEQ_SZ];
+        byte set[MAX_SET_SZ];
+
+        int strLen  = (int)XSTRLEN(nameStr);
+        int thisLen = strLen;
+        int firstSz, secondSz, seqSz, setSz;
+
+        const byte EMAIL_OID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                   0x01, 0x09, 0x01, 0x0c };
+
+        if (type != ASN_EMAIL_NAME) {
+            return wc_EncodeName(name, nameStr, nameType, type);
+        }
+
+        if (strLen == 0) { /* no user data for this item */
+            name->used = 0;
+            return 0;
+        }
+        secondSz = SetLength(strLen, secondLen);
+        thisLen += secondSz;
+        thisLen += EMAIL_JOINT_LEN;
+        firstSz  = EMAIL_JOINT_LEN;
+        thisLen++; /* id  type */
+        firstSz  = SetObjectId(firstSz, firstLen);
+        thisLen += firstSz;
+
+        seqSz = SetSequence(thisLen, sequence);
+        thisLen += seqSz;
+        setSz = SetSet(thisLen, set);
+        thisLen += setSz;
+
+        if (thisLen > (int)sizeof(name->encoded)) {
+            return BUFFER_E;
+        }
+
+        /* store it */
+        idx = 0;
+        /* set */
+        XMEMCPY(name->encoded, set, setSz);
+        idx += setSz;
+        /* seq */
+        XMEMCPY(name->encoded + idx, sequence, seqSz);
+        idx += seqSz;
+        /* asn object id */
+        XMEMCPY(name->encoded + idx, firstLen, firstSz);
+        idx += firstSz;
+        /* email joint id */
+        XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
+        idx += (int)sizeof(EMAIL_OID);
+        /* second length */
+        XMEMCPY(name->encoded + idx, secondLen, secondSz);
+        idx += secondSz;
+        /* str value */
+        XMEMCPY(name->encoded + idx, nameStr, strLen);
+        idx += strLen;
+
+        name->type = type;
+        name->totalLen = idx;
+        name->used = 1;
+    }
+    else
+        name->used = 0;
+
+    return idx;
+}
+
+
+
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)
 {

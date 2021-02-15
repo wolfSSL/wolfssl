@@ -2067,6 +2067,9 @@ struct WOLFSSL_CERT_MANAGER {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_STORE  *x509_store_p;   /* pointer back to x509 store */
+#endif
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
     int             refCount;         /* reference count */
 };
@@ -3691,6 +3694,8 @@ typedef struct Arrays {
 #define STACK_TYPE_X509_NAME          9
 #define STACK_TYPE_CONF_VALUE         10
 #define STACK_TYPE_X509_INFO          11
+#define STACK_TYPE_BY_DIR_entry       12
+#define STACK_TYPE_BY_DIR_hash        13
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3716,6 +3721,8 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
+        WOLFSSL_BY_DIR_entry*  dir_entry;
+        WOLFSSL_BY_DIR_HASH*   dir_hash;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
@@ -4811,6 +4818,12 @@ WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
     WOLFSSL_LOCAL int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev);
 #endif
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+WOLFSSL_LOCAL int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, 
+                                           X509_NAME* issuer, int Type);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

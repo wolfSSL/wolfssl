@@ -15821,6 +15821,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->x509_store.cache = str->cache;
         ctx->x509_store_pt    = str; /* take ownership of store and free it
                                         with CTX free */
+        ctx->cm->x509_store_p = ctx->x509_store_pt;
     }
 
 
@@ -23132,6 +23133,21 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL))
 
+    int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dest, 
+                            const WOLFSSL_ASN1_STRING* src)
+    {
+        if (src == NULL || dest == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+        dest->type = src->type;
+        if(wolfSSL_ASN1_STRING_set(dest, src->data, src->length) 
+                    != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+        }
+        dest->flags = src->flags;
+
+        return WOLFSSL_SUCCESS;
+    }
     /* Creates a new WOLFSSL_ASN1_STRING structure given the input type.
      *
      * type is the type of set when WOLFSSL_ASN1_STRING is created
@@ -24813,6 +24829,111 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
     return &meth;
 }
 
+static int x509AddCertDir(void *p, const char *argc, long argl)
+{
+    WOLFSSL_ENTER("x509AddCertDir");
+
+    (void)argl;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    WOLFSSL_BY_DIR *ctx = (WOLFSSL_BY_DIR*)p;
+    WOLFSSL_BY_DIR_entry *entry;
+    size_t pathLen;
+    int i, num;
+    const char* c;
+#ifdef WOLFSSL_SMALL_STACK
+    char *buf;
+#else
+    char  buf[MAX_FILENAME_SZ];
+#endif
+    
+    pathLen = 0;
+    c = argc;
+    /* zero length */
+    if (c == NULL || *c == '\0') return WOLFSSL_FAILURE;
+    
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (buf == NULL) {
+        WOLFSSL_LEAVE("x509AddCertDir", MEMORY_E);
+        return MEMORY_E;
+    }
+#endif
+
+    XMEMSET(buf, 0, MAX_FILENAME_SZ);
+    
+    do {
+        if (*c == SEPARATOR_CHAR || *c == '\0') {
+            
+            num = wolfSSL_sk_BY_DIR_entry_num(ctx->dir_entry);
+            
+            for (i=0; i<num; i++) {
+                
+                entry = wolfSSL_sk_BY_DIR_entry_value(ctx->dir_entry, i);
+                
+                if (XSTRLEN(entry->dir_name) == pathLen && 
+                    XSTRNCMP(entry->dir_name, buf, pathLen) == 0) {
+                    WOLFSSL_MSG("dir entry found");
+                    break;
+                }
+            }
+            
+            if (num == -1 || i == num) {
+                WOLFSSL_MSG("no entry found");
+                
+                if (ctx->dir_entry == NULL) {
+                    ctx->dir_entry = wolfSSL_sk_BY_DIR_entry_new_null();
+                    
+                    if (ctx->dir_entry == NULL) {
+                        WOLFSSL_MSG("failed to allocate dir_entry");
+                        return 0;
+                    }
+                }
+                
+                entry = wolfSSL_BY_DIR_entry_new();
+                if (entry == NULL) {
+                    WOLFSSL_MSG("failed to allocate dir entry");
+                    return 0;
+                }
+                entry->dir_type = argl;
+                entry->dir_name = (char*)XMALLOC(pathLen + 1/* \0 termination*/
+                                                , NULL, DYNAMIC_TYPE_OPENSSL);
+                entry->hashes = wolfSSL_sk_BY_DIR_HASH_new_null();
+                if (entry->dir_name == NULL || entry->hashes == NULL) {
+                    WOLFSSL_MSG("failed to allocate dir name");
+                    wolfSSL_BY_DIR_entry_free(entry);
+                    return 0;
+                }
+                
+                XSTRNCPY(entry->dir_name, buf, pathLen);
+                entry->dir_name[pathLen] = '\0';
+                
+                if (wolfSSL_sk_BY_DIR_entry_push(ctx->dir_entry, entry) 
+                                                    != WOLFSSL_SUCCESS) {
+                    wolfSSL_BY_DIR_entry_free(entry);
+                    return 0;
+                }
+            }
+            /* skip separator */
+            if (*c == SEPARATOR_CHAR) c++;
+            
+            pathLen = 0;
+            XMEMSET(buf, 0, MAX_FILENAME_SZ);
+        }
+        buf[pathLen++] = *c;
+        
+    } while(*c++ != '\0');
+    
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+#endif
+    
+    return WOLFSSL_SUCCESS;
+#else
+    (void)p;
+    (void)argc;
+    return WOLFSSL_NOT_IMPLEMENTED;
+#endif
+}
 
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
@@ -24823,41 +24944,43 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
      */
     int lret = WOLFSSL_FAILURE;
 
+    WOLFSSL_ENTER("wolfSSL_X509_LOOKUP_ctrl");
+#if !defined(NO_FILESYSTEM)
     /* returns FAILURE 
      *if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
 
     if (ctx != NULL) {
         switch (cmd) {
         case WOLFSSL_X509_L_FILE_LOAD:
-            if (argl == WOLFSSL_FILETYPE_PEM) {
-#ifdef HAVE_CRL
-                lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, 
-                                                    X509_FILETYPE_PEM);
-#else
-                lret = 0;
-#endif
-            } else {
-                lret = wolfSSL_X509_LOOKUP_load_file(ctx, argc, (int)argl);
-            }
             /* expects to return a number of processed cert or crl file */
-            if (lret != 0)
-                lret = WOLFSSL_SUCCESS;
-            else
-                lret = WOLFSSL_FAILURE;
+            lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, argl) > 0 ?
+                            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
             break;
         case WOLFSSL_X509_L_ADD_DIR:
+            /* store directory loaction to use it later */
+#if !defined(NO_WOLFSSL_DIR)
+            lret = x509AddCertDir(ctx->dirs, argc, argl);
+#else
+            lret = WOLFSSL_NOT_IMPLEMENTED
+#endif
+            break;
         case WOLFSSL_X509_L_ADD_STORE:
         case WOLFSSL_X509_L_LOAD_STORE:
-            return WOLFSSL_SUCCESS;
+            return WOLFSSL_NOT_IMPLEMENTED;
 
         default:
             break;
         }
-
     }
-
-    (void)argc; (void)argl; (void)ret;
-
+    (void)ret;
+#else
+    (void)ctx;
+    (void)argc;
+    (void)argl;
+    (void)ret;
+    (void)cmd;
+    lret = WOLFSSL_NOT_IMPLEMENTED;
+#endif
     return lret;
 }
 
@@ -24869,10 +24992,10 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
     if (store == NULL)
         return NULL;
 
-    /* Method is a dummy value and is not needed. */
-    (void)m;
     /* Make sure the lookup has a back reference to the store. */
     store->lookup.store = store;
+    /* store a type to know which method wants to be used for */
+    store->lookup.type = m->type;
     return &store->lookup;
 }
 
@@ -25727,7 +25850,13 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
                            NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         goto err_exit;
     }
-
+    XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    if ((store->lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
+                           NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("store->lookup.dir memory allocation error");
+        goto err_exit;
+    }
+    XMEMSET(store->lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
 #endif
 
     return store;
@@ -25752,6 +25881,16 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         if (store->param != NULL) {
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
             store->param = NULL;
+        }
+
+        if (store->lookup.dirs != NULL) {
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+            if (!store->lookup.dirs->dir_entry) {
+                wolfSSL_sk_BY_DIR_entry_free(store->lookup.dirs->dir_entry);
+            }
+#endif
+            XFREE(store->lookup.dirs, NULL, DYNAMIC_TYPE_OPENSSL);
+            store->lookup.dirs = NULL;
         }
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
@@ -26166,6 +26305,87 @@ WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
     WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
     return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)x509, CERT_TYPE);
 }
+
+WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
+    const char *file, int type)
+{
+    STACK_OF(WOLFSSL_X509_INFO) *info;
+    WOLFSSL_X509_INFO *info_tmp;
+    WOLFSSL_BIO *bio;
+    WOLFSSL_X509 *x509 = NULL;
+
+    int i;
+    int cnt = 0;
+    int num = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_load_ceretificate_crl_file");
+
+    if (type != WOLFSSL_FILETYPE_PEM) {
+        x509 = wolfSSL_X509_load_certificate_file(file, type);
+        if (x509 != NULL) {
+            if (wolfSSL_X509_STORE_add_cert(ctx->store, x509) 
+                                    == WOLFSSL_SUCCESS) {
+                cnt++;
+            } else {
+                WOLFSSL_MSG("wolfSSL_X509_STORE_add_cert error");
+            }
+        } else {
+            WOLFSSL_MSG("wolfSSL_X509_load_certificate_file error");
+        }
+
+    } else {
+#ifdef OPENSSL_ALL
+        bio = wolfSSL_BIO_new_file(file, "rb");
+        if(!bio) {
+            WOLFSSL_MSG("wolfSSL_BIO_new error");
+            return cnt;
+        }
+        
+        info = wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL);
+
+        wolfSSL_BIO_free(bio);
+
+        if (!info) {
+            WOLFSSL_MSG("wolfSSL_PEM_X509_INFO_read_bio error");
+            return cnt;
+        }
+        num = wolfSSL_sk_X509_INFO_num(info);
+        for (i=0; i < num; i++) {
+            info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
+
+            if (info_tmp->x509) {
+                if(wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509) ==
+                    WOLFSSL_SUCCESS) {
+                    cnt ++;
+                } else { 
+                    WOLFSSL_MSG("wolfSSL_X509_STORE_add_cert failed");
+                }
+            }
+#ifdef HAVE_CRL
+            if (info_tmp->crl) {
+                if(wolfSSL_X509_STORE_add_crl(ctx->store, info_tmp->crl) ==
+                    WOLFSSL_SUCCESS) {
+                    cnt ++;
+                } else {
+                    WOLFSSL_MSG("wolfSSL_X509_STORE_add_crl failed");
+                }
+            }
+#endif
+        }
+        wolfSSL_sk_X509_INFO_pop_free(info, X509_INFO_free);
+#else
+    (void)i;
+    (void)cnt;
+    (void)num;
+    (void)info_tmp;
+    (void)info;
+    (void)bio;
+#endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", cnt);
+    return cnt;
+}
 #endif /* !NO_FILESYSTEM */
 
 
@@ -26271,65 +26491,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     return ret;
 }
 
-WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
-    const char *file, int type)
-{
-    STACK_OF(WOLFSSL_X509_INFO) *info;
-    WOLFSSL_X509_INFO *info_tmp;
-    WOLFSSL_BIO *bio;
 
-    int i;
-    int cnt = 0;
-    int num = 0;
-
-    WOLFSSL_ENTER("wolfSSL_X509_load_ceretificate_crl_file");
-
-    if (type != WOLFSSL_FILETYPE_PEM) {
-        cnt = wolfSSL_X509_LOOKUP_load_file(ctx, file, type);
-    } else {
-#ifdef OPENSSL_ALL
-        bio = wolfSSL_BIO_new_file(file, "rb");
-        if(!bio) {
-            WOLFSSL_MSG("wolfSSL_BIO_new error");
-            return cnt;
-        }
-        
-        info = wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL);
-
-        wolfSSL_BIO_free(bio);
-
-        if (!info) {
-            WOLFSSL_MSG("wolfSSL_PEM_X509_INFO_read_bio error");
-            return cnt;
-        }
-        
-        for (i=0; i < num; i++) {
-            info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
-
-            if (info_tmp->x509) {
-                wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509);
-                cnt ++;
-            }
-
-            if (info_tmp->crl) {
-                 wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509);
-                cnt ++;
-            }
-        }
-        wolfSSL_sk_X509_INFO_pop_free(info, X509_INFO_free);
-#else
-    (void)i;
-    (void)cnt;
-    (void)num;
-    (void)info_tmp;
-    (void)info;
-    (void)bio;
-#endif
-    }
-
-    WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", count);
-    return cnt;
-}
 
 #endif /* !NO_FILESYSTEM */
 
@@ -41390,6 +41552,168 @@ static int ConvertNIDToWolfSSL(int nid)
     }
 }
 
+#if defined(OPENSSL_ALL)
+static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
+                                        const WOLFSSL_ASN1_STRING* asn_in)
+{
+    char* dst;
+    char* src;
+    int i, len;
+
+    switch (asn_in->type) {
+        case MBSTRING_UTF8:
+        case V_ASN1_PRINTABLESTRING:
+             break;
+        default:
+           WOLFSSL_MSG("just copy string");
+           return wolfSSL_ASN1_STRING_copy(asn_out, asn_in);
+    }
+    /* type is set as UTF8 */
+    asn_out->type = MBSTRING_UTF8;
+    asn_out->length = wolfSSL_ASN1_STRING_to_UTF8(
+                                            (unsigned char**)&asn_out->data
+                                            , (WOLFSSL_ASN1_STRING*)asn_in);
+
+    if (asn_out->length < 0) {
+        return WOLFSSL_FAILURE;
+    }
+    /* point to the last */
+    dst = asn_out->data + asn_out->length;
+    /* point to the start */
+    src = asn_out->data;
+
+    len = asn_out->length;
+
+    /* trimming spaces at the head and tail */
+    dst--;
+    for (; (len > 0 && XISSPACE(*dst));len--) {
+        dst--;
+    }
+    for (; (len > 0 && XISSPACE(*src));len--){
+        src++;
+    }
+
+    /* point to the start */
+    dst = asn_out->data;
+
+    for (i = 0; i < len;dst++, i++) {
+        if (!XISASCII(*src)) {
+            /* keep non-ascii code */
+            *dst = *src++;
+        } else if (XISSPACE(*src)) {
+            *dst = 0x20; /* space */
+            /* remove the rest of spaces */
+            while (XISSPACE(*++src) && i++ < len);
+        } else {
+            *dst = XTOLOWER(*src++);
+        }
+    }
+    /* put actual length */
+    asn_out->length = dst - asn_out->data;
+    return WOLFSSL_SUCCESS;
+}
+/* this is to converts the x509 name structure into canonical DER format 
+*  , which has the following rules:
+*   convert to UTF8
+*   convert to lower case
+*   multi-spaces collapsed
+*   leading SEQUENCE hader is skipped
+*/
+int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
+{
+    int  totalBytes = 0, i, idx;
+    byte *output, *local = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    EncodedName* names = NULL;
+#else
+    EncodedName  names[MAX_NAME_ENTRIES];
+#endif
+
+    if (out == NULL || name == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * MAX_NAME_ENTRIES, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (names == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(names, 0, sizeof(EncodedName) * MAX_NAME_ENTRIES);
+
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        int ret;
+
+        entry = wolfSSL_X509_NAME_get_entry(name, i);
+        if (entry != NULL && entry->set == 1) {
+            const char* nameStr;
+            WOLFSSL_ASN1_STRING* data;
+            WOLFSSL_ASN1_STRING* cano_data;
+
+            cano_data = wolfSSL_ASN1_STRING_new();
+            if (cano_data == NULL)
+                return MEMORY_E;
+
+            data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
+            if (data == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                wolfSSL_ASN1_STRING_free(cano_data);
+                WOLFSSL_MSG("Error getting entry data");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            if (wolfSSL_ASN1_STRING_canon(cano_data, data) != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
+            nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
+
+            ret = wc_EncodeName_cano(&names[i], nameStr, CTC_UTF8,
+                ConvertNIDToWolfSSL(entry->nid));
+            if (ret < 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                wolfSSL_ASN1_STRING_free(cano_data);
+                WOLFSSL_MSG("EncodeName failed");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            totalBytes += ret;
+        }
+    }
+
+    /* skip header */
+    /* check if using buffer passed in */
+    if (*out == NULL) {
+        *out = local = (unsigned char*)XMALLOC(totalBytes, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (*out == NULL) {
+            return MEMORY_E;
+        }
+    }
+    output = *out;
+    idx = 0;
+
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        if (names[i].used) {
+            XMEMCPY(output + idx, names[i].encoded, names[i].totalLen);
+            idx += names[i].totalLen;
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    /* used existing buffer passed in, so increment pointer */
+    if (local == NULL) {
+        *out += totalBytes;
+    }
+    return totalBytes;
+}
+#endif
+
 /* Converts the x509 name structure into DER format.
  *
  * out  pointer to either a pre setup buffer or a pointer to null for
@@ -45970,6 +46294,391 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     }
 }
 
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+/* WOLFSSL_BY_DIR_HASH stuff */
+WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
+{
+    WOLFSSL_BY_DIR_HASH* dir_hash;
+    
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_HASH_new");
+    
+    dir_hash = (WOLFSSL_BY_DIR_HASH*)XMALLOC(sizeof(WOLFSSL_BY_DIR_HASH), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+    if (dir_hash) {
+        XMEMSET(dir_hash, 0, sizeof(WOLFSSL_BY_DIR_HASH));
+    }
+    return dir_hash;
+}
+
+void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash)
+{
+    if (dir_hash == NULL)
+        return;
+
+    XFREE(dir_hash, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void)
+{
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_new_null");
+    
+    if (sk) {
+        sk->type = STACK_TYPE_BY_DIR_hash;
+    }
+    return sk;
+}
+
+/* returns value less than 0 on fail to match
+ * On a successful match the priority level found is returned
+ */
+int wolfSSL_sk_BY_DIR_HASH_find(
+   WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk, const WOLFSSL_BY_DIR_HASH* toFind)
+{
+    WOLFSSL_STACK* next;
+    int i, sz;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_find");
+    
+    if (sk == NULL || toFind == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    sz   = wolfSSL_sk_BY_DIR_HASH_num(sk);
+    next = sk;
+    for (i = 0; i < sz && next != NULL; i++) {
+        if (next->data.dir_hash->hash_value == toFind->hash_value) {
+            return sz - i; /* reverse because stack pushed highest on first */
+        }
+        next = next->next;
+    }
+    return -1;
+}
+
+int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_BY_DIR_HASH_num");
+    
+    if (sk == NULL)
+        return -1;
+    return (int)sk->num;
+}
+
+WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_value");
+
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+    return sk->data.dir_hash;
+}
+
+WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_BY_DIR_HASH* hash;
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_pop");
+    
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    hash = sk->data.dir_hash;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.dir_hash = node->data.dir_hash;
+        sk->next = node->next;
+        wolfSSL_sk_free_node(node);
+    }
+    else { /* last x509 in stack */
+        sk->data.dir_hash = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return hash;
+}
+
+void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
+    void (*f) (WOLFSSL_BY_DIR_HASH*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_pop_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node && sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        if (f)
+            f(tmp->data.dir_hash);
+        else
+            wolfSSL_BY_DIR_HASH_free(tmp->data.dir_hash);
+        tmp->data.dir_hash = NULL;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        if (f)
+            f(sk->data.dir_hash);
+        else
+            wolfSSL_BY_DIR_HASH_free(sk->data.dir_hash);
+        sk->data.dir_hash = NULL;
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
+{
+    wolfSSL_sk_BY_DIR_HASH_pop_free(sk, NULL);
+}
+
+
+/* Adds the WOLFSSL_BY_DIR_HASH to the stack "sk". "sk" takes control of "in" and
+ * tries to free it when the stack is free'd.
+ *
+ * return 1 on success 0 on fail
+ */
+int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+                                               WOLFSSL_BY_DIR_HASH* in)
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_push");
+    
+    if (sk == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.dir_hash == NULL) {
+        sk->data.dir_hash = in;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.dir_hash    = sk->data.dir_hash;
+    node->next             = sk->next;
+    node->type             = sk->type;
+    sk->next               = node;
+    sk->data.dir_hash      = in;
+    sk->num                += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* WOLFSSL_BY_DIR_entry stuff */
+WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void)
+{
+    WOLFSSL_BY_DIR_entry* entry;
+    
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_entry_new");
+    
+    entry = (WOLFSSL_BY_DIR_entry*)XMALLOC(sizeof(WOLFSSL_BY_DIR_entry), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+        
+    if (entry) {
+        XMEMSET(entry, 0, sizeof(WOLFSSL_BY_DIR_entry));
+    }
+    return entry;
+}
+
+void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry)
+{
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_entry_free");
+    
+    if (entry == NULL)
+        return;
+
+    if (entry->hashes) {
+        wolfSSL_sk_BY_DIR_HASH_free(entry->hashes);
+    }
+
+    if (entry->dir_name != NULL) {
+        XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    
+    XFREE(entry, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void)
+{
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_new_null");
+    
+    if (sk) {
+        sk->type = STACK_TYPE_BY_DIR_entry;
+    }
+    return sk;
+}
+
+int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_num");
+    
+    if (sk == NULL)
+        return -1;
+    return (int)sk->num;
+}
+
+WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_value");
+
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+    return sk->data.dir_entry;
+}
+
+WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_BY_DIR_entry* entry;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_pop");
+    
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    entry = sk->data.dir_entry;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.dir_entry = node->data.dir_entry;
+        sk->next = node->next;
+        wolfSSL_sk_free_node(node);
+    }
+    else { /* last x509 in stack */
+        sk->data.dir_entry = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return entry;
+}
+
+void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
+    void (*f) (WOLFSSL_BY_DIR_entry*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_pop_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node && sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        if (f)
+            f(tmp->data.dir_entry);
+        else
+            wolfSSL_BY_DIR_entry_free(tmp->data.dir_entry);
+        tmp->data.dir_entry = NULL;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        if (f)
+            f(sk->data.dir_entry);
+        else
+            wolfSSL_BY_DIR_entry_free(sk->data.dir_entry);
+        sk->data.dir_entry = NULL;
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk)
+{
+    wolfSSL_sk_BY_DIR_entry_pop_free(sk, NULL);
+}
+
+/* Adds the wolfSSL_BY_DIR_entry to the stack "sk". "sk" takes control of "in" and
+ * tries to free it when the stack is free'd.
+ *
+ * return 1 on success 0 on fail
+ */
+int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
+                                               WOLFSSL_BY_DIR_entry* in)
+{
+    WOLFSSL_STACK* node;
+
+    if (sk == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.dir_entry == NULL) {
+        sk->data.dir_entry = in;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.dir_entry    = sk->data.dir_entry;
+    node->next              = sk->next;
+    node->type              = sk->type;
+    sk->next                = node;
+    sk->data.dir_entry      = in;
+    sk->num                 += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* OPENSSL_ALL */
 
 int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {

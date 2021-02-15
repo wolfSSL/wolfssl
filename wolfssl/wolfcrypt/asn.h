@@ -1173,6 +1173,8 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 
 WOLFSSL_LOCAL int wc_EncodeName(EncodedName* name, const char* nameStr,
                                 char nameType, byte type);
+WOLFSSL_LOCAL int wc_EncodeName_cano(EncodedName* name, const char* nameStr,
+                                char nameType, byte type);
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
 WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);

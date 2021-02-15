@@ -364,6 +364,20 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     }
 #endif
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    if (foundEntry == 0) {
+        if (crl->cm->x509_store_p != NULL) {
+            ret = LoadCrlCertByIssuer(crl->cm->x509_store_p, 
+                          (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
+            if (ret == WOLFSSL_SUCCESS) {
+                /* try again */
+                ret = CheckCertCRLList(crl, cert, &foundEntry);
+            }
+        }
+    }
+#endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         ret = CRL_MISSING;
