@@ -29585,6 +29585,7 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
     (void)t;
     return s;
 }
+#endif /* !NO_WOLFSSL_STUB */
 
 int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str)
 {
@@ -29607,7 +29608,6 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str)
     }
     return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_WOLFSSL_STUB */
 
 #ifndef NO_BIO
 
