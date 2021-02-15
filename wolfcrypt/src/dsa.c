@@ -412,7 +412,12 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     } while (mp_cmp_d(&tmp, 1) == MP_EQ);
 
     /* at this point tmp generates a group of order q mod p */
+#ifndef USE_FAST_MATH
+    /* Exchanging is quick when the data pointer can be copied. */
     mp_exch(&tmp, &dsa->g);
+#else
+    mp_copy(&tmp, &dsa->g);
+#endif
 
     mp_clear(&tmp);
     mp_clear(&tmp2);
