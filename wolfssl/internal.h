@@ -4720,7 +4720,8 @@ typedef struct CipherSuiteInfo {
 #endif
     byte cipherSuite0;
     byte cipherSuite;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
     byte minor;
     byte major;
 #endif
