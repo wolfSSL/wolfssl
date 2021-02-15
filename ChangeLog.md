@@ -1,3 +1,53 @@
+# wolfSSL Release 4.7.0 (February 16, 2021)
+Release 4.7.0 of wolfSSL embedded TLS has bug fixes and new features including:
+
+### New Feature Additions
+* Compatibility Layer expansion SSL_get_verify_mode, X509_VERIFY_PARAM API, X509_STORE_CTX API added
+* WOLFSSL_PSK_IDENTITY_ALERT macro added for enabling a subset of TLS alerts
+* Function wolfSSL_CTX_NoTicketTLSv12 added to enable turning off session tickets with TLS 1.2 while keeping TLS 1.3 session tickets available
+* Implement RFC 5705: Keying Material Exporters for TLS
+* Added --enable-reproducible-build flag for making more deterministic library outputs to assist debugging
+
+### Fixes
+* Fix to free mutex when cert manager is free’d
+* Compatibility layer EVP function to return the correct block size and type
+* DTLS secure renegotiation fixes including resetting timeout and retransmit on duplicate HelloRequest
+* Fix for edge case with shrink buffer and secure renegotiation
+* Compile fix for type used with curve448 and PPC64
+* Fixes for SP math all with PPC64 and other embedded compilers
+* SP math all fix when performing montgomery reduction on one word modulus
+* Fixes to SP math all to better support digit size of 8-bit
+* Fix for results of edge case with SP integer square operation
+* Stop non-ct mod inv from using register x29 with SP ARM64 build
+* Fix edge case when generating z value of ECC with SP code
+* Fixes for PKCS7 with crypto callback (devId) with RSA and RNG
+* Fix for compiling builds with RSA verify and public only
+* Fix for PKCS11 not properly exporting the public key due to a missing key type field
+* Call certificate callback with certificate depth issues
+* Fix for out-of-bounds read in TLSX_CSR_Parse()
+* Fix incorrect AES-GCM tag generation in the EVP layer
+* Fix for out of bounds write with SP math all enabled and an edge case of calling sp_tohex on the result of sp_mont_norm
+* Fix for parameter check in sp_rand_prime to handle 0 length values
+* Fix for edge case of failing malloc resulting in an out of bounds write with SHA256/SHA512 when small stack is enabled
+
+
+### Improvements/Optimizations
+* Added --enable-wolftpm option for easily building wolfSSL to be used with wolfTPM
+* DTLS macro WOLFSSL_DTLS_RESEND_ONLY_TIMEOUT added for resending flight only after a timeout
+* Update linux kernel module to use kvmalloc and kvfree
+* Add user settings option to cmake build
+* Added support for AES GCM session ticket encryption
+* Thread protection for global RNG used by wolfSSL_RAND_bytes function calls
+* Sanity check on FIPs configure flag used against the version of FIPs bundle
+* --enable-aesgcm=table now is compatible with --enable-linuxkm
+* Increase output buffer size that wolfSSL_RAND_bytes can handle
+* Out of directory builds resolved, wolfSSL can now be built in a separate directory than the root wolfssl directory
+
+### Vulnerabilities
+* [HIGH] CVE-2021-3336: In earlier versions of wolfSSL there exists a potential man in the middle attack on TLS 1.3 clients. Malicious attackers with a privileged network position can impersonate TLS 1.3 servers and bypass authentication. Users that have applications with client side code and have TLS 1.3 turned on, should update to the latest version of wolfSSL. Users that do not have TLS 1.3 turned on, or that are server side only, are NOT affected by this report. For the code change see https://github.com/wolfSSL/wolfssl/pull/3676.
+* [LOW] In the case of using custom ECC curves there is the potential for a crafted compressed ECC key that has a custom prime value to cause a hang when imported. This only affects applications that are loading in ECC keys with wolfSSL builds that have compressed ECC keys and custom ECC curves enabled.
+* [LOW] With TLS 1.3 authenticated-only ciphers a section of the server hello could contain 16 bytes of uninitialized data when sent to the connected peer. This affects only a specific build of wolfSSL with TLS 1.3 early data enabled and using authenticated-only ciphers with TLS 1.3.
+
 # wolfSSL Release 4.6.0 (December 22, 2020)
 Release 4.6.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
