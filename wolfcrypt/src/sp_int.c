@@ -2425,12 +2425,19 @@ int sp_exch(sp_int* a, sp_int* b)
     if ((a == NULL) || (b == NULL)) {
         err = MP_VAL;
     }
+    if ((err == MP_OKAY) && ((a->size < b->used) || (b->size < a->used))) {
+        err = MP_VAL;
+    }
 
     ALLOC_SP_INT(t, a->used, err, NULL);
     if (err == MP_OKAY) {
+        int asize = a->size;
+        int bsize = b->size;
         XMEMCPY(t, a, MP_INT_SIZEOF(a->used));
         XMEMCPY(a, b, MP_INT_SIZEOF(b->used));
-        XMEMCPY(b, t, MP_INT_SIZEOF(a->used));
+        XMEMCPY(b, t, MP_INT_SIZEOF(t->used));
+        a->size = asize;
+        b->size = bsize;
     }
 
     FREE_SP_INT(t, NULL);
