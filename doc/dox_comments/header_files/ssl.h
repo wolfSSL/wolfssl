@@ -11215,6 +11215,27 @@ WOLFSSL_API int wolfSSL_CTX_set_TicketHint(WOLFSSL_CTX* ctx, int);
 WOLFSSL_API int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void*);
 
 /*!
+    \brief This function gets the session ticket encrypt user context for the
+    callback.  For server side use.
+
+    \return userCtx will be returned upon successfully getting the session.
+    \return NULL will be returned on failure.  This is caused by
+    passing invalid arguments to the function, or when the user context has
+    not been set.
+
+    \param ctx pointer to the WOLFSSL_CTX object, created
+    with wolfSSL_CTX_new().
+
+    _Example_
+    \code
+    none
+    \endcode
+
+    \sa wolfSSL_CTX_set_TicketEncCtx
+*/
+WOLFSSL_API void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx);
+
+/*!
     \ingroup IO
 
     \brief Checks if QSH is used in the supplied SSL session.
