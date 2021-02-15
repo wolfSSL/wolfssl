@@ -2893,6 +2893,14 @@ int wolfSSL_CTX_set_TicketEncCtx(WOLFSSL_CTX* ctx, void* userCtx)
     return WOLFSSL_SUCCESS;
 }
 
+/* get user context - returns userCtx on success, NULL on failure */
+void* wolfSSL_CTX_get_TicketEncCtx(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return NULL;
+
+    return ctx->ticketEncCtx;
+}
 #endif /* !NO_WOLFSSL_SERVER */
 
 #if !defined(NO_WOLFSSL_CLIENT)
