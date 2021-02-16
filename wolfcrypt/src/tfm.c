@@ -5279,6 +5279,9 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    while (fp_iszero(v) == FP_NO) {
       int err = fp_mod(u, v, r);
       if (err != MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+          XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return err;
       }
       fp_copy(v, u);
