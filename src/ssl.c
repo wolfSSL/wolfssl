@@ -15957,6 +15957,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ctx->CBClientCert = cb;
         }
     }
+
+    void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
+        CertSetupCallback cb, void *arg)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_set_cert_cb");
+        if (ctx == NULL)
+            return;
+
+        ctx->certSetupCb = cb;
+        ctx->certSetupCbArg = arg;
+    }
     #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
@@ -16527,6 +16538,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
     {
+        WOLFSSL_ENTER("wolfSSL_CTX_set_cert_store");
         if (ctx == NULL || str == NULL || ctx->cm == str->cm) {
             return;
         }
@@ -16552,6 +16564,47 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl, WOLFSSL_X509_STORE* str)
+    {
+        WOLFSSL_ENTER("wolfSSL_set0_verify_cert_store");
+
+        if (ssl == NULL || ssl->ctx || str == NULL) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+        WOLFSSL_MSG("WARNING: This function modifies the cert store used by all "
+                    "SSL objects created using the same CTX");
+        wolfSSL_CTX_set_cert_store(ssl->ctx, str);
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
+                                                    WOLFSSL_X509_STORE_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_current_cert");
+        if (ctx)
+            return ctx->current_cert;
+        return NULL;
+    }
+
+
+    int wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_error");
+        if (ctx != NULL)
+            return ctx->error;
+        return 0;
+    }
+
+
+    int wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX* ctx)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_error_depth");
+        if(ctx)
+            return ctx->error_depth;
+        return WOLFSSL_FATAL_ERROR;
+    }
 #endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
 #ifdef OPENSSL_EXTRA
@@ -27685,6 +27738,12 @@ const char* wolfSSL_alert_type_string_long(int alertID)
             }
 
     #endif
+        case internal_error:
+            {
+                static const char internal_error_str[] =
+                    "internal_error";
+                return internal_error_str;
+            }
         case no_renegotiation:
             {
                 static const char no_renegotiation_str[] =
@@ -44022,9 +44081,24 @@ err:
         return WOLFSSL_SUCCESS;
     }
 
+    /**
+     * wolfSSL_CTX_add1_chain_cert makes a copy of the cert so we free it
+     * on success
+     */
+    int wolfSSL_CTX_add0_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_add0_chain_cert");
+        if (wolfSSL_CTX_add1_chain_cert(ctx, x509) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
+        }
+        wolfSSL_X509_free(x509);
+        return WOLFSSL_SUCCESS;
+    }
+
     int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
         int ret;
+        WOLFSSL_ENTER("wolfSSL_CTX_add1_chain_cert");
         if (ctx == NULL || x509 == NULL || x509->derCert == NULL) {
             return WOLFSSL_FAILURE;
         }
@@ -44033,6 +44107,32 @@ err:
             x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
 
         return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    }
+
+    /**
+     * wolfSSL_add1_chain_cert makes a copy of the cert so we free it
+     * on success
+     */
+    int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_add0_chain_cert");
+        WOLFSSL_MSG("WARNING: This function modifies the certs used by all "
+                    "SSL objects created using the same CTX");
+        if (wolfSSL_add1_chain_cert(ssl, x509) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
+        }
+        wolfSSL_X509_free(x509);
+        return WOLFSSL_SUCCESS;
+    }
+
+    int wolfSSL_add1_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ENTER("wolfSSL_add1_chain_cert");
+        WOLFSSL_MSG("WARNING: This function modifies the certs used by all "
+                    "SSL objects created using the same CTX");
+        if (ssl == NULL || ssl->ctx == NULL)
+            return WOLFSSL_FAILURE;
+        return wolfSSL_CTX_add1_chain_cert(ssl->ctx, x509);
     }
 
 #ifndef NO_BIO
@@ -45545,6 +45645,18 @@ long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
     return wolfSSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0l, NULL);
 }
 #endif
+
+void wolfSSL_certs_clear(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_certs_clear()");
+
+    if (ssl == NULL || ssl->ctx == NULL)
+        return;
+
+    SSL_CtxCertsFree(ssl->ctx);
+    InitSSL_CtxCerts(ssl->ctx, ssl->ctx->heap);
+}
+
 
 /* Returns the verifyCallback from the ssl structure if successful.
 Returns NULL otherwise. */

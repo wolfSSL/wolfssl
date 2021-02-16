@@ -31335,6 +31335,8 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 2);
     #endif
 
+    AssertNotNull(SSL_get0_verified_chain(ssl));
+
     #if defined(OPENSSL_ALL) && defined(SESSION_CERTS)
     bio = BIO_new(BIO_s_file());
     BIO_set_fp(bio, stdout, BIO_NOCLOSE);

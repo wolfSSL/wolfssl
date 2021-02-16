@@ -297,6 +297,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_CTX_set_verify              wolfSSL_CTX_set_verify
 #define SSL_CTX_set_cert_verify_callback wolfSSL_CTX_set_cert_verify_callback
+#define SSL_CTX_set_cert_cb             wolfSSL_CTX_set_cert_cb
 #define SSL_set_verify                  wolfSSL_set_verify
 #define SSL_set_verify_result           wolfSSL_set_verify_result
 #define SSL_verify_client_post_handshake wolfSSL_verify_client_post_handshake
@@ -815,10 +816,15 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_client_cert_cb      wolfSSL_CTX_set_client_cert_cb
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
+#define SSL_set0_verify_cert_store      wolfSSL_set0_verify_cert_store
 #define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
 #define SSL_get_client_CA_list          wolfSSL_get_client_CA_list
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
+
+#ifndef WOLFSSL_NO_STUB
+#define SSL_set_client_CA_list(...)
+#endif /* WOLFSSL_NO_STUB */
 
 #define SSL_CTX_set_default_passwd_cb_userdata wolfSSL_CTX_set_default_passwd_cb_userdata
 #define SSL_CTX_set_default_passwd_cb   wolfSSL_CTX_set_default_passwd_cb
@@ -1020,7 +1026,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #endif
 
 #define SSL_CTX_use_certificate         wolfSSL_CTX_use_certificate
+#define SSL_CTX_add0_chain_cert         wolfSSL_CTX_add0_chain_cert
 #define SSL_CTX_add1_chain_cert         wolfSSL_CTX_add1_chain_cert
+#define SSL_add0_chain_cert             wolfSSL_add0_chain_cert
+#define SSL_add1_chain_cert             wolfSSL_add1_chain_cert
 #define SSL_CTX_use_PrivateKey          wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename               wolfSSL_BIO_read_filename
 #define SSL_CTX_set_verify_depth        wolfSSL_CTX_set_verify_depth
@@ -1284,6 +1293,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_clear_extra_chain_certs wolfSSL_CTX_clear_extra_chain_certs
 
+#define SSL_certs_clear                 wolfSSL_certs_clear
 
 /* Nginx uses this to determine if reached end of certs in file.
  * PEM_read_bio_X509 is called and the return error is lost.
