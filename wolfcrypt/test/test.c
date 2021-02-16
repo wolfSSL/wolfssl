@@ -12697,7 +12697,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 #elif defined(HAVE_FIPS) || !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
     if (ret != 0)
-#elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#elif defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_RSA_VERIFY_ONLY)
     if (ret != SIG_TYPE_E)
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* RNG is handled with the cryptocell */
@@ -12752,7 +12752,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         return -7668;
 
     sigSz = (word32)ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     XMEMSET(out, 0, sizeof(out));
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
@@ -12806,7 +12806,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 #else
     (void)hash;
     (void)hashEnc;
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
     return 0;
 }
@@ -13486,7 +13486,7 @@ exit_rsa_pss:
 
     return ret;
 }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* !WOLFSSL_RSA_VERIFY_ONLY && !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif
 
 #ifdef WC_RSA_NO_PADDING
@@ -13726,17 +13726,25 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     word32 idx     = 0;
 #endif
     word32 outSz   = RSA_TEST_BYTES;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     word32 plainSz = RSA_TEST_BYTES;
+#endif
 #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_3072) && \
     !defined(USE_CERT_BUFFERS_4096) && !defined(NO_FILESYSTEM)
     XFILE  file;
 #endif
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
-
+#endif
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
-    if (out == NULL || plain == NULL)
+    if (out == NULL
+    #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+        || plain == NULL
+    #endif
+    ) {
         ERROR_OUT(MEMORY_E, exit_rsa_even_mod);
+    }
 #endif
 
 #if defined(USE_CERT_BUFFERS_2048)
@@ -13850,7 +13858,9 @@ static int rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
 exit_rsa_even_mod:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     FREE_VAR(out, HEAP_HINT);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     FREE_VAR(plain, HEAP_HINT);
+#endif
 
     (void)out;
     (void)outSz;
@@ -14576,13 +14586,12 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
-#endif
 
 #ifdef DECLARE_VAR_IS_HEAP_ALLOC
     if (in == NULL || out == NULL || plain == NULL)
         ERROR_OUT(MEMORY_E, exit_rsa);
 #endif
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+
     XMEMCPY(in, inStr, inLen);
 #endif
 
@@ -15652,9 +15661,12 @@ exit_rsa:
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
+#if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
+                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     FREE_VAR(in, HEAP_HINT);
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
+#endif
 
     /* ret can be greater then 0 with certgen but all negative values should
      * be returned and treated as an error */
