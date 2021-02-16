@@ -1944,11 +1944,23 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
   /* now set R[0][1] to G * R mod m */
   if (fp_cmp_mag(P, G) != FP_GT) {
      /* G > P so we reduce it first */
-     fp_mod(G, P, &R[1]);
+     err = fp_mod(G, P, &R[1]);
+     if (err != FP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+         XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+         return err;
+     }
   } else {
      fp_copy(G, &R[1]);
   }
-  fp_mulmod (&R[1], &R[0], P, &R[1]);
+  err = fp_mulmod (&R[1], &R[0], P, &R[1]);
+  if (err != FP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+      return err;
+  }
 
   /* for j = t-1 downto 0 do
         r_!k = R0*R1; r_k = r_k^2
