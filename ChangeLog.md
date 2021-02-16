@@ -7,6 +7,7 @@ Release 4.7.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Function wolfSSL_CTX_NoTicketTLSv12 added to enable turning off session tickets with TLS 1.2 while keeping TLS 1.3 session tickets available
 * Implement RFC 5705: Keying Material Exporters for TLS
 * Added --enable-reproducible-build flag for making more deterministic library outputs to assist debugging
+* Added support for S/MIME (Secure/Multipurpose Internet Mail Extensions) bundles
 
 ### Fixes
 * Fix to free mutex when cert manager is free’d
