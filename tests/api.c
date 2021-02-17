@@ -1748,6 +1748,26 @@ static void test_wolfSSL_CTX_enable_disable(void)
     wolfSSL_CTX_free(ctx);
 #endif /* NO_CERTS */
 }
+
+static void test_wolfSSL_CTX_ticket_API(void)
+{
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
+    WOLFSSL_CTX* ctx = NULL;
+    void *userCtx = (void*)"this is my ctx";
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_set_TicketEncCtx(ctx, userCtx));
+    AssertTrue(userCtx == wolfSSL_CTX_get_TicketEncCtx(ctx));
+
+    wolfSSL_CTX_free(ctx);
+
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_set_TicketEncCtx(NULL, userCtx));
+    AssertNull(wolfSSL_CTX_get_TicketEncCtx(NULL));
+#endif /* HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER */
+}
+
+
 /*----------------------------------------------------------------------------*
  | SSL
  *----------------------------------------------------------------------------*/
@@ -40289,6 +40309,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_SetMinMaxDhKey_Sz();
     test_wolfSSL_CTX_der_load_verify_locations();
     test_wolfSSL_CTX_enable_disable();
+    test_wolfSSL_CTX_ticket_API();
     test_server_wolfSSL_new();
     test_client_wolfSSL_new();
     test_wolfSSL_SetTmpDH_file();
