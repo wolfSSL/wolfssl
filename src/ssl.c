@@ -26431,6 +26431,14 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
     WOLFSSL_ENTER("wolfSSL_X509_get_serialNumber");
 
+    if (x509 == NULL) {
+        WOLFSSL_MSG("NULL function argument");
+        return NULL;
+    }
+
+    if (x509->serialNumber != NULL)
+       return x509->serialNumber;
+
     a = wolfSSL_ASN1_INTEGER_new();
     if (a == NULL)
         return NULL;
@@ -45557,7 +45565,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             return WOLFSSL_FAILURE;
     }
 
-    if (name->sz == 0)
+    if ((name == NULL) || (name->sz == 0))
         return WOLFSSL_FAILURE;
 
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
