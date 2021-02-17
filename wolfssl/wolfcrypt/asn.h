@@ -531,23 +531,23 @@ enum HMAC_Sum {
 
 
 enum Extensions_Sum {
-    BASIC_CA_OID    = 133,
-    ALT_NAMES_OID   = 131,
-    CRL_DIST_OID    = 145,
-    AUTH_INFO_OID   = 69, /* id-pe 1 */
-    AUTH_KEY_OID    = 149,
-    SUBJ_KEY_OID    = 128,
-    CERT_POLICY_OID = 146,
-    KEY_USAGE_OID   = 129,  /* 2.5.29.15 */
-    INHIBIT_ANY_OID = 168,  /* 2.5.29.54 */
+    BASIC_CA_OID    = 133,           /* 2.5.29.19 */
+    ALT_NAMES_OID   = 131,           /* 2.5.29.17 */
+    CRL_DIST_OID    = 145,           /* 2.5.29.31 */
+    AUTH_INFO_OID   = 69,            /* 1.3.6.1.5.5.7.1.1 */
+    AUTH_KEY_OID    = 149,           /* 2.5.29.35 */
+    SUBJ_KEY_OID    = 128,           /* 2.5.29.14 */
+    CERT_POLICY_OID = 146,           /* 2.5.29.32 */
+    KEY_USAGE_OID   = 129,           /* 2.5.29.15 */
+    INHIBIT_ANY_OID = 168,           /* 2.5.29.54 */
     EXT_KEY_USAGE_OID         = 151, /* 2.5.29.37 */
     NAME_CONS_OID             = 144, /* 2.5.29.30 */
     PRIV_KEY_USAGE_PERIOD_OID = 130, /* 2.5.29.16 */
-    SUBJECT_INFO_ACCESS       = 79,  /* id-pe 11 */
-    POLICY_MAP_OID            = 147,
-    POLICY_CONST_OID          = 150,
-    ISSUE_ALT_NAMES_OID       = 132,
-    TLS_FEATURE_OID           = 92,  /* id-pe 24 */
+    SUBJECT_INFO_ACCESS       = 79,  /* 1.3.6.1.5.5.7.1.11 */
+    POLICY_MAP_OID            = 147, /* 2.5.29.33 */
+    POLICY_CONST_OID          = 150, /* 2.5.29.36 */
+    ISSUE_ALT_NAMES_OID       = 132, /* 2.5.29.18 */
+    TLS_FEATURE_OID           = 92,  /* 1.3.6.1.5.5.7.1.24 */
     NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
     OCSP_NOCHECK_OID          = 121  /* 1.3.6.1.5.5.7.48.1.5
                                          id-pkix-ocsp-nocheck */
@@ -830,6 +830,7 @@ struct DecodedCert {
     byte    maxPathLen;              /* max_path_len see RFC 5280 section
                                       * 6.1.2 "Initialization" - (k) for
                                       * description of max_path_len */
+    byte    policyConstSkip;         /* Policy Constraints skip certs value */
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 
@@ -950,6 +951,9 @@ struct DecodedCert {
     byte extCRLdistSet : 1;
     byte extAuthInfoSet : 1;
     byte extBasicConstSet : 1;
+    byte extPolicyConstSet : 1;
+    byte extPolicyConstRxpSet : 1; /* requireExplicitPolicy set */
+    byte extPolicyConstIpmSet : 1; /* inhibitPolicyMapping set */
     byte extSubjAltNameSet : 1;
     byte inhibitAnyOidSet : 1;
     byte selfSigned : 1;           /* Indicates subject and issuer are same */
@@ -960,6 +964,7 @@ struct DecodedCert {
     byte extCRLdistCrit : 1;
     byte extAuthInfoCrit : 1;
     byte extBasicConstCrit : 1;
+    byte extPolicyConstCrit : 1;
     byte extSubjAltNameCrit : 1;
     byte extAuthKeyIdCrit : 1;
     #ifndef IGNORE_NAME_CONSTRAINTS
