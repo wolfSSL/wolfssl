@@ -441,14 +441,105 @@ endif()
 
 # TODO: - ECC custom curves
 #       - Compressed key
-#       - CURVE25519
-#       - ED25519
-#       - CURVE448
-#       - ED448
 #       - FP ECC, fixed point cache ECC
 #       - ECC encrypt
 #       - PSK
 #       - Single PSK identity
+
+# CURVE25519
+set(WOLFSSL_CURVE25519_SMALL "no")
+set(WOLFSSL_CURVE25519_HELP_STRING "Enable Curve25519 (default: disabled)")
+set(WOLFSSL_CURVE25519 "no" CACHE STRING ${WOLFSSL_CURVE25519_HELP_STRING})
+set_property(CACHE WOLFSSL_CURVE25519 PROPERTY STRINGS "yes" "no" "small" "no128bit")
+
+if(WOLFSSL_OPENSSH)
+    override_cache(WOLFSSL_CURVE25519 "yes")
+endif()
+
+if(WOLFSSL_CURVE25519)
+    if("${WOLFSSL_CURVE25519}" STREQUAL "small" OR WOLFSSL_LOW_RESOURCE)
+        list(APPEND WOLFSSL_DEFINITIONS "-DCURVE25519_SMALL")
+        set(WOLFSSL_CURVE25519_SMALL "yes")
+    endif()
+
+    if("${WOLFSSL_CURVE25519}" STREQUAL "no128bit" OR WOLFSSL_32BIT)
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_CURVED25519_128BIT")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CURVE25519")
+    set(WOLFSSL_FEMATH "yes")
+endif()
+
+# ED25519
+set(WOLFSSL_ED25519_SMALL "no")
+set(WOLFSSL_ED25519_HELP_STRING "Enable ED25519 (default: disabled)")
+set(WOLFSSL_ED25519 "no" CACHE STRING ${WOLFSSL_ED25519_HELP_STRING})
+set_property(CACHE WOLFSSL_ED25519 PROPERTY STRINGS "yes" "no" "small")
+
+if(WOLFSSL_OPENSSH)
+    override_cache(WOLFSSL_ED25519 "yes")
+endif()
+
+if(WOLFSSL_ED25519 AND NOT WOLFSSL_32BIT)
+    if("${WOLFSSL_ED25519}" STREQUAL "small" OR WOLFSSL_LOW_RESOURCE)
+        list(APPEND WOLFSSL_DEFINITIONS "-DED25519_SMALL")
+        set(WOLFSSL_ED25519_SMALL "yes")
+        set(WOLFSSL_CURVE25519_SMALL "yes")
+    endif()
+
+    if(NOT WOLFSSL_SHA512)
+        message(FATAL_ERROR "cannot enable ed25519 without enabling sha512.")
+    endif()
+
+    set(WOLFSSL_FEMATH "yes")
+    set(WOLFSSL_GEMATH "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ED25519")
+endif()
+
+# CURVE448
+set(WOLFSSL_CURVE448_SMALL "no")
+set(WOLFSSL_CURVE448_HELP_STRING "Enable Curve448 (default: disabled)")
+set(WOLFSSL_CURVE448 "no" CACHE STRING ${WOLFSSL_CURVE448_HELP_STRING})
+set_property(CACHE WOLFSSL_CURVE448 PROPERTY STRINGS "yes" "no" "small")
+
+if(WOLFSSL_CURVE448)
+    if("${WOLFSSL_CURVE448}" STREQUAL "small" OR WOLFSSL_LOW_RESOURCE)
+        list(APPEND WOLFSSL_DEFINITIONS "-DCURVE448_SMALL")
+        set(WOLFSSL_CURVE448_SMALL "yes")
+    endif()
+
+    if("${WOLFSSL_CURVE448}" STREQUAL "no128bit" OR WOLFSSL_32BIT)
+        list(APPEND WOLFSSL_DEFINITIONS "-DNO_CURVED448_128BIT")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_CURVE448")
+    set(WOLFSSL_FE448 "yes")
+endif()
+
+# ED448
+set(WOLFSSL_ED448_SMALL "no")
+set(WOLFSSL_ED448_HELP_STRING "Enable ED448 (default: disabled)")
+set(WOLFSSL_ED448 "no" CACHE STRING ${WOLFSSL_ED448_HELP_STRING})
+set_property(CACHE WOLFSSL_ED448 PROPERTY STRINGS "yes" "no" "small")
+
+if(WOLFSSL_ED448 AND NOT WOLFSSL_32BIT)
+    if("${WOLFSSL_ED448}" STREQUAL "small" OR WOLFSSL_LOW_RESOURCE)
+        list(APPEND WOLFSSL_DEFINITIONS "-DED448_SMALL")
+        set(WOLFSSL_ED448_SMALL "yes")
+        set(WOLFSSL_CURVE448_SMALL "yes")
+    endif()
+
+    if(NOT WOLFSSL_SHA512)
+        message(FATAL_ERROR "cannot enable ed448 without enabling sha512.")
+    endif()
+
+    set(WOLFSSL_FE448 "yes")
+    set(WOLFSSL_GE448 "yes")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ED448")
+
+    # EdDSA448 requires SHAKE256 which requires SHA-3
+    override_cache(WOLFSSL_SHAKE256 "yes")
+endif()
 
 # Error strings
 set(WOLFSSL_ERROR_STRINGS_HELP_STRING "Enable error strings table (default: enabled)")
