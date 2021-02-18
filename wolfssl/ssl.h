@@ -98,6 +98,15 @@
     #endif
 #endif
 
+
+#if defined(WOLFSSL_ERR_CODE_OPENSSL)
+    #define RETURN_CODE(w,o) ((w<0)?o:w)
+#else
+    #define RETURN_CODE(w,o) (w)
+#endif
+
+
+
 #ifdef __cplusplus
     extern "C" {
 #endif
