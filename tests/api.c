@@ -28070,14 +28070,14 @@ static void test_wolfSSL_CTX_get0_set1_param(void)
     AssertNotNull(pvpm);
 
     wolfSSL_X509_VERIFY_PARAM_set1_host(pvpm, testhostName,
-                                        XSTRLEN(testhostName));
+                                        (int)XSTRLEN(testhostName));
     wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(pvpm, testIPv4);
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(pvpm, 0x01);
 
     ret = SSL_CTX_set1_param(ctx, pvpm);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(pParam->hostName, testhostName, 
-                                         XSTRLEN(testhostName)));
+                                         (int)XSTRLEN(testhostName)));
     AssertIntEQ(0x01, pParam->hostFlags);
     AssertIntEQ(0, XSTRNCMP(pParam->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
     
@@ -29966,10 +29966,10 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     XMEMSET(paramFrom, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
 
     ret = wolfSSL_X509_VERIFY_PARAM_set1_host(paramFrom, testhostName1,
-                                         XSTRLEN(testhostName1));
+                                         (int)XSTRLEN(testhostName1));
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramFrom->hostName, testhostName1, 
-                                         XSTRLEN(testhostName1)));
+                                        (int)XSTRLEN(testhostName1)));
     
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
 
@@ -30004,13 +30004,13 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
-                                         XSTRLEN(testhostName1)));
+                                    (int)XSTRLEN(testhostName1)));
     AssertIntEQ(0x01, paramTo->hostFlags);
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM OVERWRITE */
     wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
-                                        XSTRLEN(testhostName2));
+                                    (int)XSTRLEN(testhostName2));
     wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
     
@@ -30019,13 +30019,13 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
-                                         XSTRLEN(testhostName1)));
+                                        (int)XSTRLEN(testhostName1)));
     AssertIntEQ(0x01, paramTo->hostFlags);
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM_RESET_FLAGS */
     wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
-                                        XSTRLEN(testhostName2));
+                                      (int)XSTRLEN(testhostName2));
     wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x10);
     
@@ -30034,13 +30034,13 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1, 
-                                         XSTRLEN(testhostName1)));
+                                        (int)XSTRLEN(testhostName1)));
     AssertIntEQ(0x01, paramTo->hostFlags);
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM_LOCKED */
     wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
-                                        XSTRLEN(testhostName2));
+                                    (int)XSTRLEN(testhostName2));
     wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
     wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
     
@@ -30049,7 +30049,7 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2, 
-                                         XSTRLEN(testhostName2)));
+                                    (int)XSTRLEN(testhostName2)));
     AssertIntEQ(0x00, paramTo->hostFlags);
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
@@ -33034,16 +33034,15 @@ static void test_wolfSSL_MD5(void)
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
     AssertIntEQ(wolfSSL_MD5_Update(&md5, input2, 
-                                        XSTRLEN((const char*)input2)), 1);
+                                    (int)XSTRLEN((const char*)input2)), 1);
     AssertIntEQ(wolfSSL_MD5_Final(hash, &md5), 1);
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
-#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
-    AssertIntEQ(MD5(input1, XSTRLEN((const char*)&input1), (byte*)&hash), 0);
+#if !defined(NO_OLD_NAMES) && \
+  (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2)))
+    AssertIntEQ(MD5(input1, (int)XSTRLEN((const char*)&input1), (byte*)&hash), 0);
     AssertIntEQ(XMEMCMP(&hash, output1, WC_MD5_DIGEST_SIZE), 0);
 
-    AssertIntEQ(MD5(input2, XSTRLEN((const char*)&input2), (byte*)&hash), 0);
+    AssertIntEQ(MD5(input2, (int)XSTRLEN((const char*)&input2), (byte*)&hash), 0);
     AssertIntEQ(XMEMCMP(&hash, output2, WC_MD5_DIGEST_SIZE), 0);
 #endif
 
@@ -33073,7 +33072,7 @@ static void test_wolfSSL_MD5_Transform(void)
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
     /* Do Transform*/
-    sLen = XSTRLEN((char*)input1);
+    sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_MD5_Transform(&md5, (const byte*)&local[0]), 1);
     
@@ -33082,7 +33081,7 @@ static void test_wolfSSL_MD5_Transform(void)
     
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
-    sLen = XSTRLEN((char*)input2);
+    sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_MD5_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_MD5_Transform(&md5, (const byte*)&local[0]), 1);
@@ -33140,7 +33139,7 @@ static void test_wolfSSL_SHA_Transform(void)
     /* Init SHA CTX */
     AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
     /* Do Transform*/
-    sLen = XSTRLEN((char*)input1);
+    sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha*)&sha)->digest[0], output1, 
@@ -33148,7 +33147,7 @@ static void test_wolfSSL_SHA_Transform(void)
     
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
-    sLen = XSTRLEN((char*)input2);
+    sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_SHA_Transform(&sha, (const byte*)&local[0]), 1);
@@ -33183,7 +33182,7 @@ static void test_wolfSSL_SHA256_Transform(void)
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
     /* Do Transform*/
-    sLen = XSTRLEN((char*)input1);
+    sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
     AssertIntEQ(XMEMCMP(&((wc_Sha256*)&sha256)->digest[0], output1, 
@@ -33191,7 +33190,7 @@ static void test_wolfSSL_SHA256_Transform(void)
     
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
-    sLen = XSTRLEN((char*)input2);
+    sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA256_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, (const byte*)&local[0]), 1);
@@ -33255,7 +33254,7 @@ static void test_wolfSSL_SHA512_Transform(void)
     AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);
 
     /* Do Transform*/
-    sLen = XSTRLEN((char*)input1);
+    sLen = (word32)XSTRLEN((char*)input1);
     XMEMCPY(local, input1, sLen);
     AssertIntEQ(wolfSSL_SHA512_Transform(&sha512, (const byte*)&local[0]), 1);
    AssertIntEQ(XMEMCMP(&((wc_Sha512*)&sha512)->digest[0], output1, 
@@ -33263,7 +33262,7 @@ static void test_wolfSSL_SHA512_Transform(void)
     
     /* Init SHA512 CTX */
     AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);
-    sLen = XSTRLEN((char*)input2);
+    sLen = (word32)XSTRLEN((char*)input2);
     XMEMSET(local, 0, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(local, input2, sLen);
     AssertIntEQ(wolfSSL_SHA512_Transform(&sha512, (const byte*)&local[0]), 1);

@@ -26415,7 +26415,7 @@ static int woflSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
     if (isOverWrite || 
         (from->hostName[0] != 0 && (to->hostName[0] == 0 || isDefault))) {
             if (!(ret = wolfSSL_X509_VERIFY_PARAM_set1_host(to, from->hostName,
-                XSTRLEN(from->hostName))))
+                (int)XSTRLEN(from->hostName))))
                 return ret; 
         to->hostFlags = from->hostFlags;
     }

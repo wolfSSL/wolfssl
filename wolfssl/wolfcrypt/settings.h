@@ -2275,7 +2275,9 @@ extern void uITRON4_free(void *p) ;
     /* added to have compatibility with SHA256() */
     #if !defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
         #define NO_OLD_SHA_NAMES
-        #define NO_OLD_MD5_NAMES
+    #endif
+    #if !defined(NO_OLD_MD5_NAME) && !defined(HAVE_FIPS)
+        #define NO_OLD_MD5_NAME
     #endif
 #endif
 
