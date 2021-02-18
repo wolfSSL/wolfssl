@@ -28068,6 +28068,7 @@ static void test_wolfSSL_CTX_get0_set1_param(void)
     pvpm = (WOLFSSL_X509_VERIFY_PARAM *)XMALLOC(
                 sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
     AssertNotNull(pvpm);
+    XMEMSET(pvpm, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 
     wolfSSL_X509_VERIFY_PARAM_set1_host(pvpm, testhostName,
                                         (int)XSTRLEN(testhostName));
