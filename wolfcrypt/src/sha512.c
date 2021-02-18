@@ -923,16 +923,31 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     /* back up buffer */
     #if defined(WOLFSSL_SMALL_STACK)
     word64* buffer;
-    buffer = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buffer = (word64*) XMALLOC(sizeof(word64) * 16, NULL, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (buffer == NULL)
         return MEMORY_E;
     #else
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     #endif
-    
+
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    Sha512_SetTransform();
+#endif
+
+#if defined(LITTLE_ENDIAN_ORDER)
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+#endif
+    {
+        ByteReverseWords64((word64*)data, (word64*)data, 
+                                                WC_SHA512_BLOCK_SIZE);
+    }
+#endif
+
     XMEMCPY(buffer, sha->buffer, WC_SHA512_BLOCK_SIZE);
     XMEMCPY(sha->buffer, data, WC_SHA512_BLOCK_SIZE);
-    
+
     ret = Transform_Sha512(sha);
 
     XMEMCPY(sha->buffer, buffer, WC_SHA512_BLOCK_SIZE);

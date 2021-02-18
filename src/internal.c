@@ -1804,7 +1804,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     /* WOLFSSL_X509_VERIFY_PARAM */
     if ((ctx->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           ctx->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+                           heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("ctx->param memory error");
         return MEMORY_E;
     }

@@ -280,11 +280,11 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     RESULT=$?
     remove_ready_file
     early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
-    if [ $early_data_cnt -ne 2 -a $early_data_cnt -ne 4 ]; then
+    if [ $early_data_cnt -ne 3 -a $early_data_cnt -ne 4 ]; then
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
-        echo -e "\n\nIssue with TLS v1.3 Early Data - session ticket"
+        echo -e "\n\nIssue with TLS v1.3 Early Data - PSK"
         do_cleanup
         exit 1
     fi

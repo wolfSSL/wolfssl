@@ -33228,7 +33228,7 @@ static void test_wolfSSL_SHA256(void)
 
 static void test_wolfSSL_SHA512_Transform(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA512)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512)
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA512_BLOCK_SIZE];
