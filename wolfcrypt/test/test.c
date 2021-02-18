@@ -6253,7 +6253,7 @@ WOLFSSL_TEST_SUBROUTINE int des_test(void)
 
     return 0;
 }
-#endif /* NO_DES3 */
+#endif /* !NO_DES3 */
 
 
 #ifndef NO_DES3
@@ -6375,7 +6375,7 @@ WOLFSSL_TEST_SUBROUTINE int des3_test(void)
 
     return 0;
 }
-#endif /* NO_DES */
+#endif /* NO_DES3 */
 
 
 #ifndef NO_AES

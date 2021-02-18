@@ -728,6 +728,9 @@ static const char* bench_desc_words[][9] = {
         || defined(HAVE_CURVE448) || defined(HAVE_ED448)
     #define HAVE_LOCAL_RNG
     static THREAD_LS_T WC_RNG gRng;
+    #define GLOBAL_RNG &gRng
+#else
+    #define GLOBAL_RNG NULL
 #endif
 
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
@@ -4619,7 +4622,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
                                                  1, &times, ntimes, &pending)) {
                         ret = wc_RsaPublicEncrypt(message, (word32)len, enc[i],
                                                   rsaKeySz/8, &rsaKey[i],
-                                                  &gRng);
+                                                  GLOBAL_RNG);
                         if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(
                                             &rsaKey[i]), 1, &times, &pending)) {
                             goto exit_rsa_verify;
@@ -4702,7 +4705,6 @@ exit_rsa_sign:
         }
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
         /* capture resulting encrypt length */
         idx = rsaKeySz/8;
 
@@ -4750,7 +4752,6 @@ exit_rsa_sign:
 exit_rsa_verifyinline:
         bench_stats_asym_finish("RSA", rsaKeySz, desc[5], doAsync, count,
                                                                     start, ret);
-#endif /* !WOLFSSL_RSA_VERIFY_ONLY */
     }
 
 exit:
@@ -4843,6 +4844,9 @@ void bench_rsa(int doAsync)
     if (rsaKeySz > 0) {
         bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
     }
+
+    (void)bytes;
+    (void)tmp;
 
 exit_bench_rsa:
     /* cleanup */
