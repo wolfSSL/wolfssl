@@ -190,7 +190,7 @@
 
     int wc_ShaFinal(wc_Sha* sha, byte* hash)
     {
-        uint32_t hashlen = WC_SHA_DIGEST_SIZE;
+        word32 hashlen = WC_SHA_DIGEST_SIZE;
         LTC_HASH_Finish(&sha->ctx, hash, &hashlen);
         return wc_InitSha(sha);  /* reset state */
     }
@@ -224,7 +224,7 @@
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_sha1_initialize_output(sha->digest);
     #else
-        MMCAU_SHA1_InitializeOutput((uint32_t*)sha->digest);
+        MMCAU_SHA1_InitializeOutput((word32*)sha->digest);
     #endif
         wolfSSL_CryptHwMutexUnLock();
 
@@ -242,7 +242,7 @@
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha1_hash_n((byte*)data, 1, sha->digest);
     #else
-            MMCAU_SHA1_HashN((byte*)data, 1, (uint32_t*)sha->digest);
+            MMCAU_SHA1_HashN((byte*)data, 1, (word32*)sha->digest);
     #endif
             wolfSSL_CryptHwMutexUnLock();
         }
@@ -276,7 +276,7 @@
             cau_sha1_hash_n((byte*)data, len/WC_SHA_BLOCK_SIZE, sha->digest);
     #else
             MMCAU_SHA1_HashN((byte*)data, len/WC_SHA_BLOCK_SIZE,
-                (uint32_t*)sha->digest);
+                (word32*)sha->digest);
     #endif
             }
             wolfSSL_CryptHwMutexUnLock();
@@ -327,6 +327,13 @@
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 
     /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+
+#elif defined(WOLFSSL_IMXRT_DCP)
+    /* implemented in wolfcrypt/src/port/nxp/dcp_port.c */
+
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+
+    /* implemented in wolfcrypt/src/port/silabs/silabs_hash.c */
 
 #else
     /* Software implementation */
@@ -519,6 +526,11 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
         return BAD_FUNC_ARG;
     }
 
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
@@ -539,11 +551,6 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     /* check that internal buffLen is valid */
     if (sha->buffLen >= WC_SHA_BLOCK_SIZE)
         return BUFFER_E;
-
-    if (data == NULL && len == 0) {
-        /* valid, but do nothing */
-        return 0;
-    }
 
     /* add length for final */
     AddLength(sha, len);
@@ -679,7 +686,6 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        ret = 0; /* reset ret */
         /* fall-through when unavailable */
     }
 #endif
@@ -794,6 +800,9 @@ void wc_ShaFree(wc_Sha* sha)
         sha->msg = NULL;
     }
 #endif
+#ifdef WOLFSSL_IMXRT_DCP
+    DCPShaFree(sha);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -840,6 +849,11 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha));
+
+#ifdef WOLFSSL_SILABS_SE_ACCEL
+    dst->silabsCtx.hash_ctx.cmd_ctx = &(dst->silabsCtx.cmd_ctx);
+    dst->silabsCtx.hash_ctx.hash_type_ctx = &(dst->silabsCtx.hash_type_ctx);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

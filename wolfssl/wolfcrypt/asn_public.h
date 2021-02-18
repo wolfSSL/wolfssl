@@ -23,6 +23,11 @@
     \file wolfssl/wolfcrypt/asn_public.h
 */
 
+/*
+DESCRIPTION
+This library defines the interface APIs for X509 certificates.
+
+*/
 #ifndef WOLF_CRYPT_ASN_PUBLIC_H
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
@@ -121,6 +126,7 @@ enum CertType {
 /* Signature type, by OID sum */
 enum Ctc_SigType {
     CTC_SHAwDSA      = 517,
+    CTC_SHA256wDSA   = 416,
     CTC_MD2wRSA      = 646,
     CTC_MD5wRSA      = 648,
     CTC_SHAwRSA      = 649,
@@ -325,6 +331,9 @@ typedef struct Cert {
 #endif
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
     word16  certPoliciesNb;              /* Number of Cert Policy */
+#endif
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_CERT_REQ)
     byte     issRaw[sizeof(CertName)];   /* raw issuer info */
     byte     sbjRaw[sizeof(CertName)];   /* raw subject info */
 #endif
@@ -509,6 +518,8 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                           word32 inLen);
     WOLFSSL_API int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
                                             word32* outLen);
+    WOLFSSL_API int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
+                                     word32* outLen);
 
     /* public key helper */
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,

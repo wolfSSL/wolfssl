@@ -43,9 +43,9 @@ All options may be enabled with the following configure command line:
 
 ```sh
 ./configure --enable-sniffer \
-    CPPFLAGS=”-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
+    CPPFLAGS="-DWOLFSSL_SNIFFER_STATS -DWOLFSSL_SNIFFER_WATCH \
     -DWOLFSSL_SNIFFER_STORE_DATA_CB -DWOLFSSL_SNIFFER_CHAIN_INPUT \
-    -DSTARTTLS_ALLOWED”
+    -DSTARTTLS_ALLOWED"
 ```
 
 To add some other cipher support to the sniffer, you can add options like:
@@ -88,7 +88,7 @@ To build with OCTEON III support for a Linux host:
 
 ## Command Line Options
 
-The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/ directory`. The command line application has several options that can be passed in at runtime to change the default behavior of the application. To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
+The wolfSSL sniffer includes a test application `snifftest` in the `sslSniffer/sslSnifferTest/` directory. The command line application has several options that can be passed in at runtime to change the default behavior of the application. To execute a “live” sniff just run the application without any parameters and then pick an interface to sniff on followed by the port.
 
 An example startup may look like this:
 

@@ -47,7 +47,7 @@
 static void* myAlloc(void* opaque, unsigned int item, unsigned int size)
 {
     (void)opaque;
-    return XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
+    return (void *)XMALLOC(item * size, opaque, DYNAMIC_TYPE_LIBZ);
 }
 
 
@@ -193,6 +193,129 @@ int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
     return wc_DeCompress_ex(out, outSz, in, inSz, 0);
 }
 
+
+/* Decompress the input buffer and create output buffer. Free'ing 'out' buffer
+ * is the callers responsibility on successful return.
+ *
+ * out gets set to the output buffer created, *out gets overwritten
+ * maxSz is the max decompression multiplier, i.e if 2 then max out size created
+ *     would be 2*inSz, if set to -1 then there is no limit on out buffer size
+ * memoryType the memory hint to use for 'out' i.e. DYNAMIC_TYPE_TMP_BUFFER
+ * in  compressed input buffer
+ * inSz size of 'in' buffer
+ * windowBits decompression behavior flag (can be 0)
+ * heap hint to use when mallocing 'out' buffer
+ *
+ * return the decompressed size, creates and grows out buffer as needed
+ */
+int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
+        const byte* in, word32 inSz, int windowBits, void* heap)
+{
+    z_stream   stream;
+    int result   = 0;
+    int i;
+    word32 tmpSz = 0;
+    byte*  tmp;
+
+    (void)memoryType;
+    (void)heap;
+
+    if (out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    i = (maxSz == 1)? 1 : 2; /* start with output buffer twice the size of input
+                              * unless max was set to 1 */
+
+    stream.next_in = (Bytef*)in;
+    stream.avail_in = (uInt)inSz;
+    /* Check for source > 64K on 16-bit machine: */
+    if ((uLong)stream.avail_in != inSz) return DECOMPRESS_INIT_E;
+
+    tmpSz = inSz * i;
+    tmp = (byte*)XMALLOC(tmpSz, heap, memoryType);
+    if (tmp == NULL)
+        return MEMORY_E;
+
+    stream.next_out  = tmp;
+    stream.avail_out = (uInt)tmpSz;
+    if ((uLong)stream.avail_out != tmpSz) return DECOMPRESS_INIT_E;
+
+    stream.zalloc = (alloc_func)myAlloc;
+    stream.zfree  = (free_func)myFree;
+    stream.opaque = (voidpf)0;
+
+    if (inflateInit2(&stream, DEFLATE_DEFAULT_WINDOWBITS | windowBits) != Z_OK) {
+        return DECOMPRESS_INIT_E;
+    }
+
+    /*
+       Wanted to use inflateGetHeader here for uncompressed size but
+       structure gz_headerp does not contain the ISIZE from RFC1952
+
+        gz_headerp header;
+        inflateGetHeader(&stream, &header);
+    */
+
+    /* loop through doing the decompression block by block to get full size */
+    do {
+        result = inflate(&stream, Z_BLOCK);
+        if (result == Z_STREAM_END) {
+            /* hit end of decompression */
+            break;
+        }
+
+        /* good chance output buffer ran out of space with Z_BUF_ERROR
+           try increasing output buffer size */
+        if (result == Z_BUF_ERROR) {
+            word32 newSz;
+            byte*  newTmp;
+
+            if (maxSz > 0 && i >= maxSz) {
+                WOLFSSL_MSG("Hit max decompress size!");
+                break;
+            }
+            i++;
+
+            newSz = tmpSz + inSz;
+            newTmp = (byte*)XMALLOC(newSz, heap, memoryType);
+            if (newTmp == NULL) {
+                WOLFSSL_MSG("Memory error with increasing buffer size");
+                break;
+            }
+            XMEMCPY(newTmp, tmp, tmpSz);
+            XFREE(tmp, heap, memoryType);
+            tmp   = newTmp;
+            stream.next_out  = tmp + stream.total_out;
+            stream.avail_out = stream.avail_out + (uInt)tmpSz;
+            tmpSz  = newSz;
+            result = inflate(&stream, Z_BLOCK);
+        }
+    } while (result == Z_OK);
+
+    if (result == Z_STREAM_END) {
+        result = (int)stream.total_out;
+        *out   = (byte*)XMALLOC(result, heap, memoryType);
+        if (*out != NULL) {
+            XMEMCPY(*out, tmp, result);
+        }
+        else {
+            result = MEMORY_E;
+        }
+    }
+    else {
+        result = DECOMPRESS_E;
+    }
+
+    if (inflateEnd(&stream) != Z_OK)
+        result = DECOMPRESS_E;
+
+    if (tmp != NULL) {
+        XFREE(tmp, heap, memoryType);
+        tmp = NULL;
+    }
+
+    return result;
+}
 
 #endif /* HAVE_LIBZ */
 

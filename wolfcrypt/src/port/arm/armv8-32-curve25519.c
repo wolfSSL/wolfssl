@@ -2910,7 +2910,7 @@ void fe_invert(fe r, const fe a)
     );
 }
 
-int curve25519(byte* r, byte* n, byte* a)
+int curve25519(byte* r, const byte* n, const byte* a)
 {
     __asm__ __volatile__ (
         "sub	sp, sp, #0xbc\n\t"

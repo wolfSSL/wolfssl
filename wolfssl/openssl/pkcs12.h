@@ -42,6 +42,7 @@
 /* wolfSSL level using structs from ssl.h and calls down to wolfCrypt */
 #define d2i_PKCS12_bio wolfSSL_d2i_PKCS12_bio
 #define PKCS12_parse   wolfSSL_PKCS12_parse
+#define PKCS12_verify_mac wolfSSL_PKCS12_verify_mac
 #define PKCS12_create  wolfSSL_PKCS12_create
 #define PKCS12_PBE_add wolfSSL_PKCS12_PBE_add
 

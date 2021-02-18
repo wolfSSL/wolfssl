@@ -76,12 +76,14 @@ typedef struct Blake2s {
 
 #ifdef HAVE_BLAKE2B
 WOLFSSL_API int wc_InitBlake2b(Blake2b*, word32);
+WOLFSSL_API int wc_InitBlake2b_WithKey(Blake2b*, word32, const byte *, word32);
 WOLFSSL_API int wc_Blake2bUpdate(Blake2b*, const byte*, word32);
 WOLFSSL_API int wc_Blake2bFinal(Blake2b*, byte*, word32);
 #endif
 
 #ifdef HAVE_BLAKE2S
 WOLFSSL_API int wc_InitBlake2s(Blake2s*, word32);
+WOLFSSL_API int wc_InitBlake2s_WithKey(Blake2s*, word32, const byte *, word32);
 WOLFSSL_API int wc_Blake2sUpdate(Blake2s*, const byte*, word32);
 WOLFSSL_API int wc_Blake2sFinal(Blake2s*, byte*, word32);
 #endif

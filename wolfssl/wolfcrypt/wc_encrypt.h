@@ -60,6 +60,22 @@
 #endif
 
 
+#if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION <= 2)) || (defined(HAVE_SELFTEST) && \
+     (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2)))
+    /* In FIPS cert 3389 and CAVP selftest v1 build, these enums are
+     * not in aes.h. Define them here outside the fips boundary. 
+     */
+    #ifndef GCM_NONCE_MID_SZ
+        /* The usual default nonce size for AES-GCM. */
+        #define GCM_NONCE_MID_SZ 12
+    #endif
+    #ifndef CCM_NONCE_MIN_SZ
+        #define CCM_NONCE_MIN_SZ 7
+    #endif
+#endif
+
+
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
 WOLFSSL_API int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
                                         const byte* key, word32 keySz,

@@ -165,25 +165,42 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
                        const byte* in, word32 inSz,
                        const byte* key, word32 keySz)
 {
-    Cmac cmac;
+#ifdef WOLFSSL_SMALL_STACK
+    Cmac *cmac;
+#else
+    Cmac cmac[1];
+#endif
     int ret;
 
     if (out == NULL || (in == NULL && inSz > 0) || key == NULL || keySz == 0)
         return BAD_FUNC_ARG;
 
-    ret = wc_InitCmac(&cmac, key, keySz, WC_CMAC_AES, NULL);
-    if (ret != 0)
-        return ret;
+#ifdef WOLFSSL_SMALL_STACK
+    if ((cmac = (Cmac *)XMALLOC(sizeof *cmac, NULL,
+                                DYNAMIC_TYPE_CMAC)) == NULL)
+        return MEMORY_E;
+#endif
 
-    ret = wc_CmacUpdate(&cmac, in, inSz);
+    ret = wc_InitCmac(cmac, key, keySz, WC_CMAC_AES, NULL);
     if (ret != 0)
-        return ret;
+        goto out;
 
-    ret = wc_CmacFinal(&cmac, out, outSz);
+    ret = wc_CmacUpdate(cmac, in, inSz);
     if (ret != 0)
-        return ret;
+        goto out;
 
-    return 0;
+    ret = wc_CmacFinal(cmac, out, outSz);
+    if (ret != 0)
+        goto out;
+
+  out:
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (cmac)
+        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
+#endif
+
+    return ret;
 }
 
 

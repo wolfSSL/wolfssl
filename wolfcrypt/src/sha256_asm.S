@@ -89,12 +89,12 @@ L_avx1_sha256_flip_mask:
 .text
 .globl	Transform_Sha256_AVX1
 .type	Transform_Sha256_AVX1,@function
-.align	4
+.align	16
 Transform_Sha256_AVX1:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX1:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -2479,12 +2479,12 @@ _Transform_Sha256_AVX1:
 .text
 .globl	Transform_Sha256_AVX1_Len
 .type	Transform_Sha256_AVX1_Len,@function
-.align	4
+.align	16
 Transform_Sha256_AVX1_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_Len
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX1_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -4943,12 +4943,12 @@ L_avx1_rorx_sha256_flip_mask:
 .text
 .globl	Transform_Sha256_AVX1_RORX
 .type	Transform_Sha256_AVX1_RORX,@function
-.align	4
+.align	16
 Transform_Sha256_AVX1_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_RORX
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX1_RORX:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -7291,12 +7291,12 @@ _Transform_Sha256_AVX1_RORX:
 .text
 .globl	Transform_Sha256_AVX1_RORX_Len
 .type	Transform_Sha256_AVX1_RORX_Len,@function
-.align	4
+.align	16
 Transform_Sha256_AVX1_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX1_RORX_Len
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX1_RORX_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -9735,12 +9735,12 @@ L_avx2_sha256_flip_mask:
 .text
 .globl	Transform_Sha256_AVX2
 .type	Transform_Sha256_AVX2,@function
-.align	4
+.align	16
 Transform_Sha256_AVX2:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX2:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -12125,12 +12125,12 @@ _Transform_Sha256_AVX2:
 .text
 .globl	Transform_Sha256_AVX2_Len
 .type	Transform_Sha256_AVX2_Len,@function
-.align	4
+.align	16
 Transform_Sha256_AVX2_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_Len
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX2_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -16331,12 +16331,12 @@ L_avx2_rorx_sha256_shuf_DC00:
 .text
 .globl	Transform_Sha256_AVX2_RORX
 .type	Transform_Sha256_AVX2_RORX,@function
-.align	4
+.align	16
 Transform_Sha256_AVX2_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_RORX
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX2_RORX:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -18696,12 +18696,12 @@ _Transform_Sha256_AVX2_RORX:
 .text
 .globl	Transform_Sha256_AVX2_RORX_Len
 .type	Transform_Sha256_AVX2_RORX_Len,@function
-.align	4
+.align	16
 Transform_Sha256_AVX2_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha256_AVX2_RORX_Len
-.p2align	2
+.p2align	4
 _Transform_Sha256_AVX2_RORX_Len:
 #endif /* __APPLE__ */
         pushq	%rbx

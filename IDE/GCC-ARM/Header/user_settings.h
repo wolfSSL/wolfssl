@@ -70,13 +70,15 @@ extern "C" {
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+    //#define WOLFSSL_SP_CACHE_RESISTANT
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
-    /* 64 or 32 bit version */
-    //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
+    /* SP Assembly Speedups */
+    #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
     //#define WOLFSSL_SP_ARM32_ASM
     //#define WOLFSSL_SP_ARM64_ASM
+    //#define WOLFSSL_SP_ARM_THUMB_ASM
+    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -171,16 +173,15 @@ extern "C" {
     #undef  ECC_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
-    /* Enable cofactor support */
     #ifdef HAVE_FIPS
         #undef  HAVE_ECC_CDH
-        #define HAVE_ECC_CDH
-    #endif
+        #define HAVE_ECC_CDH /* Enable cofactor support */
 
-    /* Validate import */
-    #ifdef HAVE_FIPS
+        #undef NO_STRICT_ECDSA_LEN
+        #define NO_STRICT_ECDSA_LEN /* Do not force fixed len w/ FIPS */
+
         #undef  WOLFSSL_VALIDATE_ECC_IMPORT
-        #define WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
     #endif
 
     /* Compressed Key Support */

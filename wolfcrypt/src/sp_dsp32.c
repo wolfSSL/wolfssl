@@ -43,7 +43,8 @@
 #include "hexagon_protos.h"
 #include "hexagon_types.h"
 
-#if (defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)) &&              (defined(WOLFSSL_HAVE_SP_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+#if (!defined(WC_NO_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)) && \
+             (defined(WOLFSSL_HAVE_SP_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
@@ -116,16 +117,26 @@ static const sp_point p256_base __attribute__((aligned(128))) = {
 static int sp_ecc_point_new_ex(void* heap, sp_point* sp, sp_point** p)
 {
     int ret = MP_OKAY;
-    (void)heap;
-#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    (void)sp;
-    *p = (sp_point*)XMALLOC(sizeof(sp_point), heap, DYNAMIC_TYPE_ECC);
-#else
-    *p = sp;
-#endif
+
     if (p == NULL) {
         ret = MEMORY_E;
+    } else {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        (void)sp;
+        *p = (sp_point*)XMALLOC(sizeof(sp_point), heap, DYNAMIC_TYPE_ECC);
+        if (*p == NULL) {
+            ret = MEMORY_E;
+        }
+#else
+        (void)heap;
+        if (sp == NULL) {
+            ret = MEMORY_E;
+        } else {
+            *p = sp;
+        }
+#endif
     }
+
     return ret;
 }
 
@@ -1995,7 +2006,7 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
     return err;
 }
 
-#elif defined(WOLFSSL_SP_CACHE_RESISTANT)
+#elif !defined(WC_NO_CACHE_RESISTANT)
 /* Multiply the point by the scalar and return the result.
  * If map is true then convert result to affine co-ordinates.
  *
@@ -4532,14 +4543,12 @@ void wc_ecc_fp_free(void)
 
 AEEResult wolfSSL_open(const char *uri, remote_handle64 *handle) 
 {
-   void *tptr;
   /* can be any value or ignored, rpc layer doesn't care
    * also ok
    * *handle = 0;
    * *handle = 0xdeadc0de;
    */
-   tptr = (void *)malloc(1);
-   *handle = (remote_handle64)tptr;
+   *handle = (remote_handle64)malloc(1);
    return 0;
 }
 

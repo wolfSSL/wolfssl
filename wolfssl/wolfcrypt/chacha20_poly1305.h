@@ -18,12 +18,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+/*
 
+DESCRIPTION
+This library contains implementation for the ChaCha20 stream cipher and
+the Poly1305 authenticator, both as as combined-mode,
+or Authenticated Encryption with Additional Data (AEAD) algorithm.
 
-/* This implementation of the ChaCha20-Poly1305 AEAD is based on "ChaCha20
- * and Poly1305 for IETF protocols" (draft-irtf-cfrg-chacha20-poly1305-10):
- * https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
- */
+*/
 
 /*!
     \file wolfssl/wolfcrypt/chacha20_poly1305.h
@@ -45,6 +47,8 @@
 #define CHACHA20_POLY1305_AEAD_KEYSIZE      32
 #define CHACHA20_POLY1305_AEAD_IV_SIZE      12
 #define CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE 16
+#define CHACHA20_POLY1305_MAX               4294967295U
+#define XCHACHA20_POLY1305_AEAD_NONCE_SIZE  24
 
 enum {
     CHACHA20_POLY_1305_ENC_TYPE = 8,    /* cipher unique type */
@@ -120,6 +124,30 @@ WOLFSSL_API int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
 WOLFSSL_API int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
 
+#ifdef HAVE_XCHACHA
+
+WOLFSSL_API int wc_XChaCha20Poly1305_Init(
+    ChaChaPoly_Aead* aead,
+    const byte *ad, word32 ad_len,
+    const byte *inKey, word32 inKeySz,
+    const byte *inIV, word32 inIVSz,
+    int isEncrypt);
+
+WOLFSSL_API int wc_XChaCha20Poly1305_Encrypt(
+    byte *dst, const size_t dst_space,
+    const byte *src, const size_t src_len,
+    const byte *ad, const size_t ad_len,
+    const byte *nonce, const size_t nonce_len,
+    const byte *key, const size_t key_len);
+
+WOLFSSL_API int wc_XChaCha20Poly1305_Decrypt(
+    byte *dst, const size_t dst_space,
+    const byte *src, const size_t src_len,
+    const byte *ad, const size_t ad_len,
+    const byte *nonce, const size_t nonce_len,
+    const byte *key, const size_t key_len);
+
+#endif /* HAVE_XCHACHA */
 
 #ifdef __cplusplus
     } /* extern "C" */

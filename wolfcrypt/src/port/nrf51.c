@@ -25,8 +25,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
-#ifdef WOLFSSL_NRF51
+#if defined(WOLFSSL_NRF51) || defined(WOLFSSL_NRF5x)
 
 #include "bsp.h"
 #include "nrf_delay.h"
@@ -50,7 +51,7 @@ const nrf_drv_rtc_t rtc = NRF_DRV_RTC_INSTANCE(0); /**< Declaring an instance of
 #endif /* !NO_CRYPT_BENCHMARK */
 
 /* AES */
-#if !defined(NO_AES) && !defined(SOFTDEVICE_PRESENT)
+#if !defined(NO_AES) && defined(WOLFSSL_NRF51_AES) && !defined(SOFTDEVICE_PRESENT)
     static byte mAesInitDone = 0;
 #endif
 
@@ -74,16 +75,14 @@ int nrf51_random_generate(byte* output, word32 size)
     }
 
     while (remaining > 0) {
-        err_code = nrf_drv_rng_bytes_available(&available);
-        if (err_code == NRF_SUCCESS) {
-            length = (remaining < available) ? remaining : available;
-            if (length > 0) {
-                err_code = nrf_drv_rng_rand(&output[pos], length);
-                remaining -= length;
-                pos += length;
-            }
+        available = 0;
+        nrf_drv_rng_bytes_available(&available); /* is void */
+        length = (remaining < available) ? remaining : available;
+        if (length > 0) {
+            err_code = nrf_drv_rng_rand(&output[pos], length);
+            remaining -= length;
+            pos += length;
         }
-
         if (err_code != NRF_SUCCESS) {
             break;
         }
@@ -166,28 +165,37 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
     }
 }
 
+#ifndef RTC0_CONFIG_FREQUENCY
+#define RTC0_CONFIG_FREQUENCY 32768
+#endif
+
 static void rtc_config(void)
 {
     uint32_t err_code;
 
-    // Start the internal LFCLK XTAL oscillator
+    /* Start the internal LFCLK XTAL oscillator */
+#if defined(NRF52) || defined(NRF52_SERIES)
+    err_code = nrf_drv_clock_init();
+    APP_ERROR_CHECK(err_code);
+    nrf_drv_clock_lfclk_request(NULL);
+#else
     err_code = nrf_drv_clock_init(NULL);
     APP_ERROR_CHECK(err_code);
-
     nrf_drv_clock_lfclk_request();
+#endif
 
-    // Initialize RTC instance
+    /* Initialize RTC instance */
     err_code = nrf_drv_rtc_init(&rtc, NULL, rtc_handler);
     APP_ERROR_CHECK(err_code);
 
-    // Enable tick event
+    /* Enable tick event */
     nrf_drv_rtc_tick_enable(&rtc, false);
 
-    // Set compare channel to trigger interrupt after 1 seconds
+    /* Set compare channel to trigger interrupt after 1 seconds */
     err_code = nrf_drv_rtc_cc_set(&rtc, 0, RTC0_CONFIG_FREQUENCY, true);
     APP_ERROR_CHECK(err_code);
 
-    // Power on RTC instance
+    /* Power on RTC instance */
     nrf_drv_rtc_enable(&rtc);
 }
 
@@ -217,4 +225,4 @@ double current_time(int reset)
 }
 #endif /* !NO_CRYPT_BENCHMARK */
 
-#endif /* WOLFSSL_NRF51 */
+#endif /* WOLFSSL_NRF51 || WOLFSSL_NRF5x */

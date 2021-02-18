@@ -71,7 +71,6 @@
 #endif
 
 
-#if !defined(WOLFSSL_SP_MATH)
 int get_digit_count(mp_int* a)
 {
     if (a == NULL)
@@ -79,7 +78,6 @@ int get_digit_count(mp_int* a)
 
     return a->used;
 }
-#endif
 
 mp_digit get_digit(mp_int* a, int n)
 {
@@ -89,6 +87,7 @@ mp_digit get_digit(mp_int* a, int n)
     return (n >= a->used || n < 0) ? 0 : a->dp[n];
 }
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_MP_COND_COPY)
 /* Conditionally copy a into b. Performed in constant time.
  *
  * a     MP integer to copy.
@@ -101,7 +100,11 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
 {
     int err = MP_OKAY;
     int i;
+#if defined(SP_WORD_SIZE) && SP_WORD_SIZE == 8
+    unsigned int mask = (unsigned int)0 - copy;
+#else
     mp_digit mask = (mp_digit)0 - copy;
+#endif
 
     if (a == NULL || b == NULL)
         err = BAD_FUNC_ARG;
@@ -123,10 +126,15 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
             b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
         }
         b->used ^= (a->used ^ b->used) & (int)mask;
+#if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
+    defined(WOLFSSL_SP_INT_NEGATIVE)
+        b->sign ^= (a->sign ^ b->sign) & (int)mask;
+#endif
     }
 
     return err;
 }
+#endif
 
 #ifndef WC_NO_RNG
 int get_rand_digit(WC_RNG* rng, mp_digit* d)
@@ -146,7 +154,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     if (rng == NULL) {
         ret = MISSING_RNG_E;
     }
-    else if (a == NULL) {
+    else if (a == NULL || digits == 0) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -156,7 +164,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
     }
 #else
-#if defined(WOLFSSL_SP_MATH)
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     if ((ret == MP_OKAY) && (digits > SP_INT_DIGITS))
 #else
     if ((ret == MP_OKAY) && (digits > FP_SIZE))
@@ -193,6 +201,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 #endif /* WC_RSA_BLINDING */
 #endif
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_EXPORT_INT)
 /* export an mp_int as unsigned char or hex string
  * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
  * return MP_OKAY on success */
@@ -226,6 +235,7 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
 
     return err;
 }
+#endif
 
 
 #ifdef HAVE_WOLF_BIGINT

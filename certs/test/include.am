@@ -9,7 +9,11 @@ EXTRA_DIST += \
          certs/test/cert-ext-nc.der \
          certs/test/cert-ext-nct.cfg \
          certs/test/cert-ext-nct.der \
+         certs/test/cert-ext-ndir.cfg \
+         certs/test/cert-ext-ndir.der \
          certs/test/cert-ext-ns.der \
+         certs/test/cert-ext-ndir-exc.cfg \
+         certs/test/cert-ext-ndir-exc.der \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
          certs/test/cert-ext-joi.pem
@@ -43,6 +47,9 @@ EXTRA_DIST += \
          certs/test/server-badaltname.pem \
          certs/test/server-localhost.der \
          certs/test/server-localhost.pem \
+         certs/test/smime-test.p7s \
+         certs/test/smime-test-multipart.p7s \
+         certs/test/smime-test-multipart-badsig.p7s \
          certs/crl/server-goodaltCrl.pem \
          certs/crl/server-goodcnCrl.pem \
          certs/crl/server-goodaltwildCrl.pem \

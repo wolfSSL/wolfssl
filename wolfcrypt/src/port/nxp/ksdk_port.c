@@ -768,6 +768,15 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     return res;
 }
 
+int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+                      mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
+                      void* heap)
+{
+    (void)order;
+    (void)rng;
+    return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, heap);
+}
+
 int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
 {
     int res;
@@ -974,7 +983,7 @@ static const ECPoint ecBasePoint = {
     0x1e, 0xe0, 0xb4, 0x86, 0xa0, 0xb8, 0xa1, 0x19, 0xae, 0x20},
 };
 
-const ECPoint *wc_curve25519_GetBasePoint(void)
+const ECPoint *nxp_ltc_curve25519_GetBasePoint(void)
 {
     return &ecBasePoint;
 }
@@ -985,7 +994,7 @@ static const uint8_t curve25519_aCurveParam[CURVE25519_KEYSIZE] = {
     0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
     0xaa, 0xaa, 0xaa, 0xaa, 0x2a};
 
-static const uint8_t curve_bCurveParam[CURVE25519_KEYSIZE] = {
+static const uint8_t curve25519_bCurveParam[CURVE25519_KEYSIZE] = {
     0x64, 0xc8, 0x10, 0x77, 0x9c, 0x5e, 0x0b, 0x26, 0xb4, 0x97, 0xd0,
     0x5e, 0x42, 0x7b, 0x09, 0xed,
     0x25, 0xb4, 0x97, 0xd0, 0x5e, 0x42, 0x7b, 0x09, 0xed, 0x25, 0xb4,
@@ -1122,7 +1131,7 @@ status_t LTC_PKHA_Curve25519ComputeY(ltc_pkha_ecc_point_t *ltcPoint)
 /* if type is set, the input point p is in Montgomery curve coordinates,
     so there is a map to Weierstrass curve */
 /* q output point is always in Montgomery curve coordinates */
-int wc_curve25519(ECPoint *q, byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
+int nxp_ltc_curve25519(ECPoint *q, const byte *n, const ECPoint *p, fsl_ltc_ecc_coordinate_system_t type)
 {
     status_t status;
     ltc_pkha_ecc_point_t ltcPoint;

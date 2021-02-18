@@ -64,7 +64,7 @@
 	#undef  MEM_BUFFER_SZ
 	#define MEM_BUFFER_SZ 2048
 #endif
-#define SHOW_VERBOSE         0 /* Default output is tab delimited format */
+#define SHOW_VERBOSE         0 /* 0=tab del (minimal), 1=info, 2=debug, 3=debug w/wolf logs */
 #ifndef WOLFSSL_CIPHER_LIST_MAX_SIZE
 #define WOLFSSL_CIPHER_LIST_MAX_SIZE 2048
 #endif
@@ -75,6 +75,9 @@
 #if 0
     /* use non-blocking mode for read/write IO */
     #define BENCH_USE_NONBLOCK
+#endif
+#ifndef RECV_WAIT_TIMEOUT
+    #define RECV_WAIT_TIMEOUT 10000
 #endif
 
 /*****************************************************************************
@@ -507,6 +510,8 @@ static int ServerMemSend(info_t* info, char* buf, int sz)
         sz = MEM_BUFFER_SZ - info->to_client.write_idx;
 #endif
 
+    if (info->showVerbose >= 2)
+        printf("Server Send: %d\n", sz);
     XMEMCPY(&info->to_client.buf[info->to_client.write_idx], buf, sz);
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
@@ -539,10 +544,16 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
             !info->client.done) {
         osSemaphoreRelease(info->server.mutex);
 #ifdef CMSIS_OS2_H_
-        osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
+        if (osThreadFlagsWait(1, osFlagsWaitAny, RECV_WAIT_TIMEOUT) == osFlagsErrorTimeout) {
+        	printf("Server Recv: Timeout!\n");
+        	return WOLFSSL_CBIO_ERR_TIMEOUT;
+        }
         osSemaphoreAcquire(info->server.mutex, osWaitForever);
 #else
-        osSignalWait(1, osWaitForever);
+        if (osSignalWait(1, RECV_WAIT_TIMEOUT) == osEventTimeout) {
+        	printf("Server Recv: Timeout!\n");
+            return WOLFSSL_CBIO_ERR_TIMEOUT;
+        }
         osSemaphoreWait(info->server.mutex, osWaitForever);
 #endif
     }
@@ -560,8 +571,11 @@ static int ServerMemRecv(info_t* info, char* buf, int sz)
         info->to_server.read_bytes = info->to_server.read_idx = 0;
         info->to_server.write_bytes = info->to_server.write_idx = 0;
     }
+    if (info->showVerbose >= 2)
+        printf("Server Recv: %d\n", sz);
 
     osSemaphoreRelease(info->server.mutex);
+
 
 #ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
@@ -592,6 +606,8 @@ static int ClientMemSend(info_t* info, char* buf, int sz)
         sz = MEM_BUFFER_SZ - info->to_server.write_idx;
 #endif
 
+    if (info->showVerbose >= 2)
+        printf("Client Send: %d\n", sz);
     XMEMCPY(&info->to_server.buf[info->to_server.write_idx], buf, sz);
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
@@ -624,10 +640,16 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
             !info->server.done) {
         osSemaphoreRelease(info->client.mutex);
 #ifdef CMSIS_OS2_H_
-        osThreadFlagsWait(1, osFlagsWaitAny, osWaitForever);
+        if (osThreadFlagsWait(1, osFlagsWaitAny, RECV_WAIT_TIMEOUT) == osFlagsErrorTimeout) {
+        	printf("Client Recv: Timeout!\n");
+        	return WOLFSSL_CBIO_ERR_TIMEOUT;
+        }
         osSemaphoreAcquire(info->client.mutex, osWaitForever);
 #else
-        osSignalWait(1, osWaitForever);
+        if (osSignalWait(1, RECV_WAIT_TIMEOUT) == osEventTimeout) {
+        	printf("Client Recv: Timeout!\n");
+        	return WOLFSSL_CBIO_ERR_TIMEOUT;
+        }
         osSemaphoreWait(info->client.mutex, osWaitForever);
 #endif
     }
@@ -645,6 +667,8 @@ static int ClientMemRecv(info_t* info, char* buf, int sz)
         info->to_client.read_bytes = info->to_client.read_idx = 0;
         info->to_client.write_bytes = info->to_client.write_idx = 0;
     }
+    if (info->showVerbose >= 2)
+        printf("Client Recv: %d\n", sz);
 
     osSemaphoreRelease(info->client.mutex);
 
@@ -936,6 +960,9 @@ static void client_thread(const void* args)
     int ret;
     info_t* info = (info_t*)args;
 
+#ifdef CMSIS_OS2_H_
+    info->client.threadId = osThreadGetId();
+#endif
     do {
         ret = bench_tls_client(info);
 
@@ -949,13 +976,14 @@ static void client_thread(const void* args)
         }
         info->client.ret = ret;
         info->client.done = 1;
-        osThreadSuspend(NULL);
+        osThreadSuspend(info->client.threadId);
 
         if (info->doShutdown)
             info->client.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->client.threadId);
+    info->client.threadId = NULL;
 }
 
 static int bench_tls_server(info_t* info)
@@ -1207,6 +1235,9 @@ static void server_thread(const void* args)
     int ret;
     info_t* info = (info_t*)args;
 
+#ifdef CMSIS_OS2_H_
+    info->server.threadId = osThreadGetId();
+#endif
     do {
         ret = bench_tls_server(info);
 
@@ -1220,13 +1251,14 @@ static void server_thread(const void* args)
         }
         info->server.ret = ret;
         info->server.done = 1;
-        osThreadSuspend(NULL);
+        osThreadSuspend(info->server.threadId);
 
         if (info->doShutdown)
             info->server.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->server.threadId);
+    info->server.threadId = NULL;
 }
 
 #ifdef CMSIS_OS2_H_
@@ -1258,7 +1290,7 @@ int bench_tls(void* args)
     int argShowPeerInfo = BENCH_SHOW_PEER_INFO;
 
 #ifdef DEBUG_WOLFSSL
-    if (argShowVerbose) {
+    if (argShowVerbose >= 3) {
         wolfSSL_Debugging_ON();
     }
     else {
@@ -1343,7 +1375,7 @@ int bench_tls(void* args)
         /* start threads */
         if (info->server.threadId == 0) {
 #ifdef CMSIS_OS2_H_
-            info->server.threadId = osThreadNew(server_thread, info, &server_thread_attributes);
+            osThreadNew(server_thread, info, &server_thread_attributes);
 #else
             info->server.threadId = osThreadCreate(&info->server.threadDef, info);
 #endif
@@ -1353,7 +1385,7 @@ int bench_tls(void* args)
         }
         if (info->client.threadId == 0) {
 #ifdef CMSIS_OS2_H_
-            info->client.threadId = osThreadNew(client_thread, info, &client_thread_attributes);
+            osThreadNew(client_thread, info, &client_thread_attributes);
 #else
             info->client.threadId = osThreadCreate(&info->client.threadDef, info);
 #endif

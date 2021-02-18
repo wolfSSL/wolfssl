@@ -117,9 +117,16 @@ WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
 WOLFSSL_API int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA*, int);
+WOLFSSL_API int wolfSSL_RSA_sign_generic_padding(int type, const unsigned char* m,
+                               unsigned int mLen, unsigned char* sigRet,
+                               unsigned int* sigLen, WOLFSSL_RSA*, int, int);
 WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
                                unsigned int mLen, const unsigned char* sig,
                                unsigned int sigLen, WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_verify_ex(int type, const unsigned char* m,
+                               unsigned int mLen, const unsigned char* sig,
+                               unsigned int sigLen, WOLFSSL_RSA* rsa,
+                               int padding);
 WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                   unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);

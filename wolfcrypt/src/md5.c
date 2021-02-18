@@ -127,7 +127,7 @@ static int Transform(wc_Md5* md5, const byte* data)
 #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_md5_hash_n((byte*)data, 1, (unsigned char*)md5->digest);
 #else
-        MMCAU_MD5_HashN((byte*)data, 1, (uint32_t*)md5->digest);
+        MMCAU_MD5_HashN((byte*)data, 1, (word32*)md5->digest);
 #endif
         wolfSSL_CryptHwMutexUnLock();
     }
@@ -148,7 +148,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
             #ifdef FREESCALE_MMCAU_CLASSIC_SHA
                 cau_md5_hash_n(local, 1, (unsigned char*)md5->digest);
             #else
-                MMCAU_MD5_HashN(local, 1, (uint32_t*)md5->digest);
+                MMCAU_MD5_HashN(local, 1, (word32*)md5->digest);
             #endif
                 data += WC_MD5_BLOCK_SIZE;
                 len  -= WC_MD5_BLOCK_SIZE;
@@ -162,7 +162,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
             (unsigned char*)md5->digest);
 #else
         MMCAU_MD5_HashN((byte*)data, len / WC_MD5_BLOCK_SIZE,
-            (uint32_t*)md5->digest);
+            (word32*)md5->digest);
 #endif
         }
         wolfSSL_CryptHwMutexUnLock();

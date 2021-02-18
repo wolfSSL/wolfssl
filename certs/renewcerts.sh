@@ -14,6 +14,7 @@
 #                       ca-ecc384-cert.der
 #                       server-cert.pem
 #                       server-cert.der
+#                       server-cert-chain.der
 #                       server-ecc-rsa.pem
 #                       server-ecc.pem
 #                       1024/client-cert.der
@@ -210,6 +211,20 @@ run_renewcerts(){
     openssl x509 -in ca-cert.pem -text > tmp.pem
     check_result $? "Step 3"
     mv tmp.pem ca-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ########## update the self-signed ca-cert-chain.der ########
+    ############################################################
+    echo "Updating ca-cert-chain.der"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key 1024/ca-key.pem -config ./wolfssl.cnf -nodes -out ca-cert.csr
+    check_result $? "Step 1"
+
+    openssl x509 -req -in ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey 1024/ca-key.pem -outform DER -out ca-cert-chain.der
+    check_result $? "Step 2"
+    rm ca-cert.csr
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
@@ -497,15 +512,27 @@ run_renewcerts(){
     check_result $? "Der Cert 11"
     openssl x509 -inform PEM -in server-ecc-comp.pem -outform DER -out server-ecc-comp.der
     check_result $? "Der Cert 12"
+    cat server-cert.der ca-cert.der >server-cert-chain.der
+    check_result $? "Der Cert 13"
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
     ############################################################
-    ########## generate PKCS7 bundles ##########################
+    ########## generate Ed448 certificates #####################
     ############################################################
     echo "Renewing Ed448 certificates"
     cd ed448
     ./gen-ed448-certs.sh
+    cd ..
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+
+    ############################################################
+    ########## generate P-521 certificates #####################
+    ############################################################
+    echo "Renewing Ed448 certificates"
+    cd p521
+    ./gen-p521-certs.sh
     cd ..
     echo "End of section"
     echo "---------------------------------------------------------------------"
@@ -525,6 +552,15 @@ run_renewcerts(){
     echo "Updating test-servercert.p12 (password is \"wolfSSL test\")"
     echo ""
     echo "wolfSSL test" | openssl pkcs12 -des3 -descert -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert.p12 -password stdin
+    check_result $? "Step 1"
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
+    ###### update the test-servercert-rc2.p12 file #############
+    ############################################################
+    echo "Updating test-servercert-rc2.p12 (password is \"wolfSSL test\")"
+    echo ""
+    echo "wolfSSL test" | openssl pkcs12 -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert-rc2.p12 -password stdin
     check_result $? "Step 1"
     echo "End of section"
     echo "---------------------------------------------------------------------"
@@ -654,8 +690,6 @@ then
 
     #run the function to renew the certs
     run_renewcerts
-    # run_renewcerts will end in the wolfssl/certs/crl dir, backup to root.
-    cd ../ || exit 1
     CURRDIR=${PWD##*/}
     if [ "$CURRDIR" = "certs" ]; then
         cd ../ || exit 1
@@ -764,8 +798,6 @@ else
     # if now defined
     if grep HAVE_NTRU "wolfssl/options.h"; then
         run_renewcerts
-        #run_renewcerts leaves us in wolfssl/certs/crl, backup to root
-        cd ../ || exit 1
         CURRDIR=${PWD##*/}
         if [ "$CURRDIR" = "certs" ]; then
             cd ../ || exit 1

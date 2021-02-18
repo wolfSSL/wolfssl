@@ -47,6 +47,8 @@ WOLFSSL_API int wc_Compress_ex(byte* out, word32 outSz, const byte* in,
 WOLFSSL_API int wc_DeCompress(byte*, word32, const byte*, word32);
 WOLFSSL_API int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in,
     word32 inSz, int windowBits);
+WOLFSSL_API int wc_DeCompressDynamic(byte** out, int max, int memoryType,
+        const byte* in, word32 inSz, int windowBits, void* heap);
 
 #ifdef __cplusplus
     } /* extern "C" */

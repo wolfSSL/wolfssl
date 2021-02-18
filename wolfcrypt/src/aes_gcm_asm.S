@@ -162,12 +162,12 @@ L_aes_gcm_mod2_128:
 .text
 .globl	AES_GCM_encrypt
 .type	AES_GCM_encrypt,@function
-.align	4
+.align	16
 AES_GCM_encrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt
-.p2align	2
+.p2align	4
 _AES_GCM_encrypt:
 #endif /* __APPLE__ */
         pushq	%r13
@@ -2016,12 +2016,12 @@ L_AES_GCM_encrypt_store_tag_done:
 .text
 .globl	AES_GCM_decrypt
 .type	AES_GCM_decrypt,@function
-.align	4
+.align	16
 AES_GCM_decrypt:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt
-.p2align	2
+.p2align	4
 _AES_GCM_decrypt:
 #endif /* __APPLE__ */
         pushq	%r13
@@ -3555,12 +3555,12 @@ L_avx1_aes_gcm_mod2_128:
 .text
 .globl	AES_GCM_encrypt_avx1
 .type	AES_GCM_encrypt_avx1,@function
-.align	4
+.align	16
 AES_GCM_encrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_avx1
-.p2align	2
+.p2align	4
 _AES_GCM_encrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r13
@@ -5135,12 +5135,12 @@ L_AES_GCM_encrypt_avx1_store_tag_done:
 .text
 .globl	AES_GCM_decrypt_avx1
 .type	AES_GCM_decrypt_avx1,@function
-.align	4
+.align	16
 AES_GCM_decrypt_avx1:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_avx1
-.p2align	2
+.p2align	4
 _AES_GCM_decrypt_avx1:
 #endif /* __APPLE__ */
         pushq	%r13
@@ -6455,12 +6455,12 @@ L_avx2_aes_gcm_mod2_128:
 .text
 .globl	AES_GCM_encrypt_avx2
 .type	AES_GCM_encrypt_avx2,@function
-.align	4
+.align	16
 AES_GCM_encrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_encrypt_avx2
-.p2align	2
+.p2align	4
 _AES_GCM_encrypt_avx2:
 #endif /* __APPLE__ */
         pushq	%r13
@@ -7763,12 +7763,12 @@ L_AES_GCM_encrypt_avx2_store_tag_done:
 .text
 .globl	AES_GCM_decrypt_avx2
 .type	AES_GCM_decrypt_avx2,@function
-.align	4
+.align	16
 AES_GCM_decrypt_avx2:
 #else
 .section	__TEXT,__text
 .globl	_AES_GCM_decrypt_avx2
-.p2align	2
+.p2align	4
 _AES_GCM_decrypt_avx2:
 #endif /* __APPLE__ */
         pushq	%r13

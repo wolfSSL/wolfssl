@@ -27,7 +27,7 @@
 #include "lwip/netdb.h"
 #include "lwip/apps/sntp.h"
 #include "nvs_flash.h"
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION_MAJOR >= 4
 #include "protocol_examples_common.h"
 #endif
 
@@ -50,7 +50,8 @@ static void set_time()
     char strftime_buf[64];
     /* please update the time if seeing unknown failure. */
     /* this could cause TLS communication failure due to time expiration */
-    utctime.tv_sec = 1567125910; /* dummy time: Fri Aug 30 09:45:00 2019 */
+    /* incleasing 31536000 seconds is close to spend 356 days.           */
+    utctime.tv_sec = 1598661910; /* dummy time: Fri Aug 29 09:45:00 2020 */
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;
@@ -98,7 +99,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         esp_wifi_connect();
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION_MAJOR >= 4
         ESP_LOGI(TAG, "got ip:" IPSTR "\n",
                  IP2STR(&event->event_info.got_ip.ip_info.ip));
 #else
@@ -131,7 +132,7 @@ void app_main(void)
     tcpip_adapter_init();
 #endif
     /* */
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#if ESP_IDF_VERSION_MAJOR >= 4
     (void) wifi_event_handler;
    ESP_ERROR_CHECK(esp_event_loop_create_default());
    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.

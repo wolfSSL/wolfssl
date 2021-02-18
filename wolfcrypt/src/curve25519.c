@@ -51,14 +51,110 @@ const curve25519_set_type curve25519_sets[] = {
     }
 };
 
-int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
-{
+static const unsigned char kCurve25519BasePoint[CURVE25519_KEYSIZE] = {9};
+
+/* compute the public key from an existing private key, using bare vectors.
+ *
+ * return value is propagated from curve25519() (0 on success), or ECC_BAD_ARG_E,
+ * and the byte vectors are little endian.
+ */
+int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
+                           const byte* priv) {
+    int ret;
+
+    if ((public_size != CURVE25519_KEYSIZE) ||
+        (private_size != CURVE25519_KEYSIZE)) {
+        return ECC_BAD_ARG_E;
+    }
+    if ((pub == NULL) || (priv == NULL))
+        return ECC_BAD_ARG_E;
+
+    /* check clamping */
+    if ((priv[0] & ~248) ||
+        (priv[CURVE25519_KEYSIZE-1] & 128)) {
+        return ECC_BAD_ARG_E;
+    }
+
 #ifdef FREESCALE_LTC_ECC
-    const ECPoint* basepoint = wc_curve25519_GetBasePoint();
+    {
+        const ECPoint* basepoint = nxp_ltc_curve25519_GetBasePoint();
+        ECPoint wc_pub;
+        ret = nxp_ltc_curve25519(&wc_pub, priv, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
+        if (ret == 0)
+            XMEMCPY(pub, wc_pub.point, CURVE25519_KEYSIZE);
+    }
 #else
-    unsigned char basepoint[CURVE25519_KEYSIZE] = {9};
+    fe_init();
+
+    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+        SAVE_VECTOR_REGISTERS();
+    #endif
+
+    ret = curve25519(pub, priv, kCurve25519BasePoint);
+
+    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+        RESTORE_VECTOR_REGISTERS();
+    #endif
 #endif
-    int  ret;
+
+    return ret;
+}
+
+/* compute the public key from an existing private key, with supplied basepoint, using bare vectors.
+ *
+ * return value is propagated from curve25519() (0 on success),
+ * and the byte vectors are little endian.
+ */
+int wc_curve25519_generic(int public_size, byte* pub,
+                          int private_size, const byte* priv,
+                          int basepoint_size, const byte* basepoint) {
+    int ret;
+
+#ifdef FREESCALE_LTC_ECC
+    /* unsupported with NXP LTC, onlly supports single basepoint with
+     * nxp_ltc_curve25519_GetBasePoint() */
+    return WC_HW_E;
+#else
+
+    if ((public_size != CURVE25519_KEYSIZE) ||
+        (private_size != CURVE25519_KEYSIZE) ||
+        (basepoint_size != CURVE25519_KEYSIZE)) {
+        return ECC_BAD_ARG_E;
+    }
+    if ((pub == NULL) || (priv == NULL) || (basepoint == NULL))
+        return ECC_BAD_ARG_E;
+
+    /* check clamping */
+    if ((priv[0] & ~248) ||
+        (priv[CURVE25519_KEYSIZE-1] & 128)) {
+        return ECC_BAD_ARG_E;
+    }
+
+    fe_init();
+
+    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+        SAVE_VECTOR_REGISTERS();
+    #endif
+
+    ret = curve25519(pub, priv, basepoint);
+
+    #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+        RESTORE_VECTOR_REGISTERS();
+    #endif
+
+    return ret;
+
+#endif /* FREESCALE_LTC_ECC */
+}
+
+/* generate a new private key, as a bare vector.
+ *
+ * return value is propagated from wc_RNG_GenerateBlock(() (0 on success),
+ * or BAD_FUNC_ARG/ECC_BAD_ARG_E, and the byte vector is little endian.
+ */
+int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* key)
+{
+    int ret;
 
     if (key == NULL || rng == NULL)
         return BAD_FUNC_ARG;
@@ -67,33 +163,35 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     if (keysize != CURVE25519_KEYSIZE)
         return ECC_BAD_ARG_E;
 
-#ifndef FREESCALE_LTC_ECC
-    fe_init();
-#endif
-
     /* random number for private key */
-    ret = wc_RNG_GenerateBlock(rng, key->k.point, keysize);
+    ret = wc_RNG_GenerateBlock(rng, key, keysize);
     if (ret != 0)
         return ret;
 
     /* Clamp the private key */
-    key->k.point[0] &= 248;
-    key->k.point[CURVE25519_KEYSIZE-1] &= 63; /* same &=127 because |=64 after */
-    key->k.point[CURVE25519_KEYSIZE-1] |= 64;
+    key[0] &= 248;
+    key[CURVE25519_KEYSIZE-1] &= 63; /* same &=127 because |=64 after */
+    key[CURVE25519_KEYSIZE-1] |= 64;
 
-    /* compute public key */
-    #ifdef FREESCALE_LTC_ECC
-        ret = wc_curve25519(&key->p, key->k.point, basepoint, kLTC_Weierstrass); /* input basepoint on Weierstrass curve */
-    #else
-        ret = curve25519(key->p.point, key->k.point, basepoint);
-    #endif
-    if (ret != 0) {
-        ForceZero(key->k.point, keysize);
-        ForceZero(key->p.point, keysize);
+    return 0;
+}
+
+/* generate a new keypair.
+ *
+ * return value is propagated from wc_curve25519_make_private() or
+ * wc_curve25519_make_pub() (0 on success).
+ */
+int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
+{
+    int ret;
+
+    if (key == NULL || rng == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_curve25519_make_priv(rng, keysize, key->k.point);
+    if (ret < 0)
         return ret;
-    }
-
-    return ret;
+    return wc_curve25519_make_pub((int)sizeof key->p.point, key->p.point, sizeof key->k.point, key->k.point);
 }
 
 #ifdef HAVE_CURVE25519_SHARED_SECRET
@@ -127,9 +225,17 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
         return ECC_BAD_ARG_E;
 
     #ifdef FREESCALE_LTC_ECC
-        ret = wc_curve25519(&o, private_key->k.point, &public_key->p, kLTC_Curve25519 /* input point P on Curve25519 */);
+        ret = nxp_ltc_curve25519(&o, private_key->k.point, &public_key->p, kLTC_Curve25519 /* input point P on Curve25519 */);
     #else
+        #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+            SAVE_VECTOR_REGISTERS();
+        #endif
+
         ret = curve25519(o, private_key->k.point, public_key->p.point);
+
+        #if defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_ARMASM)
+            RESTORE_VECTOR_REGISTERS();
+        #endif
     #endif
     if (ret != 0) {
         #ifdef FREESCALE_LTC_ECC

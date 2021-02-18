@@ -39,16 +39,6 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-
-#if defined(_MSC_VER)
-    #define ALIGN(x) __declspec(align(x))
-#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
-    #define ALIGN(x) __attribute__((aligned(x)))
-#else
-    #define ALIGN(x)
-#endif
-
-
 #if defined(__cplusplus)
     extern "C" {
 #endif
@@ -87,7 +77,7 @@
     byte  personal[BLAKE2S_PERSONALBYTES];  /* 32 */
   } blake2s_param;
 
-  ALIGN( 32 ) typedef struct __blake2s_state
+  ALIGN32 typedef struct __blake2s_state
   {
     word32 h[8];
     word32 t[2];
@@ -112,7 +102,7 @@
     byte  personal[BLAKE2B_PERSONALBYTES];  /* 64 */
   } blake2b_param;
 
-  ALIGN( 64 ) typedef struct __blake2b_state
+  ALIGN64 typedef struct __blake2b_state
   {
     word64 h[8];
     word64 t[2];

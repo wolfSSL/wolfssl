@@ -40,7 +40,7 @@
 typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     sp_int fp;
 #elif defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
     fp_int fp;
@@ -49,7 +49,7 @@ typedef struct WOLFSSL_BIGNUM {
 
 
 #define BN_ULONG WOLFSSL_BN_ULONG
-#define WOLFSSL_BN_ULONG mp_digit
+#define WOLFSSL_BN_ULONG unsigned long
 
 typedef struct WOLFSSL_BN_CTX WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
@@ -113,7 +113,7 @@ WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
 WOLFSSL_API int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM*, int);
 WOLFSSL_API int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM*, int);
 WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM*, WOLFSSL_BN_ULONG);
-WOLFSSL_API unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
+WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_add(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                WOLFSSL_BIGNUM*);

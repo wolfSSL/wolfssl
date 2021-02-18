@@ -111,6 +111,38 @@ static WC_INLINE double current_time(int reset)
 }
 #endif /* WOLFSSL_FUNC_TIME */
 
+#ifdef HAVE_WC_INTROSPECTION
+
+const char *wolfSSL_configure_args(void) {
+#ifdef LIBWOLFSSL_CONFIGURE_ARGS
+  /* the spaces on either side are to make matching simple and efficient. */
+  return " " LIBWOLFSSL_CONFIGURE_ARGS " ";
+#else
+  return NULL;
+#endif
+}
+
+const char *wolfSSL_global_cflags(void) {
+#ifdef LIBWOLFSSL_GLOBAL_CFLAGS
+  /* the spaces on either side are to make matching simple and efficient. */
+  return " " LIBWOLFSSL_GLOBAL_CFLAGS " ";
+#else
+  return NULL;
+#endif
+}
+
+#endif /* HAVE_WC_INTROSPECTION */
+
+#ifdef HAVE_STACK_SIZE_VERBOSE
+
+THREAD_LS_T unsigned char *StackSizeCheck_myStack = NULL;
+THREAD_LS_T size_t StackSizeCheck_stackSize = 0;
+THREAD_LS_T size_t StackSizeCheck_stackSizeHWM = 0;
+THREAD_LS_T size_t *StackSizeCheck_stackSizeHWM_ptr = 0;
+THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
+
+#endif /* HAVE_STACK_SIZE_VERBOSE */
+
 #ifdef DEBUG_WOLFSSL
 
 /* Set these to default values initially. */
@@ -230,8 +262,16 @@ void WOLFSSL_TIME(int count)
     #include "m2m_log.h"
 #elif defined(WOLFSSL_ANDROID_DEBUG)
     #include <android/log.h>
+#elif defined(WOLFSSL_XILINX)
+    #include "xil_printf.h"
+#elif defined(WOLFSSL_LINUXKM)
+    /* the requisite linux/kernel.h is included in wc_port.h, with incompatible warnings masked out. */
+#elif defined(FUSION_RTOS)
+    #include <fclstdio.h>
+    #include <wolfssl/wolfcrypt/wc_port.h>
+    #define fprintf FCL_FPRINTF
 #else
-    #include <stdio.h>   /* for default printf stuff */
+    #include <stdio.h>  /* for default printf stuff */
 #endif
 
 #if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
@@ -263,7 +303,6 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         fnDebugMsg("\r\n");
 #elif defined(MQX_USE_IO_OLD)
         fprintf(_mqxio_stderr, "%s\n", logMessage);
-
 #elif defined(WOLFSSL_APACHE_MYNEWT)
         LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
 #elif defined(WOLFSSL_ESPIDF)
@@ -274,6 +313,10 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         M2M_LOG_INFO("%s\n", logMessage);
 #elif defined(WOLFSSL_ANDROID_DEBUG)
         __android_log_print(ANDROID_LOG_VERBOSE, "[wolfSSL]", "%s", logMessage);
+#elif defined(WOLFSSL_XILINX)
+        xil_printf("%s\r\n", logMessage);
+#elif defined(WOLFSSL_LINUXKM)
+        printk("%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif
@@ -817,7 +860,7 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
         while (current != NULL)
         {
             next = current->next;
-            cb(current->error, strlen(current->error), u);
+            cb(current->error, XSTRLEN(current->error), u);
             XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
             current = next;
         }

@@ -1,6 +1,6 @@
 /* fe_448.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,7 +33,6 @@
 #if defined(HAVE_CURVE448) || defined(HAVE_ED448)
 
 #include <wolfssl/wolfcrypt/fe_448.h>
-#include <stdint.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -55,11 +54,11 @@ void fe448_init(void)
  *
  * a  [in]  Field element in range 0..2^448-1.
  */
-void fe448_norm(uint8_t* a)
+void fe448_norm(word8* a)
 {
     int i;
-    int16_t c = 0;
-    int16_t o = 0;
+    sword16 c = 0;
+    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         c += a[i];
@@ -71,7 +70,7 @@ void fe448_norm(uint8_t* a)
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += a[i];
-        a[i] = (uint8_t)o;
+        a[i] = (word8)o;
         o >>= 8;
     }
 }
@@ -81,7 +80,7 @@ void fe448_norm(uint8_t* a)
  * d  [in]  Destination field element.
  * a  [in]  Source field element.
  */
-void fe448_copy(uint8_t* d, const uint8_t* a)
+void fe448_copy(word8* d, const word8* a)
 {
     int i;
     for (i = 0; i < 56; i++) {
@@ -96,11 +95,11 @@ void fe448_copy(uint8_t* d, const uint8_t* a)
  * b  [in]  Second field element.
  * c  [in]  Swap when 1. Valid values: 0, 1.
  */
-static void fe448_cswap(uint8_t* a, uint8_t* b, int c)
+static void fe448_cswap(word8* a, word8* b, int c)
 {
     int i;
-    uint8_t mask = -(uint8_t)c;
-    uint8_t t[56];
+    word8 mask = -(word8)c;
+    word8 t[56];
 
     for (i = 0; i < 56; i++)
         t[i] = (a[i] ^ b[i]) & mask;
@@ -116,23 +115,23 @@ static void fe448_cswap(uint8_t* a, uint8_t* b, int c)
  * a  [in]  Field element to add.
  * b  [in]  Field element to add.
  */
-void fe448_add(uint8_t* r, const uint8_t* a, const uint8_t* b)
+void fe448_add(word8* r, const word8* a, const word8* b)
 {
     int i;
-    int16_t c = 0;
-    int16_t o = 0;
+    sword16 c = 0;
+    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         c += a[i];
         c += b[i];
-        r[i] = (uint8_t)c;
+        r[i] = (word8)c;
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
 }
@@ -143,11 +142,11 @@ void fe448_add(uint8_t* r, const uint8_t* a, const uint8_t* b)
  * a  [in]  Field element to subtract from.
  * b  [in]  Field element to subtract.
  */
-void fe448_sub(uint8_t* r, const uint8_t* a, const uint8_t* b)
+void fe448_sub(word8* r, const word8* a, const word8* b)
 {
     int i;
-    int16_t c = 0;
-    int16_t o = 0;
+    sword16 c = 0;
+    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         if (i == 28)
@@ -156,14 +155,14 @@ void fe448_sub(uint8_t* r, const uint8_t* a, const uint8_t* b)
             c += 0x1fe;
         c += a[i];
         c -= b[i];
-        r[i] = (uint8_t)c;
+        r[i] = (word8)c;
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
 }
@@ -173,22 +172,22 @@ void fe448_sub(uint8_t* r, const uint8_t* a, const uint8_t* b)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
  */
-void fe448_mul39081(uint8_t* r, const uint8_t* a)
+void fe448_mul39081(word8* r, const word8* a)
 {
     int i;
-    int32_t c = 0;
-    int32_t o = 0;
+    sword32 c = 0;
+    sword32 o = 0;
 
     for (i = 0; i < 56; i++) {
-        c += a[i] * (int32_t)39081;
-        r[i] = (uint8_t)c;
+        c += a[i] * (sword32)39081;
+        r[i] = (word8)c;
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
 }
@@ -199,36 +198,36 @@ void fe448_mul39081(uint8_t* r, const uint8_t* a)
  * a  [in]  Field element to multiply.
  * b  [in]  Field element to multiply.
  */
-void fe448_mul(uint8_t* r, const uint8_t* a, const uint8_t* b)
+void fe448_mul(word8* r, const word8* a, const word8* b)
 {
     int i, k;
-    int32_t c = 0;
-    int16_t o = 0, cc = 0;
-    uint8_t t[112];
+    sword32 c = 0;
+    sword16 o = 0, cc = 0;
+    word8 t[112];
 
     for (k = 0; k < 56; k++) {
         i = 0;
         for (; i <= k; i++) {
-            c += (int32_t)a[i] * b[k - i];
+            c += (sword32)a[i] * b[k - i];
         }
-        t[k] = (uint8_t)c;
+        t[k] = (word8)c;
         c >>= 8;
     }
     for (; k < 111; k++) {
         i = k - 55;
         for (; i < 56; i++) {
-            c += (int32_t)a[i] * b[k - i];
+            c += (sword32)a[i] * b[k - i];
         }
-        t[k] = (uint8_t)c;
+        t[k] = (word8)c;
         c >>= 8;
     }
-    t[k] = (uint8_t)c;
+    t[k] = (word8)c;
 
     for (i = 0; i < 28; i++) {
         o += t[i];
         o += t[i + 56];
         o += t[i + 84];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
     for (i = 28; i < 56; i++) {
@@ -236,13 +235,13 @@ void fe448_mul(uint8_t* r, const uint8_t* a, const uint8_t* b)
         o += t[i + 56];
         o += t[i + 28];
         o += t[i + 56];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) cc += o;
         cc += r[i];
-        r[i] = (uint8_t)cc;
+        r[i] = (word8)cc;
         cc >>= 8;
     }
 }
@@ -252,25 +251,25 @@ void fe448_mul(uint8_t* r, const uint8_t* a, const uint8_t* b)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to square.
  */
-void fe448_sqr(uint8_t* r, const uint8_t* a)
+void fe448_sqr(word8* r, const word8* a)
 {
     int i, k;
-    int32_t c = 0;
-    int32_t p;
-    int16_t o = 0, cc = 0;
-    uint8_t t[112];
+    sword32 c = 0;
+    sword32 p;
+    sword16 o = 0, cc = 0;
+    word8 t[112];
 
     for (k = 0; k < 56; k++) {
         i = 0;
         for (; i <= k; i++) {
             if (k - i < i)
                 break;
-            p = (int32_t)a[i] * a[k - i];
+            p = (sword32)a[i] * a[k - i];
             if (k - i != i)
                 p *= 2;
             c += p;
         }
-        t[k] = (uint8_t)c;
+        t[k] = (word8)c;
         c >>= 8;
     }
     for (; k < 111; k++) {
@@ -278,21 +277,21 @@ void fe448_sqr(uint8_t* r, const uint8_t* a)
         for (; i < 56; i++) {
             if (k - i < i)
                 break;
-            p = (int32_t)a[i] * a[k - i];
+            p = (sword32)a[i] * a[k - i];
             if (k - i != i)
                 p *= 2;
             c += p;
         }
-        t[k] = (uint8_t)c;
+        t[k] = (word8)c;
         c >>= 8;
     }
-    t[k] = (uint8_t)c;
+    t[k] = (word8)c;
 
     for (i = 0; i < 28; i++) {
         o += t[i];
         o += t[i + 56];
         o += t[i + 84];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
     for (i = 28; i < 56; i++) {
@@ -300,13 +299,13 @@ void fe448_sqr(uint8_t* r, const uint8_t* a)
         o += t[i + 56];
         o += t[i + 28];
         o += t[i + 56];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) cc += o;
         cc += r[i];
-        r[i] = (uint8_t)cc;
+        r[i] = (word8)cc;
         cc >>= 8;
     }
     fe448_norm(r);
@@ -320,10 +319,10 @@ void fe448_sqr(uint8_t* r, const uint8_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to invert.
  */
-void fe448_invert(uint8_t* r, const uint8_t* a)
+void fe448_invert(word8* r, const word8* a)
 {
     int i;
-    uint8_t t[56];
+    word8 t[56];
 
     fe448_sqr(t, a);
     fe448_mul(t, t, a);
@@ -350,13 +349,13 @@ void fe448_invert(uint8_t* r, const uint8_t* a)
  */
 int curve448(byte* r, const byte* n, const byte* a)
 {
-    uint8_t x1[56];
-    uint8_t x2[56] = {1};
-    uint8_t z2[56] = {0};
-    uint8_t x3[56];
-    uint8_t z3[56] = {1};
-    uint8_t t0[56];
-    uint8_t t1[56];
+    word8 x1[56];
+    word8 x2[56] = {1};
+    word8 z2[56] = {0};
+    word8 x3[56];
+    word8 z3[56] = {1};
+    word8 t0[56];
+    word8 t1[56];
     int i;
     unsigned int swap;
     unsigned int b;
@@ -409,10 +408,10 @@ int curve448(byte* r, const byte* n, const byte* a)
  * a  [in]  Field element.
  * returns 0 when zero, and any other value otherwise.
  */
-int fe448_isnonzero(const uint8_t* a)
+int fe448_isnonzero(const word8* a)
 {
     int i;
-    uint8_t c = 0;
+    byte c = 0;
     for (i = 0; i < 56; i++)
         c |= a[i];
     return c;
@@ -425,11 +424,11 @@ int fe448_isnonzero(const uint8_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element.
  */
-void fe448_neg(uint8_t* r, const uint8_t* a)
+void fe448_neg(word8* r, const word8* a)
 {
     int i;
-    int16_t c = 0;
-    int16_t o = 0;
+    sword16 c = 0;
+    sword16 o = 0;
 
     for (i = 0; i < 56; i++) {
         if (i == 28)
@@ -437,14 +436,14 @@ void fe448_neg(uint8_t* r, const uint8_t* a)
         else
             c += 0x1fe;
         c -= a[i];
-        r[i] = (uint8_t)c;
+        r[i] = (word8)c;
         c >>= 8;
     }
 
     for (i = 0; i < 56; i++) {
         if ((i == 0) || (i == 28)) o += c;
         o += r[i];
-        r[i] = (uint8_t)o;
+        r[i] = (word8)o;
         o >>= 8;
     }
 }
@@ -455,10 +454,10 @@ void fe448_neg(uint8_t* r, const uint8_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
  */
-void fe448_pow_2_446_222_1(uint8_t* r, const uint8_t* a)
+void fe448_pow_2_446_222_1(word8* r, const word8* a)
 {
     int i;
-    uint8_t t[56];
+    word8 t[56];
 
     fe448_sqr(t, a);
     fe448_mul(t, t, a);
@@ -482,11 +481,11 @@ void fe448_pow_2_446_222_1(uint8_t* r, const uint8_t* a)
  * b  A field element.
  * c  If 1 then copy and if 0 then don't copy.
  */
-void fe448_cmov(uint8_t* a, const uint8_t* b, int c)
+void fe448_cmov(word8* a, const word8* b, int c)
 {
     int i;
-    uint8_t m = -(uint8_t)c;
-    uint8_t t[56];
+    word8 m = -(word8)c;
+    word8 t[56];
 
     for (i = 0; i < 56; i++)
         t[i] = m & (a[i] ^ b[i]);
@@ -508,64 +507,64 @@ void fe448_init(void)
  * r  [in]  Array to encode into.
  * b  [in]  Byte array.
  */
-void fe448_from_bytes(int64_t* r, const unsigned char* b)
+void fe448_from_bytes(sword64* r, const unsigned char* b)
 {
-    r[ 0] =  ((int64_t) (b[ 0]) <<  0)
-          |  ((int64_t) (b[ 1]) <<  8)
-          |  ((int64_t) (b[ 2]) << 16)
-          |  ((int64_t) (b[ 3]) << 24)
-          |  ((int64_t) (b[ 4]) << 32)
-          |  ((int64_t) (b[ 5]) << 40)
-          |  ((int64_t) (b[ 6]) << 48);
-    r[ 1] =  ((int64_t) (b[ 7]) <<  0)
-          |  ((int64_t) (b[ 8]) <<  8)
-          |  ((int64_t) (b[ 9]) << 16)
-          |  ((int64_t) (b[10]) << 24)
-          |  ((int64_t) (b[11]) << 32)
-          |  ((int64_t) (b[12]) << 40)
-          |  ((int64_t) (b[13]) << 48);
-    r[ 2] =  ((int64_t) (b[14]) <<  0)
-          |  ((int64_t) (b[15]) <<  8)
-          |  ((int64_t) (b[16]) << 16)
-          |  ((int64_t) (b[17]) << 24)
-          |  ((int64_t) (b[18]) << 32)
-          |  ((int64_t) (b[19]) << 40)
-          |  ((int64_t) (b[20]) << 48);
-    r[ 3] =  ((int64_t) (b[21]) <<  0)
-          |  ((int64_t) (b[22]) <<  8)
-          |  ((int64_t) (b[23]) << 16)
-          |  ((int64_t) (b[24]) << 24)
-          |  ((int64_t) (b[25]) << 32)
-          |  ((int64_t) (b[26]) << 40)
-          |  ((int64_t) (b[27]) << 48);
-    r[ 4] =  ((int64_t) (b[28]) <<  0)
-          |  ((int64_t) (b[29]) <<  8)
-          |  ((int64_t) (b[30]) << 16)
-          |  ((int64_t) (b[31]) << 24)
-          |  ((int64_t) (b[32]) << 32)
-          |  ((int64_t) (b[33]) << 40)
-          |  ((int64_t) (b[34]) << 48);
-    r[ 5] =  ((int64_t) (b[35]) <<  0)
-          |  ((int64_t) (b[36]) <<  8)
-          |  ((int64_t) (b[37]) << 16)
-          |  ((int64_t) (b[38]) << 24)
-          |  ((int64_t) (b[39]) << 32)
-          |  ((int64_t) (b[40]) << 40)
-          |  ((int64_t) (b[41]) << 48);
-    r[ 6] =  ((int64_t) (b[42]) <<  0)
-          |  ((int64_t) (b[43]) <<  8)
-          |  ((int64_t) (b[44]) << 16)
-          |  ((int64_t) (b[45]) << 24)
-          |  ((int64_t) (b[46]) << 32)
-          |  ((int64_t) (b[47]) << 40)
-          |  ((int64_t) (b[48]) << 48);
-    r[ 7] =  ((int64_t) (b[49]) <<  0)
-          |  ((int64_t) (b[50]) <<  8)
-          |  ((int64_t) (b[51]) << 16)
-          |  ((int64_t) (b[52]) << 24)
-          |  ((int64_t) (b[53]) << 32)
-          |  ((int64_t) (b[54]) << 40)
-          |  ((int64_t) (b[55]) << 48);
+    r[ 0] =  ((sword64) (b[ 0]) <<  0)
+          |  ((sword64) (b[ 1]) <<  8)
+          |  ((sword64) (b[ 2]) << 16)
+          |  ((sword64) (b[ 3]) << 24)
+          |  ((sword64) (b[ 4]) << 32)
+          |  ((sword64) (b[ 5]) << 40)
+          |  ((sword64) (b[ 6]) << 48);
+    r[ 1] =  ((sword64) (b[ 7]) <<  0)
+          |  ((sword64) (b[ 8]) <<  8)
+          |  ((sword64) (b[ 9]) << 16)
+          |  ((sword64) (b[10]) << 24)
+          |  ((sword64) (b[11]) << 32)
+          |  ((sword64) (b[12]) << 40)
+          |  ((sword64) (b[13]) << 48);
+    r[ 2] =  ((sword64) (b[14]) <<  0)
+          |  ((sword64) (b[15]) <<  8)
+          |  ((sword64) (b[16]) << 16)
+          |  ((sword64) (b[17]) << 24)
+          |  ((sword64) (b[18]) << 32)
+          |  ((sword64) (b[19]) << 40)
+          |  ((sword64) (b[20]) << 48);
+    r[ 3] =  ((sword64) (b[21]) <<  0)
+          |  ((sword64) (b[22]) <<  8)
+          |  ((sword64) (b[23]) << 16)
+          |  ((sword64) (b[24]) << 24)
+          |  ((sword64) (b[25]) << 32)
+          |  ((sword64) (b[26]) << 40)
+          |  ((sword64) (b[27]) << 48);
+    r[ 4] =  ((sword64) (b[28]) <<  0)
+          |  ((sword64) (b[29]) <<  8)
+          |  ((sword64) (b[30]) << 16)
+          |  ((sword64) (b[31]) << 24)
+          |  ((sword64) (b[32]) << 32)
+          |  ((sword64) (b[33]) << 40)
+          |  ((sword64) (b[34]) << 48);
+    r[ 5] =  ((sword64) (b[35]) <<  0)
+          |  ((sword64) (b[36]) <<  8)
+          |  ((sword64) (b[37]) << 16)
+          |  ((sword64) (b[38]) << 24)
+          |  ((sword64) (b[39]) << 32)
+          |  ((sword64) (b[40]) << 40)
+          |  ((sword64) (b[41]) << 48);
+    r[ 6] =  ((sword64) (b[42]) <<  0)
+          |  ((sword64) (b[43]) <<  8)
+          |  ((sword64) (b[44]) << 16)
+          |  ((sword64) (b[45]) << 24)
+          |  ((sword64) (b[46]) << 32)
+          |  ((sword64) (b[47]) << 40)
+          |  ((sword64) (b[48]) << 48);
+    r[ 7] =  ((sword64) (b[49]) <<  0)
+          |  ((sword64) (b[50]) <<  8)
+          |  ((sword64) (b[51]) << 16)
+          |  ((sword64) (b[52]) << 24)
+          |  ((sword64) (b[53]) << 32)
+          |  ((sword64) (b[54]) << 40)
+          |  ((sword64) (b[55]) << 48);
 }
 
 /* Convert the field element to a byte array from an array of 56-bits.
@@ -573,19 +572,19 @@ void fe448_from_bytes(int64_t* r, const unsigned char* b)
  * b  [in]  Byte array.
  * a  [in]  Array to encode into.
  */
-void fe448_to_bytes(unsigned char* b, const int64_t* a)
+void fe448_to_bytes(unsigned char* b, const sword64* a)
 {
-    int128_t t;
+    sword128 t;
     /* Mod */
-    int64_t in0 = a[0];
-    int64_t in1 = a[1];
-    int64_t in2 = a[2];
-    int64_t in3 = a[3];
-    int64_t in4 = a[4];
-    int64_t in5 = a[5];
-    int64_t in6 = a[6];
-    int64_t in7 = a[7];
-    int64_t o = in7 >> 56;
+    sword64 in0 = a[0];
+    sword64 in1 = a[1];
+    sword64 in2 = a[2];
+    sword64 in3 = a[3];
+    sword64 in4 = a[4];
+    sword64 in5 = a[5];
+    sword64 in6 = a[6];
+    sword64 in7 = a[7];
+    sword64 o = in7 >> 56;
     in7 -= o << 56;
     in0 += o;
     in4 += o;
@@ -600,14 +599,14 @@ void fe448_to_bytes(unsigned char* b, const int64_t* a)
     in0 += o;
     in4 += o;
     in7 -= o << 56;
-    o = (int64_t)(in0  >> 56); in1  += o; t = o << 56; in0  -= t;
-    o = (int64_t)(in1  >> 56); in2  += o; t = o << 56; in1  -= t;
-    o = (int64_t)(in2  >> 56); in3  += o; t = o << 56; in2  -= t;
-    o = (int64_t)(in3  >> 56); in4  += o; t = o << 56; in3  -= t;
-    o = (int64_t)(in4  >> 56); in5  += o; t = o << 56; in4  -= t;
-    o = (int64_t)(in5  >> 56); in6  += o; t = o << 56; in5  -= t;
-    o = (int64_t)(in6  >> 56); in7  += o; t = o << 56; in6  -= t;
-    o = (int64_t)(in7  >> 56); in0  += o;
+    o = (in0  >> 56); in1  += o; t = o << 56; in0  -= t;
+    o = (in1  >> 56); in2  += o; t = o << 56; in1  -= t;
+    o = (in2  >> 56); in3  += o; t = o << 56; in2  -= t;
+    o = (in3  >> 56); in4  += o; t = o << 56; in3  -= t;
+    o = (in4  >> 56); in5  += o; t = o << 56; in4  -= t;
+    o = (in5  >> 56); in6  += o; t = o << 56; in5  -= t;
+    o = (in6  >> 56); in7  += o; t = o << 56; in6  -= t;
+    o = (in7  >> 56); in0  += o;
                     in4  += o; t = o << 56; in7  -= t;
 
     /* Output as bytes */
@@ -673,7 +672,7 @@ void fe448_to_bytes(unsigned char* b, const int64_t* a)
  *
  * a  [in]  Field element.
  */
-void fe448_1(int64_t* a)
+void fe448_1(sword64* a)
 {
     a[0] = 1;
     a[1] = 0;
@@ -689,7 +688,7 @@ void fe448_1(int64_t* a)
  *
  * a  [in]  Field element.
  */
-void fe448_0(int64_t* a)
+void fe448_0(sword64* a)
 {
     a[0] = 0;
     a[1] = 0;
@@ -706,7 +705,7 @@ void fe448_0(int64_t* a)
  * d  [in]  Destination field element.
  * a  [in]  Source field element.
  */
-void fe448_copy(int64_t* d, const int64_t* a)
+void fe448_copy(sword64* d, const sword64* a)
 {
     d[0] = a[0];
     d[1] = a[1];
@@ -725,17 +724,17 @@ void fe448_copy(int64_t* d, const int64_t* a)
  * b  [in]  Second field element.
  * c  [in]  Swap when 1. Valid values: 0, 1.
  */
-static void fe448_cswap(int64_t* a, int64_t* b, int c)
+static void fe448_cswap(sword64* a, sword64* b, int c)
 {
-    int64_t mask = -(int64_t)c;
-    int64_t t0 = (a[0] ^ b[0]) & mask;
-    int64_t t1 = (a[1] ^ b[1]) & mask;
-    int64_t t2 = (a[2] ^ b[2]) & mask;
-    int64_t t3 = (a[3] ^ b[3]) & mask;
-    int64_t t4 = (a[4] ^ b[4]) & mask;
-    int64_t t5 = (a[5] ^ b[5]) & mask;
-    int64_t t6 = (a[6] ^ b[6]) & mask;
-    int64_t t7 = (a[7] ^ b[7]) & mask;
+    sword64 mask = -(sword64)c;
+    sword64 t0 = (a[0] ^ b[0]) & mask;
+    sword64 t1 = (a[1] ^ b[1]) & mask;
+    sword64 t2 = (a[2] ^ b[2]) & mask;
+    sword64 t3 = (a[3] ^ b[3]) & mask;
+    sword64 t4 = (a[4] ^ b[4]) & mask;
+    sword64 t5 = (a[5] ^ b[5]) & mask;
+    sword64 t6 = (a[6] ^ b[6]) & mask;
+    sword64 t7 = (a[7] ^ b[7]) & mask;
     a[0] ^= t0;
     a[1] ^= t1;
     a[2] ^= t2;
@@ -760,7 +759,7 @@ static void fe448_cswap(int64_t* a, int64_t* b, int c)
  * a  [in]  Field element to add.
  * b  [in]  Field element to add.
  */
-void fe448_add(int64_t* r, const int64_t* a, const int64_t* b)
+void fe448_add(sword64* r, const sword64* a, const sword64* b)
 {
     r[0] = a[0] + b[0];
     r[1] = a[1] + b[1];
@@ -778,7 +777,7 @@ void fe448_add(int64_t* r, const int64_t* a, const int64_t* b)
  * a  [in]  Field element to subtract from.
  * b  [in]  Field element to subtract.
  */
-void fe448_sub(int64_t* r, const int64_t* a, const int64_t* b)
+void fe448_sub(sword64* r, const sword64* a, const sword64* b)
 {
     r[0] = a[0] - b[0];
     r[1] = a[1] - b[1];
@@ -795,37 +794,37 @@ void fe448_sub(int64_t* r, const int64_t* a, const int64_t* b)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
  */
-void fe448_mul39081(int64_t* r, const int64_t* a)
+void fe448_mul39081(sword64* r, const sword64* a)
 {
-    int128_t t;
-    int64_t o;
-    int128_t t0 = a[0] * (int128_t)39081;
-    int128_t t1 = a[1] * (int128_t)39081;
-    int128_t t2 = a[2] * (int128_t)39081;
-    int128_t t3 = a[3] * (int128_t)39081;
-    int128_t t4 = a[4] * (int128_t)39081;
-    int128_t t5 = a[5] * (int128_t)39081;
-    int128_t t6 = a[6] * (int128_t)39081;
-    int128_t t7 = a[7] * (int128_t)39081;
-    o = (int64_t)(t0  >> 56); t1  += o; t = (int128_t)o << 56; t0  -= t;
-    o = (int64_t)(t1  >> 56); t2  += o; t = (int128_t)o << 56; t1  -= t;
-    o = (int64_t)(t2  >> 56); t3  += o; t = (int128_t)o << 56; t2  -= t;
-    o = (int64_t)(t3  >> 56); t4  += o; t = (int128_t)o << 56; t3  -= t;
-    o = (int64_t)(t4  >> 56); t5  += o; t = (int128_t)o << 56; t4  -= t;
-    o = (int64_t)(t5  >> 56); t6  += o; t = (int128_t)o << 56; t5  -= t;
-    o = (int64_t)(t6  >> 56); t7  += o; t = (int128_t)o << 56; t6  -= t;
-    o = (int64_t)(t7  >> 56); t0  += o;
-                   t4  += o; t = (int128_t)o << 56; t7  -= t;
+    sword128 t;
+    sword64 o;
+    sword128 t0 = a[0] * (sword128)39081;
+    sword128 t1 = a[1] * (sword128)39081;
+    sword128 t2 = a[2] * (sword128)39081;
+    sword128 t3 = a[3] * (sword128)39081;
+    sword128 t4 = a[4] * (sword128)39081;
+    sword128 t5 = a[5] * (sword128)39081;
+    sword128 t6 = a[6] * (sword128)39081;
+    sword128 t7 = a[7] * (sword128)39081;
+    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
+    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
+    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
+    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
+    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
+    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
+    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
+    o = (sword64)(t7  >> 56); t0  += o;
+                   t4  += o; t = (sword128)o << 56; t7  -= t;
 
     /* Store */
-    r[0] = (int64_t)t0;
-    r[1] = (int64_t)t1;
-    r[2] = (int64_t)t2;
-    r[3] = (int64_t)t3;
-    r[4] = (int64_t)t4;
-    r[5] = (int64_t)t5;
-    r[6] = (int64_t)t6;
-    r[7] = (int64_t)t7;
+    r[0] = (sword64)t0;
+    r[1] = (sword64)t1;
+    r[2] = (sword64)t2;
+    r[3] = (sword64)t3;
+    r[4] = (sword64)t4;
+    r[5] = (sword64)t5;
+    r[6] = (sword64)t6;
+    r[7] = (sword64)t7;
 }
 
 /* Mulitply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
@@ -834,74 +833,74 @@ void fe448_mul39081(int64_t* r, const int64_t* a)
  * a  [in]  Field element to multiply.
  * b  [in]  Field element to multiply.
  */
-void fe448_mul(int64_t* r, const int64_t* a, const int64_t* b)
+void fe448_mul(sword64* r, const sword64* a, const sword64* b)
 {
-    int128_t t;
-    int64_t o;
-    int128_t t0   = (int128_t)a[ 0] * b[ 0];
-    int128_t t1   = (int128_t)a[ 0] * b[ 1];
-    int128_t t101 = (int128_t)a[ 1] * b[ 0];
-    int128_t t2   = (int128_t)a[ 0] * b[ 2];
-    int128_t t102 = (int128_t)a[ 1] * b[ 1];
-    int128_t t202 = (int128_t)a[ 2] * b[ 0];
-    int128_t t3   = (int128_t)a[ 0] * b[ 3];
-    int128_t t103 = (int128_t)a[ 1] * b[ 2];
-    int128_t t203 = (int128_t)a[ 2] * b[ 1];
-    int128_t t303 = (int128_t)a[ 3] * b[ 0];
-    int128_t t4   = (int128_t)a[ 0] * b[ 4];
-    int128_t t104 = (int128_t)a[ 1] * b[ 3];
-    int128_t t204 = (int128_t)a[ 2] * b[ 2];
-    int128_t t304 = (int128_t)a[ 3] * b[ 1];
-    int128_t t404 = (int128_t)a[ 4] * b[ 0];
-    int128_t t5   = (int128_t)a[ 0] * b[ 5];
-    int128_t t105 = (int128_t)a[ 1] * b[ 4];
-    int128_t t205 = (int128_t)a[ 2] * b[ 3];
-    int128_t t305 = (int128_t)a[ 3] * b[ 2];
-    int128_t t405 = (int128_t)a[ 4] * b[ 1];
-    int128_t t505 = (int128_t)a[ 5] * b[ 0];
-    int128_t t6   = (int128_t)a[ 0] * b[ 6];
-    int128_t t106 = (int128_t)a[ 1] * b[ 5];
-    int128_t t206 = (int128_t)a[ 2] * b[ 4];
-    int128_t t306 = (int128_t)a[ 3] * b[ 3];
-    int128_t t406 = (int128_t)a[ 4] * b[ 2];
-    int128_t t506 = (int128_t)a[ 5] * b[ 1];
-    int128_t t606 = (int128_t)a[ 6] * b[ 0];
-    int128_t t7   = (int128_t)a[ 0] * b[ 7];
-    int128_t t107 = (int128_t)a[ 1] * b[ 6];
-    int128_t t207 = (int128_t)a[ 2] * b[ 5];
-    int128_t t307 = (int128_t)a[ 3] * b[ 4];
-    int128_t t407 = (int128_t)a[ 4] * b[ 3];
-    int128_t t507 = (int128_t)a[ 5] * b[ 2];
-    int128_t t607 = (int128_t)a[ 6] * b[ 1];
-    int128_t t707 = (int128_t)a[ 7] * b[ 0];
-    int128_t t8   = (int128_t)a[ 1] * b[ 7];
-    int128_t t108 = (int128_t)a[ 2] * b[ 6];
-    int128_t t208 = (int128_t)a[ 3] * b[ 5];
-    int128_t t308 = (int128_t)a[ 4] * b[ 4];
-    int128_t t408 = (int128_t)a[ 5] * b[ 3];
-    int128_t t508 = (int128_t)a[ 6] * b[ 2];
-    int128_t t608 = (int128_t)a[ 7] * b[ 1];
-    int128_t t9   = (int128_t)a[ 2] * b[ 7];
-    int128_t t109 = (int128_t)a[ 3] * b[ 6];
-    int128_t t209 = (int128_t)a[ 4] * b[ 5];
-    int128_t t309 = (int128_t)a[ 5] * b[ 4];
-    int128_t t409 = (int128_t)a[ 6] * b[ 3];
-    int128_t t509 = (int128_t)a[ 7] * b[ 2];
-    int128_t t10  = (int128_t)a[ 3] * b[ 7];
-    int128_t t110 = (int128_t)a[ 4] * b[ 6];
-    int128_t t210 = (int128_t)a[ 5] * b[ 5];
-    int128_t t310 = (int128_t)a[ 6] * b[ 4];
-    int128_t t410 = (int128_t)a[ 7] * b[ 3];
-    int128_t t11  = (int128_t)a[ 4] * b[ 7];
-    int128_t t111 = (int128_t)a[ 5] * b[ 6];
-    int128_t t211 = (int128_t)a[ 6] * b[ 5];
-    int128_t t311 = (int128_t)a[ 7] * b[ 4];
-    int128_t t12  = (int128_t)a[ 5] * b[ 7];
-    int128_t t112 = (int128_t)a[ 6] * b[ 6];
-    int128_t t212 = (int128_t)a[ 7] * b[ 5];
-    int128_t t13  = (int128_t)a[ 6] * b[ 7];
-    int128_t t113 = (int128_t)a[ 7] * b[ 6];
-    int128_t t14  = (int128_t)a[ 7] * b[ 7];
+    sword128 t;
+    sword64 o;
+    sword128 t0   = (sword128)a[ 0] * b[ 0];
+    sword128 t1   = (sword128)a[ 0] * b[ 1];
+    sword128 t101 = (sword128)a[ 1] * b[ 0];
+    sword128 t2   = (sword128)a[ 0] * b[ 2];
+    sword128 t102 = (sword128)a[ 1] * b[ 1];
+    sword128 t202 = (sword128)a[ 2] * b[ 0];
+    sword128 t3   = (sword128)a[ 0] * b[ 3];
+    sword128 t103 = (sword128)a[ 1] * b[ 2];
+    sword128 t203 = (sword128)a[ 2] * b[ 1];
+    sword128 t303 = (sword128)a[ 3] * b[ 0];
+    sword128 t4   = (sword128)a[ 0] * b[ 4];
+    sword128 t104 = (sword128)a[ 1] * b[ 3];
+    sword128 t204 = (sword128)a[ 2] * b[ 2];
+    sword128 t304 = (sword128)a[ 3] * b[ 1];
+    sword128 t404 = (sword128)a[ 4] * b[ 0];
+    sword128 t5   = (sword128)a[ 0] * b[ 5];
+    sword128 t105 = (sword128)a[ 1] * b[ 4];
+    sword128 t205 = (sword128)a[ 2] * b[ 3];
+    sword128 t305 = (sword128)a[ 3] * b[ 2];
+    sword128 t405 = (sword128)a[ 4] * b[ 1];
+    sword128 t505 = (sword128)a[ 5] * b[ 0];
+    sword128 t6   = (sword128)a[ 0] * b[ 6];
+    sword128 t106 = (sword128)a[ 1] * b[ 5];
+    sword128 t206 = (sword128)a[ 2] * b[ 4];
+    sword128 t306 = (sword128)a[ 3] * b[ 3];
+    sword128 t406 = (sword128)a[ 4] * b[ 2];
+    sword128 t506 = (sword128)a[ 5] * b[ 1];
+    sword128 t606 = (sword128)a[ 6] * b[ 0];
+    sword128 t7   = (sword128)a[ 0] * b[ 7];
+    sword128 t107 = (sword128)a[ 1] * b[ 6];
+    sword128 t207 = (sword128)a[ 2] * b[ 5];
+    sword128 t307 = (sword128)a[ 3] * b[ 4];
+    sword128 t407 = (sword128)a[ 4] * b[ 3];
+    sword128 t507 = (sword128)a[ 5] * b[ 2];
+    sword128 t607 = (sword128)a[ 6] * b[ 1];
+    sword128 t707 = (sword128)a[ 7] * b[ 0];
+    sword128 t8   = (sword128)a[ 1] * b[ 7];
+    sword128 t108 = (sword128)a[ 2] * b[ 6];
+    sword128 t208 = (sword128)a[ 3] * b[ 5];
+    sword128 t308 = (sword128)a[ 4] * b[ 4];
+    sword128 t408 = (sword128)a[ 5] * b[ 3];
+    sword128 t508 = (sword128)a[ 6] * b[ 2];
+    sword128 t608 = (sword128)a[ 7] * b[ 1];
+    sword128 t9   = (sword128)a[ 2] * b[ 7];
+    sword128 t109 = (sword128)a[ 3] * b[ 6];
+    sword128 t209 = (sword128)a[ 4] * b[ 5];
+    sword128 t309 = (sword128)a[ 5] * b[ 4];
+    sword128 t409 = (sword128)a[ 6] * b[ 3];
+    sword128 t509 = (sword128)a[ 7] * b[ 2];
+    sword128 t10  = (sword128)a[ 3] * b[ 7];
+    sword128 t110 = (sword128)a[ 4] * b[ 6];
+    sword128 t210 = (sword128)a[ 5] * b[ 5];
+    sword128 t310 = (sword128)a[ 6] * b[ 4];
+    sword128 t410 = (sword128)a[ 7] * b[ 3];
+    sword128 t11  = (sword128)a[ 4] * b[ 7];
+    sword128 t111 = (sword128)a[ 5] * b[ 6];
+    sword128 t211 = (sword128)a[ 6] * b[ 5];
+    sword128 t311 = (sword128)a[ 7] * b[ 4];
+    sword128 t12  = (sword128)a[ 5] * b[ 7];
+    sword128 t112 = (sword128)a[ 6] * b[ 6];
+    sword128 t212 = (sword128)a[ 7] * b[ 5];
+    sword128 t13  = (sword128)a[ 6] * b[ 7];
+    sword128 t113 = (sword128)a[ 7] * b[ 6];
+    sword128 t14  = (sword128)a[ 7] * b[ 7];
     t1  += t101;
     t2  += t102; t2  += t202;
     t3  += t103; t3  += t203; t3  += t303;
@@ -930,26 +929,26 @@ void fe448_mul(int64_t* r, const int64_t* a, const int64_t* b)
     t6  += t14 + t10 + t14;
     t7  +=       t11;
     o = t7  >> 56; t0  += o;
-                   t4  += o; t = (int128_t)o << 56; t7  -= t;
-    o = (int64_t)(t0  >> 56); t1  += o; t = (int128_t)o << 56; t0  -= t;
-    o = (int64_t)(t1  >> 56); t2  += o; t = (int128_t)o << 56; t1  -= t;
-    o = (int64_t)(t2  >> 56); t3  += o; t = (int128_t)o << 56; t2  -= t;
-    o = (int64_t)(t3  >> 56); t4  += o; t = (int128_t)o << 56; t3  -= t;
-    o = (int64_t)(t4  >> 56); t5  += o; t = (int128_t)o << 56; t4  -= t;
-    o = (int64_t)(t5  >> 56); t6  += o; t = (int128_t)o << 56; t5  -= t;
-    o = (int64_t)(t6  >> 56); t7  += o; t = (int128_t)o << 56; t6  -= t;
-    o = (int64_t)(t7  >> 56); t0  += o;
-                   t4  += o; t = (int128_t)o << 56; t7  -= t;
+                   t4  += o; t = (sword128)o << 56; t7  -= t;
+    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
+    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
+    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
+    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
+    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
+    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
+    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
+    o = (sword64)(t7  >> 56); t0  += o;
+                   t4  += o; t = (sword128)o << 56; t7  -= t;
 
     /* Store */
-    r[0] = (int64_t)t0;
-    r[1] = (int64_t)t1;
-    r[2] = (int64_t)t2;
-    r[3] = (int64_t)t3;
-    r[4] = (int64_t)t4;
-    r[5] = (int64_t)t5;
-    r[6] = (int64_t)t6;
-    r[7] = (int64_t)t7;
+    r[0] = (sword64)t0;
+    r[1] = (sword64)t1;
+    r[2] = (sword64)t2;
+    r[3] = (sword64)t3;
+    r[4] = (sword64)t4;
+    r[5] = (sword64)t5;
+    r[6] = (sword64)t6;
+    r[7] = (sword64)t7;
 }
 
 /* Square a field element. r = (a * a) mod (2^448 - 2^224 - 1)
@@ -957,46 +956,46 @@ void fe448_mul(int64_t* r, const int64_t* a, const int64_t* b)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to square.
  */
-void fe448_sqr(int64_t* r, const int64_t* a)
+void fe448_sqr(sword64* r, const sword64* a)
 {
-    int128_t t;
-    int64_t o;
-    int128_t t0   =     (int128_t)a[ 0] * a[ 0];
-    int128_t t1   = 2 * (int128_t)a[ 0] * a[ 1];
-    int128_t t2   = 2 * (int128_t)a[ 0] * a[ 2];
-    int128_t t102 =     (int128_t)a[ 1] * a[ 1];
-    int128_t t3   = 2 * (int128_t)a[ 0] * a[ 3];
-    int128_t t103 = 2 * (int128_t)a[ 1] * a[ 2];
-    int128_t t4   = 2 * (int128_t)a[ 0] * a[ 4];
-    int128_t t104 = 2 * (int128_t)a[ 1] * a[ 3];
-    int128_t t204 =     (int128_t)a[ 2] * a[ 2];
-    int128_t t5   = 2 * (int128_t)a[ 0] * a[ 5];
-    int128_t t105 = 2 * (int128_t)a[ 1] * a[ 4];
-    int128_t t205 = 2 * (int128_t)a[ 2] * a[ 3];
-    int128_t t6   = 2 * (int128_t)a[ 0] * a[ 6];
-    int128_t t106 = 2 * (int128_t)a[ 1] * a[ 5];
-    int128_t t206 = 2 * (int128_t)a[ 2] * a[ 4];
-    int128_t t306 =     (int128_t)a[ 3] * a[ 3];
-    int128_t t7   = 2 * (int128_t)a[ 0] * a[ 7];
-    int128_t t107 = 2 * (int128_t)a[ 1] * a[ 6];
-    int128_t t207 = 2 * (int128_t)a[ 2] * a[ 5];
-    int128_t t307 = 2 * (int128_t)a[ 3] * a[ 4];
-    int128_t t8   = 2 * (int128_t)a[ 1] * a[ 7];
-    int128_t t108 = 2 * (int128_t)a[ 2] * a[ 6];
-    int128_t t208 = 2 * (int128_t)a[ 3] * a[ 5];
-    int128_t t308 =     (int128_t)a[ 4] * a[ 4];
-    int128_t t9   = 2 * (int128_t)a[ 2] * a[ 7];
-    int128_t t109 = 2 * (int128_t)a[ 3] * a[ 6];
-    int128_t t209 = 2 * (int128_t)a[ 4] * a[ 5];
-    int128_t t10  = 2 * (int128_t)a[ 3] * a[ 7];
-    int128_t t110 = 2 * (int128_t)a[ 4] * a[ 6];
-    int128_t t210 =     (int128_t)a[ 5] * a[ 5];
-    int128_t t11  = 2 * (int128_t)a[ 4] * a[ 7];
-    int128_t t111 = 2 * (int128_t)a[ 5] * a[ 6];
-    int128_t t12  = 2 * (int128_t)a[ 5] * a[ 7];
-    int128_t t112 =     (int128_t)a[ 6] * a[ 6];
-    int128_t t13  = 2 * (int128_t)a[ 6] * a[ 7];
-    int128_t t14  =     (int128_t)a[ 7] * a[ 7];
+    sword128 t;
+    sword64 o;
+    sword128 t0   =     (sword128)a[ 0] * a[ 0];
+    sword128 t1   = 2 * (sword128)a[ 0] * a[ 1];
+    sword128 t2   = 2 * (sword128)a[ 0] * a[ 2];
+    sword128 t102 =     (sword128)a[ 1] * a[ 1];
+    sword128 t3   = 2 * (sword128)a[ 0] * a[ 3];
+    sword128 t103 = 2 * (sword128)a[ 1] * a[ 2];
+    sword128 t4   = 2 * (sword128)a[ 0] * a[ 4];
+    sword128 t104 = 2 * (sword128)a[ 1] * a[ 3];
+    sword128 t204 =     (sword128)a[ 2] * a[ 2];
+    sword128 t5   = 2 * (sword128)a[ 0] * a[ 5];
+    sword128 t105 = 2 * (sword128)a[ 1] * a[ 4];
+    sword128 t205 = 2 * (sword128)a[ 2] * a[ 3];
+    sword128 t6   = 2 * (sword128)a[ 0] * a[ 6];
+    sword128 t106 = 2 * (sword128)a[ 1] * a[ 5];
+    sword128 t206 = 2 * (sword128)a[ 2] * a[ 4];
+    sword128 t306 =     (sword128)a[ 3] * a[ 3];
+    sword128 t7   = 2 * (sword128)a[ 0] * a[ 7];
+    sword128 t107 = 2 * (sword128)a[ 1] * a[ 6];
+    sword128 t207 = 2 * (sword128)a[ 2] * a[ 5];
+    sword128 t307 = 2 * (sword128)a[ 3] * a[ 4];
+    sword128 t8   = 2 * (sword128)a[ 1] * a[ 7];
+    sword128 t108 = 2 * (sword128)a[ 2] * a[ 6];
+    sword128 t208 = 2 * (sword128)a[ 3] * a[ 5];
+    sword128 t308 =     (sword128)a[ 4] * a[ 4];
+    sword128 t9   = 2 * (sword128)a[ 2] * a[ 7];
+    sword128 t109 = 2 * (sword128)a[ 3] * a[ 6];
+    sword128 t209 = 2 * (sword128)a[ 4] * a[ 5];
+    sword128 t10  = 2 * (sword128)a[ 3] * a[ 7];
+    sword128 t110 = 2 * (sword128)a[ 4] * a[ 6];
+    sword128 t210 =     (sword128)a[ 5] * a[ 5];
+    sword128 t11  = 2 * (sword128)a[ 4] * a[ 7];
+    sword128 t111 = 2 * (sword128)a[ 5] * a[ 6];
+    sword128 t12  = 2 * (sword128)a[ 5] * a[ 7];
+    sword128 t112 =     (sword128)a[ 6] * a[ 6];
+    sword128 t13  = 2 * (sword128)a[ 6] * a[ 7];
+    sword128 t14  =     (sword128)a[ 7] * a[ 7];
     t2  += t102;
     t3  += t103;
     t4  += t104; t4  += t204;
@@ -1019,26 +1018,26 @@ void fe448_sqr(int64_t* r, const int64_t* a)
     t6  += t14 + t10 + t14;
     t7  +=       t11;
     o = t7  >> 56; t0  += o;
-                   t4  += o; t = (int128_t)o << 56; t7  -= t;
-    o = (int64_t)(t0  >> 56); t1  += o; t = (int128_t)o << 56; t0  -= t;
-    o = (int64_t)(t1  >> 56); t2  += o; t = (int128_t)o << 56; t1  -= t;
-    o = (int64_t)(t2  >> 56); t3  += o; t = (int128_t)o << 56; t2  -= t;
-    o = (int64_t)(t3  >> 56); t4  += o; t = (int128_t)o << 56; t3  -= t;
-    o = (int64_t)(t4  >> 56); t5  += o; t = (int128_t)o << 56; t4  -= t;
-    o = (int64_t)(t5  >> 56); t6  += o; t = (int128_t)o << 56; t5  -= t;
-    o = (int64_t)(t6  >> 56); t7  += o; t = (int128_t)o << 56; t6  -= t;
-    o = (int64_t)(t7  >> 56); t0  += o;
-                   t4  += o; t = (int128_t)o << 56; t7  -= t;
+                   t4  += o; t = (sword128)o << 56; t7  -= t;
+    o = (sword64)(t0  >> 56); t1  += o; t = (sword128)o << 56; t0  -= t;
+    o = (sword64)(t1  >> 56); t2  += o; t = (sword128)o << 56; t1  -= t;
+    o = (sword64)(t2  >> 56); t3  += o; t = (sword128)o << 56; t2  -= t;
+    o = (sword64)(t3  >> 56); t4  += o; t = (sword128)o << 56; t3  -= t;
+    o = (sword64)(t4  >> 56); t5  += o; t = (sword128)o << 56; t4  -= t;
+    o = (sword64)(t5  >> 56); t6  += o; t = (sword128)o << 56; t5  -= t;
+    o = (sword64)(t6  >> 56); t7  += o; t = (sword128)o << 56; t6  -= t;
+    o = (sword64)(t7  >> 56); t0  += o;
+                   t4  += o; t = (sword128)o << 56; t7  -= t;
 
     /* Store */
-    r[0] = (int64_t)t0;
-    r[1] = (int64_t)t1;
-    r[2] = (int64_t)t2;
-    r[3] = (int64_t)t3;
-    r[4] = (int64_t)t4;
-    r[5] = (int64_t)t5;
-    r[6] = (int64_t)t6;
-    r[7] = (int64_t)t7;
+    r[0] = (sword64)t0;
+    r[1] = (sword64)t1;
+    r[2] = (sword64)t2;
+    r[3] = (sword64)t3;
+    r[4] = (sword64)t4;
+    r[5] = (sword64)t5;
+    r[6] = (sword64)t6;
+    r[7] = (sword64)t7;
 }
 
 /* Invert the field element. (r * a) mod (2^448 - 2^224 - 1) = 1
@@ -1049,12 +1048,12 @@ void fe448_sqr(int64_t* r, const int64_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to invert.
  */
-void fe448_invert(int64_t* r, const int64_t* a)
+void fe448_invert(sword64* r, const sword64* a)
 {
-    int64_t t1[8];
-    int64_t t2[8];
-    int64_t t3[8];
-    int64_t t4[8];
+    sword64 t1[8];
+    sword64 t2[8];
+    sword64 t3[8];
+    sword64 t4[8];
     int i;
 
     fe448_sqr(t1, a);
@@ -1120,13 +1119,13 @@ void fe448_invert(int64_t* r, const int64_t* a)
  */
 int curve448(byte* r, const byte* n, const byte* a)
 {
-    int64_t x1[8];
-    int64_t x2[8];
-    int64_t z2[8];
-    int64_t x3[8];
-    int64_t z3[8];
-    int64_t t0[8];
-    int64_t t1[8];
+    sword64 x1[8];
+    sword64 x2[8];
+    sword64 z2[8];
+    sword64 x3[8];
+    sword64 z3[8];
+    sword64 t0[8];
+    sword64 t1[8];
     int i;
     unsigned int swap;
     unsigned int b;
@@ -1184,11 +1183,11 @@ int curve448(byte* r, const byte* n, const byte* a)
  * a  [in]  Field element.
  * returns 0 when zero, and any other value otherwise.
  */
-int fe448_isnonzero(const int64_t* a)
+int fe448_isnonzero(const sword64* a)
 {
-    uint8_t b[56];
+    byte b[56];
     int i;
-    uint8_t c = 0;
+    byte c = 0;
     fe448_to_bytes(b, a);
     for (i = 0; i < 56; i++)
         c |= b[i];
@@ -1201,9 +1200,9 @@ int fe448_isnonzero(const int64_t* a)
  * a  [in]  Field element.
  * returns 1 when negative, and 0 otherwise.
  */
-int fe448_isnegative(const int64_t* a)
+int fe448_isnegative(const sword64* a)
 {
-    uint8_t b[56];
+    byte b[56];
     fe448_to_bytes(b, a);
     return b[0] & 1;
 }
@@ -1213,7 +1212,7 @@ int fe448_isnegative(const int64_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element.
  */
-void fe448_neg(int64_t* r, const int64_t* a)
+void fe448_neg(sword64* r, const sword64* a)
 {
     r[0] = -a[0];
     r[1] = -a[1];
@@ -1231,13 +1230,13 @@ void fe448_neg(int64_t* r, const int64_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
  */
-void fe448_pow_2_446_222_1(int64_t* r, const int64_t* a)
+void fe448_pow_2_446_222_1(sword64* r, const sword64* a)
 {
-    int64_t t1[8];
-    int64_t t2[8];
-    int64_t t3[8];
-    int64_t t4[8];
-    int64_t t5[8];
+    sword64 t1[8];
+    sword64 t2[8];
+    sword64 t3[8];
+    sword64 t4[8];
+    sword64 t5[8];
     int i;
 
     fe448_sqr(t3, a);
@@ -1317,17 +1316,17 @@ void fe448_pow_2_446_222_1(int64_t* r, const int64_t* a)
  * b  A field element.
  * c  If 1 then copy and if 0 then don't copy.
  */
-void fe448_cmov(int64_t* a, const int64_t* b, int c)
+void fe448_cmov(sword64* a, const sword64* b, int c)
 {
-    int64_t m = -(int64_t)c;
-    int64_t t0 = m & (a[0] ^ b[0]);
-    int64_t t1 = m & (a[1] ^ b[1]);
-    int64_t t2 = m & (a[2] ^ b[2]);
-    int64_t t3 = m & (a[3] ^ b[3]);
-    int64_t t4 = m & (a[4] ^ b[4]);
-    int64_t t5 = m & (a[5] ^ b[5]);
-    int64_t t6 = m & (a[6] ^ b[6]);
-    int64_t t7 = m & (a[7] ^ b[7]);
+    sword64 m = -(sword64)c;
+    sword64 t0 = m & (a[0] ^ b[0]);
+    sword64 t1 = m & (a[1] ^ b[1]);
+    sword64 t2 = m & (a[2] ^ b[2]);
+    sword64 t3 = m & (a[3] ^ b[3]);
+    sword64 t4 = m & (a[4] ^ b[4]);
+    sword64 t5 = m & (a[5] ^ b[5]);
+    sword64 t6 = m & (a[6] ^ b[6]);
+    sword64 t7 = m & (a[7] ^ b[7]);
 
     a[0] ^= t0;
     a[1] ^= t1;
@@ -1353,72 +1352,72 @@ void fe448_init(void)
  * r  [in]  Array to encode into.
  * b  [in]  Byte array.
  */
-void fe448_from_bytes(int32_t* r, const unsigned char* b)
+void fe448_from_bytes(sword32* r, const unsigned char* b)
 {
-    r[ 0] =  (((int32_t)((b[ 0]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[ 1]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[ 2]        ) >>  0)) << 16)
-          | ((((int32_t)((b[ 3] & 0xf )) >>  0)) << 24);
-    r[ 1] =  (((int32_t)((b[ 3]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[ 4]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[ 5]        ) >>  0)) << 12)
-          |  (((int32_t)((b[ 6]        ) >>  0)) << 20);
-    r[ 2] =  (((int32_t)((b[ 7]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[ 8]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[ 9]        ) >>  0)) << 16)
-          | ((((int32_t)((b[10] & 0xf )) >>  0)) << 24);
-    r[ 3] =  (((int32_t)((b[10]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[11]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[12]        ) >>  0)) << 12)
-          |  (((int32_t)((b[13]        ) >>  0)) << 20);
-    r[ 4] =  (((int32_t)((b[14]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[15]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[16]        ) >>  0)) << 16)
-          | ((((int32_t)((b[17] & 0xf )) >>  0)) << 24);
-    r[ 5] =  (((int32_t)((b[17]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[18]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[19]        ) >>  0)) << 12)
-          |  (((int32_t)((b[20]        ) >>  0)) << 20);
-    r[ 6] =  (((int32_t)((b[21]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[22]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[23]        ) >>  0)) << 16)
-          | ((((int32_t)((b[24] & 0xf )) >>  0)) << 24);
-    r[ 7] =  (((int32_t)((b[24]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[25]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[26]        ) >>  0)) << 12)
-          |  (((int32_t)((b[27]        ) >>  0)) << 20);
-    r[ 8] =  (((int32_t)((b[28]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[29]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[30]        ) >>  0)) << 16)
-          | ((((int32_t)((b[31] & 0xf )) >>  0)) << 24);
-    r[ 9] =  (((int32_t)((b[31]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[32]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[33]        ) >>  0)) << 12)
-          |  (((int32_t)((b[34]        ) >>  0)) << 20);
-    r[10] =  (((int32_t)((b[35]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[36]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[37]        ) >>  0)) << 16)
-          | ((((int32_t)((b[38] & 0xf )) >>  0)) << 24);
-    r[11] =  (((int32_t)((b[38]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[39]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[40]        ) >>  0)) << 12)
-          |  (((int32_t)((b[41]        ) >>  0)) << 20);
-    r[12] =  (((int32_t)((b[42]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[43]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[44]        ) >>  0)) << 16)
-          | ((((int32_t)((b[45] & 0xf )) >>  0)) << 24);
-    r[13] =  (((int32_t)((b[45]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[46]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[47]        ) >>  0)) << 12)
-          |  (((int32_t)((b[48]        ) >>  0)) << 20);
-    r[14] =  (((int32_t)((b[49]        ) >>  0)) <<  0)
-          |  (((int32_t)((b[50]        ) >>  0)) <<  8)
-          |  (((int32_t)((b[51]        ) >>  0)) << 16)
-          | ((((int32_t)((b[52] & 0xf )) >>  0)) << 24);
-    r[15] =  (((int32_t)((b[52]        ) >>  4)) <<  0)
-          |  (((int32_t)((b[53]        ) >>  0)) <<  4)
-          |  (((int32_t)((b[54]        ) >>  0)) << 12)
-          |  (((int32_t)((b[55]        ) >>  0)) << 20);
+    r[ 0] =  (((sword32)((b[ 0]        ) >>  0)) <<  0)
+          |  (((sword32)((b[ 1]        ) >>  0)) <<  8)
+          |  (((sword32)((b[ 2]        ) >>  0)) << 16)
+          | ((((sword32)((b[ 3] & 0xf )) >>  0)) << 24);
+    r[ 1] =  (((sword32)((b[ 3]        ) >>  4)) <<  0)
+          |  (((sword32)((b[ 4]        ) >>  0)) <<  4)
+          |  (((sword32)((b[ 5]        ) >>  0)) << 12)
+          |  (((sword32)((b[ 6]        ) >>  0)) << 20);
+    r[ 2] =  (((sword32)((b[ 7]        ) >>  0)) <<  0)
+          |  (((sword32)((b[ 8]        ) >>  0)) <<  8)
+          |  (((sword32)((b[ 9]        ) >>  0)) << 16)
+          | ((((sword32)((b[10] & 0xf )) >>  0)) << 24);
+    r[ 3] =  (((sword32)((b[10]        ) >>  4)) <<  0)
+          |  (((sword32)((b[11]        ) >>  0)) <<  4)
+          |  (((sword32)((b[12]        ) >>  0)) << 12)
+          |  (((sword32)((b[13]        ) >>  0)) << 20);
+    r[ 4] =  (((sword32)((b[14]        ) >>  0)) <<  0)
+          |  (((sword32)((b[15]        ) >>  0)) <<  8)
+          |  (((sword32)((b[16]        ) >>  0)) << 16)
+          | ((((sword32)((b[17] & 0xf )) >>  0)) << 24);
+    r[ 5] =  (((sword32)((b[17]        ) >>  4)) <<  0)
+          |  (((sword32)((b[18]        ) >>  0)) <<  4)
+          |  (((sword32)((b[19]        ) >>  0)) << 12)
+          |  (((sword32)((b[20]        ) >>  0)) << 20);
+    r[ 6] =  (((sword32)((b[21]        ) >>  0)) <<  0)
+          |  (((sword32)((b[22]        ) >>  0)) <<  8)
+          |  (((sword32)((b[23]        ) >>  0)) << 16)
+          | ((((sword32)((b[24] & 0xf )) >>  0)) << 24);
+    r[ 7] =  (((sword32)((b[24]        ) >>  4)) <<  0)
+          |  (((sword32)((b[25]        ) >>  0)) <<  4)
+          |  (((sword32)((b[26]        ) >>  0)) << 12)
+          |  (((sword32)((b[27]        ) >>  0)) << 20);
+    r[ 8] =  (((sword32)((b[28]        ) >>  0)) <<  0)
+          |  (((sword32)((b[29]        ) >>  0)) <<  8)
+          |  (((sword32)((b[30]        ) >>  0)) << 16)
+          | ((((sword32)((b[31] & 0xf )) >>  0)) << 24);
+    r[ 9] =  (((sword32)((b[31]        ) >>  4)) <<  0)
+          |  (((sword32)((b[32]        ) >>  0)) <<  4)
+          |  (((sword32)((b[33]        ) >>  0)) << 12)
+          |  (((sword32)((b[34]        ) >>  0)) << 20);
+    r[10] =  (((sword32)((b[35]        ) >>  0)) <<  0)
+          |  (((sword32)((b[36]        ) >>  0)) <<  8)
+          |  (((sword32)((b[37]        ) >>  0)) << 16)
+          | ((((sword32)((b[38] & 0xf )) >>  0)) << 24);
+    r[11] =  (((sword32)((b[38]        ) >>  4)) <<  0)
+          |  (((sword32)((b[39]        ) >>  0)) <<  4)
+          |  (((sword32)((b[40]        ) >>  0)) << 12)
+          |  (((sword32)((b[41]        ) >>  0)) << 20);
+    r[12] =  (((sword32)((b[42]        ) >>  0)) <<  0)
+          |  (((sword32)((b[43]        ) >>  0)) <<  8)
+          |  (((sword32)((b[44]        ) >>  0)) << 16)
+          | ((((sword32)((b[45] & 0xf )) >>  0)) << 24);
+    r[13] =  (((sword32)((b[45]        ) >>  4)) <<  0)
+          |  (((sword32)((b[46]        ) >>  0)) <<  4)
+          |  (((sword32)((b[47]        ) >>  0)) << 12)
+          |  (((sword32)((b[48]        ) >>  0)) << 20);
+    r[14] =  (((sword32)((b[49]        ) >>  0)) <<  0)
+          |  (((sword32)((b[50]        ) >>  0)) <<  8)
+          |  (((sword32)((b[51]        ) >>  0)) << 16)
+          | ((((sword32)((b[52] & 0xf )) >>  0)) << 24);
+    r[15] =  (((sword32)((b[52]        ) >>  4)) <<  0)
+          |  (((sword32)((b[53]        ) >>  0)) <<  4)
+          |  (((sword32)((b[54]        ) >>  0)) << 12)
+          |  (((sword32)((b[55]        ) >>  0)) << 20);
 }
 
 /* Convert the field element to a byte array from an array of 28-bits.
@@ -1426,27 +1425,27 @@ void fe448_from_bytes(int32_t* r, const unsigned char* b)
  * b  [in]  Byte array.
  * a  [in]  Array to encode into.
  */
-void fe448_to_bytes(unsigned char* b, const int32_t* a)
+void fe448_to_bytes(unsigned char* b, const sword32* a)
 {
-    int64_t t;
+    sword64 t;
     /* Mod */
-    int32_t in0 = a[0];
-    int32_t in1 = a[1];
-    int32_t in2 = a[2];
-    int32_t in3 = a[3];
-    int32_t in4 = a[4];
-    int32_t in5 = a[5];
-    int32_t in6 = a[6];
-    int32_t in7 = a[7];
-    int32_t in8 = a[8];
-    int32_t in9 = a[9];
-    int32_t in10 = a[10];
-    int32_t in11 = a[11];
-    int32_t in12 = a[12];
-    int32_t in13 = a[13];
-    int32_t in14 = a[14];
-    int32_t in15 = a[15];
-    int32_t o = in15 >> 28;
+    sword32 in0 = a[0];
+    sword32 in1 = a[1];
+    sword32 in2 = a[2];
+    sword32 in3 = a[3];
+    sword32 in4 = a[4];
+    sword32 in5 = a[5];
+    sword32 in6 = a[6];
+    sword32 in7 = a[7];
+    sword32 in8 = a[8];
+    sword32 in9 = a[9];
+    sword32 in10 = a[10];
+    sword32 in11 = a[11];
+    sword32 in12 = a[12];
+    sword32 in13 = a[13];
+    sword32 in14 = a[14];
+    sword32 in15 = a[15];
+    sword32 o = in15 >> 28;
     in15 -= o << 28;
     in0 += o;
     in8 += o;
@@ -1469,22 +1468,22 @@ void fe448_to_bytes(unsigned char* b, const int32_t* a)
     in0 += o;
     in8 += o;
     in15 -= o << 28;
-    o = (int32_t)(in0  >> 28); in1  += o; t = o << 28; in0  -= t;
-    o = (int32_t)(in1  >> 28); in2  += o; t = o << 28; in1  -= t;
-    o = (int32_t)(in2  >> 28); in3  += o; t = o << 28; in2  -= t;
-    o = (int32_t)(in3  >> 28); in4  += o; t = o << 28; in3  -= t;
-    o = (int32_t)(in4  >> 28); in5  += o; t = o << 28; in4  -= t;
-    o = (int32_t)(in5  >> 28); in6  += o; t = o << 28; in5  -= t;
-    o = (int32_t)(in6  >> 28); in7  += o; t = o << 28; in6  -= t;
-    o = (int32_t)(in7  >> 28); in8  += o; t = o << 28; in7  -= t;
-    o = (int32_t)(in8  >> 28); in9  += o; t = o << 28; in8  -= t;
-    o = (int32_t)(in9  >> 28); in10 += o; t = o << 28; in9  -= t;
-    o = (int32_t)(in10 >> 28); in11 += o; t = o << 28; in10 -= t;
-    o = (int32_t)(in11 >> 28); in12 += o; t = o << 28; in11 -= t;
-    o = (int32_t)(in12 >> 28); in13 += o; t = o << 28; in12 -= t;
-    o = (int32_t)(in13 >> 28); in14 += o; t = o << 28; in13 -= t;
-    o = (int32_t)(in14 >> 28); in15 += o; t = o << 28; in14 -= t;
-    o = (int32_t)(in15 >> 28); in0  += o;
+    o = (in0  >> 28); in1  += o; t = o << 28; in0  -= t;
+    o = (in1  >> 28); in2  += o; t = o << 28; in1  -= t;
+    o = (in2  >> 28); in3  += o; t = o << 28; in2  -= t;
+    o = (in3  >> 28); in4  += o; t = o << 28; in3  -= t;
+    o = (in4  >> 28); in5  += o; t = o << 28; in4  -= t;
+    o = (in5  >> 28); in6  += o; t = o << 28; in5  -= t;
+    o = (in6  >> 28); in7  += o; t = o << 28; in6  -= t;
+    o = (in7  >> 28); in8  += o; t = o << 28; in7  -= t;
+    o = (in8  >> 28); in9  += o; t = o << 28; in8  -= t;
+    o = (in9  >> 28); in10 += o; t = o << 28; in9  -= t;
+    o = (in10 >> 28); in11 += o; t = o << 28; in10 -= t;
+    o = (in11 >> 28); in12 += o; t = o << 28; in11 -= t;
+    o = (in12 >> 28); in13 += o; t = o << 28; in12 -= t;
+    o = (in13 >> 28); in14 += o; t = o << 28; in13 -= t;
+    o = (in14 >> 28); in15 += o; t = o << 28; in14 -= t;
+    o = (in15 >> 28); in0  += o;
                     in8  += o; t = o << 28; in15 -= t;
 
     /* Output as bytes */
@@ -1550,7 +1549,7 @@ void fe448_to_bytes(unsigned char* b, const int32_t* a)
  *
  * a  [in]  Field element.
  */
-void fe448_1(int32_t* a)
+void fe448_1(sword32* a)
 {
     a[0] = 1;
     a[1] = 0;
@@ -1574,7 +1573,7 @@ void fe448_1(int32_t* a)
  *
  * a  [in]  Field element.
  */
-void fe448_0(int32_t* a)
+void fe448_0(sword32* a)
 {
     a[0] = 0;
     a[1] = 0;
@@ -1599,7 +1598,7 @@ void fe448_0(int32_t* a)
  * d  [in]  Destination field element.
  * a  [in]  Source field element.
  */
-void fe448_copy(int32_t* d, const int32_t* a)
+void fe448_copy(sword32* d, const sword32* a)
 {
     d[0] = a[0];
     d[1] = a[1];
@@ -1626,25 +1625,25 @@ void fe448_copy(int32_t* d, const int32_t* a)
  * b  [in]  Second field element.
  * c  [in]  Swap when 1. Valid values: 0, 1.
  */
-static void fe448_cswap(int32_t* a, int32_t* b, int c)
+static void fe448_cswap(sword32* a, sword32* b, int c)
 {
-    int32_t mask = -(int32_t)c;
-    int32_t t0 = (a[0] ^ b[0]) & mask;
-    int32_t t1 = (a[1] ^ b[1]) & mask;
-    int32_t t2 = (a[2] ^ b[2]) & mask;
-    int32_t t3 = (a[3] ^ b[3]) & mask;
-    int32_t t4 = (a[4] ^ b[4]) & mask;
-    int32_t t5 = (a[5] ^ b[5]) & mask;
-    int32_t t6 = (a[6] ^ b[6]) & mask;
-    int32_t t7 = (a[7] ^ b[7]) & mask;
-    int32_t t8 = (a[8] ^ b[8]) & mask;
-    int32_t t9 = (a[9] ^ b[9]) & mask;
-    int32_t t10 = (a[10] ^ b[10]) & mask;
-    int32_t t11 = (a[11] ^ b[11]) & mask;
-    int32_t t12 = (a[12] ^ b[12]) & mask;
-    int32_t t13 = (a[13] ^ b[13]) & mask;
-    int32_t t14 = (a[14] ^ b[14]) & mask;
-    int32_t t15 = (a[15] ^ b[15]) & mask;
+    sword32 mask = -(sword32)c;
+    sword32 t0 = (a[0] ^ b[0]) & mask;
+    sword32 t1 = (a[1] ^ b[1]) & mask;
+    sword32 t2 = (a[2] ^ b[2]) & mask;
+    sword32 t3 = (a[3] ^ b[3]) & mask;
+    sword32 t4 = (a[4] ^ b[4]) & mask;
+    sword32 t5 = (a[5] ^ b[5]) & mask;
+    sword32 t6 = (a[6] ^ b[6]) & mask;
+    sword32 t7 = (a[7] ^ b[7]) & mask;
+    sword32 t8 = (a[8] ^ b[8]) & mask;
+    sword32 t9 = (a[9] ^ b[9]) & mask;
+    sword32 t10 = (a[10] ^ b[10]) & mask;
+    sword32 t11 = (a[11] ^ b[11]) & mask;
+    sword32 t12 = (a[12] ^ b[12]) & mask;
+    sword32 t13 = (a[13] ^ b[13]) & mask;
+    sword32 t14 = (a[14] ^ b[14]) & mask;
+    sword32 t15 = (a[15] ^ b[15]) & mask;
     a[0] ^= t0;
     a[1] ^= t1;
     a[2] ^= t2;
@@ -1685,7 +1684,7 @@ static void fe448_cswap(int32_t* a, int32_t* b, int c)
  * a  [in]  Field element to add.
  * b  [in]  Field element to add.
  */
-void fe448_add(int32_t* r, const int32_t* a, const int32_t* b)
+void fe448_add(sword32* r, const sword32* a, const sword32* b)
 {
     r[0] = a[0] + b[0];
     r[1] = a[1] + b[1];
@@ -1711,7 +1710,7 @@ void fe448_add(int32_t* r, const int32_t* a, const int32_t* b)
  * a  [in]  Field element to subtract from.
  * b  [in]  Field element to subtract.
  */
-void fe448_sub(int32_t* r, const int32_t* a, const int32_t* b)
+void fe448_sub(sword32* r, const sword32* a, const sword32* b)
 {
     r[0] = a[0] - b[0];
     r[1] = a[1] - b[1];
@@ -1731,9 +1730,9 @@ void fe448_sub(int32_t* r, const int32_t* a, const int32_t* b)
     r[15] = a[15] - b[15];
 }
 
-void fe448_reduce(int32_t* a)
+void fe448_reduce(sword32* a)
 {
-    int64_t o;
+    sword64 o;
 
     o = a[0 ] >> 28; a[1 ] += o; a[0 ] -= o << 28;
     o = a[1 ] >> 28; a[2 ] += o; a[1 ] -= o << 28;
@@ -1758,61 +1757,61 @@ void fe448_reduce(int32_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to multiply.
  */
-void fe448_mul39081(int32_t* r, const int32_t* a)
+void fe448_mul39081(sword32* r, const sword32* a)
 {
-    int64_t t;
-    int32_t o;
-    int64_t t0 = a[0] * (int64_t)39081;
-    int64_t t1 = a[1] * (int64_t)39081;
-    int64_t t2 = a[2] * (int64_t)39081;
-    int64_t t3 = a[3] * (int64_t)39081;
-    int64_t t4 = a[4] * (int64_t)39081;
-    int64_t t5 = a[5] * (int64_t)39081;
-    int64_t t6 = a[6] * (int64_t)39081;
-    int64_t t7 = a[7] * (int64_t)39081;
-    int64_t t8 = a[8] * (int64_t)39081;
-    int64_t t9 = a[9] * (int64_t)39081;
-    int64_t t10 = a[10] * (int64_t)39081;
-    int64_t t11 = a[11] * (int64_t)39081;
-    int64_t t12 = a[12] * (int64_t)39081;
-    int64_t t13 = a[13] * (int64_t)39081;
-    int64_t t14 = a[14] * (int64_t)39081;
-    int64_t t15 = a[15] * (int64_t)39081;
-    o = (int32_t)(t0  >> 28); t1  += o; t = (int64_t)o << 28; t0  -= t;
-    o = (int32_t)(t1  >> 28); t2  += o; t = (int64_t)o << 28; t1  -= t;
-    o = (int32_t)(t2  >> 28); t3  += o; t = (int64_t)o << 28; t2  -= t;
-    o = (int32_t)(t3  >> 28); t4  += o; t = (int64_t)o << 28; t3  -= t;
-    o = (int32_t)(t4  >> 28); t5  += o; t = (int64_t)o << 28; t4  -= t;
-    o = (int32_t)(t5  >> 28); t6  += o; t = (int64_t)o << 28; t5  -= t;
-    o = (int32_t)(t6  >> 28); t7  += o; t = (int64_t)o << 28; t6  -= t;
-    o = (int32_t)(t7  >> 28); t8  += o; t = (int64_t)o << 28; t7  -= t;
-    o = (int32_t)(t8  >> 28); t9  += o; t = (int64_t)o << 28; t8  -= t;
-    o = (int32_t)(t9  >> 28); t10 += o; t = (int64_t)o << 28; t9  -= t;
-    o = (int32_t)(t10 >> 28); t11 += o; t = (int64_t)o << 28; t10 -= t;
-    o = (int32_t)(t11 >> 28); t12 += o; t = (int64_t)o << 28; t11 -= t;
-    o = (int32_t)(t12 >> 28); t13 += o; t = (int64_t)o << 28; t12 -= t;
-    o = (int32_t)(t13 >> 28); t14 += o; t = (int64_t)o << 28; t13 -= t;
-    o = (int32_t)(t14 >> 28); t15 += o; t = (int64_t)o << 28; t14 -= t;
-    o = (int32_t)(t15 >> 28); t0  += o;
-                   t8  += o; t = (int64_t)o << 28; t15 -= t;
+    sword64 t;
+    sword32 o;
+    sword64 t0 = a[0] * (sword64)39081;
+    sword64 t1 = a[1] * (sword64)39081;
+    sword64 t2 = a[2] * (sword64)39081;
+    sword64 t3 = a[3] * (sword64)39081;
+    sword64 t4 = a[4] * (sword64)39081;
+    sword64 t5 = a[5] * (sword64)39081;
+    sword64 t6 = a[6] * (sword64)39081;
+    sword64 t7 = a[7] * (sword64)39081;
+    sword64 t8 = a[8] * (sword64)39081;
+    sword64 t9 = a[9] * (sword64)39081;
+    sword64 t10 = a[10] * (sword64)39081;
+    sword64 t11 = a[11] * (sword64)39081;
+    sword64 t12 = a[12] * (sword64)39081;
+    sword64 t13 = a[13] * (sword64)39081;
+    sword64 t14 = a[14] * (sword64)39081;
+    sword64 t15 = a[15] * (sword64)39081;
+    o = (sword32)(t0  >> 28); t1  += o; t = (sword64)o << 28; t0  -= t;
+    o = (sword32)(t1  >> 28); t2  += o; t = (sword64)o << 28; t1  -= t;
+    o = (sword32)(t2  >> 28); t3  += o; t = (sword64)o << 28; t2  -= t;
+    o = (sword32)(t3  >> 28); t4  += o; t = (sword64)o << 28; t3  -= t;
+    o = (sword32)(t4  >> 28); t5  += o; t = (sword64)o << 28; t4  -= t;
+    o = (sword32)(t5  >> 28); t6  += o; t = (sword64)o << 28; t5  -= t;
+    o = (sword32)(t6  >> 28); t7  += o; t = (sword64)o << 28; t6  -= t;
+    o = (sword32)(t7  >> 28); t8  += o; t = (sword64)o << 28; t7  -= t;
+    o = (sword32)(t8  >> 28); t9  += o; t = (sword64)o << 28; t8  -= t;
+    o = (sword32)(t9  >> 28); t10 += o; t = (sword64)o << 28; t9  -= t;
+    o = (sword32)(t10 >> 28); t11 += o; t = (sword64)o << 28; t10 -= t;
+    o = (sword32)(t11 >> 28); t12 += o; t = (sword64)o << 28; t11 -= t;
+    o = (sword32)(t12 >> 28); t13 += o; t = (sword64)o << 28; t12 -= t;
+    o = (sword32)(t13 >> 28); t14 += o; t = (sword64)o << 28; t13 -= t;
+    o = (sword32)(t14 >> 28); t15 += o; t = (sword64)o << 28; t14 -= t;
+    o = (sword32)(t15 >> 28); t0  += o;
+                   t8  += o; t = (sword64)o << 28; t15 -= t;
 
     /* Store */
-    r[0] = (int32_t)t0;
-    r[1] = (int32_t)t1;
-    r[2] = (int32_t)t2;
-    r[3] = (int32_t)t3;
-    r[4] = (int32_t)t4;
-    r[5] = (int32_t)t5;
-    r[6] = (int32_t)t6;
-    r[7] = (int32_t)t7;
-    r[8] = (int32_t)t8;
-    r[9] = (int32_t)t9;
-    r[10] = (int32_t)t10;
-    r[11] = (int32_t)t11;
-    r[12] = (int32_t)t12;
-    r[13] = (int32_t)t13;
-    r[14] = (int32_t)t14;
-    r[15] = (int32_t)t15;
+    r[0] = (sword32)t0;
+    r[1] = (sword32)t1;
+    r[2] = (sword32)t2;
+    r[3] = (sword32)t3;
+    r[4] = (sword32)t4;
+    r[5] = (sword32)t5;
+    r[6] = (sword32)t6;
+    r[7] = (sword32)t7;
+    r[8] = (sword32)t8;
+    r[9] = (sword32)t9;
+    r[10] = (sword32)t10;
+    r[11] = (sword32)t11;
+    r[12] = (sword32)t12;
+    r[13] = (sword32)t13;
+    r[14] = (sword32)t14;
+    r[15] = (sword32)t15;
 }
 
 /* Mulitply two field elements. r = a * b
@@ -1821,73 +1820,73 @@ void fe448_mul39081(int32_t* r, const int32_t* a)
  * a  [in]  Field element to multiply.
  * b  [in]  Field element to multiply.
  */
-static WC_INLINE void fe448_mul_8(int32_t* r, const int32_t* a, const int32_t* b)
+static WC_INLINE void fe448_mul_8(sword32* r, const sword32* a, const sword32* b)
 {
-    int64_t t;
-    int64_t t0   = (int64_t)a[ 0] * b[ 0];
-    int64_t t1   = (int64_t)a[ 0] * b[ 1];
-    int64_t t101 = (int64_t)a[ 1] * b[ 0];
-    int64_t t2   = (int64_t)a[ 0] * b[ 2];
-    int64_t t102 = (int64_t)a[ 1] * b[ 1];
-    int64_t t202 = (int64_t)a[ 2] * b[ 0];
-    int64_t t3   = (int64_t)a[ 0] * b[ 3];
-    int64_t t103 = (int64_t)a[ 1] * b[ 2];
-    int64_t t203 = (int64_t)a[ 2] * b[ 1];
-    int64_t t303 = (int64_t)a[ 3] * b[ 0];
-    int64_t t4   = (int64_t)a[ 0] * b[ 4];
-    int64_t t104 = (int64_t)a[ 1] * b[ 3];
-    int64_t t204 = (int64_t)a[ 2] * b[ 2];
-    int64_t t304 = (int64_t)a[ 3] * b[ 1];
-    int64_t t404 = (int64_t)a[ 4] * b[ 0];
-    int64_t t5   = (int64_t)a[ 0] * b[ 5];
-    int64_t t105 = (int64_t)a[ 1] * b[ 4];
-    int64_t t205 = (int64_t)a[ 2] * b[ 3];
-    int64_t t305 = (int64_t)a[ 3] * b[ 2];
-    int64_t t405 = (int64_t)a[ 4] * b[ 1];
-    int64_t t505 = (int64_t)a[ 5] * b[ 0];
-    int64_t t6   = (int64_t)a[ 0] * b[ 6];
-    int64_t t106 = (int64_t)a[ 1] * b[ 5];
-    int64_t t206 = (int64_t)a[ 2] * b[ 4];
-    int64_t t306 = (int64_t)a[ 3] * b[ 3];
-    int64_t t406 = (int64_t)a[ 4] * b[ 2];
-    int64_t t506 = (int64_t)a[ 5] * b[ 1];
-    int64_t t606 = (int64_t)a[ 6] * b[ 0];
-    int64_t t7   = (int64_t)a[ 0] * b[ 7];
-    int64_t t107 = (int64_t)a[ 1] * b[ 6];
-    int64_t t207 = (int64_t)a[ 2] * b[ 5];
-    int64_t t307 = (int64_t)a[ 3] * b[ 4];
-    int64_t t407 = (int64_t)a[ 4] * b[ 3];
-    int64_t t507 = (int64_t)a[ 5] * b[ 2];
-    int64_t t607 = (int64_t)a[ 6] * b[ 1];
-    int64_t t707 = (int64_t)a[ 7] * b[ 0];
-    int64_t t8   = (int64_t)a[ 1] * b[ 7];
-    int64_t t108 = (int64_t)a[ 2] * b[ 6];
-    int64_t t208 = (int64_t)a[ 3] * b[ 5];
-    int64_t t308 = (int64_t)a[ 4] * b[ 4];
-    int64_t t408 = (int64_t)a[ 5] * b[ 3];
-    int64_t t508 = (int64_t)a[ 6] * b[ 2];
-    int64_t t608 = (int64_t)a[ 7] * b[ 1];
-    int64_t t9   = (int64_t)a[ 2] * b[ 7];
-    int64_t t109 = (int64_t)a[ 3] * b[ 6];
-    int64_t t209 = (int64_t)a[ 4] * b[ 5];
-    int64_t t309 = (int64_t)a[ 5] * b[ 4];
-    int64_t t409 = (int64_t)a[ 6] * b[ 3];
-    int64_t t509 = (int64_t)a[ 7] * b[ 2];
-    int64_t t10  = (int64_t)a[ 3] * b[ 7];
-    int64_t t110 = (int64_t)a[ 4] * b[ 6];
-    int64_t t210 = (int64_t)a[ 5] * b[ 5];
-    int64_t t310 = (int64_t)a[ 6] * b[ 4];
-    int64_t t410 = (int64_t)a[ 7] * b[ 3];
-    int64_t t11  = (int64_t)a[ 4] * b[ 7];
-    int64_t t111 = (int64_t)a[ 5] * b[ 6];
-    int64_t t211 = (int64_t)a[ 6] * b[ 5];
-    int64_t t311 = (int64_t)a[ 7] * b[ 4];
-    int64_t t12  = (int64_t)a[ 5] * b[ 7];
-    int64_t t112 = (int64_t)a[ 6] * b[ 6];
-    int64_t t212 = (int64_t)a[ 7] * b[ 5];
-    int64_t t13  = (int64_t)a[ 6] * b[ 7];
-    int64_t t113 = (int64_t)a[ 7] * b[ 6];
-    int64_t t14  = (int64_t)a[ 7] * b[ 7];
+    sword64 t;
+    sword64 t0   = (sword64)a[ 0] * b[ 0];
+    sword64 t1   = (sword64)a[ 0] * b[ 1];
+    sword64 t101 = (sword64)a[ 1] * b[ 0];
+    sword64 t2   = (sword64)a[ 0] * b[ 2];
+    sword64 t102 = (sword64)a[ 1] * b[ 1];
+    sword64 t202 = (sword64)a[ 2] * b[ 0];
+    sword64 t3   = (sword64)a[ 0] * b[ 3];
+    sword64 t103 = (sword64)a[ 1] * b[ 2];
+    sword64 t203 = (sword64)a[ 2] * b[ 1];
+    sword64 t303 = (sword64)a[ 3] * b[ 0];
+    sword64 t4   = (sword64)a[ 0] * b[ 4];
+    sword64 t104 = (sword64)a[ 1] * b[ 3];
+    sword64 t204 = (sword64)a[ 2] * b[ 2];
+    sword64 t304 = (sword64)a[ 3] * b[ 1];
+    sword64 t404 = (sword64)a[ 4] * b[ 0];
+    sword64 t5   = (sword64)a[ 0] * b[ 5];
+    sword64 t105 = (sword64)a[ 1] * b[ 4];
+    sword64 t205 = (sword64)a[ 2] * b[ 3];
+    sword64 t305 = (sword64)a[ 3] * b[ 2];
+    sword64 t405 = (sword64)a[ 4] * b[ 1];
+    sword64 t505 = (sword64)a[ 5] * b[ 0];
+    sword64 t6   = (sword64)a[ 0] * b[ 6];
+    sword64 t106 = (sword64)a[ 1] * b[ 5];
+    sword64 t206 = (sword64)a[ 2] * b[ 4];
+    sword64 t306 = (sword64)a[ 3] * b[ 3];
+    sword64 t406 = (sword64)a[ 4] * b[ 2];
+    sword64 t506 = (sword64)a[ 5] * b[ 1];
+    sword64 t606 = (sword64)a[ 6] * b[ 0];
+    sword64 t7   = (sword64)a[ 0] * b[ 7];
+    sword64 t107 = (sword64)a[ 1] * b[ 6];
+    sword64 t207 = (sword64)a[ 2] * b[ 5];
+    sword64 t307 = (sword64)a[ 3] * b[ 4];
+    sword64 t407 = (sword64)a[ 4] * b[ 3];
+    sword64 t507 = (sword64)a[ 5] * b[ 2];
+    sword64 t607 = (sword64)a[ 6] * b[ 1];
+    sword64 t707 = (sword64)a[ 7] * b[ 0];
+    sword64 t8   = (sword64)a[ 1] * b[ 7];
+    sword64 t108 = (sword64)a[ 2] * b[ 6];
+    sword64 t208 = (sword64)a[ 3] * b[ 5];
+    sword64 t308 = (sword64)a[ 4] * b[ 4];
+    sword64 t408 = (sword64)a[ 5] * b[ 3];
+    sword64 t508 = (sword64)a[ 6] * b[ 2];
+    sword64 t608 = (sword64)a[ 7] * b[ 1];
+    sword64 t9   = (sword64)a[ 2] * b[ 7];
+    sword64 t109 = (sword64)a[ 3] * b[ 6];
+    sword64 t209 = (sword64)a[ 4] * b[ 5];
+    sword64 t309 = (sword64)a[ 5] * b[ 4];
+    sword64 t409 = (sword64)a[ 6] * b[ 3];
+    sword64 t509 = (sword64)a[ 7] * b[ 2];
+    sword64 t10  = (sword64)a[ 3] * b[ 7];
+    sword64 t110 = (sword64)a[ 4] * b[ 6];
+    sword64 t210 = (sword64)a[ 5] * b[ 5];
+    sword64 t310 = (sword64)a[ 6] * b[ 4];
+    sword64 t410 = (sword64)a[ 7] * b[ 3];
+    sword64 t11  = (sword64)a[ 4] * b[ 7];
+    sword64 t111 = (sword64)a[ 5] * b[ 6];
+    sword64 t211 = (sword64)a[ 6] * b[ 5];
+    sword64 t311 = (sword64)a[ 7] * b[ 4];
+    sword64 t12  = (sword64)a[ 5] * b[ 7];
+    sword64 t112 = (sword64)a[ 6] * b[ 6];
+    sword64 t212 = (sword64)a[ 7] * b[ 5];
+    sword64 t13  = (sword64)a[ 6] * b[ 7];
+    sword64 t113 = (sword64)a[ 7] * b[ 6];
+    sword64 t14  = (sword64)a[ 7] * b[ 7];
     t1  += t101;
     t2  += t102; t2  += t202;
     t3  += t103; t3  += t203; t3  += t303;
@@ -1905,44 +1904,44 @@ static WC_INLINE void fe448_mul_8(int32_t* r, const int32_t* a, const int32_t* b
     t11 += t111; t11 += t211; t11 += t311;
     t12 += t112; t12 += t212;
     t13 += t113;
-    int64_t o = t14 >> 28;
-    int64_t t15 = o;
+    sword64 o = t14 >> 28;
+    sword64 t15 = o;
     t14 -= o << 28;
-    o = (int32_t)(t0  >> 28); t1  += o; t = (int64_t)o << 28; t0  -= t;
-    o = (int32_t)(t1  >> 28); t2  += o; t = (int64_t)o << 28; t1  -= t;
-    o = (int32_t)(t2  >> 28); t3  += o; t = (int64_t)o << 28; t2  -= t;
-    o = (int32_t)(t3  >> 28); t4  += o; t = (int64_t)o << 28; t3  -= t;
-    o = (int32_t)(t4  >> 28); t5  += o; t = (int64_t)o << 28; t4  -= t;
-    o = (int32_t)(t5  >> 28); t6  += o; t = (int64_t)o << 28; t5  -= t;
-    o = (int32_t)(t6  >> 28); t7  += o; t = (int64_t)o << 28; t6  -= t;
-    o = (int32_t)(t7  >> 28); t8  += o; t = (int64_t)o << 28; t7  -= t;
-    o = (int32_t)(t8  >> 28); t9  += o; t = (int64_t)o << 28; t8  -= t;
-    o = (int32_t)(t9  >> 28); t10 += o; t = (int64_t)o << 28; t9  -= t;
-    o = (int32_t)(t10 >> 28); t11 += o; t = (int64_t)o << 28; t10 -= t;
-    o = (int32_t)(t11 >> 28); t12 += o; t = (int64_t)o << 28; t11 -= t;
-    o = (int32_t)(t12 >> 28); t13 += o; t = (int64_t)o << 28; t12 -= t;
-    o = (int32_t)(t13 >> 28); t14 += o; t = (int64_t)o << 28; t13 -= t;
-    o = (int32_t)(t14 >> 28); t15 += o; t = (int64_t)o << 28; t14 -= t;
-    o = (int32_t)(t15 >> 28); t0  += o;
-                   t8  += o; t = (int64_t)o << 28; t15 -= t;
+    o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
+    o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
+    o = (t2  >> 28); t3  += o; t = o << 28; t2  -= t;
+    o = (t3  >> 28); t4  += o; t = o << 28; t3  -= t;
+    o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
+    o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
+    o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
+    o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
+    o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
+    o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
+    o = (t10 >> 28); t11 += o; t = o << 28; t10 -= t;
+    o = (t11 >> 28); t12 += o; t = o << 28; t11 -= t;
+    o = (t12 >> 28); t13 += o; t = o << 28; t12 -= t;
+    o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
+    o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
+    o = (t15 >> 28); t0  += o;
+                   t8  += o; t = o << 28; t15 -= t;
 
     /* Store */
-    r[0] = (int32_t)t0;
-    r[1] = (int32_t)t1;
-    r[2] = (int32_t)t2;
-    r[3] = (int32_t)t3;
-    r[4] = (int32_t)t4;
-    r[5] = (int32_t)t5;
-    r[6] = (int32_t)t6;
-    r[7] = (int32_t)t7;
-    r[8] = (int32_t)t8;
-    r[9] = (int32_t)t9;
-    r[10] = (int32_t)t10;
-    r[11] = (int32_t)t11;
-    r[12] = (int32_t)t12;
-    r[13] = (int32_t)t13;
-    r[14] = (int32_t)t14;
-    r[15] = (int32_t)t15;
+    r[0] = (sword32)t0;
+    r[1] = (sword32)t1;
+    r[2] = (sword32)t2;
+    r[3] = (sword32)t3;
+    r[4] = (sword32)t4;
+    r[5] = (sword32)t5;
+    r[6] = (sword32)t6;
+    r[7] = (sword32)t7;
+    r[8] = (sword32)t8;
+    r[9] = (sword32)t9;
+    r[10] = (sword32)t10;
+    r[11] = (sword32)t11;
+    r[12] = (sword32)t12;
+    r[13] = (sword32)t13;
+    r[14] = (sword32)t14;
+    r[15] = (sword32)t15;
 }
 
 /* Mulitply two field elements. r = (a * b) mod (2^448 - 2^224 - 1)
@@ -1951,13 +1950,13 @@ static WC_INLINE void fe448_mul_8(int32_t* r, const int32_t* a, const int32_t* b
  * a  [in]  Field element to multiply.
  * b  [in]  Field element to multiply.
  */
-void fe448_mul(int32_t* r, const int32_t* a, const int32_t* b)
+void fe448_mul(sword32* r, const sword32* a, const sword32* b)
 {
-    int32_t r0[16];
-    int32_t r1[16];
-    int32_t* a1 = r1;
-    int32_t b1[8];
-    int32_t r2[16];
+    sword32 r0[16];
+    sword32 r1[16];
+    sword32* a1 = r1;
+    sword32 b1[8];
+    sword32 r2[16];
     a1[0] = a[0] + a[8];
     a1[1] = a[1] + a[9];
     a1[2] = a[2] + a[10];
@@ -2000,45 +1999,45 @@ void fe448_mul(int32_t* r, const int32_t* a, const int32_t* b)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to square.
  */
-static WC_INLINE void fe448_sqr_8(int32_t* r, const int32_t* a)
+static WC_INLINE void fe448_sqr_8(sword32* r, const sword32* a)
 {
-    int64_t t;
-    int64_t t0   =     (int64_t)a[ 0] * a[ 0];
-    int64_t t1   = 2 * (int64_t)a[ 0] * a[ 1];
-    int64_t t2   = 2 * (int64_t)a[ 0] * a[ 2];
-    int64_t t102 =     (int64_t)a[ 1] * a[ 1];
-    int64_t t3   = 2 * (int64_t)a[ 0] * a[ 3];
-    int64_t t103 = 2 * (int64_t)a[ 1] * a[ 2];
-    int64_t t4   = 2 * (int64_t)a[ 0] * a[ 4];
-    int64_t t104 = 2 * (int64_t)a[ 1] * a[ 3];
-    int64_t t204 =     (int64_t)a[ 2] * a[ 2];
-    int64_t t5   = 2 * (int64_t)a[ 0] * a[ 5];
-    int64_t t105 = 2 * (int64_t)a[ 1] * a[ 4];
-    int64_t t205 = 2 * (int64_t)a[ 2] * a[ 3];
-    int64_t t6   = 2 * (int64_t)a[ 0] * a[ 6];
-    int64_t t106 = 2 * (int64_t)a[ 1] * a[ 5];
-    int64_t t206 = 2 * (int64_t)a[ 2] * a[ 4];
-    int64_t t306 =     (int64_t)a[ 3] * a[ 3];
-    int64_t t7   = 2 * (int64_t)a[ 0] * a[ 7];
-    int64_t t107 = 2 * (int64_t)a[ 1] * a[ 6];
-    int64_t t207 = 2 * (int64_t)a[ 2] * a[ 5];
-    int64_t t307 = 2 * (int64_t)a[ 3] * a[ 4];
-    int64_t t8   = 2 * (int64_t)a[ 1] * a[ 7];
-    int64_t t108 = 2 * (int64_t)a[ 2] * a[ 6];
-    int64_t t208 = 2 * (int64_t)a[ 3] * a[ 5];
-    int64_t t308 =     (int64_t)a[ 4] * a[ 4];
-    int64_t t9   = 2 * (int64_t)a[ 2] * a[ 7];
-    int64_t t109 = 2 * (int64_t)a[ 3] * a[ 6];
-    int64_t t209 = 2 * (int64_t)a[ 4] * a[ 5];
-    int64_t t10  = 2 * (int64_t)a[ 3] * a[ 7];
-    int64_t t110 = 2 * (int64_t)a[ 4] * a[ 6];
-    int64_t t210 =     (int64_t)a[ 5] * a[ 5];
-    int64_t t11  = 2 * (int64_t)a[ 4] * a[ 7];
-    int64_t t111 = 2 * (int64_t)a[ 5] * a[ 6];
-    int64_t t12  = 2 * (int64_t)a[ 5] * a[ 7];
-    int64_t t112 =     (int64_t)a[ 6] * a[ 6];
-    int64_t t13  = 2 * (int64_t)a[ 6] * a[ 7];
-    int64_t t14  =     (int64_t)a[ 7] * a[ 7];
+    sword64 t;
+    sword64 t0   =     (sword64)a[ 0] * a[ 0];
+    sword64 t1   = 2 * (sword64)a[ 0] * a[ 1];
+    sword64 t2   = 2 * (sword64)a[ 0] * a[ 2];
+    sword64 t102 =     (sword64)a[ 1] * a[ 1];
+    sword64 t3   = 2 * (sword64)a[ 0] * a[ 3];
+    sword64 t103 = 2 * (sword64)a[ 1] * a[ 2];
+    sword64 t4   = 2 * (sword64)a[ 0] * a[ 4];
+    sword64 t104 = 2 * (sword64)a[ 1] * a[ 3];
+    sword64 t204 =     (sword64)a[ 2] * a[ 2];
+    sword64 t5   = 2 * (sword64)a[ 0] * a[ 5];
+    sword64 t105 = 2 * (sword64)a[ 1] * a[ 4];
+    sword64 t205 = 2 * (sword64)a[ 2] * a[ 3];
+    sword64 t6   = 2 * (sword64)a[ 0] * a[ 6];
+    sword64 t106 = 2 * (sword64)a[ 1] * a[ 5];
+    sword64 t206 = 2 * (sword64)a[ 2] * a[ 4];
+    sword64 t306 =     (sword64)a[ 3] * a[ 3];
+    sword64 t7   = 2 * (sword64)a[ 0] * a[ 7];
+    sword64 t107 = 2 * (sword64)a[ 1] * a[ 6];
+    sword64 t207 = 2 * (sword64)a[ 2] * a[ 5];
+    sword64 t307 = 2 * (sword64)a[ 3] * a[ 4];
+    sword64 t8   = 2 * (sword64)a[ 1] * a[ 7];
+    sword64 t108 = 2 * (sword64)a[ 2] * a[ 6];
+    sword64 t208 = 2 * (sword64)a[ 3] * a[ 5];
+    sword64 t308 =     (sword64)a[ 4] * a[ 4];
+    sword64 t9   = 2 * (sword64)a[ 2] * a[ 7];
+    sword64 t109 = 2 * (sword64)a[ 3] * a[ 6];
+    sword64 t209 = 2 * (sword64)a[ 4] * a[ 5];
+    sword64 t10  = 2 * (sword64)a[ 3] * a[ 7];
+    sword64 t110 = 2 * (sword64)a[ 4] * a[ 6];
+    sword64 t210 =     (sword64)a[ 5] * a[ 5];
+    sword64 t11  = 2 * (sword64)a[ 4] * a[ 7];
+    sword64 t111 = 2 * (sword64)a[ 5] * a[ 6];
+    sword64 t12  = 2 * (sword64)a[ 5] * a[ 7];
+    sword64 t112 =     (sword64)a[ 6] * a[ 6];
+    sword64 t13  = 2 * (sword64)a[ 6] * a[ 7];
+    sword64 t14  =     (sword64)a[ 7] * a[ 7];
     t2  += t102;
     t3  += t103;
     t4  += t104; t4  += t204;
@@ -2050,44 +2049,44 @@ static WC_INLINE void fe448_sqr_8(int32_t* r, const int32_t* a)
     t10 += t110; t10 += t210;
     t11 += t111;
     t12 += t112;
-    int64_t o = t14 >> 28;
-    int64_t t15 = o;
+    sword64 o = t14 >> 28;
+    sword64 t15 = o;
     t14 -= o << 28;
-    o = (int32_t)(t0  >> 28); t1  += o; t = (int64_t)o << 28; t0  -= t;
-    o = (int32_t)(t1  >> 28); t2  += o; t = (int64_t)o << 28; t1  -= t;
-    o = (int32_t)(t2  >> 28); t3  += o; t = (int64_t)o << 28; t2  -= t;
-    o = (int32_t)(t3  >> 28); t4  += o; t = (int64_t)o << 28; t3  -= t;
-    o = (int32_t)(t4  >> 28); t5  += o; t = (int64_t)o << 28; t4  -= t;
-    o = (int32_t)(t5  >> 28); t6  += o; t = (int64_t)o << 28; t5  -= t;
-    o = (int32_t)(t6  >> 28); t7  += o; t = (int64_t)o << 28; t6  -= t;
-    o = (int32_t)(t7  >> 28); t8  += o; t = (int64_t)o << 28; t7  -= t;
-    o = (int32_t)(t8  >> 28); t9  += o; t = (int64_t)o << 28; t8  -= t;
-    o = (int32_t)(t9  >> 28); t10 += o; t = (int64_t)o << 28; t9  -= t;
-    o = (int32_t)(t10 >> 28); t11 += o; t = (int64_t)o << 28; t10 -= t;
-    o = (int32_t)(t11 >> 28); t12 += o; t = (int64_t)o << 28; t11 -= t;
-    o = (int32_t)(t12 >> 28); t13 += o; t = (int64_t)o << 28; t12 -= t;
-    o = (int32_t)(t13 >> 28); t14 += o; t = (int64_t)o << 28; t13 -= t;
-    o = (int32_t)(t14 >> 28); t15 += o; t = (int64_t)o << 28; t14 -= t;
-    o = (int32_t)(t15 >> 28); t0  += o;
-                   t8  += o; t = (int64_t)o << 28; t15 -= t;
+    o = (t0  >> 28); t1  += o; t = o << 28; t0  -= t;
+    o = (t1  >> 28); t2  += o; t = o << 28; t1  -= t;
+    o = (t2  >> 28); t3  += o; t = o << 28; t2  -= t;
+    o = (t3  >> 28); t4  += o; t = o << 28; t3  -= t;
+    o = (t4  >> 28); t5  += o; t = o << 28; t4  -= t;
+    o = (t5  >> 28); t6  += o; t = o << 28; t5  -= t;
+    o = (t6  >> 28); t7  += o; t = o << 28; t6  -= t;
+    o = (t7  >> 28); t8  += o; t = o << 28; t7  -= t;
+    o = (t8  >> 28); t9  += o; t = o << 28; t8  -= t;
+    o = (t9  >> 28); t10 += o; t = o << 28; t9  -= t;
+    o = (t10 >> 28); t11 += o; t = o << 28; t10 -= t;
+    o = (t11 >> 28); t12 += o; t = o << 28; t11 -= t;
+    o = (t12 >> 28); t13 += o; t = o << 28; t12 -= t;
+    o = (t13 >> 28); t14 += o; t = o << 28; t13 -= t;
+    o = (t14 >> 28); t15 += o; t = o << 28; t14 -= t;
+    o = (t15 >> 28); t0  += o;
+                   t8  += o; t = o << 28; t15 -= t;
 
     /* Store */
-    r[0] = (int32_t)t0;
-    r[1] = (int32_t)t1;
-    r[2] = (int32_t)t2;
-    r[3] = (int32_t)t3;
-    r[4] = (int32_t)t4;
-    r[5] = (int32_t)t5;
-    r[6] = (int32_t)t6;
-    r[7] = (int32_t)t7;
-    r[8] = (int32_t)t8;
-    r[9] = (int32_t)t9;
-    r[10] = (int32_t)t10;
-    r[11] = (int32_t)t11;
-    r[12] = (int32_t)t12;
-    r[13] = (int32_t)t13;
-    r[14] = (int32_t)t14;
-    r[15] = (int32_t)t15;
+    r[0] = (sword32)t0;
+    r[1] = (sword32)t1;
+    r[2] = (sword32)t2;
+    r[3] = (sword32)t3;
+    r[4] = (sword32)t4;
+    r[5] = (sword32)t5;
+    r[6] = (sword32)t6;
+    r[7] = (sword32)t7;
+    r[8] = (sword32)t8;
+    r[9] = (sword32)t9;
+    r[10] = (sword32)t10;
+    r[11] = (sword32)t11;
+    r[12] = (sword32)t12;
+    r[13] = (sword32)t13;
+    r[14] = (sword32)t14;
+    r[15] = (sword32)t15;
 }
 
 /* Square a field element. r = (a * a) mod (2^448 - 2^224 - 1)
@@ -2095,12 +2094,12 @@ static WC_INLINE void fe448_sqr_8(int32_t* r, const int32_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to square.
  */
-void fe448_sqr(int32_t* r, const int32_t* a)
+void fe448_sqr(sword32* r, const sword32* a)
 {
-    int32_t r0[16];
-    int32_t r1[16];
-    int32_t* a1 = r1;
-    int32_t r2[16];
+    sword32 r0[16];
+    sword32 r1[16];
+    sword32* a1 = r1;
+    sword32 r2[16];
     a1[0] = a[0] + a[8];
     a1[1] = a[1] + a[9];
     a1[2] = a[2] + a[10];
@@ -2138,12 +2137,12 @@ void fe448_sqr(int32_t* r, const int32_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to invert.
  */
-void fe448_invert(int32_t* r, const int32_t* a)
+void fe448_invert(sword32* r, const sword32* a)
 {
-    int32_t t1[16];
-    int32_t t2[16];
-    int32_t t3[16];
-    int32_t t4[16];
+    sword32 t1[16];
+    sword32 t2[16];
+    sword32 t3[16];
+    sword32 t4[16];
     int i;
 
     fe448_sqr(t1, a);
@@ -2209,13 +2208,13 @@ void fe448_invert(int32_t* r, const int32_t* a)
  */
 int curve448(byte* r, const byte* n, const byte* a)
 {
-    int32_t x1[16];
-    int32_t x2[16];
-    int32_t z2[16];
-    int32_t x3[16];
-    int32_t z3[16];
-    int32_t t0[16];
-    int32_t t1[16];
+    sword32 x1[16];
+    sword32 x2[16];
+    sword32 z2[16];
+    sword32 x3[16];
+    sword32 z3[16];
+    sword32 t0[16];
+    sword32 t1[16];
     int i;
     unsigned int swap;
     unsigned int b;
@@ -2273,11 +2272,11 @@ int curve448(byte* r, const byte* n, const byte* a)
  * a  [in]  Field element.
  * returns 0 when zero, and any other value otherwise.
  */
-int fe448_isnonzero(const int32_t* a)
+int fe448_isnonzero(const sword32* a)
 {
-    uint8_t b[56];
+    byte b[56];
     int i;
-    uint8_t c = 0;
+    byte c = 0;
     fe448_to_bytes(b, a);
     for (i = 0; i < 56; i++)
         c |= b[i];
@@ -2290,9 +2289,9 @@ int fe448_isnonzero(const int32_t* a)
  * a  [in]  Field element.
  * returns 1 when negative, and 0 otherwise.
  */
-int fe448_isnegative(const int32_t* a)
+int fe448_isnegative(const sword32* a)
 {
-    uint8_t b[56];
+    byte b[56];
     fe448_to_bytes(b, a);
     return b[0] & 1;
 }
@@ -2302,7 +2301,7 @@ int fe448_isnegative(const int32_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element.
  */
-void fe448_neg(int32_t* r, const int32_t* a)
+void fe448_neg(sword32* r, const sword32* a)
 {
     r[0] = -a[0];
     r[1] = -a[1];
@@ -2328,13 +2327,13 @@ void fe448_neg(int32_t* r, const int32_t* a)
  * r  [in]  Field element to hold result.
  * a  [in]  Field element to exponentiate.
  */
-void fe448_pow_2_446_222_1(int32_t* r, const int32_t* a)
+void fe448_pow_2_446_222_1(sword32* r, const sword32* a)
 {
-    int32_t t1[16];
-    int32_t t2[16];
-    int32_t t3[16];
-    int32_t t4[16];
-    int32_t t5[16];
+    sword32 t1[16];
+    sword32 t2[16];
+    sword32 t3[16];
+    sword32 t4[16];
+    sword32 t5[16];
     int i;
 
     fe448_sqr(t3, a);
@@ -2414,25 +2413,25 @@ void fe448_pow_2_446_222_1(int32_t* r, const int32_t* a)
  * b  A field element.
  * c  If 1 then copy and if 0 then don't copy.
  */
-void fe448_cmov(int32_t* a, const int32_t* b, int c)
+void fe448_cmov(sword32* a, const sword32* b, int c)
 {
-    int32_t m = -(int32_t)c;
-    int32_t t0 = m & (a[0] ^ b[0]);
-    int32_t t1 = m & (a[1] ^ b[1]);
-    int32_t t2 = m & (a[2] ^ b[2]);
-    int32_t t3 = m & (a[3] ^ b[3]);
-    int32_t t4 = m & (a[4] ^ b[4]);
-    int32_t t5 = m & (a[5] ^ b[5]);
-    int32_t t6 = m & (a[6] ^ b[6]);
-    int32_t t7 = m & (a[7] ^ b[7]);
-    int32_t t8 = m & (a[8] ^ b[8]);
-    int32_t t9 = m & (a[9] ^ b[9]);
-    int32_t t10 = m & (a[10] ^ b[10]);
-    int32_t t11 = m & (a[11] ^ b[11]);
-    int32_t t12 = m & (a[12] ^ b[12]);
-    int32_t t13 = m & (a[13] ^ b[13]);
-    int32_t t14 = m & (a[14] ^ b[14]);
-    int32_t t15 = m & (a[15] ^ b[15]);
+    sword32 m = -(sword32)c;
+    sword32 t0 = m & (a[0] ^ b[0]);
+    sword32 t1 = m & (a[1] ^ b[1]);
+    sword32 t2 = m & (a[2] ^ b[2]);
+    sword32 t3 = m & (a[3] ^ b[3]);
+    sword32 t4 = m & (a[4] ^ b[4]);
+    sword32 t5 = m & (a[5] ^ b[5]);
+    sword32 t6 = m & (a[6] ^ b[6]);
+    sword32 t7 = m & (a[7] ^ b[7]);
+    sword32 t8 = m & (a[8] ^ b[8]);
+    sword32 t9 = m & (a[9] ^ b[9]);
+    sword32 t10 = m & (a[10] ^ b[10]);
+    sword32 t11 = m & (a[11] ^ b[11]);
+    sword32 t12 = m & (a[12] ^ b[12]);
+    sword32 t13 = m & (a[13] ^ b[13]);
+    sword32 t14 = m & (a[14] ^ b[14]);
+    sword32 t15 = m & (a[15] ^ b[15]);
 
     a[0] ^= t0;
     a[1] ^= t1;

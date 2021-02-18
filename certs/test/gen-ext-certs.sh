@@ -2,8 +2,9 @@
 
 TMP="/tmp/`basename $0`"
 
+KEY=certs/server-key.der
 gen_cert() {
-    openssl req -x509 -keyform DER -key certs/server-key.der \
+    openssl req -x509 -keyform DER -key $KEY \
       -days 1000 -new -outform DER -out $OUT -config $CONFIG \
         >$TMP 2>&1
 
@@ -95,4 +96,67 @@ nsComment        = "Testing Netscape Certificate Type"
 
 EOF
 gen_cert
+
+KEY=certs/ca-key.der
+OUT=certs/test/cert-ext-ndir.der
+KEYFILE=certs/ca-key.der
+CONFIG=certs/test/cert-ext-ndir.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = constraints
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = Sawtooth
+OU            = Consulting
+CN            = www.wolfssl.com
+emailAddress  = info@wolfsssl.com
+
+[constraints]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:TRUE
+nameConstraints=critical,permitted;dirName:dir_name
+
+[dir_name]
+countryName = US
+
+EOF
+gen_cert
+
+OUT=certs/test/cert-ext-ndir-exc.der
+KEYFILE=certs/ca-key.der
+CONFIG=certs/test/cert-ext-ndir-exc.cfg
+tee >$CONFIG <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+prompt             = no
+x509_extensions    = constraints
+
+[ req_distinguished_name ]
+C             = US
+ST            = Montana
+L             = Bozeman
+O             = Sawtooth
+OU            = Consulting
+CN            = www.wolfssl.com
+emailAddress  = info@wolfsssl.com
+
+[constraints]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:TRUE
+nameConstraints=critical,excluded;dirName:dir_name_exclude
+
+[dir_name_exclude]
+countryName = US
+stateOrProvinceName = California
+
+EOF
+gen_cert
+
 

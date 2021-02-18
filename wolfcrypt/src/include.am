@@ -58,6 +58,7 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/arm/armv8-sha512-asm.c \
               wolfcrypt/src/port/arm/armv8-32-sha512-asm.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
+              wolfcrypt/src/port/nxp/dcp_port.c \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
@@ -66,6 +67,11 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/caam/caam_init.c \
               wolfcrypt/src/port/caam/caam_sha.c \
               wolfcrypt/src/port/caam/caam_doc.pdf \
+              wolfcrypt/src/port/silabs/silabs_aes.c \
+              wolfcrypt/src/port/silabs/silabs_ecc.c \
+              wolfcrypt/src/port/silabs/silabs_hash.c \
+              wolfcrypt/src/port/silabs/silabs_random.c \
+              wolfcrypt/src/port/silabs/README.md \
               wolfcrypt/src/port/st/stm32.c \
               wolfcrypt/src/port/st/stsafe.c \
               wolfcrypt/src/port/st/README.md \

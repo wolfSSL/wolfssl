@@ -31,12 +31,12 @@
 .text
 .globl	poly1305_setkey_avx
 .type	poly1305_setkey_avx,@function
-.align	4
+.align	16
 poly1305_setkey_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_setkey_avx
-.p2align	2
+.p2align	4
 _poly1305_setkey_avx:
 #endif /* __APPLE__ */
         movabsq	$0xffffffc0fffffff, %r10
@@ -91,12 +91,12 @@ _poly1305_setkey_avx:
 .text
 .globl	poly1305_block_avx
 .type	poly1305_block_avx,@function
-.align	4
+.align	16
 poly1305_block_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_block_avx
-.p2align	2
+.p2align	4
 _poly1305_block_avx:
 #endif /* __APPLE__ */
         pushq	%r15
@@ -175,12 +175,12 @@ _poly1305_block_avx:
 .text
 .globl	poly1305_blocks_avx
 .type	poly1305_blocks_avx,@function
-.align	4
+.align	16
 poly1305_blocks_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_blocks_avx
-.p2align	2
+.p2align	4
 _poly1305_blocks_avx:
 #endif /* __APPLE__ */
         pushq	%r15
@@ -263,12 +263,12 @@ L_poly1305_avx_blocks_start:
 .text
 .globl	poly1305_final_avx
 .type	poly1305_final_avx,@function
-.align	4
+.align	16
 poly1305_final_avx:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_final_avx
-.p2align	2
+.p2align	4
 _poly1305_final_avx:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -346,12 +346,12 @@ L_poly1305_avx_final_no_more:
 .text
 .globl	poly1305_calc_powers_avx2
 .type	poly1305_calc_powers_avx2,@function
-.align	4
+.align	16
 poly1305_calc_powers_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_calc_powers_avx2
-.p2align	2
+.p2align	4
 _poly1305_calc_powers_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
@@ -614,12 +614,12 @@ _poly1305_calc_powers_avx2:
 .text
 .globl	poly1305_setkey_avx2
 .type	poly1305_setkey_avx2,@function
-.align	4
+.align	16
 poly1305_setkey_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_setkey_avx2
-.p2align	2
+.p2align	4
 _poly1305_setkey_avx2:
 #endif /* __APPLE__ */
 #ifndef __APPLE__
@@ -669,12 +669,12 @@ L_poly1305_avx2_blocks_hibit:
 .text
 .globl	poly1305_blocks_avx2
 .type	poly1305_blocks_avx2,@function
-.align	4
+.align	16
 poly1305_blocks_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_blocks_avx2
-.p2align	2
+.p2align	4
 _poly1305_blocks_avx2:
 #endif /* __APPLE__ */
         pushq	%r12
@@ -1029,12 +1029,12 @@ L_poly1305_avx2_blocks_complete:
 .text
 .globl	poly1305_final_avx2
 .type	poly1305_final_avx2,@function
-.align	4
+.align	16
 poly1305_final_avx2:
 #else
 .section	__TEXT,__text
 .globl	_poly1305_final_avx2
-.p2align	2
+.p2align	4
 _poly1305_final_avx2:
 #endif /* __APPLE__ */
         movb	$0x01, 616(%rdi)

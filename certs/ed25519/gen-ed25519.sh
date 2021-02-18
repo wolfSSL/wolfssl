@@ -3,6 +3,7 @@
 EXAMPLE=$1
 echo "This uses ed25519 certificate generator from wolfssl-examples github"
 echo "The script takes in the directory to wolfssl-examples"
+echo "https://github.com/wolfSSL/wolfssl-examples/pull/52"
 
 pushd ${EXAMPLE}
 make
@@ -29,4 +30,6 @@ NAME=server convert
 NAME=client convert
 NAME=root convert
 NAME=ca convert
+
+cp server-ed25519.pem server-ed25519-cert.pem
 

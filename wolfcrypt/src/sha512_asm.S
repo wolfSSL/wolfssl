@@ -94,12 +94,12 @@ L_avx1_sha512_flip_mask:
 .text
 .globl	Transform_Sha512_AVX1
 .type	Transform_Sha512_AVX1,@function
-.align	4
+.align	16
 Transform_Sha512_AVX1:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX1:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -1368,12 +1368,12 @@ L_sha256_len_avx1_start:
 .text
 .globl	Transform_Sha512_AVX1_Len
 .type	Transform_Sha512_AVX1_Len,@function
-.align	4
+.align	16
 Transform_Sha512_AVX1_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_Len
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX1_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -2724,12 +2724,12 @@ L_avx1_rorx_sha512_flip_mask:
 .text
 .globl	Transform_Sha512_AVX1_RORX
 .type	Transform_Sha512_AVX1_RORX,@function
-.align	4
+.align	16
 Transform_Sha512_AVX1_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_RORX
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX1_RORX:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -3927,12 +3927,12 @@ L_sha256_len_avx1_rorx_start:
 .text
 .globl	Transform_Sha512_AVX1_RORX_Len
 .type	Transform_Sha512_AVX1_RORX_Len,@function
-.align	4
+.align	16
 Transform_Sha512_AVX1_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX1_RORX_Len
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX1_RORX_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -5334,12 +5334,12 @@ L_avx2_sha512_flip_mask:
 .text
 .globl	Transform_Sha512_AVX2
 .type	Transform_Sha512_AVX2,@function
-.align	4
+.align	16
 Transform_Sha512_AVX2:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX2:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -6396,12 +6396,12 @@ L_sha256_avx2_start:
 .text
 .globl	Transform_Sha512_AVX2_Len
 .type	Transform_Sha512_AVX2_Len,@function
-.align	4
+.align	16
 Transform_Sha512_AVX2_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_Len
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX2_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -6431,6 +6431,7 @@ _Transform_Sha512_AVX2_Len:
         subl	$0x80, %ebp
         jz	L_sha512_len_avx2_done
 L_sha512_len_avx2_block:
+        subq	$0x548, %rsp
         movq	224(%rdi), %rcx
         vmovdqa	L_avx2_sha512_flip_mask(%rip), %ymm15
         movq	(%rdi), %r8
@@ -6441,9 +6442,10 @@ L_sha512_len_avx2_block:
         movq	40(%rdi), %r13
         movq	48(%rdi), %r14
         movq	56(%rdi), %r15
+        movq	%rbp, 1344(%rsp)
         # Start of loop processing two blocks
 L_sha512_len_avx2_begin:
-        subq	$0x540, %rsp
+        movq	%rsp, %rbp
         leaq	L_avx2_sha512_k_2(%rip), %rsi
         movq	%r9, %rbx
         movq	%r12, %rax
@@ -6476,27 +6478,27 @@ L_sha512_len_avx2_begin:
 L_sha512_len_avx2_start:
         vpaddq	(%rsi), %ymm0, %ymm8
         vpaddq	32(%rsi), %ymm1, %ymm9
-        vmovdqu	%ymm8, (%rsp)
-        vmovdqu	%ymm9, 32(%rsp)
+        vmovdqu	%ymm8, (%rbp)
+        vmovdqu	%ymm9, 32(%rbp)
         vpaddq	64(%rsi), %ymm2, %ymm8
         vpaddq	96(%rsi), %ymm3, %ymm9
-        vmovdqu	%ymm8, 64(%rsp)
-        vmovdqu	%ymm9, 96(%rsp)
+        vmovdqu	%ymm8, 64(%rbp)
+        vmovdqu	%ymm9, 96(%rbp)
         vpaddq	128(%rsi), %ymm4, %ymm8
         vpaddq	160(%rsi), %ymm5, %ymm9
-        vmovdqu	%ymm8, 128(%rsp)
-        vmovdqu	%ymm9, 160(%rsp)
+        vmovdqu	%ymm8, 128(%rbp)
+        vmovdqu	%ymm9, 160(%rbp)
         vpaddq	192(%rsi), %ymm6, %ymm8
         vpaddq	224(%rsi), %ymm7, %ymm9
-        vmovdqu	%ymm8, 192(%rsp)
-        vmovdqu	%ymm9, 224(%rsp)
+        vmovdqu	%ymm8, 192(%rbp)
+        vmovdqu	%ymm9, 224(%rbp)
         # msg_sched: 0-1
         rorq	$23, %rax
         vpalignr	$8, %ymm0, %ymm1, %ymm12
         vpalignr	$8, %ymm4, %ymm5, %ymm13
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	(%rsp), %r15
+        addq	(%rbp), %r15
         xorq	%r14, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6533,7 +6535,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm0, %ymm8, %ymm0
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	8(%rsp), %r14
+        addq	8(%rbp), %r14
         xorq	%r13, %rcx
         vpsrlq	$19, %ymm7, %ymm8
         vpsllq	$45, %ymm7, %ymm9
@@ -6573,7 +6575,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm5, %ymm6, %ymm13
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	32(%rsp), %r13
+        addq	32(%rbp), %r13
         xorq	%r12, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6610,7 +6612,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm1, %ymm8, %ymm1
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	40(%rsp), %r12
+        addq	40(%rbp), %r12
         xorq	%r11, %rcx
         vpsrlq	$19, %ymm0, %ymm8
         vpsllq	$45, %ymm0, %ymm9
@@ -6650,7 +6652,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm6, %ymm7, %ymm13
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	64(%rsp), %r11
+        addq	64(%rbp), %r11
         xorq	%r10, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6687,7 +6689,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm2, %ymm8, %ymm2
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	72(%rsp), %r10
+        addq	72(%rbp), %r10
         xorq	%r9, %rcx
         vpsrlq	$19, %ymm1, %ymm8
         vpsllq	$45, %ymm1, %ymm9
@@ -6727,7 +6729,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm7, %ymm0, %ymm13
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	96(%rsp), %r9
+        addq	96(%rbp), %r9
         xorq	%r8, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6764,7 +6766,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm3, %ymm8, %ymm3
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	104(%rsp), %r8
+        addq	104(%rbp), %r8
         xorq	%r15, %rcx
         vpsrlq	$19, %ymm2, %ymm8
         vpsllq	$45, %ymm2, %ymm9
@@ -6804,7 +6806,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm0, %ymm1, %ymm13
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	128(%rsp), %r15
+        addq	128(%rbp), %r15
         xorq	%r14, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6841,7 +6843,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm4, %ymm8, %ymm4
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	136(%rsp), %r14
+        addq	136(%rbp), %r14
         xorq	%r13, %rcx
         vpsrlq	$19, %ymm3, %ymm8
         vpsllq	$45, %ymm3, %ymm9
@@ -6881,7 +6883,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm1, %ymm2, %ymm13
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	160(%rsp), %r13
+        addq	160(%rbp), %r13
         xorq	%r12, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6918,7 +6920,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm5, %ymm8, %ymm5
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	168(%rsp), %r12
+        addq	168(%rbp), %r12
         xorq	%r11, %rcx
         vpsrlq	$19, %ymm4, %ymm8
         vpsllq	$45, %ymm4, %ymm9
@@ -6958,7 +6960,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm2, %ymm3, %ymm13
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	192(%rsp), %r11
+        addq	192(%rbp), %r11
         xorq	%r10, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -6995,7 +6997,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm6, %ymm8, %ymm6
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	200(%rsp), %r10
+        addq	200(%rbp), %r10
         xorq	%r9, %rcx
         vpsrlq	$19, %ymm5, %ymm8
         vpsllq	$45, %ymm5, %ymm9
@@ -7035,7 +7037,7 @@ L_sha512_len_avx2_start:
         vpalignr	$8, %ymm3, %ymm4, %ymm13
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	224(%rsp), %r9
+        addq	224(%rbp), %r9
         xorq	%r8, %rcx
         vpsrlq	$0x01, %ymm12, %ymm8
         vpsllq	$63, %ymm12, %ymm9
@@ -7072,7 +7074,7 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm7, %ymm8, %ymm7
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	232(%rsp), %r8
+        addq	232(%rbp), %r8
         xorq	%r15, %rcx
         vpsrlq	$19, %ymm6, %ymm8
         vpsllq	$45, %ymm6, %ymm9
@@ -7107,29 +7109,29 @@ L_sha512_len_avx2_start:
         vpaddq	%ymm7, %ymm8, %ymm7
         # msg_sched done: 28-31
         addq	$0x100, %rsi
-        addq	$0x100, %rsp
+        addq	$0x100, %rbp
         cmpq	L_avx2_sha512_k_2_end(%rip), %rsi
         jne	L_sha512_len_avx2_start
         vpaddq	(%rsi), %ymm0, %ymm8
         vpaddq	32(%rsi), %ymm1, %ymm9
-        vmovdqu	%ymm8, (%rsp)
-        vmovdqu	%ymm9, 32(%rsp)
+        vmovdqu	%ymm8, (%rbp)
+        vmovdqu	%ymm9, 32(%rbp)
         vpaddq	64(%rsi), %ymm2, %ymm8
         vpaddq	96(%rsi), %ymm3, %ymm9
-        vmovdqu	%ymm8, 64(%rsp)
-        vmovdqu	%ymm9, 96(%rsp)
+        vmovdqu	%ymm8, 64(%rbp)
+        vmovdqu	%ymm9, 96(%rbp)
         vpaddq	128(%rsi), %ymm4, %ymm8
         vpaddq	160(%rsi), %ymm5, %ymm9
-        vmovdqu	%ymm8, 128(%rsp)
-        vmovdqu	%ymm9, 160(%rsp)
+        vmovdqu	%ymm8, 128(%rbp)
+        vmovdqu	%ymm9, 160(%rbp)
         vpaddq	192(%rsi), %ymm6, %ymm8
         vpaddq	224(%rsi), %ymm7, %ymm9
-        vmovdqu	%ymm8, 192(%rsp)
-        vmovdqu	%ymm9, 224(%rsp)
+        vmovdqu	%ymm8, 192(%rbp)
+        vmovdqu	%ymm9, 224(%rbp)
         rorq	$23, %rax
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	(%rsp), %r15
+        addq	(%rbp), %r15
         xorq	%r14, %rcx
         xorq	%r12, %rax
         andq	%r12, %rcx
@@ -7155,7 +7157,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	8(%rsp), %r14
+        addq	8(%rbp), %r14
         xorq	%r13, %rcx
         xorq	%r11, %rax
         andq	%r11, %rcx
@@ -7181,7 +7183,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	32(%rsp), %r13
+        addq	32(%rbp), %r13
         xorq	%r12, %rcx
         xorq	%r10, %rax
         andq	%r10, %rcx
@@ -7207,7 +7209,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	40(%rsp), %r12
+        addq	40(%rbp), %r12
         xorq	%r11, %rcx
         xorq	%r9, %rax
         andq	%r9, %rcx
@@ -7233,7 +7235,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	64(%rsp), %r11
+        addq	64(%rbp), %r11
         xorq	%r10, %rcx
         xorq	%r8, %rax
         andq	%r8, %rcx
@@ -7259,7 +7261,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	72(%rsp), %r10
+        addq	72(%rbp), %r10
         xorq	%r9, %rcx
         xorq	%r15, %rax
         andq	%r15, %rcx
@@ -7285,7 +7287,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	96(%rsp), %r9
+        addq	96(%rbp), %r9
         xorq	%r8, %rcx
         xorq	%r14, %rax
         andq	%r14, %rcx
@@ -7311,7 +7313,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	104(%rsp), %r8
+        addq	104(%rbp), %r8
         xorq	%r15, %rcx
         xorq	%r13, %rax
         andq	%r13, %rcx
@@ -7337,7 +7339,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	128(%rsp), %r15
+        addq	128(%rbp), %r15
         xorq	%r14, %rcx
         xorq	%r12, %rax
         andq	%r12, %rcx
@@ -7363,7 +7365,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	136(%rsp), %r14
+        addq	136(%rbp), %r14
         xorq	%r13, %rcx
         xorq	%r11, %rax
         andq	%r11, %rcx
@@ -7389,7 +7391,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	160(%rsp), %r13
+        addq	160(%rbp), %r13
         xorq	%r12, %rcx
         xorq	%r10, %rax
         andq	%r10, %rcx
@@ -7415,7 +7417,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	168(%rsp), %r12
+        addq	168(%rbp), %r12
         xorq	%r11, %rcx
         xorq	%r9, %rax
         andq	%r9, %rcx
@@ -7441,7 +7443,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	192(%rsp), %r11
+        addq	192(%rbp), %r11
         xorq	%r10, %rcx
         xorq	%r8, %rax
         andq	%r8, %rcx
@@ -7467,7 +7469,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	200(%rsp), %r10
+        addq	200(%rbp), %r10
         xorq	%r9, %rcx
         xorq	%r15, %rax
         andq	%r15, %rcx
@@ -7493,7 +7495,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	224(%rsp), %r9
+        addq	224(%rbp), %r9
         xorq	%r8, %rcx
         xorq	%r14, %rax
         andq	%r14, %rcx
@@ -7519,7 +7521,7 @@ L_sha512_len_avx2_start:
         rorq	$23, %rax
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	232(%rsp), %r8
+        addq	232(%rbp), %r8
         xorq	%r15, %rcx
         xorq	%r13, %rax
         andq	%r13, %rcx
@@ -7542,7 +7544,7 @@ L_sha512_len_avx2_start:
         rorq	$28, %rcx
         movq	%r12, %rax
         addq	%rcx, %r8
-        subq	$0x400, %rsp
+        subq	$0x400, %rbp
         addq	(%rdi), %r8
         addq	8(%rdi), %r9
         addq	16(%rdi), %r10
@@ -7567,7 +7569,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	16(%rsp), %r15
+        addq	16(%rbp), %r15
         xorq	%r14, %rcx
         xorq	%r12, %rax
         andq	%r12, %rcx
@@ -7593,7 +7595,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	24(%rsp), %r14
+        addq	24(%rbp), %r14
         xorq	%r13, %rcx
         xorq	%r11, %rax
         andq	%r11, %rcx
@@ -7619,7 +7621,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	48(%rsp), %r13
+        addq	48(%rbp), %r13
         xorq	%r12, %rcx
         xorq	%r10, %rax
         andq	%r10, %rcx
@@ -7645,7 +7647,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	56(%rsp), %r12
+        addq	56(%rbp), %r12
         xorq	%r11, %rcx
         xorq	%r9, %rax
         andq	%r9, %rcx
@@ -7671,7 +7673,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	80(%rsp), %r11
+        addq	80(%rbp), %r11
         xorq	%r10, %rcx
         xorq	%r8, %rax
         andq	%r8, %rcx
@@ -7697,7 +7699,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	88(%rsp), %r10
+        addq	88(%rbp), %r10
         xorq	%r9, %rcx
         xorq	%r15, %rax
         andq	%r15, %rcx
@@ -7723,7 +7725,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	112(%rsp), %r9
+        addq	112(%rbp), %r9
         xorq	%r8, %rcx
         xorq	%r14, %rax
         andq	%r14, %rcx
@@ -7749,7 +7751,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	120(%rsp), %r8
+        addq	120(%rbp), %r8
         xorq	%r15, %rcx
         xorq	%r13, %rax
         andq	%r13, %rcx
@@ -7775,7 +7777,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r8, %rdx
         movq	%r13, %rcx
-        addq	144(%rsp), %r15
+        addq	144(%rbp), %r15
         xorq	%r14, %rcx
         xorq	%r12, %rax
         andq	%r12, %rcx
@@ -7801,7 +7803,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r15, %rbx
         movq	%r12, %rcx
-        addq	152(%rsp), %r14
+        addq	152(%rbp), %r14
         xorq	%r13, %rcx
         xorq	%r11, %rax
         andq	%r11, %rcx
@@ -7827,7 +7829,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r14, %rdx
         movq	%r11, %rcx
-        addq	176(%rsp), %r13
+        addq	176(%rbp), %r13
         xorq	%r12, %rcx
         xorq	%r10, %rax
         andq	%r10, %rcx
@@ -7853,7 +7855,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r13, %rbx
         movq	%r10, %rcx
-        addq	184(%rsp), %r12
+        addq	184(%rbp), %r12
         xorq	%r11, %rcx
         xorq	%r9, %rax
         andq	%r9, %rcx
@@ -7879,7 +7881,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r12, %rdx
         movq	%r9, %rcx
-        addq	208(%rsp), %r11
+        addq	208(%rbp), %r11
         xorq	%r10, %rcx
         xorq	%r8, %rax
         andq	%r8, %rcx
@@ -7905,7 +7907,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r11, %rbx
         movq	%r8, %rcx
-        addq	216(%rsp), %r10
+        addq	216(%rbp), %r10
         xorq	%r9, %rcx
         xorq	%r15, %rax
         andq	%r15, %rcx
@@ -7931,7 +7933,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r10, %rdx
         movq	%r15, %rcx
-        addq	240(%rsp), %r9
+        addq	240(%rbp), %r9
         xorq	%r8, %rcx
         xorq	%r14, %rax
         andq	%r14, %rcx
@@ -7957,7 +7959,7 @@ L_sha512_len_avx2_tail:
         rorq	$23, %rax
         movq	%r9, %rbx
         movq	%r14, %rcx
-        addq	248(%rsp), %r8
+        addq	248(%rbp), %r8
         xorq	%r15, %rcx
         xorq	%r13, %rax
         andq	%r13, %rcx
@@ -7980,7 +7982,7 @@ L_sha512_len_avx2_tail:
         rorq	$28, %rcx
         movq	%r12, %rax
         addq	%rcx, %r8
-        addq	$0x100, %rsp
+        addq	$0x100, %rbp
         subq	$0x01, %rsi
         jnz	L_sha512_len_avx2_tail
         addq	(%rdi), %r8
@@ -7992,9 +7994,8 @@ L_sha512_len_avx2_tail:
         addq	48(%rdi), %r14
         addq	56(%rdi), %r15
         movq	224(%rdi), %rcx
-        addq	$0x40, %rsp
         addq	$0x100, %rcx
-        subl	$0x100, %ebp
+        subl	$0x100, 1344(%rsp)
         movq	%rcx, 224(%rdi)
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
@@ -8005,6 +8006,7 @@ L_sha512_len_avx2_tail:
         movq	%r14, 48(%rdi)
         movq	%r15, 56(%rdi)
         jnz	L_sha512_len_avx2_begin
+        addq	$0x548, %rsp
 L_sha512_len_avx2_done:
         xorq	%rax, %rax
         vzeroupper
@@ -8189,12 +8191,12 @@ L_avx2_rorx_sha512_flip_mask:
 .text
 .globl	Transform_Sha512_AVX2_RORX
 .type	Transform_Sha512_AVX2_RORX,@function
-.align	4
+.align	16
 Transform_Sha512_AVX2_RORX:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_RORX
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX2_RORX:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -9193,12 +9195,12 @@ L_sha256_len_avx2_rorx_start:
 .text
 .globl	Transform_Sha512_AVX2_RORX_Len
 .type	Transform_Sha512_AVX2_RORX_Len,@function
-.align	4
+.align	16
 Transform_Sha512_AVX2_RORX_Len:
 #else
 .section	__TEXT,__text
 .globl	_Transform_Sha512_AVX2_RORX_Len
-.p2align	2
+.p2align	4
 _Transform_Sha512_AVX2_RORX_Len:
 #endif /* __APPLE__ */
         pushq	%rbx
@@ -9229,6 +9231,7 @@ _Transform_Sha512_AVX2_RORX_Len:
         subl	$0x80, %esi
         jz	L_sha512_len_avx2_rorx_done
 L_sha512_len_avx2_rorx_block:
+        subq	$0x548, %rsp
         movq	224(%rdi), %rax
         vmovdqa	L_avx2_rorx_sha512_flip_mask(%rip), %ymm15
         movq	(%rdi), %r8
@@ -9239,9 +9242,10 @@ L_sha512_len_avx2_rorx_block:
         movq	40(%rdi), %r13
         movq	48(%rdi), %r14
         movq	56(%rdi), %r15
+        movl	%esi, 1344(%rsp)
         # Start of loop processing two blocks
 L_sha512_len_avx2_rorx_begin:
-        subq	$0x540, %rsp
+        movq	%rsp, %rsi
         leaq	L_avx2_rorx_sha512_k_2(%rip), %rbp
         movq	%r9, %rbx
         xorq	%rdx, %rdx
@@ -9274,26 +9278,26 @@ L_sha512_len_avx2_rorx_begin:
 L_sha512_len_avx2_rorx_start:
         vpaddq	(%rbp), %ymm0, %ymm8
         vpaddq	32(%rbp), %ymm1, %ymm9
-        vmovdqu	%ymm8, (%rsp)
-        vmovdqu	%ymm9, 32(%rsp)
+        vmovdqu	%ymm8, (%rsi)
+        vmovdqu	%ymm9, 32(%rsi)
         vpaddq	64(%rbp), %ymm2, %ymm8
         vpaddq	96(%rbp), %ymm3, %ymm9
-        vmovdqu	%ymm8, 64(%rsp)
-        vmovdqu	%ymm9, 96(%rsp)
+        vmovdqu	%ymm8, 64(%rsi)
+        vmovdqu	%ymm9, 96(%rsi)
         vpaddq	128(%rbp), %ymm4, %ymm8
         vpaddq	160(%rbp), %ymm5, %ymm9
-        vmovdqu	%ymm8, 128(%rsp)
-        vmovdqu	%ymm9, 160(%rsp)
+        vmovdqu	%ymm8, 128(%rsi)
+        vmovdqu	%ymm9, 160(%rsi)
         vpaddq	192(%rbp), %ymm6, %ymm8
         vpaddq	224(%rbp), %ymm7, %ymm9
-        vmovdqu	%ymm8, 192(%rsp)
-        vmovdqu	%ymm9, 224(%rsp)
+        vmovdqu	%ymm8, 192(%rsi)
+        vmovdqu	%ymm9, 224(%rsi)
         # msg_sched: 0-1
         rorxq	$14, %r12, %rax
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
         vpalignr	$8, %ymm0, %ymm1, %ymm12
-        addq	(%rsp), %r15
+        addq	(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm4, %ymm5, %ymm13
@@ -9331,7 +9335,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r15
         vpsrlq	$19, %ymm7, %ymm8
         vpsllq	$45, %ymm7, %ymm9
-        addq	8(%rsp), %r14
+        addq	8(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm7, %ymm10
@@ -9366,7 +9370,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
         vpalignr	$8, %ymm1, %ymm2, %ymm12
-        addq	32(%rsp), %r13
+        addq	32(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm5, %ymm6, %ymm13
@@ -9404,7 +9408,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r13
         vpsrlq	$19, %ymm0, %ymm8
         vpsllq	$45, %ymm0, %ymm9
-        addq	40(%rsp), %r12
+        addq	40(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm0, %ymm10
@@ -9439,7 +9443,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
         vpalignr	$8, %ymm2, %ymm3, %ymm12
-        addq	64(%rsp), %r11
+        addq	64(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm6, %ymm7, %ymm13
@@ -9477,7 +9481,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r11
         vpsrlq	$19, %ymm1, %ymm8
         vpsllq	$45, %ymm1, %ymm9
-        addq	72(%rsp), %r10
+        addq	72(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm1, %ymm10
@@ -9512,7 +9516,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
         vpalignr	$8, %ymm3, %ymm4, %ymm12
-        addq	96(%rsp), %r9
+        addq	96(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm7, %ymm0, %ymm13
@@ -9550,7 +9554,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r9
         vpsrlq	$19, %ymm2, %ymm8
         vpsllq	$45, %ymm2, %ymm9
-        addq	104(%rsp), %r8
+        addq	104(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm2, %ymm10
@@ -9585,7 +9589,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
         vpalignr	$8, %ymm4, %ymm5, %ymm12
-        addq	128(%rsp), %r15
+        addq	128(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm0, %ymm1, %ymm13
@@ -9623,7 +9627,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r15
         vpsrlq	$19, %ymm3, %ymm8
         vpsllq	$45, %ymm3, %ymm9
-        addq	136(%rsp), %r14
+        addq	136(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm3, %ymm10
@@ -9658,7 +9662,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
         vpalignr	$8, %ymm5, %ymm6, %ymm12
-        addq	160(%rsp), %r13
+        addq	160(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm1, %ymm2, %ymm13
@@ -9696,7 +9700,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r13
         vpsrlq	$19, %ymm4, %ymm8
         vpsllq	$45, %ymm4, %ymm9
-        addq	168(%rsp), %r12
+        addq	168(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm4, %ymm10
@@ -9731,7 +9735,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
         vpalignr	$8, %ymm6, %ymm7, %ymm12
-        addq	192(%rsp), %r11
+        addq	192(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm2, %ymm3, %ymm13
@@ -9769,7 +9773,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r11
         vpsrlq	$19, %ymm5, %ymm8
         vpsllq	$45, %ymm5, %ymm9
-        addq	200(%rsp), %r10
+        addq	200(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm5, %ymm10
@@ -9804,7 +9808,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
         vpalignr	$8, %ymm7, %ymm0, %ymm12
-        addq	224(%rsp), %r9
+        addq	224(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         vpalignr	$8, %ymm3, %ymm4, %ymm13
@@ -9842,7 +9846,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rbx, %r9
         vpsrlq	$19, %ymm6, %ymm8
         vpsllq	$45, %ymm6, %ymm9
-        addq	232(%rsp), %r8
+        addq	232(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         vpsrlq	$61, %ymm6, %ymm10
@@ -9873,30 +9877,30 @@ L_sha512_len_avx2_rorx_start:
         vpaddq	%ymm7, %ymm8, %ymm7
         # msg_sched done: 28-31
         addq	$0x100, %rbp
-        addq	$0x100, %rsp
+        addq	$0x100, %rsi
         cmpq	L_avx2_rorx_sha512_k_2_end(%rip), %rbp
         jne	L_sha512_len_avx2_rorx_start
         vpaddq	(%rbp), %ymm0, %ymm8
         vpaddq	32(%rbp), %ymm1, %ymm9
-        vmovdqu	%ymm8, (%rsp)
-        vmovdqu	%ymm9, 32(%rsp)
+        vmovdqu	%ymm8, (%rsi)
+        vmovdqu	%ymm9, 32(%rsi)
         vpaddq	64(%rbp), %ymm2, %ymm8
         vpaddq	96(%rbp), %ymm3, %ymm9
-        vmovdqu	%ymm8, 64(%rsp)
-        vmovdqu	%ymm9, 96(%rsp)
+        vmovdqu	%ymm8, 64(%rsi)
+        vmovdqu	%ymm9, 96(%rsi)
         vpaddq	128(%rbp), %ymm4, %ymm8
         vpaddq	160(%rbp), %ymm5, %ymm9
-        vmovdqu	%ymm8, 128(%rsp)
-        vmovdqu	%ymm9, 160(%rsp)
+        vmovdqu	%ymm8, 128(%rsi)
+        vmovdqu	%ymm9, 160(%rsi)
         vpaddq	192(%rbp), %ymm6, %ymm8
         vpaddq	224(%rbp), %ymm7, %ymm9
-        vmovdqu	%ymm8, 192(%rsp)
-        vmovdqu	%ymm9, 224(%rsp)
+        vmovdqu	%ymm8, 192(%rsi)
+        vmovdqu	%ymm9, 224(%rsi)
         # rnd_all_2: 0-1
         rorxq	$14, %r12, %rax
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
-        addq	(%rsp), %r15
+        addq	(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         xorq	%r14, %rdx
@@ -9920,7 +9924,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r11, %rax
         rorxq	$18, %r11, %rcx
         addq	%rbx, %r15
-        addq	8(%rsp), %r14
+        addq	8(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         xorq	%r13, %rbx
@@ -9945,7 +9949,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r10, %rax
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
-        addq	32(%rsp), %r13
+        addq	32(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         xorq	%r12, %rdx
@@ -9969,7 +9973,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r9, %rax
         rorxq	$18, %r9, %rcx
         addq	%rbx, %r13
-        addq	40(%rsp), %r12
+        addq	40(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         xorq	%r11, %rbx
@@ -9994,7 +9998,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r8, %rax
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
-        addq	64(%rsp), %r11
+        addq	64(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         xorq	%r10, %rdx
@@ -10018,7 +10022,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r15, %rax
         rorxq	$18, %r15, %rcx
         addq	%rbx, %r11
-        addq	72(%rsp), %r10
+        addq	72(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         xorq	%r9, %rbx
@@ -10043,7 +10047,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r14, %rax
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
-        addq	96(%rsp), %r9
+        addq	96(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         xorq	%r8, %rdx
@@ -10067,7 +10071,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r13, %rax
         rorxq	$18, %r13, %rcx
         addq	%rbx, %r9
-        addq	104(%rsp), %r8
+        addq	104(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         xorq	%r15, %rbx
@@ -10092,7 +10096,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r12, %rax
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
-        addq	128(%rsp), %r15
+        addq	128(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         xorq	%r14, %rdx
@@ -10116,7 +10120,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r11, %rax
         rorxq	$18, %r11, %rcx
         addq	%rbx, %r15
-        addq	136(%rsp), %r14
+        addq	136(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         xorq	%r13, %rbx
@@ -10141,7 +10145,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r10, %rax
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
-        addq	160(%rsp), %r13
+        addq	160(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         xorq	%r12, %rdx
@@ -10165,7 +10169,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r9, %rax
         rorxq	$18, %r9, %rcx
         addq	%rbx, %r13
-        addq	168(%rsp), %r12
+        addq	168(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         xorq	%r11, %rbx
@@ -10190,7 +10194,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r8, %rax
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
-        addq	192(%rsp), %r11
+        addq	192(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         xorq	%r10, %rdx
@@ -10214,7 +10218,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r15, %rax
         rorxq	$18, %r15, %rcx
         addq	%rbx, %r11
-        addq	200(%rsp), %r10
+        addq	200(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         xorq	%r9, %rbx
@@ -10239,7 +10243,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r14, %rax
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
-        addq	224(%rsp), %r9
+        addq	224(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         xorq	%r8, %rdx
@@ -10263,7 +10267,7 @@ L_sha512_len_avx2_rorx_start:
         rorxq	$14, %r13, %rax
         rorxq	$18, %r13, %rcx
         addq	%rbx, %r9
-        addq	232(%rsp), %r8
+        addq	232(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         xorq	%r15, %rbx
@@ -10285,7 +10289,7 @@ L_sha512_len_avx2_rorx_start:
         addq	%rax, %r8
         xorq	%r10, %rdx
         addq	%rdx, %r8
-        subq	$0x400, %rsp
+        subq	$0x400, %rsi
         addq	(%rdi), %r8
         addq	8(%rdi), %r9
         addq	16(%rdi), %r10
@@ -10311,7 +10315,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r12, %rax
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
-        addq	16(%rsp), %r15
+        addq	16(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         xorq	%r14, %rdx
@@ -10335,7 +10339,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r11, %rax
         rorxq	$18, %r11, %rcx
         addq	%rbx, %r15
-        addq	24(%rsp), %r14
+        addq	24(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         xorq	%r13, %rbx
@@ -10360,7 +10364,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r10, %rax
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
-        addq	48(%rsp), %r13
+        addq	48(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         xorq	%r12, %rdx
@@ -10384,7 +10388,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r9, %rax
         rorxq	$18, %r9, %rcx
         addq	%rbx, %r13
-        addq	56(%rsp), %r12
+        addq	56(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         xorq	%r11, %rbx
@@ -10409,7 +10413,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r8, %rax
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
-        addq	80(%rsp), %r11
+        addq	80(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         xorq	%r10, %rdx
@@ -10433,7 +10437,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r15, %rax
         rorxq	$18, %r15, %rcx
         addq	%rbx, %r11
-        addq	88(%rsp), %r10
+        addq	88(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         xorq	%r9, %rbx
@@ -10458,7 +10462,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r14, %rax
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
-        addq	112(%rsp), %r9
+        addq	112(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         xorq	%r8, %rdx
@@ -10482,7 +10486,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r13, %rax
         rorxq	$18, %r13, %rcx
         addq	%rbx, %r9
-        addq	120(%rsp), %r8
+        addq	120(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         xorq	%r15, %rbx
@@ -10507,7 +10511,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r12, %rax
         rorxq	$18, %r12, %rcx
         addq	%rdx, %r8
-        addq	144(%rsp), %r15
+        addq	144(%rsi), %r15
         movq	%r13, %rdx
         xorq	%rax, %rcx
         xorq	%r14, %rdx
@@ -10531,7 +10535,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r11, %rax
         rorxq	$18, %r11, %rcx
         addq	%rbx, %r15
-        addq	152(%rsp), %r14
+        addq	152(%rsi), %r14
         movq	%r12, %rbx
         xorq	%rax, %rcx
         xorq	%r13, %rbx
@@ -10556,7 +10560,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r10, %rax
         rorxq	$18, %r10, %rcx
         addq	%rdx, %r14
-        addq	176(%rsp), %r13
+        addq	176(%rsi), %r13
         movq	%r11, %rdx
         xorq	%rax, %rcx
         xorq	%r12, %rdx
@@ -10580,7 +10584,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r9, %rax
         rorxq	$18, %r9, %rcx
         addq	%rbx, %r13
-        addq	184(%rsp), %r12
+        addq	184(%rsi), %r12
         movq	%r10, %rbx
         xorq	%rax, %rcx
         xorq	%r11, %rbx
@@ -10605,7 +10609,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r8, %rax
         rorxq	$18, %r8, %rcx
         addq	%rdx, %r12
-        addq	208(%rsp), %r11
+        addq	208(%rsi), %r11
         movq	%r9, %rdx
         xorq	%rax, %rcx
         xorq	%r10, %rdx
@@ -10629,7 +10633,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r15, %rax
         rorxq	$18, %r15, %rcx
         addq	%rbx, %r11
-        addq	216(%rsp), %r10
+        addq	216(%rsi), %r10
         movq	%r8, %rbx
         xorq	%rax, %rcx
         xorq	%r9, %rbx
@@ -10654,7 +10658,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r14, %rax
         rorxq	$18, %r14, %rcx
         addq	%rdx, %r10
-        addq	240(%rsp), %r9
+        addq	240(%rsi), %r9
         movq	%r15, %rdx
         xorq	%rax, %rcx
         xorq	%r8, %rdx
@@ -10678,7 +10682,7 @@ L_sha512_len_avx2_rorx_tail:
         rorxq	$14, %r13, %rax
         rorxq	$18, %r13, %rcx
         addq	%rbx, %r9
-        addq	248(%rsp), %r8
+        addq	248(%rsi), %r8
         movq	%r14, %rbx
         xorq	%rax, %rcx
         xorq	%r15, %rbx
@@ -10699,7 +10703,7 @@ L_sha512_len_avx2_rorx_tail:
         andq	%rbx, %rdx
         addq	%rax, %r8
         xorq	%r10, %rdx
-        addq	$0x100, %rsp
+        addq	$0x100, %rsi
         subq	$0x01, %rbp
         jnz	L_sha512_len_avx2_rorx_tail
         addq	%rdx, %r8
@@ -10712,9 +10716,8 @@ L_sha512_len_avx2_rorx_tail:
         addq	48(%rdi), %r14
         addq	56(%rdi), %r15
         movq	224(%rdi), %rax
-        addq	$0x40, %rsp
         addq	$0x100, %rax
-        subl	$0x100, %esi
+        subl	$0x100, 1344(%rsp)
         movq	%rax, 224(%rdi)
         movq	%r8, (%rdi)
         movq	%r9, 8(%rdi)
@@ -10725,6 +10728,7 @@ L_sha512_len_avx2_rorx_tail:
         movq	%r14, 48(%rdi)
         movq	%r15, 56(%rdi)
         jnz	L_sha512_len_avx2_rorx_begin
+        addq	$0x548, %rsp
 L_sha512_len_avx2_rorx_done:
         xorq	%rax, %rax
         vzeroupper

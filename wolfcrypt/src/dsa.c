@@ -42,6 +42,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef _MSC_VER
+    /* disable for while(0) cases (MSVC bug) */
+    #pragma warning(disable:4127)
+#endif
+
 int wc_InitDsaKey(DsaKey* key)
 {
     if (key == NULL)
@@ -407,7 +412,12 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     } while (mp_cmp_d(&tmp, 1) == MP_EQ);
 
     /* at this point tmp generates a group of order q mod p */
+#ifndef USE_FAST_MATH
+    /* Exchanging is quick when the data pointer can be copied. */
     mp_exch(&tmp, &dsa->g);
+#else
+    mp_copy(&tmp, &dsa->g);
+#endif
 
     mp_clear(&tmp);
     mp_clear(&tmp2);
@@ -654,192 +664,313 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
 
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
-    mp_int  k, kInv, r, s, H;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int  *k = (mp_int *)XMALLOC(sizeof *k,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *kInv = (mp_int *)XMALLOC(sizeof *kInv,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *r = (mp_int *)XMALLOC(sizeof *r,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *s = (mp_int *)XMALLOC(sizeof *s,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int  *H = (mp_int *)XMALLOC(sizeof *H,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    mp_int  b;
+    mp_int  *b = (mp_int *)XMALLOC(sizeof *b,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    byte    *buffer = (byte *)XMALLOC(DSA_HALF_SIZE, key->heap,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    mp_int  k[1], kInv[1], r[1], s[1], H[1];
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+    mp_int  b[1];
+#endif
+    byte    buffer[DSA_HALF_SIZE];
 #endif
     mp_int* qMinus1;
-    int     ret = 0, sz;
-    byte    buffer[DSA_HALF_SIZE];
+    int     ret = 0, sz = 0;
     byte*   tmp;  /* initial output pointer */
 
-    if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    tmp = out;
-
-    sz = min((int)sizeof(buffer), mp_unsigned_bin_size(&key->q));
-
+    do {
 #ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
+        if (mp_init_multi(k, kInv, r, s, H, 0) != MP_OKAY)
 #else
-    if (mp_init_multi(&k, &kInv, &r, &s, &H, &b) != MP_OKAY)
+            if (mp_init_multi(k, kInv, r, s, H, b) != MP_OKAY)
 #endif
-    {
-        return MP_INIT_E;
-    }
-    qMinus1 = &kInv;
+                {
+                    ret = MP_INIT_E;
+                    break;
+                }
 
-    /* NIST FIPS 186-4: B.2.2
-     * Per-Message Secret Number Generation by Testing Candidates
-     * Generate k in range [1, q-1].
-     *   Check that k is less than q-1: range [0, q-2].
-     *   Add 1 to k: range [1, q-1].
-     */
-    if (mp_sub_d(&key->q, 1, qMinus1))
-        ret = MP_SUB_E;
+#ifdef WOLFSSL_SMALL_STACK
+        if ((k == NULL) ||
+            (kInv == NULL) ||
+            (r == NULL) ||
+            (s == NULL) ||
+            (H == NULL)
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+            || (b == NULL)
+#endif
+            || (buffer == NULL)) {
+            ret = MEMORY_E;
+            break;
+        }
+#endif
 
-    if (ret == 0) {
+        if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
+        sz = min(DSA_HALF_SIZE, mp_unsigned_bin_size(&key->q));
+        tmp = out;
+        qMinus1 = kInv;
+
+        /* NIST FIPS 186-4: B.2.2
+         * Per-Message Secret Number Generation by Testing Candidates
+         * Generate k in range [1, q-1].
+         *   Check that k is less than q-1: range [0, q-2].
+         *   Add 1 to k: range [1, q-1].
+         */
+        if (mp_sub_d(&key->q, 1, qMinus1)) {
+            ret = MP_SUB_E;
+            break;
+        }
+
         do {
             /* Step 4: generate k */
-            ret = wc_RNG_GenerateBlock(rng, buffer, sz);
+            if ((ret = wc_RNG_GenerateBlock(rng, buffer, sz))) {
+                break;
+            }
 
             /* Step 5 */
-            if (ret == 0 && mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
+            if (mp_read_unsigned_bin(k, buffer, sz) != MP_OKAY) {
                 ret = MP_READ_E;
+                break;
+            }
 
             /* k is a random numnber and it should be less than q-1
              * if k greater than repeat
              */
-        /* Step 6 */
-        } while (ret == 0 && mp_cmp(&k, qMinus1) != MP_LT);
-    }
-    /* Step 7 */
-    if (ret == 0 && mp_add_d(&k, 1, &k) != MP_OKAY)
-        ret = MP_MOD_E;
+            /* Step 6 */
+        } while (mp_cmp(k, qMinus1) != MP_LT);
+
+        if (ret != 0)
+            break;
+
+        /* Step 7 */
+        if (mp_add_d(k, 1, k) != MP_OKAY) {
+            ret = MP_MOD_E;
+            break;
+        }
 
 #ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    /* inverse k mod q */
-    if (ret == 0 && mp_invmod(&k, &key->q, &kInv) != MP_OKAY)
-        ret = MP_INVMOD_E;
-
-    /* generate r, r = (g exp k mod p) mod q */
-    if (ret == 0 && mp_exptmod_ex(&key->g, &k, key->q.used, &key->p,
-                                                               &r) != MP_OKAY) {
-        ret = MP_EXPTMOD_E;
-    }
-
-    if (ret == 0 && mp_mod(&r, &key->q, &r) != MP_OKAY)
-        ret = MP_MOD_E;
-
-    /* generate H from sha digest */
-    if (ret == 0 && mp_read_unsigned_bin(&H, digest,WC_SHA_DIGEST_SIZE) != MP_OKAY)
-        ret = MP_READ_E;
-
-    /* generate s, s = (kInv * (H + x*r)) % q */
-    if (ret == 0 && mp_mul(&key->x, &r, &s) != MP_OKAY)
-        ret = MP_MUL_E;
-
-    if (ret == 0 && mp_add(&s, &H, &s) != MP_OKAY)
-        ret = MP_ADD_E;
-
-    if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
-        ret = MP_MULMOD_E;
-#else
-    /* Blinding value
-     * Generate b in range [1, q-1].
-     */
-    if (ret == 0) {
-        do {
-            ret = wc_RNG_GenerateBlock(rng, buffer, sz);
-            if (ret == 0 && mp_read_unsigned_bin(&b, buffer, sz) != MP_OKAY)
-                ret = MP_READ_E;
-        } while (ret == 0 && mp_cmp(&b, qMinus1) != MP_LT);
-    }
-    if (ret == 0 && mp_add_d(&b, 1, &b) != MP_OKAY)
-        ret = MP_MOD_E;
-
-    /* set H from sha digest */
-    if (ret == 0 && mp_read_unsigned_bin(&H, digest,
-                                               WC_SHA_DIGEST_SIZE) != MP_OKAY) {
-        ret = MP_READ_E;
-    }
-
-    /* generate r, r = (g exp k mod p) mod q */
-    if (ret == 0 && mp_exptmod_ex(&key->g, &k, key->q.used, &key->p,
-                                                               &r) != MP_OKAY) {
-        ret = MP_EXPTMOD_E;
-    }
-
-    /* calculate s = (H + xr)/k
-                   = b.(H/k.b + x.r/k.b) */
-
-    /* k = k.b */
-    if (ret == 0 && mp_mulmod(&k, &b, &key->q, &k) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* kInv = 1/k.b mod q */
-    if (ret == 0 && mp_invmod(&k, &key->q, &kInv) != MP_OKAY)
-        ret = MP_INVMOD_E;
-
-    if (ret == 0 && mp_mod(&r, &key->q, &r) != MP_OKAY)
-        ret = MP_MOD_E;
-
-    /* s = x.r */
-    if (ret == 0 && mp_mul(&key->x, &r, &s) != MP_OKAY)
-        ret = MP_MUL_E;
-
-    /* s = x.r/k.b */
-    if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* H = H/k.b */
-    if (ret == 0 && mp_mulmod(&H, &kInv, &key->q, &H) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* s = H/k.b + x.r/k.b
-         = (H + x.r)/k.b */
-    if (ret == 0 && mp_add(&s, &H, &s) != MP_OKAY)
-        ret = MP_ADD_E;
-
-    /* s = b.(e + x.r)/k.b
-         = (e + x.r)/k */
-    if (ret == 0 && mp_mulmod(&s, &b, &key->q, &s) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* s = (e + x.r)/k */
-    if (ret == 0 && mp_mod(&s, &key->q, &s) != MP_OKAY)
-        ret = MP_MOD_E;
-#endif
-
-    /* detect zero r or s */
-    if (ret == 0 && (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES))
-        ret = MP_ZERO_E;
-
-    /* write out */
-    if (ret == 0)  {
-        int rSz = mp_unsigned_bin_size(&r);
-        int sSz = mp_unsigned_bin_size(&s);
-
-        while (rSz++ < DSA_HALF_SIZE) {
-            *out++ = 0x00;  /* pad front with zeros */
+        /* inverse k mod q */
+        if (mp_invmod(k, &key->q, kInv) != MP_OKAY) {
+            ret = MP_INVMOD_E;
+            break;
         }
 
-        if (mp_to_unsigned_bin(&r, out) != MP_OKAY)
-            ret = MP_TO_E;
-        else {
-            out = tmp + DSA_HALF_SIZE;  /* advance to s in output */
-            while (sSz++ < DSA_HALF_SIZE) {
+        /* generate r, r = (g exp k mod p) mod q */
+        if (mp_exptmod_ex(&key->g, k, key->q.used, &key->p, r) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
+            break;
+        }
+
+        if (mp_mod(r, &key->q, r) != MP_OKAY) {
+            ret = MP_MOD_E;
+            break;
+        }
+
+        /* generate H from sha digest */
+        if (mp_read_unsigned_bin(H, digest,WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+            ret = MP_READ_E;
+            break;
+        }
+
+        /* generate s, s = (kInv * (H + x*r)) % q */
+        if (mp_mul(&key->x, r, s) != MP_OKAY) {
+            ret = MP_MUL_E;
+            break;
+        }
+
+        if (mp_add(s, H, s) != MP_OKAY) {
+            ret = MP_ADD_E;
+            break;
+        }
+
+        if (mp_mulmod(s, kInv, &key->q, s) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+#else
+        /* Blinding value
+         * Generate b in range [1, q-1].
+         */
+        do {
+            if ((ret = wc_RNG_GenerateBlock(rng, buffer, sz))) {
+                break;
+            }
+            if (mp_read_unsigned_bin(b, buffer, sz) != MP_OKAY) {
+                ret = MP_READ_E;
+                break;
+            }
+        } while (mp_cmp(b, qMinus1) != MP_LT);
+
+        if (ret != 0)
+            break;
+
+        if (mp_add_d(b, 1, b) != MP_OKAY) {
+            ret = MP_MOD_E;
+            break;
+        }
+
+        /* set H from sha digest */
+        if (mp_read_unsigned_bin(H, digest, WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+            ret = MP_READ_E;
+            break;
+        }
+
+        /* generate r, r = (g exp k mod p) mod q */
+        if (mp_exptmod_ex(&key->g, k, key->q.used, &key->p, r) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
+            break;
+        }
+
+        /* calculate s = (H + xr)/k = b.(H/k.b + x.r/k.b) */
+
+        /* k = k.b */
+        if (mp_mulmod(k, b, &key->q, k) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* kInv = 1/k.b mod q */
+        if (mp_invmod(k, &key->q, kInv) != MP_OKAY) {
+            ret = MP_INVMOD_E;
+            break;
+        }
+
+        if (mp_mod(r, &key->q, r) != MP_OKAY) {
+            ret = MP_MOD_E;
+            break;
+        }
+
+        /* s = x.r */
+        if (mp_mul(&key->x, r, s) != MP_OKAY) {
+            ret = MP_MUL_E;
+            break;
+        }
+
+        /* s = x.r/k.b */
+        if (mp_mulmod(s, kInv, &key->q, s) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* H = H/k.b */
+        if (mp_mulmod(H, kInv, &key->q, H) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* s = H/k.b + x.r/k.b = (H + x.r)/k.b */
+        if (mp_add(s, H, s) != MP_OKAY) {
+            ret = MP_ADD_E;
+            break;
+        }
+
+        /* s = b.(e + x.r)/k.b = (e + x.r)/k */
+        if (mp_mulmod(s, b, &key->q, s) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* s = (e + x.r)/k */
+        if (mp_mod(s, &key->q, s) != MP_OKAY) {
+            ret = MP_MOD_E;
+            break;
+        }
+#endif
+
+        /* detect zero r or s */
+        if ((mp_iszero(r) == MP_YES) || (mp_iszero(s) == MP_YES)) {
+            ret = MP_ZERO_E;
+            break;
+        }
+
+        /* write out */
+        {
+            int rSz = mp_unsigned_bin_size(r);
+            int sSz = mp_unsigned_bin_size(s);
+
+            while (rSz++ < DSA_HALF_SIZE) {
                 *out++ = 0x00;  /* pad front with zeros */
             }
-            ret = mp_to_unsigned_bin(&s, out);
+
+            if (mp_to_unsigned_bin(r, out) != MP_OKAY)
+                ret = MP_TO_E;
+            else {
+                out = tmp + DSA_HALF_SIZE;  /* advance to s in output */
+                while (sSz++ < DSA_HALF_SIZE) {
+                    *out++ = 0x00;  /* pad front with zeros */
+                }
+                ret = mp_to_unsigned_bin(s, out);
+            }
         }
+    } while (0);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (k) {
+        if (ret != MP_INIT_E)
+            mp_forcezero(k);
+        XFREE(k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-
-    ForceZero(buffer, sz);
-    mp_forcezero(&kInv);
-    mp_forcezero(&k);
+    if (kInv) {
+        if (ret != MP_INIT_E)
+            mp_forcezero(kInv);
+        XFREE(kInv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (r) {
+        if (ret != MP_INIT_E)
+            mp_clear(r);
+        XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (s) {
+        if (ret != MP_INIT_E)
+            mp_clear(s);
+        XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (H) {
+        if (ret != MP_INIT_E)
+            mp_clear(H);
+        XFREE(H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
-    mp_forcezero(&b);
-
-    mp_clear(&b);
+    if (b) {
+        if (ret != MP_INIT_E)
+            mp_forcezero(b);
+        XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
-    mp_clear(&H);
-    mp_clear(&s);
-    mp_clear(&r);
-    mp_clear(&kInv);
-    mp_clear(&k);
+    if (buffer) {
+        ForceZero(buffer, sz);
+        XFREE(buffer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else /* !WOLFSSL_SMALL_STACK */
+    if (ret != MP_INIT_E) {
+        ForceZero(buffer, sz);
+        mp_forcezero(kInv);
+        mp_forcezero(k);
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+        mp_forcezero(b);
+#endif
+        mp_clear(H);
+        mp_clear(s);
+        mp_clear(r);
+    }
+#endif
 
     return ret;
 }
@@ -847,70 +978,154 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
 int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
 {
-    mp_int w, u1, u2, v, r, s;
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int *w = (mp_int *)XMALLOC(sizeof *w,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *u1 = (mp_int *)XMALLOC(sizeof *u1,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *u2 = (mp_int *)XMALLOC(sizeof *u2,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *v = (mp_int *)XMALLOC(sizeof *v,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *r = (mp_int *)XMALLOC(sizeof *r,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_int *s = (mp_int *)XMALLOC(sizeof *s,
+                                   key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+    mp_int w[1], u1[1], u2[1], v[1], r[1], s[1];
+#endif
     int    ret = 0;
 
-    if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (mp_init_multi(&w, &u1, &u2, &v, &r, &s) != MP_OKAY)
-        return MP_INIT_E;
-
-    /* set r and s from signature */
-    if (mp_read_unsigned_bin(&r, sig, DSA_HALF_SIZE) != MP_OKAY ||
-        mp_read_unsigned_bin(&s, sig + DSA_HALF_SIZE, DSA_HALF_SIZE) != MP_OKAY)
-        ret = MP_READ_E;
-
-    /* sanity checks */
-    if (ret == 0) {
-        if (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES ||
-                mp_cmp(&r, &key->q) != MP_LT || mp_cmp(&s, &key->q) != MP_LT) {
-            ret = MP_ZERO_E;
+    do {
+        if (mp_init_multi(w, u1, u2, v, r, s) != MP_OKAY) {
+            ret = MP_INIT_E;
+            break;
         }
+
+        if (digest == NULL || sig == NULL || key == NULL || answer == NULL) {
+            ret = BAD_FUNC_ARG;
+            break;
+        }
+
+#ifdef WOLFSSL_SMALL_STACK
+        if ((w == NULL) ||
+            (u1 == NULL) ||
+            (u2 == NULL) ||
+            (v == NULL) ||
+            (r == NULL) ||
+            (s == NULL)) {
+            ret = MEMORY_E;
+            break;
+        }
+#endif
+
+        /* set r and s from signature */
+        if (mp_read_unsigned_bin(r, sig, DSA_HALF_SIZE) != MP_OKAY ||
+            mp_read_unsigned_bin(s, sig + DSA_HALF_SIZE, DSA_HALF_SIZE) != MP_OKAY) {
+            ret = MP_READ_E;
+            break;
+        }
+
+        /* sanity checks */
+        if (mp_iszero(r) == MP_YES || mp_iszero(s) == MP_YES ||
+            mp_cmp(r, &key->q) != MP_LT || mp_cmp(s, &key->q) != MP_LT) {
+            ret = MP_ZERO_E;
+            break;
+        }
+
+        /* put H into u1 from sha digest */
+        if (mp_read_unsigned_bin(u1,digest,WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+            ret = MP_READ_E;
+            break;
+        }
+
+        /* w = s invmod q */
+        if (mp_invmod(s, &key->q, w) != MP_OKAY) {
+            ret = MP_INVMOD_E;
+            break;
+        }
+
+        /* u1 = (H * w) % q */
+        if (mp_mulmod(u1, w, &key->q, u1) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* u2 = (r * w) % q */
+        if (mp_mulmod(r, w, &key->q, u2) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* verify v = ((g^u1 * y^u2) mod p) mod q */
+        if (mp_exptmod(&key->g, u1, &key->p, u1) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
+            break;
+        }
+
+        if (mp_exptmod(&key->y, u2, &key->p, u2) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
+            break;
+        }
+
+        if (mp_mulmod(u1, u2, &key->p, v) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        if (mp_mod(v, &key->q, v) != MP_OKAY) {
+            ret = MP_MULMOD_E;
+            break;
+        }
+
+        /* do they match */
+        if (mp_cmp(r, v) == MP_EQ)
+            *answer = 1;
+        else
+            *answer = 0;
+    } while (0);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (s) {
+        if (ret != MP_INIT_E)
+            mp_clear(s);
+        XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
-
-    /* put H into u1 from sha digest */
-    if (ret == 0 && mp_read_unsigned_bin(&u1,digest,WC_SHA_DIGEST_SIZE) != MP_OKAY)
-        ret = MP_READ_E;
-
-    /* w = s invmod q */
-    if (ret == 0 && mp_invmod(&s, &key->q, &w) != MP_OKAY)
-        ret = MP_INVMOD_E;
-
-    /* u1 = (H * w) % q */
-    if (ret == 0 && mp_mulmod(&u1, &w, &key->q, &u1) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* u2 = (r * w) % q */
-    if (ret == 0 && mp_mulmod(&r, &w, &key->q, &u2) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* verify v = ((g^u1 * y^u2) mod p) mod q */
-    if (ret == 0 && mp_exptmod(&key->g, &u1, &key->p, &u1) != MP_OKAY)
-        ret = MP_EXPTMOD_E;
-
-    if (ret == 0 && mp_exptmod(&key->y, &u2, &key->p, &u2) != MP_OKAY)
-        ret = MP_EXPTMOD_E;
-
-    if (ret == 0 && mp_mulmod(&u1, &u2, &key->p, &v) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    if (ret == 0 && mp_mod(&v, &key->q, &v) != MP_OKAY)
-        ret = MP_MULMOD_E;
-
-    /* do they match */
-    if (ret == 0 && mp_cmp(&r, &v) == MP_EQ)
-        *answer = 1;
-    else
-        *answer = 0;
-
-    mp_clear(&s);
-    mp_clear(&r);
-    mp_clear(&u1);
-    mp_clear(&u2);
-    mp_clear(&w);
-    mp_clear(&v);
+    if (r) {
+        if (ret != MP_INIT_E)
+            mp_clear(r);
+        XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (u1) {
+        if (ret != MP_INIT_E)
+            mp_clear(u1);
+        XFREE(u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (u2) {
+        if (ret != MP_INIT_E)
+            mp_clear(u2);
+        XFREE(u2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (w) {
+        if (ret != MP_INIT_E)
+            mp_clear(w);
+        XFREE(w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (v) {
+        if (ret != MP_INIT_E)
+            mp_clear(v);
+        XFREE(v, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#else
+    if (ret != MP_INIT_E) {
+        mp_clear(s);
+        mp_clear(r);
+        mp_clear(u1);
+        mp_clear(u2);
+        mp_clear(w);
+        mp_clear(v);
+    }
+#endif
 
     return ret;
 }

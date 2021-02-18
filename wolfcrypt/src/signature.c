@@ -394,7 +394,8 @@ int wc_SignatureGenerateHash_ex(
 
         case WC_SIGNATURE_TYPE_RSA_W_ENC:
         case WC_SIGNATURE_TYPE_RSA:
-#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
     #ifdef WOLFSSL_CRYPTOCELL
             /* use expected signature size (incoming sig_len could be larger buffer */
             *sig_len = wc_SignatureGetSize(sig_type, key, key_len);

@@ -95,7 +95,7 @@ void wolfssl_thread_entry(void *pvParameters) {
     wolfSSL_Init();
 
     /* Create and initialize WOLFSSL_CTX */
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL));
     if (ctx == NULL) {
         printf("Error: wolfSSL_CTX_new.\n");
         util_inf_loop(xClientSocket, ctx, ssl);

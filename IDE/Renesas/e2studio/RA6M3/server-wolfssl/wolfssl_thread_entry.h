@@ -23,11 +23,12 @@
 
 #include <wolfssl/certs_test.h>
 
+extern uint8_t g_ether0_mac_address[6];
+
 static const byte ucIPAddress[4]          = { 192, 168, 1, 241 };
 static const byte ucNetMask[4]            = { 255, 255, 255, 0 };
 static const byte ucGatewayAddress[4]     = { 192, 168, 1, 1 };
 static const byte ucDNSServerAddress[4]   = { 192, 168, 1, 1 };
-static const byte g_ether0_mac_address[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
 
 /* Server Cert and Key */
 #define CERT_BUF        server_cert_der_1024
