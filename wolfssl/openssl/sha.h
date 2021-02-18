@@ -75,7 +75,7 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
     (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
     /* SHA is only available in non-fips mode or fips version > 2 mode 
      * because of SHA enum in FIPS build. */
-    #define SHA wolfSSL_SHA
+    #define SHA wolfSSL_SHA1
 #endif
 
 #define SHA1_Init wolfSSL_SHA1_Init

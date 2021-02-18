@@ -42976,16 +42976,6 @@ err:
     defined(WOLFSSL_HAPROXY)
 
 #ifndef NO_SHA
-    /* One shot SHA hash of message.
-     *
-     * Wrap SHA1 one shot
-     */
-      unsigned char *wolfSSL_SHA(const unsigned char *d, size_t n,
-            unsigned char *md)
-     {
-        return wolfSSL_SHA1(d, n, md);
-    }
-
     /* One shot SHA1 hash of message.
      *
      * d  message to hash

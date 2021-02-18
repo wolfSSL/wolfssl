@@ -844,32 +844,6 @@ static const char* server_usage_msg[][56] = {
 #endif
 };
 
-#ifdef WOLFSSL_EARLY_DATA
-static void EarlyDataStatus(WOLFSSL* ssl)
-{
-    int earlyData_status;
-    
-    earlyData_status = wolfSSL_get_early_data_status(ssl);
-    if (earlyData_status < 0) return;
-    
-    printf("Early Data was ");
-    
-    switch(earlyData_status) {
-        case WOLFSSL_EARLY_DATA_NOT_SENT:
-                printf("not sent.\n");
-                break;
-        case WOLFSSL_EARLY_DATA_REJECTED:
-                printf("rejected.\n");
-                break;
-        case WOLFSSL_EARLY_DATA_ACCEPTED:
-                printf("accepted.\n");
-                break;
-        default:
-                printf("unknown...\n");
-    }
-}
-#endif
-
 static void Usage(void)
 {
     int msgId = 0;
