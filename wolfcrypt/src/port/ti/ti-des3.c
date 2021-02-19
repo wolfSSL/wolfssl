@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef NO_DES
+#ifndef NO_DES3
 
 #if defined(WOLFSSL_TI_CRYPT)
 #include <stdbool.h>
@@ -201,4 +201,4 @@ WOLFSSL_API void wc_Des3Free(Des3* des)
 
 #endif /* WOLFSSL_TI_CRYPT */
 
-#endif /* NO_DES */
+#endif /* !NO_DES3 */
