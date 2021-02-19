@@ -24624,6 +24624,7 @@ int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 {
     return loadX509orX509REQFromBio(bio, x509, 0);
 }
+#endif /* !NO_BIO */
 
 #ifdef WOLFSSL_CERT_REQ
 int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
@@ -37563,6 +37564,8 @@ int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
 
     return ret;
 }
+
+#endif /* !NO_BIO */
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error

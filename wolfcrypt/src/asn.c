@@ -3148,6 +3148,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     {
         ret = 0;
     }
+    (void)ks;
 
     return ret;
 }
@@ -5655,6 +5656,9 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
     ret = wc_ShaHash(data, len, hash);
 #else
     ret = NOT_COMPILED_IN;
+    (void)data;
+    (void)len;
+    (void)hash;
 #endif
 
     return ret;

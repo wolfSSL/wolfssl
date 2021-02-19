@@ -612,6 +612,9 @@ int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
             ret = BAD_FUNC_ARG;
     };
 
+    (void)heap;
+    (void)devId;
+
     return ret;
 }
 
