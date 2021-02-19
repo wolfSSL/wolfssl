@@ -39113,8 +39113,10 @@ static void test_wolfSSL_X509_load_crl_file(void)
                    WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
     }
     
-    printf(resultFmt, passed);
+    wolfSSL_X509_STORE_free(store);
+    store = NULL;
     
+    printf(resultFmt, passed);
 #endif
 }
 
