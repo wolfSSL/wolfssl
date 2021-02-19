@@ -54,7 +54,7 @@
 #define USE_FAST_MATH
 #define WC_NO_ASYNC_THREADING
 #define HAVE_DH_DEFAULT_PARAMS
-#define NO_DES
+#define NO_DES3
 #define WOLFSSL_DH_CONST
 
 /* MQX */

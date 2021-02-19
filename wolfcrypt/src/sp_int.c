@@ -3255,7 +3255,7 @@ int sp_mul_d(sp_int* a, sp_int_digit d, sp_int* r)
         * (WOLFSSL_KEY_GEN && !NO_RSA) */
 
 #if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 #ifndef SP_ASM_DIV_WORD
 /* Divide a two digit number by a digit number and return. (hi | lo) / d
  *
@@ -3271,12 +3271,12 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     sp_int_digit r;
 
     if (hi != 0) {
-        sp_int_digit div = d >> SP_HALF_SIZE;
+        sp_int_digit divsz = d >> SP_HALF_SIZE;
         sp_int_digit r2;
         sp_int_word w = ((sp_int_word)hi << SP_WORD_SIZE) | lo;
         sp_int_word trial;
 
-        r = hi / div;
+        r = hi / divsz;
         if (r > SP_HALF_MAX) {
             r = SP_HALF_MAX;
         }
@@ -3287,7 +3287,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
             trial -= (sp_int_word)d << SP_HALF_SIZE;
         }
         w -= trial;
-        r2 = ((sp_int_digit)(w >> SP_HALF_SIZE)) / div;
+        r2 = ((sp_int_digit)(w >> SP_HALF_SIZE)) / divsz;
         trial = r2 * (sp_int_word)d;
         while (trial > w) {
             r2--;
@@ -12175,8 +12175,8 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     return err;
 }
 
-#if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING)) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if (!defined(NO_DH) || defined(HAVE_ECC) || defined(WC_RSA_BLINDING) || \
+    defined(WOLFSSL_RSA_PUBLIC_ONLY)) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -12192,7 +12192,8 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
 {
     return sp_to_unsigned_bin_len(a, out, sp_unsigned_bin_size(a));
 }
-#endif /* (!NO_DH || HAVE_ECC || WC_RSA_BLINDING) && !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* (!NO_DH || HAVE_ECC || WC_RSA_BLINDING || WOLFSSL_RSA_PUBLIC_ONLY) 
+            && !WOLFSSL_RSA_VERIFY_ONLY */
 
 /* Convert the multi-precision number to an array of bytes in big-endian format.
  *

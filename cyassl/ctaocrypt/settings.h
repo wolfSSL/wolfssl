@@ -534,9 +534,9 @@
     #endif
 
     #if (SSL_CFG_3DES_EN == DEF_ENABLED)
-        #undef  NO_DES
+        #undef  NO_DES3
     #else
-        #define NO_DES
+        #define NO_DES3
     #endif
 
     #if (SSL_CFG_AES_EN == DEF_ENABLED)
