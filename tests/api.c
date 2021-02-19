@@ -40412,6 +40412,71 @@ static void test_export_keying_material(void)
 }
 #endif /* HAVE_KEYING_MATERIAL */
 
+static void test_wolfSSL_CTX_get_min_proto_version(void)
+{
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    WOLFSSL_CTX *ctx;
+
+    printf(testingFmt, "wolfSSL_CTX_get_min_proto_version()");
+
+    #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_SSLV3
+            #ifdef NO_WOLFSSL_SERVER
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+            #else
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+            #endif
+            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
+            wolfSSL_CTX_free(ctx);
+        #endif
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            #ifdef NO_WOLFSSL_SERVER
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_client_method()));
+            #else
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_server_method()));
+            #endif
+            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+            wolfSSL_CTX_free(ctx);
+        #endif
+
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    #ifndef WOLFSSL_NO_TLS12
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    #ifdef WOLFSSL_TLS13
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_3_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    printf(resultFmt, passed);
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -40829,6 +40894,8 @@ void ApiTest(void)
 #ifdef HAVE_KEYING_MATERIAL
     test_export_keying_material();
 #endif /* HAVE_KEYING_MATERIAL */
+
+    test_wolfSSL_CTX_get_min_proto_version();
 
     /*wolfcrypt */
     printf("\n-----------------wolfcrypt unit tests------------------\n");

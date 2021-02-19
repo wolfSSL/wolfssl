@@ -1071,6 +1071,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_set_min_proto_version   wolfSSL_CTX_set_min_proto_version
 #define SSL_CTX_set_max_proto_version   wolfSSL_CTX_set_max_proto_version
+#define SSL_CTX_get_min_proto_version   wolfSSL_CTX_get_min_proto_version
 
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
 
