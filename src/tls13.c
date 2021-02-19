@@ -7970,6 +7970,24 @@ int wolfSSL_update_keys(WOLFSSL* ssl)
     return ret;
 }
 
+/* Whether a response is waiting for key update request.
+ *
+ * ssl        The SSL/TLS object.
+ * required   0 when no key update response required.
+ *            1 when no key update response required.
+ * return  0 on success.
+ * return  BAD_FUNC_ARG when ssl is NULL or not using TLS v1.3
+ */
+int wolfSSL_key_update_response(WOLFSSL* ssl, int* required)
+{
+    if (required == NULL || ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+    *required = ssl->keys.updateResponseReq;
+
+    return 0;
+}
+
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 /* Allow post-handshake authentication in TLS v1.3 connections.
  *
