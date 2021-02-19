@@ -16904,7 +16904,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #if defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_EXTRA) 
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     int wolfSSL_SHA_Transform(WOLFSSL_SHA_CTX* sha, 
                                          const unsigned char* data)
     {
@@ -16924,6 +16926,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             
        return ret;
     }
+    #endif
     #endif
     
     int wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX* sha)
@@ -16947,12 +16950,15 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return SHA_Final(input, sha);
     }
     #if defined(OPENSSL_EXTRA)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX* sha, 
                                          const unsigned char* data)
     {
        WOLFSSL_ENTER("SHA1_Transform");
        return (wolfSSL_SHA_Transform(sha, data));
     }
+    #endif
     #endif
 #endif /* !NO_SHA */
 
@@ -17058,6 +17064,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
     
     #if defined(OPENSSL_EXTRA)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256, 
                                                 const unsigned char* data)
     {
@@ -17077,6 +17085,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             
        return ret;
     }
+    #endif
     #endif
     
 #ifdef WOLFSSL_SHA384
@@ -17182,6 +17191,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512, 
                                           const unsigned char* data)
     {
@@ -17197,7 +17208,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
        
        return ret;
     }
-    
+    #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+              (HAVE_FIPS_VERSION > 2)) */
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA3

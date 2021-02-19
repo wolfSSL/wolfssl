@@ -32785,7 +32785,7 @@ static void test_wolfSSL_SHA(void)
 #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
     printf(testingFmt, "wolfSSL_SHA()");
 
-    #if !defined(NO_SHA)
+    #if !defined(NO_SHA) && defined(NO_OLD_SHA_NAMES)
     {
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"
@@ -33119,6 +33119,8 @@ static void test_wolfSSL_SHA224(void)
 static void test_wolfSSL_SHA_Transform(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA_BLOCK_SIZE];
@@ -33157,11 +33159,14 @@ static void test_wolfSSL_SHA_Transform(void)
     
     printf(resultFmt, passed);
 #endif
+#endif
 }
 
 static void test_wolfSSL_SHA256_Transform(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA256_BLOCK_SIZE];
@@ -33200,6 +33205,7 @@ static void test_wolfSSL_SHA256_Transform(void)
     
     printf(resultFmt, passed);
 #endif
+#endif
 }
 
 static void test_wolfSSL_SHA256(void)
@@ -33229,6 +33235,8 @@ static void test_wolfSSL_SHA256(void)
 static void test_wolfSSL_SHA512_Transform(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA512)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION > 2))
     byte input1[] = "";
     byte input2[] = "abc";
     byte local[WC_SHA512_BLOCK_SIZE];
@@ -33271,6 +33279,7 @@ static void test_wolfSSL_SHA512_Transform(void)
                                                     WC_SHA512_DIGEST_SIZE), 0);
     (void)input1;
     printf(resultFmt, passed);
+#endif
 #endif
 }
 
