@@ -6497,6 +6497,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
 
 #ifdef WOLFSSL_ASYNC_CRYPT
+    /* Currently the call to RSA public encrypt here is blocking @TODO */
     do {
         ret = wc_AsyncWait(ret, &pubKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         if (ret >= 0)
@@ -8508,21 +8509,22 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             }
             #endif
             if (ret == 0) {
-                #ifdef WOLFSSL_ASYNC_CRYPT
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                /* Currently the call to RSA decrypt here is blocking @TODO */
                 keySz = 0; /* set initial "ret" value to 0 */
                 do {
                     keySz = wc_AsyncWait(keySz, &privKey->asyncDev,
                                          WC_ASYNC_FLAG_CALL_AGAIN);
                 if (keySz >= 0)
-                #endif
+            #endif
                 {
                     keySz = wc_RsaPrivateDecryptInline(encryptedKey,
                                                        encryptedKeySz, &outKey,
                                                        privKey);
                 }
-                #ifdef WOLFSSL_ASYNC_CRYPT
+            #ifdef WOLFSSL_ASYNC_CRYPT
                 } while (keySz == WC_PENDING_E);
-                #endif
+            #endif
                 #ifdef WC_RSA_BLINDING
                     wc_FreeRng(&rng);
                 #endif
