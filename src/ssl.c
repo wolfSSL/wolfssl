@@ -16015,15 +16015,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
+        long ret = WOLFSSL_FAILURE;
+
         WOLFSSL_ENTER("wolfSSL_BIO_set_ssl");
 
         if (b != NULL) {
             b->ptr   = ssl;
             b->shutdown = (byte)closeF;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
+            ret = WOLFSSL_SUCCESS;
         }
 
-        return 0;
+        return ret;
     }
 
 #ifndef NO_FILESYSTEM
