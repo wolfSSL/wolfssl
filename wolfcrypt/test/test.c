@@ -21166,8 +21166,6 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #endif
 
     ret = wc_ecc_make_key_ex(rng, keySize, userA, curve_id);
-    if (ret != 0)
-        ERROR_OUT(-9909, done);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userA->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -21190,8 +21188,6 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
 
     ret = wc_ecc_make_key_ex(rng, keySize, userB, curve_id);
-    if (ret != 0)
-        ERROR_OUT(-9913, done);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &userB->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif

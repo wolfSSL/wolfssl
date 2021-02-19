@@ -238,8 +238,10 @@ static int HKDF_Expand_Label(byte* okm, word32 okmLen,
     /* Length of hash of messages */
     data[idx++] = (byte)infoLen;
     /* Hash of messages */
-    XMEMCPY(&data[idx], info, infoLen);
-    idx += infoLen;
+    if (info != NULL && infoLen > 0) {
+        XMEMCPY(&data[idx], info, infoLen);
+        idx += infoLen;
+    }
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("  PRK");
