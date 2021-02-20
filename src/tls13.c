@@ -8663,7 +8663,8 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {
 #ifdef OPENSSL_EXTRA
         /* when processed early data exceeds max size */
-        if (ssl->earlyDataSz + sz > ssl->session.maxEarlyDataSz) {
+        if (ssl->session.maxEarlyDataSz > 0 &&
+            (ssl->earlyDataSz + sz > ssl->session.maxEarlyDataSz)) {
             ssl->error = TOO_MUCH_EARLY_DATA;
             return WOLFSSL_FATAL_ERROR;
         }
