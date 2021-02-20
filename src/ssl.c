@@ -37492,8 +37492,6 @@ int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec)
     return ret;
 }
 
-#endif /* !NO_BIO */
-
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
