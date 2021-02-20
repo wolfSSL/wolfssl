@@ -41,6 +41,7 @@ extern "C" {
 #endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
+    /* see SASI_AES_KEY_MAX_SIZE_IN_BYTES in the nRF5 SDK */
     #define AES_MAX_KEY_SIZE    128
 #endif /* WOLFSSL_CRYPTOCELL*/
 

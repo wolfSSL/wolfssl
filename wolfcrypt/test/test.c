@@ -7700,7 +7700,8 @@ static int aes_key_size_test(void)
     if (ret != 0 || keySize != sizeof(key16))
         ERROR_OUT(-5310, out);
 #endif
-
+#if !defined(WOLFSSL_CRYPTOCELL)
+/* Cryptocell only supports AES-128 key size */
     ret = wc_AesSetKey(aes, key24, sizeof(key24), iv, AES_ENCRYPTION);
 #ifdef WOLFSSL_AES_192
     if (ret != 0)
@@ -7726,7 +7727,7 @@ static int aes_key_size_test(void)
     if (ret != 0 || keySize != sizeof(key32))
         ERROR_OUT(-5314, out);
 #endif
-
+#endif /* !WOLFSSL_CRYPTOCELL */
   out:
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -21367,7 +21368,9 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #ifdef HAVE_ECC_SIGN
     /* ECC w/out Shamir has issue with all 0 digest */
     /* WC_BIGINT doesn't have 0 len well on hardware */
-#if defined(ECC_SHAMIR) && !defined(WOLFSSL_ASYNC_CRYPT)
+    /* Cryptocell has issues with all 0 digest */
+#if defined(ECC_SHAMIR) && !defined(WOLFSSL_ASYNC_CRYPT) && \
+    !defined(WOLFSSL_CRYPTOCELL)
     /* test DSA sign hash with zeros */
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {
         digest[i] = 0;
@@ -21404,7 +21407,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         TEST_SLEEP();
     }
 #endif /* HAVE_ECC_VERIFY */
-#endif /* ECC_SHAMIR && !WOLFSSL_ASYNC_CRYPT */
+#endif /* ECC_SHAMIR && !WOLFSSL_ASYNC_CRYPT && !WOLFSSL_CRYPTOCELL */
 
     /* test DSA sign hash with sequence (0,1,2,3,4,...) */
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {
