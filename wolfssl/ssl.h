@@ -674,6 +674,12 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    #define RETURN_CODE(w,o)  ((w < 0)?o:w)
+#else
+    #define RETURN_CODE(w,o) (w)
+#endif
+
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
