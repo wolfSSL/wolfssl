@@ -879,7 +879,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     }
 
     /* Derive-Secret(Secret, label, "") */
-    ret = HKDF_Expand_Label(firstExpand, hashLen,
+    ret = wc_Tls13_HKDF_Expand_Label(firstExpand, hashLen,
             ssl->arrays->exporterSecret, hashLen,
             protocol, protocolLen, (byte*)label, (word32)labelLen,
             emptyHash, hashLen, hashType);
@@ -891,7 +891,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
     if (ret != 0)
         return ret;
 
-    ret = HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
+    ret = wc_Tls13_HKDF_Expand_Label(out, (word32)outLen, firstExpand, hashLen,
             protocol, protocolLen, exporterLabel, EXPORTER_LABEL_SZ,
             hashOut, hashLen, hashType);
 
