@@ -2610,6 +2610,7 @@ static void test_wolfSSL_EVP_EncodeUpdate(void)
 
     total += outl;
 
+    AssertIntNE(total,0);
     AssertIntNE(outl,0);
     AssertIntEQ(XSTRNCMP(
         (const char*)encOutBuff,(const char*)enc2,sizeof(enc2) ),0);

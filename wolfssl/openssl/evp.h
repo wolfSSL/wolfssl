@@ -382,14 +382,14 @@ struct WOLFSSL_EVP_PKEY_CTX {
 #define   BASE64_ENCODED_BLOCK_SIZE 64
 #define   BASE64_DECODE_BLOCK_SIZE  4
 
-typedef struct WOLFSSL_EVP_ENCODE_CTX
-{
+struct WOLFSSL_EVP_ENCODE_CTX {
     void* heap;
     int   remaining;     /* num of bytes in data[] */
     byte  data[128];     /* storage for unprocessed raw data */
-}WOLFSSL_EVP_ENCODE_CTX;
+};
+typedef struct WOLFSSL_EVP_ENCODE_CTX WOLFSSL_EVP_ENCODE_CTX;
 
-WOLFSSL_API WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void);
+WOLFSSL_API struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void);
 WOLFSSL_API void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx);
 #endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
 

@@ -6880,12 +6880,12 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
 
 /* Base64 encoding APIs */
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
-static WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap);
-WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
+static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap);
+struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
 {
     return wolfSSL_EVP_ENCODE_CTX_new_ex(NULL);
 }
-static WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
+static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_new");
     WOLFSSL_EVP_ENCODE_CTX* ctx = (WOLFSSL_EVP_ENCODE_CTX*)XMALLOC( sizeof(WOLFSSL_EVP_ENCODE_CTX),heap,DYNAMIC_TYPE_OPENSSL );
@@ -7058,6 +7058,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     word32 inLen;
     int    res;
     int    pad = 0;
+    int    i;
 
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeUpdate");
 
@@ -7081,21 +7082,21 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     a block(4bytes) for decoding*/
     if( ctx->remaining > 0 && inl > 0) {
         int cpysz;
-        unsigned char e;
+        unsigned char e0;
 
         cpysz = min( (BASE64_DECODE_BLOCK_SIZE - ctx->remaining), inl );
 
-        for (int i = 0; cpysz > 0 && inLen > 0;i++) {
+        for ( i = 0; cpysz > 0 && inLen > 0;i++) {
             if ((res = Base64_SkipNewline(in, &inLen, &j))
                                             == ASN_INPUT_E) {
                 return -1;  /* detected an illegal char in input */
             }
-            e = in[j++];
+            e0 = in[j++];
 
-            if (e == '=')
+            if (e0 == '=')
                 pad = 1;
 
-            *(ctx->data + ctx->remaining + i) = e;
+            *(ctx->data + ctx->remaining + i) = e0;
             inLen--;
             cpysz--;
         }
@@ -7202,18 +7203,18 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     if (inLen > 0) {
         XMEMSET(ctx->data, 0, sizeof(ctx->data));
 
-        int i = 0;
-        unsigned char e;
+        i = 0;
+        unsigned char el;
         while ( inLen > 0) {
-            e = in[j++];
-            if (e== '\n' || e == '\r' || e == ' ') {
+            el = in[j++];
+            if (el== '\n' || el == '\r' || el == ' ') {
                 inLen--;
                 continue;
             }
-            if (e == '=') {
+            if (el == '=') {
                 pad = 1;
             }
-            ctx->data[i++] = e;
+            ctx->data[i++] = el;
             ctx->remaining++;
             inLen--;
         }
@@ -7225,15 +7226,15 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     }
     /* if the last data is '\n', remove it */
-    char e = in[j - 1];
-    if (e == '\n') {
-        e = (in[j - 2]);
-        if (e == '=')
+    char es = in[j - 1];
+    if (es == '\n') {
+        es = (in[j - 2]);
+        if (es == '=')
             return 0;
         else
             return 1;
     }
-    if (e == '=')
+    if (es == '=')
         return 0;
     else
         return 1;
