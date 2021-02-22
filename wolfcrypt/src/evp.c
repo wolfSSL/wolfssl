@@ -6935,21 +6935,84 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
-    int res;
     byte buff[128] = { 0 };
 
     word32 inOutIdx = 0;
+    int length = 0;
     word32 nSz = 0;         /* size of modulus */
     word32 eSz = 0;         /* size of public exponent */
     byte*  n   = NULL;
     byte*  e   = NULL;       /* pointer to modulus/exponent */
-
+    word32 localIdx;
+    word32 oid;
+    byte   tag;
     (void)pctx;
 
-    if ((res = wc_RsaPublicKeyDecode_ex(pkey, &inOutIdx, pkeySz,
-            (const byte**)&n, &nSz, (const byte**)&e, &eSz)) != 0) {
+    if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
         return WOLFSSL_FAILURE;
+
+    localIdx = inOutIdx;
+    if (GetASNTag(pkey, &localIdx, &tag, pkeySz) < 0)
+        return WOLFSSL_FAILURE;
+
+    if (tag != ASN_INTEGER) {
+        /* not from decoded cert, will have algo id, skip past */
+        if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
+            return WOLFSSL_FAILURE;
+
+        if (GetObjectId(pkey, &inOutIdx, &oid, oidIgnoreType, pkeySz) != 0)
+            return WOLFSSL_FAILURE;
+
+        /* Option NULL ASN.1 tag */
+        if (inOutIdx  >= (word32)pkeySz)
+            return WOLFSSL_FAILURE;
+
+        localIdx = inOutIdx;
+        if (GetASNTag(pkey, &inOutIdx, &tag, pkeySz) < 0)
+            return WOLFSSL_FAILURE;
+
+        if (tag != ASN_TAG_NULL)
+            return WOLFSSL_FAILURE;
+
+        inOutIdx ++;
+
+        /* should have bit tag length and seq next */
+        if( CheckBitString(pkey, &inOutIdx, NULL, pkeySz, 1, NULL) != 0)
+            return WOLFSSL_FAILURE;
+
+        if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
+            return WOLFSSL_FAILURE;
     }
+    /* Get modulus */
+    if (GetASNTag(pkey, &inOutIdx, &tag, pkeySz ) < 0)
+        return WOLFSSL_FAILURE;
+
+    if (tag != ASN_INTEGER)
+        return WOLFSSL_FAILURE;
+
+    if (GetLength(pkey, &inOutIdx, &length, pkeySz) < 0)
+        return WOLFSSL_FAILURE;
+
+    nSz = length;
+    n   = (byte*)(&pkey[inOutIdx]);
+    inOutIdx += length;
+
+    /* Get exponent */
+
+    if (GetASNTag(pkey, &inOutIdx, &tag, pkeySz) < 0)
+        return WOLFSSL_FAILURE;
+
+    if (tag != ASN_INTEGER)
+        return WOLFSSL_FAILURE;
+
+    if (GetLength(pkey, &inOutIdx, &length, pkeySz) < 0)
+        return WOLFSSL_FAILURE;
+
+    eSz = length;
+    e   = (byte*)(&pkey[inOutIdx]);
+
+    /* print out public key elements */
+
     int idx = 0;
     int wsz = 0;
 

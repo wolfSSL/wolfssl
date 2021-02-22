@@ -7877,7 +7877,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
-    #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+    #if !defined(NO_DH) && defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
     #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION > 2))
     {
@@ -7935,7 +7935,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
         }
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-    #endif /* !NO_DH &&  OPENSSL_EXTRA */
+    #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");

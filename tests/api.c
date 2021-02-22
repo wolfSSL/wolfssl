@@ -2439,8 +2439,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     res = XSTRNCMP( line,
-           "       bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:99:\n",
-    sizeof("       bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:99:\n"));
+           "       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n",
+    sizeof("       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n"));
     AssertIntEQ(res,0);
 
     /* skip to the end of modulus element*/
@@ -32207,7 +32207,7 @@ static void test_wolfSSL_d2i_PUBKEY(void)
 #endif
 
 #if defined(USE_CERT_BUFFERS_2048) && !defined(NO_DH) && \
-defined(OPENSSL_EXTRA) && !defined(WOLFSSL_DH_EXTRA)
+defined(OPENSSL_EXTRA) && defined(WOLFSSL_DH_EXTRA)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
             (HAVE_FIPS_VERSION > 2))
     /* DH PUBKEY test */
@@ -40836,6 +40836,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
     test_wolfSSL_EVP_MD_ecc_signing();
+    test_wolfSSL_EVP_PKEY_print_public();
     test_wolfSSL_CTX_add_extra_chain_cert();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
@@ -41066,7 +41067,6 @@ void ApiTest(void)
     test_EVP_PKEY_rsa();
     test_wolfSSL_EVP_PKEY_encrypt();
     test_wolfSSL_EVP_PKEY_sign();
-    test_wolfSSL_EVP_PKEY_print_public();
     test_EVP_PKEY_ec();
     test_EVP_PKEY_cmp();
     /* OpenSSL error API tests */
