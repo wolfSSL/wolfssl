@@ -2638,6 +2638,276 @@ static void test_ED448(void)
  | EVP
  *----------------------------------------------------------------------------*/
 
+static void test_wolfSSL_EVP_PKEY_print_public(void)
+{
+#if defined(OPENSSL_EXTRA)
+
+    WOLFSSL_BIO* rbio = NULL;
+    WOLFSSL_BIO* wbio = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    char line[256] = { 0 };
+    char line1[256] = { 0 };
+    int i;
+
+    printf(testingFmt, "EVP_PKEY_print_public()");
+    /* test error cases */
+    AssertIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
+
+    /*
+     *  test RSA public key print
+     *  in this test, pass '3' for indent
+     */
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_1024)
+
+    rbio = BIO_new_mem_buf( client_keypub_der_1024,
+                            sizeof_client_keypub_der_1024);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   RSA Public-Key: (1024 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   Modulus:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* skip to the end of modulus element*/
+    for( i = 0; i < 8 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "   Exponent: 65537 (0x010001)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif  /* !NO_RSA && USE_CERT_BUFFERS_1024*/
+
+    /*
+     *  test DSA public key print
+     */
+#if !defined(NO_DSA) && defined(USE_CERT_BUFFERS_2048)
+    rbio = BIO_new_mem_buf( dsa_pub_key_der_2048,
+                            sizeof_dsa_pub_key_der_2048);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "DSA Public-Key: (2048 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "pub:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n"); 
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of pub element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "P:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of P element*/
+    for( i = 0; i < 18 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "Q:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of Q element*/
+    for( i = 0; i < 3 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "G:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of G element*/
+    for( i = 0; i < 18 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* !NO_DSA && USE_CERT_BUFFERS_2048 */
+
+    /*
+     *  test ECC public key print
+     */
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+
+    rbio = BIO_new_mem_buf( ecc_clikeypub_der_256,
+                            sizeof_ecc_clikeypub_der_256);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "Public-Key: (256 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "pub:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+            "    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of pub element*/
+    for( i = 0; i < 4 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "ASN1 OID: prime256v1\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "NIST CURVE: P-256\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
+
+    /*
+     *  test DH public key print
+     */
+#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+
+    rbio = BIO_new_mem_buf( dh_pub_key_der_2048,
+                            sizeof_dh_pub_key_der_2048);
+    AssertNotNull(rbio);
+
+    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
+    AssertNotNull(pkey);
+
+    wbio = BIO_new(BIO_s_mem());
+    AssertNotNull(wbio);
+
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "DH Public-Key: (2048 bit)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "public-key:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of public-key element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "prime:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1,
+        "    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* skip to the end of prime element*/
+    for( i = 0; i < 17 ;i++) {
+        BIO_gets(wbio, line, sizeof(line));
+    }
+
+    BIO_gets(wbio, line, sizeof(line));
+    strcpy(line1, "generator: 2 (0x02)\n");
+    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
+
+    /* should reach EOF */
+    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
+
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+    BIO_free(rbio);
+    BIO_free(wbio);
+    rbio = NULL;
+    wbio = NULL;
+
+#endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
+
+    /* to prevent "unused variable" warning */
+    (void)pkey;
+    (void)wbio;
+    (void)rbio;
+    (void)line;
+    (void)line1;
+    (void)i;
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
 /* Test functions for base64 encode/decode */
 static void test_wolfSSL_EVP_ENCODE_CTX_new(void)
 {
@@ -3139,276 +3409,6 @@ static void test_wolfSSL_EVP_DecodeFinal(void)
      */
     printf(resultFmt, passed);
 #endif /* OPENSSL && WOLFSSL_BASE_DECODE */
-}
-static void test_wolfSSL_EVP_PKEY_print_public(void)
-{
-#if defined(OPENSSL_EXTRA)
-
-    WOLFSSL_BIO* rbio = NULL;
-    WOLFSSL_BIO* wbio = NULL;
-    WOLFSSL_EVP_PKEY* pkey = NULL;
-    char line[256] = { 0 };
-    char line1[256] = { 0 };
-    int i;
-
-    printf(testingFmt, "EVP_PKEY_print_public()");
-    /* test error cases */
-    AssertIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
-
-    /*
-     *  test RSA public key print
-     *  in this test, pass '3' for indent
-     */
-#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_1024)
-
-    rbio = BIO_new_mem_buf( client_keypub_der_1024,
-                            sizeof_client_keypub_der_1024);
-    AssertNotNull(rbio);
-
-    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
-    AssertNotNull(pkey);
-
-    wbio = BIO_new(BIO_s_mem());
-    AssertNotNull(wbio);
-
-    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "   RSA Public-Key: (1024 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "   Modulus:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-
-    /* skip to the end of modulus element*/
-    for( i = 0; i < 8 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "   Exponent: 65537 (0x010001)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-
-    /* should reach EOF */
-    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
-
-    EVP_PKEY_free(pkey);
-    pkey = NULL;
-    BIO_free(rbio);
-    BIO_free(wbio);
-    rbio = NULL;
-    wbio = NULL;
-
-#endif  /* !NO_RSA && USE_CERT_BUFFERS_1024*/
-
-    /*
-     *  test DSA public key print
-     */
-#if !defined(NO_DSA) && defined(USE_CERT_BUFFERS_2048)
-    rbio = BIO_new_mem_buf( dsa_pub_key_der_2048,
-                            sizeof_dsa_pub_key_der_2048);
-    AssertNotNull(rbio);
-
-    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
-    AssertNotNull(pkey);
-
-    wbio = BIO_new(BIO_s_mem());
-    AssertNotNull(wbio);
-
-    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "DSA Public-Key: (2048 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "pub:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1,
-        "    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n"); 
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of pub element*/
-    for( i = 0; i < 17 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "P:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of P element*/
-    for( i = 0; i < 18 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "Q:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of Q element*/
-    for( i = 0; i < 3 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "G:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of G element*/
-    for( i = 0; i < 18 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-    /* should reach EOF */
-    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
-
-    EVP_PKEY_free(pkey);
-    pkey = NULL;
-    BIO_free(rbio);
-    BIO_free(wbio);
-    rbio = NULL;
-    wbio = NULL;
-
-#endif /* !NO_DSA && USE_CERT_BUFFERS_2048 */
-
-    /*
-     *  test ECC public key print
-     */
-#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
-
-    rbio = BIO_new_mem_buf( ecc_clikeypub_der_256,
-                            sizeof_ecc_clikeypub_der_256);
-    AssertNotNull(rbio);
-
-    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
-    AssertNotNull(pkey);
-
-    wbio = BIO_new(BIO_s_mem());
-    AssertNotNull(wbio);
-
-    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "Public-Key: (256 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "pub:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1,
-            "    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of pub element*/
-    for( i = 0; i < 4 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "ASN1 OID: prime256v1\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "NIST CURVE: P-256\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-
-    /* should reach EOF */
-    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
-
-    EVP_PKEY_free(pkey);
-    pkey = NULL;
-    BIO_free(rbio);
-    BIO_free(wbio);
-    rbio = NULL;
-    wbio = NULL;
-
-#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
-
-    /*
-     *  test DH public key print
-     */
-#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
-
-    rbio = BIO_new_mem_buf( dh_pub_key_der_2048,
-                            sizeof_dh_pub_key_der_2048);
-    AssertNotNull(rbio);
-
-    wolfSSL_d2i_PUBKEY_bio(rbio, &pkey);
-    AssertNotNull(pkey);
-
-    wbio = BIO_new(BIO_s_mem());
-    AssertNotNull(wbio);
-
-    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "DH Public-Key: (2048 bit)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "public-key:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1,
-        "    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of public-key element*/
-    for( i = 0; i < 17 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "prime:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1,
-        "    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* skip to the end of prime element*/
-    for( i = 0; i < 17 ;i++) {
-        BIO_gets(wbio, line, sizeof(line));
-    }
-
-    BIO_gets(wbio, line, sizeof(line));
-    strcpy(line1, "generator: 2 (0x02)\n");
-    AssertIntEQ(XSTRNCMP( line, line1, XSTRLEN(line1)), 0);
-
-    /* should reach EOF */
-    AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
-
-    EVP_PKEY_free(pkey);
-    pkey = NULL;
-    BIO_free(rbio);
-    BIO_free(wbio);
-    rbio = NULL;
-    wbio = NULL;
-
-#endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
-
-    /* to prevent "unused variable" warning */
-    (void)pkey;
-    (void)wbio;
-    (void)rbio;
-    (void)line;
-    (void)line1;
-    (void)i;
-    printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
 }
 
 /* Test function for wolfSSL_EVP_get_cipherbynid.
@@ -30361,6 +30361,364 @@ static void test_wolfSSL_CTX_add_client_CA(void)
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA  && !NO_RSA && !NO_CERTS && !NO_WOLFSSL_CLIENT */
 }
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+static THREAD_RETURN WOLFSSL_THREAD server_task(void* args)
+{
+    callback_functions* callbacks = ((func_args*)args)->callbacks;
+    WOLFSSL_CTX* ctx       = wolfSSL_CTX_new(callbacks->method());
+    WOLFSSL*  ssl   = NULL;
+    SOCKET_T  sfd   = 0;
+    SOCKET_T  cfd   = 0;
+    word16    port;
+    char      msg[] = "I hear you fa shizzle!";
+    int       len   = (int) XSTRLEN(msg);
+    char      input[1024];
+    int       idx;
+    int       ret, err = 0;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    ((func_args*)args)->return_code = TEST_FAIL;
+    port = ((func_args*)args)->signal->port;
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
+
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                 WOLFSSL_FILETYPE_PEM));
+
+    if (callbacks->ctx_ready)
+        callbacks->ctx_ready(ctx);
+
+    ssl = wolfSSL_new(ctx);
+    tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, NULL, NULL);
+    CloseSocket(sfd);
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_set_fd(ssl, cfd));
+
+    if (callbacks->ssl_ready)
+        callbacks->ssl_ready(ssl);
+
+    do {
+        err = 0; /* Reset error */
+        ret = wolfSSL_accept(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+    }
+    else {
+        if (0 < (idx = wolfSSL_read(ssl, input, sizeof(input)-1))) {
+            input[idx] = 0;
+            printf("Client message: %s\n", input);
+        }
+
+        AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
+#ifdef WOLFSSL_TIRTOS
+        Task_yield();
+#endif
+        ((func_args*)args)->return_code = TEST_SUCCESS;
+    }
+
+    if (callbacks->on_result)
+        callbacks->on_result(ssl);
+
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    CloseSocket(cfd);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+#ifndef WOLFSSL_TIRTOS
+    return 0;
+#endif
+}
+
+static void keyLog_callback(const WOLFSSL* ssl, const char* line )
+{
+
+    AssertNotNull(ssl);
+    AssertNotNull(line);
+
+    XFILE fp;
+    const byte  lf = '\n';
+    fp = XFOPEN("./MyKeyLog.txt", "a");
+    XFWRITE( line, 1, strlen(line),fp);
+    XFWRITE( (void*)&lf,1,1,fp);
+    XFCLOSE(fp);
+
+}
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
+static void test_wolfSSL_CTX_set_keylog_callback(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+    SSL_CTX* ctx;
+
+    printf( testingFmt, "wolfSSL_CTX_set_keylog_callback()");
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    SSL_CTX_set_keylog_callback(ctx, keyLog_callback );
+    SSL_CTX_free(ctx);
+    SSL_CTX_set_keylog_callback(NULL, NULL);
+    printf(resultFmt, passed);
+
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
+}
+static void test_wolfSSL_CTX_get_keylog_callback(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+    SSL_CTX* ctx;
+
+    printf( testingFmt, "wolfSSL_CTX_get_keylog_callback()");
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    AssertPtrEq(SSL_CTX_get_keylog_callback(ctx),NULL);
+    SSL_CTX_set_keylog_callback(ctx, keyLog_callback );
+    AssertPtrEq(SSL_CTX_get_keylog_callback(ctx),keyLog_callback);
+    SSL_CTX_set_keylog_callback(ctx, NULL );
+    AssertPtrEq(SSL_CTX_get_keylog_callback(ctx),NULL);
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
+}
+static void test_wolfSSL_Tls12_Key_Logging_test(void)
+{
+ #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+ /* This test is intended for checking whether keylog callback is called
+  * in client during TLS handshake between the client and a server.
+  */
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions server_cbf;
+    callback_functions client_cbf;
+    SOCKET_T sockfd = 0;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL*     ssl;
+    XFILE fp;
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  msgSz = (int)XSTRLEN(msg);
+
+    printf(testingFmt, "wolfSSL_Tls12_Key_Logging_test()");
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    InitTcpReady(&ready);
+    ready.port = 22222;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    server_cbf.method     = wolfTLSv1_2_server_method;
+
+    server_args.callbacks = &server_cbf;
+    server_args.signal    = &ready;
+
+    /* clean up keylog file */
+    fp = XFOPEN("./MyKeyLog.txt", "w");
+    XFCLOSE(fp);
+
+    /* start server task */
+    start_thread(server_task, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+
+    /* run as a TLS1.2 client */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+
+    /* set keylog callback */
+    wolfSSL_CTX_set_keylog_callback(ctx,keyLog_callback);
+
+    /* get connected the server task */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+
+
+    AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
+    AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)), 0);
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    CloseSocket(sockfd);
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* check if the keylog file exists */
+
+    char  buff[300] = {0};
+    int  found = 0;
+
+    fp = XFOPEN("./MyKeyLog.txt", "r");
+
+    AssertNotNull(fp);
+
+    while(XFGETS( buff, (int)sizeof(buff),fp) != NULL ) {
+        if(0 == strncmp(buff,"CLIENT_RANDOM ",
+                    sizeof("CLIENT_RANDOM ")-1)) {
+            found = 1;
+            break;
+        }
+    }
+    XFCLOSE(fp);
+    /* a log starting with "CLIENT_RANDOM " should exit in the file */
+    AssertNotNull( found );
+    printf(resultFmt, passed);
+
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
+}
+static void test_wolfSSL_Tls13_Key_Logging_test(void)
+{
+ #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+ /* This test is intended for checking whether keylog callback is called
+  * in client during TLS handshake between the client and a server.
+  */
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions server_cbf;
+    callback_functions client_cbf;
+    SOCKET_T sockfd = 0;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL*     ssl;
+    XFILE fp;
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  msgSz = (int)XSTRLEN(msg);
+
+    printf(testingFmt, "wolfSSL_Tls13_Key_Logging_test()");
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    InitTcpReady(&ready);
+    ready.port = 22222;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    server_cbf.method     = wolfTLSv1_3_server_method;  /* TLS1.3 */
+
+    server_args.callbacks = &server_cbf;
+    server_args.signal    = &ready;
+
+    /* clean up keylog file */
+    fp = XFOPEN("./MyKeyLog.txt", "w");
+    XFCLOSE(fp);
+
+    /* start server task */
+    start_thread(server_task, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+
+    /* run as a TLS1.2 client */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+
+    /* set keylog callback */
+    wolfSSL_CTX_set_keylog_callback(ctx,keyLog_callback);
+
+    /* get connected the server task */
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
+    AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)), 0);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    join_thread(serverThread);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    /* check if the keylog file exists */
+
+    char  buff[300] = {0};
+    int  found[4]   = {0};
+
+    fp = XFOPEN("./MyKeyLog.txt", "r");
+
+    AssertNotNull(fp);
+
+    while(XFGETS( buff, (int)sizeof(buff),fp) != NULL ) {
+        if(0 == strncmp(buff,"CLIENT_HANDSHAKE_TRAFFIC_SECRET ",
+                    sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
+            found[0] = 1;
+            continue;
+        }
+        else if(0 == strncmp(buff,"SERVER_HANDSHAKE_TRAFFIC_SECRET ",
+                    sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET ")-1)) {
+            found[1] = 1;
+            continue;
+        }
+        else if(0 == strncmp(buff,"CLIENT_TRAFFIC_SECRET_0 ",
+                    sizeof("CLIENT_TRAFFIC_SECRET_0 ")-1)) {
+            found[2] = 1;
+            continue;
+        }
+        else if(0 == strncmp(buff,"SERVER_TRAFFIC_SECRET_0 ",
+                    sizeof("SERVER_TRAFFIC_SECRET_0 ")-1)) {
+            found[3] = 1;
+            continue;
+        }
+    }
+    XFCLOSE(fp);
+    int numfnd = 0;
+    for( uint i = 0; i < 4; i++) {
+        if( found[i] != 0)
+            numfnd++;
+    }
+    AssertIntEQ( numfnd,4 );
+
+    printf(resultFmt, passed);
+
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
+}
 
 static void test_wolfSSL_X509_NID(void)
 {
@@ -45173,6 +45531,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
     test_wolfSSL_EVP_MD_ecc_signing();
+    test_wolfSSL_EVP_PKEY_print_public();
     test_wolfSSL_EVP_ENCODE_CTX_new();
     test_wolfSSL_EVP_ENCODE_CTX_free();
     test_wolfSSL_EVP_EncodeInit();
@@ -45181,7 +45540,6 @@ void ApiTest(void)
     test_wolfSSL_EVP_DecodeInit();
     test_wolfSSL_EVP_DecodeUpdate();
     test_wolfSSL_EVP_DecodeFinal();
-    test_wolfSSL_EVP_PKEY_print_public();
     test_wolfSSL_CTX_add_extra_chain_cert();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
@@ -45244,6 +45602,10 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_client_CA();
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
+    test_wolfSSL_CTX_set_keylog_callback();
+    test_wolfSSL_CTX_get_keylog_callback();
+    test_wolfSSL_Tls12_Key_Logging_test();
+    test_wolfSSL_Tls13_Key_Logging_test();
     test_wolfSSL_CTX_set_ecdh_auto();
     test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_set_rand_method();

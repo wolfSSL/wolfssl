@@ -84,6 +84,9 @@
     #include <wolfssl/wolfcrypt/srp.h>
 #endif
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+    #include <wolfssl/wolfcrypt/coding.h>
+#endif
 #ifdef HAVE_LIBZ
     #include "zlib.h"
 #endif
@@ -224,6 +227,225 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     int tsip_generatePremasterSecret();
     int tsip_generateEncryptPreMasterSecret(WOLFSSL *ssl, byte *out, word32 *outSz);
 #endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+
+    static int  SessionSecret_callback(WOLFSSL* ssl, void* secret,
+                                                  int* secretSz, void* ctx);
+    static int  SessionSecret_callback_Tls13(WOLFSSL* ssl, int id,
+                       const unsigned char* secret, int secretSz, void* ctx);
+
+    /*
+     * This function builds up string for key-logging then call user's
+     * key-log-callback to pass the string for TLS1.2 and older.
+     * The user's key-logging callback has been set via
+     * wolfSSL_CTX_set_keylog_callback function. The logging string format is:
+     * "CLIENT_RANDOM <hex-encoded client random> <hex-encoded master-secret>"
+     * parameter
+     *  - ssl: WOLFSSL object
+     *  - secret: pointer to the buffer holding master-secret
+     *  - secretSz: size of secret
+     *  - ctx: not used
+     * returns 0 on success, negative value on failure.
+     */
+    static int SessionSecret_callback(WOLFSSL* ssl, void* secret,
+                    int* secretSz, void* ctx)
+    {
+        wolfSSL_CTX_keylog_cb_func logCb = NULL;
+        int msSz;
+        int hasVal;
+        int i;
+        const char* label = "CLIENT_RANDOM";
+        int labelSz = sizeof("CLIENT_RANDOM");
+        int buffSz;
+        byte* log = NULL;
+        word32 outSz;
+        int idx;
+        int ret;
+        (void)ctx;
+
+        if (ssl == NULL || secret == NULL || *secretSz == 0)
+            return BAD_FUNC_ARG;
+        if (ssl->arrays == NULL)
+            return BAD_FUNC_ARG;
+
+        /* get the user-callback func from CTX*/
+        logCb = ssl->ctx->keyLogCb;
+        if (logCb == NULL)
+            return 0;
+
+        /* need to make sure the given master-secret has a meaningful value */
+        msSz   = *secretSz;
+        hasVal = 0;
+        for (i = 0; i < msSz; i++) {
+            if (*((byte*)secret) != 0) {
+                hasVal = 1;
+                break;
+            }
+        }
+        if (hasVal == 0)
+            return 0; /* master-secret looks invalid */
+
+        /* build up a hex-decoded keylog string
+           "CLIENT_RANDOM <hex-encoded client random> <hex-encoded master-secret>"
+           note that each keylog string does not have LF.
+        */
+        buffSz  = labelSz + (RAN_LEN * 2) + 1 + ((*secretSz) * 2) + 1;
+        log     = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
+
+        if (log == NULL)
+            return MEMORY_E;
+
+        XMEMSET(log, 0, buffSz);
+        XMEMCPY(log, label, labelSz -1);     /* put label w/o terminator */
+        XMEMSET(log + labelSz - 1, ' ', 1);               /* '\0' -> ' ' */
+        idx = labelSz;
+        outSz = buffSz - idx;
+        if ((ret = Base16_Encode(ssl->arrays->clientRandom, RAN_LEN,
+                                            log + idx, &outSz)) == 0) {
+            idx += (outSz - 1); /* reduce terminator byte */
+            outSz = buffSz - idx;
+
+            if (outSz > 1) {
+                XMEMSET(log + idx, ' ', 1);  /* add space*/
+                idx++;
+                outSz = buffSz - idx;
+
+                if ((ret = Base16_Encode((byte*)secret, *secretSz,
+                                             log + idx, &outSz)) == 0) {
+                    /* pass the log to the client callback*/
+                    logCb(ssl, (char*)log);
+                    ret = 0;
+                }
+            }
+            else
+                ret = MEMORY_E;
+        }
+        XFREE(log, ssl->heap, DYNAMIC_TYPE_SECRET);
+        return ret;
+    }
+#if defined(WOLFSSL_TLS13)
+    /*
+     * This function builds up string for key-logging then call user's
+     * key-log-callback to pass the string for TLS1.3.
+     * The user's key-logging callback has been set via
+     * wolfSSL_CTX_set_keylog_callback function. The logging string format is:
+     * "<Lable> <hex-encoded client random> <hex-encoded secret>"
+     *
+     * parameter
+     *  - ssl: WOLFSSL object
+     *  - id: type of secret for logging
+     *  - secret: pointer to the buffer holding secret
+     *  - secretSz: size of secret
+     *  - ctx: not used
+     * returns 0 on success, negative value on failure.
+     */
+    static int SessionSecret_callback_Tls13(WOLFSSL* ssl, int id,
+        const unsigned char* secret, int secretSz, void* ctx)
+    {
+        wolfSSL_CTX_keylog_cb_func logCb = NULL;
+        char  label[50];
+        int   labelSz = 0;
+        int   buffSz  = 0;
+        byte* log     = NULL;
+        word32 outSz;
+        int idx;
+        int ret;
+
+        (void)ctx;
+
+        if (ssl == NULL || secret == NULL || secretSz == 0)
+            return BAD_FUNC_ARG;
+        if (ssl->arrays == NULL)
+            return BAD_FUNC_ARG;
+
+        /* get the user-callback func from CTX*/
+        logCb = ssl->ctx->keyLogCb;
+        if (logCb == NULL)
+            return 0;
+
+        switch (id) {
+            case CLIENT_EARLY_TRAFFIC_SECRET:
+
+                labelSz = sizeof("CLIENT_EARLY_TRAFFIC_SECRET");
+                XSTRNCPY(label,"CLIENT_EARLY_TRAFFIC_SECRET", labelSz);
+                break;
+
+            case CLIENT_HANDSHAKE_TRAFFIC_SECRET:
+
+                labelSz = sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET");
+                XSTRNCPY(label, "CLIENT_HANDSHAKE_TRAFFIC_SECRET", labelSz);
+                break;
+
+            case SERVER_HANDSHAKE_TRAFFIC_SECRET:
+
+                labelSz = sizeof("SERVER_HANDSHAKE_TRAFFIC_SECRET");
+                XSTRNCPY(label, "SERVER_HANDSHAKE_TRAFFIC_SECRET", labelSz);
+                break;
+
+            case CLIENT_TRAFFIC_SECRET:
+
+                labelSz = sizeof("CLIENT_TRAFFIC_SECRET_0");
+                XSTRNCPY(label, "CLIENT_TRAFFIC_SECRET_0", labelSz);
+                break;
+
+            case SERVER_TRAFFIC_SECRET:
+
+                labelSz = sizeof("SERVER_TRAFFIC_SECRET_0");
+                XSTRNCPY(label, "SERVER_TRAFFIC_SECRET_0", labelSz);
+                break;
+
+            case EARLY_EXPORTER_SECRET:
+
+                labelSz = sizeof("EARLY_EXPORTER_SECRET");
+                XSTRNCPY(label, "EARLY_EXPORTER_SECRET", labelSz);
+                break;
+
+            case EXPORTER_SECRET:
+
+                labelSz = sizeof("EXPORTER_SECRET");
+                XSTRNCPY(label, "EXPORTER_SECRET", labelSz);
+                break;
+
+            default:
+                return BAD_FUNC_ARG;
+        }
+        /* prepare a log string for passing user callback */
+        buffSz = labelSz + (RAN_LEN * 2) + 1 + secretSz * 2 + 1;
+        log    = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
+        if (log == NULL)
+            return MEMORY_E;
+
+        XMEMSET(log, 0, buffSz);
+        XMEMCPY(log, label, labelSz - 1);     /* put label w/o terminator */
+        XMEMSET(log + labelSz - 1, ' ', 1);               /* '\0' -> ' ' */
+
+        idx = labelSz;
+        outSz = buffSz - idx;
+        if ((ret = Base16_Encode(ssl->arrays->clientRandom, RAN_LEN,
+                                            log + idx, &outSz)) == 0) {
+            idx  += (outSz -1); /* reduce terminator byte */
+            outSz = buffSz - idx;
+
+            if (outSz >1) {
+                XMEMSET(log + idx, ' ', 1);        /* add space*/
+                idx++;
+                outSz = buffSz - idx;
+
+                if ((ret = Base16_Encode((byte*)secret, secretSz,
+                                log + idx, &outSz)) == 0) {
+                    logCb(ssl, (char*)log);
+                    ret = 0;
+                }
+            }
+            else
+                ret = MEMORY_E;
+        }
+        XFREE(log, ssl->heap, DYNAMIC_TYPE_SECRET);
+        return ret;
+    }
+#endif /* WOLFSSL_TLS13*/
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK*/
+
 int IsTLS(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_MINOR)
@@ -6135,6 +6357,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->tls13SecretCtx = NULL;
 #endif
 #endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+    if (ctx->keyLogCb != NULL) {
+        ssl->keyLogCb = SessionSecret_callback;
+#if defined(WOLFSSL_TLS13)
+        ssl->tls13KeyLogCb = SessionSecret_callback_Tls13;
+#endif /*WOLFSSL_TLS13*/
+    }
+#endif /*OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 
 #ifdef HAVE_SESSION_TICKET
     ssl->options.noTicketTls12 = ctx->noTicketTls12;
@@ -25389,6 +25619,15 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 }
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
             }
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+            if (ssl->keyLogCb != NULL) {
+                int secretSz = SECRET_LEN;
+                ret = ssl->keyLogCb(ssl, ssl->arrays->masterSecret, &secretSz,
+                                                                        NULL);
+                if (ret != 0 || secretSz != SECRET_LEN)
+                    return SESSION_SECRET_CB_E;
+            }
+        #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
             break;
         }
         default:

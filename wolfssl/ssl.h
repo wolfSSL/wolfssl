@@ -4165,6 +4165,15 @@ WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int
 typedef void (*SSL_Msg_Cb)(int write_p, int version, int content_type,
     const void *buf, size_t len, WOLFSSL *ssl, void *arg);
 
+#if defined(HAVE_SECRET_CALLBACK)
+typedef void (*wolfSSL_CTX_keylog_cb_func)
+            (const WOLFSSL* ssl, const char* line);
+WOLFSSL_API void wolfSSL_CTX_set_keylog_callback(WOLFSSL_CTX* ctx,
+    wolfSSL_CTX_keylog_cb_func cb);
+WOLFSSL_API wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
+    const WOLFSSL_CTX* ctx);
+#endif /* HAVE_SECRET_CALLBACK */
+
 WOLFSSL_API int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb);
 WOLFSSL_API int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb);
 WOLFSSL_API int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg);

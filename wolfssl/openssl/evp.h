@@ -377,6 +377,10 @@ struct WOLFSSL_EVP_PKEY_CTX {
     int nbits;
 };
 
+typedef
+struct WOLFSSL_ASN1_PCTX {
+    int dummy;
+} WOLFSSL_ASN1_PCTX;
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
 
 #define   BASE64_ENCODE_BLOCK_SIZE  48
@@ -409,10 +413,6 @@ WOLFSSL_API int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 WOLFSSL_API int wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
                 unsigned char*out, int *outl);
 #endif /* WOLFSSL_BASE64_DECODE */
-typedef
-struct WOLFSSL_ASN1_PCTX {
-    int dummy;
-} WOLFSSL_ASN1_PCTX;
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;

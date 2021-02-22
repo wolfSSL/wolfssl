@@ -43754,7 +43754,11 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(HAVE_EX_DATA) && \
+   (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_LIGHTY)) || defined(HAVE_EX_DATA) || defined(FORTRESS) || \
+    defined(WOLFSSL_WPAS_SMALL)
 /**
  * get_ex_new_index is a helper function for the following
  * xx_get_ex_new_index functions:
@@ -49559,7 +49563,6 @@ int oid2nid(word32 oid, int grp)
     return -1;
 }
 
-
 /* when calling SetIndividualInternal, mpi should be cleared by caller if no
  * longer used. ie mp_free(mpi). This is to free data when fastmath is
  * disabled since a copy of mpi is made by this function and placed into bn.
@@ -51993,6 +51996,7 @@ void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
         XFREE(bn, NULL, DYNAMIC_TYPE_BIGINT);
         /* bn = NULL, don't try to access or double free it */
     }
+
 }
 
 void wolfSSL_BN_clear_free(WOLFSSL_BIGNUM* bn)
@@ -53957,6 +53961,31 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     WOLFSSL_LEAVE("wolfSSL_CONF_cmd", ret);
     return ret;
 }
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
+/*
+ * This API accepts a user callback which puts key-log records into
+ * a KEY LOGFILE. The callback is stored into a CTX and propagated to
+ * each SSL object on its creation timing.
+ */
+void wolfSSL_CTX_set_keylog_callback(WOLFSSL_CTX* ctx, wolfSSL_CTX_keylog_cb_func cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_keylog_callback");
+  /* stores the callback into WOLFSSL_CTX */
+    if (ctx != NULL) {
+        ctx->keyLogCb = cb;
+    }
+}
+wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
+    const WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_keylog_callback");
+    if (ctx != NULL)
+        return ctx->keyLogCb;
+    else
+        return NULL;
+}
+#endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 
 /**
  * Return DH p, q and g parameters
