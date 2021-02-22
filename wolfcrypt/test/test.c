@@ -32644,8 +32644,8 @@ static int mp_test_prime(mp_int* a, WC_RNG* rng)
 }
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || (defined(WOLFSSL_SP_MATH) && \
-    defined(WOLFSSL_HAVE_SP_DH) || (defined(HAVE_ECC) && defined(FP_ECC)))
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH) || \
+    defined(WOLFSSL_KEY_GEN)
 static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
                            WC_RNG* rng)
 {
@@ -33381,7 +33381,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
         return ret;
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) || (defined(WOLFSSL_SP_MATH) && \
-    defined(WOLFSSL_HAVE_SP_DH) || (defined(HAVE_ECC) && defined(FP_ECC)))
+    defined(WOLFSSL_HAVE_SP_DH)) || defined(WOLFSSL_KEY_GEN)
     if ((ret = mp_test_lcm_gcd(&a, &b, &r1, &r2, &rng)) != 0)
         return ret;
 #endif
