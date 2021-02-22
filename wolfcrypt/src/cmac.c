@@ -89,7 +89,7 @@ int wc_InitCmac(Cmac* cmac, const byte* key, word32 keySz,
     XMEMSET(cmac, 0, sizeof(Cmac));
 
     #ifdef WOLFSSL_QNX_CAAM
-        cmac->devId = 7; //always use caam devid when available
+    cmac->devId = WOLFSSL_CAAM_DEVID;
     #endif
     #ifdef WOLF_CRYPTO_CB
         if (cmac->devId != INVALID_DEVID) {

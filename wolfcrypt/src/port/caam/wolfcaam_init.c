@@ -31,8 +31,6 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 
-#define WC_CAAM_BLOB_SZ 48
-
 /* determine which porting header to include */
 #if defined(__INTEGRITY) || defined(INTEGRITY)
     #ifndef WC_CAAM_PASSWORD
@@ -146,8 +144,6 @@ static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
  */
 int wc_caamInit(void)
 {
-    int    ret;
-
     WOLFSSL_MSG("Starting interface with CAAM driver");
     if (CAAM_INIT_INTERFACE() != 0) {
         WOLFSSL_MSG("Error initializing CAAM");
@@ -198,9 +194,8 @@ int wc_caamInit(void)
     #endif
 #endif
 
-    (void)ret;
-    ret = wc_CryptoDev_RegisterDevice(WOLFSSL_CAAM_DEVID, wc_CAAM_router, NULL);
-    return 0;
+    return wc_CryptoDev_RegisterDevice(WOLFSSL_CAAM_DEVID, wc_CAAM_router,
+            NULL);
 }
 
 
@@ -305,7 +300,7 @@ int wc_caamCreateBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     CAAM_BUFFER in[3];
     word32 arg[4];
     int ret;
-    byte local[16] = {0};
+    byte local[WC_CAAM_BLACK_KEYMOD_SZ] = {0};
     byte* keyMod;
     int   keyModSz;
 
@@ -319,22 +314,22 @@ int wc_caamCreateBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     if (type == WC_CAAM_BLOB_RED) {
         arg[0] = 0;  
         if (mod != NULL) {
-            if (modSz != 8) {
+            if (modSz != WC_CAAM_RED_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod red size");
                 return BAD_FUNC_ARG;
             }
         }
-        keyModSz = 8;
+        keyModSz = WC_CAAM_RED_KEYMOD_SZ;
     }
     else if (type == WC_CAAM_BLOB_BLACK) {
         arg[0] = 1;
         if (mod != NULL) {
-            if (modSz != 16) {
+            if (modSz != WC_CAAM_BLACK_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod black size");
                 return BAD_FUNC_ARG;
             }
         }
-        keyModSz = 16;
+        keyModSz = WC_CAAM_BLACK_KEYMOD_SZ;
     }
     else {
         WOLFSSL_MSG("unknown blob type!");
@@ -388,7 +383,7 @@ int wc_caamOpenBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     CAAM_BUFFER in[3];
     word32      arg[4];
     int   ret;
-    byte  local[16];
+    byte  local[WC_CAAM_BLACK_KEYMOD_SZ];
     byte* keyMod;
     int   keyModSz;
 
@@ -404,22 +399,22 @@ int wc_caamOpenBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     if (type == WC_CAAM_BLOB_RED) {
         arg[0] = 0;  
         if (mod != NULL) {
-            if (modSz != 8) {
+            if (modSz != WC_CAAM_RED_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod red size");
                 return BAD_FUNC_ARG;
             }
         }
-        keyModSz = 8;
+        keyModSz = WC_CAAM_RED_KEYMOD_SZ;
     }
     else if (type == WC_CAAM_BLOB_BLACK) {
         arg[0] = 1;
         if (mod != NULL) {
-            if (modSz != 16) {
+            if (modSz != WC_CAAM_BLACK_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod black size");
                 return BAD_FUNC_ARG;
             }
         }
-        keyModSz = 16;
+        keyModSz = WC_CAAM_BLACK_KEYMOD_SZ;
     }
     else {
         WOLFSSL_MSG("unknown blob type!");
@@ -473,7 +468,6 @@ int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)
     CAAM_BUFFER buf[2];
     word32 arg[4];
     int ret;
-    (void)flag;
 
     if (*outSz < inSz + WC_CAAM_MAC_SZ) {
         return BUFFER_E;
@@ -487,7 +481,8 @@ int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)
     buf[1].TheAddress = (CAAM_ADDRESS)out;
     buf[1].Length = inSz;
 
-    arg[0] = 0x00140000; /* AES-CCM */
+    (void)flag; /* for now defaulting to use highest security AES-CCM here */
+    arg[0] = CAAM_FIFO_CCM_FLAG;
     arg[1] = inSz;
     if ((ret = wc_caamAddAndWait(buf, 2, arg, CAAM_FIFO_S)) != 0) {
         WOLFSSL_MSG("Error with CAAM blob create");
@@ -499,6 +494,9 @@ int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)
 }
 
 
+/* return 0 or greater on success for the partition number available
+ * returns a negative value on failure
+ */
 int caamFindUnusuedPartition()
 {
     CAAM_BUFFER buf[1];
@@ -507,7 +505,7 @@ int caamFindUnusuedPartition()
 
     buf[0].BufferType = DataBuffer;
     buf[0].TheAddress = (CAAM_ADDRESS)&ret;
-    buf[0].Length = sizeof(int);
+    buf[0].Length     = sizeof(int);
 
     if ((wc_caamAddAndWait(buf, 1, arg, CAAM_FIND_PART)) != 0) {
         WOLFSSL_MSG("Error finding a partition to use");
@@ -518,6 +516,7 @@ int caamFindUnusuedPartition()
 }
 
 
+/* return the address of the given partition number "part" */
 CAAM_ADDRESS caamGetPartition(int part, int sz)
 {
     CAAM_BUFFER buf[1];
@@ -526,7 +525,7 @@ CAAM_ADDRESS caamGetPartition(int part, int sz)
 
     buf[0].BufferType = DataBuffer;
     buf[0].TheAddress = (CAAM_ADDRESS)(&ret);
-    buf[0].Length = sizeof(int);
+    buf[0].Length     = sizeof(int);
 
     arg[0] = part;
     arg[1] = sz;

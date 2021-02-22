@@ -678,7 +678,7 @@ int caamBlob(DESCSTRUCT* desc)
     inputSz = desc->buf[i].dataSz;
     if (desc->state && (desc->type == CAAM_BLOB_ENCAP)) {
         /* black keys with CCM have mac at the end */
-        inputSz += 16;
+        inputSz += BLACK_KEY_MAC_SZ;
     }
 
     vaddr = CAAM_ADR_MAP(desc->buf[i].data, inputSz, 1);
@@ -692,7 +692,7 @@ int caamBlob(DESCSTRUCT* desc)
     outputSz = desc->buf[i].dataSz;
     if (desc->state && (desc->type == CAAM_BLOB_DECAP)) {
         /* black keys with CCM have mac at the end */
-        outputSz += 16;
+        outputSz += BLACK_KEY_MAC_SZ;
     }
     vaddrOut = CAAM_ADR_MAP(desc->buf[i].data, outputSz, 0);
 
@@ -747,7 +747,7 @@ int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
     desc->desc[desc->idx] = (CAAM_KEY | CAAM_CLASS1 | CAAM_NWB) + keySz;
     if (isBlackKey) {
         desc->desc[desc->idx] |= CAAM_LOAD_BLACK_KEY;
-        macSz = 16; /* copy over 16 additional bytes to account for mac */
+        macSz = BLACK_KEY_MAC_SZ;
     }
     desc->idx++;
     vaddr[vidx] = CAAM_ADR_MAP(desc->buf[0].data, desc->buf[0].dataSz + macSz, 1);
@@ -889,12 +889,12 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
         /* map secure partition to virtual address */
         phys = (CAAM_PAGE + (part << 12));
         buf[0].TheAddress = CAAM_ADR_TO_VIRTUAL(phys,
-               buf[0].Length + buf[1].Length + 16);/*add 16 for MAC on private*/
+               buf[0].Length + buf[1].Length + BLACK_KEY_MAC_SZ);
         desc->desc[desc->idx++] = phys;
 
         /* public x,y out */
-        buf[1].TheAddress = buf[0].TheAddress + 16 + buf[0].Length;
-        desc->desc[desc->idx++] = phys + 16 + buf[0].Length;
+        buf[1].TheAddress = buf[0].TheAddress + BLACK_KEY_MAC_SZ + buf[0].Length;
+        desc->desc[desc->idx++] = phys + BLACK_KEY_MAC_SZ + buf[0].Length;
     }
     else {
         vaddr[0] = CAAM_ADR_MAP(0, buf[0].Length, 0);
@@ -1309,7 +1309,7 @@ int caamTRNG(unsigned char *out, int outSz)
     }
 
     if (reg > CAAM_RTENT_MAX && sz > 0) {
-        return -1;//SizeIsTooLarge;
+        return -1;
     }
 
     /* handle non unsigned int size amount left over */
@@ -1353,12 +1353,13 @@ int caamKeyCover(DESCSTRUCT* desc, int sz, unsigned int args[4])
     /* add output */
     desc->desc[desc->idx++] = (CAAM_FIFO_S | CAAM_CLASS1 | desc->state) +
         desc->buf[i].dataSz;
-    vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz + 16, 0);
+    vaddr[vidx] = CAAM_ADR_MAP(desc->buf[i].data, desc->buf[i].dataSz +
+            BLACK_KEY_MAC_SZ, 0);
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[vidx],
-                desc->buf[i].dataSz + 16);
+            desc->buf[i].dataSz + BLACK_KEY_MAC_SZ);
 
 #if 0
-    /* sanity check can we load it? */
+    /* sanity check can we load it? used for debugging and testing */
     desc->desc[desc->idx++] = (CAAM_KEY | CAAM_CLASS1 | 0x500000) +
         desc->buf[i].dataSz;
     desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL(vaddr[1], desc->buf[1].dataSz);
@@ -1369,7 +1370,8 @@ int caamKeyCover(DESCSTRUCT* desc, int sz, unsigned int args[4])
     } while (err == CAAM_WAITING);
 
     CAAM_ADR_UNMAP(vaddr[0], desc->buf[0].data, desc->buf[0].dataSz, 0);
-    CAAM_ADR_UNMAP(vaddr[1], desc->buf[1].data, desc->buf[1].dataSz + 16, 1);
+    CAAM_ADR_UNMAP(vaddr[1], desc->buf[1].data, desc->buf[1].dataSz +
+            BLACK_KEY_MAC_SZ, 1);
     return err;
 }
 

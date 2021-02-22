@@ -327,7 +327,11 @@ static void initDefaultName(void);
 #endif
 
 /* for async devices */
+#ifdef WOLFSSL_QNX_CAAM
+static int devId = WOLFSSL_CAAM_DEVID;
+#else
 static int devId = INVALID_DEVID;
+#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";

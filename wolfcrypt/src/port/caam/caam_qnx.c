@@ -275,13 +275,13 @@ static int doCMAC(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     int msgSz = 0, ret, numBuf, keySz;
     unsigned char ctx[32];    /* running CMAC context is a constant 32 bytes */
-    unsigned char keybuf[48]; /*max AES key size is 32 + 16 byte black key MAC*/
+    unsigned char keybuf[32 + BLACK_KEY_MAC_SZ];/*max AES key size is 32 + MAC*/
     unsigned char *buf = NULL;
 
     numBuf = 2; /* start with 2 (key + ctx) for case with no msg input */
     keySz  = args[1];
     if (args[2] == 1) { /* is it a black key? */
-        keySz = keySz + 16;
+        keySz = keySz + BLACK_KEY_MAC_SZ;
     }
     SETIOV(&in_iovs[0], keybuf, keySz);
     SETIOV(&in_iovs[1], ctx, sizeof(ctx));
@@ -398,8 +398,8 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     iov_t in_iovs[2], out_iov;
 
     unsigned char *inBuf, *outBuf;
-    unsigned char keymod[16]; /* 16 is max size for keymod
-                               * (8 with red blobs and 16 with black) */
+    unsigned char keymod[BLACK_BLOB_KEYMOD_SZ];
+    /* 16 is max size for keymod (8 with red blobs and 16 with black) */
 
     if (msg->i.dcmd == WC_CAAM_BLOB_ENCAP) {
         dir = CAAM_BLOB_ENCAP;
@@ -414,8 +414,7 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (args[0] == 1 && dir == CAAM_BLOB_ENCAP) {
-        /* black blob, add 16 for MAC */
-        inSz = inSz + 16;
+        inSz = inSz + BLACK_KEY_MAC_SZ;
     }
 
     SETIOV(&in_iovs[0], keymod, args[3]);
@@ -454,8 +453,7 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
     }
 
     if (args[0] == 1 && dir == CAAM_BLOB_DECAP) {
-        /* 16 for MAC tag */
-        outBuf = (unsigned char*)CAAM_ADR_MAP(0, outSz + 16, 0);
+        outBuf = (unsigned char*)CAAM_ADR_MAP(0, outSz + BLACK_KEY_MAC_SZ, 0);
     }
     else {
         outBuf = (unsigned char*)CAAM_ADR_MAP(0, outSz, 0);
@@ -473,7 +471,7 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
 
     /* adjust outSz for MAC tag at the end of black key */
     if (args[0] == 1 && dir == CAAM_BLOB_DECAP) {
-        outSz = outSz + 16;
+        outSz = outSz + BLACK_KEY_MAC_SZ;
     }
 
     if (ret != Success) {
@@ -879,8 +877,7 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg,
         return EBADMSG;
     }
 
-    /* plus 16 for MAC */
-    outBuf = (unsigned char*)CAAM_ADR_MAP(0, args[1] + 16, 0);
+    outBuf = (unsigned char*)CAAM_ADR_MAP(0, args[1] + BLACK_KEY_MAC_SZ, 0);
     if (outBuf == NULL) {
         CAAM_ADR_UNMAP(inBuf, 0, args[1], 0);
         return ECANCELED;
@@ -896,19 +893,19 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg,
     ret = caamKeyCover(&desc, 2, args);
     CAAM_ADR_UNMAP(inBuf, 0, args[1], 0);
     if (ret != Success) {
-        CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
+        CAAM_ADR_UNMAP(outBuf, 0, args[1] + BLACK_KEY_MAC_SZ, 0);
         return EBADMSG;
     }
 
-    if (args[1] + 16 > msg->o.nbytes) {
-        CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
+    if (args[1] + BLACK_KEY_MAC_SZ > msg->o.nbytes) {
+        CAAM_ADR_UNMAP(outBuf, 0, args[1] + BLACK_KEY_MAC_SZ, 0);
         WOLFSSL_MSG("would cause output buffer overflow");
         return EOVERFLOW;
     }
 
-    SETIOV(&out_iov, outBuf, args[1] + 16);
+    SETIOV(&out_iov, outBuf, args[1] + BLACK_KEY_MAC_SZ);
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    CAAM_ADR_UNMAP(outBuf, 0, args[1] + 16, 0);
+    CAAM_ADR_UNMAP(outBuf, 0, args[1] + BLACK_KEY_MAC_SZ, 0);
     return EOK;
 }
 

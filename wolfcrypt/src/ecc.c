@@ -4733,11 +4733,15 @@ static void wc_ecc_dump_oids(void)
 WOLFSSL_ABI
 ecc_key* wc_ecc_key_new(void* heap)
 {
+    int devId = INVALID_DEVID;
     ecc_key* key;
 
+#ifdef WOLFSSL_QNX_CAAM
+    devId = WOLFSSL_CAAM_DEVID;
+#endif
     key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
     if (key) {
-        if (wc_ecc_init_ex(key, heap, INVALID_DEVID) != 0) {
+        if (wc_ecc_init_ex(key, heap, devId) != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_ECC);
             key = NULL;
         }
@@ -4797,11 +4801,6 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     (void)devId;
 #endif
 
-    //@TODO for now set as CAAM operation for all
-#ifdef WOLFSSL_QNX_CAAM
-    key->devId = 7;//WOLFSSL_CAAM_DEVID
-#endif
-
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     key->slot = ATECC_INVALID_SLOT;
 #else
@@ -4845,7 +4844,11 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 
 int wc_ecc_init(ecc_key* key)
 {
+#ifdef WOLFSSL_QNX_CAAM
+    return wc_ecc_init_ex(key, NULL, WOLFSSL_CAAM_DEVID);
+#else
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
+#endif
 }
 
 #ifdef WOLF_CRYPTO_CB

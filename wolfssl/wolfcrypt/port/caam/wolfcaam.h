@@ -72,6 +72,8 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define WC_CAAM_MAC_SZ 16
 #define WC_CAAM_BLOB_RED   1
 #define WC_CAAM_BLOB_BLACK 2
+#define WC_CAAM_RED_KEYMOD_SZ 8
+#define WC_CAAM_BLACK_KEYMOD_SZ 8
 
 #ifndef WOLFSSL_QNX_CAAM
     WOLFSSL_API int wc_caamSetResource(IODevice ioDev);
@@ -114,6 +116,7 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define CAAM_BLOB_ENCAP 0x07000000
 #define CAAM_BLOB_DECAP 0x06000000
 #define CAAM_FIFO_S   0x60000000
+#define CAAM_FIFO_CCM_FLAG 0x00140000
 
 #define CAAM_ENC    0x00000001
 #define CAAM_DEC    0x00000000
