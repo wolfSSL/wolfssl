@@ -7531,8 +7531,11 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
             }
         }
     }
+    else {
+        /* fall through if unavailable */
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
 
-    /* fall through if unavailable */
     if (ret == CRYPTOCB_UNAVAILABLE)
 #endif
     {
@@ -8162,9 +8165,12 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             XFREE(pkey, ssl->heap, type);
         }
     }
+    else {
+        /* fall through if unavailable */
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
 
-    /* fall through if unsupported */
-    if (ret != CRYPTOCB_UNAVAILABLE)
+    if (ret == CRYPTOCB_UNAVAILABLE)
 #endif
         ret  = wc_CheckPrivateKeyCert(buff, size, &der);
     FreeDecodedCert(&der);
