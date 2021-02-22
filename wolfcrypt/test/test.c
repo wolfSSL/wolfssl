@@ -11821,9 +11821,11 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* certEccRsaPemFile = CERT_WRITE_TEMP_DIR "certeccrsa.pem";
         static const char* certEccRsaDerFile = CERT_WRITE_TEMP_DIR "certeccrsa.der";
     #endif
+    #if defined(HAVE_ECC_KEY_EXPORT)
         static const char* eccCaKeyPemFile  = CERT_WRITE_TEMP_DIR "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_WRITE_TEMP_DIR "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_WRITE_TEMP_DIR "ecc-key.der";
+    #endif
     #ifdef HAVE_PKCS8
         static const char* eccPkcs8KeyDerFile = CERT_WRITE_TEMP_DIR "ecc-key-pkcs8.der";
     #endif
@@ -20648,7 +20650,10 @@ static int ecc_test_make_pub(WC_RNG* rng)
     byte tmp[ECC_BUFSIZE];
 #endif
     const byte* msg = (const byte*)"test wolfSSL ECC public gen";
-    word32 x, tmpSz;
+#if defined(HAVE_ECC_KEY_EXPORT)
+    word32 x;
+#endif
+    word32 tmpSz;
     int ret = 0;
     ecc_point* pubPoint = NULL;
 #ifdef HAVE_ECC_VERIFY

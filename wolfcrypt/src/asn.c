@@ -384,6 +384,7 @@ static int SetASNNull(byte* output)
     return 2;
 }
 
+#ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 BOOLEAN.
  *
  * input     Buffer holding DER/BER encoded data.
@@ -413,7 +414,7 @@ static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
-
+#endif /* !NO_CERTS*/
 #ifdef ASN1_SET_BOOLEAN
 /* Set the DER/BER encoding of the ASN.1 NULL element.
  * Note: Function not required as yet.
@@ -497,6 +498,7 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
+#ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 7 bits.
  *
@@ -526,7 +528,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
-
+#endif /* !NO_CERTS */
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
 static const char sigSha1wDsaName[] = "SHAwDSA";
@@ -6792,6 +6794,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
     return ret;
 }
 
+#ifndef NO_CERTS
 static int GetSignature(DecodedCert* cert)
 {
     int length;
@@ -6811,6 +6814,7 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
+#endif
 
 static word32 SetOctetString8Bit(word32 len, byte* output)
 {

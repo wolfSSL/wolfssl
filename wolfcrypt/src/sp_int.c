@@ -2996,8 +2996,8 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 #endif
 
 #if defined(WOLFSSL_SP_INT_NEGATIVE) || !defined(NO_PWDBASED) || \
-    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || (!defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Add a one digit number to the multi-precision number.
  *
  * @param  [in]   a  SP integer be added to.
