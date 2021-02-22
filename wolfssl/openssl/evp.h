@@ -59,6 +59,10 @@
 #endif
 #include <wolfssl/wolfcrypt/pwdbased.h>
 
+#if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
+#include <wolfssl/wolfcrypt/coding.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -371,6 +375,39 @@ struct WOLFSSL_EVP_PKEY_CTX {
     int padding;
     int nbits;
 };
+
+#if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
+
+#define   BASE64_ENCODE_BLOCK_SIZE  48
+#define   BASE64_ENCODED_BLOCK_SIZE 64
+#define   BASE64_DECODE_BLOCK_SIZE  4
+
+typedef struct WOLFSSL_EVP_ENCODE_CTX
+{
+    void* heap;
+    int   remaining;     /* num of bytes in data[] */
+    byte  data[128];     /* storage for unprocessed raw data */
+}WOLFSSL_EVP_ENCODE_CTX;
+
+WOLFSSL_API WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void);
+WOLFSSL_API void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx);
+#endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
+
+#if defined(WOLFSSL_BASE64_ENCODE)
+WOLFSSL_API void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx);
+WOLFSSL_API int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
+                 unsigned char*out, int *outl, const unsigned char*in, int inl);
+WOLFSSL_API void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
+                 unsigned char*out, int *outl);
+#endif /* WOLFSSL_BASE64_ENCODE */
+
+#if defined(WOLFSSL_BASE64_DECODE)
+WOLFSSL_API void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx);
+WOLFSSL_API int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
+                unsigned char*out, int *outl, const unsigned char*in, int inl);
+WOLFSSL_API int wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
+                unsigned char*out, int *outl);
+#endif /* WOLFSSL_BASE64_DECODE */
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
@@ -937,6 +974,22 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_name(x)                  x
 #define EVP_CIPHER_nid                  wolfSSL_EVP_CIPHER_nid
 
+/* Base64 encoding/decoding APIs */
+#if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
+#define EVP_ENCODE_CTX       WOLFSSL_EVP_ENCODE_CTX
+#define EVP_ENCODE_CTX_new   wolfSSL_EVP_ENCODE_CTX_new
+#define EVP_ENCODE_CTX_free  wolfSSL_EVP_ENCODE_CTX_free
+#endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE*/
+#if defined(WOLFSSL_BASE64_ENCODE)
+#define EVP_EncodeInit       wolfSSL_EVP_EncodeInit
+#define EVP_EncodeUpdate     wolfSSL_EVP_EncodeUpdate
+#define EVP_EncodeFinal      wolfSSL_EVP_EncodeFinal
+#endif /* WOLFSSL_BASE64_ENCODE */
+#if defined(WOLFSSL_BASE64_DECODE)
+#define EVP_DecodeInit       wolfSSL_EVP_DecodeInit
+#define EVP_DecodeUpdate     wolfSSL_EVP_DecodeUpdate
+#define EVP_DecodeFinal      wolfSSL_EVP_DecodeFinal
+#endif /* WOLFSSL_BASE64_DECODE */
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 

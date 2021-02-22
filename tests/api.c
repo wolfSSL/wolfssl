@@ -2393,6 +2393,488 @@ static void test_ED448(void)
  | EVP
  *----------------------------------------------------------------------------*/
 
+/* Test functions for base64 encode/decode */
+static void test_wolfSSL_EVP_ENCODE_CTX_new(void)
+{
+#if defined(OPENSSL_EXTRA) && \
+( defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE))
+    printf(testingFmt, "wolfSSL_EVP_ENCODE_CTX_new()");
+
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
+
+    AssertNotNull( ctx = wolfSSL_EVP_ENCODE_CTX_new());
+    AssertIntEQ( ctx->remaining,0);
+    AssertIntEQ( ctx->data[0],0);
+    AssertIntEQ( ctx->data[sizeof(ctx->data) -1],0);
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && (WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE)*/
+}
+static void test_wolfSSL_EVP_ENCODE_CTX_free(void)
+{
+#if defined(OPENSSL_EXTRA) && \
+( defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE))
+    printf(testingFmt, "wolfSSL_EVP_ENCODE_CTX_free()");
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
+
+    AssertNotNull( ctx = wolfSSL_EVP_ENCODE_CTX_new());
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /*OPENSSL_EXTRA && (WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE)*/
+}
+
+static void test_wolfSSL_EVP_EncodeInit(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
+    printf(testingFmt, "wolfSSL_EVP_EncodeInit()");
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
+
+    AssertNotNull( ctx = wolfSSL_EVP_ENCODE_CTX_new());
+    AssertIntEQ( ctx->remaining,0);
+    AssertIntEQ( ctx->data[0],0);
+    AssertIntEQ( ctx->data[sizeof(ctx->data) -1],0);
+
+    /* make ctx dirty */
+    ctx->remaining = 10;
+    XMEMSET( ctx->data, 0x77, sizeof(ctx->data));
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ( ctx->remaining,0);
+    AssertIntEQ( ctx->data[0],0);
+    AssertIntEQ( ctx->data[sizeof(ctx->data) -1],0);
+
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_BASE64_ENCODE*/
+}
+static void test_wolfSSL_EVP_EncodeUpdate(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
+    printf(testingFmt, "wolfSSL_EVP_EncodeUpdate()");
+    int outl;
+    int total;
+
+    const unsigned char plain0[] = {"Th"};
+    const unsigned char plain1[] = {"This is a base64 encodeing test."};
+    const unsigned char plain2[] = {"This is additional data."};
+
+    const unsigned char enc0[]   = {"VGg=\n"};
+    /* expected encoded result for the first output 64 chars plus trailing LF*/
+    const unsigned char enc1[]   = {"VGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVpbmcgdGVzdC5UaGlzIGlzIGFkZGl0aW9u\n"};
+
+    const unsigned char enc2[]   =
+    {"VGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVpbmcgdGVzdC5UaGlzIGlzIGFkZGl0aW9u\nYWwgZGF0YS4=\n"};
+
+    unsigned char encOutBuff[300];
+
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
+    AssertNotNull( ctx = wolfSSL_EVP_ENCODE_CTX_new());
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    /* illegal parameter test */
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            NULL,            /* pass NULL as ctx */
+            encOutBuff,
+            &outl,
+            plain1,
+            sizeof(plain1)-1),
+        0                    /* expected result code 0: fail */
+    );
+
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            ctx,
+            NULL,           /* pass NULL as out buff */
+            &outl,
+            plain1,
+            sizeof(plain1)-1),
+        0                    /* expected result code 0: fail */
+    );
+
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            ctx,
+            encOutBuff,
+            NULL,            /* pass NULL as outl */
+            plain1,
+            sizeof(plain1)-1),
+        0                    /* expected result code 0: fail */
+    );
+
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            ctx,
+            encOutBuff,
+            &outl,
+            NULL,            /* pass NULL as in */
+            sizeof(plain1)-1),
+        0                    /* expected result code 0: fail */
+    );
+
+    /* meaningless parameter test */
+
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            ctx,
+            encOutBuff,
+            &outl,
+            plain1,
+            0),              /* pass zero input */
+        1                    /* expected result code 1: success */
+    );
+
+    /* very small data encoding test */
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ(
+        wolfSSL_EVP_EncodeUpdate(
+            ctx,
+            encOutBuff,
+            &outl,
+            plain0,
+            sizeof(plain0)-1),
+        1                    /* expected result code 1: success */
+    );
+    AssertIntEQ(outl,0);
+
+    wolfSSL_EVP_EncodeFinal(
+            ctx,
+            encOutBuff + outl,
+            &outl);
+
+    AssertIntEQ( outl, sizeof(enc0)-1);
+    AssertIntEQ(
+        XSTRNCMP(
+            (const char*)encOutBuff,
+            (const char*)enc0,sizeof(enc0) ),
+    0);
+
+    /* pass small size( < 48bytes ) input, then make sure they are not
+     * encoded  and just stored in ctx
+     */
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    total = 0;
+    outl = 0;
+    XMEMSET( encOutBuff,0, sizeof(encOutBuff));
+
+    AssertIntEQ(
+    wolfSSL_EVP_EncodeUpdate(
+        ctx,
+        encOutBuff,         /* buffer for output */
+        &outl,              /* size of output */
+        plain1,             /* input */
+        sizeof(plain1)-1),  /* size of input */
+        1);                 /* expected result code 1:success */
+
+    total += outl;
+
+    AssertIntEQ(outl, 0);  /* no output expected */
+    AssertIntEQ(ctx->remaining, sizeof(plain1) -1);
+    AssertTrue(
+        XSTRNCMP((const char*)(ctx->data),
+                 (const char*)plain1,
+                 ctx->remaining) ==0 );
+    AssertTrue(encOutBuff[0] == 0);
+
+    /* call wolfSSL_EVP_EncodeUpdate again to make it encode
+     * the stored data and the new input together
+     */
+    AssertIntEQ(
+    wolfSSL_EVP_EncodeUpdate(
+        ctx,
+        encOutBuff + outl,  /* buffer for output */
+        &outl,              /* size of output */
+        plain2,             /* additional input */
+        sizeof(plain2) -1), /* size of additional input */
+        1);                 /* expected result code 1:success */
+
+    total += outl;
+
+    AssertIntNE(outl, 0);   /* some output is expected this time*/
+    AssertIntEQ(outl, BASE64_ENCODED_BLOCK_SIZE +1); /* 64 bytes and LF */
+    AssertIntEQ(
+        XSTRNCMP((const char*)encOutBuff,(const char*)enc1,sizeof(enc1) ),0);
+
+    /* call wolfSSL_EVP_EncodeFinal to flush all the unprocessed input */
+    wolfSSL_EVP_EncodeFinal(
+        ctx,
+        encOutBuff + outl,
+        &outl);
+
+    total += outl;
+
+    AssertIntNE(outl,0);
+    AssertIntEQ(XSTRNCMP(
+        (const char*)encOutBuff,(const char*)enc2,sizeof(enc2) ),0);
+
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_BASE64_ENCODE*/
+}
+static void test_wolfSSL_EVP_EncodeFinal(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
+    printf(testingFmt, "wolfSSL_EVP_EncodeFinal()");
+
+    /* tests for wolfSSL_EVP_EncodeFinal are included in
+     * test_wolfSSL_EVP_EncodeUpdate
+     */
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_BASE64_ENCODE*/
+}
+
+
+static void test_wolfSSL_EVP_DecodeInit(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_DECODE)
+    printf(testingFmt, "wolfSSL_EVP_DecodeInit()");
+
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
+
+    AssertNotNull( ctx = wolfSSL_EVP_ENCODE_CTX_new());
+    AssertIntEQ( ctx->remaining,0);
+    AssertIntEQ( ctx->data[0],0);
+    AssertIntEQ( ctx->data[sizeof(ctx->data) -1],0);
+
+    /* make ctx dirty */
+    ctx->remaining = 10;
+    XMEMSET( ctx->data, 0x77, sizeof(ctx->data));
+
+    wolfSSL_EVP_DecodeInit(ctx);
+
+    AssertIntEQ( ctx->remaining,0);
+    AssertIntEQ( ctx->data[0],0);
+    AssertIntEQ( ctx->data[sizeof(ctx->data) -1],0);
+
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* OPENSSL && WOLFSSL_BASE_DECODE */
+}
+static void test_wolfSSL_EVP_DecodeUpdate(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_DECODE)
+    printf(testingFmt, "wolfSSL_EVP_DecodeUpdate()");
+
+    int outl;
+    unsigned char decOutBuff[300];
+
+    WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
+    wolfSSL_EVP_DecodeInit(ctx);
+
+    const unsigned char enc1[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
+/*    const unsigned char plain1[] =
+    {"This is a base64 decoding test."} */
+
+    /* illegal parameter tests */
+
+    /* pass NULL as ctx */
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            NULL,            /* pass NULL as ctx */
+            decOutBuff,
+            &outl,
+            enc1,
+            sizeof(enc1)-1),
+        -1                    /* expected result code -1: fail */
+    );
+    AssertIntEQ( outl, 0);
+
+    /* pass NULL as output */
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            NULL,           /* pass NULL as out buff */
+            &outl,
+            enc1,
+            sizeof(enc1)-1),
+        -1                    /* expected result code -1: fail */
+    );
+    AssertIntEQ( outl, 0);
+
+    /* pass NULL as outl */
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            NULL,            /* pass NULL as outl */
+            enc1,
+            sizeof(enc1)-1),
+        -1                   /* expected result code -1: fail */
+    );
+
+    /* pass NULL as input */
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            NULL,            /* pass NULL as in */
+            sizeof(enc1)-1),
+        -1                    /* expected result code -1: fail */
+    );
+    AssertIntEQ( outl, 0);
+
+    /* pass zero length input */
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc1,
+            0),              /* pass zero as input len */
+        1                    /* expected result code 1: success */
+    );
+
+    /* decode correct base64 string */
+
+        const unsigned char enc2[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
+        const unsigned char plain2[] =
+        {"This is a base64 decoding test."};
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc2,
+            sizeof(enc2)-1),
+        0                    /* expected result code 0: success */
+    );
+
+    AssertIntEQ(outl,sizeof(plain2) -1);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeFinal(
+            ctx,
+            decOutBuff + outl,
+            &outl),
+        1                    /* expected result code 1: success */
+    );
+    AssertIntEQ(outl, 0);   /* expected DecodeFinal outout no data */
+
+    AssertIntEQ(XSTRNCMP( (const char*)plain2,(const char*)decOutBuff,
+                sizeof(plain2) -1 ),0);
+
+    /* decode correct base64 string which does not have '\n' in its last*/
+
+        const unsigned char enc3[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg=="}; /* 44 chars */
+        const unsigned char plain3[] =
+        {"This is a base64 decoding test."}; /* 31 chars */
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc3,
+            sizeof(enc3)-1),
+        0                    /* expected result code 0: success */
+    );
+
+    AssertIntEQ(outl,sizeof(plain3)-1);   /* 31 chars should be output */
+
+    AssertIntEQ(XSTRNCMP( (const char*)plain3,(const char*)decOutBuff,
+                sizeof(plain3) -1 ),0);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeFinal(
+            ctx,
+            decOutBuff + outl,
+            &outl),
+        1                    /* expected result code 1: success */
+    );
+
+    AssertIntEQ(outl,0 );
+
+    /* decode string which has a padding char ('=') in the illegal position*/
+
+        const unsigned char enc4[]   = {"VGhpcyBpcyBhIGJhc2U2N=CBkZWNvZGluZyB0ZXN0Lg==\n"};
+                       /*      ^-- illegal padding */
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc4,
+            sizeof(enc4)-1),
+        -1                    /* expected result code -1: error */
+    );
+    AssertIntEQ(outl,0);
+
+    /* small data decode test */
+
+    const unsigned char enc00[]   = {"VG"};
+    const unsigned char enc01[]   = {"g=\n"};
+    const unsigned char plain4[]  = {"Th"};
+
+    wolfSSL_EVP_EncodeInit(ctx);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff,
+            &outl,
+            enc00,
+            sizeof(enc00)-1),
+        1                    /* expected result code 1: success */
+    );
+    AssertIntEQ(outl,0);
+
+    AssertIntEQ(
+        wolfSSL_EVP_DecodeUpdate(
+            ctx,
+            decOutBuff + outl,
+            &outl,
+            enc01,
+            sizeof(enc01)-1),
+        0                    /* expected result code 0: success */
+    );
+
+    AssertIntEQ(outl,sizeof(plain4)-1);
+
+    wolfSSL_EVP_DecodeFinal(
+            ctx,
+            decOutBuff + outl,
+            &outl);
+
+    AssertIntEQ( outl, 0);
+    AssertIntEQ(
+        XSTRNCMP(
+            (const char*)decOutBuff,
+            (const char*)plain4,sizeof(plain4)-1 ),
+        0);
+
+    wolfSSL_EVP_ENCODE_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL && WOLFSSL_BASE_DECODE */
+}
+static void test_wolfSSL_EVP_DecodeFinal(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_DECODE)
+    printf(testingFmt, "wolfSSL_EVP_DecodeFinal()");
+    /* tests for wolfSSL_EVP_DecodeFinal are included in
+     * test_wolfSSL_EVP_DecodeUpdate
+     */
+    printf(resultFmt, passed);
+#endif /* OPENSSL && WOLFSSL_BASE_DECODE */
+}
+
 /* Test function for wolfSSL_EVP_get_cipherbynid.
  */
 
@@ -40399,6 +40881,14 @@ void ApiTest(void)
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
     test_wolfSSL_EVP_MD_ecc_signing();
+    test_wolfSSL_EVP_ENCODE_CTX_new();
+    test_wolfSSL_EVP_ENCODE_CTX_free();
+    test_wolfSSL_EVP_EncodeInit();
+    test_wolfSSL_EVP_EncodeUpdate();
+    test_wolfSSL_EVP_EncodeFinal();
+    test_wolfSSL_EVP_DecodeInit();
+    test_wolfSSL_EVP_DecodeUpdate();
+    test_wolfSSL_EVP_DecodeFinal();
     test_wolfSSL_CTX_add_extra_chain_cert();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
