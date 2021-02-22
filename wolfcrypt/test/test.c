@@ -499,7 +499,6 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void);
 #endif
-
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
 WOLFSSL_TEST_SUBROUTINE int blob_test(void);
 #endif
@@ -1430,7 +1429,6 @@ initDefaultName();
         args.argc = argc;
         args.argv = argv;
 #endif
-        wolfSSL_Debugging_ON();
         if ((ret = wolfCrypt_Init()) != 0) {
             printf("wolfCrypt_Init failed %d\n", ret);
             err_sys("Error with wolfCrypt_Init!\n", -1003);
@@ -20185,7 +20183,6 @@ static int ecc_test_vector_item(const eccVector* vector)
             ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
                                                vector->msgLen, &verify, userA);
     } while (ret == WC_PENDING_E);
-
     if (ret != 0)
         goto done;
     TEST_SLEEP();

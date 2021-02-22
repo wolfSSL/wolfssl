@@ -25,6 +25,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_QNX_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 #if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
 

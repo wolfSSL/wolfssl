@@ -2325,7 +2325,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         for (i = 0; i < times; i++) {
             buf[0].BufferType = DataBuffer | LastBuffer;
             buf[0].TheAddress = (CAAM_ADDRESS)(output + idx);
-            buf[0].Length     = ((sz - idx) < 44)? sz-idx:44;
+            buf[0].Length     = ((sz - idx) < WC_CAAM_MAX_ENTROPY)?
+                                sz - idx : WC_CAAM_MAX_ENTROPY;
 
             args[0] = buf[0].Length;
             ret = wc_caamAddAndWait(buf, 1, args, CAAM_ENTROPY);

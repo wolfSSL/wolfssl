@@ -753,6 +753,7 @@ static const char* bench_result_words2[][5] = {
 
 /* Asynchronous helper macros */
 #ifdef WOLFSSL_QNX_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 static THREAD_LS_T int devId = WOLFSSL_CAAM_DEVID;
 #else
 static THREAD_LS_T int devId = INVALID_DEVID;

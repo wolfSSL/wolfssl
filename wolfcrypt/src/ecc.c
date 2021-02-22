@@ -8045,9 +8045,8 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
     /* private key, d */
     if (d != NULL) {
         if (dLen == NULL ||
-            (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY)) {
+            (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY))
             return BAD_FUNC_ARG;
-        }
 
     #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
         /* Hardware cannot export private portion */
