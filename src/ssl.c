@@ -7877,6 +7877,66 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
+    #if !defined(NO_DH) && defined(OPENSSL_EXTRA)
+    #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+            (HAVE_FIPS_VERSION > 2))
+    {
+        DhKey   dh;
+        word32  keyIdx = 0;
+
+        /* test if DH-public key */
+        if (wc_InitDhKey(&dh) == 0 &&
+            wc_DhPublicKeyDecode(mem, &keyIdx, &dh, (word32)memSz) == 0) {
+            wc_FreeDhKey(&dh);
+            pkey = wolfSSL_EVP_PKEY_new();
+            if (pkey != NULL) {
+                pkey->type     = EVP_PKEY_DH;
+                pkey->pkey_sz  = (int)memSz;
+                pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
+                    DYNAMIC_TYPE_PUBLIC_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, memSz);
+                if (out != NULL) {
+                    *out = pkey;
+                }
+                pkey->ownDh = 1;
+                pkey->dh = wolfSSL_DH_new();
+                if (pkey->dh == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                DhKey* key = (DhKey*)pkey->dh->internal;
+
+                keyIdx = 0;
+                if (wc_DhPublicKeyDecode(mem, &keyIdx, key, (word32)memSz) == 0)
+                {
+                    if (SetIndividualExternal(&(pkey->dh->p), &key->p)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->g), &key->g)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->q), &key->q)
+                        == WOLFSSL_SUCCESS &&
+                        SetIndividualExternal(&(pkey->dh->pub_key), &key->pub)
+                        == WOLFSSL_SUCCESS) {
+                        wc_FreeDhKey(&dh);
+                        return pkey;
+                    }
+                }
+                else {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+            }
+            wolfSSL_EVP_PKEY_free(pkey);
+        }
+    }
+    #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+    #endif /* !NO_DH &&  OPENSSL_EXTRA */
+
     if (pkey == NULL) {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }
@@ -35271,7 +35331,7 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
     const WOLF_EC_NIST_NAME* nist_name;
     for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
         if (nist_name->nid == nid) {
-            return kNistCurves->name;
+            return nist_name->name;
         }
     }
     return NULL;

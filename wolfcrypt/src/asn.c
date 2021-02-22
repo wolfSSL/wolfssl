@@ -4515,6 +4515,60 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #endif /* !NO_RSA */
 
 #ifndef NO_DH
+#if defined(WOLFSSL_DH_EXTRA)
+/*
+ * Decodes DH public key
+ *
+ * return 0 on success, negative on failure
+ */
+int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,
+                DhKey* key, word32 inSz)
+{
+    int ret = 0;
+    int length;
+    word32 oid = 0;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    ret = GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz);
+    if (oid != DHk || ret < 0)
+        return ASN_DH_KEY_E;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetInt(&key->p, input, inOutIdx, inSz) < 0)
+        return ASN_DH_KEY_E;
+
+    if (GetInt(&key->g, input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->p);
+        return ASN_DH_KEY_E;
+    }
+    ret = (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) == 0);
+    if (ret > 0) {
+        /* Found Bit String WOLFSSL_DH_EXTRA is required to access DhKey.pub */
+        if (GetInt(&key->pub, input, inOutIdx, inSz) < 0) {
+            mp_clear(&key->p);
+            mp_clear(&key->g);
+            return ASN_DH_KEY_E;
+        }
+    }
+    else {
+        mp_clear(&key->p);
+        mp_clear(&key->g);
+        return ASN_DH_KEY_E;
+    }
+    return 0;
+}
+#endif /* WOLFSSL_DH_EXTRA */
+
 /* Supports either:
  * - DH params G/P (PKCS#3 DH) file or
  * - DH key file (if WOLFSSL_DH_EXTRA enabled) */
@@ -16220,6 +16274,67 @@ static int EccKeyParamCopy(char** dst, char* src)
     return ret;
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
+
+int wc_EccPublicKeyDecode_ex(const byte* input,
+                            word32* inOutIdx, int* curveId,
+                            word32* pointIdx, int* pointSz, word32 inSz)
+{
+    int    ret;
+    int    version, length;
+    word32 oidSum, localIdx;
+    byte   tag;
+
+    if (input == NULL || inOutIdx == NULL || curveId == NULL ||
+                pointIdx == NULL || pointSz == NULL || inSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetMyVersion(input, inOutIdx, &version, inSz) >= 0)
+        return ASN_PARSE_E;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    ret = SkipObjectId(input, inOutIdx, inSz);
+    if (ret != 0)
+        return ret;
+
+    if (*inOutIdx >= inSz) {
+        return BUFFER_E;
+    }
+
+    localIdx = *inOutIdx;
+
+    if (GetASNTag(input, &localIdx, &tag, inSz) == 0 &&
+        tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+        return BAD_FUNC_ARG;            /* given key is not a public key*/
+    }
+
+    /* ecc params information */
+    ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType, inSz);
+    if (ret != 0)
+        return ret;
+
+    /* get curve id */
+    if ((ret = CheckCurve(oidSum)) < 0)
+        return ECC_CURVE_OID_E;
+    else {
+        *curveId = ret;
+    }
+
+    /* key header */
+    ret = CheckBitString(input, inOutIdx, &length, inSz, 1, NULL);
+    if (ret != 0)
+        return ret;
+
+    *pointIdx = *inOutIdx;
+    *pointSz  =  length;
+    *inOutIdx += length;
+
+    return 0;
+}
 
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
