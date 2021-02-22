@@ -1703,30 +1703,12 @@ then
     ENABLED_SHA3="yes"
 fi
 
-if test "$ENABLED_SHA3" = "yes" && test "$ENABLED_32BIT" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
-fi
-
 # SHAKE256
 AC_ARG_ENABLE([shake256],
     [AS_HELP_STRING([--enable-shake256],[Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)])],
     [ ENABLED_SHAKE256=$enableval ],
     [ ENABLED_SHAKE256=$ENABLED_SHA3 ]
     )
-
-if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
-then
-    if test "$ENABLED_32BIT" = "no"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
-        if test "$ENABLED_SHA3" = "no"
-        then
-            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
-        fi
-    fi
-fi
-
 
 # SHA512
 AC_ARG_ENABLE([sha512],
@@ -2161,7 +2143,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ED448"
 
     # EdDSA448 requires SHAKE256 which requires SHA-3
-    ENABLED_SHAKE3=yes
+    ENABLED_SHA3=yes
     ENABLED_SHAKE256=yes
 
     ENABLED_CERTS=yes
@@ -3033,6 +3015,27 @@ if test "x$ENABLED_FIPS" = "xyes"
 then
 POLY1305_DEFAULT=no
 fi
+
+# Set SHA-3 and SHAKE256 flags
+
+if test "$ENABLED_SHA3" = "yes" && test "$ENABLED_32BIT" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
+fi
+
+
+if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
+then
+    if test "$ENABLED_32BIT" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHAKE256"
+        if test "$ENABLED_SHA3" = "no"
+        then
+            AC_MSG_ERROR([Must have SHA-3 enabled: --enable-sha3])
+        fi
+    fi
+fi
+
 
 # POLY1305
 AC_ARG_ENABLE([poly1305],
