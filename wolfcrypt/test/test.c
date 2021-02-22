@@ -849,10 +849,12 @@ initDefaultName();
         test_pass("SHAKE256 test passed!\n");
 #endif
 
+#ifndef NO_HASH_WRAPPER
     if ( (ret = hash_test()) != 0)
         return err_sys("Hash     test failed!\n", ret);
     else
         test_pass("Hash     test passed!\n");
+#endif
 
 #ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) != 0)
@@ -3384,7 +3386,7 @@ exit:
 }
 #endif
 
-
+#ifndef NO_HASH_WRAPPER
 WOLFSSL_TEST_SUBROUTINE int hash_test(void)
 {
     wc_HashAlg       hash;
@@ -3689,6 +3691,7 @@ WOLFSSL_TEST_SUBROUTINE int hash_test(void)
 
     return 0;
 }
+#endif /* !NO_HASH_WRAPPER */
 
 #if !defined(NO_HMAC) && !defined(NO_MD5)
 WOLFSSL_TEST_SUBROUTINE int hmac_md5_test(void)
