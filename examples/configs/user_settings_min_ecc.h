@@ -100,8 +100,8 @@ extern "C" {
 #define WOLFSSL_NO_PEM
 //#define NO_CODING
 #define NO_PSK
-#ifndef DEBUG
-    #define DEBGUG_WOLFSSL
+#ifndef DEBUG_WOLFSSL
+    #define DEBUG_WOLFSSL
     #define NO_ERROR_STRINGS
 #endif
 
