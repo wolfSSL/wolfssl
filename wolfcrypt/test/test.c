@@ -6249,8 +6249,8 @@ WOLFSSL_TEST_SUBROUTINE int des_test(void)
                 sizeof(key), WC_HASH_TYPE_NONE);
         if (ret == 0)
             return -5009;
-    }
     #endif /* !NO_PWDBASED */
+    }
 #endif
 
     return 0;
