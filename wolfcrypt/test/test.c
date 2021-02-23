@@ -27994,6 +27994,9 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (ret != envelopedSz) {
             wc_PKCS7_Free(pkcs7);
             ERROR_OUT(-12192, out);
+        } else {
+            /* reset ret to 0 for success */
+            ret = 0;
         }
 #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
@@ -28674,6 +28677,9 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (ret != envelopedSz) {
             wc_PKCS7_Free(pkcs7);
             ERROR_OUT(-12232, out);
+        } else {
+            /* reset ret to 0 for success */
+            ret = 0;
         }
 #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
