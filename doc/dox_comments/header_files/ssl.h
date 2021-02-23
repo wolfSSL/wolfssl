@@ -12744,6 +12744,40 @@ WOLFSSL_API int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
 
 /*!
+    \ingroup IO
+
+    \brief This function is called on a TLS v1.3 client or server wolfSSL to
+    determine whether a rollover of keys is in progress. When
+    wolfSSL_update_keys() is called, a KeyUpdate message is sent and the
+    encryption key is updated. The decryption key is updated when the response
+    is received.
+
+    \param [in] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param [out] required   0 when no key update response required. 1 when no key update response required.
+
+    \return 0 on successful.
+    \return BAD_FUNC_ARG if ssl is NULL or not using TLS v1.3.
+
+    _Example_
+    \code
+    int ret;
+    WOLFSSL* ssl;
+    int required;
+    ...
+    ret = wolfSSL_key_update_response(ssl, &required);
+    if (ret != 0) {
+        // bad parameters
+    }
+    if (required) {
+        // encrypt Key updated, awaiting response to change decrypt key
+    }
+    \endcode
+
+    \sa wolfSSL_update_keys
+*/
+WOLFSSL_API int  wolfSSL_key_update_response(WOLFSSL* ssl, int* required);
+
+/*!
     \ingroup Setup
 
     \brief This function is called on a TLS v1.3 client wolfSSL context to allow

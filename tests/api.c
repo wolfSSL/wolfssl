@@ -37439,6 +37439,7 @@ static int test_tls13_apis(void)
     const char*  ourKey  = svrKeyFile;
 #endif
 #endif
+    int          required;
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
 #endif
@@ -37626,6 +37627,19 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_update_keys(serverSsl), BUILD_MSG_ERROR);
+#endif
+
+    AssertIntEQ(wolfSSL_key_update_response(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_key_update_response(NULL, &required), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
+#ifndef WOLFSSL_NO_TLS12
+    AssertIntEQ(wolfSSL_key_update_response(clientTls12Ssl, &required),
+                BAD_FUNC_ARG);
+#endif
+    AssertIntEQ(wolfSSL_key_update_response(clientSsl, NULL), BAD_FUNC_ARG);
+#endif
+#ifndef NO_WOLFSSL_SERVER
+    AssertIntEQ(wolfSSL_key_update_response(serverSsl, NULL), BAD_FUNC_ARG);
 #endif
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
