@@ -1441,8 +1441,9 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
 }
 int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
 {
-    WOLFSSL_ENTER("wolfSSL_BIO_tell");
     int pos;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_tell");
 
     if (bio == NULL) {
         return -1;
@@ -1452,8 +1453,8 @@ int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
         return 0;
     }
 
-    pos =(int) XFTELL((XFILE)bio->ptr);
-    if(pos < 0)
+    pos = (int)XFTELL((XFILE)bio->ptr);
+    if (pos < 0)
         return -1;
     else
         return pos;
