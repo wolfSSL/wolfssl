@@ -14,13 +14,29 @@ AC_CONFIG_AUX_DIR([build-aux])
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
-# For reproducible builds, gate out from the build anything that might
+# Distro build feature subset (Debian, Ubuntu, etc.)
+AC_ARG_ENABLE([distro],
+    [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
+    [ ENABLED_DISTRO=$enableval ],
+    [ ENABLED_DISTRO=no ]
+    )
+if test "$ENABLED_DISTRO" = "yes"
+then
+    enable_shared=yes
+    enable_static=yes
+    enable_all=yes
+    REPRODUCIBLE_BUILD_DEFAULT=yes
+else
+    REPRODUCIBLE_BUILD_DEFAULT=no
+fi
+
+# For reproducible build, gate out from the build anything that might
 # introduce semantically frivolous jitter, maximizing chance of
 # identical object files.
 AC_ARG_ENABLE([reproducible-build],
-    [AS_HELP_STRING([--enable-reproducible-builds],[Enable maximally reproducible build (default: disabled)])],
+    [AS_HELP_STRING([--enable-reproducible-build],[Enable maximally reproducible build (default: disabled)])],
     [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
-    [ ENABLED_REPRODUCIBLE_BUILD=no ]
+    [ ENABLED_REPRODUCIBLE_BUILD=$REPRODUCIBLE_BUILD_DEFAULT ]
     )
 
 # Test ar for the "U" or "D" options. Should be checked before the libtool macros.
@@ -201,20 +217,6 @@ v1) if ! test -s ctaocrypt/src/fips.c; then
    fi
    ;;
 esac
-
-
-# Distro build feature subset (Debian, Ubuntu, etc.)
-AC_ARG_ENABLE([distro],
-    [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
-    [ ENABLED_DISTRO=$enableval ],
-    [ ENABLED_DISTRO=no ]
-    )
-if test "$ENABLED_DISTRO" = "yes"
-then
-    enable_shared=yes
-    enable_static=yes
-    enable_all=yes
-fi
 
 
 # Linux Kernel Module
