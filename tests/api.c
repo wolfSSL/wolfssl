@@ -29222,12 +29222,18 @@ static void test_wolfSSL_BIO(void)
                 WOLFSSL_SUCCESS);
 
         AssertIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
+        AssertIntEQ(BIO_tell(f_bio1),sizeof(cert));
         AssertIntEQ(BIO_write(f_bio2, msg, sizeof(msg)), sizeof(msg));
+        AssertIntEQ(BIO_tell(f_bio2),sizeof(msg));
         AssertIntEQ(BIO_write(f_bio2, cert, sizeof(cert)), sizeof(cert));
+        AssertIntEQ(BIO_tell(f_bio2),sizeof(cert) + sizeof(msg));
 
         AssertIntEQ((int)BIO_get_fp(f_bio2, &f2), WOLFSSL_SUCCESS);
         AssertIntEQ(BIO_reset(f_bio2), 0);
+        AssertIntEQ(BIO_tell(NULL),-1);
+        AssertIntEQ(BIO_tell(f_bio2),0);
         AssertIntEQ(BIO_seek(f_bio2, 4), 0);
+        AssertIntEQ(BIO_tell(f_bio2),4);
 
         BIO_free(f_bio1);
         BIO_free(f_bio2);
