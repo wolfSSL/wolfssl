@@ -2773,7 +2773,7 @@ int ToTraditional(byte* input, word32 sz)
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) && !defined(NO_CERTS)
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2867,7 +2867,6 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
          *  no header information just INTEGER */
         sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
         tmpSz += sz; keyIdx += sz;
-
         /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
         sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
         if (curveOID != NULL && oidSz > 0) {
@@ -2903,7 +2902,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         return tmpSz + sz;
 }
 
-#endif /* HAVE_PKCS8 */
+#endif /* HAVE_PKCS8 && !NO_CERTS */
 
 #if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
 /* check that the private key is a pair for the public key
