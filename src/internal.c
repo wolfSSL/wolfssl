@@ -11371,8 +11371,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                         if (ssl->status_request) {
-                            args->fatal = TLSX_CSR_InitRequest(ssl->extensions,
-                                                    args->dCert, ssl->heap);
+                            args->fatal = (TLSX_CSR_InitRequest(ssl->extensions,
+                                                args->dCert, ssl->heap) != 0);
                             doLookup = 0;
                         #if defined(WOLFSSL_TLS13)
                             if (ssl->options.tls1_3) {
@@ -11399,8 +11399,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
                 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
                         if (ssl->status_request_v2) {
-                            args->fatal = TLSX_CSR2_InitRequests(ssl->extensions,
-                                                    args->dCert, 1, ssl->heap);
+                            args->fatal = (TLSX_CSR2_InitRequests(ssl->extensions,
+                                                 args->dCert, 1, ssl->heap) != 0);
                             doLookup = 0;
                         }
                 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -19955,6 +19955,7 @@ static byte MinHashAlgo(WOLFSSL* ssl)
         return sha256_mac;
     }
 #endif /* WOLFSSL_NO_TLS12 */
+    (void)ssl;
     return sha_mac;
 }
 

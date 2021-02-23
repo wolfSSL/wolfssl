@@ -6243,12 +6243,14 @@ WOLFSSL_TEST_SUBROUTINE int des_test(void)
         if (ret != BAD_FUNC_ARG)
             return -5008;
 
-        /* Test invalid hash type */
+    #ifndef NO_PWDBASED
+        /* Test invalid hash type - only applies to wc_PBKDF1 call */
         ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key,
                 sizeof(key), WC_HASH_TYPE_NONE);
         if (ret == 0)
             return -5009;
     }
+    #endif /* !NO_PWDBASED */
 #endif
 
     return 0;
