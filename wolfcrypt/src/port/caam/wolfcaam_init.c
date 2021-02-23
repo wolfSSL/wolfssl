@@ -312,7 +312,7 @@ int wc_caamCreateBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     }
 
     if (type == WC_CAAM_BLOB_RED) {
-        arg[0] = 0;  
+        arg[0] = 0;
         if (mod != NULL) {
             if (modSz != WC_CAAM_RED_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod red size");
@@ -397,7 +397,7 @@ int wc_caamOpenBlob_ex(byte* data, word32 dataSz, byte* out, word32* outSz,
     }
 
     if (type == WC_CAAM_BLOB_RED) {
-        arg[0] = 0;  
+        arg[0] = 0;
         if (mod != NULL) {
             if (modSz != WC_CAAM_RED_KEYMOD_SZ) {
                 WOLFSSL_MSG("bad key mod red size");

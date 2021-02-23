@@ -91,6 +91,10 @@
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
 #endif
+#ifdef WOLFSSL_QNX_CAAM
+    /* included to get CAAM devId value */
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 #if defined(DEBUG_WOLFSSL) || defined(SHOW_SECRETS) || \
     defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
@@ -1781,7 +1785,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 #endif
 
+#ifdef WOLFSSL_QNX_CAAM
+    /* default to try using CAAM when built */
+    ctx->devId = WOLFSSL_CAAM_DEVID;
+#else
     ctx->devId = INVALID_DEVID;
+#endif
 
 #if defined(WOLFSSL_DTLS)
     #ifdef WOLFSSL_SCTP
