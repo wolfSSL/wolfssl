@@ -17746,8 +17746,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         if (hashLen > 32U) {
             hashLen = 32U;
         }
-
-        sp_256_from_bin(e, 5, hash, (int)hashLen);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
@@ -17789,6 +17787,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         }
         if (err == MP_OKAY) {
             sp_256_norm_5(x);
+            sp_256_from_bin(e, 5, hash, (int)hashLen);
             carry = sp_256_add_5(s, e, x);
             sp_256_cond_sub_5(s, s, p256_order, 0 - carry);
             sp_256_norm_5(s);
@@ -17805,6 +17804,9 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                 break;
             }
         }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
     }
 
     if (i == 0) {
@@ -24740,8 +24742,6 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         if (hashLen > 48U) {
             hashLen = 48U;
         }
-
-        sp_384_from_bin(e, 7, hash, (int)hashLen);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
@@ -24783,6 +24783,7 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         }
         if (err == MP_OKAY) {
             sp_384_norm_7(x);
+            sp_384_from_bin(e, 7, hash, (int)hashLen);
             carry = sp_384_add_7(s, e, x);
             sp_384_cond_sub_7(s, s, p384_order, 0 - carry);
             sp_384_norm_7(s);
@@ -24799,6 +24800,9 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                 break;
             }
         }
+#ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        i = 1;
+#endif
     }
 
     if (i == 0) {
