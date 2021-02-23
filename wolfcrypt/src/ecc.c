@@ -7770,7 +7770,10 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #endif
     int keysize = 0;
     byte pointType;
-
+#ifdef WOLFSSL_CRYPTOCELL
+    const CRYS_ECPKI_Domain_t* pDomain;
+    CRYS_ECPKI_BUILD_TempData_t tempBuff;
+#endif
     if (in == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
@@ -7951,9 +7954,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     err = silabs_ecc_import(key, keysize);
 #endif
 #ifdef WOLFSSL_CRYPTOCELL
-    const CRYS_ECPKI_Domain_t* pDomain;
-    CRYS_ECPKI_BUILD_TempData_t tempBuff;
-
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
 
     /* create public key from external key buffer */
