@@ -31707,8 +31707,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12827;
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
-    (defined(HAVE_ECC) && defined(FP_ECC))
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     ret = mp_gcd(NULL, NULL, NULL);
     if (ret != MP_VAL)
         return -12828;
@@ -31815,7 +31814,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12858;
 #endif
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     ret = mp_lcm(NULL, NULL, NULL);
     if (ret != MP_VAL)
         return -12859;
@@ -32644,23 +32643,20 @@ static int mp_test_prime(mp_int* a, WC_RNG* rng)
 }
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH) || \
-    defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+    !defined(NO_RSA))
 static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
                            WC_RNG* rng)
 {
     int ret;
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     int i;
     WOLFSSL_SMALL_STACK_STATIC const int kat[][3] = {
       { 1, 1, 1 }, { 2, 1, 2 }, { 1, 2, 2 }, { 2, 4, 4 }, { 4, 2, 4 },
       { 12, 56, 168 }, { 56, 12, 168 }
     };
-#endif
 
     (void)exp;
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     mp_set(a, 0);
     mp_set(b, 1);
     ret = mp_lcm(a, a, r);
@@ -32683,7 +32679,6 @@ static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
         if (mp_cmp(r, exp) != MP_EQ)
             return -13094;
     }
-#endif
 
     (void)rng;
 #if defined(WOLFSSL_KEY_GEN) && (!defined(NO_DH) || !defined(NO_DSA)) && \
@@ -33380,8 +33375,8 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if ((ret = mp_test_prime(&a, &rng)) != 0)
         return ret;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) || (defined(WOLFSSL_SP_MATH) && \
-    defined(WOLFSSL_HAVE_SP_DH)) || defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+    !defined(NO_RSA))
     if ((ret = mp_test_lcm_gcd(&a, &b, &r1, &r2, &rng)) != 0)
         return ret;
 #endif

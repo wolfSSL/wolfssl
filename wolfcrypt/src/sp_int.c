@@ -13230,8 +13230,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_HAVE_SP_DH) || (defined(HAVE_ECC) && defined(FP_ECC))
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *
@@ -13337,10 +13336,9 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
     return err;
 }
 
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_SP_RSA_VERIFY_ONLY) ||
-        * WOLFSSL_HAVE_SP_DH || (HAVE_ECC && FP_ECC) */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && WOLFSSL_KEY_GEN */
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 
 /* Calculates the Lowest Common Multiple (LCM) of a and b and stores in r.
  *
@@ -13393,7 +13391,7 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
     return err;
 }
 
-#endif /* !NO_RSA && WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && WOLFSSL_KEY_GEN */
 
 /* Returns the run time settings.
  *
