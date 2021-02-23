@@ -938,6 +938,18 @@ then
   AM_CFLAGS="-DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
 fi
 
+# One Error Queue per Thread
+AC_ARG_ENABLE([error-queue-per-thread],
+[AS_HELP_STRING([--enable-error-queue-per-thread],[Enable one error queue per thread. Requires thread local storage. (default: disabled)])],
+[ ENABLED_ERRORQUEUEPERTHREAD=$enableval ],
+[ ENABLED_ERRORQUEUEPERTHREAD=no ]
+)
+
+if test "$ENABLED_ERRORQUEUEPERTHREAD" = "yes"
+then
+  AM_CFLAGS="-DERROR_QUEUE_PER_THREAD $AM_CFLAGS"
+fi
+
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],
     [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strength build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],

@@ -34,11 +34,19 @@
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
 
 /* accessing any node from the queue should be wrapped in a lock of
  * debug_mutex */
-static void* wc_error_heap;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+void* wc_error_heap;
 struct wc_error_queue {
     void*  heap; /* the heap hint used with nodes creation */
     struct wc_error_queue* next;
@@ -48,9 +56,20 @@ struct wc_error_queue {
     int    value;
     int    line;
 };
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
 volatile struct wc_error_queue* wc_errors;
-static struct wc_error_queue* wc_current_node;
-static struct wc_error_queue* wc_last_node;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+struct wc_error_queue* wc_current_node;
+static
+#ifdef ERROR_QUEUE_PER_THREAD
+THREAD_LS_T
+#endif
+struct wc_error_queue* wc_last_node;
 /* pointer to last node in queue to make insertion O(1) */
 #endif
 
