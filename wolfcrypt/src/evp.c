@@ -6887,8 +6887,9 @@ struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
 }
 static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
 {
+    WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_new");
-    WOLFSSL_EVP_ENCODE_CTX* ctx = (WOLFSSL_EVP_ENCODE_CTX*)XMALLOC( sizeof(WOLFSSL_EVP_ENCODE_CTX),heap,DYNAMIC_TYPE_OPENSSL );
+    ctx = (WOLFSSL_EVP_ENCODE_CTX*)XMALLOC( sizeof(WOLFSSL_EVP_ENCODE_CTX),heap,DYNAMIC_TYPE_OPENSSL );
 
     if(ctx != NULL) {
         XMEMSET(ctx,0,sizeof(WOLFSSL_EVP_ENCODE_CTX) );
@@ -7059,6 +7060,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     int    res;
     int    pad = 0;
     int    i;
+    char es;
 
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeUpdate");
 
@@ -7201,10 +7203,10 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     }
     /* copy left data to ctx */
     if (inLen > 0) {
+        unsigned char el;
         XMEMSET(ctx->data, 0, sizeof(ctx->data));
 
         i = 0;
-        unsigned char el;
         while ( inLen > 0) {
             el = in[j++];
             if (el== '\n' || el == '\r' || el == ' ') {
@@ -7226,7 +7228,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     }
     /* if the last data is '\n', remove it */
-    char es = in[j - 1];
+    es = in[j - 1];
     if (es == '\n') {
         es = (in[j - 2]);
         if (es == '=')
