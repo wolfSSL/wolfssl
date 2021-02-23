@@ -27701,8 +27701,7 @@ long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
     }
 
     if (type == TLSEXT_STATUSTYPE_ocsp){
-        int r = 0;
-        r = TLSX_UseCertificateStatusRequest(&s->extensions, type, 0, s,
+        int r = TLSX_UseCertificateStatusRequest(&s->extensions, (byte)type, 0, s,
                                                              s->heap, s->devId);
         return (long)r;
     } else {
@@ -47829,7 +47828,8 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {
     if (produced_tm == NULL)
         return BAD_FUNC_ARG;
 
-    if (ExtractDate(ssl->ocspProducedDate, ssl->ocspProducedDateFormat, produced_tm, &idx))
+    if (ExtractDate(ssl->ocspProducedDate,
+            (unsigned char)ssl->ocspProducedDateFormat, produced_tm, &idx))
         return 0;
     else
         return ASN_PARSE_E;
