@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[4.7.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[4.7.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -55,7 +55,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=28:0:4
+WOLFSSL_LIBRARY_VERSION=28:1:4
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
