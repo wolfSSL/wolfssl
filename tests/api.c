@@ -2401,7 +2401,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     WOLFSSL_BIO* wbio = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     char line[256] = { 0 };
-    int res;
+
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_print_public()");
     /* test error cases */
@@ -2411,7 +2411,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
      *  test RSA public key print
      *  in this test, pass '3' for indent
      */
-    #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_1024)
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_1024)
 
     rbio = BIO_new_mem_buf( client_keypub_der_1024,
                             sizeof_client_keypub_der_1024);
@@ -2423,25 +2423,23 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    res = wolfSSL_EVP_PKEY_print_public(wbio, pkey,3,NULL);
-    AssertIntEQ(res,1);
+    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "   RSA Public-Key: (1024 bit)\n",
-                    sizeof("   RSA Public-Key: (1024 bit)\n"));
+    AssertIntEQ(XSTRNCMP( line, "   RSA Public-Key: (1024 bit)\n",
+                         sizeof("   RSA Public-Key: (1024 bit)\n")),0);
 
-    AssertIntEQ(res,0);
-
-    BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "   Modulus:\n",
-                    sizeof("   Modulus:\n"));
-    AssertIntEQ(res,0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line, "   Modulus:\n",
+                         sizeof("   Modulus:\n")),0);
+
+
+    BIO_gets(wbio, line, sizeof(line));
+    AssertIntEQ(XSTRNCMP( line,
            "       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n",
-    sizeof("       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n"));
-    AssertIntEQ(res,0);
+    sizeof("       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n")),0);
+
 
     /* skip to the end of modulus element*/
     for( int i = 0; i < 7 ;i++) {
@@ -2449,9 +2447,9 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "   Exponent: 65537 (0x010001)\n",
-                    sizeof("   Exponent: 65537 (0x010001)\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "   Exponent: 65537 (0x010001)\n",
+                         sizeof("   Exponent: 65537 (0x010001)\n")),0);
+
 
     /* should reach EOF */
     AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
@@ -2463,12 +2461,12 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     rbio = NULL;
     wbio = NULL;
 
-    #endif  /* !NO_RSA && USE_CERT_BUFFERS_1024*/
+#endif  /* !NO_RSA && USE_CERT_BUFFERS_1024*/
 
     /*
      *  test DSA public key print
      */
-    #if !defined(NO_DSA) && defined(USE_CERT_BUFFERS_2048)
+#if !defined(NO_DSA) && defined(USE_CERT_BUFFERS_2048)
     rbio = BIO_new_mem_buf( dsa_pub_key_der_2048,
                             sizeof_dsa_pub_key_der_2048);
     AssertNotNull(rbio);
@@ -2479,25 +2477,20 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    res = wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL);
-    AssertIntEQ(res,1);
+    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "DSA Public-Key: (2048 bit)\n",
-                    sizeof("DSA Public-Key: (2048 bit)\n"));
-
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "DSA Public-Key: (2048 bit)\n",
+                         sizeof("DSA Public-Key: (2048 bit)\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "pub:\n",
-                    sizeof("pub:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "pub:\n",
+                         sizeof("pub:\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line,
            "    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n",
-    sizeof("    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n"));
-    AssertIntEQ(res,0);
+    sizeof("    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n")),0);
 
     /* skip to the end of pub element*/
     for( int i = 0; i < 17 ;i++) {
@@ -2505,10 +2498,9 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
-           "P:\n",
-    sizeof("P:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line,
+                            "P:\n",
+                     sizeof("P:\n")),0);
 
     /* skip to the end of P element*/
     for( int i = 0; i < 18 ;i++) {
@@ -2516,20 +2508,18 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
-           "Q:\n",
-    sizeof("Q:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line,
+                           "Q:\n",
+                    sizeof("Q:\n")),0);
 
     /* skip to the end of Q element*/
     for( int i = 0; i < 3 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
-           "G:\n",
-    sizeof("G:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line,
+                           "G:\n",
+                    sizeof("G:\n")),0);
 
     /* skip to the end of G element*/
     for( int i = 0; i < 18 ;i++) {
@@ -2545,12 +2535,12 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     rbio = NULL;
     wbio = NULL;
 
-    #endif /* !NO_DSA && USE_CERT_BUFFERS_2048 */
+#endif /* !NO_DSA && USE_CERT_BUFFERS_2048 */
 
     /*
      *  test ECC public key print
      */
-    #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 
     rbio = BIO_new_mem_buf( ecc_clikeypub_der_256,
                             sizeof_ecc_clikeypub_der_256);
@@ -2562,25 +2552,20 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    res = wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL);
-    AssertIntEQ(res,1);
+    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "Public-Key: (256 bit)\n",
-                    sizeof("Public-Key: (256 bit)\n"));
-
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "Public-Key: (256 bit)\n",
+                         sizeof("Public-Key: (256 bit)\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "pub:\n",
-                    sizeof("pub:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "pub:\n",
+                         sizeof("pub:\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line,
            "    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n",
-    sizeof("    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n"));
-    AssertIntEQ(res,0);
+    sizeof("    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n")),0);
 
     /* skip to the end of pub element*/
     for( int i = 0; i < 4 ;i++) {
@@ -2588,14 +2573,13 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "ASN1 OID: prime256v1\n",
-                    sizeof("ASN1 OID: prime256v1\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "ASN1 OID: prime256v1\n",
+                         sizeof("ASN1 OID: prime256v1\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "NIST CURVE: P-256\n",
-                    sizeof("NIST CURVE: P-256"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "NIST CURVE: P-256\n",
+                         sizeof("NIST CURVE: P-256")),0);
+
 
     /* should reach EOF */
     AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
@@ -2607,12 +2591,12 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     rbio = NULL;
     wbio = NULL;
 
-    #endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
+#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
 
     /*
      *  test DH public key print
      */
-    #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
 
     rbio = BIO_new_mem_buf( dh_pub_key_der_2048,
                             sizeof_dh_pub_key_der_2048);
@@ -2624,25 +2608,20 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    res = wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL);
-    AssertIntEQ(res,1);
+    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "DH Public-Key: (2048 bit)\n",
-                    sizeof("DH Public-Key: (2048 bit)\n"));
-
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "DH Public-Key: (2048 bit)\n",
+                         sizeof("DH Public-Key: (2048 bit)\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line, "public-key:\n",
-                    sizeof("public-key:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line, "public-key:\n",
+                         sizeof("public-key:\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line,
            "    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n",
-    sizeof("    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n"));
-    AssertIntEQ(res,0);
+    sizeof("    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n")),0);
 
     /* skip to the end of public-key element*/
     for( int i = 0; i < 17 ;i++) {
@@ -2650,16 +2629,14 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
-           "prime:\n",
-    sizeof("prime:\n"));
-    AssertIntEQ(res,0);
+    AssertIntEQ(XSTRNCMP( line,
+                           "prime:\n",
+                    sizeof("prime:\n")),0);
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line,
            "    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n",
-    sizeof("    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n"));
-    AssertIntEQ(res,0);
+    sizeof("    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n")),0);
 
     /* skip to the end of prime element*/
     for( int i = 0; i < 17 ;i++) {
@@ -2667,10 +2644,9 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     }
 
     BIO_gets(wbio, line, sizeof(line));
-    res = XSTRNCMP( line,
+    AssertIntEQ(XSTRNCMP( line,
            "generator: 2 (0x02)\n",
-    sizeof("generator: 2 (0x02)\n"));
-    AssertIntEQ(res,0);
+    sizeof("generator: 2 (0x02)\n")),0);
 
     /* should reach EOF */
     AssertIntLE(BIO_gets(wbio, line, sizeof(line)) ,0);
@@ -2682,8 +2658,11 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     rbio = NULL;
     wbio = NULL;
 
-    #endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
-
+#endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
+    (void)pkey;
+    (void)wbio;
+    (void)rbio;
+    (void)line;
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
