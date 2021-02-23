@@ -2659,6 +2659,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = NULL;
 
 #endif /* WOLFSSL_DH_EXTRA && USE_CERT_BUFFERS_2048 */
+
+    /* to prevent "unused variable" warning */
     (void)pkey;
     (void)wbio;
     (void)rbio;
@@ -22512,6 +22514,11 @@ static int test_wc_EccPrivateKeyToDer (void)
 static int test_wc_EccPublicKeyDecode_ex(void)
 {
     int ret = 0;
+    word32  inOutIdx;
+    int     curveId;
+    word32  pointIdx;
+    int     pointSz;
+
 #if defined(HAVE_ECC)
     printf(testingFmt, "test_wc_EccPublicKeyDecode_ex()");
 
@@ -22521,10 +22528,6 @@ static int test_wc_EccPublicKeyDecode_ex(void)
             ret = 0;
     }
 #if defined(USE_CERT_BUFFERS_256)
-    word32  inOutIdx;
-    int     curveId;
-    word32  pointIdx;
-    int     pointSz;
 
     if (ret == 0) {
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
@@ -22533,24 +22536,28 @@ static int test_wc_EccPublicKeyDecode_ex(void)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,NULL,NULL,NULL,0);
         if (ret == BAD_FUNC_ARG)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,&curveId,NULL,NULL,0);
         if (ret == BAD_FUNC_ARG)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,&curveId,&pointIdx,NULL,0);
         if(ret == BAD_FUNC_ARG)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,&curveId,&pointIdx,&pointSz,0);
         if (ret == BAD_FUNC_ARG)
@@ -22558,12 +22565,14 @@ static int test_wc_EccPublicKeyDecode_ex(void)
     }
     /* pass bad input size */
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,&curveId,&pointIdx,&pointSz,sizeof_ecc_clikeypub_der_256 - 3 );
         if (ret < 0 )
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
                     &inOutIdx,&curveId,&pointIdx,&pointSz,sizeof_ecc_clikeypub_der_256);
         if (ret == 0 && inOutIdx == 91 && curveId == 7 &&
@@ -22578,6 +22587,10 @@ static int test_wc_EccPublicKeyDecode_ex(void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif /* HAVE_ECC */
+    (void)inOutIdx;
+    (void)curveId;
+    (void)pointIdx;
+    (void)pointSz;
     return ret;
 }
 /*
@@ -22586,11 +22599,11 @@ static int test_wc_EccPublicKeyDecode_ex(void)
 static int test_wc_DhPublicKeyDecode(void)
 {
     int ret = 0;
-#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
-    printf(testingFmt, "test_wc_DhPublicKeyDecode()");
-
     word32 inOutIdx;
     DhKey  key;
+
+#if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+    printf(testingFmt, "test_wc_DhPublicKeyDecode()");
 
     if (ret == 0) {
         ret = wc_DhPublicKeyDecode(NULL,NULL,NULL,0);
@@ -22603,16 +22616,19 @@ static int test_wc_DhPublicKeyDecode(void)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,NULL,0);
         if (ret == BAD_FUNC_ARG)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,0);
         if (ret == BAD_FUNC_ARG)
             ret = 0;
     }
     if (ret == 0) {
+        inOutIdx = 0;
         ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
                 sizeof_dh_pub_key_der_2048);
         if (ret == 0 && key.p.used != 0 && key.g.used != 0 &&
@@ -22626,6 +22642,8 @@ static int test_wc_DhPublicKeyDecode(void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
+    (void)inOutIdx;
+    (void)key;
     return ret;
 }
 
