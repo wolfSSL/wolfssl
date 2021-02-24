@@ -331,6 +331,36 @@ endif()
 #       - RIPEMD
 #       - BLAKE2
 
+
+# SHA224
+set(SHA224_DEFAULT "no")
+if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
+    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
+    if(NOT WOLFSSL_AFALG AND NOT WOLFSSL_DEVCRYPTO AND
+       (NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2")))
+        set(SHA224_DEFAULT "yes")
+    endif()
+endif()
+set(WOLFSSL_SHA224_HELP_STRING "Enable wolfSSL SHA-224 support (default: enabled on x86_64/aarch64)")
+option(WOLFSSL_SHA224 ${WOLFSSL_SHA224_HELP_STRING} ${SHA224_DEFAULT})
+
+# SHA3
+set(SHA3_DEFAULT "no")
+if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
+    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
+    if(NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2"))
+        set(SHA3_DEFAULT "yes")
+    endif()
+endif()
+set(WOLFSSL_SHA3_HELP_STRING "Enable wolfSSL SHA-3 support (default: enabled on x86_64/aarch64)")
+set(WOLFSSL_SHA3 ${SHA3_DEFAULT} CACHE STRING ${WOLFSSL_SHA3_HELP_STRING})
+set_property(CACHE WOLFSSL_SHA3 PROPERTY STRINGS "yes" "no" "small")
+
+# SHAKE256
+set(WOLFSSL_SHAKE256_HELP_STRING "Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)")
+set(WOLFSSL_SHAKE256 "no" CACHE STRING ${WOLFSSL_SHAKE256_HELP_STRING})
+set_property(CACHE WOLFSSL_SHAKE256 PROPERTY STRINGS "yes" "no" "small")
+
 # SHA512
 set(WOLFSSL_SHA512_HELP_STRING "Enable wolfSSL SHA-512 support (default: enabled)")
 option(WOLFSSL_SHA512 ${WOLFSSL_SHA512_HELP_STRING} "yes")
@@ -859,35 +889,11 @@ endif()
 #       - Selftest
 
 # SHA224
-set(SHA224_DEFAULT "no")
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
-    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-    if(NOT WOLFSSL_AFALG AND NOT WOLFSSL_DEVCRYPTO AND
-       (NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2")))
-        set(SHA224_DEFAULT "yes")
-    endif()
-endif()
-
-set(WOLFSSL_SHA224_HELP_STRING "Enable wolfSSL SHA-224 support (default: enabled on x86_64/aarch64)")
-option(WOLFSSL_SHA224 ${WOLFSSL_SHA224_HELP_STRING} ${SHA224_DEFAULT})
-
 if(WOLFSSL_SHA224)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA224")
 endif()
 
 # SHA3
-set(SHA3_DEFAULT "no")
-if(("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64") OR
-    ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-    if(NOT WOLFSSL_FIPS OR ("${FIPS_VERSION}" STREQUAL "v2"))
-        set(SHA3_DEFAULT "yes")
-    endif()
-endif()
-
-set(WOLFSSL_SHA3_HELP_STRING "Enable wolfSSL SHA-3 support (default: enabled on x86_64/aarch64)")
-set(WOLFSSL_SHA3 ${SHA3_DEFAULT} CACHE STRING ${WOLFSSL_SHA3_HELP_STRING})
-set_property(CACHE WOLFSSL_SHA3 PROPERTY STRINGS "yes" "no" "small")
-
 if("${WOLFSSL_SHA3}" STREQUAL "small")
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_SHA3_SMALL")
     override_cache(WOLFSSL_SHA3 "yes")
@@ -898,10 +904,6 @@ if(WOLFSSL_SHA3 AND NOT WOLFSSL_32BIT)
 endif()
 
 # SHAKE256
-set(WOLFSSL_SHAKE256_HELP_STRING "Enable wolfSSL SHAKE256 support (default: enabled on x86_64/aarch64)")
-set(WOLFSSL_SHAKE256 "no" CACHE STRING ${WOLFSSL_SHAKE256_HELP_STRING})
-set_property(CACHE WOLFSSL_SHAKE256 PROPERTY STRINGS "yes" "no" "small")
-
 if(NOT WOLFSSL_SHAKE256)
     override_cache(WOLFSSL_SHAKE256 ${WOLFSSL_SHA3})
 endif()
