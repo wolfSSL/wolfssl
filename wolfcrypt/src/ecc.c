@@ -7988,7 +7988,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         return BAD_FUNC_ARG;
     }
 
-    if (wc_ecc_is_valid_idx(key->idx) == 0) {
+    if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
     keySz = key->dp->size;

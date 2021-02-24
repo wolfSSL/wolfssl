@@ -5611,6 +5611,7 @@ exit:
     (void)times;
     (void)desc;
     (void)start;
+    (void)name;
 }
 
 
