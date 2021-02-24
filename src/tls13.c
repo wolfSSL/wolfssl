@@ -8132,7 +8132,7 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
     for (i = 0; i < count; i++) {
         /* Call to wolfSSL_CTX_UseSupportedCurve also checks if input groups
          * are valid */
-        if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, groups[i]))
+        if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, (word16)groups[i]))
                 != WOLFSSL_SUCCESS) {
             TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
             return ret;
@@ -8167,7 +8167,7 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
     for (i = 0; i < count; i++) {
         /* Call to wolfSSL_UseSupportedCurve also checks if input groups
                  * are valid */
-        if ((ret = wolfSSL_UseSupportedCurve(ssl, groups[i]))
+        if ((ret = wolfSSL_UseSupportedCurve(ssl, (word16)groups[i]))
                 != WOLFSSL_SUCCESS) {
             TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
             return ret;
