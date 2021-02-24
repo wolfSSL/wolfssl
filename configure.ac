@@ -387,6 +387,7 @@ then
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+    test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
