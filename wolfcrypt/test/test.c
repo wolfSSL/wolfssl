@@ -16553,6 +16553,8 @@ done:
     wc_FreeDhKey(key2);
 #endif
 
+    (void)pubSz2;
+
     return ret;
 #undef DH_TEST_BUF_SIZE
 #undef DH_TEST_TMP_SIZE
