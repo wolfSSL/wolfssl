@@ -32677,10 +32677,10 @@ static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
     if (ret != MP_VAL)
         return -13090;
     ret = mp_lcm(a, b, r);
-    if (ret != MP_VAL)
+    if (ret != MP_OKAY)
         return -13091;
     ret = mp_lcm(b, a, r);
-    if (ret != MP_VAL)
+    if (ret != MP_OKAY)
         return -13092;
 
     for (i = 0; i < (int)(sizeof(kat) / sizeof(*kat)); i++) {
@@ -32728,7 +32728,7 @@ static int mp_test_lcm_gcd(mp_int* a, mp_int* b, mp_int* r, mp_int* exp,
     if (mp_cmp_d(r, 11) != MP_EQ)
         return -13105;
     ret = mp_gcd(b, b, r);
-    if (ret != MP_VAL)
+    if (ret != MP_OKAY)
         return -13106;
 
     return 0;
@@ -33431,7 +33431,7 @@ done:
     wc_FreeRng(&rng);
     return ret;
 }
-#endif
+#endif /* HAVE_VALGRIND */
 
 
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
