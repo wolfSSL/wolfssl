@@ -4798,7 +4798,7 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
                             const unsigned char* addt,
                             const unsigned char* ivec, unsigned char *tag,
                             word32 nbytes, word32 abytes, word32 ibytes,
-                            wrd32 tbytes, const unsigned char* key, int nr)
+                            word32 tbytes, const unsigned char* key, int nr)
 {
     int i, j ,k;
     __m128i ctr1;
