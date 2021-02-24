@@ -1178,7 +1178,8 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 
 
 #if (defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)) && \
-    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A)
+    !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
+    !defined(WOLFSSL_CRYPTOCELL)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -3824,7 +3825,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     err = CRYS_ECDH_SVDP_DH(&public_key->ctx.pubKey,
                             &private_key->ctx.privKey,
                             out,
-                            outlen,
+                            (uint32_t*)outlen,
                             &tempBuff);
 
     if (err != SA_SILIB_RET_OK){
@@ -4563,7 +4564,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
     err = CRYS_ECPKI_ExportPublKey(&key->ctx.pubKey,
                                    CRYS_EC_PointUncompressed,
                                    &ucompressed_key[0],
-                                   &raw_size);
+                                   (uint32_t*)&raw_size);
 
     if (err == SA_SILIB_RET_OK && key->pubkey.x && key->pubkey.y) {
         err = mp_read_unsigned_bin(key->pubkey.x,
@@ -4577,7 +4578,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
     if (err == MP_OKAY) {
         err = CRYS_ECPKI_ExportPrivKey(&key->ctx.privKey,
                                        ucompressed_key,
-                                       &raw_size);
+                                       (uint32_t*)&raw_size);
     }
 
     if (err == SA_SILIB_RET_OK) {
@@ -4993,7 +4994,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
                                (byte*)in,
                                msgLenInBytes,
                                out,
-                               &raw_sig_size);
+                               (uint32_t*)&raw_sig_size);
 
         if (err != SA_SILIB_RET_OK){
             WOLFSSL_MSG("CRYS_ECDSA_Sign failed");
@@ -7656,7 +7657,8 @@ int wc_ecc_check_key(ecc_key* key)
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || \
     defined(WOLFSSL_CRYPTOCELL) || defined(WOLFSSL_SILABS_SE_ACCEL)
 
-    err = 0; /* consider key check success on ATECC508/608A */
+    err = 0; /* consider key check success on ATECC508/608A and CryptoCell */
+    (void)err;
 
 #else
     #ifdef USE_ECC_B_PARAM
@@ -7751,9 +7753,8 @@ int wc_ecc_check_key(ecc_key* key)
 #endif
 
     FREE_CURVE_SPECS();
-
-    return err;
 #endif /* WOLFSSL_ATECC508A */
+    return err;
 #else
     return WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
@@ -8095,7 +8096,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     int ret;
 #ifdef WOLFSSL_CRYPTOCELL
     const CRYS_ECPKI_Domain_t* pDomain;
-    CRYS_ECPKI_BUILD_TempData_t tempBuff;
 #endif
     if (key == NULL || priv == NULL)
         return BAD_FUNC_ARG;

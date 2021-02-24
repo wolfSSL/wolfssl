@@ -138,6 +138,9 @@ extern "C" {
 #if 1
     #define HAVE_ECC
 
+    #include <strings.h>
+    /* strings.h required for strncasecmp */
+
     /* Manually define enabled curves */
     #undef  ECC_USER_CURVES
     #define ECC_USER_CURVES
