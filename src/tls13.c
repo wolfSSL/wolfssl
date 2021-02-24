@@ -8217,7 +8217,8 @@ void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveNTRU,
                ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.side);
+               ssl->options.haveStaticECC, ssl->options.haveAnon,
+               ssl->options.side);
 }
 
 
@@ -8254,7 +8255,8 @@ void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                ssl->options.haveDH, ssl->options.haveNTRU,
                ssl->options.haveECDSAsig, ssl->options.haveECC,
-               ssl->options.haveStaticECC, ssl->options.side);
+               ssl->options.haveStaticECC, ssl->options.haveAnon,
+               ssl->options.side);
 }
 #endif
 

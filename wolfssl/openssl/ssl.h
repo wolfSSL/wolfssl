@@ -409,6 +409,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_free                       wolfSSL_X509_free
 #define X509_load_certificate_file      wolfSSL_X509_load_certificate_file
 #define X509_digest                     wolfSSL_X509_digest
+#define X509_pubkey_digest              wolfSSL_X509_pubkey_digest
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509V3_EXT_i2d                  wolfSSL_X509V3_EXT_i2d
@@ -1126,6 +1127,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL3_AD_BAD_CERTIFICATE          bad_certificate
 #define SSL_AD_BAD_CERTIFICATE           SSL3_AD_BAD_CERTIFICATE
+#define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
+#define SSL_AD_NO_RENEGOTIATION          no_renegotiation
+#define SSL_AD_INTERNAL_ERROR            80
 
 #define ASN1_STRFLGS_ESC_MSB             4
 
@@ -1166,6 +1170,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
 #define SSL_TLSEXT_ERR_ALERT_FATAL      alert_fatal
+#define SSL_TLSEXT_ERR_ALERT_WARNING    alert_warning
 #define SSL_TLSEXT_ERR_NOACK            alert_warning
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
 

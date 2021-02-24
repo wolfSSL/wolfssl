@@ -1828,7 +1828,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #ifdef HAVE_WOLF_EVENT
-    ret = wolfEventQueue_Init(&ctx->event_queue);
+    if (ret == 0)
+        ret = wolfEventQueue_Init(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -2291,7 +2292,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
 void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
                 word16 havePSK, word16 haveDH, word16 haveNTRU,
                 word16 haveECDSAsig, word16 haveECC,
-                word16 haveStaticECC, int side)
+                word16 haveStaticECC, word16 haveAnon, int side)
 {
     word16 idx = 0;
     int    tls    = pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_MINOR;
@@ -2313,6 +2314,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)side;
     (void)haveRSA;    /* some builds won't read */
     (void)haveRSAsig; /* non ecc builds won't read */
+    (void)haveAnon;   /* anon ciphers optional */
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -2532,14 +2534,14 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
-    if (tls1_2 && haveDH) {
+    if (tls1_2 && haveDH && haveAnon) {
       suites->suites[idx++] = CIPHER_BYTE;
       suites->suites[idx++] = TLS_DH_anon_WITH_AES_128_CBC_SHA;
     }
 #endif
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
-    if (tls1_2 && haveDH) {
+    if (tls1_2 && haveDH && haveAnon) {
       suites->suites[idx++] = CIPHER_BYTE;
       suites->suites[idx++] = TLS_DH_anon_WITH_AES_256_GCM_SHA384;
     }
@@ -3393,15 +3395,9 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag, void* heap)
     (void)heap;
 
     if (name != NULL) {
+        XMEMSET(name, 0, sizeof(WOLFSSL_X509_NAME));
         name->name        = name->staticName;
-        name->dynamicName = 0;
-        name->sz = 0;
         name->heap = heap;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XMEMSET(name->entry, 0, sizeof(name->entry));
-        name->x509 = NULL;
-        name->entrySz = 0;
-#endif /* OPENSSL_EXTRA */
     }
 }
 
@@ -5209,13 +5205,15 @@ int InitSSL_Suites(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
     else {
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                    TRUE, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
     }
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
@@ -27529,7 +27527,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
         }
 
         /* suite size */
@@ -27859,7 +27858,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
         }
 
 #ifdef OPENSSL_EXTRA
@@ -27921,7 +27921,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
-                       ssl->options.haveStaticECC, ssl->options.side);
+                       ssl->options.haveStaticECC, ssl->options.haveAnon,
+                       ssl->options.side);
             }
         }
 #endif
@@ -31122,15 +31123,21 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 #ifdef HAVE_SNI
     int SNI_Callback(WOLFSSL* ssl)
     {
+        int ad = 0;
+        int sniRet = 0;
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
         * when SNI is received. Call it now if exists */
         if(ssl && ssl->ctx && ssl->ctx->sniRecvCb) {
             WOLFSSL_MSG("Calling custom sni callback");
-            if(ssl->ctx->sniRecvCb(ssl, NULL, ssl->ctx->sniRecvCbArg)
-                    == alert_fatal) {
+            sniRet = ssl->ctx->sniRecvCb(ssl, &ad, ssl->ctx->sniRecvCbArg);
+            if (sniRet == alert_fatal) {
                 WOLFSSL_MSG("Error in custom sni callback. Fatal alert");
-                SendAlert(ssl, alert_fatal, unrecognized_name);
+                SendAlert(ssl, alert_fatal, ad);
                 return FATAL_ERROR;
+            }
+            else if (sniRet == alert_warning) {
+                WOLFSSL_MSG("Error in custom sni callback. Warning alert");
+                SendAlert(ssl, alert_warning, ad);
             }
         }
         return 0;
