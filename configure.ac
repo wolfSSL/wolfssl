@@ -181,43 +181,45 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS="no"])
 
 AS_CASE([$ENABLED_FIPS],
-    ["ready"],[
+    [ready],[
         ENABLED_FIPS="yes"
         FIPS_VERSION="v2"
         FIPS_READY="yes"
     ],
-    ["v2"],[
-        # FIPS v2
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v2"
+    [no],[
+        FIPS_VERSION="none"
+        ENABLED_FIPS="no"
     ],
-    ["rand"],[
-        # FIPS Rand
+    [rand|v1|v2],[
+        FIPS_VERSION="$ENABLED_FIPS"
         ENABLED_FIPS="yes"
-        FIPS_VERSION="rand"
     ],
-    ["no"],[FIPS_VERSION="none"],
+    [yes],
     [
         # FIPS v1
         ENABLED_FIPS="yes"
         FIPS_VERSION="v1"
+    ],
+    [
+        AC_MSG_ERROR([Invalid value for --enable-fips \"$ENABLED_FIPS\" (allowed: ready, rand, v1, v2)])
     ])
 
-case "$FIPS_VERSION" in
-none) if test -s wolfcrypt/src/fips.c || test -s ctaocrypt/src/fips.c; then
-        AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])
-    fi
-    ;;
-v1) if ! test -s ctaocrypt/src/fips.c; then
-        AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])
-    fi
-    ;;
-*) if ! test -s wolfcrypt/src/fips.c; then
-        AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])
-   fi
-   ;;
-esac
-
+AS_CASE([$FIPS_VERSION],
+    [none],
+    [
+      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
+            [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
+    ],
+    [v1],
+    [
+      AS_IF([ ! test -s $srcdir/ctaocrypt/src/fips.c],
+            [AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])])
+    ],
+    [
+      AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
+            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])
+    ]
+)
 
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
