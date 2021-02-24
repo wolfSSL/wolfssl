@@ -14565,6 +14565,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #if !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && \
     ((!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
     defined(WOLFSSL_PUBLIC_MP))
+    const char inStr[] = TEST_STRING;
 	const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
@@ -22159,7 +22160,9 @@ static int ecc_def_curve_test(WC_RNG *rng)
 #else
     ecc_key key[1];
 #endif
+#ifdef WC_NO_RNG
     word32 idx = 0;
+#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     if (key == NULL)
