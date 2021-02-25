@@ -6530,13 +6530,16 @@ echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
 then
-    echo "   * SP math implementation:     all"
-elif test "$ENABLED_SP_MATH" != "no"
-then
-    echo "   * SP math implementation:     restricted"
+    ENABLED_SP_MATH_DESC="all"
 else
-    echo "   * SP math implementation:     no"
+    if test "$ENABLED_SP_MATH" != "no"
+    then
+        ENABLED_SP_MATH_DESC="restricted"
+    else
+        ENABLED_SP_MATH_DESC="no"
+    fi
 fi
+echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
