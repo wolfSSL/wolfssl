@@ -77,6 +77,12 @@ WOLFSSL_API
 int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
                 int type, void* unused);
+
+WOLFSSL_API
+int wc_InitCmac_ex(Cmac* cmac,
+                const byte* key, word32 keySz,
+                int type, void* unused, void* heap, int devId);
+
 WOLFSSL_API
 int wc_CmacUpdate(Cmac* cmac,
                   const byte* in, word32 inSz);

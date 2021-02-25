@@ -36,6 +36,7 @@
 #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h> /* functions for blob/cover*/
 
 #define DEFAULT_PORT 11111
+#define ECC_KEY_SIZE 32
 
 #undef  USE_CERT_BUFFERS_256
 #define USE_CERT_BUFFERS_256
@@ -49,8 +50,8 @@ static int test_blob(byte* key, int keySz)
     int  outSz;
     int  keyOutSz;
 
-    byte keymod[16];
-    int  keymodSz = 16;
+    byte keymod[WC_CAAM_BLACK_KEYMOD_SZ];
+    int  keymodSz = WC_CAAM_BLACK_KEYMOD_SZ;
 
     /* using a key mod of all 1's */
     XMEMSET(keymod, 1, keymodSz);
@@ -94,16 +95,15 @@ int cover(ecc_key* keyOut, const byte* der, word32 derSz)
     word32  idx = 0;
 
     /* format bit plus public key x and y parameter */
-    byte x963[65];
-    word32 x963Sz = 65;
+    byte x963[(ECC_KEY_SIZE*2) + 1];
+    word32 x963Sz = (ECC_KEY_SIZE*2) + 1;
 
     /* uncovered private key */
-    byte d[32];
-    word32 dSz = 32;
+    byte d[ECC_KEY_SIZE];
+    word32 dSz = ECC_KEY_SIZE;
 
-    byte blackKey[48]; /* 16 bytes larger than key size to account for MAC and
-                        * potential padding */
-    word32 blackKeySz = 48;
+    byte blackKey[ECC_KEY_SIZE + WC_CAAM_MAC_SZ];
+    word32 blackKeySz = ECC_KEY_SIZE + WC_CAAM_MAC_SZ;
 
 
     /* The DER buffer for test case does not contain a black key, here we will
@@ -151,7 +151,7 @@ int cover(ecc_key* keyOut, const byte* der, word32 derSz)
         goto done;
     }
 
-    if (test_blob(blackKey, blackKeySz - 16) != 0) {/*-16 byte for MAC padding*/
+    if (test_blob(blackKey, blackKeySz - WC_CAAM_MAC_SZ) != 0) {
         printf("test blob failed\n");
         ret = -1;
         goto done;
@@ -191,7 +191,7 @@ static int TLS_ECC_Sign_callback(WOLFSSL* ssl, const unsigned char* in,
     printf("Using ECC sign callback\n");
 
     if (ctx == NULL) {
-        printf("Was expecting a black key passed along with WOLFSSH\n");
+        printf("Was expecting a black key passed along with WOLFSSL\n");
         return -1;
     }
     blackKey = (ecc_key*)ctx;
