@@ -2028,8 +2028,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #ifndef NO_CERTS
-    if ((ret = InitSSL_CtxCerts(ctx, heap)) != 0) {
-        return ret;
+    ctx->cm = wolfSSL_CertManagerNew_ex(heap);
+    if (ctx->cm == NULL) {
+        WOLFSSL_MSG("Bad Cert Manager New");
+        return BAD_CERT_MANAGER_ERROR;
     }
     #ifdef OPENSSL_EXTRA
     /* setup WOLFSSL_X509_STORE */
@@ -2112,38 +2114,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     return ret;
 }
 
-#ifndef NO_CERTS
-void SSL_CtxCertsFree(WOLFSSL_CTX* ctx)
-{
-    FreeDer(&ctx->privateKey);
-    FreeDer(&ctx->certificate);
-    #ifdef KEEP_OUR_CERT
-        if (ctx->ourCert && ctx->ownOurCert) {
-            FreeX509(ctx->ourCert);
-            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
-            ctx->ourCert = NULL;
-        }
-    #endif /* KEEP_OUR_CERT */
-    FreeDer(&ctx->certChain);
-    wolfSSL_CertManagerFree(ctx->cm);
-    ctx->cm = NULL;
-    #ifdef OPENSSL_EXTRA
-        wolfSSL_X509_STORE_free(ctx->x509_store_pt);
-        while (ctx->ca_names != NULL) {
-            WOLFSSL_STACK *next = ctx->ca_names->next;
-            wolfSSL_X509_NAME_free(ctx->ca_names->data.name);
-            XFREE(ctx->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->ca_names = next;
-        }
-    #endif
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        if (ctx->x509Chain) {
-            wolfSSL_sk_X509_free(ctx->x509Chain);
-            ctx->x509Chain = NULL;
-        }
-    #endif
-}
-#endif /* !NO_CERTS */
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
 void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
@@ -22709,23 +22679,8 @@ exit_dpk:
                 return WOLFSSL_ERROR_WANT_X509_LOOKUP;
             }
         }
-        if (ssl->ctx->certSetupCb != NULL) {
-            WOLFSSL_MSG("Calling user cert setup callback");
-            ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
-            if (ret == 1) {
-                WOLFSSL_MSG("User cert callback returned success");
-            }
-            else if (ret == 0) {
-                SendAlert(ssl, alert_fatal, internal_error);
-                return CLIENT_CERT_CB_ERROR;
-            }
-            else if (ret < 0) {
-                return WOLFSSL_ERROR_WANT_X509_LOOKUP;
-            }
-            else {
-                WOLFSSL_MSG("Unexpected user callback return");
-            }
-        }
+        if ((ret = callCertSetupCb(ssl)) != 0)
+            return ret;
     #endif
 
         /* don't send client cert or cert verify if user hasn't provided
@@ -29465,25 +29420,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         wc_HmacFree(&cookieHmac);
 #endif
 
-        if (ret == 0 && ssl->ctx->certSetupCb != NULL) {
-            WOLFSSL_MSG("Calling user cert setup callback");
-            ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
-            if (ret == 1) {
-                WOLFSSL_MSG("User cert callback returned success");
-                ret = 0;
-            }
-            else if (ret == 0) {
-                SendAlert(ssl, alert_fatal, internal_error);
-                ret = CLIENT_CERT_CB_ERROR;
-            }
-            else if (ret < 0) {
-                ret = WOLFSSL_ERROR_WANT_X509_LOOKUP;
-            }
-            else {
-                WOLFSSL_MSG("Unexpected user callback return");
-                ret = 0;
-            }
-        }
+#ifdef OPENSSL_EXTRA
+        if (ret == 0)
+            ret = callCertSetupCb(ssl);
+#endif
 
         return ret;
     }

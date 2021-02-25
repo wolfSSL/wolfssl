@@ -1774,6 +1774,7 @@ WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb
 typedef int (*CertSetupCallback)(WOLFSSL*, void*);
 WOLFSSL_API void wolfSSL_CTX_set_cert_cb(WOLFSSL_CTX* ctx,
     CertSetupCallback cb, void *arg);
+int callCertSetupCb(WOLFSSL* ssl);
 
 WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(
         WOLFSSL_X509_STORE_CTX* ctx, int idx);

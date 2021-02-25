@@ -13480,24 +13480,33 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         /* in case used set_accept_state after init */
         /* allow no private key if using PK callbacks and CB is set */
         if (!havePSK && !haveAnon && !haveMcast) {
-            if (!ssl->buffers.certificate ||
-                !ssl->buffers.certificate->buffer) {
-
-                WOLFSSL_MSG("accept error: server cert required");
-                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-                return WOLFSSL_FATAL_ERROR;
-            }
-
-        #ifdef HAVE_PK_CALLBACKS
-            if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
-                WOLFSSL_MSG("Using PK for server private key");
+        #ifdef OPENSSL_EXTRA
+            if (ssl->ctx->certSetupCb != NULL) {
+                WOLFSSL_MSG("CertSetupCb set. server cert and "
+                            "key not checked");
             }
             else
         #endif
-            if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
-                WOLFSSL_MSG("accept error: server key required");
-                WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
-                return WOLFSSL_FATAL_ERROR;
+            {
+                if (!ssl->buffers.certificate ||
+                    !ssl->buffers.certificate->buffer) {
+
+                    WOLFSSL_MSG("accept error: server cert required");
+                    WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+
+            #ifdef HAVE_PK_CALLBACKS
+                if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+                    WOLFSSL_MSG("Using PK for server private key");
+                }
+                else
+            #endif
+                if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
+                    WOLFSSL_MSG("accept error: server key required");
+                    WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
         }
     #endif
@@ -15945,8 +15954,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* SESSION_CERTS */
 
 
-    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+    #ifdef OPENSSL_EXTRA
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
@@ -15968,7 +15976,38 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->certSetupCb = cb;
         ctx->certSetupCbArg = arg;
     }
-    #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
+    /**
+     * Internal wrapper for calling certSetupCb
+     * @param ssl
+     * @return 0 on success
+     */
+    int callCertSetupCb(WOLFSSL* ssl)
+    {
+        int ret = 0;
+        if (ssl->ctx->certSetupCb != NULL) {
+            WOLFSSL_ENTER("callCertSetupCb");
+            WOLFSSL_MSG("Calling user cert setup callback");
+            ret = ssl->ctx->certSetupCb(ssl, ssl->ctx->certSetupCbArg);
+            if (ret == 1) {
+                WOLFSSL_MSG("User cert callback returned success");
+                ret = 0;
+            }
+            else if (ret == 0) {
+                SendAlert(ssl, alert_fatal, internal_error);
+                ret = CLIENT_CERT_CB_ERROR;
+            }
+            else if (ret < 0) {
+                ret = WOLFSSL_ERROR_WANT_X509_LOOKUP;
+            }
+            else {
+                WOLFSSL_MSG("Unexpected user callback return");
+                ret = CLIENT_CERT_CB_ERROR;
+            }
+        }
+        return ret;
+    }
+    #endif /* OPENSSL_EXTRA */
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
 
@@ -16478,6 +16517,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     /**
      * Implemented in a similar way that ngx_ssl_ocsp_validate does it when
      * SSL_get0_verified_chain is not available.
@@ -16526,6 +16567,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         wolfSSL_X509_STORE_CTX_free(storeCtx);
         return chain;
     }
+#endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
     WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
     {
@@ -16568,7 +16610,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_set0_verify_cert_store");
 
-        if (ssl == NULL || ssl->ctx || str == NULL) {
+        if (ssl == NULL || ssl->ctx == NULL || str == NULL) {
             WOLFSSL_MSG("Bad parameter");
             return WOLFSSL_FAILURE;
         }
@@ -45453,6 +45495,35 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 }
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
+#ifdef OPENSSL_EXTRA
+void wolfSSL_certs_clear(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_certs_clear()");
+
+    if (ssl == NULL || ssl->ctx == NULL)
+        return;
+
+    /* ctx still owns certificate, certChain, key, dh, and cm */
+    if (ssl->buffers.weOwnCert)
+        FreeDer(&ssl->buffers.certificate);
+    ssl->buffers.certificate = NULL;
+    if (ssl->buffers.weOwnCertChain)
+        FreeDer(&ssl->buffers.certChain);
+    ssl->buffers.certChain = NULL;
+#ifdef WOLFSSL_TLS13
+    ssl->buffers.certChainCnt = 0;
+#endif
+    if (ssl->buffers.weOwnKey)
+        FreeDer(&ssl->buffers.key);
+    ssl->buffers.key      = NULL;
+    ssl->buffers.keyType  = 0;
+    ssl->buffers.keyId    = 0;
+    ssl->buffers.keyLabel = 0;
+    ssl->buffers.keySz    = 0;
+    ssl->buffers.keyDevId = 0;
+}
+#endif
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT)
 
@@ -45645,18 +45716,6 @@ long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
     return wolfSSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0l, NULL);
 }
 #endif
-
-void wolfSSL_certs_clear(WOLFSSL* ssl)
-{
-    WOLFSSL_ENTER("wolfSSL_certs_clear()");
-
-    if (ssl == NULL || ssl->ctx == NULL)
-        return;
-
-    SSL_CtxCertsFree(ssl->ctx);
-    InitSSL_CtxCerts(ssl->ctx, ssl->ctx->heap);
-}
-
 
 /* Returns the verifyCallback from the ssl structure if successful.
 Returns NULL otherwise. */

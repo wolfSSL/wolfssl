@@ -2789,8 +2789,7 @@ struct WOLFSSL_CTX {
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_LIGHTY)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
-    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
-        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
+    #ifdef OPENSSL_EXTRA
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
     client_cert_cb CBClientCert;  /* client certificate callback */
     CertSetupCallback  certSetupCb;
@@ -3084,13 +3083,9 @@ struct WOLFSSL_CTX {
 };
 
 WOLFSSL_LOCAL
-int InitSSL_CtxCerts(WOLFSSL_CTX*, void*);
-WOLFSSL_LOCAL
 int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
 WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX*);
-WOLFSSL_LOCAL
-void SSL_CtxCertsFree(WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX*);
 

@@ -767,6 +767,7 @@ AC_ARG_ENABLE([mcast],
 # openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn) WOLFSSL_OPENVPN
 # nginix (--enable-nginx) WOLFSSL_NGINX
+# openresty (--enable-openresty)
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
 # wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
 # ssl fortress (--enable-fortress) FORTRESS
@@ -796,12 +797,24 @@ AC_ARG_ENABLE([openvpn],
     [ENABLED_OPENVPN=$enableval],
     [ENABLED_OPENVPN=no])
 
+# openresty compatibility build
+AC_ARG_ENABLE([openresty],
+    [AS_HELP_STRING([--enable-openresty],[Enable openresty (default: disabled)])],
+    [ ENABLED_OPENRESTY=$enableval ],
+    [ ENABLED_OPENRESTY=no ]
+    )
+
 # nginx compatibility build
 AC_ARG_ENABLE([nginx],
     [AS_HELP_STRING([--enable-nginx],[Enable nginx (default: disabled)])],
     [ ENABLED_NGINX=$enableval ],
     [ ENABLED_NGINX=no ]
     )
+
+if test "$ENABLED_OPENRESTY" = "yes"
+then
+    ENABLED_NGINX="yes"
+fi
 
 # lighty Support
 AC_ARG_ENABLE([lighty],
@@ -928,7 +941,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes" || test "$ENABLED_SMIME" = "yes" || test "$ENABLED_HAPROXY" = "yes" || test "$ENABLED_OPENRESTY" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -1871,6 +1884,11 @@ AC_ARG_ENABLE([keygen],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
+
+if test "$ENABLED_OPENRESTY" = "yes"
+then
+    ENABLED_KEYGEN=yes
+fi 
 
 if test "$ENABLED_KEYGEN" = "yes"
 then
@@ -6740,6 +6758,7 @@ echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * tcpdump:                    $ENABLED_TCPDUMP"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
+echo "   * OpenResty:                  $ENABLED_OPENRESTY"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
 echo "   * Qt:                         $ENABLED_QT"
