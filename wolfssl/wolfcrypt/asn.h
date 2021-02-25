@@ -977,6 +977,14 @@ struct DecodedCert {
 #endif
 };
 
+/* ASN Encoded Name field */
+typedef struct EncodedName {
+    int  nameLen;                /* actual string value length */
+    int  totalLen;               /* total encoded length */
+    int  type;                   /* type of name */
+    int  used;                   /* are we actually using this one */
+    byte encoded[CTC_NAME_SIZE * 2]; /* encoding */
+} EncodedName;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
@@ -1163,6 +1171,8 @@ WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b);
 WOLFSSL_LOCAL int wc_ValidateDate(const byte* date, byte format, int dateType);
 WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 
+WOLFSSL_LOCAL int wc_EncodeName(EncodedName* name, const char* nameStr,
+                                char nameType, byte type);
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
 WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);

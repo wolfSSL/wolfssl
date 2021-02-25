@@ -40803,7 +40803,177 @@ cleanup:
         return wolfSSL_X509_sign(x509, ctx->pctx->pkey, wolfSSL_EVP_MD_CTX_md(ctx));
     }
 #endif /* OPENSSL_EXTRA */
+
+/* Guarded by either
+ * A) WOLFSSL_WPAS_SMALL is on or
+ * B) (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) + WOLFSSL_CERT_GEN +
+ *    (WOLFSSL_CERT_REQ or WOLFSSL_CERT_EXT or OPENSSL_EXTRA) has been
+ *    defined
+ */
+#if defined(WOLFSSL_WPAS_SMALL) || \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
+     defined(OPENSSL_EXTRA))
+/* Converts from NID_* value to wolfSSL value if needed */
+static int ConvertNIDToWolfSSL(int nid)
+{
+    switch (nid) {
+        case NID_commonName : return ASN_COMMON_NAME;
+        case NID_surname :    return ASN_SUR_NAME;
+        case NID_countryName: return ASN_COUNTRY_NAME;
+        case NID_localityName: return ASN_LOCALITY_NAME;
+        case NID_stateOrProvinceName: return ASN_STATE_NAME;
+        case NID_organizationName: return ASN_ORG_NAME;
+        case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
+        case NID_emailAddress: return ASN_EMAIL_NAME;
+        case NID_serialNumber: return ASN_SERIAL_NUMBER;
+        case NID_businessCategory: return ASN_BUS_CAT;
+        case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
+        default:
+            WOLFSSL_MSG("Attribute NID not found");
+            return -1;
+    }
+}
+
+/* Converts the x509 name structure into DER format.
+ *
+ * out  pointer to either a pre setup buffer or a pointer to null for
+ *      creating a dynamic buffer. In the case that a pre-existing buffer is
+ *      used out will be incremented the size of the DER buffer on success.
+ *
+ * returns the size of the buffer on success, or negative value with failure
+ */
+int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
+{
+    int  totalBytes = 0, i, idx;
+    byte temp[MAX_SEQ_SZ];
+    byte *output, *local = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    EncodedName* names = NULL;
+#else
+    EncodedName  names[MAX_NAME_ENTRIES];
+#endif
+
+    if (out == NULL || name == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * MAX_NAME_ENTRIES, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (names == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(names, 0, sizeof(EncodedName) * MAX_NAME_ENTRIES);
+
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        int ret;
+
+        entry = wolfSSL_X509_NAME_get_entry(name, i);
+        if (entry != NULL && entry->set == 1) {
+            const char* nameStr;
+            int type;
+            WOLFSSL_ASN1_STRING* data;
+
+            data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
+            if (data == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                WOLFSSL_MSG("Error getting entry data");
+                return WOLFSSL_FATAL_ERROR;
+            }
+
+            nameStr = (const char*)wolfSSL_ASN1_STRING_data(data);
+            type    = wolfSSL_ASN1_STRING_type(data);
+
+            switch (type) {
+                case MBSTRING_UTF8:
+                    type = CTC_UTF8;
+                    break;
+                case V_ASN1_PRINTABLESTRING:
+                    type = CTC_PRINTABLE;
+                    break;
+                default:
+                    WOLFSSL_MSG("Unknown encoding type conversion UTF8 by default");
+                    type = CTC_UTF8;
+            }
+            ret = wc_EncodeName(&names[i], nameStr, type,
+                ConvertNIDToWolfSSL(entry->nid));
+            if (ret < 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                WOLFSSL_MSG("EncodeName failed");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            totalBytes += ret;
+        }
+    }
+
+    /* header */
+    idx = SetSequence(totalBytes, temp);
+    if (totalBytes + idx > ASN_NAME_MAX) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
+        return BUFFER_E;
+    }
+
+    /* check if using buffer passed in */
+    if (*out == NULL) {
+        *out = local = (unsigned char*)XMALLOC(totalBytes + idx, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (*out == NULL) {
+            return MEMORY_E;
+        }
+    }
+    output = *out;
+    /* header */
+    idx = SetSequence(totalBytes, temp);
+    if (totalBytes + idx > ASN_NAME_MAX) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
+        return BUFFER_E;
+    }
+
+    /* check if using buffer passed in */
+    if (*out == NULL) {
+        *out = local = (unsigned char*)XMALLOC(totalBytes + idx, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (*out == NULL) {
+            return MEMORY_E;
+        }
+    }
+    output = *out;
+
+    idx = SetSequence(totalBytes, output);
+    totalBytes += idx;
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        if (names[i].used) {
+            XMEMCPY(output + idx, names[i].encoded, names[i].totalLen);
+            idx += names[i].totalLen;
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    /* used existing buffer passed in, so increment pointer */
+    if (local == NULL) {
+        *out += totalBytes;
+    }
+    return totalBytes;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 #endif /* WOLFSSL_CERT_GEN */
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
     WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
