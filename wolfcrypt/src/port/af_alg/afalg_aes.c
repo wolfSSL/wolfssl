@@ -539,7 +539,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ivSz != WC_SYSTEM_AESGCM_IV || authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("IV/AAD size not supported on system");
+        WOLFSSL_MSG("IV / auth tag size not supported on system");
         return BAD_FUNC_ARG;
     }
 
@@ -724,7 +724,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ivSz != WC_SYSTEM_AESGCM_IV || authTagSz > WOLFSSL_MAX_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("IV/AAD size not supported on system");
+        WOLFSSL_MSG("IV / auth tag size not supported on system");
         return BAD_FUNC_ARG;
     }
 
