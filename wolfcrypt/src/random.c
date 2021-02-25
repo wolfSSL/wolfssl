@@ -2236,19 +2236,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(INTIME_RTOS)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret = 0;
-
-        (void)os;
+        uint32_t rand;
+        word32 len = sizeof(rand);
 
         if (output == NULL) {
             return BUFFER_E;
         }
 
-        /* Note: Investigate better solution */
-        /* no return to check */
-        arc4random_buf(output, sz);
+        while (sz > 0) {
+            if (sz < len)
+                len = sz;
+            rand = arc4random(); /* returns 32-bits of random */
+            XMEMCPY(output, &rand, len);
+            output += len;
+            sz -= len;
+        }
+        (void)os;
 
-        return ret;
+        return 0;
     }
 
 #elif defined(WOLFSSL_WICED)
