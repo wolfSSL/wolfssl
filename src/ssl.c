@@ -29465,6 +29465,50 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     *num = (aes->left)? AES_BLOCK_SIZE - aes->left : 0;
 #endif /* WOLFSSL_AES_CFB */
 }
+
+#ifdef HAVE_AES_KEYWRAP
+int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
+                 unsigned char *out,
+                 const unsigned char *in, unsigned int inlen)
+{
+    Aes* aes;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_AES_wrap_key");
+
+    if (out == NULL || in == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    aes = (Aes*)key;
+
+    ret = wc_AesKeyWrap_ex(aes, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
+
+    return ret < 0 ? WOLFSSL_FAILURE : ret;
+}
+
+int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
+                   unsigned char *out,
+                   const unsigned char *in, unsigned int inlen)
+{
+    Aes* aes;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_AES_wrap_key");
+
+    if (out == NULL || in == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return WOLFSSL_FAILURE;
+    }
+
+    aes = (Aes*)key;
+
+    ret = wc_AesKeyUnWrap_ex(aes, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
+
+    return ret < 0 ? WOLFSSL_FAILURE : ret;
+}
+#endif /* HAVE_AES_KEYWRAP */
 #endif /* NO_AES */
 
 #ifndef NO_FILESYSTEM

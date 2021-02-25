@@ -33607,6 +33607,34 @@ static void test_wolfSSL_AES_cbc_encrypt()
     printf(resultFmt, "passed");
 
     #endif
+
+    #ifdef HAVE_AES_KEYWRAP
+    byte wrapCipher[sizeof(key256) + KEYWRAP_BLOCK_SIZE] = { 0 };
+    byte wrapPlain[sizeof(key256)] = { 0 };
+    byte wrapIV[KEYWRAP_BLOCK_SIZE] = { 0 };
+    printf(testingFmt, "wolfSSL_AES_wrap_key() 256-bit NULL iv");
+    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    AssertIntEQ(wolfSSL_AES_wrap_key(&aes, NULL, wrapCipher, key256,
+            sizeof(key256)), sizeof(wrapCipher));
+    printf(resultFmt, "passed");
+    printf(testingFmt, "wolfSSL_AES_unwrap_key() 256-bit NULL iv");
+    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
+            sizeof(wrapCipher)), sizeof(wrapPlain));
+    printf(resultFmt, "passed");
+    XMEMSET(wrapCipher, 0, sizeof(wrapCipher));
+    XMEMSET(wrapPlain, 0, sizeof(wrapPlain));
+    printf(testingFmt, "wolfSSL_AES_wrap_key() 256-bit custom iv");
+    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    AssertIntEQ(wolfSSL_AES_wrap_key(&aes, wrapIV, wrapCipher, key256,
+            sizeof(key256)), sizeof(wrapCipher));
+    printf(resultFmt, "passed");
+    printf(testingFmt, "wolfSSL_AES_unwrap_key() 256-bit custom iv");
+    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, wrapPlain, wrapCipher,
+            sizeof(wrapCipher)), sizeof(wrapPlain));
+    printf(resultFmt, "passed");
+    #endif /* HAVE_AES_KEYWRAP */
   #endif /* WOLFSSL_AES_256 */
 #endif
 }
