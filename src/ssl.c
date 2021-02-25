@@ -47771,7 +47771,7 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, ticketCompatCb cb)
      * callback.
      */
     ctx->ticketEncCb = wolfSSL_TicketKeyCb;
-    ctx->ticketEncCtx = cb;
+    ctx->ticketEncCtx = (void*)cb;
 
     return WOLFSSL_SUCCESS;
 }
