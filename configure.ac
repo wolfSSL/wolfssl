@@ -3492,6 +3492,11 @@ AS_CASE([$SELFTEST_VERSION],
     ])
 
 
+# Set SHA-3 and SHAKE256 flags
+if test "$ENABLED_SHA3" = "yes" && test "$ENABLED_32BIT" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
+fi
 AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256="no"])
 
 if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
