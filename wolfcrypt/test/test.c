@@ -14558,22 +14558,12 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     RsaKey caKey[1];
 #endif
 #endif
-#if !defined(NO_ASN) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) \
-                     || defined(WOLFSSL_PUBLIC_MP)
     word32 idx = 0;
-#endif
-#if !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && \
-    ((!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
-    defined(WOLFSSL_PUBLIC_MP))
     const char inStr[] = TEST_STRING;
 	const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
-#endif
-#if (!defined(WOLFSSL_RSA_PUBLIC_ONLY) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WC_NO_RNG)) || defined(WOLFSSL_PUBLIC_MP)
     byte*  res;
-#endif
 #ifndef NO_SIG_WRAPPER
     int modLen;
 #endif
@@ -14591,9 +14581,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 #endif
 
-#if !defined(WC_NO_RNG) && !defined(WC_NO_RSA_OAEP) && \
-    ((!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
-    defined(WOLFSSL_PUBLIC_MP))
     DECLARE_VAR(in, byte, TEST_STRING_SZ, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -14604,7 +14591,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 #endif
 
     XMEMCPY(in, inStr, inLen);
-#endif
 
 #ifdef WOLFSSL_SMALL_STACK
     if (key == NULL)
@@ -14816,9 +14802,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     TEST_SLEEP();
 
 #elif defined(WOLFSSL_PUBLIC_MP)
-    (void)outSz;
-    (void)inLen;
-    (void)res;
     {
         static byte signature_2048[] = {
             0x07, 0x6f, 0xc9, 0x85, 0x73, 0x9e, 0x21, 0x79,
@@ -15272,8 +15255,6 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
     }
 
     FreeDecodedCert(cert);
-#else
-    (void)bytes;
 #endif
 
 #ifdef WOLFSSL_CERT_EXT
@@ -15636,50 +15617,52 @@ WOLFSSL_TEST_SUBROUTINE int rsa_test(void)
 exit_rsa:
 
 #ifdef WOLFSSL_SMALL_STACK
-
     if (key != NULL) {
         wc_FreeRsaKey(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
+    #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     if (keypub != NULL) {
         wc_FreeRsaKey(keypub);
         XFREE(keypub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif
-#if defined(HAVE_NTRU)
+    #endif
+    #if defined(HAVE_NTRU)
     if (caKey != NULL) {
         wc_FreeRsaKey(caKey);
         XFREE(caKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-#endif
-#ifdef WOLFSSL_TEST_CERT
+    #endif
+    #ifdef WOLFSSL_TEST_CERT
     if (cert != NULL)
         XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
+    #endif
 #else
-
     wc_FreeRsaKey(key);
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
+    #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
     wc_FreeRsaKey(keypub);
-#endif
-#if defined(HAVE_NTRU)
+    #endif
+    #if defined(HAVE_NTRU)
     wc_FreeRsaKey(caKey);
-#endif
-
-#endif
+    #endif
+#endif /* WOLFSSL_SMALL_STACK */
 
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeRng(&rng);
 
-#if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
-                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     FREE_VAR(in, HEAP_HINT);
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
-#endif
+
+    (void)res;
+    (void)bytes;
+    (void)in;
+    (void)out;
+    (void)plain;
+    (void)inLen;
+    (void)outSz;
+    (void)plainSz;
 
     /* ret can be greater then 0 with certgen but all negative values should
      * be returned and treated as an error */
