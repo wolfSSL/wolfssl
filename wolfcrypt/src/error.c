@@ -518,6 +518,9 @@ const char* wc_GetErrorString(int error)
     case ASN_SELF_SIGNED_E:
         return "ASN self-signed certificate error";
 
+    case ECDSA_KAT_FIPS_E:
+        return "wolfcrypt FIPS ECDSA Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
