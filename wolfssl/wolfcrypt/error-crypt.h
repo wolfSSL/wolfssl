@@ -239,8 +239,9 @@ enum {
     MISSING_KEY         = -278,  /* Key was not set */
     BAD_LENGTH_E        = -279,  /* Value of length parameter is invalid. */
     ECDSA_KAT_FIPS_E    = -280,  /* ECDSA KAT failure */
+    RSA_PAT_FIPS_E      = -281,  /* RSA Pairwise failure */
 
-    WC_LAST_E           = -280,  /* Update this to indicate last error */
+    WC_LAST_E           = -281,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

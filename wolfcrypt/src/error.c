@@ -533,6 +533,9 @@ const char* wc_GetErrorString(int error)
     case ECDSA_KAT_FIPS_E:
         return "wolfcrypt FIPS ECDSA Known Answer Test Failure";
 
+    case RSA_PAT_FIPS_E:
+        return "wolfcrypt FIPS RSA Pairwise Agreement Test Failure";
+
     default:
         return "unknown error number";
 
