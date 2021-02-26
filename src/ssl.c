@@ -53643,4 +53643,23 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
 
+#if defined(OPENSSL_EXTRA)
+void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id)
+{
+    (void)id;
+    return;
+}
+unsigned long wolfSSL_THREADID_hash(const WOLFSSL_CRYPTO_THREADID* id)
+{
+    (void)id;
+    return 0UL;
+}
+int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff)
+{
+    (void)ctx;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
+#endif /* OPENSSL_EXTRA */
+
 #endif /* !WOLFCRYPT_ONLY */
