@@ -6890,10 +6890,6 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
     left = len % 15;
 
     /* print pub element */
-    idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
 
     while (line) {
         idx = 0;
@@ -6913,8 +6909,6 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
         wolfSSL_BIO_write(out, buff, idx);
         XMEMSET(buff, 0, sizeof(buff));
-        idx = 0;
-        wsz = 0;
         line--;
     }
     idx = 0;
@@ -6953,10 +6947,11 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     word32 localIdx;
     word32 oid;
     byte   tag;
-    (void)pctx;
     int idx = 0;
     int wsz = 0;
     word32 i;
+
+    (void)pctx;
 
     if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
         return WOLFSSL_FAILURE;
@@ -7024,8 +7019,6 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     /* print out public key elements */
 
     idx = 0;
-    wsz = 0;
-
     wsz = Indent(indent, buff + idx);
     idx += wsz;
 
@@ -7135,8 +7128,6 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     nistCurveName = wolfSSL_EC_curve_nid2nist(nid);
 
     idx = 0;
-    wsz = 0;
-
     wsz = Indent(indent, buff + idx);
     idx += wsz;
 
@@ -7305,8 +7296,6 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     ySz = length;
 
     idx = 0;
-    wsz = 0;
-
     wsz = Indent(indent, buff + idx);
     idx += wsz;
 
@@ -7462,8 +7451,6 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     /* print elements */
     idx = 0;
-    wsz = 0;
-
     wsz = Indent(indent, buff + idx);
     idx += wsz;
 

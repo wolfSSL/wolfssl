@@ -2401,7 +2401,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     WOLFSSL_BIO* wbio = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     char line[256] = { 0 };
-
+    int i;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_print_public()");
     /* test error cases */
@@ -2442,7 +2442,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
 
     /* skip to the end of modulus element*/
-    for( int i = 0; i < 7 ;i++) {
+    for( i = 0; i < 7 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2493,7 +2493,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     sizeof("    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n")),0);
 
     /* skip to the end of pub element*/
-    for( int i = 0; i < 17 ;i++) {
+    for( i = 0; i < 17 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2503,7 +2503,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
                      sizeof("P:\n")),0);
 
     /* skip to the end of P element*/
-    for( int i = 0; i < 18 ;i++) {
+    for( i = 0; i < 18 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2513,7 +2513,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
                     sizeof("Q:\n")),0);
 
     /* skip to the end of Q element*/
-    for( int i = 0; i < 3 ;i++) {
+    for( i = 0; i < 3 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
     BIO_gets(wbio, line, sizeof(line));
@@ -2522,7 +2522,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
                     sizeof("G:\n")),0);
 
     /* skip to the end of G element*/
-    for( int i = 0; i < 18 ;i++) {
+    for( i = 0; i < 18 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
     /* should reach EOF */
@@ -2568,7 +2568,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     sizeof("    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n")),0);
 
     /* skip to the end of pub element*/
-    for( int i = 0; i < 4 ;i++) {
+    for( i = 0; i < 4 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2624,7 +2624,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     sizeof("    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n")),0);
 
     /* skip to the end of public-key element*/
-    for( int i = 0; i < 17 ;i++) {
+    for( i = 0; i < 17 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2639,7 +2639,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     sizeof("    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n")),0);
 
     /* skip to the end of prime element*/
-    for( int i = 0; i < 17 ;i++) {
+    for( i = 0; i < 17 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -2665,6 +2665,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     (void)wbio;
     (void)rbio;
     (void)line;
+    (void)i;
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
@@ -22600,9 +22601,10 @@ static int test_wc_DhPublicKeyDecode(void)
 {
     int ret = 0;
     word32 inOutIdx;
-    DhKey  key;
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
+    DhKey  key;  
+
     printf(testingFmt, "test_wc_DhPublicKeyDecode()");
 
     if (ret == 0) {
@@ -22643,7 +22645,6 @@ static int test_wc_DhPublicKeyDecode(void)
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
     (void)inOutIdx;
-    (void)key;
     return ret;
 }
 
