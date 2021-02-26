@@ -31459,6 +31459,75 @@ static void test_wolfSSL_BIO_should_retry(void)
 #endif
 }
 
+static void test_wolfSSL_BIO_connect(void)
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+    tcp_ready ready;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    BIO *tcp_bio;
+    BIO *ssl_bio;
+    SSL_CTX* ctx;
+    SSL *ssl;
+    char msg[] = "hello wolfssl!";
+    char reply[30];
+    char buff[10] = {0};
+
+    printf(testingFmt, "wolfSSL_BIO_new_connect()");
+
+    /* Setup server */
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    StartTCP();
+    InitTcpReady(&ready);
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+    server_args.signal = &ready;
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    AssertIntGT(XSPRINTF(buff, "%d", ready.port), 0);
+
+    /* Start the test proper */
+    /* Setup the TCP BIO */
+    AssertNotNull(tcp_bio = BIO_new_connect(wolfSSLIP));
+    AssertIntEQ(BIO_set_conn_port(tcp_bio, buff), 1);
+    /* Setup the SSL object */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+    SSL_set_connect_state(ssl);
+    /* Setup the SSL BIO */
+    AssertNotNull(ssl_bio = BIO_new(BIO_f_ssl()));
+    AssertIntEQ(BIO_set_ssl(ssl_bio, ssl, BIO_CLOSE), 1);
+    /* Link BIO's so that ssl_bio uses tcp_bio for IO */
+    AssertPtrEq(BIO_push(ssl_bio, tcp_bio), ssl_bio);
+    /* Do TCP connect */
+    AssertIntEQ(BIO_do_connect(ssl_bio), 1);
+    /* Do TLS handshake */
+    AssertIntEQ(BIO_do_handshake(ssl_bio), 1);
+    /* Test writing */
+    AssertIntEQ(BIO_write(ssl_bio, msg, sizeof(msg)), sizeof(msg));
+    /* Expect length of default wolfSSL reply */
+    AssertIntEQ(BIO_read(ssl_bio, reply, sizeof(reply)), 23);
+
+    /* Clean it all up */
+    BIO_free_all(ssl_bio);
+    SSL_CTX_free(ctx);
+
+    /* Server clean up */
+    join_thread(serverThread);
+    FreeTcpReady(&ready);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_BIO_write(void)
 {
     #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_BASE64_ENCODE)
@@ -40621,6 +40690,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_should_retry();
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
+    test_wolfSSL_BIO_connect();
     test_wolfSSL_BIO_printf();
     test_wolfSSL_BIO_f_md();
 #endif

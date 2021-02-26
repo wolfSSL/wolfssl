@@ -672,11 +672,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_set_write_buffer_size       wolfSSL_BIO_set_write_buffer_size
 #define BIO_f_ssl                       wolfSSL_BIO_f_ssl
 #define BIO_new_socket                  wolfSSL_BIO_new_socket
-#ifndef NO_WOLFSSL_STUB
 #define BIO_new_connect                 wolfSSL_BIO_new_connect
 #define BIO_set_conn_port               wolfSSL_BIO_set_conn_port
 #define BIO_do_connect                  wolfSSL_BIO_do_connect
-#endif
+#define BIO_do_handshake                wolfSSL_BIO_do_handshake
 #define SSL_set_bio                     wolfSSL_set_bio
 #define BIO_set_ssl                     wolfSSL_BIO_set_ssl
 #define BIO_eof                         wolfSSL_BIO_eof
