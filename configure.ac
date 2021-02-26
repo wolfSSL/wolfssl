@@ -235,7 +235,7 @@ AC_ARG_ENABLE([fips],
 AS_CASE([$ENABLED_FIPS],
     [ready|v3],[
         ENABLED_FIPS="yes"
-        FIPS_VERSION="v2"
+        FIPS_VERSION="v3"
         FIPS_READY="yes"
     ],
     [no],[
