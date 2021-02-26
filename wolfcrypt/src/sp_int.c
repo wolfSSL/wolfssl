@@ -13250,6 +13250,7 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         err = MP_VAL;
     }
     else if (sp_iszero(a)) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
         if (sp_iszero(b)) {
             err = MP_VAL;
         }
@@ -13360,6 +13361,10 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+
+    /* LCM of 0 and any number is undefined as 0 is not in the set of values
+     * being used.
+     */
     if ((err == MP_OKAY) && (mp_iszero(a) || mp_iszero(b))) {
         err = MP_VAL;
     }

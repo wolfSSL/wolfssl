@@ -5039,6 +5039,11 @@ int mp_lcm (mp_int * a, mp_int * b, mp_int * c)
   int     res;
   mp_int  t1, t2;
 
+  /* LCM of 0 and any number is undefined as 0 is not in the set of values
+   * being used. */
+  if (mp_iszero (a) == MP_YES || mp_iszero (b) == MP_YES) {
+    return MP_VAL;
+  }
 
   if ((res = mp_init_multi (&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
     return res;
@@ -5083,6 +5088,10 @@ int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
 
     /* either zero than gcd is the largest */
     if (mp_iszero (a) == MP_YES) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
+        if (mp_iszero (b) == MP_YES) {
+           return MP_VAL;
+        }
         return mp_abs (b, c);
     }
     if (mp_iszero (b) == MP_YES) {
