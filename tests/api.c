@@ -40348,7 +40348,7 @@ static int test_wolfSSL_THREADID_hash(void)
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
     (void)id;
-    (void)ret;
+    (void)res;
     return ret;
 }
 static int test_wolfSSL_CTX_set_ecdh_auto(void)
@@ -40363,6 +40363,7 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
     AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(ctx,1),1);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
+    (void)ctx;
     return ret;
 }
 
