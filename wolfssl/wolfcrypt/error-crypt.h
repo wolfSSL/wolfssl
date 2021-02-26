@@ -235,8 +235,9 @@ enum {
     CHACHA_POLY_OVERFLOW =-274,  /* ChaCha20Poly1305 limit overflow */
     ASN_SELF_SIGNED_E   = -275,  /* ASN self-signed certificate error */
     ECDSA_KAT_FIPS_E    = -276,  /* ECDSA KAT failure */
+    RSA_PAT_FIPS_E      = -277,  /* RSA Pairwise failure */
 
-    WC_LAST_E           = -276,  /* Update this to indicate last error */
+    WC_LAST_E           = -277,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
