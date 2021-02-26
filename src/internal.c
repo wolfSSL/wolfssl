@@ -10168,23 +10168,22 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         /* check if alt name is stored as IP addr octet */
         if (altName->type == ASN_IP_TYPE) {
-            char tmp[4];
-            int i;
-            word32 idx = 0;
-            for (i = 0; (idx < WOLFSSL_MAX_IPSTR) && (i < altName->len); i++) {
-                XMEMSET(tmp, 0, sizeof(tmp));
-                XSNPRINTF(tmp, sizeof(tmp), (altName->len <= 4) ? "%u" : "%02X",
-                        altName->name[i]);
-                idx += (word32)XSTRLEN(tmp);
-                XSTRNCAT(name, tmp, (altName->len <= 4) ? 3 : 2);
-                if ((idx < WOLFSSL_MAX_IPSTR ) && ((i + 1) < altName->len)) {
-                    name[idx++] = (altName->len <= 4) ? '.' : ':';
+            const unsigned char *ip = (const unsigned char*)altName->name;
+            if (altName->len == WOLFSSL_IP4_ADDR_LEN) {
+                XSNPRINTF(name, sizeof(name), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+            }
+            else if (altName->len == WOLFSSL_IP6_ADDR_LEN) {
+                int i;
+                for (i = 0; i < 8; i++) {
+                    XSNPRINTF(name + i * 5, sizeof(name) - i * 5, "%02X%02X%s",
+                              ip[2 * i], ip[2 * i + 1], (i < 7) ? ":" : "");
                 }
             }
-            if (idx >= WOLFSSL_MAX_IPSTR) {
-                idx = WOLFSSL_MAX_IPSTR -1;
+            else {
+                WOLFSSL_MSG("\tnot an IPv4 or IPv6 address");
+                altName = altName->next;
+                continue;
             }
-            name[idx] = '\0';
             buf = name;
             len = (word32)XSTRLEN(name);
         }
