@@ -530,6 +530,9 @@ const char* wc_GetErrorString(int error)
     case BAD_LENGTH_E:
         return "Value of length parameter is invalid.";
 
+    case ECDSA_KAT_FIPS_E:
+        return "wolfcrypt FIPS ECDSA Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
