@@ -32975,9 +32975,15 @@ static void test_wolfSSL_X509_sign(void)
                 ASN_DNS_TYPE), SSL_SUCCESS);
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     {
-        unsigned char ip_type[] = {127,0,0,1};
-        AssertIntEQ(wolfSSL_X509_add_altname_ex(x509, (char*)ip_type,
-                sizeof(ip_type), ASN_IP_TYPE), SSL_SUCCESS);
+        unsigned char ip4_type[] = {127,128,0,255};
+        unsigned char ip6_type[] = {0xdd, 0xcc, 0xba, 0xab,
+                                    0xff, 0xee, 0x99, 0x88,
+                                    0x77, 0x66, 0x55, 0x44,
+                                    0x00, 0x33, 0x22, 0x11};
+        AssertIntEQ(wolfSSL_X509_add_altname_ex(x509, (char*)ip4_type,
+                sizeof(ip4_type), ASN_IP_TYPE), SSL_SUCCESS);
+        AssertIntEQ(wolfSSL_X509_add_altname_ex(x509, (char*)ip6_type,
+                sizeof(ip6_type), ASN_IP_TYPE), SSL_SUCCESS);
     }
 #endif
 #endif /* WOLFSSL_ALT_NAMES */
@@ -32994,7 +33000,8 @@ static void test_wolfSSL_X509_sign(void)
     AssertIntEQ(X509_get_ext_count(x509), 1);
 #endif
 #if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
-    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.0.0.1", 0), 1);
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.128.0.255", 0), 1);
+    AssertIntEQ(wolfSSL_X509_check_ip_asc(x509, "DDCC:BAAB:FFEE:9988:7766:5544:0033:2211", 0), 1);
 #endif
 
     AssertIntEQ(wolfSSL_X509_get_serial_number(x509, sn, &snSz),
@@ -33016,8 +33023,8 @@ static void test_wolfSSL_X509_sign(void)
     /* Valid case - size should be 798-797 with 16 byte serial number */
     AssertTrue((ret == 781 + snSz) || (ret == 782 + snSz));
 #elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
-    /* Valid case - size should be 935-936 with 16 byte serial number */
-    AssertTrue((ret == 919 + snSz) || (ret == 920 + snSz));
+    /* Valid case - size should be 955-956 with 16 byte serial number */
+    AssertTrue((ret == 939 + snSz) || (ret == 940 + snSz));
 #else
     /* Valid case - size should be 926-927 with 16 byte serial number */
     AssertTrue((ret == 910 + snSz) || (ret == 911 + snSz));
