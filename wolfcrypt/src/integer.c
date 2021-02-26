@@ -4302,6 +4302,8 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
 
+  if (b > MP_DIGIT_MAX) return MP_VAL;
+
   /* grow c as required */
   if (c->alloc < a->used + 1) {
      if ((res = mp_grow(c, a->used + 1)) != MP_OKAY) {
