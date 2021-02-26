@@ -33608,7 +33608,7 @@ static void test_wolfSSL_AES_cbc_encrypt()
 
     #endif
 
-    #ifdef HAVE_AES_KEYWRAP
+    #if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     byte wrapCipher[sizeof(key256) + KEYWRAP_BLOCK_SIZE] = { 0 };
     byte wrapPlain[sizeof(key256)] = { 0 };
     byte wrapIV[KEYWRAP_BLOCK_SIZE] = { 0 };
@@ -33621,6 +33621,7 @@ static void test_wolfSSL_AES_cbc_encrypt()
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
     AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, NULL, wrapPlain, wrapCipher,
             sizeof(wrapCipher)), sizeof(wrapPlain));
+    AssertIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
     printf(resultFmt, "passed");
     XMEMSET(wrapCipher, 0, sizeof(wrapCipher));
     XMEMSET(wrapPlain, 0, sizeof(wrapPlain));
@@ -33633,6 +33634,7 @@ static void test_wolfSSL_AES_cbc_encrypt()
     AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
     AssertIntEQ(wolfSSL_AES_unwrap_key(&aes, wrapIV, wrapPlain, wrapCipher,
             sizeof(wrapCipher)), sizeof(wrapPlain));
+    AssertIntEQ(XMEMCMP(wrapPlain, key256, sizeof(key256)), 0);
     printf(resultFmt, "passed");
     #endif /* HAVE_AES_KEYWRAP */
   #endif /* WOLFSSL_AES_256 */

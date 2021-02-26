@@ -9011,7 +9011,7 @@ int wc_AesKeyUnWrap_ex(Aes *aes, const byte* in, word32 inSz, byte* out,
         0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
     };
 
-    if (in == NULL || inSz < 3 ||
+    if (aes == NULL || in == NULL || inSz < 3 ||
         out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
         return BAD_FUNC_ARG;
 

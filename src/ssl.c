@@ -29466,12 +29466,12 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 #endif /* WOLFSSL_AES_CFB */
 }
 
-#ifdef HAVE_AES_KEYWRAP
+/* wc_AesKey*Wrap_ex API not available in FIPS and SELFTEST */
+#if defined(HAVE_AES_KEYWRAP) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
                  unsigned char *out,
                  const unsigned char *in, unsigned int inlen)
 {
-    Aes* aes;
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_AES_wrap_key");
@@ -29481,9 +29481,7 @@ int wolfSSL_AES_wrap_key(AES_KEY *key, const unsigned char *iv,
         return WOLFSSL_FAILURE;
     }
 
-    aes = (Aes*)key;
-
-    ret = wc_AesKeyWrap_ex(aes, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
+    ret = wc_AesKeyWrap_ex((Aes*)key, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
 
     return ret < 0 ? WOLFSSL_FAILURE : ret;
 }
@@ -29492,7 +29490,6 @@ int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
                    unsigned char *out,
                    const unsigned char *in, unsigned int inlen)
 {
-    Aes* aes;
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_AES_wrap_key");
@@ -29502,13 +29499,11 @@ int wolfSSL_AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
         return WOLFSSL_FAILURE;
     }
 
-    aes = (Aes*)key;
-
-    ret = wc_AesKeyUnWrap_ex(aes, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
+    ret = wc_AesKeyUnWrap_ex((Aes*)key, in, inlen, out, inlen + KEYWRAP_BLOCK_SIZE, iv);
 
     return ret < 0 ? WOLFSSL_FAILURE : ret;
 }
-#endif /* HAVE_AES_KEYWRAP */
+#endif /* HAVE_AES_KEYWRAP && !HAVE_FIPS && !HAVE_SELFTEST */
 #endif /* NO_AES */
 
 #ifndef NO_FILESYSTEM
@@ -49765,7 +49760,14 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
         return 0;
     }
 
-    if (padding != RSA_PKCS1_PADDING && padding != RSA_PKCS1_PSS_PADDING) {
+    if (
+    #ifdef WC_RSA_PSS
+        padding != RSA_PKCS1_PSS_PADDING &&
+    #endif
+    #ifdef WC_RSA_NO_PADDING
+        padding != RSA_NO_PADDING &&
+    #endif
+        padding != RSA_PKCS1_PADDING) {
         WOLFSSL_MSG("wolfSSL_RSA_private_encrypt unsupported padding");
         return 0;
     }
@@ -49797,7 +49799,33 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
 #endif
 
     /* size of output buffer must be size of RSA key */
-    sz = wc_RsaSSL_Sign(in, (word32)len, out, wolfSSL_RSA_size(rsa), key, rng);
+    switch (padding) {
+        case RSA_PKCS1_PADDING:
+            sz = wc_RsaSSL_Sign(in, (word32)len, out, wolfSSL_RSA_size(rsa),
+                    key, rng);
+            break;
+    #ifdef WC_RSA_PSS
+        case RSA_PKCS1_PSS_PADDING:
+            sz = wc_RsaPSS_Sign(in, (word32)len, out, wolfSSL_RSA_size(rsa),
+                    WC_HASH_TYPE_NONE, WC_MGF1NONE, key, rng);
+            break;
+    #endif
+    #ifdef WC_RSA_NO_PADDING
+        case RSA_NO_PADDING:
+        {
+            word32 outLen = (word32)len;
+            sz = wc_RsaFunction(in, (word32)len, out, &outLen,
+                    RSA_PRIVATE_ENCRYPT, key, rng);
+            if (sz == 0)
+                sz = (int)outLen;
+            break;
+        }
+    #endif
+        default:
+            sz = BAD_FUNC_ARG;
+            break;
+    }
+
     #if !defined(WC_RSA_BLINDING) || defined(HAVE_USER_RSA)
     if (wc_FreeRng(rng) != 0) {
         WOLFSSL_MSG("Error freeing random number generator");
