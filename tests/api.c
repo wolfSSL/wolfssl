@@ -2442,7 +2442,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
 
     /* skip to the end of modulus element*/
-    for( i = 0; i < 7 ;i++) {
+    for( i = 0; i < 8 ;i++) {
         BIO_gets(wbio, line, sizeof(line));
     }
 
@@ -22603,7 +22603,7 @@ static int test_wc_DhPublicKeyDecode(void)
     word32 inOutIdx;
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
-    DhKey  key;  
+    DhKey  key = {0};
 
     printf(testingFmt, "test_wc_DhPublicKeyDecode()");
 
