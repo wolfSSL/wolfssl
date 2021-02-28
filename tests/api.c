@@ -22604,7 +22604,7 @@ static int test_wc_DhPublicKeyDecode(void)
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
     DhKey  key = {0};
-
+    ret = wc_InitDhKey(&key);
     printf(testingFmt, "test_wc_DhPublicKeyDecode()");
 
     if (ret == 0) {
