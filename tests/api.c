@@ -2625,14 +2625,14 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 }
 #endif /* WOLFSSL_SESSION_EXPORT */
 
-
+/* TODO: Expand and enable this when EVP_chacha20_poly1305 is supported */
 #if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM)) && \
+  defined(HAVE_AESGCM) && \
     defined(OPENSSL_EXTRA)
 
     typedef struct openssl_key_ctx {
         byte name[WOLFSSL_TICKET_NAME_SZ]; /* server name */
-        byte key[AES_256_KEY_SIZE]; /* cipher key */
+        byte key[WOLFSSL_TICKET_KEY_SZ]; /* cipher key */
         byte hmacKey[WOLFSSL_TICKET_NAME_SZ]; /* hmac key */
         byte iv[WOLFSSL_TICKET_IV_SZ]; /* cipher iv */
     } openssl_key_ctx;
@@ -2737,7 +2737,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
     OpenSSLTicketInit();
     wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
@@ -2929,7 +2929,7 @@ done:
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
     OpenSSLTicketCleanup();
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     TicketCleanup();
