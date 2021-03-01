@@ -16242,7 +16242,6 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 
 #ifndef WC_NO_RNG
 #ifdef WOLFSSL_SMALL_STACK
-    
     byte *priv = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *pub = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     byte *priv2 = (byte *)XMALLOC(DH_TEST_BUF_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16536,6 +16535,9 @@ done:
     wc_FreeDhKey(key2);
 #endif
 
+    (void)privSz;
+    (void)pubSz;
+    (void)pubSz2;
     (void)pubSz2;
 
     return ret;
