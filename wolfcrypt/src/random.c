@@ -2236,8 +2236,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(INTIME_RTOS)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        uint32_t rand;
-        word32 len = sizeof(rand);
+        uint32_t randval;
+        word32 len = sizeof(randval);
 
         if (output == NULL) {
             return BUFFER_E;
@@ -2246,8 +2246,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         while (sz > 0) {
             if (sz < len)
                 len = sz;
-            rand = arc4random(); /* returns 32-bits of random */
-            XMEMCPY(output, &rand, len);
+            randval = rand(); /* returns 32-bits of random */
+            XMEMCPY(output, &randval, len);
             output += len;
             sz -= len;
         }
