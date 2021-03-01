@@ -536,6 +536,15 @@ const char* wc_GetErrorString(int error)
     case RSA_PAT_FIPS_E:
         return "wolfcrypt FIPS RSA Pairwise Agreement Test Failure";
 
+    case KDF_TLS12_KAT_FIPS_E:
+        return "wolfcrypt FIPS TLSv1.2 KDF Known Answer Test Failure";
+
+    case KDF_TLS13_KAT_FIPS_E:
+        return "wolfcrypt FIPS TLSv1.3 KDF Known Answer Test Failure";
+
+    case KDF_SSH_KAT_FIPS_E:
+        return "wolfcrypt FIPS SSH KDF Known Answer Test Failure";
+
     default:
         return "unknown error number";
 

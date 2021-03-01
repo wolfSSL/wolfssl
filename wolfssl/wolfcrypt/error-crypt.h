@@ -240,8 +240,11 @@ enum {
     BAD_LENGTH_E        = -279,  /* Value of length parameter is invalid. */
     ECDSA_KAT_FIPS_E    = -280,  /* ECDSA KAT failure */
     RSA_PAT_FIPS_E      = -281,  /* RSA Pairwise failure */
+    KDF_TLS12_KAT_FIPS_E = -282,  /* TLS12 KDF KAT failure */
+    KDF_TLS13_KAT_FIPS_E = -283,  /* TLS13 KDF KAT failure */
+    KDF_SSH_KAT_FIPS_E  = -284,  /* SSH KDF KAT failure */
 
-    WC_LAST_E           = -281,  /* Update this to indicate last error */
+    WC_LAST_E           = -284,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
