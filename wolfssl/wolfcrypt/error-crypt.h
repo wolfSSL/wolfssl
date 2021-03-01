@@ -236,8 +236,11 @@ enum {
     ASN_SELF_SIGNED_E   = -275,  /* ASN self-signed certificate error */
     ECDSA_KAT_FIPS_E    = -276,  /* ECDSA KAT failure */
     RSA_PAT_FIPS_E      = -277,  /* RSA Pairwise failure */
+    KDF_TLS12_KAT_FIPS_E = -278,  /* TLS12 KDF KAT failure */
+    KDF_TLS13_KAT_FIPS_E = -279,  /* TLS13 KDF KAT failure */
+    KDF_SSH_KAT_FIPS_E  = -280,  /* SSH KDF KAT failure */
 
-    WC_LAST_E           = -277,  /* Update this to indicate last error */
+    WC_LAST_E           = -280,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
