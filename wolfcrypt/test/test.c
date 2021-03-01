@@ -90,7 +90,7 @@
 #endif
 
 #ifdef __GNUC__
-_Pragma("GCC diagnostic ignored \"-Wunused-function\"");
+_Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 #endif
 
 #ifdef USE_FLAT_TEST_H
