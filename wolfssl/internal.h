@@ -1732,7 +1732,7 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int FindSuite(Suites* suites, byte first, byte second);
+WOLFSSL_LOCAL byte SuiteMac(byte* suite);
 #endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
@@ -1899,11 +1899,15 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
     typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #ifdef WOLFSSL_TLS13
+    typedef unsigned int (*wc_psk_client_cs_callback)(WOLFSSL*, const char*,
+                          char*, unsigned int, unsigned char*, unsigned int,
+                          const char* cipherName);
     typedef unsigned int (*wc_psk_client_tls13_callback)(WOLFSSL*, const char*,
                           char*, unsigned int, unsigned char*, unsigned int,
-                          const char**);
+                          const char** cipherName);
     typedef unsigned int (*wc_psk_server_tls13_callback)(WOLFSSL*, const char*,
-                          unsigned char*, unsigned int, const char**);
+                          unsigned char*, unsigned int,
+                          const char** cipherName);
 #endif
 #endif /* PSK_TYPES_DEFINED */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
@@ -2894,6 +2898,7 @@ struct WOLFSSL_CTX {
     wc_psk_client_callback client_psk_cb;  /* client callback */
     wc_psk_server_callback server_psk_cb;  /* server callback */
 #ifdef WOLFSSL_TLS13
+    wc_psk_client_cs_callback    client_psk_cs_cb;     /* client callback */
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
@@ -3510,6 +3515,7 @@ typedef struct Options {
     wc_psk_use_session_cb_func session_psk_cb;
 #endif
 #ifdef WOLFSSL_TLS13
+    wc_psk_client_cs_callback    client_psk_cs_cb;     /* client callback */
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
@@ -4735,6 +4741,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 
 #if defined(WOLFSSL_TLS13) && (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
     WOLFSSL_LOCAL word32 TimeNowInMilliseconds(void);
+
+    WOLFSSL_LOCAL int FindSuiteMac(WOLFSSL* ssl, byte* suite);
 #endif
 WOLFSSL_LOCAL word32  LowResTimer(void);
 

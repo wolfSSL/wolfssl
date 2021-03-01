@@ -10397,7 +10397,49 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 usingPSK = 1;
             }
         #endif
-        #ifndef NO_PSK
+    #ifndef NO_PSK
+        #ifndef WOLFSSL_PSK_ONE_ID
+            if (ssl->options.client_psk_cs_cb != NULL) {
+                int i;
+                ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+                for (i = 0; i < ssl->suites->suiteSz; i += 2) {
+                    byte cipherSuite0 = ssl->suites->suites[i + 0];
+                    byte cipherSuite = ssl->suites->suites[i + 1];
+                    unsigned int keySz;
+
+                #ifdef HAVE_NULL_CIPHER
+                    if (cipherSuite0 == ECC_BYTE) {
+                        if (cipherSuite != TLS_SHA256_SHA256 &&
+                                             cipherSuite != TLS_SHA384_SHA384) {
+                            continue;
+                        }
+                    }
+                    else
+                #endif
+                    if (cipherSuite0 != TLS13_BYTE)
+                        continue;
+
+                    keySz = ssl->options.client_psk_cs_cb(
+                        ssl, ssl->arrays->server_hint,
+                        ssl->arrays->client_identity, MAX_PSK_ID_LEN,
+                        ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
+                        GetCipherNameInternal(cipherSuite0, cipherSuite));
+                    if (keySz > 0) {
+                        ssl->arrays->psk_keySz = keySz;
+                        ret = TLSX_PreSharedKey_Use(ssl,
+                            (byte*)ssl->arrays->client_identity,
+                            (word16)XSTRLEN(ssl->arrays->client_identity), 0,
+                            SuiteMac(ssl->suites->suites + i),
+                            cipherSuite0, cipherSuite, 0, NULL);
+                        if (ret != 0)
+                            return ret;
+                    }
+                }
+
+                usingPSK = 1;
+            }
+            else
+        #endif
             if (ssl->options.client_psk_cb != NULL ||
                                      ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default ciphersuite. */
@@ -10412,7 +10454,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
                     if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                               &cipherSuite, &cipherSuiteFlags) != 0) {
+                                        &cipherSuite, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
                 }
@@ -10426,6 +10468,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return PSK_KEY_ERROR;
                 }
                 ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
+
                 ssl->options.cipherSuite0 = cipherSuite0;
                 ssl->options.cipherSuite  = cipherSuite;
                 (void)cipherSuiteFlags;
@@ -10444,7 +10487,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 usingPSK = 1;
             }
-        #endif
+    #endif /* !NO_PSK */
         #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             if (usingPSK) {
                 byte modes;

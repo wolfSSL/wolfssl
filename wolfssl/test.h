@@ -1499,14 +1499,18 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 {
     int i;
     int b = 0x01;
+    int kIdLen = (int)XSTRLEN(kIdentityStr);
     const char* userCipher = (const char*)wolfSSL_get_psk_callback_ctx(ssl);
 
     (void)ssl;
     (void)key_max_len;
 
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    if (XSTRNCMP(identity, kIdentityStr, XSTRLEN(kIdentityStr)) != 0)
+    if (XSTRNCMP(identity, kIdentityStr, kIdLen) != 0)
         return 0;
+    if (identity[kIdLen] != '\0') {
+        userCipher = wolfSSL_get_cipher_name_by_hash(ssl, identity + kIdLen);
+    }
 
     for (i = 0; i < 32; i++, b += 0x22) {
         if (b >= 0x100)
@@ -1590,6 +1594,31 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     return 0;
 #endif
 }
+
+static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len, const char* ciphersuite)
+{
+    int i;
+    int b = 0x01;
+
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    XSTRNCPY(identity, kIdentityStr, id_max_len);
+    XSTRNCAT(identity, ciphersuite + XSTRLEN(ciphersuite) - 6, id_max_len);
+
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        key[i] = b;
+    }
+
+    return 32;   /* length of key in octets or 0 for error */
+}
+
 #endif /* !NO_PSK */
 
 
