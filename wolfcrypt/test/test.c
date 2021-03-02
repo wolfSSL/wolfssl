@@ -16538,7 +16538,7 @@ done:
     (void)privSz;
     (void)pubSz;
     (void)pubSz2;
-    (void)pubSz2;
+    (void)privSz2;
 
     return ret;
 #undef DH_TEST_BUF_SIZE
