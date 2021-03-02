@@ -76,7 +76,7 @@ WOLFSSL_API void  wolfSSL_Free(void *ptr, void* heap, int type, const char* func
     _Example_
     \code
     int* tenInts = (int*)wolfSSL_Malloc(sizeof(int)*10);
-    int* twentyInts = (int*)realloc(tenInts, sizeof(tenInts)*2);
+    int* twentyInts = (int*)realloc(tenInts, sizeof(int)*20);
     \endcode
 
     \sa wolfSSL_Malloc
