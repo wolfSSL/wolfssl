@@ -2237,16 +2237,27 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         uint32_t randval;
-        word32 len = sizeof(randval);
+        word32 len;
 
         if (output == NULL) {
             return BUFFER_E;
         }
 
+    #ifdef INTIMEVER
+        /* If INTIMEVER exists then it is INTIME RTOS v6 or later */
+        #define INTIME_RAND_FUNC arc4random
+        len = 4;
+    #else
+        /* v5 and older */
+        #define INTIME_RAND_FUNC rand
+        srand(time(0));
+        len = 2; /* don't use all 31 returned bits */
+    #endif
+
         while (sz > 0) {
             if (sz < len)
                 len = sz;
-            randval = rand(); /* returns 32-bits of random */
+            randval = INTIME_RAND_FUNC();
             XMEMCPY(output, &randval, len);
             output += len;
             sz -= len;
