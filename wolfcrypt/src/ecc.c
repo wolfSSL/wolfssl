@@ -3799,8 +3799,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    /* Verify domain params supplied */
-   if (wc_ecc_is_valid_idx(private_key->idx) == 0 ||
-       wc_ecc_is_valid_idx(public_key->idx)  == 0) {
+   if (wc_ecc_is_valid_idx(private_key->idx) == 0 || private_key->dp == NULL ||
+       wc_ecc_is_valid_idx(public_key->idx)  == 0 || public_key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
 
@@ -4101,7 +4101,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     }
 
     /* Verify domain params supplied */
-    if (wc_ecc_is_valid_idx(private_key->idx) == 0) {
+    if (wc_ecc_is_valid_idx(private_key->idx) == 0 || private_key->dp == NULL) {
         WOLFSSL_MSG("wc_ecc_is_valid_idx failed");
         return ECC_BAD_ARG_E;
     }
@@ -4168,7 +4168,7 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
         return BAD_FUNC_ARG;
 
     /* is the IDX valid ?  */
-    if (wc_ecc_is_valid_idx(curve_idx) != 1) {
+    if (wc_ecc_is_valid_idx(curve_idx) == 0) {
        return ECC_BAD_ARG_E;
     }
 
@@ -5248,7 +5248,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    }
 
    /* is the IDX valid ?  */
-   if (wc_ecc_is_valid_idx(key->idx) != 1) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
 
@@ -6409,7 +6409,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    *res = 0;
 
    /* is the IDX valid ?  */
-   if (wc_ecc_is_valid_idx(key->idx) != 1) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
 
@@ -7209,9 +7209,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
-   if (key->type == 0 ||
-       wc_ecc_is_valid_idx(key->idx) == 0 ||
-       key->dp == NULL) {
+   if (key->type == 0 || wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL){
        return ECC_BAD_ARG_E;
    }
 
@@ -7988,7 +7986,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         return BAD_FUNC_ARG;
     }
 
-    if (wc_ecc_is_valid_idx(key->idx) == 0) {
+    if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
     keySz = key->dp->size;
@@ -8552,7 +8550,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 /* key size in octets */
 int wc_ecc_size(ecc_key* key)
 {
-    if (key == NULL)
+    if (key == NULL || key->dp == NULL)
         return 0;
 
     return key->dp->size;
@@ -11356,9 +11354,7 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
-   if (key->type == 0 ||
-       wc_ecc_is_valid_idx(key->idx) == 0 ||
-       key->dp == NULL) {
+   if (key->type == 0 || wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL){
        return ECC_BAD_ARG_E;
    }
 
