@@ -2481,7 +2481,7 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int c, int m)
     }
 
     FREE_SP_INT(t, NULL);
-    return MP_OKAY;
+    return err;
 }
 #endif /* HAVE_ECC && ECC_TIMING_RESISTANT && !WC_NO_CACHE_RESISTANT */
 
