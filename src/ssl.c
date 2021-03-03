@@ -49965,6 +49965,9 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
             return NULL;
         }
     } else {
+	/* This may be overly defensive */
+	if (weOwn)
+            wolfSSL_BN_free(ret);
         return NULL;
     }
 
