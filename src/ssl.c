@@ -29623,21 +29623,36 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     }
     p = (const char *)(asnTime->data);
     /* GetTimeString not always available. */
-    wolfSSL_BIO_write(bio, MonthStr(p + 4), 3);
-    wolfSSL_BIO_write(bio, " ", 1);
+    if (wolfSSL_BIO_write(bio, MonthStr(p + 4), 3) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, " ", 1) <= 0)
+        return WOLFSSL_FAILURE;
+
     /* Day */
-    wolfSSL_BIO_write(bio, p + 6, 2);
-    wolfSSL_BIO_write(bio, " ", 1);
+    if (wolfSSL_BIO_write(bio, p + 6, 2) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, " ", 1) <= 0)
+        return WOLFSSL_FAILURE;
+
     /* Hour */
-    wolfSSL_BIO_write(bio, p + 8, 2);
-    wolfSSL_BIO_write(bio, ":", 1);
+    if (wolfSSL_BIO_write(bio, p + 8, 2) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, ":", 1) <= 0)
+        return WOLFSSL_FAILURE;
+
     /* Min */
-    wolfSSL_BIO_write(bio, p + 10, 2);
-    wolfSSL_BIO_write(bio, ":", 1);
+    if (wolfSSL_BIO_write(bio, p + 10, 2) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, ":", 1) <= 0)
+        return WOLFSSL_FAILURE;
+
     /* Secs */
-    wolfSSL_BIO_write(bio, p + 12, 2);
-    wolfSSL_BIO_write(bio, " ", 1);
-    wolfSSL_BIO_write(bio, p, 4);
+    if (wolfSSL_BIO_write(bio, p + 12, 2) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, " ", 1) <= 0)
+        return WOLFSSL_FAILURE;
+    if (wolfSSL_BIO_write(bio, p, 4) <= 0)
+        return WOLFSSL_FAILURE;
 
     return 0;
 }
@@ -38545,7 +38560,10 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
                 WOLFSSL_MSG("Memory error");
                 return WOLFSSL_FAILURE;
             }
-            mp_to_unsigned_bin(rsaElem, rawKey);
+            if (mp_to_unsigned_bin(rsaElem, rawKey) < 0) {
+                XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return WOLFSSL_FAILURE;
+            }
             for (idx = 0; idx < (word32)rawLen; idx++) {
                 char val[5];
                 int  valSz = 5;
@@ -47533,8 +47551,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 
     /* Zero length integer is the value zero. */
     if (len == 0) {
-        wolfSSL_BIO_write(bp, "00", 2);
-        return 2;
+        return wolfSSL_BIO_write(bp, "00", 2);
     }
 
     if (Base16_Encode(a->data + idx, len, buf, &bufLen) != 0 ||
