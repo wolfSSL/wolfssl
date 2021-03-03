@@ -8171,6 +8171,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
                     CA_TYPE,
             NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
+        FreeDecodedCert(&cert);
         return WOLFSSL_FAILURE;
     }
 
