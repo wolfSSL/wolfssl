@@ -23674,6 +23674,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+            wolfSSL_BIO_free(bio);
             return WOLFSSL_FAILURE;
         }
 
