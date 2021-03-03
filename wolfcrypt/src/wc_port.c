@@ -386,7 +386,10 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
         return BAD_PATH_ERROR;
     }
 
-    XFSEEK(f, 0, XSEEK_END);
+    if (XFSEEK(f, 0, XSEEK_END) != 0) {
+        WOLFSSL_MSG("wc_LoadFile file seek error");
+        return BAD_PATH_ERROR;
+    }
     fileSz = XFTELL(f);
     XREWIND(f);
     if (fileSz > 0) {
