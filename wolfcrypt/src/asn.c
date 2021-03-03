@@ -4173,7 +4173,13 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     seqSz += sz;
 
     tmpIdx = 0;
-    seqSz += SetShortInt(shr, &tmpIdx, itt, maxShr);
+    ret = SetShortInt(shr, &tmpIdx, itt, maxShr);
+    if (ret >= 0) {
+        seqSz += ret;
+    }
+    else {
+        return ret;
+    }
     innerSz += seqSz + SetSequence(seqSz, seq);
     totalSz += innerSz + SetSequence(innerSz, seq);
 
