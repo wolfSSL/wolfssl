@@ -50203,7 +50203,7 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
-        goto cleanup;
+        goto end;
     }
     if (mp_is_bit_set((mp_int*)bn->internal, n)) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -50230,6 +50230,7 @@ cleanup:
     if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
+end:
     return ret;
 }
 
