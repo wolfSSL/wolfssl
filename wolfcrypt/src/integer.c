@@ -2409,7 +2409,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
   }
 
   /* swap res with Y */
-  mp_copy(res, Y);
+  err = mp_copy(res, Y);
 
 LBL_RES:mp_clear (res);
 LBL_M:
