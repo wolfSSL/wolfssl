@@ -36547,11 +36547,12 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
             mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
+
+        mp_clear(&modulus);
     }
 
     BN_copy(x, point->X);
     BN_copy(y, point->Y);
-    mp_clear(&modulus);
 
     return WOLFSSL_SUCCESS;
 }
