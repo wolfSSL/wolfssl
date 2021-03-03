@@ -9475,6 +9475,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     WOLFSSL_MSG("ASN1_STRING_set() failed");
                     wolfSSL_ASN1_OBJECT_free(ad->method);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
+                    XFREE(ad->location, NULL, DYNAMIC_TYPE_OPENSSL);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
