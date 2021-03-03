@@ -674,6 +674,15 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
+/* RETURN_CODE macro
+ * Some OpenSSL APIs specify "0" as the return value when an error occurs.
+ * However, some corresponding wolfSSL APIs(eg.
+ * wolfSSL_CTX_load_verify_locations) return negative values. Such functions
+ * should use this macro to fill this gap. Users who want them to return
+ * the same return value as OpenSSL can define WOLFSSL_ERR_CODE_OPENSSL.
+ * Note that this macro replaces only negative return values with the
+ * specified value.
+ */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     #define RETURN_CODE(w,o)  ((w < 0)?o:w)
 #else
