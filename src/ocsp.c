@@ -799,8 +799,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
                                       DYNAMIC_TYPE_OCSP_STATUS);
     if (resp->single->status == NULL) {
         XFREE(resp->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         XFREE(resp->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        XFREE(resp, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         return NULL;
     }
     XMEMSET(resp->single->status, 0, sizeof(CertStatus));
