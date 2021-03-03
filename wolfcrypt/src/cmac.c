@@ -88,6 +88,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
 
     (void)unused;
     (void)heap;
+    (void)devId;
 
     if (cmac == NULL || keySz == 0 || type != WC_CMAC_AES)
         return BAD_FUNC_ARG;
