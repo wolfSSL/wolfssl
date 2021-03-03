@@ -41501,7 +41501,7 @@ err:
      *
      * returns WOLFSSL_SUCCESS on success
      */
-    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO* info,
+    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO** info,
             WOLFSSL_X509* x509)
     {
         if (info == NULL || x509 == NULL) {
@@ -41509,7 +41509,7 @@ err:
         }
 
         /* check is fresh "info" passed in, if not free it */
-        if (info->x509 != NULL || info->x_pkey != NULL) {
+        if ((*info)->x509 != NULL || (*info)->x_pkey != NULL) {
             WOLFSSL_X509_INFO* tmp;
 
             tmp = wolfSSL_X509_INFO_new();
@@ -41517,11 +41517,11 @@ err:
                 WOLFSSL_MSG("Unable to create new structure");
                 return MEMORY_E;
             }
-            wolfSSL_X509_INFO_free(info);
-            info = tmp;
+            wolfSSL_X509_INFO_free(*info);
+            (*info) = tmp;
         }
 
-        info->x509 = x509;
+        (*info)->x509 = x509;
 
         //@TODO info->num
         //@TODO info->enc_cipher
@@ -41529,8 +41529,8 @@ err:
         //@TODO info->enc_data
         //@TODO info->crl
 
-        info->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
-        return wolfSSL_X509_PKEY_set(info->x_pkey, x509);
+        (*info)->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
+        return wolfSSL_X509_PKEY_set((*info)->x_pkey, x509);
     }
 
     /**
@@ -41725,7 +41725,7 @@ err:
                     return NULL;
                 }
                 if (x509) {
-                    ret = wolfSSL_X509_INFO_set(current, x509);
+                    ret = wolfSSL_X509_INFO_set(&current, x509);
                 }
                 else if (crl) {
                     current->crl = crl;
