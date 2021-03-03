@@ -868,16 +868,13 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
      return MP_VAL;
   }
   if (mp_isone(P)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
   if (mp_iszero(X)) {
-     mp_set(Y, 1);
-     return MP_OKAY;
+     return mp_set(Y, 1);
   }
   if (mp_iszero(G)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
 
   /* if exponent X is negative we have to recurse */
