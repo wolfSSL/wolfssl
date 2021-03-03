@@ -633,6 +633,7 @@ static CRL_Entry* DupCRL_list(CRL_Entry* crl, void* heap)
                 current = head;
                 head = head->next;
                 FreeCRL_Entry(current, heap);
+                XFREE(current, heap, DYNAMIC_TYPE_CRL_ENTRY);
             }
 
             return NULL;

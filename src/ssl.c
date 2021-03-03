@@ -8171,6 +8171,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
                     CA_TYPE,
             NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
+        FreeDecodedCert(&cert);
         return WOLFSSL_FAILURE;
     }
 
@@ -9475,6 +9476,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     WOLFSSL_MSG("ASN1_STRING_set() failed");
                     wolfSSL_ASN1_OBJECT_free(ad->method);
                     XFREE(aia, NULL, DYNAMIC_TYPE_X509_EXT);
+                    XFREE(ad->location, NULL, DYNAMIC_TYPE_OPENSSL);
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
@@ -23674,6 +23676,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (wolfSSL_BIO_set_fp(bio, fp, BIO_NOCLOSE) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_BIO_set_fp error");
+            wolfSSL_BIO_free(bio);
             return WOLFSSL_FAILURE;
         }
 
@@ -41517,7 +41520,7 @@ err:
      *
      * returns WOLFSSL_SUCCESS on success
      */
-    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO* info,
+    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO** info,
             WOLFSSL_X509* x509)
     {
         if (info == NULL || x509 == NULL) {
@@ -41525,7 +41528,7 @@ err:
         }
 
         /* check is fresh "info" passed in, if not free it */
-        if (info->x509 != NULL || info->x_pkey != NULL) {
+        if ((*info)->x509 != NULL || (*info)->x_pkey != NULL) {
             WOLFSSL_X509_INFO* tmp;
 
             tmp = wolfSSL_X509_INFO_new();
@@ -41533,11 +41536,11 @@ err:
                 WOLFSSL_MSG("Unable to create new structure");
                 return MEMORY_E;
             }
-            wolfSSL_X509_INFO_free(info);
-            info = tmp;
+            wolfSSL_X509_INFO_free(*info);
+            (*info) = tmp;
         }
 
-        info->x509 = x509;
+        (*info)->x509 = x509;
 
         //@TODO info->num
         //@TODO info->enc_cipher
@@ -41545,8 +41548,8 @@ err:
         //@TODO info->enc_data
         //@TODO info->crl
 
-        info->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
-        return wolfSSL_X509_PKEY_set(info->x_pkey, x509);
+        (*info)->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
+        return wolfSSL_X509_PKEY_set((*info)->x_pkey, x509);
     }
 
     /**
@@ -41741,7 +41744,7 @@ err:
                     return NULL;
                 }
                 if (x509) {
-                    ret = wolfSSL_X509_INFO_set(current, x509);
+                    ret = wolfSSL_X509_INFO_set(&current, x509);
                 }
                 else if (crl) {
                     current->crl = crl;
@@ -44553,6 +44556,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         const byte* bioMemPt = bioMem; /* leave bioMem pointer unaltered */
         if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMemPt, bioMemSz)) == NULL) {
             XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE((unsigned char*)maxKeyBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
 
@@ -49982,6 +49986,9 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
             return NULL;
         }
     } else {
+	/* This may be overly defensive */
+	if (weOwn)
+            wolfSSL_BN_free(ret);
         return NULL;
     }
 
