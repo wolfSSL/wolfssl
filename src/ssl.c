@@ -9330,6 +9330,8 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc authority key id");
                 return NULL;
             }
+            
+            XMEMSET(akey, 0, sizeof(WOLFSSL_AUTHORITY_KEYID));
 
             akey->keyid = wolfSSL_ASN1_STRING_new();
             if (akey->keyid == NULL) {
