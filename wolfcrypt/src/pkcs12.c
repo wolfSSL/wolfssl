@@ -751,7 +751,14 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             outerSz += mac->saltSz;
 
             /* MAC iterations */
-            outerSz += SetShortInt(ASNSHORT, &tmpIdx, mac->itt, MAX_SHORT_SZ);
+            ret = SetShortInt(ASNSHORT, &tmpIdx, mac->itt, MAX_SHORT_SZ);
+            if (ret >= 0) {
+                outerSz += ret;
+                ret = 0;
+            }
+            else {
+                return ret;
+            }
 
             /* sequence of inner data */
             outerSz += SetSequence(innerSz, seq);
