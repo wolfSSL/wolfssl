@@ -4829,6 +4829,8 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 #endif
 
 #endif /* WOLFSSL_ATECC508A */
+    if (err == MP_OKAY)
+        err = wc_ecc_check_key(key);
 
     return err;
 }
