@@ -6881,10 +6881,16 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
 /* Base64 encoding APIs */
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
 static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap);
+/*  wolfSSL_EVP_ENCODE_CTX_new allocates WOLFSSL_EVP_ENCODE_CTX
+ *  Returns WOLFSSL_EVP_ENCODE_CTX structure on success, NULL on failure.
+ */
 struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
 {
     return wolfSSL_EVP_ENCODE_CTX_new_ex(NULL);
 }
+/* wolfSSL_EVP_ENCODE_CTX_new_ex is a helper function of
+ * wolfSSL_EVP_ENCODE_CTX_new to allocate WOLFSSL_EVP_ENCODE_CTX structure.
+ */
 static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
 {
     WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
@@ -6898,6 +6904,8 @@ static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
     }
     return NULL;
 }
+/*  wolfSSL_EVP_ENCODE_CTX_free frees specified WOLFSSL_EVP_ENCODE_CTX struc.
+ */
 void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_free");
@@ -6907,6 +6915,9 @@ void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 }
 #endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
 #if defined(WOLFSSL_BASE64_ENCODE)
+/*  wolfSSL_EVP_EncodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX ojbect
+ *  for the subsequent wolfSSL_EVP_EncodeUpdate.
+ */
 void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_EncodeInit");
@@ -6917,6 +6928,12 @@ void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
         XMEMSET(ctx->data,0, sizeof(ctx->data));
     }
 }
+/*  wolfSSL_EVP_EncodeUpdate encodes the input data in 64-byte units
+ *  and outputs it to out. If less than 64 bytes of data remain, save it in
+ *  ctx. The data given in the subsequent wolfSSL_EVP_EncodeUpdate
+ *  is combined with the data stored in CTX and used for encoding.
+ *  Returns 1 on success, 0 on error.
+ */
 int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
                 unsigned char*out, int *outl, const unsigned char*in, int inl)
 {
@@ -6981,6 +6998,8 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     return 1;   /* returns 1 on success, 0 on error */
 }
+/*  wolfSSL_EVP_EncodeFinal encodes data in ctx and outputs to out.
+ */
 void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
                 unsigned char*out, int *outl)
 {
@@ -7042,6 +7061,9 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32* inLen,
     *outJ = j;
     return 0;
 }
+/*  wolfSSL_EVP_DecodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX struct
+ *  for subsequent wolfSSL_EVP_DecodeUpdate.
+ */
 void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeInit");
@@ -7051,6 +7073,13 @@ void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
         XMEMSET(ctx->data,0, sizeof(ctx->data));
     }
 }
+/*  wolfSSL_EVP_DecodeUpdate encodes the input data in 4-byte units
+ *  and outputs it to out. If less than 4 bytes of data remain, save it in
+ *  ctx. The data given in the subsequent wolfSSL_EVP_DecodeUpdate
+ *  is combined with the data stored in CTX and used for decoding.
+ *  Returns 1 or 0 on success, -1 on error. Return value 0 indicates that
+ *  clients should call wolfSSL_EVP_DecodeFinal as next call.
+ */
 int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             unsigned char*out, int *outl, const unsigned char*in, int inl)
 {
@@ -7242,6 +7271,10 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         return 1;
 
 }
+/*  wolfSSL_EVP_DecodeFinal decode remaining data in ctx
+ *  to outputs to out.
+ *  Returns 1 on success, -1 on failure.
+ */
 int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
                 unsigned char*out, int *outl)
 {
@@ -7272,7 +7305,7 @@ int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
             }
             else {
                 *outl = 0;
-                return 0;
+                return -1;
             }
         }
         else {
