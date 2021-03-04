@@ -8531,6 +8531,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
         wolfSSL_X509_EXTENSION_free(ext);
+        FreeDecodedCert(&cert);
         return NULL;
     }
 
