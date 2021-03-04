@@ -1864,6 +1864,10 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
     }
 #endif /* WOLFSSL_KCAPI_DH */
 
+    if (ret == 0) {
+        ret = wc_DhCheckKeyPair(key, pub, *pubSz, priv, *privSz);
+    }
+
     return ret;
 }
 
