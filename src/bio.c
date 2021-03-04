@@ -1439,6 +1439,11 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
 
       return 0;
 }
+/* wolfSSL_BIO_tell is provided as compatible API with
+ * BIO_tell which returns the current file position of a file related BIO.
+ * Returns the current file position on success and -1 for failure.
+ * Returns 0 for a BIOs except file related BIO.
+ */
 int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
 {
     int pos;
