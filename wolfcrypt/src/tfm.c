@@ -990,7 +990,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
    fp_init(t);
    err = fp_div(a, b, NULL, t);
    if (err == FP_OKAY) {
-      if (t->sign != b->sign) {
+      if (!fp_iszero(t) && (t->sign != b->sign)) {
          err = fp_add(t, b, c);
       } else {
          fp_copy(t, c);
@@ -5328,32 +5328,26 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 int fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
 #ifndef WOLFSSL_SMALL_STACK
-   fp_int tmp;
-   int err;
-   fp_init(&tmp);
-   fp_set(&tmp, b);
-   err = fp_add(a, &tmp, c);
-   return err;
+   fp_int  tmp[1];
 #else
-   int i;
-   fp_word t = b;
-   int err = FP_OKAY;
-
-   fp_copy(a, c);
-   for (i = 0; t != 0 && i < FP_SIZE && i < c->used; i++) {
-     t += c->dp[i];
-     c->dp[i] = (fp_digit)t;
-     t >>= DIGIT_BIT;
-   }
-   if (i == c->used && i < FP_SIZE && t != 0) {
-       c->dp[i] = t;
-       c->used++;
-   }
-   if (i == FP_SIZE && t != 0) {
-       err = FP_VAL;
-   }
-   return err;
+   fp_int* tmp;
 #endif
+   int     err;
+
+#ifdef WOLFSSL_SMALL_STACK
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
+   if (tmp == NULL)
+       return FP_MEM;
+#endif
+
+   fp_init(tmp);
+   fp_set(tmp, b);
+   err = fp_add(a, tmp, c);
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+   return err;
 }
 
 /* external compatibility */
