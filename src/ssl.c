@@ -53644,16 +53644,34 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
 
 #if defined(OPENSSL_EXTRA)
+/* wolfSSL_THREADID_current is provided as a compat API with
+ * CRYPTO_THREADID_current to register current thread id into given id object.
+ * However, CRYPTO_THREADID_current API has been deprecated and no longer
+ * exists in the OpenSSL 1.0.0 or later.This API only works as a stub
+ * like as existing wolfSSL_THREADID_set_numeric. 
+ */
 void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id)
 {
     (void)id;
     return;
 }
+/* wolfSSL_THREADID_hash is provided as a compatible API with
+ * CRYPTO_THREADID_hash which returns a hash value calcurated from the
+ * specified thread id. However, CRYPTO_THREADID_hash API has been
+ * deprecated and no longer exists in the OpenSSL 1.0.0 or later.
+ * This API only works as a stub to returns 0. This behavior is
+ * equivalent to the latest OpenSSL CRYPTO_THREADID_hash.
+ */
 unsigned long wolfSSL_THREADID_hash(const WOLFSSL_CRYPTO_THREADID* id)
 {
     (void)id;
     return 0UL;
 }
+/* wolfSSL_CTX_set_ecdh_auto is provided as compatible API with
+ * SSL_CTX_set_ecdh_auto to enable auto ecdh curve selection functionality.
+ * Since this functionality is enabled by default in wolfSSL,
+ * this API exists as a stub.
+ */
 int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff)
 {
     (void)ctx;
