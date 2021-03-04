@@ -18298,6 +18298,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         x509 = wolfSSL_X509_new();
         if (x509 == NULL) {
             WOLFSSL_MSG("Error Creating X509");
+            wolfSSL_sk_X509_free(sk);
             return NULL;
         }
         ret = DecodeToX509(x509, ssl->session.chain.certs[i].buffer,
