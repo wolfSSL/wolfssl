@@ -608,8 +608,10 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
         XMEMCPY(derCert->buffer, issuer->derCert->buffer,
                 issuer->derCert->length);
         ret = AddCA(cm, &derCert, WOLFSSL_USER_CA, 1);
-        if (ret != WOLFSSL_SUCCESS)
+        if (ret != WOLFSSL_SUCCESS) {
+            wolfSSL_CertManagerFree(cm);
             return NULL;
+        }
     }
 
     certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID), NULL,
