@@ -5266,7 +5266,7 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       fi
     fi
     ;;
-  *x86_64*)
+  *x86_64*|*amd64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
