@@ -1796,7 +1796,9 @@ extern void uITRON4_free(void *p) ;
 /* ECC Configs */
 #ifdef HAVE_ECC
     /* By default enable Sign, Verify, DHE, Key Import and Key Export unless explicitly disabled */
-    #ifndef NO_ECC_SIGN
+    #if !defined(NO_ECC_SIGN) && \
+            (!defined(ECC_TIMING_RESISTANT) || \
+            (defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG)))
         #undef HAVE_ECC_SIGN
         #define HAVE_ECC_SIGN
     #endif
@@ -1808,7 +1810,7 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_CHECK_KEY
         #define HAVE_ECC_CHECK_KEY
     #endif
-    #ifndef NO_ECC_DHE
+    #if !defined(NO_ECC_DHE) && !defined(WC_NO_RNG)
         #undef HAVE_ECC_DHE
         #define HAVE_ECC_DHE
     #endif

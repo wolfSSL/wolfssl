@@ -7121,8 +7121,6 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
 {
     int ret = 0;
 
-    (void)verify;
-
     switch (sigOID) {
     #if defined(WOLFSSL_MD2)
         case CTC_MD2wRSA:
@@ -7209,6 +7207,14 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             ret = HASH_TYPE_E;
             WOLFSSL_MSG("Hash for Signature has unsupported type");
     }
+
+    (void)buf;
+    (void)bufSz;
+    (void)sigOID;
+    (void)digest;
+    (void)digestSz;
+    (void)typeH;
+    (void)verify;
 
     return ret;
 }
