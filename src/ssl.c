@@ -3792,96 +3792,100 @@ int wolfSSL_CertManager_up_ref(WOLFSSL_CERT_MANAGER* cm)
 WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_STACK* sk = NULL;
+    int numCerts = 0;
+    DerBuffer** certBuffers = NULL;
+    const byte* derBuffer = NULL;
     Signer* signers = NULL;
     word32  row = 0;
-    DecodedCert* dCert = NULL;
     WOLFSSL_X509* x509 = NULL;
-    int found = 0;
+    int i = 0;
+    int ret = 0;
 
     if (cm == NULL)
         return NULL;
 
     sk = wolfSSL_sk_X509_new();
+    if (sk == NULL)
+        goto error;
 
-    if (sk == NULL) {
-        return NULL;
-    }
+    if (wc_LockMutex(&cm->caLock) != 0)
+        goto error;
 
-    if (wc_LockMutex(&cm->caLock) != 0) {
-        goto error_init;
-    }
-
+    /* Iterate once to get the number of certs, for memory allocation
+       purposes. */
     for (row = 0; row < CA_TABLE_SIZE; row++) {
         signers = cm->caTable[row];
         while (signers && signers->derCert && signers->derCert->buffer) {
-
-            dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
-                                          DYNAMIC_TYPE_DCERT);
-            if (dCert == NULL) {
-                goto error;
-            }
-
-            XMEMSET(dCert, 0, sizeof(DecodedCert));
-
-            InitDecodedCert(dCert, signers->derCert->buffer,
-                            signers->derCert->length, cm->heap);
-
-            /* Parse Certificate */
-            if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, cm)) {
-                goto error;
-            }
-
-            x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), cm->heap,
-                    DYNAMIC_TYPE_X509);
-
-            if (x509 == NULL) {
-                goto error;
-            }
-
-            InitX509(x509, 1, NULL);
-
-            if (CopyDecodedToX509(x509, dCert) == 0) {
-
-                if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("Unable to load x509 into stack");
-                    FreeX509(x509);
-                    XFREE(x509, cm->heap, DYNAMIC_TYPE_X509);
-                    goto error;
-                }
-            }
-            else {
-                goto error;
-            }
-
-            found = 1;
-
+            ++numCerts;
             signers = signers->next;
-
-            FreeDecodedCert(dCert);
-            XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
-            dCert = NULL;
         }
     }
+
+    if (numCerts == 0) {
+        wc_UnLockMutex(&cm->caLock);
+        goto error;
+    }
+
+    certBuffers = (DerBuffer**)XMALLOC(sizeof(DerBuffer*) * numCerts, cm->heap,
+                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (certBuffers == NULL) {
+        wc_UnLockMutex(&cm->caLock);
+        goto error;
+    }
+    XMEMSET(certBuffers, 0, sizeof(DerBuffer*) * numCerts);
+
+    /* Copy the certs locally so that we can release the caLock. If the lock is
+       held when wolfSSL_d2i_X509 is called, GetCA will also try to get the
+       lock, leading to deadlock. */
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        signers = cm->caTable[row];
+        while (signers && signers->derCert && signers->derCert->buffer) {
+            ret = AllocDer(&certBuffers[i], signers->derCert->length, CA_TYPE,
+                           cm->heap);
+            if (ret < 0) {
+                wc_UnLockMutex(&cm->caLock);
+                goto error;
+            }
+
+            XMEMCPY(certBuffers[i]->buffer, signers->derCert->buffer,
+                    signers->derCert->length);
+            certBuffers[i]->length = signers->derCert->length;
+
+            ++i;
+            signers = signers->next;
+        }
+    }
+
     wc_UnLockMutex(&cm->caLock);
 
-    if (!found) {
-       goto error_init;
+    for (i = 0; i < numCerts; ++i) {
+        derBuffer = certBuffers[i]->buffer;
+        wolfSSL_d2i_X509(&x509, &derBuffer, certBuffers[i]->length);
+        if (x509 == NULL)
+            goto error;
+
+        if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS)
+            goto error;
     }
+
+    for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
+        FreeDer(&certBuffers[i]);
+    }
+
+    XFREE(certBuffers, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return sk;
 
 error:
-    wc_UnLockMutex(&cm->caLock);
-
-error_init:
-
-    if (dCert) {
-        FreeDecodedCert(dCert);
-        XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
-    }
-
     if (sk)
         wolfSSL_sk_X509_free(sk);
+
+    for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
+        FreeDer(&certBuffers[i]);
+    }
+
+    if (certBuffers)
+        XFREE(certBuffers, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return NULL;
 }
