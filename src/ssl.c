@@ -16663,6 +16663,62 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     return sanityCheckProtoVersion(ctx);
 }
 
+static int GetMinProtoVersion(int minDowngrade)
+{
+    int ret;
+
+    switch (minDowngrade) {
+#ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        case SSLv3_MINOR:
+            ret = SSL3_VERSION;
+            break;
+    #endif
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        case TLSv1_MINOR:
+            ret = TLS1_VERSION;
+            break;
+    #endif
+        case TLSv1_1_MINOR:
+            ret = TLS1_1_VERSION;
+            break;
+#endif
+#ifndef WOLFSSL_NO_TLS12
+        case TLSv1_2_MINOR:
+            ret = TLS1_2_VERSION;
+            break;
+#endif
+#ifdef WOLFSSL_TLS13
+        case TLSv1_3_MINOR:
+            ret = TLS1_3_VERSION;
+            break;
+#endif
+        default:
+            ret = 0;
+            break;
+    }
+
+    return ret;
+}
+
+WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_get_min_proto_version");
+
+    if (ctx != NULL) {
+        ret = GetMinProtoVersion(ctx->minDowngrade);
+    }
+    if (ret == 0) {
+        ret = GetMinProtoVersion(WOLFSSL_MIN_DOWNGRADE);
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_CTX_get_min_proto_version", ret);
+
+    return ret;
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
