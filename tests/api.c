@@ -34559,7 +34559,7 @@ static void test_wolfSSL_EVP_PKEY_keygen_init(void)
 }
 static void test_wolfSSL_EVP_PKEY_missing_parameters(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
     WOLFSSL_EVP_PKEY* pkey;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_missing_parameters");
@@ -34844,7 +34844,7 @@ static void test_wolfSSL_EVP_aes_192_gcm(void)
 }
 static void test_wolfSSL_EVP_ripemd160(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_ripemd160");
 
