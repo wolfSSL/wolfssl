@@ -1848,6 +1848,10 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
         ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
     }
 
+    if (ret == 0) {
+        ret = wc_DhCheckKeyPair(key, pub, *pubSz, priv, *privSz);
+    }
+
     return ret;
 }
 
