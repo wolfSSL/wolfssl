@@ -250,6 +250,21 @@ struct Aes {
     silabs_aes_t ctx;
 #endif
     void*  heap; /* memory hint to use */
+#ifdef WOLFSSL_AESGCM_STREAM
+    ALIGN32 byte initCtr[AES_BLOCK_SIZE];
+    ALIGN32 byte counter[AES_BLOCK_SIZE];
+    ALIGN32 byte tag[AES_BLOCK_SIZE];
+    ALIGN32 byte lastGBlock[AES_BLOCK_SIZE];
+    ALIGN32 byte lastBlock[AES_BLOCK_SIZE];
+    word32       aSz;
+    word32       cSz;
+    byte         over;
+    byte         aOver;
+    byte         cOver;
+    byte         gcmKeySet:1;
+    byte         nonceSet:1;
+    byte         ctrSet:1;
+#endif
 };
 
 #ifndef WC_AES_TYPE_DEFINED
@@ -361,6 +376,24 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+#ifdef WOLFSSL_AESGCM_STREAM
+WOLFSSL_API int wc_AesGcmInit(Aes* aes, const byte* key, word32 len,
+        const byte* iv, word32 ivSz);
+
+#define wc_AesGcmEncryptInit    wc_AesGcmInit
+WOLFSSL_API int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len,
+        byte* ivOut, word32 ivOutSz);
+WOLFSSL_API int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in,
+        word32 sz, const byte* authIn, word32 authInSz);
+WOLFSSL_API int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag,
+        word32 authTagSz);
+
+#define wc_AesGcmDecryptInit    wc_AesGcmInit
+WOLFSSL_API int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in,
+        word32 sz, const byte* authIn, word32 authInSz);
+WOLFSSL_API int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag,
+        word32 authTagSz);
+#endif
 
 #ifndef WC_NO_RNG
  WOLFSSL_API int  wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);

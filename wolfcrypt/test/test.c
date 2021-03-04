@@ -10045,6 +10045,103 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 #endif /* WOLFSSL_AES_256 && !(WC_NO_RNG || HAVE_SELFTEST) */
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+#if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
+#ifdef WOLFSSL_AES_256
+#ifdef WOLFSSL_AESGCM_STREAM
+    result = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6360, out);
+    result = wc_AesGcmEncryptUpdate(enc, resultC, p, sizeof(p), a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6361, out);
+    result = wc_AesGcmEncryptFinal(enc, resultT, sizeof(resultT));
+    if (result != 0)
+        ERROR_OUT(-6362, out);
+    if (XMEMCMP(resultC, c1, sizeof(c1)) != 0)
+        ERROR_OUT(-6363, out);
+    if (XMEMCMP(resultT, t1, sizeof(t1)) != 0)
+        ERROR_OUT(-6364, out);
+
+#ifdef HAVE_AES_DECRYPT
+    result = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6370, out);
+    result = wc_AesGcmDecryptUpdate(enc, resultP, c1, sizeof(c1), a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6371, out);
+    result = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
+    if (result != 0)
+        ERROR_OUT(-6372, out);
+    if (XMEMCMP(resultP, p, sizeof(p)) != 0)
+        ERROR_OUT(-6373, out);
+#endif
+
+    /* alen is the size to pass in with each update. */
+    for (alen = 1; alen < AES_BLOCK_SIZE + 1; alen++) {
+        result = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+        if (result != 0)
+            ERROR_OUT(-6380, out);
+
+        /* plen is the offset into AAD to update with. */
+        for (plen = 0; plen < (int)sizeof(a); plen += alen)  {
+            int len = sizeof(a) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmEncryptUpdate(enc, NULL, NULL, 0, a + plen, len);
+            if (result != 0)
+                ERROR_OUT(-6381, out);
+        }
+        /* plen is the offset into plaintext to update with. */
+        for (plen = 0; plen < (int)sizeof(p); plen += alen)  {
+            int len = sizeof(p) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmEncryptUpdate(enc, resultC + plen, p + plen, len,
+                NULL, 0);
+            if (result != 0)
+                ERROR_OUT(-6382, out);
+        }
+        result = wc_AesGcmEncryptFinal(enc, resultT, sizeof(resultT));
+        if (result != 0)
+            ERROR_OUT(-6383, out);
+        if (XMEMCMP(resultC, c1, sizeof(c1)) != 0)
+            ERROR_OUT(-6384, out);
+        if (XMEMCMP(resultT, t1, sizeof(t1)) != 0)
+            ERROR_OUT(-6385, out);
+    }
+
+#ifdef HAVE_AES_DECRYPT
+    for (alen = 1; alen < AES_BLOCK_SIZE + 1; alen++) {
+        result = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+        if (result != 0)
+            ERROR_OUT(-6390, out);
+
+        /* plen is the offset into AAD to update with. */
+        for (plen = 0; plen < (int)sizeof(a); plen += alen)  {
+            int len = sizeof(a) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmDecryptUpdate(enc, NULL, NULL, 0, a + plen, len);
+            if (result != 0)
+                ERROR_OUT(-6391, out);
+        }
+        /* plen is the offset into cipher text to update with. */
+        for (plen = 0; plen < (int)sizeof(c1); plen += alen)  {
+            int len = sizeof(c1) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmDecryptUpdate(enc, resultP + plen, c1 + plen, len,
+                NULL, 0);
+            if (result != 0)
+                ERROR_OUT(-6392, out);
+        }
+        result = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
+        if (result != 0)
+            ERROR_OUT(-6393, out);
+        if (XMEMCMP(resultP, p, sizeof(p)) != 0)
+            ERROR_OUT(-6394, out);
+    }
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AESGCM_STREAM */
+#endif /* WOLFSSL_AES_256 */
+#endif /* !WOLFSSL_AFALG_XILINX_AES && !WOLFSSL_XILINX_CRYPT */
+
     wc_AesFree(enc);
     wc_AesFree(dec);
 

@@ -2394,10 +2394,23 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
+#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmEncrypt(&enc[i], bench_cipher,
                         bench_plain, BENCH_SIZE,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
+#else
+                    ret = wc_AesGcmEncryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptUpdate(&enc[i], bench_cipher,
+                            bench_plain, BENCH_SIZE, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm;
                     }
@@ -2433,10 +2446,23 @@ exit_aes_gcm:
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, numBlocks, &pending)) {
+#ifndef BENCHMARK_AESGCM_STREAM
                     ret = wc_AesGcmDecrypt(&dec[i], bench_plain,
                         bench_cipher, BENCH_SIZE,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
+#else
+                    ret = wc_AesGcmDecryptInit(&enc[i], NULL, 0, iv, ivSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptUpdate(&enc[i], bench_plain,
+                            bench_cipher, BENCH_SIZE, bench_additional,
+                            aesAuthAddSz);
+                    }
+                    if (ret == 0) {
+                        ret = wc_AesGcmDecryptFinal(&enc[i], bench_tag,
+                            AES_AUTH_TAG_SZ);
+                    }
+#endif
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
                     }

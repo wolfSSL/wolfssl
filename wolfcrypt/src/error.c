@@ -521,6 +521,12 @@ const char* wc_GetErrorString(int error)
     case SAKKE_VERIFY_FAIL_E:
         return "SAKKE derivation verification error";
 
+    case MISSING_IV:
+        return "Required IV not set";
+
+    case MISSING_KEY:
+        return "Required key not set";
+
     default:
         return "unknown error number";
 

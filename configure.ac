@@ -1295,6 +1295,11 @@ AC_ARG_ENABLE([aesgcm],
     [ ENABLED_AESGCM=$enableval ],
     [ ENABLED_AESGCM=yes ]
     )
+AC_ARG_ENABLE([aesgcm-stream],
+    [AS_HELP_STRING([--enable-aesgcm-stream],[Enable wolfSSL AES-GCM support with streaming APIs (default: enabled)])],
+    [ ENABLED_AESGCM_STREAM=$enableval ],
+    [ ENABLED_AESGCM_STREAM=no ]
+    )
 
 # leanpsk and leantls don't need gcm
 if test "$ENABLED_LEANPSK" = "yes" || ( test "$ENABLED_LEANTLS" = "yes" &&
@@ -5974,6 +5979,11 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
+fi
+if test "$ENABLED_AESGCM_STREAM" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
 fi
 
 
