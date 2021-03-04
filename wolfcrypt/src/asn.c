@@ -4517,7 +4517,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 #ifndef NO_DH
 #if defined(WOLFSSL_DH_EXTRA)
 /*
- * Decodes DH public key
+ * Decodes DH public key to fill specified DhKey.
  *
  * return 0 on success, negative on failure
  */
@@ -16274,7 +16274,10 @@ static int EccKeyParamCopy(char** dst, char* src)
     return ret;
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
-
+/* wc_EccPublicKeyDecode_ex gets ECC public key data in DER format via "input"
+ * and returns the curve id to "curveId" and the point position to "pointIdx".
+ * Returns 0 on success, negative values on failure.
+ */
 int wc_EccPublicKeyDecode_ex(const byte* input,
                             word32* inOutIdx, int* curveId,
                             word32* pointIdx, int* pointSz, word32 inSz)

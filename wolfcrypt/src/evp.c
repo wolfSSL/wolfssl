@@ -6804,6 +6804,9 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
     }
 }
 #if defined(OPENSSL_EXTRA)
+/* Converts byte data into 2 digit hex code
+ * then put them to the specified buffer.
+ */
 static int ToHex( byte in, byte* hex )
 {
     byte UpNibble,LwNibble;
@@ -6819,7 +6822,9 @@ static int ToHex( byte in, byte* hex )
     *hex   = HexTbl[LwNibble];
     return 2;
 }
-/* convert input value to upto five digit decimal */
+/* Converts input value "i" to upto five digit decimal
+ * and copys to the specified buffer.
+ */
 static int ToDec(word32 in, byte* hex)
 {
     int     i = 0;
@@ -6862,6 +6867,9 @@ static int ToDec(word32 in, byte* hex)
     }
     return written;
 }
+/* Indent adds white spaces of the number specified by "indents"
+ * to the buffer specified by "dst".
+ */
 static int Indent(int indents, byte* dst )
 {
     int i;
@@ -6871,6 +6879,12 @@ static int Indent(int indents, byte* dst )
     for (i = indents; i; i--) {*dst++ = ' ';}
     return indents;
 }
+/* DumpElement dump byte-data specified by "input" to the "out".
+ * Each line has leading white spaces( "indent" gives the number ) plus
+ * four spaces, then hex coded 15 byte data with separator ":" follow.   
+ * Each line looks like: 
+ * "    00:e6:ab: --- 9f:ef:"
+ */
 static int DumpElement(WOLFSSL_BIO* out, const byte* input,
     int inlen, int indent)
 {
@@ -6933,6 +6947,10 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
     return idx;
 }
+/* PrintPubKeyRSA is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to parses a DER format RSA public key specified in the second parameter.
+ * Returns 1 on success, 0 on failure.
+*/
 static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
@@ -7085,6 +7103,10 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     return WOLFSSL_SUCCESS;
 }
 #if defined(HAVE_ECC)
+/* PrintPubKeyEC is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to parses a DER format ECC public key specified in the second parameter.
+ * Returns 1 on success, 0 on failure.
+*/
 static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
@@ -7204,7 +7226,10 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     return WOLFSSL_SUCCESS;
 }
 #endif /* HAVE_ECC */
-
+/* PrintPubKeyDSA is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to parses a DER format DSA public key specified in the second parameter.
+ * Returns 1 on success, 0 on failure.
+*/
 static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
@@ -7372,6 +7397,10 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     return WOLFSSL_SUCCESS;
 }
+/* PrintPubKeyDH is a helper function for wolfSSL_EVP_PKEY_print_public
+ * to parses a DER format DH public key specified in the second parameter.
+ * Returns 1 on success, 0 on failure.
+*/
 static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
@@ -7523,10 +7552,13 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     return WOLFSSL_SUCCESS;
 }
-/*
- *  output public key info in human readable format
- *  returns 1 on success, 0 or negative on error.
- *  -2 means specified key algo is not supported.
+/*  wolfSSL_EVP_PKEY_print_public parses the specified key then 
+ *  outputs public key info in human readable format to the specified BIO.
+ *  White spaces of the same number which 'indent" gives, will be added to
+ *  each line to output and ignores pctx parameter.
+ *  Returns 1 on success, 0 or negative on error, -2 means specified key 
+ *  algo is not supported.
+ *  Can handle RSA, ECC, DSA and DH public keys.
  */
 int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
     const WOLFSSL_EVP_PKEY* pkey, int indent, ASN1_PCTX* pctx)
