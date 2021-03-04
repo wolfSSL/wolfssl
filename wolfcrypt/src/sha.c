@@ -776,10 +776,13 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #endif /* USE_SHA_SOFTWARE_IMPL */
 
 
+
+#if !defined(WOLFSSL_IMXRT_DCP)
 int wc_InitSha(wc_Sha* sha)
 {
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
+#endif /* !defined(WOLFSSL_IMXRT_DCP) */
 
 void wc_ShaFree(wc_Sha* sha)
 {
@@ -808,7 +811,8 @@ void wc_ShaFree(wc_Sha* sha)
 #endif /* !WOLFSSL_TI_HASH */
 #endif /* HAVE_FIPS */
 
-#ifndef WOLFSSL_TI_HASH
+#if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP)
+
 #if !defined(WOLFSSL_RENESAS_TSIP_CRYPT) || \
     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
@@ -873,7 +877,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     return ret;
 }
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
-#endif /* !WOLFSSL_TI_HASH */
+#endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
 
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
