@@ -702,7 +702,8 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
         if (DupX509_CRL(crl, newcrl) != 0) {
-            FreeCRL(crl, 1);
+            if (crl != NULL)
+                FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
         store->crl = store->cm->crl = crl;
