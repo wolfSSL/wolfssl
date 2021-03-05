@@ -8052,8 +8052,8 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         /* Hardware cannot export private portion */
         return NOT_COMPILED_IN;
     #else
+    #ifdef WOLFSSL_QNX_CAAM
         if (encType == WC_TYPE_BLACK_KEY) {
-            #ifdef WOLFSSL_QNX_CAAM
             if (key->blackKey > 0) {
                 if (*dLen < keySz + WC_CAAM_MAC_SZ) {
                     *dLen = keySz + WC_CAAM_MAC_SZ;
@@ -8069,11 +8069,10 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                 WOLFSSL_MSG("No black key stored in structure");
                 return BAD_FUNC_ARG;
             }
-            #else
-            return NOT_COMPILED_IN;
-            #endif
         }
-        else {
+        else
+        #endif
+        {
             err = wc_export_int(&key->k, d, dLen, keySz, encType);
             if (err != MP_OKAY)
                 return err;
