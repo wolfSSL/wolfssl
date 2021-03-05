@@ -23792,7 +23792,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     strLen = (int)XSTRLEN(name);
 
     for (i = 0, j = 0, k = 0; i <= strLen; i++) {
-        if (k > MAX_SEGMENTS || j > MAX_SEGMENT_SZ)
+        if (k >= MAX_SEGMENTS || j >= MAX_SEGMENT_SZ)
             break;
 
         if (name[i] != '-' && name[i] != '\0') {
