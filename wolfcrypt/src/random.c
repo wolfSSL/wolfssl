@@ -2236,19 +2236,35 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(INTIME_RTOS)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret = 0;
-
-        (void)os;
+        uint32_t randval;
+        word32 len;
 
         if (output == NULL) {
             return BUFFER_E;
         }
 
-        /* Note: Investigate better solution */
-        /* no return to check */
-        arc4random_buf(output, sz);
+    #ifdef INTIMEVER
+        /* If INTIMEVER exists then it is INTIME RTOS v6 or later */
+        #define INTIME_RAND_FUNC arc4random
+        len = 4;
+    #else
+        /* v5 and older */
+        #define INTIME_RAND_FUNC rand
+        srand(time(0));
+        len = 2; /* don't use all 31 returned bits */
+    #endif
 
-        return ret;
+        while (sz > 0) {
+            if (sz < len)
+                len = sz;
+            randval = INTIME_RAND_FUNC();
+            XMEMCPY(output, &randval, len);
+            output += len;
+            sz -= len;
+        }
+        (void)os;
+
+        return 0;
     }
 
 #elif defined(WOLFSSL_WICED)

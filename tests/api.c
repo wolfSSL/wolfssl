@@ -2626,14 +2626,14 @@ static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
 }
 #endif /* WOLFSSL_SESSION_EXPORT */
 
-
+/* TODO: Expand and enable this when EVP_chacha20_poly1305 is supported */
 #if defined(HAVE_SESSION_TICKET) && \
-    ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM)) && \
+  defined(HAVE_AESGCM) && \
     defined(OPENSSL_EXTRA)
 
     typedef struct openssl_key_ctx {
         byte name[WOLFSSL_TICKET_NAME_SZ]; /* server name */
-        byte key[AES_256_KEY_SIZE]; /* cipher key */
+        byte key[WOLFSSL_TICKET_KEY_SZ]; /* cipher key */
         byte hmacKey[WOLFSSL_TICKET_NAME_SZ]; /* hmac key */
         byte iv[WOLFSSL_TICKET_IV_SZ]; /* cipher iv */
     } openssl_key_ctx;
@@ -2738,7 +2738,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
     OpenSSLTicketInit();
     wolfSSL_CTX_set_tlsext_ticket_key_cb(ctx, myTicketEncCbOpenSSL);
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
@@ -2930,7 +2930,7 @@ done:
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_AESGCM)
     OpenSSLTicketCleanup();
 #elif defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
     TicketCleanup();
@@ -34565,7 +34565,7 @@ static void test_wolfSSL_EVP_PKEY_keygen_init(void)
 }
 static void test_wolfSSL_EVP_PKEY_missing_parameters(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
     WOLFSSL_EVP_PKEY* pkey;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_missing_parameters");
@@ -34850,7 +34850,7 @@ static void test_wolfSSL_EVP_aes_192_gcm(void)
 }
 static void test_wolfSSL_EVP_ripemd160(void)
 {
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
 
     printf(testingFmt, "wolfSSL_EVP_ripemd160");
 
@@ -40418,6 +40418,71 @@ static void test_export_keying_material(void)
 }
 #endif /* HAVE_KEYING_MATERIAL */
 
+static void test_wolfSSL_CTX_get_min_proto_version(void)
+{
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    WOLFSSL_CTX *ctx;
+
+    printf(testingFmt, "wolfSSL_CTX_get_min_proto_version()");
+
+    #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_SSLV3
+            #ifdef NO_WOLFSSL_SERVER
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+            #else
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+            #endif
+            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, SSL3_VERSION), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), SSL3_VERSION);
+            wolfSSL_CTX_free(ctx);
+        #endif
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            #ifdef NO_WOLFSSL_SERVER
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_client_method()));
+            #else
+                AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_server_method()));
+            #endif
+            AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_VERSION), WOLFSSL_SUCCESS);
+            AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_VERSION);
+            wolfSSL_CTX_free(ctx);
+        #endif
+
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_1_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_1_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    #ifndef WOLFSSL_NO_TLS12
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    #ifdef WOLFSSL_TLS13
+        #ifdef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+        #else
+            AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+        #endif
+        AssertIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_CTX_get_min_proto_version(ctx), TLS1_3_VERSION);
+        wolfSSL_CTX_free(ctx);
+    #endif
+
+    printf(resultFmt, passed);
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -40835,6 +40900,8 @@ void ApiTest(void)
 #ifdef HAVE_KEYING_MATERIAL
     test_export_keying_material();
 #endif /* HAVE_KEYING_MATERIAL */
+
+    test_wolfSSL_CTX_get_min_proto_version();
 
     /*wolfcrypt */
     printf("\n-----------------wolfcrypt unit tests------------------\n");

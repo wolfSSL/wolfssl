@@ -41,6 +41,7 @@ extern "C" {
 #endif
 
 #if defined(WOLFSSL_CRYPTOCELL)
+    /* see SASI_AES_KEY_MAX_SIZE_IN_BYTES in the nRF5 SDK */
     #define AES_MAX_KEY_SIZE    128
 #endif /* WOLFSSL_CRYPTOCELL*/
 
@@ -136,6 +137,9 @@ extern "C" {
 #undef HAVE_ECC
 #if 1
     #define HAVE_ECC
+
+    #include <strings.h>
+    /* strings.h required for strncasecmp */
 
     /* Manually define enabled curves */
     #undef  ECC_USER_CURVES

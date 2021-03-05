@@ -5210,6 +5210,12 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
    fp_int  *t;
 #endif
 
+   /* LCM of 0 and any number is undefined as 0 is not in the set of values
+    * being used. */
+   if (fp_iszero(a) == FP_YES || fp_iszero(b) == FP_YES) {
+       return FP_VAL;
+   }
+
 #ifdef WOLFSSL_SMALL_STACK
    t = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL) {
@@ -5248,6 +5254,11 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 #else
    fp_int *u, *v, *r;
 #endif
+
+   /* GCD of 0 and 0 is undefined as all integers divide 0. */
+   if (fp_iszero(a) == FP_YES && fp_iszero(b) == FP_YES) {
+       return FP_VAL;
+   }
 
    /* either zero than gcd is the largest */
    if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {

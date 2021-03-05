@@ -14,6 +14,57 @@ AC_CONFIG_AUX_DIR([build-aux])
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
+# Capture user C_EXTRA_FLAGS from configure line.
+# Use of C_EXTRA_FLAGS is deprecated because CFLAGS was fixed but someone
+# might still be using it.
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
+
+AC_PROG_CC
+AM_PROG_CC_C_O
+AC_CANONICAL_HOST
+AC_CONFIG_MACRO_DIR([m4])
+
+AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_ARG_PROGRAM
+
+AC_CONFIG_HEADERS([config.h:config.in])
+
+LT_PREREQ([2.2])
+LT_INIT([disable-static win32-dll])
+
+#shared library versioning
+WOLFSSL_LIBRARY_VERSION=28:1:4
+#                        | | |
+#                 +------+ | +---+
+#                 |        |     |
+#                current:revision:age
+#                 |        |     |
+#                 |        |     +- increment if interfaces have been added
+#                 |        |        set to zero if interfaces have been removed
+#                 |        |        or changed
+#                 |        +- increment if source code has changed
+#                 |           set to zero if current is incremented
+#                 +- increment if interfaces have been added, removed or changed
+AC_SUBST([WOLFSSL_LIBRARY_VERSION])
+
+gl_VISIBILITY
+AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
+       AM_CFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
+       ])
+
+
+# Moved these size of and type checks before the library checks.
+# The library checks add the library to subsequent test compiles
+# and in some rare cases, the networking check causes these sizeof
+# checks to fail.
+AC_CHECK_SIZEOF([long long])
+AC_CHECK_SIZEOF([long])
+AC_CHECK_SIZEOF([time_t])
+AC_CHECK_TYPES([__uint128_t])
+
+
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
     [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
@@ -55,55 +106,6 @@ else
     AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[: ${RANLIB="ranlib -U"}])
 fi
 
-AC_PROG_CC
-AM_PROG_CC_C_O
-AC_CANONICAL_HOST
-AC_CONFIG_MACRO_DIR([m4])
-
-AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
-m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
-
-AC_ARG_PROGRAM
-
-AC_CONFIG_HEADERS([config.h:config.in])
-
-LT_PREREQ([2.2])
-LT_INIT([disable-static win32-dll])
-
-#shared library versioning
-WOLFSSL_LIBRARY_VERSION=28:1:4
-#                        | | |
-#                 +------+ | +---+
-#                 |        |     |
-#                current:revision:age
-#                 |        |     |
-#                 |        |     +- increment if interfaces have been added
-#                 |        |        set to zero if interfaces have been removed
-#                 |        |        or changed
-#                 |        +- increment if source code has changed
-#                 |           set to zero if current is incremented
-#                 +- increment if interfaces have been added, removed or changed
-AC_SUBST([WOLFSSL_LIBRARY_VERSION])
-
-# Capture user C_EXTRA_FLAGS from configure line.
-# Use of C_EXTRA_FLAGS is deprecated because CFLAGS was fixed but someone
-# might still be using it.
-CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
-
-gl_VISIBILITY
-AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
-       AM_CFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
-       ])
-
-
-# Moved these size of and type checks before the library checks.
-# The library checks add the library to subsequent test compiles
-# and in some rare cases, the networking check causes these sizeof
-# checks to fail.
-AC_CHECK_SIZEOF([long long])
-AC_CHECK_SIZEOF([long])
-AC_CHECK_SIZEOF([time_t])
-AC_CHECK_TYPES([__uint128_t])
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
 AC_CHECK_LIB([network],[socket])
@@ -5338,7 +5340,7 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       fi
     fi
     ;;
-  *x86_64*)
+  *x86_64*|*amd64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
@@ -6608,13 +6610,16 @@ echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
 then
-    echo "   * SP math implementation:     all"
-elif test "$ENABLED_SP_MATH" != "no"
-then
-    echo "   * SP math implementation:     restricted"
+    ENABLED_SP_MATH_DESC="all"
 else
-    echo "   * SP math implementation:     no"
+    if test "$ENABLED_SP_MATH" != "no"
+    then
+        ENABLED_SP_MATH_DESC="restricted"
+    else
+        ENABLED_SP_MATH_DESC="no"
+    fi
 fi
+echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"

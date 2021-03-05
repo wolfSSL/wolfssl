@@ -2481,7 +2481,7 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int c, int m)
     }
 
     FREE_SP_INT(t, NULL);
-    return MP_OKAY;
+    return err;
 }
 #endif /* HAVE_ECC && ECC_TIMING_RESISTANT && !WC_NO_CACHE_RESISTANT */
 
@@ -13230,7 +13230,7 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
  *
@@ -13250,6 +13250,7 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         err = MP_VAL;
     }
     else if (sp_iszero(a)) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
         if (sp_iszero(b)) {
             err = MP_VAL;
         }
@@ -13360,6 +13361,10 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+
+    /* LCM of 0 and any number is undefined as 0 is not in the set of values
+     * being used.
+     */
     if ((err == MP_OKAY) && (mp_iszero(a) || mp_iszero(b))) {
         err = MP_VAL;
     }
