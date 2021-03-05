@@ -42335,6 +42335,10 @@ err:
             const char* name = wolfSSL_OBJ_nid2ln(wolfSSL_OBJ_obj2nid(a));
 #endif
 
+            if (name == NULL) {
+                WOLFSSL_MSG("Name not found");
+                return WOLFSSL_FAILURE;
+            }
             if (XSTRLEN(name) + 1 < (word32)bufLen - 1) {
                 bufSz = (int)XSTRLEN(name);
             }
