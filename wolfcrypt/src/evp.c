@@ -2156,7 +2156,10 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+        int nid;
+        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL) break;
+        nid = wolfSSL_EVP_MD_type(ctxmd);
         if (nid < 0) break;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, pkey->rsa);
@@ -2232,7 +2235,10 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+        int nid;
+        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL) break;
+        nid = wolfSSL_EVP_MD_type(ctxmd);
         if (nid < 0) break;
         return wolfSSL_RSA_verify(nid, md, mdsize, sig,
                 (unsigned int)siglen, pkey->rsa);
