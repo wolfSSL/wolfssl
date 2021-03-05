@@ -31897,6 +31897,7 @@ int SetDhExternal(WOLFSSL_DH *dh)
 
     if (dh == NULL || dh->internal == NULL) {
         WOLFSSL_MSG("dh key NULL error");
+        return WOLFSSL_FATAL_ERROR;
     }
 
     key = (DhKey*)dh->internal;
