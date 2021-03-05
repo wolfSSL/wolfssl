@@ -9096,7 +9096,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                         return rc;
                     }
                     if (sk->next)
-                        XSNPRINTF(val, len, "%*s%s, ", indent, "", str->strData);
+                        XSNPRINTF(val, len, "%*s%s,", indent, "", str->strData);
                     else
                         XSNPRINTF(val, len, "%*s%s", indent, "", str->strData);
 
@@ -16113,7 +16113,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         if (len < 0) {
-            len = (int)XSTRLEN((const char*)buf);
+            /* The length of the string including terminating null. */
+            len = (int)XSTRLEN((const char*)buf) + 1;
         }
         bio->num = bio->wrSz = len;
         bio->ptr = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
@@ -23791,7 +23792,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     strLen = (int)XSTRLEN(name);
 
     for (i = 0, j = 0, k = 0; i <= strLen; i++) {
-        if (k > MAX_SEGMENTS || j > MAX_SEGMENT_SZ)
+        if (k >= MAX_SEGMENTS || j >= MAX_SEGMENT_SZ)
             break;
 
         if (name[i] != '-' && name[i] != '\0') {
@@ -45579,7 +45580,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     int count = 0, len = 0, totalSz = 0, tmpSz = 0;
     char tmp[ASN_NAME_MAX+1];
-    char fullName[ASN_NAME_MAX];
+    char fullName[ASN_NAME_MAX+1];
     const char *buf = NULL;
     WOLFSSL_X509_NAME_ENTRY* ne;
     WOLFSSL_ASN1_STRING* str;
@@ -47481,7 +47482,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
         asn1->isDynamic = 0;
     }
-    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER_MAX));
     asn1->data = asn1->intData;
     asn1->length = 0;
     asn1->negative = 0;
