@@ -227,7 +227,8 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 /* ---> Basic Manipulations <--- */
 #define mp_iszero(a) (((a)->used == 0) ? MP_YES : MP_NO)
 #define mp_isone(a) \
-    (((((a)->used == 1)) && ((a)->dp[0] == 1u)) ? MP_YES : MP_NO)
+    (((((a)->used == 1)) && ((a)->dp[0] == 1u) && ((a)->sign == MP_ZPOS)) \
+                                                               ? MP_YES : MP_NO)
 #define mp_iseven(a) \
     (((a)->used > 0 && (((a)->dp[0] & 1u) == 0u)) ? MP_YES : MP_NO)
 #define mp_isodd(a) \
