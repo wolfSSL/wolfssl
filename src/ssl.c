@@ -45580,7 +45580,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     int count = 0, len = 0, totalSz = 0, tmpSz = 0;
     char tmp[ASN_NAME_MAX+1];
-    char fullName[ASN_NAME_MAX+1];
+    char fullName[ASN_NAME_MAX+2];
     const char *buf = NULL;
     WOLFSSL_X509_NAME_ENTRY* ne;
     WOLFSSL_ASN1_STRING* str;
