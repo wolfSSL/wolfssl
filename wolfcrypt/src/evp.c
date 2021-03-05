@@ -2705,7 +2705,11 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         switch (ctx->pctx->pkey->type) {
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
-            int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+            int nid;
+            const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
+            if (md == NULL)
+                return WOLFSSL_FAILURE;
+            nid = wolfSSL_EVP_MD_type(md);
             if (nid < 0)
                 return WOLFSSL_FAILURE;
             return wolfSSL_RSA_verify_ex(nid, digest, hashLen, sig,
