@@ -278,6 +278,7 @@ linuxv3)
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION="v4"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm )
   ;;
 *)
   Usage
@@ -325,6 +326,11 @@ then
     for MOD in "${WC_MODS[@]}"
     do
         $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h"
+    done
+
+    for MOD in "${COPY_DIRECT[@]}"
+    do
+        $GIT checkout "my$CRYPT_VERSION" -- "$MOD"
     done
 
     $GIT branch --no-track "myrng$RNG_VERSION" $RNG_VERSION
