@@ -48284,7 +48284,7 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
         #endif
         }
 
-        if (curve > (sizeof(word32) * WOLFSSL_BIT_SIZE)) {
+        if (curve >= (sizeof(word32) * WOLFSSL_BIT_SIZE)) {
             /* shift left more than size of ctx->disabledCurves causes static
              * analysis report */
             WOLFSSL_MSG("curve value is too large for upcoming shift");
