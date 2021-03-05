@@ -9791,7 +9791,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         }
 #endif
-
         if (cert->srcIdx < cert->sigIndex) {
         #ifndef ALLOW_V1_EXTENSIONS
             if (cert->version < 2) {
@@ -9820,7 +9819,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
         }
-
         if ((ret = GetAlgoId(cert->source, &cert->srcIdx,
 #ifdef WOLFSSL_CERT_REQ
                 !cert->isCSR ? &confirmOID : &cert->signatureOID,

@@ -1981,7 +1981,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
     if (ctx->x509_store.lookup.dirs) {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-        if (!ctx->x509_store.lookup.dirs->dir_entry) {
+        if (ctx->x509_store.lookup.dirs->dir_entry) {
             wolfSSL_sk_BY_DIR_entry_free(ctx->x509_store.lookup.dirs->dir_entry);
         }
 #endif
@@ -10619,6 +10619,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             WOLFSSL_MSG("failed hash operation");
             return WOLFSSL_FAILURE;
         }
+        wolfSSL_OPENSSL_free(pbuf);
     }
     
     /* try to load each hashed name file in path */
@@ -10633,8 +10634,9 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     for (i=0; i<num; i++) {
         
         entry = wolfSSL_sk_BY_DIR_entry_value(lookup->dirs->dir_entry, i);
-        
-        len = XSTRLEN(entry->dir_name) + 13;
+        /*/<hash value:8>.(r)N\0        */
+        /*112345678      1 1 1 1  => 13 */
+        len = (int)XSTRLEN(entry->dir_name) + 13;
         
         if (filename != NULL) {
             XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -10678,6 +10680,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                                                         WOLFSSL_FILETYPE_PEM);
                     if (x509 != NULL) {
                        ret = wolfSSL_X509_STORE_add_cert(store, x509);
+                       wolfSSL_X509_free(x509);
                     } else {
                        WOLFSSL_MSG("failed to load certificate\n");
                        ret = WOLFSSL_FAILURE;
@@ -10839,45 +10842,6 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
     /* Parse Certificate */
     ret = ParseCertRelative(args->dCert, certType, verify, ssl->ctx->cm);
-#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    if (ret == ASN_NO_SIGNER_E) {
-        WOLFSSL_MSG("try to load certificate if hash dir is set");
-        if (ssl->ctx->x509_store_pt != NULL) {
-            ret = LoadCrlCertByIssuer(ssl->ctx->x509_store_pt, 
-                         (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
-                                                                X509_LU_X509);
-        } else {
-            ret = LoadCrlCertByIssuer(&ssl->ctx->x509_store, 
-                         (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
-                                                                X509_LU_X509);
-        }
-
-        if (ret == WOLFSSL_SUCCESS) {
-            /* re try Parse Certificate */
-            InitDecodedCert(args->dCert, cert->buffer, cert->length, ssl->heap);
-            args->dCertInit = 1;
-            args->dCert->sigCtx.devId = ssl->devId;
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                args->dCert->sigCtx.asyncCtx = ssl;
-            #endif
-            #ifdef HAVE_PK_CALLBACKS
-            /* setup the PK callback context */
-            ret = InitSigPkCb(ssl, &args->dCert->sigCtx);
-            if (ret != 0)
-                return ret;
-            #endif
-            ret = ParseCertRelative(args->dCert, certType, verify, 
-                                                              ssl->ctx->cm);
-        } else {
-            WOLFSSL_MSG("failed to load certificate from hash folder");
-            /* restore return code */
-            ret = ASN_NO_SIGNER_E;
-        }
-    }   
-#endif
-
     /* perform below checks for date failure cases */
     if (ret == 0 || ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
         /* get subject and determine if already loaded */
@@ -11309,6 +11273,31 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
                         !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+                    if (ret == ASN_NO_SIGNER_E) {
+                        WOLFSSL_MSG("try to load certificate if hash dir is set");
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            ret = LoadCrlCertByIssuer(ssl->ctx->x509_store_pt, 
+                               (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
+                                                              X509_LU_X509);
+                        } else {
+                            ret = LoadCrlCertByIssuer(&ssl->ctx->x509_store, 
+                               (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
+                                                             X509_LU_X509);
+                        }
+                        if (ret == WOLFSSL_SUCCESS) {
+                            FreeDecodedCert(args->dCert);
+                            args->dCertInit = 0;
+                            /* once again */
+                            ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
+                            !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                            &subjectHash, &alreadySigner);
+                        } else
+			     ret = ASN_NO_SIGNER_E;
+                    }
+#endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E)
                         goto exit_ppc;
@@ -11502,6 +11491,31 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
                         !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+                    if (ret == ASN_NO_SIGNER_E) {
+                        WOLFSSL_MSG("try to load certificate if hash dir is set");
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            ret = LoadCrlCertByIssuer(ssl->ctx->x509_store_pt, 
+                               (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
+                                                              X509_LU_X509);
+                        } else {
+                            ret = LoadCrlCertByIssuer(&ssl->ctx->x509_store, 
+                               (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
+                                                             X509_LU_X509);
+                        }
+                        if (ret == WOLFSSL_SUCCESS) {
+                            FreeDecodedCert(args->dCert);
+                            args->dCertInit = 0;
+                            /* once again */
+                            ret = ProcessPeerCertParse(ssl, args, CERT_TYPE,
+                            !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
+                            &subjectHash, &alreadySigner);
+                        } else
+			     ret = ASN_NO_SIGNER_E;
+                    }
+#endif
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E)
                     goto exit_ppc;

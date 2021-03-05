@@ -24894,7 +24894,7 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
                     WOLFSSL_MSG("failed to allocate dir entry");
                     return 0;
                 }
-                entry->dir_type = argl;
+                entry->dir_type = (int)argl;
                 entry->dir_name = (char*)XMALLOC(pathLen + 1/* \0 termination*/
                                                 , NULL, DYNAMIC_TYPE_OPENSSL);
                 entry->hashes = wolfSSL_sk_BY_DIR_HASH_new_null();
@@ -24953,7 +24953,7 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         switch (cmd) {
         case WOLFSSL_X509_L_FILE_LOAD:
             /* expects to return a number of processed cert or crl file */
-            lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, argl) > 0 ?
+            lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, (int)argl) > 0 ?
                             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
             break;
         case WOLFSSL_X509_L_ADD_DIR:
@@ -25885,7 +25885,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 
         if (store->lookup.dirs != NULL) {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-            if (!store->lookup.dirs->dir_entry) {
+            if (store->lookup.dirs->dir_entry) {
                 wolfSSL_sk_BY_DIR_entry_free(store->lookup.dirs->dir_entry);
             }
 #endif
@@ -26329,6 +26329,8 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
             } else {
                 WOLFSSL_MSG("wolfSSL_X509_STORE_add_cert error");
             }
+            wolfSSL_X509_free(x509);
+            x509 = NULL;
         } else {
             WOLFSSL_MSG("wolfSSL_X509_load_certificate_file error");
         }
@@ -41609,7 +41611,7 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
         }
     }
     /* put actual length */
-    asn_out->length = dst - asn_out->data;
+    asn_out->length = (int)(dst - asn_out->data);
     return WOLFSSL_SUCCESS;
 }
 /* this is to converts the x509 name structure into canonical DER format 
@@ -41680,6 +41682,8 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
                 return WOLFSSL_FATAL_ERROR;
             }
             totalBytes += ret;
+            wolfSSL_OPENSSL_free(cano_data->data);
+            wolfSSL_ASN1_STRING_free(cano_data);
         }
     }
 
@@ -42820,6 +42824,8 @@ err:
         }
 
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        if (der)
+            FreeDer(&der);
         return WOLFSSL_SUCCESS;
 err:
         if (pem)

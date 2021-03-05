@@ -25855,6 +25855,7 @@ static void test_wolfSSL_sk_X509_BY_DIR(void)
     /* pop */
     AssertNotNull(ent = wolfSSL_sk_BY_DIR_entry_pop(entry_stack));
     AssertIntEQ((len = wolfSSL_sk_BY_DIR_entry_num(entry_stack)), 1);
+    wolfSSL_BY_DIR_entry_free(ent);
     
     /* free */
     wolfSSL_sk_BY_DIR_entry_free(entry_stack);
@@ -28205,7 +28206,6 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     AssertIntEQ((num = wolfSSL_sk_BY_DIR_entry_num(sk)), 1);
     
     dir = wolfSSL_sk_BY_DIR_entry_value(sk, 0);
-    printf("dir->dir_name %s\n", dir->dir_name);
     AssertIntEQ(XSTRLEN((const char*)dir->dir_name), XSTRLEN("./"));
     AssertIntEQ(XMEMCMP(dir->dir_name, "./",
                                XSTRLEN((const char*)dir->dir_name)), 0);
@@ -28218,7 +28218,7 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     total_len = 0;
     
     for(i = MAX_DIR - 1; i>=0 && total_len < MAX_FILENAME_SZ; i--) {
-        len = XSTRLEN((const char*)&paths[i]);
+        len = (int)XSTRLEN((const char*)&paths[i]);
         total_len += len;
         XSTRNCPY(p, paths[i], MAX_FILENAME_SZ - total_len);
         p += len;
@@ -28315,10 +28315,13 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
     AssertNotNull(issuerName);
     cmp = X509_NAME_cmp(caName, issuerName);
     AssertIntEQ(cmp, 0);
-   
+
     /* load der format */
+    X509_free(issuer);
+    X509_STORE_CTX_free(ctx);
     X509_STORE_free(str);
     sk_X509_free(sk);
+    X509_free(x509Svr);
 
     AssertNotNull((str = wolfSSL_X509_STORE_new()));
     AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
@@ -28326,18 +28329,17 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
                                     SSL_FILETYPE_ASN1,NULL), 1);
     AssertNotNull(sk = wolfSSL_CertManagerGetCerts(str->cm));
     AssertIntEQ((cert_count = sk_X509_num(sk)), 1);
-
     /* check if CA cert is loaded into the store */
     for (i = 0; i < cert_count; i++) {
         x509Ca = sk_X509_value(sk, i);
         AssertIntEQ(0, wolfSSL_X509_cmp(x509Ca, cert1));
     }
 
+    X509_STORE_free(str);
+    sk_X509_free(sk);
+    X509_free(cert1);
+    
 #ifdef HAVE_CRL
-    /* once feeing store */
-    wolfSSL_X509_STORE_free(str);
-    str = NULL;
-
     AssertNotNull(str = wolfSSL_X509_STORE_new());
     AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, caCertFile, 
@@ -28365,15 +28367,11 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
                     "certs/server-revoked-cert.pem",
                     WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
     }
-
-#endif
-    X509_free(issuer);
-    X509_STORE_CTX_free(ctx);
-    X509_free(x509Svr);
+    
     X509_STORE_free(str);
-    sk_X509_free(sk);
-    X509_free(x509Ca);
-    X509_free(cert1);
+    
+#endif
+
 
     printf(resultFmt, passed);
 #endif
