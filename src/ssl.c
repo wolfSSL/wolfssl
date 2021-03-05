@@ -24696,7 +24696,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     }
 
     size = wolfSSL_BIO_get_len(bio);
-    if (size == 0) {
+    if (size <= 0) {
         WOLFSSL_MSG("wolfSSL_BIO_get_len error. Possibly no pending data.");
         return NULL;
     }
