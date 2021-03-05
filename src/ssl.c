@@ -47482,7 +47482,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
         asn1->isDynamic = 0;
     }
-    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER_MAX));
     asn1->data = asn1->intData;
     asn1->length = 0;
     asn1->negative = 0;
