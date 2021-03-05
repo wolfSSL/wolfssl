@@ -9096,7 +9096,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                         return rc;
                     }
                     if (sk->next)
-                        XSNPRINTF(val, len, "%*s%s, ", indent, "", str->strData);
+                        XSNPRINTF(val, len, "%*s%s,", indent, "", str->strData);
                     else
                         XSNPRINTF(val, len, "%*s%s", indent, "", str->strData);
 
