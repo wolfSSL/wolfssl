@@ -23722,17 +23722,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 4, pY);
         sp_256_from_mp(p2->z, 4, pZ);
 
-#ifndef WOLFSSL_SP_SMALL
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            sp_256_mod_inv_avx2_4(s, s, p256_order);
-        }
-        else
-#endif
-        {
-            sp_256_mod_inv_4(s, s, p256_order);
-        }
-#endif /* !WOLFSSL_SP_SMALL */
+		/* Convert s to Montgomery form mod N. */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             sp_256_mul_avx2_4(s, s, p256_norm_order);
@@ -23744,13 +23734,20 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         }
         err = sp_256_mod_4(s, s, p256_order);
     }
+
+	/*
+	 * Compute w, u1, and u2.
+	 * Reuse s for w.
+	 */
     if (err == MP_OKAY) {
         sp_256_norm_4(s);
-#ifdef WOLFSSL_SP_SMALL
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+			/* w = (s')^-1 mod n */
             sp_256_mont_inv_order_avx2_4(s, s, tmp);
+			/* u1 = (e'*w) mod n */
             sp_256_mont_mul_order_avx2_4(u1, u1, s);
+			/* u2 = (r'*w) mod n */
             sp_256_mont_mul_order_avx2_4(u2, u2, s);
         }
         else
@@ -23761,42 +23758,38 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
             sp_256_mont_mul_order_4(u2, u2, s);
         }
 
-#else
+		/* Set p1 = u1*G */
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            sp_256_mont_mul_order_avx2_4(u1, u1, s);
-            sp_256_mont_mul_order_avx2_4(u2, u2, s);
-        }
-        else
-#endif
-        {
-            sp_256_mont_mul_order_4(u1, u1, s);
-            sp_256_mont_mul_order_4(u2, u2, s);
-        }
-
-#endif /* WOLFSSL_SP_SMALL */
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
             err = sp_256_ecc_mulmod_base_avx2_4(p1, u1, 0, 0, heap);
-        else
+		} else {
 #endif
             err = sp_256_ecc_mulmod_base_4(p1, u1, 0, 0, heap);
-    }
+    	}
+	}
     if ((err == MP_OKAY) && sp_256_iszero_4(p1->z)) {
         p1->infinity = 1;
     }
+
+	/* Set p2 = u2*Q */
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             err = sp_256_ecc_mulmod_avx2_4(p2, p2, u2, 0, 0, heap);
-        else
+		} else {
 #endif
             err = sp_256_ecc_mulmod_4(p2, p2, u2, 0, 0, heap);
-    }
+    	}
+	}
     if ((err == MP_OKAY) && sp_256_iszero_4(p2->z)) {
         p2->infinity = 1;
     }
 
+	/*
+	 * Compute R = (xR, yR) = u1*G + u2*Q
+	 *                      = p1   + p2
+	 * Set p1 = R
+	 */
     if (err == MP_OKAY) {
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
