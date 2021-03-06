@@ -328,9 +328,12 @@ int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf,
         return -1;
     }
 
-    wc_LockMutex(&caamMutex);
-    ret = devctlv(caamFd, cmd, inIdx, outIdx, in, out, NULL);
-    wc_UnLockMutex(&caamMutex);
+    ret = wc_LockMutex(&caamMutex);
+    if (ret == 0) {
+        ret = devctlv(caamFd, cmd, inIdx, outIdx, in, out, NULL);
+        wc_UnLockMutex(&caamMutex);
+    }
+
     if (ret != 0) {
         if (ret == EFAULT) {
             WOLFSSL_MSG("bad address on one of the in/out buffers");

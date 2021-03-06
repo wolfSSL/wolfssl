@@ -224,16 +224,19 @@ word32 wc_caamReadRegister(word32 reg)
     return (word32)out;
 }
 
-void wc_caamWriteRegister(word32 reg, word32 value)
+
+/* returns 0 on success */
+int wc_caamWriteRegister(word32 reg, word32 value)
 {
     if (caam == NULLIODevice) {
          WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
-         return;
+         return -1;
     }
 
     if (WriteIODeviceRegister(caam, reg, value) != Success) {
          WOLFSSL_MSG("Error writing to register\n");
     }
+    return 0;
 }
 #endif
 

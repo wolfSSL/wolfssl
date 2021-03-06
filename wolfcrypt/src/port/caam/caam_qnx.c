@@ -89,7 +89,7 @@ int CAAM_SET_BASEADDR()
 /* convert a virtual address to a physical address
  * returns the physical address on success
  */
-unsigned int CAAM_ADR_TO_PHYSICAL(void* in, int inSz)
+CAAM_ADDRESS CAAM_ADR_TO_PHYSICAL(void* in, int inSz)
 {
     off64_t ofst = 0;
     int ret, count = 0;;
@@ -112,7 +112,7 @@ unsigned int CAAM_ADR_TO_PHYSICAL(void* in, int inSz)
         count++;
     } while (ret != 0 && ret == -1 && count < 5);
 
-    return (int)ofst;
+    return (CAAM_ADDRESS)ofst;
 }
 
 
