@@ -917,6 +917,10 @@ void wc_Sha512Free(wc_Sha512* sha512)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
 #if defined(OPENSSL_EXTRA)
+/* Apply SHA512 transformation to the data                */
+/* @param sha  a pointer to wc_Sha512 structure           */
+/* @param data data to be applied SHA512 transformation   */
+/* @return 0 on successful, otherwise non-zero on failure */
 int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 {
     int ret ;
@@ -930,7 +934,14 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     #else
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     #endif
-
+    
+    /* sanity check */
+    if (sha == NULL || data == NULL) {
+        #if defined(WOLFSSL_SMALL_STACK)
+        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+        return BAD_FUNC_ARG;
+    }
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     Sha512_SetTransform();
 #endif

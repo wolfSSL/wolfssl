@@ -33070,6 +33070,14 @@ static void test_wolfSSL_MD5_Transform(void)
     XMEMSET(&md5, 0, sizeof(md5));
     XMEMSET(&local, 0, sizeof(local));
     
+    /* sanity check */
+    AssertIntEQ(wolfSSL_MD5_Transform(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_MD5_Transform(NULL, (const byte*)&input1), 0);
+    AssertIntEQ(wolfSSL_MD5_Transform(&md5, NULL), 0);
+    AssertIntEQ(wc_Md5Transform(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Md5Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Md5Transform((wc_Md5*)&md5, NULL), BAD_FUNC_ARG);
+    
     /* Init MD5 CTX */
     AssertIntEQ(wolfSSL_MD5_Init(&md5), 1);
     /* Do Transform*/
@@ -33106,7 +33114,7 @@ static void test_wolfSSL_SHA224(void)
     size_t inLen;
     byte hash[WC_SHA224_DIGEST_SIZE];
 
-    printf(testingFmt, "wolfSSL_SHA224)");
+    printf(testingFmt, "wolfSSL_SHA224()");
     inLen  = XSTRLEN((char*)input);
 
     XMEMSET(hash, 0, WC_SHA224_DIGEST_SIZE);
@@ -33138,6 +33146,14 @@ static void test_wolfSSL_SHA_Transform(void)
     
     XMEMSET(&sha, 0, sizeof(sha));
     XMEMSET(&local, 0, sizeof(local));
+    
+    /* sanity check */
+    AssertIntEQ(wolfSSL_SHA_Transform(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_SHA_Transform(NULL, (const byte*)&input1), 0);
+    AssertIntEQ(wolfSSL_SHA_Transform(&sha, NULL), 0);
+    AssertIntEQ(wc_ShaTransform(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_ShaTransform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    AssertIntEQ(wc_ShaTransform((wc_Sha*)&sha, NULL), BAD_FUNC_ARG);
     
     /* Init SHA CTX */
     AssertIntEQ(wolfSSL_SHA_Init(&sha), 1);
@@ -33184,6 +33200,14 @@ static void test_wolfSSL_SHA256_Transform(void)
     
     XMEMSET(&sha256, 0, sizeof(sha256));
     XMEMSET(&local, 0, sizeof(local));
+    
+    /* sanity check */
+    AssertIntEQ(wolfSSL_SHA256_Transform(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_SHA256_Transform(NULL, (const byte*)&input1), 0);
+    AssertIntEQ(wolfSSL_SHA256_Transform(&sha256, NULL), 0);
+    AssertIntEQ(wc_Sha256Transform(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha256Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha256Transform((wc_Sha256*)&sha256, NULL), BAD_FUNC_ARG);
     
     /* Init SHA256 CTX */
     AssertIntEQ(wolfSSL_SHA256_Init(&sha256), 1);
@@ -33258,6 +33282,14 @@ static void test_wolfSSL_SHA512_Transform(void)
     
     XMEMSET(&sha512, 0, sizeof(sha512));
     XMEMSET(&local, 0, sizeof(local));
+    
+    /* sanity check */
+    AssertIntEQ(wolfSSL_SHA512_Transform(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_SHA512_Transform(NULL, (const byte*)&input1), 0);
+    AssertIntEQ(wolfSSL_SHA512_Transform(&sha512, NULL), 0);
+    AssertIntEQ(wc_Sha512Transform(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha512Transform(NULL, (const byte*)&input1), BAD_FUNC_ARG);
+    AssertIntEQ(wc_Sha512Transform((wc_Sha512*)&sha512, NULL), BAD_FUNC_ARG);
     
     /* Init SHA512 CTX */
     AssertIntEQ(wolfSSL_SHA512_Init(&sha512), 1);

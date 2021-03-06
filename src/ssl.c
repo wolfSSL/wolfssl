@@ -2272,7 +2272,7 @@ int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
 
 #ifdef WOLFSSL_ALLOW_MAX_FRAGMENT_ADJUST
     /* The following is a non-standard way to reconfigure the max packet size
-        post-handshake for wolfSSL_write/woflSSL_read */
+        post-handshake for wolfSSL_write/wolfSSL_read */
     if (ssl->options.handShakeState == HANDSHAKE_DONE) {
         switch (mfl) {
             case WOLFSSL_MFL_2_8 : ssl->max_fragment =  256; break;
@@ -16832,25 +16832,30 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
-
+    /* Apply MD5 transformation to the data */
     int wolfSSL_MD5_Transform(WOLFSSL_MD5_CTX* md5, const unsigned char* data)
     {
         int ret;
 
        WOLFSSL_ENTER("MD5_Transform");
+       
+       /* sanity check */
+       if (md5 == NULL || data == NULL) {
+            return 0;
+       }
        #if defined(BIG_ENDIAN_ORDER)
        {
             ByteReverseWords((word32*)data, (word32*)data, WC_MD5_BLOCK_SIZE);
        }
        #endif
-
+    
        ret = wc_Md5Transform((wc_Md5*)md5, data);
 
        /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
-            
-       return ret;
+        else
+            return 0;
     }
 #endif /* !NO_MD5 */
 
@@ -16907,12 +16912,17 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if defined(OPENSSL_EXTRA) 
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA1 transformation to the data */
     int wolfSSL_SHA_Transform(WOLFSSL_SHA_CTX* sha, 
                                          const unsigned char* data)
     {
        int ret;
        
        WOLFSSL_ENTER("SHA_Transform");
+       /* sanity check */
+       if (sha == NULL || data == NULL) {
+            return 0;
+       }
        #if defined(LITTLE_ENDIAN_ORDER)
        {
             ByteReverseWords((word32*)data, (word32*)data, WC_SHA_BLOCK_SIZE);
@@ -16923,8 +16933,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
        /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
-            
-       return ret;
+        else
+            return 0;
     }
     #endif
     #endif
@@ -16952,6 +16962,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if defined(OPENSSL_EXTRA)
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA1 transformation to the data */
     int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX* sha, 
                                          const unsigned char* data)
     {
@@ -17066,12 +17077,17 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #if defined(OPENSSL_EXTRA)
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA256 transformation to the data */
     int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256, 
                                                 const unsigned char* data)
     {
        int ret;
        
        WOLFSSL_ENTER("SHA256_Transform");
+       /* sanity check */
+       if (sha256 == NULL || data == NULL) {
+            return 0;
+       }
        #if defined(LITTLE_ENDIAN_ORDER)
        {
             ByteReverseWords((word32*)data, (word32*)data, WC_SHA256_BLOCK_SIZE);
@@ -17082,8 +17098,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
        /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
-            
-       return ret;
+        else
+            return 0;
     }
     #endif
     #endif
@@ -17193,20 +17209,25 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+    /* Apply SHA512 transformation to the data */
     int wolfSSL_SHA512_Transform(WOLFSSL_SHA512_CTX* sha512, 
                                           const unsigned char* data)
     {
        int ret = WOLFSSL_SUCCESS;
        
        WOLFSSL_ENTER("SHA512_Transform");
+       /* sanity check */
+       if (sha512 == NULL || data == NULL) {
+            return 0;
+       }
        
        ret = wc_Sha512Transform((wc_Sha512*)sha512, data);
 
        /* return 1 on success, 0 otherwise */
         if (ret == 0)
             return 1;
-       
-       return ret;
+        else
+            return 0;
     }
     #endif /* !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
               (HAVE_FIPS_VERSION > 2)) */
@@ -21690,7 +21711,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
 }
 
 /* add one to session reference count
- * return WOFLSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
+ * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
 int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
@@ -26087,6 +26108,9 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
     byte* der = NULL;
     WOLFSSL_X509_CRL* crl = NULL;
     
+    if (bp == NULL)
+        return NULL;
+    
     if ((derSz = wolfSSL_BIO_get_len(bp)) > 0) {
         der = (byte*)XMALLOC(derSz, 0, DYNAMIC_TYPE_DER);
         if (der != NULL) {
@@ -26111,6 +26135,11 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
     return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (void **)crl, CRL_TYPE);
 }
 
+/* Read CRL file, and add it to store and corresponding cert manager    */
+/* @param ctx   a pointer of X509_LOOKUP back to the X509_STORE         */
+/* @param file  a file to read                                          */
+/* @param type  WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1           */
+/* @return WOLFSSL_SUCCESS(1) on successful, othewise WOLFSSL_FAILURE(0)*/
 WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                                              const char *file, int type)
 {
@@ -26161,7 +26190,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
             }
         }
     } else {
-        WOLFSSL_MSG("Invaid file type");
+        WOLFSSL_MSG("Invalid file type");
     }
     
     wolfSSL_X509_CRL_free(crl);
@@ -26379,7 +26408,8 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 }
 
 
-/*
+/* inherits properties of param "to" to param "from"
+* 
 * WOLFSSL_VPARAM_DEFAULT          any values in "src" is copied
 *                                 if "src" value is new for "to".
 * WOLFSSL_VPARAM_OVERWRITE        all values of "form" are copied to "to"
@@ -26387,7 +26417,7 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 * WOLFSSL_VPARAM_LOCKED           don't copy any values
 * WOLFSSL_VPARAM_ONCE             the current inherit_flags is zerroed
 */
-static int woflSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
+static int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
                                          const WOLFSSL_X509_VERIFY_PARAM *from)
 {
     int ret = WOLFSSL_FAILURE;
@@ -26530,11 +26560,11 @@ int wolfSSL_X509_VERIFY_PARAM_set1(WOLFSSL_X509_VERIFY_PARAM *to,
     _inherit_flags = to->inherit_flags;
 
     /* Ored DEFAULT inherit flag proerty to copy "from" contents to "to"
-    *  contends 
+    *  contents 
     */
     to->inherit_flags |= WOLFSSL_VPARAM_DEFAULT;
 
-    ret = woflSSL_X509_VERIFY_PARAM_inherit(to, from);
+    ret = wolfSSL_X509_VERIFY_PARAM_inherit(to, from);
 
     /* restore inherit flag */
     to->inherit_flags = _inherit_flags;
