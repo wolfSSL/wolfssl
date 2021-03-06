@@ -9791,6 +9791,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
         }
 #endif
+
         if (cert->srcIdx < cert->sigIndex) {
         #ifndef ALLOW_V1_EXTENSIONS
             if (cert->version < 2) {
@@ -9819,6 +9820,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
         }
+
         if ((ret = GetAlgoId(cert->source, &cert->srcIdx,
 #ifdef WOLFSSL_CERT_REQ
                 !cert->isCSR ? &confirmOID : &cert->signatureOID,
@@ -13169,9 +13171,8 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 
     return idx;
 }
-
 /*
-*  this wrappes wc_EncodeName for EMAIL OID
+ *  this wrappes wc_EncodeName for EMAIL OID
  */
 int wc_EncodeName_cano(EncodedName* name, const char* nameStr, char nameType,
         byte type)
@@ -13247,8 +13248,6 @@ int wc_EncodeName_cano(EncodedName* name, const char* nameStr, char nameType,
 
     return idx;
 }
-
-
 
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)

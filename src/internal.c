@@ -10576,8 +10576,12 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-/* load certificate file which has <hash>.(r)N[0..N] in the folder */
+/* load certificate file which has the form <hash>.(r)N[0..N]      */
+/* in the folder.                                                  */
 /* (r), in the case of CRL file                                    */
+/* @param store  a pointer to X509_STORE structure                 */
+/* @param issuer a pointer to X509_NAME that presents issuer       */
+/* @param type   X509_LU_X509 or X509_LU_CRL                       */
 int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 {
     const int MAX_SUFFIX = 10;
@@ -10599,8 +10603,8 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     WOLFSSL_ENTER("LoadCrlCertByIssuer");
 
     /* sanity check */
-    if (store == NULL || lookup->dirs == NULL || lookup->type != 1
-        || (type != X509_LU_X509 && type != X509_LU_CRL)) {
+    if (store == NULL || issuer == NULL || lookup->dirs == NULL ||
+        lookup->type != 1 || (type != X509_LU_X509 && type != X509_LU_CRL)) {
         return WOLFSSL_FAILURE;
     }
     

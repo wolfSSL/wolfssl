@@ -26492,9 +26492,6 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     WOLFSSL_LEAVE("wolfSSL_X509_load_crl_file", ret);
     return ret;
 }
-
-
-
 #endif /* !NO_FILESYSTEM */
 
 
@@ -41614,12 +41611,16 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     asn_out->length = (int)(dst - asn_out->data);
     return WOLFSSL_SUCCESS;
 }
+
 /* this is to converts the x509 name structure into canonical DER format 
 *  , which has the following rules:
 *   convert to UTF8
 *   convert to lower case
 *   multi-spaces collapsed
 *   leading SEQUENCE hader is skipped
+* @param  name a pointer to X509_NAME that is to be converted
+* @param  out  a pointer to conveted data
+* @return a number of converted bytes, otherwise <0 error code
 */
 int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
 {
@@ -46301,7 +46302,7 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
 }
 
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-/* WOLFSSL_BY_DIR_HASH stuff */
+/* create an instance of WOLFSSL_BY_DIR_HASH structure */
 WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
 {
     WOLFSSL_BY_DIR_HASH* dir_hash;
@@ -46315,7 +46316,7 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
     }
     return dir_hash;
 }
-
+/* release a WOLFSSL_BY_DIR_HASH resource */
 void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash)
 {
     if (dir_hash == NULL)
@@ -46323,7 +46324,7 @@ void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash)
 
     XFREE(dir_hash, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-
+/* create an instance of WOLFSSL_STACK for STACK_TYPE_BY_DIR_hash */
 WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void)
 {
     WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
@@ -46361,7 +46362,7 @@ int wolfSSL_sk_BY_DIR_HASH_find(
     }
     return -1;
 }
-
+/* return a number of WOLFSSL_BY_DIR_HASH in stack */
 int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_BY_DIR_HASH_num");
@@ -46370,7 +46371,7 @@ int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
         return -1;
     return (int)sk->num;
 }
-
+/* return WOLFSSL_BY_DIR_HASH instance at i */
 WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
                         const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i)
 {
@@ -46383,7 +46384,7 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
         return NULL;
     return sk->data.dir_hash;
 }
-
+/* pop WOLFSSL_BY_DIR_HASH instance, and remove its node from stack */
 WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk)
 {
@@ -46414,7 +46415,8 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
 
     return hash;
 }
-
+/* release all contents in stack, and then release stack itself */
+/* it uses function when it is passed                           */
 void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
     void (*f) (WOLFSSL_BY_DIR_HASH*))
 {
@@ -46451,13 +46453,11 @@ void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-
+/* release all contents in stack, and then release stack itself */
 void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
 {
     wolfSSL_sk_BY_DIR_HASH_pop_free(sk, NULL);
 }
-
-
 /* Adds the WOLFSSL_BY_DIR_HASH to the stack "sk". "sk" takes control of "in" and
  * tries to free it when the stack is free'd.
  *
@@ -46500,9 +46500,7 @@ int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
 
     return WOLFSSL_SUCCESS;
 }
-
-
-/* WOLFSSL_BY_DIR_entry stuff */
+/* create an instance of WOLFSSL_BY_DIR_entry structure */
 WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void)
 {
     WOLFSSL_BY_DIR_entry* entry;
@@ -46517,7 +46515,7 @@ WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void)
     }
     return entry;
 }
-
+/* release a WOLFSSL_BY_DIR_entry resource */
 void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry)
 {
     WOLFSSL_ENTER("wolfSSL_BY_DIR_entry_free");
@@ -46547,7 +46545,7 @@ WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void)
     }
     return sk;
 }
-
+/* return a number of WOLFSSL_BY_DIR_entry in stack */
 int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_num");
@@ -46556,7 +46554,7 @@ int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk)
         return -1;
     return (int)sk->num;
 }
-
+/* return WOLFSSL_BY_DIR_entry instance at i */
 WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
                         const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i)
 {
@@ -46569,7 +46567,7 @@ WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
         return NULL;
     return sk->data.dir_entry;
 }
-
+/* pop WOLFSSL_BY_DIR_entry instance first, and remove its node from stack */
 WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
                                 WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk)
 {
@@ -46600,7 +46598,8 @@ WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
 
     return entry;
 }
-
+/* release all contents in stack, and then release stack itself */
+/* it uses function when it is passed                           */
 void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
     void (*f) (WOLFSSL_BY_DIR_entry*))
 {
@@ -46637,7 +46636,7 @@ void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-
+/* release all contents in stack, and then release stack itself */
 void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk)
 {
     wolfSSL_sk_BY_DIR_entry_pop_free(sk, NULL);
