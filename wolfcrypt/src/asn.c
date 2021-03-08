@@ -13048,11 +13048,11 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
  * nameStr  value to be encoded
  * nameType type of encoding i.e CTC_UTF8
  * type     id of attribute i.e ASN_COMMON_NAME
- *
+ * emailType type of email i.e CTC_UTF8
  * returns length on success
  */
-int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
-                  byte type)
+static int wc_EncodeName_ex(EncodedName* name, const char* nameStr, char nameType,
+                  byte type, byte emailType)
 {
     word32 idx = 0;
     /* bottom up */
@@ -13127,11 +13127,12 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
         case ASN_EMAIL_NAME:
         {
             const byte EMAIL_OID[] = {
-                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01
             };
             /* email joint id */
             XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
             idx += (int)sizeof(EMAIL_OID);
+            name->encoded[idx++] = emailType;
             break;
         }
 
@@ -13171,84 +13172,37 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
 
     return idx;
 }
-/*
- *  this wrappes wc_EncodeName for EMAIL OID
+
+/* canonical encoding one attribute of the name (issuer/subject)
+ * call we_EncodeName_ex with CTC_UTF8 for email type
+ *
+ * name     structure to hold result of encoding
+ * nameStr  value to be encoded
+ * nameType type of encoding i.e CTC_UTF8
+ * type     id of attribute i.e ASN_COMMON_NAME
+ *
+ * returns length on success
  */
 int wc_EncodeName_cano(EncodedName* name, const char* nameStr, char nameType,
         byte type)
 {
-    word32 idx = 0;
-
-    if (nameStr) {
-        /* bottom up */
-        byte firstLen[1 + MAX_LENGTH_SZ];
-        byte secondLen[MAX_LENGTH_SZ];
-        byte sequence[MAX_SEQ_SZ];
-        byte set[MAX_SET_SZ];
-
-        int strLen  = (int)XSTRLEN(nameStr);
-        int thisLen = strLen;
-        int firstSz, secondSz, seqSz, setSz;
-
-        const byte EMAIL_OID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                   0x01, 0x09, 0x01, 0x0c };
-
-        if (type != ASN_EMAIL_NAME) {
-            return wc_EncodeName(name, nameStr, nameType, type);
-        }
-
-        if (strLen == 0) { /* no user data for this item */
-            name->used = 0;
-            return 0;
-        }
-        secondSz = SetLength(strLen, secondLen);
-        thisLen += secondSz;
-        thisLen += EMAIL_JOINT_LEN;
-        firstSz  = EMAIL_JOINT_LEN;
-        thisLen++; /* id  type */
-        firstSz  = SetObjectId(firstSz, firstLen);
-        thisLen += firstSz;
-
-        seqSz = SetSequence(thisLen, sequence);
-        thisLen += seqSz;
-        setSz = SetSet(thisLen, set);
-        thisLen += setSz;
-
-        if (thisLen > (int)sizeof(name->encoded)) {
-            return BUFFER_E;
-        }
-
-        /* store it */
-        idx = 0;
-        /* set */
-        XMEMCPY(name->encoded, set, setSz);
-        idx += setSz;
-        /* seq */
-        XMEMCPY(name->encoded + idx, sequence, seqSz);
-        idx += seqSz;
-        /* asn object id */
-        XMEMCPY(name->encoded + idx, firstLen, firstSz);
-        idx += firstSz;
-        /* email joint id */
-        XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
-        idx += (int)sizeof(EMAIL_OID);
-        /* second length */
-        XMEMCPY(name->encoded + idx, secondLen, secondSz);
-        idx += secondSz;
-        /* str value */
-        XMEMCPY(name->encoded + idx, nameStr, strLen);
-        idx += strLen;
-
-        name->type = type;
-        name->totalLen = idx;
-        name->used = 1;
-    }
-    else
-        name->used = 0;
-
-    return idx;
+    return wc_EncodeName_ex(name, nameStr, nameType, type, 0x0c/* CTC_UTF8 */);
 }
 
+/* Encodes one attribute of the name (issuer/subject)
+ * call we_EncodeName_ex with 0x16, IA5String for email type
+ * name     structure to hold result of encoding
+ * nameStr  value to be encoded
+ * nameType type of encoding i.e CTC_UTF8
+ * type     id of attribute i.e ASN_COMMON_NAME
+ *
+ * returns length on success
+ */
+int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
+                  byte type)
+{
+    return wc_EncodeName_ex(name, nameStr, nameType, type, 0x16);
+}
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)
 {
