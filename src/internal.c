@@ -1821,8 +1821,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
     XMEMSET(ctx->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
     /* WOLFSS_X509_LOOKUP */
-    if ((ctx->x509_store.lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
-                           ctx->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+    if ((ctx->x509_store.lookup.dirs = 
+                            (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
+                            heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("ctx-x509_store.lookup.dir memory allocation error");
         return MEMORY_E;
     }

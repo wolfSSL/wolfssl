@@ -24979,6 +24979,7 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
     (void)argl;
     (void)ret;
     (void)cmd;
+    (void)x509AddCertDir;
     lret = WOLFSSL_NOT_IMPLEMENTED;
 #endif
     return lret;
