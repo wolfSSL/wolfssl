@@ -77,6 +77,8 @@ This library provides single precision (SP) integer math functions.
  *      called again until complete.
  * WOLFSSL_SP_FAST_NCT_EXPTMOD  Enables the faster non-constant time modular
  *      exponentation implementation.
+ * WOLFSSL_SP_INT_DIGIT_ALIGN   Enable when unaligned access of sp_int_digit
+ *                              pointer is not allowed.
  */
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
@@ -12118,9 +12120,29 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         int j;
         int s;
 
+    #ifndef WOLFSSL_SP_INT_DIGIT_ALIGN
         for (i = inSz-1,j = 0; i > SP_WORD_SIZEOF-1; i -= SP_WORD_SIZEOF,j++) {
             a->dp[j] = *(sp_int_digit*)(in + i - (SP_WORD_SIZEOF - 1));
         }
+    #else
+        for (i = inSz-1, j = 0; i >= SP_WORD_SIZEOF - 1; i -= SP_WORD_SIZEOF) {
+            a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0);
+        #if SP_WORD_SIZE >= 16
+            a->dp[j] |= ((sp_int_digit)in[i - 1] <<  8);
+        #endif
+        #if SP_WORD_SIZE >= 32
+            a->dp[j] |= ((sp_int_digit)in[i - 2] << 16) |
+                        ((sp_int_digit)in[i - 3] << 24);
+        #endif
+        #if SP_WORD_SIZE >= 64
+            a->dp[j] |= ((sp_int_digit)in[i - 4] << 32) |
+                        ((sp_int_digit)in[i - 5] << 40) |
+                        ((sp_int_digit)in[i - 6] << 48) |
+                        ((sp_int_digit)in[i - 7] << 56);
+        #endif
+            j++;
+        }
+    #endif
         a->dp[j] = 0;
         for (s = 0; i >= 0; i--,s += 8) {
             a->dp[j] |= ((sp_int_digit)in[i]) << s;
