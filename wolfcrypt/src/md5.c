@@ -550,7 +550,20 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 
     return ret;
 }
-
+#ifdef OPENSSL_EXTRA
+/* Apply MD5 transformation to the data                   */
+/* @param md5  a pointer to wc_MD5 structure              */
+/* @param data data to be applied MD5 transformation      */
+/* @return 0 on successful, otherwise non-zero on failure */
+int wc_Md5Transform(wc_Md5* md5, const byte* data)
+{
+    /* sanity check */
+    if (md5 == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return Transform(md5, data);
+}
+#endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
 {

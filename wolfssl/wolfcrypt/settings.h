@@ -2274,8 +2274,13 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
     /* added to have compatibility with SHA256() */
-    #if !defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
+    #if !defined(NO_OLD_SHA_NAMES) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
         #define NO_OLD_SHA_NAMES
+    #endif
+    #if !defined(NO_OLD_MD5_NAME) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        #define NO_OLD_MD5_NAME
     #endif
 #endif
 

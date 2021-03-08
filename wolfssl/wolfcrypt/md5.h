@@ -42,9 +42,12 @@
     extern "C" {
 #endif
 
+#if !defined(NO_OLD_MD5_NAME)
+    #define MD5             WC_MD5
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Md5             wc_Md5
-    #define MD5             WC_MD5
     #define MD5_BLOCK_SIZE  WC_MD5_BLOCK_SIZE
     #define MD5_DIGEST_SIZE WC_MD5_DIGEST_SIZE
     #define WC_MD5_PAD_SIZE WC_MD5_PAD_SIZE
@@ -109,6 +112,9 @@ WOLFSSL_API int wc_InitMd5_ex(wc_Md5*, void*, int);
 WOLFSSL_API int wc_Md5Update(wc_Md5*, const byte*, word32);
 WOLFSSL_API int wc_Md5Final(wc_Md5*, byte*);
 WOLFSSL_API void wc_Md5Free(wc_Md5*);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int wc_Md5Transform(wc_Md5*, const byte*);
+#endif
 
 WOLFSSL_API int  wc_Md5GetHash(wc_Md5*, byte*);
 WOLFSSL_API int  wc_Md5Copy(wc_Md5*, wc_Md5*);

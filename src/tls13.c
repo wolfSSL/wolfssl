@@ -8656,11 +8656,25 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
         ret = wolfSSL_connect_TLSv13(ssl);
         if (ret != WOLFSSL_SUCCESS)
             return WOLFSSL_FATAL_ERROR;
+        /* on client side, status is set to rejected        */
+        /* until sever accepts the early data extension.    */
+        ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
     }
     if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {
+#ifdef OPENSSL_EXTRA
+        /* when processed early data exceeds max size */
+        if (ssl->session.maxEarlyDataSz > 0 &&
+            (ssl->earlyDataSz + sz > ssl->session.maxEarlyDataSz)) {
+            ssl->error = TOO_MUCH_EARLY_DATA;
+            return WOLFSSL_FATAL_ERROR;
+        }
+#endif
         ret = SendData(ssl, data, sz);
-        if (ret > 0)
+        if (ret > 0) {
             *outSz = ret;
+            /* store amount of processed early data from client */
+            ssl->earlyDataSz += ret;
+        }
     }
 #else
     return SIDE_ERROR;
@@ -8723,6 +8737,21 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
     if (ret < 0)
         ret = WOLFSSL_FATAL_ERROR;
     return ret;
+}
+
+/* Returns early data status
+ *
+ * ssl    The SSL/TLS object.
+ * returns WOLFSSL_EARLY_DATA_ACCEPTED if the data was accepted
+ *         WOLFSSL_EARLY_DATA_REJECTED if the data was rejected
+ *         WOLFSSL_EARLY_DATA_NOT_SENT if no early data was sent
+ */
+int wolfSSL_get_early_data_status(const WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+
+    return ssl->earlyDataStatus;
 }
 #endif
 

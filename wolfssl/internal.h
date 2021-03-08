@@ -2837,6 +2837,7 @@ struct WOLFSSL_CTX {
     byte              sessionCtxSz;
     byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
+    WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -4366,6 +4367,7 @@ struct WOLFSSL {
 #ifdef WOLFSSL_EARLY_DATA
     EarlyDataState earlyData;
     word32 earlyDataSz;
+    byte earlyDataStatus;
 #endif
 #ifdef OPENSSL_ALL
     long verifyCallbackResult;

@@ -1295,6 +1295,19 @@ static int InitSha256(wc_Sha256* sha256)
         return InitSha256(sha256);  /* reset state */
     }
 
+    #if defined(OPENSSL_EXTRA)
+/* Apply SHA256 transformation to the data                */
+/* @param sha  a pointer to wc_Sha256 structure           */
+/* @param data data to be applied SHA256 transformation   */
+/* @return 0 on successful, otherwise non-zero on failure */
+    int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data)
+    {
+        if (sha == NULL || data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return (Transform_Sha256(sha, data));
+    }
+    #endif
 #endif /* XTRANSFORM */
 
 #ifdef WOLFSSL_SHA224
