@@ -2584,7 +2584,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef NO_FILESYSTEM
         if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, client_cert_der_2048,
             sizeof_client_cert_der_2048) != WOLFSSL_SUCCESS)
-            err_sys("can't load server cert buffer");
+            err_sys("can't load client cert buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                                            != WOLFSSL_SUCCESS) {
@@ -2608,7 +2608,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef NO_FILESYSTEM
         if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_key_der_2048,
             sizeof_client_key_der_2048, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS)
-            err_sys("can't load server private key buffer");
+            err_sys("can't load client private key buffer");
     #elif !defined(TEST_LOAD_BUFFER)
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS) {
