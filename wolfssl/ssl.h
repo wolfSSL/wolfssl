@@ -674,19 +674,26 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
-/* RETURN_CODE macro
+/* WS_RETURN_CODE macro
  * Some OpenSSL APIs specify "0" as the return value when an error occurs.
- * However, some corresponding wolfSSL APIs(eg.
- * wolfSSL_CTX_load_verify_locations) return negative values. Such functions
- * should use this macro to fill this gap. Users who want them to return
- * the same return value as OpenSSL can define WOLFSSL_ERR_CODE_OPENSSL.
+ * However, some corresponding wolfSSL APIs　return negative values. Such
+ * functions should use this macro to fill this gap. Users who want them
+ * to return the same return value as OpenSSL can define
+ * WOLFSSL_ERR_CODE_OPENSSL.
+ * Give item1 a variable that contains the potentially negative
+ * wolfSSL-defined return value or the return value itself, and
+ * give item2 the openSSL-defined return value.
  * Note that this macro replaces only negative return values with the
  * specified value.
+ * Since wolfSSL 4.7.0, the following functions use this macro:
+ * - wolfSSL_CTX_load_verify_locations
+ * - wolfSSL_X509_LOOKUP_load_file
  */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
-    #define RETURN_CODE(w,o)  ((w < 0)?o:w)
+    #define WS_RETURN_CODE(item1,item2) \
+      ((item1 < 0) ? item2 : item1)
 #else
-    #define RETURN_CODE(w,o) (w)
+    #define WS_RETURN_CODE(item1,item2)  (item1)
 #endif
 
 /* Maximum master key length (SECRET_LEN) */

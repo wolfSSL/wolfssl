@@ -6916,7 +6916,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     int ret = wolfSSL_CTX_load_verify_locations_ex(ctx, file, path,
         WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
 
-    return RETURN_CODE(ret,WOLFSSL_FAILURE);
+    return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
 }
 
 
@@ -24409,15 +24409,15 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     const char* footer = NULL;
 
     if (type != X509_FILETYPE_PEM)
-        return RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
 
     fp = XFOPEN(file, "rb");
     if (fp == XBADFILE)
-        return RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(BAD_FUNC_ARG,WOLFSSL_FAILURE);
 
     if(XFSEEK(fp, 0, XSEEK_END) != 0) {
         XFCLOSE(fp);
-        return RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE);
+        return WS_RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE);
     }
     sz = XFTELL(fp);
     XREWIND(fp);
@@ -24487,12 +24487,12 @@ end:
     if (pem != NULL)
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     XFCLOSE(fp);
-    return RETURN_CODE(ret,WOLFSSL_FAILURE);
+    return WS_RETURN_CODE(ret,WOLFSSL_FAILURE);
 #else
     (void)lookup;
     (void)file;
     (void)type;
-    return RETURN_CODE(WOLFSSL_FAILURE,WOLFSSL_FAILURE);
+    return WS_RETURN_CODE(WOLFSSL_FAILURE,WOLFSSL_FAILURE);
 #endif
 }
 
