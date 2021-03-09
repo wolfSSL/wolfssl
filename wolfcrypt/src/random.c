@@ -286,6 +286,19 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
 
 
+#ifdef WC_RNG_SEED_CB
+
+static wc_RngSeed_Cb seedCb = NULL;
+
+int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
+{
+    seedCb = cb;
+    return 0;
+}
+
+#endif
+
+
 /* Internal return codes */
 #define DRBG_SUCCESS      0
 #define DRBG_FAILURE      1
@@ -800,7 +813,18 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg = (struct DRBG*)&rng->drbg_data;
 #endif
         if (ret == 0) {
-            ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+            ret = -1;
+
+#ifdef WC_RNG_SEED_CB
+            if (seedCb != NULL) {
+                ret = seedCb(seed, seedSz);
+            }
+#endif
+
+            if (ret < 0) {
+                ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+            }
+
             if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
             else {
@@ -808,10 +832,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 rng->status = DRBG_FAILED;
             }
 
-            if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
-                            seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
-                            nonce, nonceSz, rng->heap, devId);
+            if (ret == DRBG_SUCCESS) {
+                ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
+                        seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+                        nonce, nonceSz, rng->heap, devId);
+            }
 
             if (ret != DRBG_SUCCESS) {
             #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
