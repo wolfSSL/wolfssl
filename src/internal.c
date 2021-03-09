@@ -9798,9 +9798,13 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             } else {
                 wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
             }
-            if (!(x509->key.algor->algorithm =
-                    wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
-                ret = PUBLIC_KEY_E;
+            if (!x509->key.algor) {
+                ret = MEMORY_E;
+            } else {
+                if (!(x509->key.algor->algorithm =
+                        wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
+                    ret = PUBLIC_KEY_E;
+                }
             }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
