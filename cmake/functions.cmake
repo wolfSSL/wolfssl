@@ -1,3 +1,22 @@
+function(add_option NAME HELP_STRING DEFAULT VALUES)
+    list(FIND VALUES ${DEFAULT} IDX)
+    if (${IDX} EQUAL -1)
+        message(FATAL_ERROR "Failed to add option ${NAME}. Default value "
+            "${DEFAULT} is not in list of possible values: ${VALUES}.")
+    endif()
+
+    if(DEFINED ${NAME})
+        list(FIND VALUES ${${NAME}} IDX)
+        if (${IDX} EQUAL -1)
+            message(FATAL_ERROR "Failed to set option ${NAME}. Value "
+                "${${NAME}} is not in list of possible values: ${VALUES}.")
+        endif()
+    endif()
+
+    set(${NAME} ${DEFAULT} CACHE STRING ${HELP_STRING})
+    set_property(CACHE ${NAME} PROPERTY STRINGS ${VALUES})
+endfunction()
+
 function(override_cache VAR VAL)
     get_property(VAR_TYPE CACHE ${VAR} PROPERTY TYPE)
     set(${VAR} ${VAL} CACHE ${VAR_TYPE} ${${VAR}_HELP_STRING} FORCE)

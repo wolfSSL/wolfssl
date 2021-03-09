@@ -14,30 +14,10 @@ AC_CONFIG_AUX_DIR([build-aux])
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
-# For reproducible builds, gate out from the build anything that might
-# introduce semantically frivolous jitter, maximizing chance of
-# identical object files.
-AC_ARG_ENABLE([reproducible-build],
-    [AS_HELP_STRING([--enable-reproducible-builds],[Enable maximally reproducible build (default: disabled)])],
-    [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
-    [ ENABLED_REPRODUCIBLE_BUILD=no ]
-    )
-
-# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
-xxx_ar_flags=$(ar --help 2>&1)
-if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
-then
-    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[: ${AR_FLAGS="Dcr"}])
-else
-    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
-fi
-xxx_ranlib_flags=$(ranlib --help 2>&1)
-if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
-then
-    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[: ${RANLIB="ranlib -D"}])
-else
-    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[: ${RANLIB="ranlib -U"}])
-fi
+# Capture user C_EXTRA_FLAGS from configure line.
+# Use of C_EXTRA_FLAGS is deprecated because CFLAGS was fixed but someone
+# might still be using it.
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
 
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -69,11 +49,6 @@ WOLFSSL_LIBRARY_VERSION=28:1:4
 #                 +- increment if interfaces have been added, removed or changed
 AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
-# Capture user C_EXTRA_FLAGS from configure line.
-# Use of C_EXTRA_FLAGS is deprecated because CFLAGS was fixed but someone
-# might still be using it.
-CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
-
 gl_VISIBILITY
 AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
@@ -88,6 +63,49 @@ AC_CHECK_SIZEOF([long long])
 AC_CHECK_SIZEOF([long])
 AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([__uint128_t])
+
+
+# Distro build feature subset (Debian, Ubuntu, etc.)
+AC_ARG_ENABLE([distro],
+    [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
+    [ ENABLED_DISTRO=$enableval ],
+    [ ENABLED_DISTRO=no ]
+    )
+if test "$ENABLED_DISTRO" = "yes"
+then
+    enable_shared=yes
+    enable_static=yes
+    enable_all=yes
+    REPRODUCIBLE_BUILD_DEFAULT=yes
+else
+    REPRODUCIBLE_BUILD_DEFAULT=no
+fi
+
+# For reproducible build, gate out from the build anything that might
+# introduce semantically frivolous jitter, maximizing chance of
+# identical object files.
+AC_ARG_ENABLE([reproducible-build],
+    [AS_HELP_STRING([--enable-reproducible-build],[Enable maximally reproducible build (default: disabled)])],
+    [ ENABLED_REPRODUCIBLE_BUILD=$enableval ],
+    [ ENABLED_REPRODUCIBLE_BUILD=$REPRODUCIBLE_BUILD_DEFAULT ]
+    )
+
+# Test ar for the "U" or "D" options. Should be checked before the libtool macros.
+xxx_ar_flags=$(ar --help 2>&1)
+if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
+then
+    AS_CASE([$xxx_ar_flags],[*'use zero for timestamps and uids/gids'*],[: ${AR_FLAGS="Dcr"}])
+else
+    AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
+fi
+xxx_ranlib_flags=$(ranlib --help 2>&1)
+if test "$ENABLED_REPRODUCIBLE_BUILD" = "yes"
+then
+    AS_CASE([$xxx_ranlib_flags],[*'Use zero for symbol map timestamp'*],[: ${RANLIB="ranlib -D"}])
+else
+    AS_CASE([$xxx_ranlib_flags],[*'Use actual symbol map timestamp'*],[: ${RANLIB="ranlib -U"}])
+fi
+
 
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h time.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
 AC_CHECK_LIB([network],[socket])
@@ -165,57 +183,45 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS="no"])
 
 AS_CASE([$ENABLED_FIPS],
-    ["ready"],[
+    [ready],[
         ENABLED_FIPS="yes"
         FIPS_VERSION="v2"
         FIPS_READY="yes"
     ],
-    ["v2"],[
-        # FIPS v2
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v2"
+    [no],[
+        FIPS_VERSION="none"
+        ENABLED_FIPS="no"
     ],
-    ["rand"],[
-        # FIPS Rand
+    [rand|v1|v2],[
+        FIPS_VERSION="$ENABLED_FIPS"
         ENABLED_FIPS="yes"
-        FIPS_VERSION="rand"
     ],
-    ["no"],[FIPS_VERSION="none"],
+    [yes],
     [
         # FIPS v1
         ENABLED_FIPS="yes"
         FIPS_VERSION="v1"
+    ],
+    [
+        AC_MSG_ERROR([Invalid value for --enable-fips \"$ENABLED_FIPS\" (allowed: ready, rand, v1, v2)])
     ])
 
-case "$FIPS_VERSION" in
-none) if test -s wolfcrypt/src/fips.c || test -s ctaocrypt/src/fips.c; then
-        AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])
-    fi
-    ;;
-v1) if ! test -s ctaocrypt/src/fips.c; then
-        AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])
-    fi
-    ;;
-*) if ! test -s wolfcrypt/src/fips.c; then
-        AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])
-   fi
-   ;;
-esac
-
-
-# Distro build feature subset (Debian, Ubuntu, etc.)
-AC_ARG_ENABLE([distro],
-    [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
-    [ ENABLED_DISTRO=$enableval ],
-    [ ENABLED_DISTRO=no ]
-    )
-if test "$ENABLED_DISTRO" = "yes"
-then
-    enable_shared=yes
-    enable_static=yes
-    enable_all=yes
-fi
-
+AS_CASE([$FIPS_VERSION],
+    [none],
+    [
+      AS_IF([ test -s $srcdir/wolfcrypt/src/fips.c -o -s $srcdir/ctaocrypt/src/fips.c ],
+            [AC_MSG_ERROR([FIPS source tree is incompatible with non-FIPS build (requires --enable-fips)])])
+    ],
+    [v1],
+    [
+      AS_IF([ ! test -s $srcdir/ctaocrypt/src/fips.c],
+            [AC_MSG_ERROR([non-FIPS-v1 source tree is incompatible with --enable-fips=$enableval])])
+    ],
+    [
+      AS_IF([ ! test -s $srcdir/wolfcrypt/src/fips.c],
+            [AC_MSG_ERROR([non-FIPS source tree is incompatible with --enable-fips=$enableval])])
+    ]
+)
 
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
@@ -383,6 +389,7 @@ then
     test "$enable_enckeys" = "" && enable_enckeys=yes
     test "$enable_hashflags" = "" && enable_hashflags=yes
     test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
+    test "$enable_base64encode" = "" && enable_base64encode=yes
     test "$enable_arc4" = "" && enable_arc4=yes
     test "$enable_des3" = "" && enable_des3=yes
     test "$enable_nullcipher" = "" && enable_nullcipher=yes
@@ -2595,7 +2602,7 @@ AC_ARG_ENABLE([anon],
     [ ENABLED_ANON=no ]
     )
 
-if test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_WPAS" = "xyes" || test "$ENABLED_NGINX" = "yes"
 then
     ENABLED_ANON=yes
 fi
@@ -5259,7 +5266,7 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       fi
     fi
     ;;
-  *x86_64*)
+  *x86_64*|*amd64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
     ENABLED_SP_X86_64_ASM=yes
@@ -5618,7 +5625,7 @@ AC_ARG_ENABLE([oldnames],
 if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
-    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES -DNO_OLD_MD5_NAME"
 fi
 
 
@@ -6525,13 +6532,16 @@ echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
 if test "$ENABLED_SP_MATH_ALL" != "no"
 then
-    echo "   * SP math implementation:     all"
-elif test "$ENABLED_SP_MATH" != "no"
-then
-    echo "   * SP math implementation:     restricted"
+    ENABLED_SP_MATH_DESC="all"
 else
-    echo "   * SP math implementation:     no"
+    if test "$ENABLED_SP_MATH" != "no"
+    then
+        ENABLED_SP_MATH_DESC="restricted"
+    else
+        ENABLED_SP_MATH_DESC="no"
+    fi
 fi
+echo "   * SP math implementation:     $ENABLED_SP_MATH_DESC"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"

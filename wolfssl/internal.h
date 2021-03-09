@@ -59,6 +59,9 @@
 #ifdef HAVE_POLY1305
     #include <wolfssl/wolfcrypt/poly1305.h>
 #endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && defined(OPENSSL_EXTRA)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
 #ifdef HAVE_CAMELLIA
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
@@ -1870,7 +1873,7 @@ WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveAnon,
                                          int tls1_2, int keySz);
 WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, int, word16, word16,
-                              word16, word16, word16, word16, word16, int);
+                              word16, word16, word16, word16, word16, word16, int);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
@@ -2834,6 +2837,7 @@ struct WOLFSSL_CTX {
     byte              sessionCtxSz;
     byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
+    WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2931,10 +2935,10 @@ struct WOLFSSL_CTX {
             TicketEncCbCtx ticketKeyCtx;
         #endif
     #endif
+    #endif
     #ifdef HAVE_SUPPORTED_CURVES
         byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
     #endif
-#endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
     CallbackDecryptVerify DecryptVerifyCb; /* Atomic User Decrypt/Verify Cb */
@@ -3534,9 +3538,7 @@ typedef struct Options {
 #ifdef HAVE_POLY1305
     word16            oldPoly:1;        /* set when to use old rfc way of poly*/
 #endif
-#ifdef HAVE_ANON
     word16            haveAnon:1;       /* User wants to allow Anon suites */
-#endif
 #ifdef HAVE_SESSION_TICKET
     word16            createTicket:1;     /* Server to create new Ticket */
     word16            useTicket:1;        /* Use Ticket not session cache */
@@ -4365,11 +4367,12 @@ struct WOLFSSL {
 #ifdef WOLFSSL_EARLY_DATA
     EarlyDataState earlyData;
     word32 earlyDataSz;
+    byte earlyDataStatus;
 #endif
 #ifdef OPENSSL_ALL
     long verifyCallbackResult;
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
 #endif

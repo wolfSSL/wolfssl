@@ -4088,4 +4088,30 @@ static WC_INLINE word16 GetRandomPort(void)
     return port;
 }
 
+#ifdef WOLFSSL_EARLY_DATA
+static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
+{
+    int earlyData_status;
+    
+    earlyData_status = wolfSSL_get_early_data_status(ssl);
+    if (earlyData_status < 0) return;
+    
+    printf("Early Data was ");
+    
+    switch(earlyData_status) {
+        case WOLFSSL_EARLY_DATA_NOT_SENT:
+                printf("not sent.\n");
+                break;
+        case WOLFSSL_EARLY_DATA_REJECTED:
+                printf("rejected.\n");
+                break;
+        case WOLFSSL_EARLY_DATA_ACCEPTED:
+                printf("accepted\n");
+                break;
+        default:
+                printf("unknown...\n");
+    }
+}
+#endif /* WOLFSSL_EARLY_DATA */
+
 #endif /* wolfSSL_TEST_H */

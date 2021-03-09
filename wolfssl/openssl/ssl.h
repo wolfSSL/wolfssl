@@ -410,6 +410,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_free                       wolfSSL_X509_free
 #define X509_load_certificate_file      wolfSSL_X509_load_certificate_file
 #define X509_digest                     wolfSSL_X509_digest
+#define X509_pubkey_digest              wolfSSL_X509_pubkey_digest
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509V3_EXT_i2d                  wolfSSL_X509V3_EXT_i2d
@@ -558,6 +559,12 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
 #define X509_CHECK_FLAG_NO_WILDCARDS WOLFSSL_NO_WILDCARDS
 
+#define X509_VP_FLAG_DEFAULT        WOLFSSL_VPARAM_DEFAULT
+#define X509_VP_FLAG_OVERWRITE      WOLFSSL_VPARAM_OVERWRITE
+#define X509_VP_FLAG_RESET_FLAGS    WOLFSSL_VPARAM_RESET_FLAGS
+#define X509_VP_FLAG_LOCKED         WOLFSSL_VPARAM_LOCKED
+#define X509_VP_FLAG_ONCE           WOLFSSL_VPARAM_ONCE
+
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
@@ -605,6 +612,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
+#define X509_VERIFY_PARAM_set1          wolfSSL_X509_VERIFY_PARAM_set1
 #define X509_STORE_load_locations       wolfSSL_X509_STORE_load_locations
 
 #define X509_LOOKUP_add_dir             wolfSSL_X509_LOOKUP_add_dir
@@ -622,6 +630,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_nextUpdate         wolfSSL_X509_CRL_get_nextUpdate
 #define X509_CRL_verify                 wolfSSL_X509_CRL_verify
 #define X509_CRL_get_REVOKED            wolfSSL_X509_CRL_get_REVOKED
+#define X509_load_crl_file              wolfSSL_X509_load_crl_file
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
 #define X509_REQ_get_X509_PUBKEY        wolfSSL_X509_get_X509_PUBKEY
@@ -1071,6 +1080,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_CTX_set_min_proto_version   wolfSSL_CTX_set_min_proto_version
 #define SSL_CTX_set_max_proto_version   wolfSSL_CTX_set_max_proto_version
+#define SSL_CTX_get_min_proto_version   wolfSSL_CTX_get_min_proto_version
 
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
 
@@ -1127,6 +1137,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL3_AD_BAD_CERTIFICATE          bad_certificate
 #define SSL_AD_BAD_CERTIFICATE           SSL3_AD_BAD_CERTIFICATE
+#define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
+#define SSL_AD_NO_RENEGOTIATION          no_renegotiation
+#define SSL_AD_INTERNAL_ERROR            80
 
 #define ASN1_STRFLGS_ESC_MSB             4
 
@@ -1167,6 +1180,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
 #define SSL_TLSEXT_ERR_ALERT_FATAL      alert_fatal
+#define SSL_TLSEXT_ERR_ALERT_WARNING    alert_warning
 #define SSL_TLSEXT_ERR_NOACK            alert_warning
 #define TLSEXT_NAMETYPE_host_name       WOLFSSL_SNI_HOST_NAME
 
@@ -1306,6 +1320,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_srp_strength        wolfSSL_CTX_set_srp_strength
 #define SSL_get_SSL_CTX                 wolfSSL_get_SSL_CTX
 #define SSL_get0_param                  wolfSSL_get0_param
+#define SSL_CTX_get0_param              wolfSSL_CTX_get0_param
+#define SSL_CTX_set1_param              wolfSSL_CTX_set1_param
 #define SSL_get_srp_username            wolfSSL_get_srp_username
 
 #define ERR_NUM_ERRORS                  16
@@ -1317,6 +1333,11 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
+
+#if defined(WOLFSSL_EARLY_DATA)
+#define SSL_get_early_data_status       wolfSSL_get_early_data_status
+#endif
+
 #endif  /* OPENSSL_EXTRA */
 
 /* cipher suites for compatibility */

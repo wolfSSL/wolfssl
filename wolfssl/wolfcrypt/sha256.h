@@ -198,7 +198,9 @@ WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
 WOLFSSL_API int wc_Sha256FinalRaw(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
 WOLFSSL_API void wc_Sha256Free(wc_Sha256*);
-
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha256Transform(wc_Sha256*, const byte*);
+#endif
 WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
 
@@ -216,9 +218,12 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
+#if !defined(NO_OLD_SHA_NAMES)
+    #define SHA224             WC_SHA224
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha224             wc_Sha224
-    #define SHA224             WC_SHA224
     #define SHA224_BLOCK_SIZE  WC_SHA224_BLOCK_SIZE
     #define SHA224_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
     #define SHA224_PAD_SIZE    WC_SHA224_PAD_SIZE

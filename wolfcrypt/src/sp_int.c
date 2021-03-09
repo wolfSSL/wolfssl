@@ -2481,7 +2481,7 @@ int sp_cond_swap_ct(sp_int * a, sp_int * b, int c, int m)
     }
 
     FREE_SP_INT(t, NULL);
-    return MP_OKAY;
+    return err;
 }
 #endif /* HAVE_ECC && ECC_TIMING_RESISTANT && !WC_NO_CACHE_RESISTANT */
 
@@ -2996,7 +2996,7 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 #endif
 
 #if defined(WOLFSSL_SP_INT_NEGATIVE) || !defined(NO_PWDBASED) || \
-    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || defined(HAVE_ECC) || \
+    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Add a one digit number to the multi-precision number.
  *
@@ -4142,7 +4142,7 @@ static int sp_cmp_mag_ct(sp_int* a, sp_int* b, int len)
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
 /* Add two value and reduce: r = (a + b) % m
  *
- * r = a + b (mod m) - constant time (|a| < m and |b| < m and positive)
+ * r = a + b (mod m) - constant time (a < m and b < m, a, b and m are positive)
  *
  * Assumes a, b, m and r are not NULL.
  *
@@ -4193,7 +4193,7 @@ int sp_addmod_ct(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 /* Sub b from a and reduce: r = (a - b) % m
  * Result is always positive.
  *
- * r = a - b (mod m) - constant time (a < n and b < m and positive)
+ * r = a - b (mod m) - constant time (a < m and b < m, a, b and m are positive)
  *
  * Assumes a, b, m and r are not NULL.
  *
@@ -4482,7 +4482,7 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
             if (r != NULL) {
                 sp_set(r, 1);
             #ifdef WOLFSSL_SP_INT_NEGATIVE
-                r->sign = aSign;
+                r->sign = (aSign == dSign) ? MP_ZPOS : MP_NEG;
             #endif /* WOLFSSL_SP_INT_NEGATIVE */
             }
             done = 1;
@@ -4491,11 +4491,14 @@ int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
             /* a is greater than d but same bit length */
             if (rem != NULL) {
                 _sp_sub_off(a, d, rem, 0);
+            #ifdef WOLFSSL_SP_INT_NEGATIVE
+                rem->sign = aSign;
+            #endif
             }
             if (r != NULL) {
                 sp_set(r, 1);
             #ifdef WOLFSSL_SP_INT_NEGATIVE
-                r->sign = aSign;
+                r->sign = (aSign == dSign) ? MP_ZPOS : MP_NEG;
             #endif /* WOLFSSL_SP_INT_NEGATIVE */
             }
             done = 1;
@@ -4681,7 +4684,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    DECL_SP_INT(t, (m == NULL) ? 1 : m->used);
+    DECL_SP_INT(t, (a == NULL) ? 1 : a->used + 1);
 #endif /* WOLFSSL_SP_INT_NEGATIVE */
 
     if ((a == NULL) || (m == NULL) || (r == NULL)) {
@@ -4695,11 +4698,11 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
 #else
     ALLOC_SP_INT(t, m->used, err, NULL);
     if (err == MP_OKAY) {
-        sp_init_size(t, m->used);
+        sp_init_size(t, a->used + 1);
         err = sp_div(a, m, NULL, t);
     }
     if (err == MP_OKAY) {
-        if (t->sign != m->sign) {
+        if ((!sp_iszero(t)) && (t->sign != m->sign)) {
             err = sp_add(t, m, r);
         }
         else {
@@ -8013,7 +8016,7 @@ static int _sp_exptmod_ex(sp_int* b, sp_int* e, int bits, sp_int* m, sp_int* r)
     #endif
 
         /* Ensure base is less than exponent. */
-        if (_sp_cmp(b, m) != MP_LT) {
+        if (_sp_cmp_abs(b, m) != MP_LT) {
             err = sp_mod(b, m, t[0]);
             if ((err == MP_OKAY) && sp_iszero(t[0])) {
                 sp_set(r, 0);
@@ -8113,7 +8116,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
         sp_init_size(t[3], m->used * 2 + 1);
 
         /* Ensure base is less than exponent. */
-        if (_sp_cmp(b, m) != MP_LT) {
+        if (_sp_cmp_abs(b, m) != MP_LT) {
             err = sp_mod(b, m, t[0]);
             if ((err == MP_OKAY) && sp_iszero(t[0])) {
                 sp_set(r, 0);
@@ -8248,7 +8251,7 @@ static int _sp_exptmod_mont_ex(sp_int* b, sp_int* e, int bits, sp_int* m,
         sp_init_size(tr, m->used * 2 + 1);
 
         /* Ensure base is less than exponent. */
-        if (_sp_cmp(b, m) != MP_LT) {
+        if (_sp_cmp_abs(b, m) != MP_LT) {
             err = sp_mod(b, m, t[1]);
             if ((err == MP_OKAY) && sp_iszero(t[1])) {
                 sp_set(r, 0);
@@ -8767,7 +8770,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         sp_init_size(bm, m->used * 2 + 1);
 
         /* Ensure base is less than exponent. */
-        if (_sp_cmp(b, m) != MP_LT) {
+        if (_sp_cmp_abs(b, m) != MP_LT) {
             err = sp_mod(b, m, bm);
             if ((err == MP_OKAY) && sp_iszero(bm)) {
                 sp_set(r, 0);
@@ -8980,7 +8983,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
         sp_init_size(t[1], m->used * 2 + 1);
 
         /* Ensure base is less than exponent. */
-        if (_sp_cmp(b, m) != MP_LT) {
+        if (_sp_cmp_abs(b, m) != MP_LT) {
             err = sp_mod(b, m, t[0]);
             if ((err == MP_OKAY) && sp_iszero(t[0])) {
                 sp_set(r, 0);
@@ -12491,6 +12494,7 @@ int sp_tohex(sp_int* a, char* str)
 
             i = a->used - 1;
     #ifndef WC_DISABLE_RADIX_ZERO_PAD
+            /* Find highest non-zero byte in most-significant word. */
             for (j = SP_WORD_SIZE - 8; j >= 0; j -= 8) {
                 if (((a->dp[i] >> j) & 0xff) != 0) {
                     break;
@@ -12500,8 +12504,10 @@ int sp_tohex(sp_int* a, char* str)
                     --i;
                 }
             }
+            /* Start with high nibble of byte. */
             j += 4;
     #else
+            /* Find highest non-zero nibble in most-significant word. */
             for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
                 if (((a->dp[i] >> j) & 0xf) != 0) {
                     break;
@@ -12512,6 +12518,7 @@ int sp_tohex(sp_int* a, char* str)
                 }
             }
     #endif /* WC_DISABLE_RADIX_ZERO_PAD */
+            /* Most-significant word. */
             for (; j >= 0; j -= 4) {
                 *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
             }
@@ -12660,16 +12667,16 @@ int sp_radix_size(sp_int* a, int radix, int* size)
         }
         else {
             int nibbles = (sp_count_bits(a) + 3) / 4;
-        #ifdef WOLFSSL_SP_INT_NEGATIVE
-            if (a->sign == MP_NEG) {
-                nibbles++;
-            }
-        #endif /* WOLFSSL_SP_INT_NEGATIVE */
         #ifndef WC_DISABLE_RADIX_ZERO_PAD
             if (nibbles & 1) {
                 nibbles++;
             }
         #endif /* WC_DISABLE_RADIX_ZERO_PAD */
+        #ifdef WOLFSSL_SP_INT_NEGATIVE
+            if (a->sign == MP_NEG) {
+                nibbles++;
+            }
+        #endif /* WOLFSSL_SP_INT_NEGATIVE */
             /* One more for \0 */
             *size = nibbles + 1;
         }
@@ -13230,9 +13237,11 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
 }
 #endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 
 /* Calculates the Greatest Common Denominator (GCD) of a and b into r.
+ *
+ * a and b are positive integers.
  *
  * @param  [in]   a  SP integer of first operand.
  * @param  [in]   b  SP integer of second operand.
@@ -13250,6 +13259,7 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
         err = MP_VAL;
     }
     else if (sp_iszero(a)) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
         if (sp_iszero(b)) {
             err = MP_VAL;
         }
@@ -13342,6 +13352,8 @@ int sp_gcd(sp_int* a, sp_int* b, sp_int* r)
 
 /* Calculates the Lowest Common Multiple (LCM) of a and b and stores in r.
  *
+ * a and b are positive integers.
+ *
  * @param  [in]   a  SP integer of first operand.
  * @param  [in]   b  SP integer of second operand.
  * @param  [out]  r  SP integer to hold result.
@@ -13360,6 +13372,10 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
     if ((a == NULL) || (b == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
+
+    /* LCM of 0 and any number is undefined as 0 is not in the set of values
+     * being used.
+     */
     if ((err == MP_OKAY) && (mp_iszero(a) || mp_iszero(b))) {
         err = MP_VAL;
     }

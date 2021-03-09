@@ -655,9 +655,9 @@ typedef struct sp_ecc_ctx {
 #endif
 
 /** Radix is base 10 or decimal. */
-#define MP_RADIX_DEC     10
+#define MP_RADIX_DEC    10
 /** Radix is base 16 or hexadecimal. */
-#define MP_RADIX_HEX     16
+#define MP_RADIX_HEX    16
 
 /** Result of comparison is that the first number is greater than second. */
 #define MP_GT    1
@@ -666,16 +666,21 @@ typedef struct sp_ecc_ctx {
 /** Result of comparison is that the first number is less than second. */
 #define MP_LT    -1
 
+/* ERROR VALUES */
 /** Error value on success. */
-#define MP_OKAY   0
+#define MP_OKAY          0
 /** Error value when dynamic memory allocation fails. */
-#define MP_MEM   -2
+#define MP_MEM          -2
 /** Error value when value passed is not able to be used. */
-#define MP_VAL   -3
+#define MP_VAL          -3
 /** Error value when non-blocking operation is returning after partial
  * completion.
  */
-#define FP_WOULDBLOCK -4
+#define FP_WOULDBLOCK   -4
+/* Unused error. Defined for backward compatability. */
+#define MP_NOT_INF      -5
+/* Unused error. Defined for backward compatability. */
+#define MP_RANGE        MP_NOT_INF
 
 /* Number of bits in each word/digit. */
 #define DIGIT_BIT  SP_WORD_SIZE

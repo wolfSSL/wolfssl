@@ -466,6 +466,9 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             do {
                 err = 0; /* reset error */
                 ret = wolfSSL_connect(ssl);
+#ifdef WOLFSSL_EARLY_DATA
+                EarlyDataStatus(ssl);
+#endif
                 if (ret != WOLFSSL_SUCCESS) {
                     err = wolfSSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
