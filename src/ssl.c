@@ -20276,8 +20276,11 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
             }
 
             sectionName[sectionNameLen] = '\0';
-            if (!(section = wolfSSL_CONF_get_section(conf, sectionName)))
+            if (!(section = wolfSSL_CONF_get_section(conf, sectionName))) {
                 section = wolfSSL_CONF_new_section(conf, sectionName);
+                if (!section)
+                    goto cleanup;
+            }
         }
         else {
             char* name;
