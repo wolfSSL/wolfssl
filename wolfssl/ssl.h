@@ -882,6 +882,7 @@ WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API int wolfSSL_CTX_up_ref(WOLFSSL_CTX*);
+WOLFSSL_API int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff);
 #endif
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl);
@@ -3890,6 +3891,9 @@ WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE fp);
 WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
 
 WOLFSSL_API void wolfSSL_THREADID_set_numeric(void* id, unsigned long val);
+WOLFSSL_API void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id);
+WOLFSSL_API unsigned long wolfSSL_THREADID_hash(
+                                    const WOLFSSL_CRYPTO_THREADID* id);
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
                                WOLFSSL_X509_STORE_CTX*, WOLFSSL_X509_NAME*);
@@ -4178,6 +4182,8 @@ WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
 WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format);
 #endif
+
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

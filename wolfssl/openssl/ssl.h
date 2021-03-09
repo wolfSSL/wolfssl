@@ -191,6 +191,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define i2d_PKCS8PrivateKey_bio         wolfSSL_PEM_write_bio_PKCS8PrivateKey
 #define PKCS8_PRIV_KEY_INFO_free        wolfSSL_EVP_PKEY_free
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp
+#define SSL_CTX_set_ecdh_auto           wolfSSL_CTX_set_ecdh_auto
 
 #define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
@@ -1280,7 +1281,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define OPENSSL_cleanse                 wolfSSL_OPENSSL_cleanse
 #define SSL_CTX_get_timeout             wolfSSL_SSL_CTX_get_timeout
 #define SSL_CTX_set_tmp_ecdh            wolfSSL_SSL_CTX_set_tmp_ecdh
-#define SSL_CTX_set_ecdh_auto(...)
 #define SSL_CTX_remove_session          wolfSSL_SSL_CTX_remove_session
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio

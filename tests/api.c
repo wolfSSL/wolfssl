@@ -40912,6 +40912,38 @@ static void test_export_keying_material(void)
 }
 #endif /* HAVE_KEYING_MATERIAL */
 
+static int test_wolfSSL_THREADID_hash(void)
+{
+    int ret = 0;
+    WOLFSSL_CRYPTO_THREADID id;
+    unsigned long res;
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "wolfSSL_THREADID_hash");
+    res = wolfSSL_THREADID_hash(NULL);
+    AssertTrue( res == 0UL);
+    res = wolfSSL_THREADID_hash(&id);
+    AssertTrue( res == 0UL);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+    (void)id;
+    (void)res;
+    return ret;
+}
+static int test_wolfSSL_CTX_set_ecdh_auto(void)
+{
+    int ret = 0;
+    WOLFSSL_CTX* ctx = NULL;
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "wolfSSL_CTX_set_ecdh_auto");
+    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(NULL,0),1);
+    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(NULL,1),1);
+    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(ctx,0),1);
+    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(ctx,1),1);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+    (void)ctx;
+    return ret;
+}
 static void test_wolfSSL_CTX_get_min_proto_version(void)
 {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -41162,6 +41194,8 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_client_CA();
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
+    test_wolfSSL_CTX_set_ecdh_auto();
+    test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_bytes();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_PKCS8_Compat();
