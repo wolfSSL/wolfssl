@@ -3475,11 +3475,6 @@ WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
 WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 #endif
 
-#ifdef WOLFSSL_WPAS_SMALL
-    /* WPA Supplicant requires GEN_ values */
-    #include <wolfssl/openssl/x509v3.h>
-#endif
-
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                                                      int nid, int* c, int* idx);
