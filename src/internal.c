@@ -21495,7 +21495,7 @@ exit_dpk:
             ato16(input + *inOutIdx, &len);
             *inOutIdx += OPAQUE16_LEN;
 
-            if ((*inOutIdx - begin) + len > size)
+            if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
             if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&
