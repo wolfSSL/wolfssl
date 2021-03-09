@@ -1828,6 +1828,11 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
+    if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
+        WOLFSSL_MSG("Bad mutex init");
+        XFREE(ctx->x509_store.lookup.dirs, heap, DYNAMIC_TYPE_OPENSSL);
+        return BAD_MUTEX_E;
+    }
     #endif
 #endif
 
@@ -10653,7 +10658,8 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             return MEMORY_E;
         }
         
-        if (type == X509_LU_CRL && entry->hashes != NULL) {
+        if (type == X509_LU_CRL && entry->hashes != NULL && 
+            wolfSSL_sk_BY_DIR_HASH_num(entry->hashes) > 0) {
             /* lock the list */
             if (wc_LockMutex(&lookup->dirs->lock) != 0) {
                 WOLFSSL_MSG("wc_LockMutex cdir Lock error");
@@ -10696,7 +10702,6 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                 else if (type == X509_LU_CRL) {
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
                                                     WOLFSSL_FILETYPE_PEM);
-                    printf("return load crl file %d\n", ret);
                     if (ret != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("failed to load CRL\n");
                         break;
@@ -10713,24 +10718,29 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                 break;
         }
         
-        if (type == X509_LU_CRL) {
-            if (wc_LockMutex(&lookup->dirs->lock) != 0) {
-                WOLFSSL_MSG("wc_LockMutex cdir Lock error");
-                return BAD_MUTEX_E;
-            }
-            if (ph == NULL) {
-                ph = wolfSSL_BY_DIR_HASH_new();
-                if (ph == NULL) {
-                    WOLFSSL_MSG("failed to allocate hash stack");
-                    ret = WOLFSSL_FAILURE;
-                } else {
-                    ph->hash_value = hash;
-                    ph->last_suffix = suffix;
-                    
-                    ret = wolfSSL_sk_BY_DIR_HASH_push(entry->hashes, ph);
+        if (suffix == MAX_SUFFIX) {
+            WOLFSSL_MSG("not found file");
+            ret = WOLFSSL_FAILURE;
+        } else {
+            if (type == X509_LU_CRL) {
+                if (wc_LockMutex(&lookup->dirs->lock) != 0) {
+                    WOLFSSL_MSG("wc_LockMutex cdir Lock error");
+                    return BAD_MUTEX_E;
                 }
+                if (ph == NULL) {
+                    ph = wolfSSL_BY_DIR_HASH_new();
+                    if (ph == NULL) {
+                        WOLFSSL_MSG("failed to allocate hash stack");
+                        ret = WOLFSSL_FAILURE;
+                    } else {
+                        ph->hash_value = hash;
+                        ph->last_suffix = suffix;
+                        
+                        ret = wolfSSL_sk_BY_DIR_HASH_push(entry->hashes, ph);
+                    }
+                }
+                wc_UnLockMutex(&lookup->dirs->lock);
             }
-            wc_UnLockMutex(&lookup->dirs->lock);
         }
         
         XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);

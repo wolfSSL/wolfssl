@@ -25858,6 +25858,10 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
     }
     XMEMSET(store->lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
+    if (wc_InitMutex(&store->lookup.dirs->lock) != 0) {
+            WOLFSSL_MSG("Bad mutex init");
+            goto err_exit;
+    }
 #endif
 
     return store;

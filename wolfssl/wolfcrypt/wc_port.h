@@ -679,6 +679,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
     #if defined(USE_WINDOWS_API)
+        #include <sys/stat.h>
         #define XSTAT       _stat
         #define SEPARATOR_CHAR ';'
     #elif defined(WOLFSSL_ZEPHYR)
@@ -730,6 +731,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
+        struct XSTAT s;
     #elif defined(WOLFSSL_ZEPHYR)
         struct fs_dirent entry;
         struct fs_dir_t  dir;
