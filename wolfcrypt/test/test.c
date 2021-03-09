@@ -11666,6 +11666,76 @@ static int random_rng_test(void)
 
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
+#ifdef WC_RNG_SEED_CB
+static int seed_cb(byte* output, word32 sz)
+{
+    word32 i;
+    /* Known answer test. Set the seed to the same value every time. */
+    for (i = 0; i < sz; i++)
+        output[i] = (byte)i;
+    return 0;
+}
+
+static int rng_seed_test(void)
+{
+#ifndef HAVE_FIPS
+    WOLFSSL_SMALL_STACK_STATIC const byte check[] =
+    {
+        0x83, 0x46, 0x65, 0x2f, 0x5c, 0x44, 0x16, 0x5f,
+        0xb3, 0x89, 0x26, 0xde, 0x0b, 0x6b, 0xa2, 0x06,
+        0x7e, 0xa7, 0x9a, 0x55, 0x22, 0x01, 0xb0, 0x22,
+        0xf4, 0x7e, 0xa2, 0x66, 0xc4, 0x08, 0x6f, 0xba
+    };
+#else
+    /* FIPS uses a longer seed, so different check value. */
+    WOLFSSL_SMALL_STACK_STATIC const byte check[] =
+    {
+        0xaf, 0x31, 0xcc, 0xef, 0xa9, 0x29, 0x4c, 0x24,
+        0xbd, 0xa5, 0xa3, 0x52, 0x69, 0xf3, 0xb9, 0xb2,
+        0x1e, 0xd4, 0x52, 0x3b, 0x9a, 0x96, 0x06, 0x20,
+        0xc0, 0x5f, 0x44, 0x06, 0x1f, 0x80, 0xdf, 0xe0
+    };
+#endif
+    byte output[WC_SHA256_DIGEST_SIZE];
+    WC_RNG rng;
+    int ret;
+
+    ret = wc_SetSeed_Cb(seed_cb);
+    if (ret != 0) {
+        ret = -7007;
+        goto exit;
+    }
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        ret = -7008;
+        goto exit;
+    }
+    ret = wc_RNG_GenerateBlock(&rng, output, sizeof(output));
+    if (ret != 0) {
+        ret = -7009;
+        goto exit;
+    }
+    ret = XMEMCMP(output, check, sizeof(output));
+    if (ret != 0) {
+        ret = -7010;
+        goto exit;
+    }
+    ret = wc_FreeRng(&rng);
+    if (ret != 0) {
+        ret = -7011;
+        goto exit;
+    }
+    ret = wc_SetSeed_Cb(NULL);
+    if (ret != 0) {
+        ret = -7012;
+    }
+
+exit:
+    return ret;
+}
+#endif
+
+
 WOLFSSL_TEST_SUBROUTINE int random_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte test1Entropy[] =
@@ -11771,6 +11841,13 @@ WOLFSSL_TEST_SUBROUTINE int random_test(void)
             return -7006;
     }
 #endif
+
+    /* Test the seed callback. */
+#ifdef WC_RNG_SEED_CB
+    if ((ret = rng_seed_test()) != 0)
+        return ret;
+#endif
+
     return 0;
 }
 
