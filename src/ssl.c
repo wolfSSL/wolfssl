@@ -53738,61 +53738,93 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 {
     byte* p = NULL;
+    int derSz;
     WOLFSSL_ENTER("wolfSSL_X509_set_pubkey");
 
     if (cert == NULL || pkey == NULL)
         return WOLFSSL_FAILURE;
 
-    if (pkey->type == EVP_PKEY_RSA
-#ifndef NO_DSA
-            || pkey->type == EVP_PKEY_DSA
-#endif /* !NO_DSA */
-            ) {
-        p = (byte*)XMALLOC(pkey->pkey_sz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (p == NULL)
-            return WOLFSSL_FAILURE;
+    /* Regenerate since pkey->pkey.ptr may contain private key */
+    switch (pkey->type) {
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+    case EVP_PKEY_RSA:
+        {
+            RsaKey* rsa;
 
-        if (cert->pubKey.buffer != NULL)
-            XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        cert->pubKey.buffer = p;
-        XMEMCPY(cert->pubKey.buffer, pkey->pkey.ptr, pkey->pkey_sz);
-        cert->pubKey.length = pkey->pkey_sz;
-#ifndef NO_DSA
-        if (pkey->type == EVP_PKEY_DSA)
-            cert->pubKeyOID = DSAk;
-        else
-#endif /* !NO_DSA */
+            if (pkey->rsa == NULL || pkey->rsa->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            rsa = (RsaKey*)pkey->rsa->internal;
+            derSz = wc_RsaPublicKeyDerSize(rsa, 1);
+            if (derSz <= 0)
+                return WOLFSSL_FAILURE;
+
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_RsaKeyToPublicDer(rsa, p, derSz)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
             cert->pubKeyOID = RSAk;
-    }
-#ifdef HAVE_ECC
-    else if (pkey->type == EVP_PKEY_EC) {
-        /* Generate since pkey->pkey.ptr may contain private key */
-        ecc_key* ecc;
-        int derSz;
-
-        if (pkey->ecc == NULL || pkey->ecc->internal == NULL)
-            return WOLFSSL_FAILURE;
-
-        ecc = (ecc_key*)pkey->ecc->internal;
-        derSz = wc_EccPublicKeyDerSize(ecc, 1);
-        if (derSz <= 0)
-            return WOLFSSL_FAILURE;
-
-        p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (p == NULL)
-            return WOLFSSL_FAILURE;
-
-        if ((derSz = wc_EccPublicKeyToDer(ecc, p, derSz, 1)) <= 0) {
-            XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            return WOLFSSL_FAILURE;
         }
-        cert->pubKey.buffer = p;
-        cert->pubKey.length = derSz;
-        cert->pubKeyOID = ECDSAk;
-    }
-#endif /* HAVE_ECC */
-    else
+        break;
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+#if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
+        defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
+    case EVP_PKEY_DSA:
+        {
+            DsaKey* dsa;
+
+            if (pkey->dsa == NULL || pkey->dsa->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            dsa = (DsaKey*)pkey->dsa->internal;
+            /* size of pub, priv, p, q, g + ASN.1 additional information */
+            derSz = 5 * mp_unsigned_bin_size(&dsa->g) + MAX_ALGO_SZ;
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_DsaKeyToPublicDer(dsa, p, derSz)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            cert->pubKeyOID = RSAk;
+        }
+        break;
+#endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) && !NO_DSA */
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        {
+            ecc_key* ecc;
+
+            if (pkey->ecc == NULL || pkey->ecc->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            ecc = (ecc_key*)pkey->ecc->internal;
+            derSz = wc_EccPublicKeyDerSize(ecc, 1);
+            if (derSz <= 0)
+                return WOLFSSL_FAILURE;
+
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_EccPublicKeyToDer(ecc, p, derSz, 1)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            cert->pubKeyOID = ECDSAk;
+        }
+        break;
+#endif
+    default:
         return WOLFSSL_FAILURE;
+    }
+    cert->pubKey.buffer = p;
+    cert->pubKey.length = derSz;
 
     return WOLFSSL_SUCCESS;
 }
