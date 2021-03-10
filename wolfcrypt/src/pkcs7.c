@@ -8423,6 +8423,9 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
+                if (KEYID_SIZE > pkiMsgSz - (*idx))
+                    return BUFFER_E;
+
                 /* if we found correct recipient, SKID will match */
                 if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,
                             KEYID_SIZE) == 0) {
