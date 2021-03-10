@@ -24592,32 +24592,40 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_create_callback
+ *  CRYPTO_set_dynlock_create_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_create_callback(WOLFSSL_dynlock_value* (*f)(
                                                           const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_dynlock_create_callback");
     (void)f;
 }
-#endif
-
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_lock_callback
+ *  CRYPTO_set_dynlock_lock_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_lock_callback(
              void (*f)(int, WOLFSSL_dynlock_value*, const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_set_dynlock_lock_callback");
     (void)f;
 }
-#endif
-
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_destroy_callback
+ *  CRYPTO_set_dynlock_destroy_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_destroy_callback(
                   void (*f)(WOLFSSL_dynlock_value*, const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_set_dynlock_destroy_callback");
     (void)f;
 }
-#endif
+
 
 #endif /* OPENSSL_EXTRA */
 
