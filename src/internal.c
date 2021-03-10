@@ -1990,7 +1990,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         if (ctx->x509_store.lookup.dirs->dir_entry) {
             wolfSSL_sk_BY_DIR_entry_free(ctx->x509_store.lookup.dirs->dir_entry);
         }
+        
 #endif
+        wc_FreeMutex(&ctx->x509_store.lookup.dirs->lock);
         XFREE(ctx->x509_store.lookup.dirs, ctx->heap, DYNAMIC_TYPE_OPENSSL);
     }
 #endif

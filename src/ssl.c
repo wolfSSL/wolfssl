@@ -25894,6 +25894,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
                 wolfSSL_sk_BY_DIR_entry_free(store->lookup.dirs->dir_entry);
             }
 #endif
+            wc_FreeMutex(&store->lookup.dirs->lock);
             XFREE(store->lookup.dirs, NULL, DYNAMIC_TYPE_OPENSSL);
             store->lookup.dirs = NULL;
         }
