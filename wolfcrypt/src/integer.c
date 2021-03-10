@@ -1449,10 +1449,16 @@ int mp_set (mp_int * a, mp_digit b)
 /* check if a bit is set */
 int mp_is_bit_set (mp_int *a, mp_digit b)
 {
-    if ((mp_digit)a->used < b/DIGIT_BIT)
-        return 0;
+    int i = (int)(b / DIGIT_BIT);  /* word index */
+    int s = b % DIGIT_BIT;         /* bit index */
 
-    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (mp_digit)1);
+    if (a->used <= i) {
+        /* no words avaialable at that bit count */
+        return 0;
+    }
+
+    /* get word and shift bit to check down to index 0 */
+    return (int)((a->dp[i] >> s) & (mp_digit)1);
 }
 
 /* c = a mod b, 0 <= c < b */
