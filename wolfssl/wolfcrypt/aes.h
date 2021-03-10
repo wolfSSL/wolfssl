@@ -416,7 +416,15 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
                                 const byte* iv);
+ WOLFSSL_API int  wc_AesKeyWrap_ex(Aes *aes,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
  WOLFSSL_API int  wc_AesKeyUnWrap(const byte* key, word32 keySz,
+                                const byte* in, word32 inSz,
+                                byte* out, word32 outSz,
+                                const byte* iv);
+ WOLFSSL_API int  wc_AesKeyUnWrap_ex(Aes *aes,
                                 const byte* in, word32 inSz,
                                 byte* out, word32 outSz,
                                 const byte* iv);
