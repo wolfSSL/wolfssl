@@ -597,7 +597,11 @@ decouple library dependencies with standard string, memory and so on.
 
                         if ((int)bufsize <= 0) return -1;
                         va_start(ap, format);
+                    #ifndef _WIN32_WCE
                         ret = vsnprintf(buffer, bufsize, format, ap);
+                    #else
+                        ret = _vsnprintf(buffer, bufsize, format, ap);
+                    #endif
                         if (ret >= (int)bufsize)
                             ret = -1;
                         va_end(ap);

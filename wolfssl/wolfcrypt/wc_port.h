@@ -616,6 +616,21 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END                0
     #define XBADFILE                 NULL
     #define XFGETS(b,s,f)            f_gets((b), (s), (f))
+#elif defined (_WIN32_WCE)
+    /* stdio, WINCE case */
+    #include <stdio.h>
+    #define XFILE      FILE*
+    #define XFOPEN     fopen
+    #define XFDOPEN    fdopen
+    #define XFSEEK     fseek
+    #define XFTELL     ftell
+    #define XREWIND(F) XFSEEK(F, 0, SEEK_SET)
+    #define XFREAD     fread
+    #define XFWRITE    fwrite
+    #define XFCLOSE    fclose
+    #define XSEEK_END  SEEK_END
+    #define XBADFILE   NULL
+    #define XFGETS     fgets
 
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
@@ -863,8 +878,30 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(_WIN32_WCE)
     #include <windows.h>
+    #include <stdlib.h> /* For file system */
+
+    time_t windows_time(time_t* timer);
+
+    #define FindNextFileA(h, d) FindNextFile(h, (LPWIN32_FIND_DATAW) d)
+    #define FindFirstFileA(fn, d) FindFirstFile(fn, (LPWIN32_FIND_DATAW) d)
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
+
+    /* if struct tm is not defined in WINCE SDK */
+    #ifndef _TM_DEFINED
+        struct tm {
+            int tm_sec;     /* seconds */
+            int tm_min;     /* minutes */
+            int tm_hour;    /* hours */
+            int tm_mday;    /* day of month (month specific) */
+            int tm_mon;     /* month */
+            int tm_year;    /* year */
+            int tm_wday;    /* day of week (out of 1-7)*/
+            int tm_yday;    /* day of year (out of 365) */
+            int tm_isdst;   /* is it daylight savings */
+            };
+            #define _TM_DEFINED
+    #endif
 
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     #include "os/os_time.h"

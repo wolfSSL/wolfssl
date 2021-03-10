@@ -4573,18 +4573,21 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     DECLARE_VAR(message, byte, TEST_STRING_SZ, HEAP_HINT);
 #endif
-    #if !defined(WOLFSSL_MDK5_COMPLv5)
+    #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
     DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #else
+        int idxenc;
+        int inner_idx_enc;
         byte* enc[BENCH_MAX_PENDING];
     #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        #if !defined(WOLFSSL_MDK5_COMPLv5)
+        #if !defined(WOLFSSL_MDK5_COMPLv5) && !defined(_WIN32_WCE)
           /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
             DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
             #else
-                int idxout;
+              int idxout;
+              int inner_idx_out;
               byte* out[BENCH_MAX_PENDING];
         #endif
     #else
@@ -6383,7 +6386,7 @@ static int string_matches(const char* arg, const char* str)
 }
 #endif /* MAIN_NO_ARGS */
 
-#ifdef WOLFSSL_ESPIDF
+#if defined(WOLFSSL_ESPIDF) || defined(_WIN32_WCE)
 int wolf_benchmark_task( )
 #elif defined(MAIN_NO_ARGS)
 int main()
