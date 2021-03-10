@@ -953,17 +953,20 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, NULL), WOLFSSL_FAILURE);
 
     /* invalid ca file */
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, NULL), WOLFSSL_BAD_FILE);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, NULL),
+     WS_RETURN_CODE(WOLFSSL_BAD_FILE,WOLFSSL_FAILURE));
 
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     /* invalid path */
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile), BAD_PATH_ERROR);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile),
+     WS_RETURN_CODE(BAD_PATH_ERROR,WOLFSSL_FAILURE));
 #endif
 
     /* load ca cert */
 #ifdef NO_RSA
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL),
+     WS_RETURN_CODE(ASN_UNKNOWN_OID_E,WOLFSSL_FAILURE));
 #else /* Skip the following test without RSA certs. */
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
 
