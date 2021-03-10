@@ -133,31 +133,46 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (ssl->biord->method && ssl->biord->method->readCb) {
-        WOLFSSL_MSG("Calling custom biord");
-        recvd = ssl->biord->method->readCb(ssl->biord, buf, sz);
-        if (recvd < 0 && recvd != WOLFSSL_CBIO_ERR_WANT_READ)
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        return recvd;
+    if (wolfSSL_BIO_supports_pending(ssl->biord) &&
+            wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
+        WOLFSSL_MSG("BIO want read");
+       return WOLFSSL_CBIO_ERR_WANT_READ;
     }
+    recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
+    if (recvd <= 0) {
+        if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
+            int err;
 
-    switch (ssl->biord->type) {
-        case WOLFSSL_BIO_MEMORY:
-        case WOLFSSL_BIO_BIO:
-            if (wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
-                WOLFSSL_MSG("BIO want read");
-               return WOLFSSL_CBIO_ERR_WANT_READ;
+            if (recvd == 0) {
+                WOLFSSL_MSG("BioReceive connection closed");
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
             }
-            recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
-            if (recvd <= 0) {
-                WOLFSSL_MSG("BIO general error");
+
+            err = wolfSSL_LastError(recvd);
+            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+                WOLFSSL_MSG("\tWould block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            else if (err == SOCKET_ECONNRESET) {
+                WOLFSSL_MSG("\tConnection reset");
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            }
+            else if (err == SOCKET_EINTR) {
+                WOLFSSL_MSG("\tSocket interrupted");
+                return WOLFSSL_CBIO_ERR_ISR;
+            }
+            else if (err == SOCKET_ECONNABORTED) {
+                WOLFSSL_MSG("\tConnection aborted");
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+            else {
+                WOLFSSL_MSG("\tGeneral error");
                 return WOLFSSL_CBIO_ERR_GENERAL;
             }
-            break;
+        }
 
-       default:
-            WOLFSSL_MSG("This BIO type is unknown / unsupported");
-            return WOLFSSL_CBIO_ERR_GENERAL;
+        WOLFSSL_MSG("BIO general error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
     (void)ctx;
@@ -186,27 +201,32 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (ssl->biowr->method && ssl->biowr->method->writeCb) {
-        WOLFSSL_MSG("Calling custom biowr");
-        sent = ssl->biowr->method->writeCb(ssl->biowr, buf, sz);
-        if ((sent < 0) && (sent != WOLFSSL_CBIO_ERR_WANT_WRITE)) {
-            return WOLFSSL_CBIO_ERR_GENERAL;
-        }
-        return sent;
-    }
-
-    switch (ssl->biowr->type) {
-        case WOLFSSL_BIO_MEMORY:
-        case WOLFSSL_BIO_BIO:
-            sent = wolfSSL_BIO_write(ssl->biowr, buf, sz);
-            if (sent < 0) {
+    sent = wolfSSL_BIO_write(ssl->biowr, buf, sz);
+    if (sent < 0) {
+        if (ssl->biowr->type == WOLFSSL_BIO_SOCKET) {
+            int err = wolfSSL_LastError(sent);
+            if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+                WOLFSSL_MSG("\tWould Block");
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            }
+            else if (err == SOCKET_ECONNRESET) {
+                WOLFSSL_MSG("\tConnection reset");
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            }
+            else if (err == SOCKET_EINTR) {
+                WOLFSSL_MSG("\tSocket interrupted");
+                return WOLFSSL_CBIO_ERR_ISR;
+            }
+            else if (err == SOCKET_EPIPE) {
+                WOLFSSL_MSG("\tSocket EPIPE");
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+            else {
+                WOLFSSL_MSG("\tGeneral error");
                 return WOLFSSL_CBIO_ERR_GENERAL;
             }
-            break;
-
-        default:
-            WOLFSSL_MSG("This BIO type is unknown / unsupported");
-            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+        return WOLFSSL_CBIO_ERR_GENERAL;
     }
     (void)ctx;
 

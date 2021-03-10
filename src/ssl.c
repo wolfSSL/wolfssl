@@ -15140,37 +15140,27 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return;
         }
 
-        /* if WOLFSSL_BIO is socket type then set WOLFSSL socket to use */
-        if (rd != NULL && rd->type == WOLFSSL_BIO_SOCKET) {
-            wolfSSL_set_rfd(ssl, rd->num);
-        }
-        if (wr != NULL && wr->type == WOLFSSL_BIO_SOCKET) {
-            wolfSSL_set_wfd(ssl, wr->num);
-        }
-
-        /* free any existing WOLFSSL_BIOs in use */
+        /* free any existing WOLFSSL_BIOs in use but don't free those in
+         * a chain */
         if (ssl->biord != NULL) {
             if (ssl->biord != ssl->biowr) {
-                if (ssl->biowr != NULL) {
+                if (ssl->biowr != NULL && ssl->biowr->prev != NULL)
                     wolfSSL_BIO_free(ssl->biowr);
-                    ssl->biowr = NULL;
-                }
+                ssl->biowr = NULL;
             }
-            wolfSSL_BIO_free(ssl->biord);
+            if (ssl->biord->prev != NULL)
+                wolfSSL_BIO_free(ssl->biord);
             ssl->biord = NULL;
         }
-
 
         ssl->biord = rd;
         ssl->biowr = wr;
 
         /* set SSL to use BIO callbacks instead */
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0) &&
-            (rd != NULL && rd->type != WOLFSSL_BIO_SOCKET)) {
+        if (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0)) {
             ssl->CBIORecv = BioReceive;
         }
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0) &&
-            (wr != NULL && wr->type != WOLFSSL_BIO_SOCKET)) {
+        if (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0)) {
             ssl->CBIOSend = BioSend;
         }
 
@@ -16053,6 +16043,21 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return 0;
     }
 
+    long wolfSSL_BIO_do_handshake(WOLFSSL_BIO *b)
+    {
+        WOLFSSL_ENTER("wolfSSL_BIO_do_handshake");
+        if (b == NULL) {
+            WOLFSSL_MSG("Bad parameter");
+            return WOLFSSL_FAILURE;
+        }
+        if (b->type == WOLFSSL_BIO_SSL && b->ptr != NULL) {
+            return wolfSSL_negotiate((WOLFSSL*)b->ptr);
+        }
+        else {
+            WOLFSSL_MSG("Not SSL BIO or no SSL object set");
+            return WOLFSSL_FAILURE;
+        }
+    }
 
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
@@ -16063,6 +16068,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (b != NULL) {
             b->ptr   = ssl;
             b->shutdown = (byte)closeF;
+            if (b->next != NULL)
+                wolfSSL_set_bio(ssl, b->next, b->next);
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
             ret = WOLFSSL_SUCCESS;
         }
@@ -16283,6 +16290,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("BIO_push");
         top->next    = append;
         append->prev = top;
+
+        /* SSL BIO's should use the next object in the chain for IO */
+        if (top->type == WOLFSSL_BIO_SSL && top->ptr)
+            wolfSSL_set_bio((WOLFSSL*)top->ptr, append, append);
 
         return top;
     }

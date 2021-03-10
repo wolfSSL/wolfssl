@@ -6438,9 +6438,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS */
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
+    /* Don't free if there was/is a previous element in the chain.
+     * This means that this BIO was part of a chain that will be
+     * free'd separately. */
     if (ssl->biord != ssl->biowr)        /* only free write if different */
-        wolfSSL_BIO_free(ssl->biowr);
-    wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
+        if (ssl->biowr != NULL && ssl->biowr->prev == NULL)
+            wolfSSL_BIO_free(ssl->biowr);
+    if (ssl->biord != NULL && ssl->biord->prev == NULL)
+        wolfSSL_BIO_free(ssl->biord);
     ssl->biowr = NULL;
     ssl->biord = NULL;
 #endif
