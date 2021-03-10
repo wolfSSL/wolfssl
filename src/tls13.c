@@ -1469,6 +1469,12 @@ end:
     #else
         return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
     #endif
+#elif defined(WOLFSSL_QNX_CAAM)
+    word32 TimeNowInMilliseconds(void)
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
+        return (word32)(now.tv_sec * 1000 + now.tv_nsec / 1000000);
     }
 #elif defined(FUSION_RTOS)
     /* The time in milliseconds.

@@ -1419,6 +1419,23 @@ then
 fi
 
 
+# CAAM build
+AC_ARG_ENABLE([caam],
+    [AS_HELP_STRING([--enable-caam],[Enable wolfSSL support for CAAM (default: disabled)])],
+    [ ENABLED_CAAM=$enableval ],
+    [ ENABLED_CAAM=no ]
+    )
+if test "$ENABLED_CAAM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6_CAAM"
+fi
+
+if test "$ENABLED_CAAM" = "qnx"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IMX6_CAAM -DWOLFSSL_QNX_CAAM"
+fi
+
+
 # INTEL AES-NI
 AC_ARG_ENABLE([aesni],
     [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
@@ -2749,6 +2766,12 @@ AC_ARG_ENABLE([base16],
     [ ENABLED_BASE16=$enableval ],
     [ ENABLED_BASE16=no ]
     )
+
+if test "$ENABLED_CAAM" = "qnx"
+then
+    ENABLED_BASE16=yes
+fi
+
 if test "$ENABLED_BASE16" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BASE16"
@@ -5564,7 +5587,7 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
-if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes"
+if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" = "qnx"
 then
     ENABLED_CRYPTOCB=yes
 fi
@@ -6209,6 +6232,7 @@ AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SMIME],[test "x$ENABLED_SMIME" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
+AM_CONDITIONAL([BUILD_CAAM],[test "x$ENABLED_CAAM" = "xyes" || test "x$ENABLED_CAAM" = "xqnx"])
 AM_CONDITIONAL([BUILD_LINUXKM],[test "$ENABLED_LINUXKM" = "yes"])
 AM_CONDITIONAL([BUILD_NO_LIBRARY],[test "$ENABLED_NO_LIBRARY" = "yes"])
 AM_CONDITIONAL([BUILD_RC2],[test "x$ENABLED_RC2" = "xyes"])
@@ -6556,6 +6580,7 @@ echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
+echo "   * i.MX6 CAAM:                 $ENABLED_CAAM"
 echo ""
 echo "---"
 

@@ -114,6 +114,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
 
+#ifdef WOLFSSL_QNX_CAAM
+	#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
@@ -16345,6 +16349,14 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
 
     /* private */
     privSz = key->dp->size;
+
+#ifdef WOLFSSL_QNX_CAAM
+    /* check if is a black key, and add MAC size if so */
+    if (key->blackKey > 0) {
+        privSz = privSz + WC_CAAM_MAC_SZ;
+    }
+#endif
+
 #ifndef WOLFSSL_NO_MALLOC
     prv = (byte*)XMALLOC(privSz + privHdrSz + MAX_SEQ_SZ,
                          key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16356,7 +16368,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
         return BUFFER_E;
     }
 #endif
-    prvidx += SetOctetString8Bit(key->dp->size, &prv[prvidx]);
+    prvidx += SetOctetString8Bit(privSz, &prv[prvidx]);
     ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
     if (ret < 0) {
     #ifndef WOLFSSL_NO_MALLOC

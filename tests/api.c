@@ -422,7 +422,12 @@ enum {
     TESTING_ECC = 2
 };
 
+#ifdef WOLFSSL_QNX_CAAM
+#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+static int devId = WOLFSSL_CAAM_DEVID;
+#else
 static int devId = INVALID_DEVID;
+#endif
 
 
 /*----------------------------------------------------------------------------*

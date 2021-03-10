@@ -2322,13 +2322,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG))
 
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
-    #include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        Buffer buf[1];
-        int ret  = 0;
-        int times = 1000, i;
+        unsigned int args[4] = {0};
+        CAAM_BUFFER buf[1];
+        int ret    = 0;
+        int times  = 1000, i; /* 1000 is an arbitrary number chosen */
+        word32 idx = 0;
 
         (void)os;
 
@@ -2336,25 +2337,29 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return BUFFER_E;
         }
 
-        buf[0].BufferType = DataBuffer | LastBuffer;
-        buf[0].TheAddress = (Address)output;
-        buf[0].Length     = sz;
-
         /* Check Waiting to make sure entropy is ready */
         for (i = 0; i < times; i++) {
-            ret = wc_caamAddAndWait(buf, NULL, CAAM_ENTROPY);
-            if (ret == Success) {
-                break;
+            buf[0].BufferType = DataBuffer | LastBuffer;
+            buf[0].TheAddress = (CAAM_ADDRESS)(output + idx);
+            buf[0].Length     = ((sz - idx) < WC_CAAM_MAX_ENTROPY)?
+                                sz - idx : WC_CAAM_MAX_ENTROPY;
+
+            args[0] = buf[0].Length;
+            ret = wc_caamAddAndWait(buf, 1, args, CAAM_ENTROPY);
+            if (ret == 0) {
+                idx += buf[0].Length;
+                if (idx == sz)
+                    break;
             }
 
             /* driver could be waiting for entropy */
-            if (ret != RAN_BLOCK_E) {
+            if (ret != RAN_BLOCK_E && ret != 0) {
                 return ret;
             }
             usleep(100);
         }
 
-        if (i == times && ret != Success) {
+        if (i == times && ret != 0) {
              return RNG_FAILURE_E;
         }
         else { /* Success case */
