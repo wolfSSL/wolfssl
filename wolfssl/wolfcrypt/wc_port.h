@@ -684,8 +684,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define SEPARATOR_CHAR ';'
     #elif defined(WOLFSSL_ZEPHYR)
         #define XSTAT       fs_stat
+        #define SEPARATOR_CHAR ':'
     #elif defined(WOLFSSL_TELIT_M2MB)
         #define XSTAT       m2mb_fs_stat
+        #define SEPARATOR_CHAR ':'
     #else
         #include <dirent.h>
         #include <unistd.h>

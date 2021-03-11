@@ -24829,6 +24829,13 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
     return &meth;
 }
 
+/* set directory path to load certificate or CRL which have the hash.N form */
+/* for late use                                                             */
+/* @param ctx    a pointer to WOLFSSL_BY_DIR structure                      */
+/* @param argc   directory path                                             */
+/* @param argl   file type, either WOLFSSL_FILETYPE_PEM or                  */
+/*                                          WOLFSSL_FILETYPE_ASN1           */
+/* @return WOLFSSL_SUCCESS on successful, othewise negative or zero         */
 static int x509AddCertDir(void *p, const char *argc, long argl)
 {
     WOLFSSL_ENTER("x509AddCertDir");
@@ -24885,6 +24892,9 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
                     
                     if (ctx->dir_entry == NULL) {
                         WOLFSSL_MSG("failed to allocate dir_entry");
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                        #endif
                         return 0;
                     }
                 }
@@ -24892,6 +24902,9 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
                 entry = wolfSSL_BY_DIR_entry_new();
                 if (entry == NULL) {
                     WOLFSSL_MSG("failed to allocate dir entry");
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
                     return 0;
                 }
                 entry->dir_type = (int)argl;
@@ -24901,6 +24914,9 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
                 if (entry->dir_name == NULL || entry->hashes == NULL) {
                     WOLFSSL_MSG("failed to allocate dir name");
                     wolfSSL_BY_DIR_entry_free(entry);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
                     return 0;
                 }
                 
@@ -24910,6 +24926,9 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
                 if (wolfSSL_sk_BY_DIR_entry_push(ctx->dir_entry, entry) 
                                                     != WOLFSSL_SUCCESS) {
                     wolfSSL_BY_DIR_entry_free(entry);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
                     return 0;
                 }
             }
@@ -24935,20 +24954,25 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
 #endif
 }
 
+/* set additional data to X509_LOOKUP                                   */
+/* @param ctx    a pointer to X509_LOOKUP structure                     */
+/* @param cmd    control command :                                      */
+/*               X509_L_FILE_LOAD, X509_L_ADD_DIR X509_L_ADD_STORE or   */
+/*               X509_L_LOAD_STORE                                      */
+/* @param argc   arguments for the control command                      */
+/* @param argl   arguments for the control command                      */
+/* @param **ret  return value of the control command                    */
+/* @return WOLFSSL_SUCCESS on successful, othewise WOLFSSL_FAILURE      */
+/* note: WOLFSSL_X509_L_ADD_STORE and WOLFSSL_X509_L_LOAD_STORE have not*/
+/*       yet implemented. It retutns WOLFSSL_NOT_IMPLEMENTED            */
+/*       when those control commands are passed.                        */
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
 {
-    /* control commands:
-     * X509_L_FILE_LOAD, X509_L_ADD_DIR
-     * X509_L_ADD_STORE, X509_L_LOAD_STORE
-     */
     int lret = WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_X509_LOOKUP_ctrl");
 #if !defined(NO_FILESYSTEM)
-    /* returns FAILURE 
-     *if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
-
     if (ctx != NULL) {
         switch (cmd) {
         case WOLFSSL_X509_L_FILE_LOAD:
@@ -24990,7 +25014,7 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
     WOLFSSL_ENTER("SSL_X509_STORE_add_lookup");
-    if (store == NULL)
+    if (store == NULL || m == NULL)
         return NULL;
 
     /* Make sure the lookup has a back reference to the store. */
@@ -26311,7 +26335,11 @@ WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
     WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
     return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)x509, CERT_TYPE);
 }
-
+/* load certificate or CRL file, and add it to the STORE           */
+/* @param ctx    a pointer to X509_LOOKUP structure                */
+/* @param file   file name to load                                 */
+/* @param type   WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1     */
+/* @return a number of loading CRL or certificate, otherwise zero  */
 WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     const char *file, int type)
 {
@@ -26324,8 +26352,14 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     int cnt = 0;
     int num = 0;
 
-    WOLFSSL_ENTER("wolfSSL_X509_load_ceretificate_crl_file");
-
+    WOLFSSL_ENTER("wolfSSL_X509_load_cert_crl_file");
+    
+    /* stanity check */
+    if (ctx == NULL || file == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return 0;
+    }
+    
     if (type != WOLFSSL_FILETYPE_PEM) {
         x509 = wolfSSL_X509_load_certificate_file(file, type);
         if (x509 != NULL) {
@@ -41558,6 +41592,14 @@ static int ConvertNIDToWolfSSL(int nid)
 }
 
 #if defined(OPENSSL_ALL)
+/* Convert ASN1 input string into canonical ASN1 string                     */
+/*  , which has the following rules:                                        */
+/*   convert to UTF8                                                        */
+/*   convert to lower case                                                  */
+/*   multi-spaces collapsed                                                 */
+/* @param  asn_out a pointer to ASN1_STRING to be converted                 */
+/* @param  asn_in  a pointer to input ASN1_STRING                           */
+/* @return WOLFSSL_SUCCESS on successful converted, otherwise <=0 error code*/
 static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
                                         const WOLFSSL_ASN1_STRING* asn_in)
 {
@@ -41565,6 +41607,14 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     char* src;
     int i, len;
 
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_canon");
+    
+    /* sanity check */
+    if (asn_out == NULL || asn_in == NULL) {
+        WOLFSSL_MSG("invalid function arguments");
+        return BAD_FUNC_ARG;
+    }
+    
     switch (asn_in->type) {
         case MBSTRING_UTF8:
         case V_ASN1_PRINTABLESTRING:
@@ -41594,7 +41644,7 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     for (; (len > 0 && XISSPACE(*dst));len--) {
         dst--;
     }
-    for (; (len > 0 && XISSPACE(*src));len--){
+    for (; (len > 0 && XISSPACE(*src));len--) {
         src++;
     }
 
@@ -41618,16 +41668,15 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
     return WOLFSSL_SUCCESS;
 }
 
-/* this is to converts the x509 name structure into canonical DER format 
-*  , which has the following rules:
-*   convert to UTF8
-*   convert to lower case
-*   multi-spaces collapsed
-*   leading SEQUENCE hader is skipped
-* @param  name a pointer to X509_NAME that is to be converted
-* @param  out  a pointer to conveted data
-* @return a number of converted bytes, otherwise <0 error code
-*/
+/* This is to convert the x509 name structure into canonical DER format     */
+/*  , which has the following rules:                                        */
+/*   convert to UTF8                                                        */
+/*   convert to lower case                                                  */
+/*   multi-spaces collapsed                                                 */
+/*   leading SEQUENCE hader is skipped                                      */
+/* @param  name a pointer to X509_NAME that is to be converted              */
+/* @param  out  a pointer to conveted data                                  */
+/* @return a number of converted bytes, otherwise <=0 error code            */
 int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
 {
     int  totalBytes = 0, i, idx;
@@ -41661,8 +41710,12 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
             WOLFSSL_ASN1_STRING* cano_data;
 
             cano_data = wolfSSL_ASN1_STRING_new();
-            if (cano_data == NULL)
+            if (cano_data == NULL) {
+                #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
                 return MEMORY_E;
+            }
 
             data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
             if (data == NULL) {
@@ -41678,7 +41731,7 @@ int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
             }
             nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
 
-            ret = wc_EncodeName_cano(&names[i], nameStr, CTC_UTF8,
+            ret = wc_EncodeNameCanonical(&names[i], nameStr, CTC_UTF8,
                 ConvertNIDToWolfSSL(entry->nid));
             if (ret < 0) {
             #ifdef WOLFSSL_SMALL_STACK
@@ -46371,7 +46424,7 @@ int wolfSSL_sk_BY_DIR_HASH_find(
 /* return a number of WOLFSSL_BY_DIR_HASH in stack */
 int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_BY_DIR_HASH_num");
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_num");
     
     if (sk == NULL)
         return -1;
@@ -46421,8 +46474,10 @@ WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
 
     return hash;
 }
-/* release all contents in stack, and then release stack itself */
-/* it uses function when it is passed                           */
+/* release all contents in stack, and then release stack itself. */
+/* Second argument is a function pointer to release resouces.    */
+/* It calls the function to release resouces when t is passed    */
+/* instead of wolfSSL_BY_DIR_HASH_free().                        */
 void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
     void (*f) (WOLFSSL_BY_DIR_HASH*))
 {

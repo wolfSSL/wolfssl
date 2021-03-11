@@ -1820,16 +1820,18 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         return MEMORY_E;
     }
     XMEMSET(ctx->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
-    /* WOLFSS_X509_LOOKUP */
+    /* WOLFSSL_X509_LOOKUP */
     if ((ctx->x509_store.lookup.dirs = 
                             (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
                             heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         WOLFSSL_MSG("ctx-x509_store.lookup.dir memory allocation error");
+        XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
         return MEMORY_E;
     }
     XMEMSET(ctx->x509_store.lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
     if (wc_InitMutex(&ctx->x509_store.lookup.dirs->lock) != 0) {
         WOLFSSL_MSG("Bad mutex init");
+        XFREE(ctx->param, heap, DYNAMIC_TYPE_OPENSSL);
         XFREE(ctx->x509_store.lookup.dirs, heap, DYNAMIC_TYPE_OPENSSL);
         return BAD_MUTEX_E;
     }
@@ -10582,17 +10584,18 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
     }
 }
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-/* load certificate file which has the form <hash>.(r)N[0..N]      */
-/* in the folder.                                                  */
-/* (r), in the case of CRL file                                    */
-/* @param store  a pointer to X509_STORE structure                 */
-/* @param issuer a pointer to X509_NAME that presents issuer       */
-/* @param type   X509_LU_X509 or X509_LU_CRL                       */
+/* load certificate file which has the form <hash>.(r)N[0..N]       */
+/* in the folder.                                                   */
+/* (r), in the case of CRL file                                     */
+/* @param store  a pointer to X509_STORE structure                  */
+/* @param issuer a pointer to X509_NAME that presents an issuer     */
+/* @param type   X509_LU_X509 or X509_LU_CRL                        */
+/* @return WOLFSSL_SUCCESS on successful, otherwise WOLFSSL_FAILURE */
 int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 {
-    const int MAX_SUFFIX = 10;
+    const int MAX_SUFFIX = 10;/* The number comes from CA_TABLE_SIZE=10 */
     int ret = WOLFSSL_SUCCESS;
     WOLFSSL_X509_LOOKUP* lookup = &store->lookup;
     WOLFSSL_BY_DIR_entry* entry;
@@ -10622,7 +10625,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
         retHash = wc_ShaHash((const byte*)pbuf, len, dgt);
         #endif
         if (retHash == 0) {
-            /* 4 bytes in small endian as unsigned long */
+            /* 4 bytes in little endian as unsigned long */
             hash = (((unsigned long)dgt[3] << 24) | 
                     ((unsigned long)dgt[2] << 16) |
                     ((unsigned long)dgt[1] <<  8) |
@@ -10635,7 +10638,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     }
     
     /* try to load each hashed name file in path */
-#if !defined(NO_FILESYSTE) && !defined(NO_WOLFSSL_DIR)
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     
     if (type == X509_LU_CRL) {
         post = "r";
@@ -10646,19 +10649,6 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     for (i=0; i<num; i++) {
         
         entry = wolfSSL_sk_BY_DIR_entry_value(lookup->dirs->dir_entry, i);
-        /*/<hash value:8>.(r)N\0        */
-        /*112345678      1 1 1 1  => 13 */
-        len = (int)XSTRLEN(entry->dir_name) + 13;
-        
-        if (filename != NULL) {
-            XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
-        }
-        
-        filename = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
-        if (filename == NULL) {
-            WOLFSSL_MSG("memory allcation error");
-            return MEMORY_E;
-        }
         
         if (type == X509_LU_CRL && entry->hashes != NULL && 
             wolfSSL_sk_BY_DIR_HASH_num(entry->hashes) > 0) {
@@ -10682,7 +10672,25 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             wc_UnLockMutex(&lookup->dirs->lock);
         }
         
-        for (; suffix < MAX_SUFFIX;suffix++) {
+        /* Additional buffer length for file name memory allocation :   */
+        /* / <hashvalue>.(r)N\0                                         */
+        /*|1|     8    |1|1|1|1|           => 13                        */
+        len = (int)XSTRLEN(entry->dir_name) + 13;
+        if (filename != NULL) {
+            XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        
+        filename = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (filename == NULL) {
+            WOLFSSL_MSG("memory allocation error");
+            return MEMORY_E;
+        }
+        
+        /* set as FAILURE, if successfuly loading cert of CRL, this becomes */
+        /* WOLFSSL_SUCCESS                                                  */
+        ret = WOLFSSL_FAILURE;
+        
+        for (; suffix < MAX_SUFFIX; suffix++) {
             /* /folder-path/<hash>.(r)N[0..9] */
             XSNPRINTF(filename, len, "%s/%08lx.%s%d", entry->dir_name, 
                                                        hash, post, suffix);
@@ -10720,7 +10728,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                 break;
         }
         
-        if (suffix == MAX_SUFFIX) {
+        if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("not found file");
             ret = WOLFSSL_FAILURE;
         } else {
@@ -11291,7 +11299,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     if (ret == ASN_NO_SIGNER_E) {
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
@@ -11312,7 +11320,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                             &subjectHash, &alreadySigner);
                         } else
-			     ret = ASN_NO_SIGNER_E;
+                            ret = ASN_NO_SIGNER_E;
                     }
 #endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11509,7 +11517,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         !ssl->options.verifyNone ? VERIFY : NO_VERIFY,
                         &subjectHash, &alreadySigner);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     if (ret == ASN_NO_SIGNER_E) {
                         WOLFSSL_MSG("try to load certificate if hash dir is set");

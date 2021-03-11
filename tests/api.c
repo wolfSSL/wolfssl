@@ -28104,7 +28104,7 @@ static void test_wolfSSL_X509_Name_canon(void)
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_SHA) && \
      defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT))
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT))
     
     const long ex_hash1 = 0x0fdb2da4;
     const long ex_hash2 = 0x9f3e8c9e;

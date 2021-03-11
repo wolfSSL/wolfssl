@@ -707,7 +707,7 @@ static const char* server_usage_msg[][57] = {
         "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         "-9          Use hash dir look up for certificate loading\n"
         "            loading from <wolfSSL home>/certs folder\n"
@@ -850,7 +850,7 @@ static const char* server_usage_msg[][57] = {
         "-8          Pre-generate Key share using Curve448 only\n",     /* 56 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         "-9          証明書の読み込みに hash dir 機能を使用する\n"
         "            <wolfSSL home>/certs フォルダーからロードします\n"
@@ -991,7 +991,7 @@ static void Usage(void)
     printf("%s", msg[++msgId]);     /* -8 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     printf("%s", msg[++msgId]); /* -9 */
 #endif
@@ -1153,7 +1153,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int disallowETM = 0;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     int useCertFolder = 0;
 #endif
@@ -1653,7 +1653,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
             case '9' :
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
                     useCertFolder = 1;
                     break;
@@ -2049,7 +2049,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
     #endif
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         if (useCertFolder) {
             WOLFSSL_X509_STORE      *store;
@@ -2086,7 +2086,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
         #endif /* WOLFSSL_TRUST_PEER_CERT */
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-        (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+        (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
         !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         }
     #endif

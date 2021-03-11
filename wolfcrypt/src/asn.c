@@ -13174,7 +13174,7 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr, char nameTyp
 }
 
 /* canonical encoding one attribute of the name (issuer/subject)
- * call we_EncodeName_ex with CTC_UTF8 for email type
+ * call wc_EncodeName_ex with CTC_UTF8 for email type
  *
  * name     structure to hold result of encoding
  * nameStr  value to be encoded
@@ -13183,7 +13183,7 @@ static int wc_EncodeName_ex(EncodedName* name, const char* nameStr, char nameTyp
  *
  * returns length on success
  */
-int wc_EncodeName_cano(EncodedName* name, const char* nameStr, char nameType,
+int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr, char nameType,
         byte type)
 {
     return wc_EncodeName_ex(name, nameStr, nameType, type, 0x0c/* CTC_UTF8 */);

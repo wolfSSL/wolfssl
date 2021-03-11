@@ -365,7 +365,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #endif
 
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(OLFSSL_CERT_EXT)) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     if (foundEntry == 0) {
         if (crl->cm->x509_store_p != NULL) {

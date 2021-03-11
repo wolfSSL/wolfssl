@@ -427,7 +427,7 @@ int wc_FileExists(const char* fname)
     if (XSTAT(fname, &ctx.s) != 0) {
          WOLFSSL_MSG("stat on name failed");
          return BAD_PATH_ERROR;
-    }else 
+    } else
 #if defined(USE_WINDOWS_API)
     if (ctx.s.st_mode & _S_IFREG) {
         return 0;
