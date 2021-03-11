@@ -600,7 +600,6 @@ int wc_FreeRsaKey(RsaKey* key)
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
 /* Check the pair-wise consistency of the RSA key.
- * From NIST SP 800-56B, section 6.4.1.1.
  * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
 int wc_CheckRsaKey(RsaKey* key)
 {
