@@ -22,6 +22,7 @@ CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
@@ -203,7 +204,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips \"$ENABLED_FIPS\" (allowed: ready, rand, v1, v2)])
+        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2)])
     ])
 
 AS_CASE([$FIPS_VERSION],
