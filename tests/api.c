@@ -25732,138 +25732,6 @@ static void test_wolfSSL_X509_NAME(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
 }
 
-static void test_wolfSSL_sk_X509_BY_DIR_HASH(void)
-{
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    STACK_OF(WOLFSSL_BY_DIR_HASH)   *hash_stack;
-    WOLFSSL_BY_DIR_HASH             *hash1;
-    WOLFSSL_BY_DIR_HASH             *hash2;
-    WOLFSSL_BY_DIR_HASH             *h;
-    const unsigned long dummy_hash[2] = {
-                        0x12345678,
-                        0x9abcdef0
-                    };
-    int i, num;
-
-    printf(testingFmt, "test_wolfSSL_sk_X509_BY_DIR_HASH");
-
-    /* new */
-    AssertNotNull(hash1 = wolfSSL_BY_DIR_HASH_new());
-    hash1->hash_value = dummy_hash[0];
-    
-    AssertNotNull(hash2 = wolfSSL_BY_DIR_HASH_new());
-    hash2->hash_value = dummy_hash[1];
-    
-    AssertNotNull(hash_stack = wolfSSL_sk_BY_DIR_HASH_new_null());
-    
-    /* push */
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(NULL, NULL),
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(NULL, hash1),
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(hash_stack, NULL),
-                                                        WOLFSSL_FAILURE);
-    
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(hash_stack, hash1),
-                                                        WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(hash_stack,
-                                                hash2), WOLFSSL_SUCCESS);
-    /* num and value */
-    AssertIntEQ((num = wolfSSL_sk_BY_DIR_HASH_num(hash_stack)), 2);
-    for (i = 0; i < num; i++) {
-        AssertNotNull(h = wolfSSL_sk_BY_DIR_HASH_value(hash_stack, i));
-        AssertTrue(h->hash_value == dummy_hash[num - i - 1]);
-    }
-    
-    /* pop */
-    AssertNotNull(h = wolfSSL_sk_BY_DIR_HASH_pop(hash_stack));
-    AssertIntEQ((num = wolfSSL_sk_BY_DIR_HASH_num(hash_stack)), 1);
-    
-    /* find */
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_find(NULL, NULL),
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_find(NULL, hash1),
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_find(hash_stack, NULL),
-                                                        WOLFSSL_FAILURE);
-    
-    AssertIntEQ(wolfSSL_sk_BY_DIR_HASH_push(hash_stack, hash2),
-                                                        1);
-    
-    /* free */
-    wolfSSL_sk_BY_DIR_HASH_free(hash_stack);
-    
-    printf(resultFmt, passed);
-#endif
-}
-
-
-static void test_wolfSSL_sk_X509_BY_DIR(void)
-{
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    STACK_OF(WOLFSSL_BY_DIR_entry)  *entry_stack;
-    WOLFSSL_BY_DIR_entry            *entry1;
-    WOLFSSL_BY_DIR_entry            *entry2;
-    WOLFSSL_BY_DIR_entry            *ent;
-    const char* dummy_dir[2] = {
-                        "/hoge/hoge/foo/foo",
-                        "/foo1/hoge2/abc/defg"
-                    };
-    int i, num;
-    size_t len;
-
-    printf(testingFmt, "test_wolfSSL_X509_sk_BY_DIR");
-
-    /* new */
-    AssertNotNull(entry1 = wolfSSL_BY_DIR_entry_new());
-    len = XSTRLEN(dummy_dir[0]);
-    entry1->dir_name = (char*)XMALLOC(len + 1, NULL, DYNAMIC_TYPE_OPENSSL);
-    AssertNotNull(entry1->dir_name);
-    XMEMSET(entry1->dir_name, 0, len + 1);
-    XSTRNCPY(entry1->dir_name, dummy_dir[0], len + 1);
-    
-    AssertNotNull(entry2 = wolfSSL_BY_DIR_entry_new());
-    len = XSTRLEN(dummy_dir[1]);
-    entry2->dir_name = (char*)XMALLOC(len + 1, NULL, DYNAMIC_TYPE_OPENSSL);
-    AssertNotNull(entry2->dir_name);
-    XMEMSET(entry2->dir_name, 0, len + 1);
-    XSTRNCPY(entry2->dir_name, dummy_dir[1], len + 1);
-    
-    AssertNotNull(entry_stack = wolfSSL_sk_BY_DIR_entry_new_null());
-    
-    /* push */
-    AssertIntEQ(wolfSSL_sk_BY_DIR_entry_push(NULL, NULL), 
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_entry_push(NULL, entry1), 
-                                                        WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_entry_push(entry_stack, NULL), 
-                                                        WOLFSSL_FAILURE);
-    
-    AssertIntEQ(wolfSSL_sk_BY_DIR_entry_push(entry_stack, entry1), 
-                                                        WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_sk_BY_DIR_entry_push(entry_stack, 
-                                                entry2), WOLFSSL_SUCCESS);
-    /* num and value */
-    AssertIntEQ((num = wolfSSL_sk_BY_DIR_entry_num(entry_stack)), 2);
-    for (i = 0; i < num; i++) {
-        AssertNotNull(ent = wolfSSL_sk_BY_DIR_entry_value(entry_stack, i));
-        len = XSTRLEN(dummy_dir[num - i - 1]);
-        AssertTrue(XSTRLEN(ent->dir_name) == len);
-        AssertIntEQ(XSTRNCMP(ent->dir_name, dummy_dir[num - i - 1], len), 0);
-    }
-    
-    /* pop */
-    AssertNotNull(ent = wolfSSL_sk_BY_DIR_entry_pop(entry_stack));
-    AssertIntEQ((len = wolfSSL_sk_BY_DIR_entry_num(entry_stack)), 1);
-    wolfSSL_BY_DIR_entry_free(ent);
-    
-    /* free */
-    wolfSSL_sk_BY_DIR_entry_free(entry_stack);
-    
-    printf(resultFmt, passed);
-#endif
-}
-
 #ifndef NO_BIO
 static void test_wolfSSL_X509_INFO(void)
 {
@@ -28177,12 +28045,10 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     char *p;
     X509_STORE* str;
     X509_LOOKUP* lookup;
-    WOLFSSL_BY_DIR_entry *dir;
     WOLFSSL_STACK* sk = NULL;
-    int num = 0, len, total_len, i;
+    int len, total_len, i;
     
     (void) sk;
-    (void) num;
     
     printf(testingFmt, "test_wolfSSL_X509_LOOKUP_ctrl_hash_dir()");
     
@@ -28203,13 +28069,6 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, "./", 
                                     SSL_FILETYPE_PEM,NULL), 1);
     AssertNotNull(sk = lookup->dirs->dir_entry);
-    AssertIntEQ((num = wolfSSL_sk_BY_DIR_entry_num(sk)), 1);
-    
-    dir = wolfSSL_sk_BY_DIR_entry_value(sk, 0);
-    AssertIntEQ(XSTRLEN((const char*)dir->dir_name), XSTRLEN("./"));
-    AssertIntEQ(XMEMCMP(dir->dir_name, "./",
-                               XSTRLEN((const char*)dir->dir_name)), 0);
-    
     /* free store */
     X509_STORE_free(str);
     
@@ -28230,14 +28089,6 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, CertCrl_path, 
                                     SSL_FILETYPE_PEM,NULL), 1);
     AssertNotNull(sk = lookup->dirs->dir_entry);
-    AssertIntEQ((num = wolfSSL_sk_BY_DIR_entry_num(sk)), MAX_DIR);
-    
-    for(i = 0; i<num; i++) {
-        dir = wolfSSL_sk_BY_DIR_entry_value(sk, i);
-        AssertIntEQ(XSTRLEN((const char*)dir->dir_name), XSTRLEN(paths[i]));
-        AssertIntEQ(XMEMCMP(dir->dir_name, paths[i], 
-                                    XSTRLEN((const char*)dir->dir_name)), 0);
-    }
     
     X509_STORE_free(str);
     
@@ -42057,8 +41908,6 @@ void ApiTest(void)
 #ifndef NO_BIO
     test_wolfSSL_X509_INFO();
 #endif
-    test_wolfSSL_sk_X509_BY_DIR_HASH();
-    test_wolfSSL_sk_X509_BY_DIR();
     test_wolfSSL_X509_subject_name_hash();
     test_wolfSSL_X509_issuer_name_hash();
     test_wolfSSL_X509_check_host();

@@ -4824,6 +4824,37 @@ WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
 WOLFSSL_LOCAL int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, 
                                            X509_NAME* issuer, int Type);
 #endif
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void);
+WOLFSSL_LOCAL void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_find(
+   WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk, const WOLFSSL_BY_DIR_HASH* toFind);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk);
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+    void (*f) (WOLFSSL_BY_DIR_HASH*));
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+                                               WOLFSSL_BY_DIR_HASH* in);
+/* WOLFSSL_BY_DIR_entry stuff */
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void);
+WOLFSSL_LOCAL void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk);
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
+    void (*f) (WOLFSSL_BY_DIR_entry*));
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
+                                               WOLFSSL_BY_DIR_entry* in);
+#endif /* OPENSSL_ALL && !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 #ifdef __cplusplus
     }  /* extern "C" */

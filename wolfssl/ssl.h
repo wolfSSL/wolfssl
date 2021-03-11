@@ -3851,38 +3851,6 @@ WOLFSSL_API int wolfSSL_sk_CONF_VALUE_push(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk
         WOLFSSL_CONF_VALUE* val);
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || HAVE_LIGHTY */
 
-#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-WOLFSSL_API WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void);
-WOLFSSL_API void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash);
-WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void);
-WOLFSSL_API int wolfSSL_sk_BY_DIR_HASH_find(
-   WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk, const WOLFSSL_BY_DIR_HASH* toFind);
-WOLFSSL_API int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
-WOLFSSL_API WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
-                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i);
-WOLFSSL_API WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
-                                WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk);
-WOLFSSL_API void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
-    void (*f) (WOLFSSL_BY_DIR_HASH*));
-WOLFSSL_API void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
-WOLFSSL_API int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
-                                               WOLFSSL_BY_DIR_HASH* in);
-/* WOLFSSL_BY_DIR_entry stuff */
-WOLFSSL_API WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void);
-WOLFSSL_API void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry);
-WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void);
-WOLFSSL_API int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk);
-WOLFSSL_API WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
-                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i);
-WOLFSSL_API WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
-                                WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk);
-WOLFSSL_API void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
-    void (*f) (WOLFSSL_BY_DIR_entry*));
-WOLFSSL_API void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk);
-WOLFSSL_API int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
-                                               WOLFSSL_BY_DIR_entry* in);
-#endif /* OPENSSL_ALL && !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
-
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_API WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void);
 WOLFSSL_API void wolfSSL_ASN1_BIT_STRING_free(WOLFSSL_ASN1_BIT_STRING*);

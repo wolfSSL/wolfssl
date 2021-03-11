@@ -31601,6 +31601,393 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
 
     return maxFragment;
 }
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+/* create an instance of WOLFSSL_BY_DIR_HASH structure */
+WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void)
+{
+    WOLFSSL_BY_DIR_HASH* dir_hash;
+    
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_HASH_new");
+    
+    dir_hash = (WOLFSSL_BY_DIR_HASH*)XMALLOC(sizeof(WOLFSSL_BY_DIR_HASH), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+    if (dir_hash) {
+        XMEMSET(dir_hash, 0, sizeof(WOLFSSL_BY_DIR_HASH));
+    }
+    return dir_hash;
+}
+/* release a WOLFSSL_BY_DIR_HASH resource */
+void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash)
+{
+    if (dir_hash == NULL)
+        return;
+
+    XFREE(dir_hash, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+/* create an instance of WOLFSSL_STACK for STACK_TYPE_BY_DIR_hash */
+WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void)
+{
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_new_null");
+    
+    if (sk) {
+        sk->type = STACK_TYPE_BY_DIR_hash;
+    }
+    return sk;
+}
+
+/* returns value less than 0 on fail to match
+ * On a successful match the priority level found is returned
+ */
+int wolfSSL_sk_BY_DIR_HASH_find(
+   WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk, const WOLFSSL_BY_DIR_HASH* toFind)
+{
+    WOLFSSL_STACK* next;
+    int i, sz;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_find");
+    
+    if (sk == NULL || toFind == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    sz   = wolfSSL_sk_BY_DIR_HASH_num(sk);
+    next = sk;
+    for (i = 0; i < sz && next != NULL; i++) {
+        if (next->data.dir_hash->hash_value == toFind->hash_value) {
+            return sz - i; /* reverse because stack pushed highest on first */
+        }
+        next = next->next;
+    }
+    return -1;
+}
+/* return a number of WOLFSSL_BY_DIR_HASH in stack */
+int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_num");
+    
+    if (sk == NULL)
+        return -1;
+    return (int)sk->num;
+}
+/* return WOLFSSL_BY_DIR_HASH instance at i */
+WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_value");
+
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+    return sk->data.dir_hash;
+}
+/* pop WOLFSSL_BY_DIR_HASH instance, and remove its node from stack */
+WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_BY_DIR_HASH* hash;
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_pop");
+    
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    hash = sk->data.dir_hash;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.dir_hash = node->data.dir_hash;
+        sk->next = node->next;
+        wolfSSL_sk_free_node(node);
+    }
+    else { /* last x509 in stack */
+        sk->data.dir_hash = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return hash;
+}
+/* release all contents in stack, and then release stack itself. */
+/* Second argument is a function pointer to release resouces.    */
+/* It calls the function to release resouces when t is passed    */
+/* instead of wolfSSL_BY_DIR_HASH_free().                        */
+void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(BY_DIR_HASH)* sk,
+    void (*f) (WOLFSSL_BY_DIR_HASH*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_pop_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node && sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        if (f)
+            f(tmp->data.dir_hash);
+        else
+            wolfSSL_BY_DIR_HASH_free(tmp->data.dir_hash);
+        tmp->data.dir_hash = NULL;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        if (f)
+            f(sk->data.dir_hash);
+        else
+            wolfSSL_BY_DIR_HASH_free(sk->data.dir_hash);
+        sk->data.dir_hash = NULL;
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+/* release all contents in stack, and then release stack itself */
+void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
+{
+    wolfSSL_sk_BY_DIR_HASH_pop_free(sk, NULL);
+}
+/* Adds the WOLFSSL_BY_DIR_HASH to the stack "sk". "sk" takes control of "in" and
+ * tries to free it when the stack is free'd.
+ *
+ * return 1 on success 0 on fail
+ */
+int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+                                               WOLFSSL_BY_DIR_HASH* in)
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_push");
+    
+    if (sk == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.dir_hash == NULL) {
+        sk->data.dir_hash = in;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.dir_hash    = sk->data.dir_hash;
+    node->next             = sk->next;
+    node->type             = sk->type;
+    sk->next               = node;
+    sk->data.dir_hash      = in;
+    sk->num                += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+/* create an instance of WOLFSSL_BY_DIR_entry structure */
+WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void)
+{
+    WOLFSSL_BY_DIR_entry* entry;
+    
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_entry_new");
+    
+    entry = (WOLFSSL_BY_DIR_entry*)XMALLOC(sizeof(WOLFSSL_BY_DIR_entry), NULL,
+        DYNAMIC_TYPE_OPENSSL);
+        
+    if (entry) {
+        XMEMSET(entry, 0, sizeof(WOLFSSL_BY_DIR_entry));
+    }
+    return entry;
+}
+/* release a WOLFSSL_BY_DIR_entry resource */
+void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry)
+{
+    WOLFSSL_ENTER("wolfSSL_BY_DIR_entry_free");
+    
+    if (entry == NULL)
+        return;
+
+    if (entry->hashes) {
+        wolfSSL_sk_BY_DIR_HASH_free(entry->hashes);
+    }
+
+    if (entry->dir_name != NULL) {
+        XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    
+    XFREE(entry, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void)
+{
+    WOLFSSL_STACK* sk = wolfSSL_sk_new_node(NULL);
+    
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_new_null");
+    
+    if (sk) {
+        sk->type = STACK_TYPE_BY_DIR_entry;
+    }
+    return sk;
+}
+/* return a number of WOLFSSL_BY_DIR_entry in stack */
+int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_num");
+    
+    if (sk == NULL)
+        return -1;
+    return (int)sk->num;
+}
+/* return WOLFSSL_BY_DIR_entry instance at i */
+WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_value");
+
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+    return sk->data.dir_entry;
+}
+/* pop WOLFSSL_BY_DIR_entry instance first, and remove its node from stack */
+WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_BY_DIR_entry* entry;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_pop");
+    
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    entry = sk->data.dir_entry;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.dir_entry = node->data.dir_entry;
+        sk->next = node->next;
+        wolfSSL_sk_free_node(node);
+    }
+    else { /* last x509 in stack */
+        sk->data.dir_entry = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return entry;
+}
+/* release all contents in stack, and then release stack itself. */
+/* Second argument is a function pointer to release resouces.    */
+/* It calls the function to release resouces when t is passed    */
+/* instead of wolfSSL_BY_DIR_entry_free().                       */
+void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
+    void (*f) (WOLFSSL_BY_DIR_entry*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_pop_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node && sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        if (f)
+            f(tmp->data.dir_entry);
+        else
+            wolfSSL_BY_DIR_entry_free(tmp->data.dir_entry);
+        tmp->data.dir_entry = NULL;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        if (f)
+            f(sk->data.dir_entry);
+        else
+            wolfSSL_BY_DIR_entry_free(sk->data.dir_entry);
+        sk->data.dir_entry = NULL;
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+/* release all contents in stack, and then release stack itself */
+void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk)
+{
+    wolfSSL_sk_BY_DIR_entry_pop_free(sk, NULL);
+}
+
+/* Adds the wolfSSL_BY_DIR_entry to the stack "sk". "sk" takes control of "in" and
+ * tries to free it when the stack is free'd.
+ *
+ * return 1 on success 0 on fail
+ */
+int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk,
+                                               WOLFSSL_BY_DIR_entry* in)
+{
+    WOLFSSL_STACK* node;
+
+    if (sk == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.dir_entry == NULL) {
+        sk->data.dir_entry = in;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.dir_entry    = sk->data.dir_entry;
+    node->next              = sk->next;
+    node->type              = sk->type;
+    sk->next                = node;
+    sk->data.dir_entry      = in;
+    sk->num                 += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* OPENSSL_ALL */
 
 
 #undef ERROR_OUT
