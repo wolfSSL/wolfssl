@@ -36,7 +36,7 @@ Platform is one of:
     stm32l4-v2 (FIPSv2, use for STM32L4)
     wolfrand
     solaris
-    linuxv3 (FIPS 140-3)
+    linuxv5 (FIPS 140-3)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -266,7 +266,7 @@ solaris)
   FIPS_OPTION=v2
   MAKE=gmake
   ;;
-linuxv3)
+linuxv5)
   FIPS_REPO="git@github.com:ejohnstown/fips.git"
   FIPS_VERSION="fipsv3"
   CRYPT_REPO="git@github.com:ejohnstown/wolfssl.git"
@@ -277,8 +277,9 @@ linuxv3)
   RNG_VERSION="fipsv3"
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
-  FIPS_OPTION="v4"
-  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm )
+  FIPS_OPTION="v5"
+  COPY_DIRECT=( wolfcrypt/src/aes_asm.S wolfcrypt/src/aes_asm.asm
+                wolfcrypt/src/sha256_asm.S wolfcrypt/src/sha512_asm.S )
   ;;
 *)
   Usage
@@ -319,7 +320,7 @@ then
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
-elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ] || [ "x$FIPS_OPTION" == "xv4" ]
+elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ] || [ "x$FIPS_OPTION" == "xv5" ]
 then
     $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.

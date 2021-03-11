@@ -279,7 +279,7 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
         const byte* h, word32 hSz,
         const byte* sessionId, word32 sessionIdSz);
 
-#endif /* WOLFSSL_SSH */
+#endif /* WOLFSSL_WOLFSSH */
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -224,7 +224,7 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS="no"])
 
 # The FIPS options are:
-#   v4 - FIPS 140-3
+#   v5 - FIPS 140-3 (wolfCrypt v5.0.0)
 #   v3 - FIPS Ready
 #   ready - same as v3
 #   rand - wolfRand
@@ -242,7 +242,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="none"
         ENABLED_FIPS="no"
     ],
-    [rand|v1|v2|v4],[
+    [rand|v1|v2|v5],[
         FIPS_VERSION="$ENABLED_FIPS"
         ENABLED_FIPS="yes"
     ],
@@ -253,7 +253,7 @@ AS_CASE([$ENABLED_FIPS],
         FIPS_VERSION="v1"
     ],
     [
-        AC_MSG_ERROR([Invalid value for --enable-fips "$ENABLED_FIPS" (allowed: ready, rand, v1, v2)])
+        AC_MSG_ERROR([Invalid value for --enable-fips \"$ENABLED_FIPS\" (allowed: ready, rand, v1, v2, v5)])
     ])
 
 AS_CASE([$FIPS_VERSION],
@@ -278,7 +278,7 @@ AC_ARG_ENABLE([fips-3],
     [AS_HELP_STRING([--enable-fips-3],[Enable FIPS 140-3, Will NOT work w/o FIPS license (default: disabled)])],
     [ENABLED_FIPS_140_3=$enableval],
     [ENABLED_FIPS_140_3="no"])
-AS_IF([test "x$ENABLED_FIPS_140_3" = "xyes"],[ENABLED_FIPS="yes";FIPS_VERSION="v4"])
+AS_IF([test "x$ENABLED_FIPS_140_3" = "xyes"],[ENABLED_FIPS="yes";FIPS_VERSION="v5"])
 
 # Linux Kernel Module
 AC_ARG_ENABLE([linuxkm],
@@ -2014,7 +2014,7 @@ fi
 SHA3_DEFAULT=no
 if (test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64") && test "$ENABLED_32BIT" = "no"
 then
-    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv4"
+    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv5"
     then
         SHA3_DEFAULT=yes
     fi
@@ -3346,9 +3346,9 @@ fi
 
 # FIPS
 AS_CASE([$FIPS_VERSION],
-    ["v4"], [ # FIPS 140-3
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=4 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING"
-        ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"
+    ["v5"], [ # FIPS 140-3
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=5 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING"
+        ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"; ENABLED=WOLFSSH="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
@@ -7098,8 +7098,8 @@ AM_CONDITIONAL([BUILD_FIPS_V1],[test "x$FIPS_VERSION" = "xv1"])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "x$FIPS_VERSION" = "xv2"])
 AM_CONDITIONAL([BUILD_FIPS_RAND],[test "x$FIPS_VERSION" = "xrand"])
 AM_CONDITIONAL([BUILD_FIPS_V3],[test "x$FIPS_VERSION" = "xv3"])
-AM_CONDITIONAL([BUILD_FIPS_V4],[test "x$FIPS_VERSION" = "xv4"])
-AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv4"])
+AM_CONDITIONAL([BUILD_FIPS_V4],[test "x$FIPS_VERSION" = "xv5"])
+AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv5"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])

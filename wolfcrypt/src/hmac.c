@@ -1990,7 +1990,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     return ret;
 }
 
-#endif /* WOLFSSL_SSH */
+#endif /* WOLFSSL_WOLFSSH */
 
 #endif /* HAVE_FIPS */
 #endif /* NO_HMAC */
