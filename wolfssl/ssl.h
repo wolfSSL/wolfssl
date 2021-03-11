@@ -143,6 +143,10 @@ typedef struct WOLFSSL_X509_STORE_CTX WOLFSSL_X509_STORE_CTX;
 
 typedef int (*WOLFSSL_X509_STORE_CTX_verify_cb)(int, WOLFSSL_X509_STORE_CTX *);
 
+typedef struct WOLFSSL_BY_DIR_HASH  WOLFSSL_BY_DIR_HASH;
+typedef struct WOLFSSL_BY_DIR_entry WOLFSSL_BY_DIR_entry;
+typedef struct WOLFSSL_BY_DIR       WOLFSSL_BY_DIR;
+
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -277,22 +281,6 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 
 struct WOLFSSL_X509V3_CTX {
     WOLFSSL_X509* x509;
-};
-
-struct WOLFSSL_BY_DIR_HASH {
-    unsigned long hash_value;
-    int last_suffix;
-};
-
-struct WOLFSSL_BY_DIR_entry {
-    char*   dir_name;
-    int     dir_type;
-    WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *hashes;
-};
-
-struct WOLFSSL_BY_DIR {
-    WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *dir_entry;
-    wolfSSL_Mutex    lock; /* dir list lock */
 };
 
 struct WOLFSSL_ASN1_OBJECT {

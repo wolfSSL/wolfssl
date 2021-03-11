@@ -24836,13 +24836,12 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 /* @param argl   file type, either WOLFSSL_FILETYPE_PEM or                  */
 /*                                          WOLFSSL_FILETYPE_ASN1           */
 /* @return WOLFSSL_SUCCESS on successful, othewise negative or zero         */
-static int x509AddCertDir(void *p, const char *argc, long argl)
+static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
 {
     WOLFSSL_ENTER("x509AddCertDir");
 
     (void)argl;
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-    WOLFSSL_BY_DIR *ctx = (WOLFSSL_BY_DIR*)p;
     WOLFSSL_BY_DIR_entry *entry;
     size_t pathLen;
     int i, num;
@@ -24855,8 +24854,9 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
     
     pathLen = 0;
     c = argc;
-    /* zero length */
-    if (c == NULL || *c == '\0') return WOLFSSL_FAILURE;
+    /* sanity check, zero length */
+    if (ctx == NULL || c == NULL || *c == '\0')
+        return WOLFSSL_FAILURE;
     
 #ifdef WOLFSSL_SMALL_STACK
     buf = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -24948,7 +24948,7 @@ static int x509AddCertDir(void *p, const char *argc, long argl)
     
     return WOLFSSL_SUCCESS;
 #else
-    (void)p;
+    (void)ctx;
     (void)argc;
     return WOLFSSL_NOT_IMPLEMENTED;
 #endif
@@ -41641,17 +41641,17 @@ static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 
     /* trimming spaces at the head and tail */
     dst--;
-    for (; (len > 0 && XISSPACE(*dst));len--) {
+    for (; (len > 0 && XISSPACE(*dst)); len--) {
         dst--;
     }
-    for (; (len > 0 && XISSPACE(*src));len--) {
+    for (; (len > 0 && XISSPACE(*src)); len--) {
         src++;
     }
 
     /* point to the start */
     dst = asn_out->data;
 
-    for (i = 0; i < len;dst++, i++) {
+    for (i = 0; i < len; dst++, i++) {
         if (!XISASCII(*src)) {
             /* keep non-ascii code */
             *dst = *src++;

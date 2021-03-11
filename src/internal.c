@@ -10735,6 +10735,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
             if (type == X509_LU_CRL) {
                 if (wc_LockMutex(&lookup->dirs->lock) != 0) {
                     WOLFSSL_MSG("wc_LockMutex cdir Lock error");
+                    XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
                     return BAD_MUTEX_E;
                 }
                 if (ph == NULL) {

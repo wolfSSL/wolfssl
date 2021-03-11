@@ -1684,6 +1684,21 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
     #endif
 #endif
 
+struct WOLFSSL_BY_DIR_HASH {
+    unsigned long hash_value;
+    int last_suffix;
+};
+
+struct WOLFSSL_BY_DIR_entry {
+    char*   dir_name;
+    int     dir_type;
+    WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *hashes;
+};
+
+struct WOLFSSL_BY_DIR {
+    WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *dir_entry;
+    wolfSSL_Mutex    lock; /* dir list lock */
+};
 
 /* wolfSSL method type */
 struct WOLFSSL_METHOD {
