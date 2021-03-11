@@ -29768,10 +29768,16 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         output = ssl->buffers.outputBuffer.buffer +
                  ssl->buffers.outputBuffer.length;
 
-        /* Hello Verify Request should use the same sequence number as the
-         * Client Hello. */
-        ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-        ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+        /* Hello Verify Request should use the same sequence number
+         * as the Client Hello unless we are in renegotiation then
+         * don't change numbers */
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (!IsSCR(ssl))
+#endif
+        {
+            ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
+            ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+        }
         AddHeaders(output, length, hello_verify_request, ssl);
 
 #ifdef OPENSSL_EXTRA
