@@ -506,9 +506,17 @@ int wc_MakeSakkeKey(SakkeKey* key, WC_RNG* rng)
         err = sakke_load_base_point(key);
     }
     if (err == 0) {
+        int genTryCnt = 0;
+
         /* Generate a random number that is not 0 - master secret. */
         do {
-            err = mp_rand(&key->ecc.k, digits, rng);
+            /* Don't infinitely loop on random number generation failure. */
+            if ((++genTryCnt) > SAKKE_MAX_GEN_COUNT) {
+                err = RNG_FAILURE_E;
+            }
+            if (err == 0) {
+                err = mp_rand(&key->ecc.k, digits, rng);
+            }
             if (err == 0) {
                 err = mp_mod(&key->ecc.k, &key->params.q, &key->ecc.k);
             }

@@ -867,13 +867,21 @@ static int eccsi_make_pair(EccsiKey* key, WC_RNG* rng,
         enum wc_HashType hashType, const byte* id, word32 idSz, mp_int* ssk,
         ecc_point* pvt)
 {
-    int err;
+    int err = 0;
     byte hashSz = 0;
+    int genTryCnt = 0;
 
     do {
-        /* Step 1 and 2: Generate ephemeral key - v, PVT = [v]G */
-        err = wc_ecc_make_key_ex(rng, key->ecc.dp->size, &key->pubkey,
-                key->ecc.dp->id);
+        /* Don't infinitely make pairs when random number generator fails. */
+        if ((++genTryCnt) > ECCSI_MAX_GEN_COUNT) {
+            err = RNG_FAILURE_E;
+        }
+
+        if (err == 0) {
+            /* Step 1 and 2: Generate ephemeral key - v, PVT = [v]G */
+            err = wc_ecc_make_key_ex(rng, key->ecc.dp->size, &key->pubkey,
+                    key->ecc.dp->id);
+        }
         if (err == 0) {
             err = wc_ecc_copy_point(&key->pubkey.pubkey, pvt);
         }
@@ -1830,15 +1838,23 @@ static int eccsi_encode_sig(const EccsiKey* key, mp_int* r, mp_int* s,
 static int eccsi_gen_sig(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         const byte* msg, word32 msgSz, mp_int* r, mp_int* s)
 {
-    int err;
+    int err = 0;
     word32 sz = key->ecc.dp->size;
     word32 heSz = 0;
     const mp_int* jx = NULL;
     mp_int* he = &key->tmp;
+    int genTryCnt = 0;
 
     do {
-        /* Step 1 and 2: Generate ephemeral key - j, J = [j]G, r = Jx */
-        err = wc_ecc_make_key_ex(rng, sz, &key->pubkey, key->ecc.dp->id);
+        /* Don't infinitely gen sigs when random number generator fails. */
+        if ((++genTryCnt) > ECCSI_MAX_GEN_COUNT) {
+            err = RNG_FAILURE_E;
+        }
+
+        if (err == 0) {
+            /* Step 1 and 2: Generate ephemeral key - j, J = [j]G, r = Jx */
+            err = wc_ecc_make_key_ex(rng, sz, &key->pubkey, key->ecc.dp->id);
+        }
         if (err == 0) {
             jx = key->pubkey.pubkey.x;
             err = eccsi_fit_to_octets(jx, &key->params.order, sz, r);

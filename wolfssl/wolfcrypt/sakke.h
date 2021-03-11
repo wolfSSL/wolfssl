@@ -41,6 +41,12 @@
 
 #define SAKKE_ID_MAX_SIZE       128
 
+/* Maximum number of loops of attempting to generate a key. */
+#ifndef SAKKE_MAX_GEN_COUNT
+    #define SAKKE_MAX_GEN_COUNT     10
+#endif
+
+
 /** MP integer in projective form. */
 typedef ecc_point mp_proj;
 

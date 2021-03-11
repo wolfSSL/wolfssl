@@ -41,6 +41,12 @@
 
 #define MAX_ECCSI_BYTES  (256 / 8)
 
+/* Maximum number of loops of attempting to generate key pairs and signatures.
+ */
+#ifndef ECCSI_MAX_GEN_COUNT
+    #define ECCSI_MAX_GEN_COUNT     10
+#endif
+
 typedef struct EccsiKeyParams {
     /** Order (q) of elliptic curve as an MP integer. */
     mp_int order;
