@@ -758,6 +758,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif /* max */
 #endif /* USE_WINDOWS_API */
 
+#ifdef __QNXNTO__
+    #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
+#endif
 
 /* TIME SECTION */
 /* Time functions */

@@ -284,7 +284,8 @@
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
@@ -773,13 +774,31 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     return ret;
 }
 
+#if defined(OPENSSL_EXTRA)
+/* Apply SHA1 transformation to the data                  */
+/* @param sha  a pointer to wc_Sha structure              */
+/* @param data data to be applied SHA1 transformation     */
+/* @return 0 on successful, otherwise non-zero on failure */
+int wc_ShaTransform(wc_Sha* sha, const unsigned char* data)
+{
+    /* sanity check */
+    if (sha == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    return (Transform(sha, data));
+}
+#endif
+
 #endif /* USE_SHA_SOFTWARE_IMPL */
 
 
+
+#if !defined(WOLFSSL_IMXRT_DCP)
 int wc_InitSha(wc_Sha* sha)
 {
     return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
+#endif /* !defined(WOLFSSL_IMXRT_DCP) */
 
 void wc_ShaFree(wc_Sha* sha)
 {
@@ -808,7 +827,8 @@ void wc_ShaFree(wc_Sha* sha)
 #endif /* !WOLFSSL_TI_HASH */
 #endif /* HAVE_FIPS */
 
-#ifndef WOLFSSL_TI_HASH
+#if !defined(WOLFSSL_TI_HASH) && !defined(WOLFSSL_IMXRT_DCP)
+
 #if !defined(WOLFSSL_RENESAS_TSIP_CRYPT) || \
     defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
@@ -873,7 +893,7 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     return ret;
 }
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */
-#endif /* !WOLFSSL_TI_HASH */
+#endif /* !WOLFSSL_TI_HASH && !WOLFSSL_IMXRT_DCP */
 
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)

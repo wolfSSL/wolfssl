@@ -1449,10 +1449,16 @@ int mp_set (mp_int * a, mp_digit b)
 /* check if a bit is set */
 int mp_is_bit_set (mp_int *a, mp_digit b)
 {
-    if ((mp_digit)a->used < b/DIGIT_BIT)
-        return 0;
+    int i = (int)(b / DIGIT_BIT);  /* word index */
+    int s = b % DIGIT_BIT;         /* bit index */
 
-    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (mp_digit)1);
+    if (a->used <= i) {
+        /* no words avaialable at that bit count */
+        return 0;
+    }
+
+    /* get word and shift bit to check down to index 0 */
+    return (int)((a->dp[i] >> s) & (mp_digit)1);
 }
 
 /* c = a mod b, 0 <= c < b */
@@ -4302,6 +4308,8 @@ int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
   int     res, ix, oldused;
   mp_digit *tmpa, *tmpc, mu;
 
+  if (b > MP_DIGIT_MAX) return MP_VAL;
+
   /* grow c as required */
   if (c->alloc < a->used + 1) {
      if ((res = mp_grow(c, a->used + 1)) != MP_OKAY) {
@@ -5039,6 +5047,11 @@ int mp_lcm (mp_int * a, mp_int * b, mp_int * c)
   int     res;
   mp_int  t1, t2;
 
+  /* LCM of 0 and any number is undefined as 0 is not in the set of values
+   * being used. */
+  if (mp_iszero (a) == MP_YES || mp_iszero (b) == MP_YES) {
+    return MP_VAL;
+  }
 
   if ((res = mp_init_multi (&t1, &t2, NULL, NULL, NULL, NULL)) != MP_OKAY) {
     return res;
@@ -5083,6 +5096,10 @@ int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
 
     /* either zero than gcd is the largest */
     if (mp_iszero (a) == MP_YES) {
+        /* GCD of 0 and 0 is undefined as all integers divide 0. */
+        if (mp_iszero (b) == MP_YES) {
+           return MP_VAL;
+        }
         return mp_abs (b, c);
     }
     if (mp_iszero (b) == MP_YES) {
@@ -5218,9 +5235,11 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
      */
     if (y < radix) {
       if ((res = mp_mul_d (a, (mp_digit) radix, a)) != MP_OKAY) {
+         mp_zero(a);
          return res;
       }
       if ((res = mp_add_d (a, (mp_digit) y, a)) != MP_OKAY) {
+         mp_zero(a);
          return res;
       }
     } else {

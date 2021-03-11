@@ -114,6 +114,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/ed448.h>
 #endif
 
+#ifdef WOLFSSL_QNX_CAAM
+	#include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
@@ -384,6 +388,7 @@ static int SetASNNull(byte* output)
     return 2;
 }
 
+#ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 BOOLEAN.
  *
  * input     Buffer holding DER/BER encoded data.
@@ -413,7 +418,7 @@ static int GetBoolean(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
-
+#endif /* !NO_CERTS*/
 #ifdef ASN1_SET_BOOLEAN
 /* Set the DER/BER encoding of the ASN.1 NULL element.
  * Note: Function not required as yet.
@@ -497,6 +502,7 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
+#ifndef NO_CERTS
 /* Get the DER/BER encoding of an ASN.1 INTEGER that has a value of no more than
  * 7 bits.
  *
@@ -526,7 +532,7 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     *inOutIdx = idx;
     return b;
 }
-
+#endif /* !NO_CERTS */
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
 static const char sigSha1wDsaName[] = "SHAwDSA";
@@ -2771,7 +2777,7 @@ int ToTraditional(byte* input, word32 sz)
 
 #endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) && !defined(NO_CERTS)
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2865,7 +2871,6 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
          *  no header information just INTEGER */
         sz = SetMyVersion(PKCS8v0, out + keyIdx, 0);
         tmpSz += sz; keyIdx += sz;
-
         /*  privateKeyAlgorithm PrivateKeyAlgorithmIdentifier */
         sz = 0; /* set sz to 0 and get privateKey oid buffer size needed */
         if (curveOID != NULL && oidSz > 0) {
@@ -2901,7 +2906,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         return tmpSz + sz;
 }
 
-#endif /* HAVE_PKCS8 */
+#endif /* HAVE_PKCS8 && !NO_CERTS */
 
 #if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
 /* check that the private key is a pair for the public key
@@ -6846,6 +6851,7 @@ int DecodeToKey(DecodedCert* cert, int verify)
     return ret;
 }
 
+#ifndef NO_CERTS
 static int GetSignature(DecodedCert* cert)
 {
     int length;
@@ -6865,6 +6871,7 @@ static int GetSignature(DecodedCert* cert)
 
     return 0;
 }
+#endif
 
 static word32 SetOctetString8Bit(word32 len, byte* output)
 {
@@ -7172,8 +7179,6 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
 {
     int ret = 0;
 
-    (void)verify;
-
     switch (sigOID) {
     #if defined(WOLFSSL_MD2)
         case CTC_MD2wRSA:
@@ -7260,6 +7265,14 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             ret = HASH_TYPE_E;
             WOLFSSL_MSG("Hash for Signature has unsupported type");
     }
+
+    (void)buf;
+    (void)bufSz;
+    (void)sigOID;
+    (void)digest;
+    (void)digestSz;
+    (void)typeH;
+    (void)verify;
 
     return ret;
 }
@@ -12464,16 +12477,6 @@ static int CopyValidity(byte* output, Cert* cert)
 
 #endif
 
-/* ASN Encoded Name field */
-typedef struct EncodedName {
-    int  nameLen;                /* actual string value length */
-    int  totalLen;               /* total encoded length */
-    int  type;                   /* type of name */
-    int  used;                   /* are we actually using this one */
-    byte encoded[CTC_NAME_SIZE * 2]; /* encoding */
-} EncodedName;
-
-
 /* Get Which Name from index */
 const char* GetOneCertName(CertName* name, int idx)
 {
@@ -13055,281 +13058,126 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
  *
  * returns length on success
  */
-static int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
-        byte type)
+int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
+                  byte type)
 {
     word32 idx = 0;
+    /* bottom up */
+    byte firstLen[1 + MAX_LENGTH_SZ];
+    byte secondLen[MAX_LENGTH_SZ];
+    byte sequence[MAX_SEQ_SZ];
+    byte set[MAX_SET_SZ];
 
-    if (nameStr) {
-        /* bottom up */
-        byte firstLen[1 + MAX_LENGTH_SZ];
-        byte secondLen[MAX_LENGTH_SZ];
-        byte sequence[MAX_SEQ_SZ];
-        byte set[MAX_SET_SZ];
+    int strLen;
+    int thisLen;
+    int firstSz, secondSz, seqSz, setSz;
 
-        int strLen  = (int)XSTRLEN(nameStr);
-        int thisLen = strLen;
-        int firstSz, secondSz, seqSz, setSz;
-
-        if (strLen == 0) { /* no user data for this item */
-            name->used = 0;
-            return 0;
-        }
-
-        /* Restrict country code size */
-        if (ASN_COUNTRY_NAME == type && strLen != CTC_COUNTRY_SIZE) {
-            WOLFSSL_MSG("Country code size error");
-            return ASN_COUNTRY_SIZE_E;
-        }
-
-        secondSz = SetLength(strLen, secondLen);
-        thisLen += secondSz;
-        switch (type) {
-            case ASN_EMAIL_NAME: /* email */
-                thisLen += EMAIL_JOINT_LEN;
-                firstSz  = EMAIL_JOINT_LEN;
-                break;
-
-            case ASN_DOMAIN_COMPONENT:
-                thisLen += PILOT_JOINT_LEN;
-                firstSz  = PILOT_JOINT_LEN;
-                break;
-
-            default:
-                thisLen++;                                 /* str type */
-                thisLen += JOINT_LEN;
-                firstSz  = JOINT_LEN + 1;
-        }
-        thisLen++; /* id  type */
-        firstSz  = SetObjectId(firstSz, firstLen);
-        thisLen += firstSz;
-
-        seqSz = SetSequence(thisLen, sequence);
-        thisLen += seqSz;
-        setSz = SetSet(thisLen, set);
-        thisLen += setSz;
-
-        if (thisLen > (int)sizeof(name->encoded)) {
-            return BUFFER_E;
-        }
-
-        /* store it */
-        idx = 0;
-        /* set */
-        XMEMCPY(name->encoded, set, setSz);
-        idx += setSz;
-        /* seq */
-        XMEMCPY(name->encoded + idx, sequence, seqSz);
-        idx += seqSz;
-        /* asn object id */
-        XMEMCPY(name->encoded + idx, firstLen, firstSz);
-        idx += firstSz;
-        switch (type) {
-            case ASN_EMAIL_NAME:
-                {
-                    const byte EMAIL_OID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
-                                       0x01, 0x09, 0x01, 0x16 };
-                    /* email joint id */
-                    XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
-                    idx += (int)sizeof(EMAIL_OID);
-                }
-                break;
-
-            case ASN_DOMAIN_COMPONENT:
-                {
-                    const byte PILOT_OID[] = { 0x09, 0x92, 0x26, 0x89,
-                                    0x93, 0xF2, 0x2C, 0x64, 0x01
-                    };
-
-                    XMEMCPY(name->encoded + idx, PILOT_OID,
-                                                     sizeof(PILOT_OID));
-                    idx += (int)sizeof(PILOT_OID);
-                    /* id type */
-                    name->encoded[idx++] = type;
-                    /* str type */
-                    name->encoded[idx++] = nameType;
-                }
-                break;
-
-            default:
-                name->encoded[idx++] = 0x55;
-                name->encoded[idx++] = 0x04;
-                /* id type */
-                name->encoded[idx++] = type;
-                /* str type */
-                name->encoded[idx++] = nameType;
-        }
-        /* second length */
-        XMEMCPY(name->encoded + idx, secondLen, secondSz);
-        idx += secondSz;
-        /* str value */
-        XMEMCPY(name->encoded + idx, nameStr, strLen);
-        idx += strLen;
-
-        name->type = type;
-        name->totalLen = idx;
-        name->used = 1;
-    }
-    else
+    if (nameStr == NULL) {
         name->used = 0;
+        return 0;
+    }
+    thisLen = strLen = (int)XSTRLEN(nameStr);
+    if (strLen == 0) { /* no user data for this item */
+        name->used = 0;
+        return 0;
+    }
 
-    return idx;
-}
+    /* Restrict country code size */
+    if (ASN_COUNTRY_NAME == type && strLen != CTC_COUNTRY_SIZE) {
+        WOLFSSL_MSG("Country code size error");
+        return ASN_COUNTRY_SIZE_E;
+    }
 
+    secondSz = SetLength(strLen, secondLen);
+    thisLen += secondSz;
+    switch (type) {
+        case ASN_EMAIL_NAME: /* email */
+            thisLen += EMAIL_JOINT_LEN;
+            firstSz  = EMAIL_JOINT_LEN;
+            break;
 
+        case ASN_DOMAIN_COMPONENT:
+            thisLen += PILOT_JOINT_LEN;
+            firstSz  = PILOT_JOINT_LEN;
+            break;
 
-
-/* Guarded by either
- * A) WOLFSSL_WPAS_SMALL is on or
- * B) (OPENSSL_EXTRA or OPENSSL_EXTRA_X509_SMALL) + WOLFSSL_CERT_GEN +
- *    (WOLFSSL_CERT_REQ or WOLFSSL_CERT_EXT or OPENSSL_EXTRA) has been
- *    defined
- */
-#if defined(WOLFSSL_WPAS_SMALL) || \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    defined(WOLFSSL_CERT_GEN) && \
-    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT) || \
-     defined(OPENSSL_EXTRA))
-/* Converts from NID_* value to wolfSSL value if needed */
-static int ConvertNIDToWolfSSL(int nid)
-{
-    switch (nid) {
-        case NID_commonName : return ASN_COMMON_NAME;
-        case NID_surname :    return ASN_SUR_NAME;
-        case NID_countryName: return ASN_COUNTRY_NAME;
-        case NID_localityName: return ASN_LOCALITY_NAME;
-        case NID_stateOrProvinceName: return ASN_STATE_NAME;
-        case NID_organizationName: return ASN_ORG_NAME;
-        case NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
-        case NID_emailAddress: return ASN_EMAIL_NAME;
-        case NID_serialNumber: return ASN_SERIAL_NUMBER;
-        case NID_businessCategory: return ASN_BUS_CAT;
-        case NID_domainComponent: return ASN_DOMAIN_COMPONENT;
         default:
-            WOLFSSL_MSG("Attribute NID not found");
-            return -1;
+            thisLen++;                                 /* str type */
+            thisLen += JOINT_LEN;
+            firstSz  = JOINT_LEN + 1;
     }
-}
+    thisLen++; /* id  type */
+    firstSz  = SetObjectId(firstSz, firstLen);
+    thisLen += firstSz;
 
+    seqSz = SetSequence(thisLen, sequence);
+    thisLen += seqSz;
+    setSz = SetSet(thisLen, set);
+    thisLen += setSz;
 
-/* Converts the x509 name structure into DER format.
- *
- * out  pointer to either a pre setup buffer or a pointer to null for
- *      creating a dynamic buffer. In the case that a pre-existing buffer is
- *      used out will be incremented the size of the DER buffer on success.
- *
- * returns the size of the buffer on success, or negative value with failure
- */
-int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
-{
-    int  totalBytes = 0, i, idx;
-    byte temp[MAX_SEQ_SZ];
-    byte *output, *local = NULL;
-#ifdef WOLFSSL_SMALL_STACK
-    EncodedName* names = NULL;
-#else
-    EncodedName  names[MAX_NAME_ENTRIES];
-#endif
-
-    if (out == NULL || name == NULL)
-        return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_SMALL_STACK
-    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * MAX_NAME_ENTRIES, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (names == NULL)
-        return MEMORY_E;
-#endif
-
-    XMEMSET(names, 0, sizeof(EncodedName) * MAX_NAME_ENTRIES);
-
-    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-        WOLFSSL_X509_NAME_ENTRY* entry;
-        int ret;
-
-        entry = wolfSSL_X509_NAME_get_entry(name, i);
-        if (entry != NULL && entry->set == 1) {
-            const char* nameStr;
-            int type;
-            WOLFSSL_ASN1_STRING* data;
-
-            data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
-            if (data == NULL) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                WOLFSSL_MSG("Error getting entry data");
-                return WOLFSSL_FATAL_ERROR;
-            }
-
-            nameStr = (const char*)wolfSSL_ASN1_STRING_data(data);
-            type    = wolfSSL_ASN1_STRING_type(data);
-
-            switch (type) {
-                case MBSTRING_UTF8:
-                    type = CTC_UTF8;
-                    break;
-                case V_ASN1_PRINTABLESTRING:
-                    type = CTC_PRINTABLE;
-                    break;
-                default:
-                    WOLFSSL_MSG("Unknown encoding type conversion UTF8 by default");
-                    type = CTC_UTF8;
-            }
-            ret = wc_EncodeName(&names[i], nameStr, type,
-                ConvertNIDToWolfSSL(entry->nid));
-            if (ret < 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                WOLFSSL_MSG("EncodeName failed");
-                return WOLFSSL_FATAL_ERROR;
-            }
-            totalBytes += ret;
-        }
-    }
-
-    /* header */
-    idx = SetSequence(totalBytes, temp);
-    if (totalBytes + idx > ASN_NAME_MAX) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        WOLFSSL_MSG("Total Bytes is greater than ASN_NAME_MAX");
+    if (thisLen > (int)sizeof(name->encoded)) {
         return BUFFER_E;
     }
 
-    /* check if using buffer passed in */
-    if (*out == NULL) {
-        *out = local = (unsigned char*)XMALLOC(totalBytes + idx, NULL,
-                DYNAMIC_TYPE_OPENSSL);
-        if (*out == NULL) {
-            return MEMORY_E;
+    /* store it */
+    idx = 0;
+    /* set */
+    XMEMCPY(name->encoded, set, setSz);
+    idx += setSz;
+    /* seq */
+    XMEMCPY(name->encoded + idx, sequence, seqSz);
+    idx += seqSz;
+    /* asn object id */
+    XMEMCPY(name->encoded + idx, firstLen, firstSz);
+    idx += firstSz;
+    switch (type) {
+        case ASN_EMAIL_NAME:
+        {
+            const byte EMAIL_OID[] = {
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16
+            };
+            /* email joint id */
+            XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
+            idx += (int)sizeof(EMAIL_OID);
+            break;
         }
-    }
-    output = *out;
 
-    idx = SetSequence(totalBytes, output);
-    totalBytes += idx;
-    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
-        if (names[i].used) {
-            XMEMCPY(output + idx, names[i].encoded, names[i].totalLen);
-            idx += names[i].totalLen;
+        case ASN_DOMAIN_COMPONENT:
+        {
+            const byte PILOT_OID[] = {
+                0x09, 0x92, 0x26, 0x89, 0x93, 0xF2, 0x2C, 0x64, 0x01
+            };
+
+            XMEMCPY(name->encoded + idx, PILOT_OID, sizeof(PILOT_OID));
+            idx += (int)sizeof(PILOT_OID);
+            /* id type */
+            name->encoded[idx++] = type;
+            /* str type */
+            name->encoded[idx++] = nameType;
+            break;
         }
-    }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    /* used existing buffer passed in, so increment pointer */
-    if (local == NULL) {
-        *out += totalBytes;
+        default:
+            name->encoded[idx++] = 0x55;
+            name->encoded[idx++] = 0x04;
+            /* id type */
+            name->encoded[idx++] = type;
+            /* str type */
+            name->encoded[idx++] = nameType;
     }
-    return totalBytes;
+    /* second length */
+    XMEMCPY(name->encoded + idx, secondLen, secondSz);
+    idx += secondSz;
+    /* str value */
+    XMEMCPY(name->encoded + idx, nameStr, strLen);
+    idx += strLen;
+
+    name->type = type;
+    name->totalLen = idx;
+    name->used = 1;
+
+    return idx;
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
-
 
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)
@@ -16619,6 +16467,14 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
 
     /* private */
     privSz = key->dp->size;
+
+#ifdef WOLFSSL_QNX_CAAM
+    /* check if is a black key, and add MAC size if so */
+    if (key->blackKey > 0) {
+        privSz = privSz + WC_CAAM_MAC_SZ;
+    }
+#endif
+
 #ifndef WOLFSSL_NO_MALLOC
     prv = (byte*)XMALLOC(privSz + privHdrSz + MAX_SEQ_SZ,
                          key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16630,7 +16486,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
         return BUFFER_E;
     }
 #endif
-    prvidx += SetOctetString8Bit(key->dp->size, &prv[prvidx]);
+    prvidx += SetOctetString8Bit(privSz, &prv[prvidx]);
     ret = wc_ecc_export_private_only(key, prv + prvidx, &privSz);
     if (ret < 0) {
     #ifndef WOLFSSL_NO_MALLOC

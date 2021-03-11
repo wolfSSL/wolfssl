@@ -1652,6 +1652,10 @@ extern void uITRON4_free(void *p) ;
     /* large performance gain with HAVE_AES_ECB defined */
     #undef HAVE_AES_ECB
     #define HAVE_AES_ECB
+
+    //@TODO used for now until plugging in caam aes use with qnx
+    #undef WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
 #endif
 #endif
 
@@ -1796,7 +1800,9 @@ extern void uITRON4_free(void *p) ;
 /* ECC Configs */
 #ifdef HAVE_ECC
     /* By default enable Sign, Verify, DHE, Key Import and Key Export unless explicitly disabled */
-    #ifndef NO_ECC_SIGN
+    #if !defined(NO_ECC_SIGN) && \
+            (!defined(ECC_TIMING_RESISTANT) || \
+            (defined(ECC_TIMING_RESISTANT) && !defined(WC_NO_RNG)))
         #undef HAVE_ECC_SIGN
         #define HAVE_ECC_SIGN
     #endif
@@ -1808,7 +1814,7 @@ extern void uITRON4_free(void *p) ;
         #undef HAVE_ECC_CHECK_KEY
         #define HAVE_ECC_CHECK_KEY
     #endif
-    #ifndef NO_ECC_DHE
+    #if !defined(NO_ECC_DHE) && !defined(WC_NO_RNG)
         #undef HAVE_ECC_DHE
         #define HAVE_ECC_DHE
     #endif
@@ -2094,8 +2100,9 @@ extern void uITRON4_free(void *p) ;
     #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
          #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
     #endif
-    #if !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
-        #error static memory requires fast math please define USE_FAST_MATH
+    #if !defined(WOLFSSL_SP_NO_MALLOC) && \
+        !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
+         #error The static memory option is only supported for fast math or SP with no malloc
     #endif
     #ifdef WOLFSSL_SMALL_STACK
         #error static memory does not support small stack please undefine
@@ -2271,8 +2278,13 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
     /* added to have compatibility with SHA256() */
-    #if !defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
+    #if !defined(NO_OLD_SHA_NAMES) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
         #define NO_OLD_SHA_NAMES
+    #endif
+    #if !defined(NO_OLD_MD5_NAME) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        #define NO_OLD_MD5_NAME
     #endif
 #endif
 

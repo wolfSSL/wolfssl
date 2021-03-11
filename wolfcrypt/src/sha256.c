@@ -130,8 +130,6 @@ where 0 <= L < 2^64.
 #elif defined(WOLFSSL_CRYPTOCELL)
     /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
 
-#elif defined(WOLFSSL_IMXRT_DCP)
-
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
 
@@ -177,7 +175,8 @@ where 0 <= L < 2^64.
 
 
 #if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH_SHA2) && \
-    (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH)) && \
+    (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH) || \
+     defined(WOLFSSL_QNX_CAAM)) && \
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
     (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
     (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH)) && \
@@ -583,7 +582,8 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 
 #elif defined(WOLFSSL_AFALG_HASH)
@@ -1295,6 +1295,19 @@ static int InitSha256(wc_Sha256* sha256)
         return InitSha256(sha256);  /* reset state */
     }
 
+    #if defined(OPENSSL_EXTRA)
+/* Apply SHA256 transformation to the data                */
+/* @param sha  a pointer to wc_Sha256 structure           */
+/* @param data data to be applied SHA256 transformation   */
+/* @return 0 on successful, otherwise non-zero on failure */
+    int wc_Sha256Transform(wc_Sha256* sha, const unsigned char* data)
+    {
+        if (sha == NULL || data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return (Transform_Sha256(sha, data));
+    }
+    #endif
 #endif /* XTRANSFORM */
 
 #ifdef WOLFSSL_SHA224
@@ -1353,7 +1366,8 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 
 #elif defined(WOLFSSL_AFALG_HASH)

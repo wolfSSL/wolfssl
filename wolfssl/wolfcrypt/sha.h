@@ -102,7 +102,7 @@ enum {
 #if defined(WOLFSSL_TI_HASH)
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
 
-#elif defined(WOLFSSL_IMX6_CAAM)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
@@ -169,6 +169,9 @@ WOLFSSL_API void wc_ShaFree(wc_Sha*);
 
 WOLFSSL_API int wc_ShaGetHash(wc_Sha*, byte*);
 WOLFSSL_API int wc_ShaCopy(wc_Sha*, wc_Sha*);
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_ShaTransform(wc_Sha*, const byte*);
+#endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 WOLFSSL_API void wc_ShaSizeSet(wc_Sha* sha, word32 len);

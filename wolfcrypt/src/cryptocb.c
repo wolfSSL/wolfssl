@@ -706,5 +706,43 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !WC_NO_RNG */
+#ifdef WOLFSSL_CMAC
+int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
+        const byte* in, word32 inSz, byte* out, word32* outSz, int type,
+        void* ctx)
+{
+    int ret = CRYPTOCB_UNAVAILABLE;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (cmac) {
+        dev = wc_CryptoCb_FindDevice(cmac->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CMAC;
+
+        cryptoInfo.cmac.cmac  = cmac;
+        cryptoInfo.cmac.ctx   = ctx;
+        cryptoInfo.cmac.key   = key;
+        cryptoInfo.cmac.in    = in;
+        cryptoInfo.cmac.out   = out;
+        cryptoInfo.cmac.outSz = outSz;
+        cryptoInfo.cmac.keySz = keySz;
+        cryptoInfo.cmac.inSz  = inSz;
+        cryptoInfo.cmac.type  = type;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif
 
 #endif /* WOLF_CRYPTO_CB */

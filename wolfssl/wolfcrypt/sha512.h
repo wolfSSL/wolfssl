@@ -114,7 +114,7 @@ enum {
 };
 
 
-#ifdef WOLFSSL_IMX6_CAAM
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(WOLFSSL_QNX_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #elif defined (WOLFSSL_PSOC6_CRYPTO)
     #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
@@ -180,6 +180,9 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
     WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data);
+#endif
 #endif /* WOLFSSL_SHA512 */
 
 #if defined(WOLFSSL_SHA384)

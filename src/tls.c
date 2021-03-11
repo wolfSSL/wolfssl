@@ -9107,9 +9107,17 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (length != 0)
             return BUFFER_E;
 
-        if (ssl->earlyData == expecting_early_data)
+        if (ssl->earlyData == expecting_early_data) {
+            
+            if (ssl->options.maxEarlyDataSz != 0)
+                ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
+            else
+                ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_REJECTED;
+            
             return TLSX_EarlyData_Use(ssl, 0);
+        }
         ssl->earlyData = early_data_ext;
+        
         return 0;
     }
     if (msgType == encrypted_extensions) {
@@ -9121,6 +9129,11 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
          */
         if (ssl->options.pskIdIndex != 1)
             return PSK_KEY_ERROR;
+
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            /* the extension from server comes in */
+            ssl->earlyDataStatus = WOLFSSL_EARLY_DATA_ACCEPTED;
+        }
 
         return TLSX_EarlyData_Use(ssl, 1);
     }
@@ -10006,6 +10019,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     #endif /* HAVE_FIPS */
 #endif /* HAVE_ECC */
 
+#ifndef NO_DH
             /* Add FFDHE supported groups. */
         #ifdef HAVE_FFDHE_8192
             if (8192/8 >= ssl->options.minDhKeySz &&
@@ -10052,6 +10066,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                     return ret;
             }
         #endif
+#endif
 
     (void)ssl;
     (void)extensions;

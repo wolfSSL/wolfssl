@@ -355,6 +355,12 @@ IDE/XCODE/Index
 /IDE/Renesas/e2studio/Projects/test/*.launch
 /IDE/Renesas/e2studio/Projects/test/*.scfg
 
+# QNX CAAM
+/IDE/QNX/example-server/server-tls
+/IDE/QNX/example-client/client-tls
+/IDE/QNX/example-cmac/cmac-test
+/IDE/QNX/CAAM-DRIVER/wolfCrypt
+
 # Emacs
 *~
 

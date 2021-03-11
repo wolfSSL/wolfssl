@@ -397,6 +397,12 @@ struct ecc_key {
     void* heap;         /* heap hint */
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
+
+#ifdef WOLFSSL_QNX_CAAM
+    word32 blackKey;     /* address of key encrypted and in secure memory */
+    word32 securePubKey; /* address of public key in secure memory */
+    int    partNum; /* partition number*/
+#endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];

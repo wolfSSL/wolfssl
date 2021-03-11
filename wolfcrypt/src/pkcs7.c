@@ -4917,9 +4917,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     der = pkcs7->der;
                     pkcs7->der = NULL;
         #endif
-                    contentDynamic = pkcs7->contentDynamic;
                     version = pkcs7->version;
-
 
                     if (ret == 0) {
                         byte isDynamic = pkcs7->isDynamic;
@@ -4927,6 +4925,19 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         PKCS7State* stream = pkcs7->stream;
                         pkcs7->stream = NULL;
                     #endif
+
+                        /* Save dynamic content before freeing PKCS7 struct */
+                        if (pkcs7->contentDynamic != NULL) {
+                            contentDynamic = (byte*)XMALLOC(contentSz,
+                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                            if (contentDynamic == NULL) {
+                                ret = MEMORY_E;
+                                break;
+                            }
+                            XMEMCPY(contentDynamic, pkcs7->contentDynamic,
+                                    contentSz);
+                        }
+
                         /* Free pkcs7 resources but not the structure itself */
                         pkcs7->isDynamic = 0;
                         wc_PKCS7_Free(pkcs7);
@@ -4934,11 +4945,18 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         /* This will reset PKCS7 structure and then set the
                          * certificate */
                         ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+
+                        /* Restore pkcs7->contentDynamic from above, will be
+                         * freed by application with wc_PKCS7_Free() */
+                        if (contentDynamic != NULL) {
+                            pkcs7->contentDynamic = contentDynamic;
+                            contentDynamic = NULL;
+                        }
+
                     #ifndef NO_PKCS7_STREAM
                         pkcs7->stream = stream;
                     #endif
                     }
-                    pkcs7->contentDynamic = contentDynamic;
                     pkcs7->version = version;
         #ifdef ASN_BER_TO_DER
                     pkcs7->der = der;
@@ -8404,6 +8422,9 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
+
+                if (KEYID_SIZE > pkiMsgSz - (*idx))
+                    return BUFFER_E;
 
                 /* if we found correct recipient, SKID will match */
                 if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,

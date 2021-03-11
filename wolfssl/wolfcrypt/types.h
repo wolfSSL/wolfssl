@@ -789,8 +789,9 @@ decouple library dependencies with standard string, memory and so on.
         WC_ALGO_TYPE_RNG = 4,
         WC_ALGO_TYPE_SEED = 5,
         WC_ALGO_TYPE_HMAC = 6,
+        WC_ALGO_TYPE_CMAC = 7,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HMAC
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CMAC
     };
 
     /* hash types */
