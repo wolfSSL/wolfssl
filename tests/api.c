@@ -29736,7 +29736,9 @@ static void test_wolfSSL_X509_sign2(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES) && \
-    defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_EXT) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
+
     WOLFSSL_X509 *x509, *ca;
     const unsigned char *der;
     const unsigned char *pt;
