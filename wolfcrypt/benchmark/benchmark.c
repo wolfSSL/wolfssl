@@ -5298,11 +5298,19 @@ void bench_ecc_curve(int curveId)
 void bench_eccMakeKey(int doAsync, int curveId)
 {
     int ret = 0, i, times, count, pending = 0;
+    int deviceID;
     int keySize;
     ecc_key genKey[BENCH_MAX_PENDING];
     char name[BENCH_ECC_NAME_SZ];
     double start;
     const char**desc = bench_desc_words[lng_index];
+
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    deviceID = doAsync ? devId : INVALID_DEVID;
+#else
+    deviceID = devId;
+#endif
 
     keySize = wc_ecc_get_curve_size_from_id(curveId);
 
@@ -5321,8 +5329,7 @@ void bench_eccMakeKey(int doAsync, int curveId)
                             &times, genTimes, &pending)) {
 
                     wc_ecc_free(&genKey[i]);
-                    ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, doAsync ?
-                            devId : INVALID_DEVID);
+                    ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, deviceID);
                     if (ret < 0) {
                         goto exit;
                     }
@@ -5355,6 +5362,7 @@ exit:
 void bench_ecc(int doAsync, int curveId)
 {
     int ret = 0, i, times, count, pending = 0;
+    int deviceID;
     int  keySize;
     char name[BENCH_ECC_NAME_SZ];
     ecc_key genKey[BENCH_MAX_PENDING];
@@ -5378,6 +5386,12 @@ void bench_ecc(int doAsync, int curveId)
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    deviceID = doAsync ? devId : INVALID_DEVID;
+#else
+    deviceID = devId;
+#endif
+
     /* clear for done cleanup */
     XMEMSET(&genKey, 0, sizeof(genKey));
 #ifdef HAVE_ECC_DHE
@@ -5388,8 +5402,7 @@ void bench_ecc(int doAsync, int curveId)
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         /* setup an context for each key */
-        if ((ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT,
-                                    doAsync ? devId : INVALID_DEVID)) < 0) {
+        if ((ret = wc_ecc_init_ex(&genKey[i], HEAP_HINT, deviceID)) < 0) {
             goto exit;
         }
         ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey[i], curveId);
@@ -5401,7 +5414,7 @@ void bench_ecc(int doAsync, int curveId)
         }
 
     #ifdef HAVE_ECC_DHE
-        if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, INVALID_DEVID)) < 0) {
+        if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, deviceID)) < 0) {
             goto exit;
         }
         if ((ret = wc_ecc_make_key_ex(&gRng, keySize, &genKey2[i],
