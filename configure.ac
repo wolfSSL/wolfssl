@@ -6,7 +6,7 @@
 #
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
-AC_PREREQ([2.63])
+AC_PREREQ([2.69])
 AC_INIT([wolfssl],[4.7.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -25,14 +25,14 @@ AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
+AM_INIT_AUTOMAKE([1.14.1 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_ARG_PROGRAM
 
 AC_CONFIG_HEADERS([config.h:config.in])
 
-LT_PREREQ([2.2])
+LT_PREREQ([2.4.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
