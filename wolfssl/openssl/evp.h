@@ -742,6 +742,9 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_size         wolfSSL_EVP_MD_CTX_size
 #define EVP_MD_CTX_block_size   wolfSSL_EVP_MD_CTX_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
+#ifndef NO_WOLFSSL_STUB
+#define EVP_MD_CTX_set_flags(...)
+#endif
 
 #define EVP_Digest             wolfSSL_EVP_Digest
 #define EVP_DigestInit         wolfSSL_EVP_DigestInit

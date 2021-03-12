@@ -3724,7 +3724,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         int ret;
         if (src->isHMAC) {
-            ret = wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
+            return wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
         }
         else {
             switch (src->macType) {
@@ -3818,8 +3818,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = BAD_FUNC_ARG;
                     break;
             }
+            return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
-        return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
     /* copies structure in to the structure out

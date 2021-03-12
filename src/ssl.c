@@ -16756,12 +16756,45 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 
 static int sanityCheckProtoVersion(WOLFSSL_CTX* ctx)
 {
-    if ((ctx->mask & WOLFSSL_OP_NO_SSLv3) &&
-            (ctx->mask & WOLFSSL_OP_NO_TLSv1) &&
-            (ctx->mask & WOLFSSL_OP_NO_TLSv1_1) &&
-            (ctx->mask & WOLFSSL_OP_NO_TLSv1_2) &&
-            (ctx->mask & WOLFSSL_OP_NO_TLSv1_3)) {
-        WOLFSSL_MSG("All TLS versions disabled");
+    int sanityConfirmed = 0;
+
+#ifndef NO_TLS
+    if (ctx->method->version.major == SSLv3_MAJOR) {
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        if (!(ctx->mask & WOLFSSL_OP_NO_SSLv3)) {
+            sanityConfirmed = 1;
+        }
+    #endif
+    #ifndef NO_OLD_TLS
+        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1)) {
+            sanityConfirmed = 1;
+        }
+        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_1)) {
+            sanityConfirmed = 1;
+        }
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
+        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_2)) {
+            sanityConfirmed = 1;
+        }
+    #endif
+    #ifdef WOLFSSL_TLS13
+        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_3)) {
+            sanityConfirmed = 1;
+        }
+    #endif
+    }
+#endif
+#ifdef WOLFSSL_DTLS
+    if (ctx->method->version.major == DTLS_MAJOR) {
+        if (!sanityConfirmed) {
+            WOLFSSL_MSG("Only DTLS enabled");
+            sanityConfirmed = 1;
+        }
+    }
+#endif
+    if (!sanityConfirmed) {
+        WOLFSSL_MSG("All compiled in TLS versions disabled");
         return WOLFSSL_FAILURE;
     }
     return WOLFSSL_SUCCESS;
@@ -16776,36 +16809,36 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     switch (version) {
-#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
         case SSL3_VERSION:
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             ctx->minDowngrade = SSLv3_MINOR;
             break;
 #endif
 #ifndef NO_TLS
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_TLSV10
         case TLS1_VERSION:
+        #ifdef WOLFSSL_ALLOW_TLSV10
             ctx->minDowngrade = TLSv1_MINOR;
             break;
         #endif
         case TLS1_1_VERSION:
+        #ifndef NO_OLD_TLS
             ctx->minDowngrade = TLSv1_1_MINOR;
             break;
-    #endif
-    #ifndef WOLFSSL_NO_TLS12
+        #endif
         case TLS1_2_VERSION:
+        #ifndef WOLFSSL_NO_TLS12
             ctx->minDowngrade = TLSv1_2_MINOR;
             break;
-    #endif
-    #ifdef WOLFSSL_TLS13
+        #endif
         case TLS1_3_VERSION:
+        #ifdef WOLFSSL_TLS13
             ctx->minDowngrade = TLSv1_3_MINOR;
             break;
-    #endif
+        #endif
 #endif
 #ifdef WOLFSSL_DTLS
-    #ifndef NO_OLD_TLS
         case DTLS1_VERSION:
+    #ifndef NO_OLD_TLS
             ctx->minDowngrade = DTLS_MINOR;
             break;
     #endif
@@ -16832,17 +16865,13 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     case TLS1_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_SSLv3);
         break;
-#endif
-#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
     case SSL3_VERSION:
     case SSL2_VERSION:
         /* Nothing to do here */
-#endif
         break;
-#ifdef WOLFSSL_DTLS
-#ifndef NO_OLD_TLS
-    case DTLS1_VERSION:
 #endif
+#ifdef WOLFSSL_DTLS
+    case DTLS1_VERSION:
     case DTLS1_2_VERSION:
         break;
 #endif
@@ -16867,7 +16896,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     case SSL2_VERSION:
         WOLFSSL_MSG("wolfSSL does not support SSLv2");
         return WOLFSSL_FAILURE;
-#if (defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)) || !defined(NO_TLS)
+#ifndef NO_TLS
     case SSL3_VERSION:
         wolfSSL_CTX_set_options(ctx, WOLFSSL_OP_NO_TLSv1);
         FALL_THROUGH;
@@ -16885,9 +16914,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         break;
 #endif
 #ifdef WOLFSSL_DTLS
-#ifndef NO_OLD_TLS
     case DTLS1_VERSION:
-#endif
     case DTLS1_2_VERSION:
         break;
 #endif

@@ -87,6 +87,15 @@ typedef struct crypto_threadid_st   CRYPTO_THREADID;
 
 #define OPENSSL_init_crypto wolfSSL_OPENSSL_init_crypto
 
+#ifdef WOLFSSL_OPENVPN
+# define OPENSSL_assert(e) \
+    if (!(e)) { \
+        fprintf(stderr, "%s:%d wolfSSL internal error: assertion failed: " #e, \
+                __FILE__, __LINE__); \
+        raise(SIGABRT); \
+        _exit(3); \
+    }
+#endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_EX_DATA)
