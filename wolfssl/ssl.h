@@ -2962,9 +2962,12 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
                                                       WOLFSSL_CERT_MANAGER* cm);
     WOLFSSL_API int wolfSSL_CertManagerDisableOCSPMustStaple(
                                                       WOLFSSL_CERT_MANAGER* cm);
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && \
+    !defined(NO_FILESYSTEM)
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm);
-#endif
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
+                               WOLFSSL_X509_STORE_CTX*, WOLFSSL_X509_NAME*);
+#endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_LoadCRL(WOLFSSL*, const char*, int, int);
@@ -3287,6 +3290,21 @@ WOLFSSL_API int wolfSSL_Rehandshake(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SecureResume(WOLFSSL* ssl);
 WOLFSSL_API long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl);
 
+#endif
+
+#if defined(HAVE_SELFTEST) && \
+    (!defined(HAVE_SELFTEST_VERSION) || (HAVE_SELFTEST_VERSION < 2))
+
+    /* Needed by session ticket stuff below */
+    #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
+    #define WOLFSSL_AES_KEY_SIZE_ENUM
+    enum SSL_Misc {
+        AES_IV_SIZE         = 16,
+        AES_128_KEY_SIZE    = 16,
+        AES_192_KEY_SIZE    = 24,
+        AES_256_KEY_SIZE    = 32
+    };
+    #endif
 #endif
 
 /* Session Ticket */
@@ -3952,8 +3970,6 @@ WOLFSSL_API void wolfSSL_THREADID_current(WOLFSSL_CRYPTO_THREADID* id);
 WOLFSSL_API unsigned long wolfSSL_THREADID_hash(
                                     const WOLFSSL_CRYPTO_THREADID* id);
 
-WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
-                               WOLFSSL_X509_STORE_CTX*, WOLFSSL_X509_NAME*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_OBJECT)*
         wolfSSL_X509_STORE_get0_objects(WOLFSSL_X509_STORE *);
 WOLFSSL_API WOLFSSL_X509_OBJECT*
@@ -4025,7 +4041,8 @@ WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #if defined(OPENSSL_ALL) \
     || defined(WOLFSSL_NGINX) \
     || defined(WOLFSSL_HAPROXY) \
-    || defined(OPENSSL_EXTRA)
+    || defined(OPENSSL_EXTRA) \
+    || defined(HAVE_STUNNEL)
 WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
 #endif
 
@@ -4152,6 +4169,10 @@ WOLFSSL_API int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk,
 WOLFSSL_API int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
         unsigned int flags);
 #endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+WOLFSSL_API int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk,
+                                         size_t chkLen, unsigned int flags);
+#endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)

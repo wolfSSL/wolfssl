@@ -25868,6 +25868,41 @@ static void test_wolfSSL_X509_check_host(void)
 #endif
 }
 
+static void test_wolfSSL_X509_check_email(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_CERT_GEN)
+    X509* x509;
+    const char goodEmail[] = "info@wolfssl.com";
+    const char badEmail[] = "disinfo@wolfssl.com";
+
+    printf(testingFmt, "wolfSSL_X509_check_email()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                SSL_FILETYPE_PEM));
+
+    /* Should fail on non-matching email address */
+    AssertIntEQ(wolfSSL_X509_check_email(x509, badEmail, XSTRLEN(badEmail), 0),
+            WOLFSSL_FAILURE);
+    /* Should succeed on matching email address */
+    AssertIntEQ(wolfSSL_X509_check_email(x509, goodEmail, XSTRLEN(goodEmail), 0),
+            WOLFSSL_SUCCESS);
+    /* Should compute length internally when not provided */
+    AssertIntEQ(wolfSSL_X509_check_email(x509, goodEmail, 0, 0),
+            WOLFSSL_SUCCESS);
+    /* Should fail when email address is NULL */
+    AssertIntEQ(wolfSSL_X509_check_email(x509, NULL, 0, 0),
+            WOLFSSL_FAILURE);
+
+    X509_free(x509);
+
+    /* Should fail when x509 is NULL */
+    AssertIntEQ(wolfSSL_X509_check_email(NULL, goodEmail, 0, 0),
+            WOLFSSL_FAILURE);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_CERT_GEN */
+}
+
 static void test_wolfSSL_DES(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
@@ -34433,6 +34468,57 @@ static void test_wolfSSL_OpenSSL_add_all_algorithms(void){
 #endif
 }
 
+static void test_wolfSSL_OPENSSL_hexstr2buf(void)
+{
+#if defined(OPENSSL_EXTRA)
+    struct Output {
+        const unsigned char* buffer;
+        long ret;
+    };
+    enum { NUM_CASES = 5 };
+    int i;
+    int j;
+
+    const char* inputs[NUM_CASES] = {
+        "aabcd1357e",
+        "01:12:23:34:a5:b6:c7:d8:e9",
+        ":01:02",
+        "012",
+        ":ab:ac:d"
+    };
+    struct Output expectedOutputs[NUM_CASES] = {
+        {(const unsigned char []){0xaa, 0xbc, 0xd1, 0x35, 0x7e}, 5},
+        {(const unsigned char []){0x01, 0x12, 0x23, 0x34, 0xa5, 0xb6, 0xc7,
+                                  0xd8, 0xe9}, 9},
+        {(const unsigned char []){0x01, 0x02}, 2},
+        {NULL, 0},
+        {NULL, 0}
+    };
+    long len = 0;
+    unsigned char* returnedBuf = NULL;
+
+    printf(testingFmt, "test_wolfSSL_OPENSSL_hexstr2buf()");
+
+    for (i = 0; i < NUM_CASES; ++i) {
+        returnedBuf = wolfSSL_OPENSSL_hexstr2buf(inputs[i], &len);
+
+        if (returnedBuf == NULL) {
+            AssertNull(expectedOutputs[i].buffer);
+            continue;
+        }
+
+        AssertIntEQ(expectedOutputs[i].ret, len);
+
+        for (j = 0; j < len; ++j) {
+            AssertIntEQ(expectedOutputs[i].buffer[j], returnedBuf[j]);
+        }
+        OPENSSL_free(returnedBuf);
+    }
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_ASN1_STRING_print_ex(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
 #ifndef NO_BIO
@@ -40964,6 +41050,57 @@ static void test_wolfSSL_ASN1_INTEGER_set(void)
 #endif
 }
 
+static void test_wolfSSL_X509_STORE_get1_certs(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && \
+    !defined(NO_FILESYSTEM)
+    X509_STORE_CTX *storeCtx;
+    X509_STORE *store;
+    X509 *caX509;
+    X509 *svrX509;
+    X509_NAME *subject;
+    WOLF_STACK_OF(WOLFSSL_X509) *certs;
+
+    printf(testingFmt, "wolfSSL_X509_STORE_get1_certs()");
+
+    AssertNotNull(caX509 =
+        X509_load_certificate_file(caCertFile, SSL_FILETYPE_PEM));
+    AssertNotNull((svrX509 =
+        wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
+    AssertNotNull(storeCtx = X509_STORE_CTX_new());
+    AssertNotNull(store = X509_STORE_new());
+    AssertNotNull(subject = X509_get_subject_name(caX509));
+
+    /* Errors */
+    AssertNull(X509_STORE_get1_certs(storeCtx, subject));
+    AssertNull(X509_STORE_get1_certs(NULL, subject));
+    AssertNull(X509_STORE_get1_certs(storeCtx, NULL));
+
+    AssertIntEQ(X509_STORE_add_cert(store, caX509), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_CTX_init(storeCtx, store, caX509, NULL), SSL_SUCCESS);
+
+    /* Should find the cert */
+    AssertNotNull(certs = X509_STORE_get1_certs(storeCtx, subject));
+    AssertIntEQ(1, wolfSSL_sk_X509_num(certs));
+
+    sk_X509_free(certs);
+
+    /* Should not find the cert */
+    AssertNotNull(subject = X509_get_subject_name(svrX509));
+    AssertNotNull(certs = X509_STORE_get1_certs(storeCtx, subject));
+    AssertIntEQ(0, wolfSSL_sk_X509_num(certs));
+
+    sk_X509_free(certs);
+
+    X509_STORE_free(store);
+    X509_STORE_CTX_free(storeCtx);
+    X509_free(svrX509);
+    X509_free(caX509);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
+}
+
 /* Testing code used in dpp.c in hostap */
 #if defined(OPENSSL_ALL) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 typedef struct {
@@ -42300,6 +42437,7 @@ void ApiTest(void)
     test_wolfSSL_X509_subject_name_hash();
     test_wolfSSL_X509_issuer_name_hash();
     test_wolfSSL_X509_check_host();
+    test_wolfSSL_X509_check_email();
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_X509_check_private_key();
@@ -42451,8 +42589,10 @@ void ApiTest(void)
     test_wolfSSL_PEM_X509_INFO_read_bio();
     test_wolfSSL_PEM_read_bio_ECPKParameters();
 #endif
+    test_wolfSSL_X509_STORE_get1_certs();
     test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OpenSSL_add_all_algorithms();
+    test_wolfSSL_OPENSSL_hexstr2buf();
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_ASN1_INTEGER_set();

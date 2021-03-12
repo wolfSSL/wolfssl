@@ -3411,6 +3411,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 
 #ifndef NO_WOLFSSL_STUB
+    void wolfSSL_EVP_set_pw_prompt(const char *prompt)
+    {
+        (void)prompt;
+        WOLFSSL_STUB("EVP_set_pw_prompt");
+    }
+#endif
+
+#ifndef NO_WOLFSSL_STUB
     const WOLFSSL_EVP_MD* wolfSSL_EVP_mdc2(void)
     {
         WOLFSSL_STUB("EVP_mdc2");

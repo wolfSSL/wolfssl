@@ -4377,49 +4377,49 @@ if test "$ENABLED_WPAS" = "yes"
 then
     ENABLED_STUNNEL="yes"
 fi
+# stunnel support requires all the features enabled within this conditional.
 if test "$ENABLED_STUNNEL" = "yes"
 then
-    # Requires opensslextra make sure on
     if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
 
-    # Requires OCSP make sure on
+    if test "x$ENABLED_SESSION_TICKET" = "xno"
+    then
+        ENABLED_SESSION_TICKET="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_SESSION_TICKET"
+    fi
+
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
     fi
 
-    # Requires coding make sure on
     if test "x$ENABLED_CODING" = "xno"
     then
         ENABLED_CODING="yes"
     fi
 
-    # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
     fi
 
-    # Requires crls, make sure on
     if test "x$ENABLED_CRL" = "xno"
     then
         ENABLED_CRL="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
     fi
 
-    # Requires DES3, make sure on
     if test "x$ENABLED_DES3" = "xno"
     then
         ENABLED_DES3="yes"
     fi
 
-    # Requires tlsx, make sure on
     if test "x$ENABLED_TLSX" = "xno"
     then
         ENABLED_TLSX="yes"
@@ -4431,7 +4431,6 @@ then
                AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
 
-    # Requires ecc make sure on
     if test "x$ENABLED_ECC" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
@@ -4444,14 +4443,12 @@ then
         fi
     fi
 
-    # Requires wolfSSL_OBJ_txt2nid
     if test "x$ENABLED_CERTEXT" = "xno"
     then
         ENABLED_CERTEXT="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
 
-    # Requires certgen
     if test "x$ENABLED_CERTGEN" = "xno"
     then
         ENABLED_CERTGEN="yes"
@@ -4460,7 +4457,7 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DWOLFSSL_SIGNER_DER_CERT"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
