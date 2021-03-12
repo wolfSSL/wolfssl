@@ -4791,6 +4791,13 @@ then
     ENABLED_DES3="yes"
 fi
 
+# DES3 ciphers
+AC_ARG_ENABLE([des3-ciphers],
+    [AS_HELP_STRING([--enable-des3-ciphers],[Enable DES3 ciphers (default: disabled unless des3 is enabled)])],
+    [ ENABLED_DES3_CIPHERS=$enableval ],
+    [ ENABLED_DES3_CIPHERS=no ]
+    )
+
 # ARC4
 if (test "$ENABLED_OPENSSH" = "yes" && test "x$ENABLED_FIPS" = "xno") || \
    test "$ENABLED_WPAS" = "yes" || test "$ENABLED_KRB" = "yes"
@@ -8690,6 +8697,14 @@ else
     fi
 fi
 
+if test "x$ENABLED_DES3_CIPHERS" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DES3_CIPHERS"
+else
+    AS_IF([test "x$ENABLED_DES3" = "xno"],
+        [AC_MSG_ERROR([DES3 ciphers require DES3])])
+fi
+
 if test "$ENABLED_AESGCM" != "no"
 then
     if test "$ENABLED_AESGCM" = "word"
@@ -9488,6 +9503,7 @@ echo "   * AES-EAX:                    $ENABLED_AESEAX"
 echo "   * AES Bitspliced:             $ENABLED_AESBS"
 echo "   * ARIA:                       $ENABLED_ARIA"
 echo "   * DES3:                       $ENABLED_DES3"
+echo "   * DES3_CIPHERS:               $ENABLED_DES3_CIPHERS"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
 echo "   * SM4-ECB:                    $ENABLED_SM4_ECB"
 echo "   * SM4-CBC:                    $ENABLED_SM4_CBC"
