@@ -495,6 +495,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
+    sha->devCtx = NULL;
 #endif
 
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
