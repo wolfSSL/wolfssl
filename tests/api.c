@@ -28068,7 +28068,10 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, "./", 
                                     SSL_FILETYPE_PEM,NULL), 1);
+    #if defined(WOLFSSL_INT_H)
+    /* only available when including internal.h */
     AssertNotNull(sk = lookup->dirs->dir_entry);
+    #endif
     /* free store */
     X509_STORE_free(str);
     
@@ -28088,7 +28091,10 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
     AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
     AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, CertCrl_path, 
                                     SSL_FILETYPE_PEM,NULL), 1);
+    #if defined(WOLFSSL_INT_H)
+    /* only available when including internal.h */
     AssertNotNull(sk = lookup->dirs->dir_entry);
+    #endif
     
     X509_STORE_free(str);
     
