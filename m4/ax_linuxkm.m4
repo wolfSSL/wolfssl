@@ -140,7 +140,7 @@ AC_DEFUN([AX_SIMD_CC_COMPILER_FLAGS], [
 
         ;;
     *)
-        AC_MSG_ERROR(["Don\'t know how to construct assembler flags for target \"${host_cpu}\"."])
+        AC_MSG_ERROR([Don't know how to construct assembler flags for target "${host_cpu}".])
         ;;
     esac
 
