@@ -12235,10 +12235,21 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    if ((IsSCR(ssl) || !ssl->options.handShakeDone) &&
-        (DtlsMsgPoolTimeout(ssl) < 0 || DtlsMsgPoolSend(ssl, 0) < 0)) {
-
-        result = WOLFSSL_FATAL_ERROR;
+    if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
+        if (DtlsMsgPoolTimeout(ssl) < 0){
+            ssl->error = SOCKET_ERROR_E;
+            WOLFSSL_ERROR(ssl->error);
+            result = WOLFSSL_FATAL_ERROR;
+        }
+        else if ((result = DtlsMsgPoolSend(ssl, 0)) < 0)  {
+            ssl->error = result;
+            WOLFSSL_ERROR(result);
+            result = WOLFSSL_FATAL_ERROR;
+        }
+        else {
+            /* Reset return value to success */
+            result = WOLFSSL_SUCCESS;
+        }
     }
 
     WOLFSSL_LEAVE("wolfSSL_dtls_got_timeout()", result);
