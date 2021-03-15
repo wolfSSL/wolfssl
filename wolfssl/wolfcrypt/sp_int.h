@@ -30,6 +30,7 @@ This library provides single precision (SP) integer math functions.
 #ifndef WOLFSSL_LINUXKM
 #include <limits.h>
 #endif
+#include  <wolfssl/wolfcrypt/settings.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,7 +113,7 @@ extern "C" {
     #error "Size of unsigned long not detected"
 #endif
 
-#if ULLONG_MAX == 18446744073709551615UL
+#if ULLONG_MAX == 18446744073709551615ULL
     #define SP_ULLONG_BITS    64
 
     #if SP_ULLONG_BITS > SP_ULONG_BITS
@@ -155,11 +156,16 @@ extern "C" {
 #ifdef SP_WORD_SIZE
 #elif defined(WOLFSSL_DSP_BUILD)
     #define SP_WORD_SIZE 32
+#elif defined(WOLFSSL_SP_X86_64) && !defined(WOLFSSL_SP_X86_64_ASM) && \
+      !defined(HAVE___UINT128_T)
+    #define SP_WORD_SIZE 32
 #elif defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_X86_64)
-    #if SP_ULONG_BITS == 64
+    #if SP_ULONG_BITS == 64 || SP_ULLONG_BITS == 64
         #define SP_WORD_SIZE 64
         #define HAVE_INTEL_AVX1
-        #define HAVE_INTEL_AVX2
+        #ifndef NO_AVX2_SUPPORT
+            #define HAVE_INTEL_AVX2
+        #endif
     #elif SP_ULONG_BITS == 32
         #define SP_WORD_SIZE 32
         #undef WOLFSSL_SP_ASM
@@ -250,8 +256,10 @@ extern "C" {
 #elif SP_WORD_SIZE == 64
     typedef  sp_uint64  sp_int_digit;
     typedef   sp_int64 sp_sint_digit;
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
     typedef sp_uint128  sp_int_word;
     typedef  sp_int128  sp_int_sword;
+#endif
 
     #define SP_MASK         0xffffffffffffffffUL
 #else
@@ -335,6 +343,9 @@ typedef struct sp_ecc_ctx {
         !defined(WOLFSSL_HAVE_SP_ECC)
         #if !defined(NO_RSA) || !defined(NO_DH) || !defined(NO_DSA)
             #define SP_INT_DIGITS        (((6144 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
+        #elif defined(WOLFCRYPT_HAVE_SAKKE)
+            #define SP_INT_DIGITS   \
+                    (((2 * (1024 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #elif defined(HAVE_ECC)
             #define SP_INT_DIGITS   \
                     (((2 * ( 521 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
@@ -344,7 +355,10 @@ typedef struct sp_ecc_ctx {
             #define SP_INT_DIGITS        ((( 256 + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #endif
     #elif !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
-        #ifdef WOLFSSL_SP_MATH_ALL
+        #if defined(WOLFCRYPT_HAVE_SAKKE)
+            #define SP_INT_DIGITS   \
+                    (((2 * (1024 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
+        #elif defined(WOLFSSL_SP_MATH_ALL)
             #define SP_INT_DIGITS   \
                     (((2 * ( 521 + SP_WORD_SIZE) + SP_WORD_SIZE) / SP_WORD_SIZE) + 1)
         #elif defined(WOLFSSL_SP_384)
@@ -756,7 +770,7 @@ MP_API void sp_clear(sp_int* a);
 MP_API void sp_forcezero(sp_int* a);
 MP_API int sp_init_copy (sp_int* r, sp_int* a);
 
-MP_API int sp_copy(sp_int* a, sp_int* r);
+MP_API int sp_copy(const sp_int* a, sp_int* r);
 MP_API int sp_exch(sp_int* a, sp_int* b);
 MP_API int sp_cond_swap_ct(mp_int * a, mp_int * b, int c, int m);
 
@@ -769,7 +783,7 @@ MP_API int sp_cmp_mag(sp_int* a, sp_int* b);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
 
 MP_API int sp_is_bit_set(sp_int* a, unsigned int b);
-MP_API int sp_count_bits(sp_int* a);
+MP_API int sp_count_bits(const sp_int* a);
 #if defined(HAVE_ECC) && defined(HAVE_COMP_KEY)
 MP_API int sp_cnt_lsb(sp_int* a);
 #endif
@@ -795,8 +809,12 @@ MP_API int sp_div_2(sp_int* a, sp_int* r);
 
 MP_API int sp_add(sp_int* a, sp_int* b, sp_int* r);
 MP_API int sp_sub(sp_int* a, sp_int* b, sp_int* r);
-#ifdef WOLFSSL_SP_MATH_ALL
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES)) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 MP_API int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r);
+#endif
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 MP_API int sp_submod(sp_int* a, sp_int* b, sp_int* m, sp_int* r);
 #endif
 #if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
@@ -841,7 +859,7 @@ MP_API int sp_mont_red(sp_int* a, sp_int* m, sp_int_digit mp);
 MP_API int sp_mont_setup(sp_int* m, sp_int_digit* rho);
 MP_API int sp_mont_norm(sp_int* norm, sp_int* m);
 
-MP_API int sp_unsigned_bin_size(sp_int* a);
+MP_API int sp_unsigned_bin_size(const sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
 MP_API int sp_to_unsigned_bin(sp_int* a, byte* out);
 MP_API int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz);

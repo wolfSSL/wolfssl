@@ -554,7 +554,7 @@ static word64 Load64BitBigEndian(const byte* a)
 
     return n;
 #else
-    return *(word64*)a;
+    return *(const word64*)a;
 #endif
 }
 
@@ -1193,7 +1193,7 @@ int wc_Shake256_Final(wc_Shake* shake, byte* hash, word32 hashLen)
         return BAD_FUNC_ARG;
     }
 
-    ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, hashLen);
+    ret = Sha3Final(shake, 0x1f, hash, WC_SHA3_256_COUNT, (byte)hashLen);
     if (ret != 0)
         return ret;
 

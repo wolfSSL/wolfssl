@@ -72,7 +72,7 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     }
     if (fcntl(fd, F_SETFD, 1) == -1) {
         WOLFSSL_MSG("Error setting F_SETFD with fcntl");
-        close(fd);
+        (void)close(fd);
         return WC_DEVCRYPTO_E;
     }
 
@@ -89,7 +89,7 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     }
 
     if (ioctl(ctx->cfd, CIOCGSESSION, &ctx->sess)) {
-        close(fd);
+        (void)close(fd);
         WOLFSSL_MSG("Error starting cryptodev session");
         return WC_DEVCRYPTO_E;
     }
@@ -108,7 +108,7 @@ void wc_DevCryptoFree(WC_CRYPTODEV* ctx)
         if (ioctl(ctx->cfd, CIOCFSESSION, &ctx->sess.ses)) {
             WOLFSSL_MSG("Error stopping cryptodev session");
         }
-        close(ctx->cfd);
+        (void)close(ctx->cfd);
     }
 }
 

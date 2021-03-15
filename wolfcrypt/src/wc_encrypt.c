@@ -488,6 +488,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         byte unicodePasswd[MAX_UNICODE_SZ];
 
         if ( (passwordSz * 2 + 2) > (int)sizeof(unicodePasswd)) {
+            ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -510,6 +511,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     }
 #endif /* HAVE_PKCS12 */
     else {
+        ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -518,6 +520,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     }
 
     if (ret != 0) {
+        ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -543,6 +546,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ret = wc_Des_SetKey(&des, key, desIv, DES_DECRYPTION);
             }
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -570,6 +574,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
             ret = wc_Des3Init(&des, NULL, INVALID_DEVID);
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -582,6 +587,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ret = wc_Des3_SetKey(&des, key, desIv, DES_DECRYPTION);
             }
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -594,6 +600,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                 ret = wc_Des3_CbcDecrypt(&des, input, input, length);
             }
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -648,6 +655,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -670,6 +678,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                     ret = wc_Rc2CbcDecrypt(&rc2, input, input, length);
             }
             if (ret != 0) {
+                ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -681,6 +690,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
         default:
+            ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -688,6 +698,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             return ALGO_ID_E;
     }
 
+    ForceZero(key, MAX_KEY_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
