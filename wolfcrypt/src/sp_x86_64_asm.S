@@ -39021,13 +39021,6 @@ _sp_256_mont_add_4:
         andq	%rsi, %r11
         subq	%rsi, %rax
         sbbq	%r10, %rcx
-        sbbq	$0x00, %r8
-        sbbq	%r11, %r9
-        adcq	$0x00, %rsi
-        andq	%rsi, %r10
-        andq	%rsi, %r11
-        subq	%rsi, %rax
-        sbbq	%r10, %rcx
         movq	%rax, (%rdi)
         sbbq	$0x00, %r8
         movq	%rcx, 8(%rdi)
@@ -39068,13 +39061,6 @@ _sp_256_mont_dbl_4:
         movq	$0x00, %r11
         adcq	%r8, %r8
         sbbq	$0x00, %r11
-        andq	%r11, %r9
-        andq	%r11, %r10
-        subq	%r11, %rdx
-        sbbq	%r9, %rax
-        sbbq	$0x00, %rcx
-        sbbq	%r10, %r8
-        adcq	$0x00, %r11
         andq	%r11, %r9
         andq	%r11, %r10
         subq	%r11, %rdx
@@ -39125,13 +39111,6 @@ _sp_256_mont_tpl_4:
         sbbq	%r9, %rax
         sbbq	$0x00, %rcx
         sbbq	%r10, %r8
-        adcq	$0x00, %r11
-        andq	%r11, %r9
-        andq	%r11, %r10
-        subq	%r11, %rdx
-        sbbq	%r9, %rax
-        sbbq	$0x00, %rcx
-        sbbq	%r10, %r8
         movq	$0xffffffff, %r9
         movq	$0xffffffff00000001, %r10
         addq	(%rsi), %rdx
@@ -39140,13 +39119,6 @@ _sp_256_mont_tpl_4:
         movq	$0x00, %r11
         adcq	24(%rsi), %r8
         sbbq	$0x00, %r11
-        andq	%r11, %r9
-        andq	%r11, %r10
-        subq	%r11, %rdx
-        sbbq	%r9, %rax
-        sbbq	$0x00, %rcx
-        sbbq	%r10, %r8
-        adcq	$0x00, %r11
         andq	%r11, %r9
         andq	%r11, %r10
         subq	%r11, %rdx
@@ -39192,13 +39164,6 @@ _sp_256_mont_sub_4:
         movq	$0x00, %rsi
         sbbq	24(%rdx), %r9
         sbbq	$0x00, %rsi
-        andq	%rsi, %r10
-        andq	%rsi, %r11
-        addq	%rsi, %rax
-        adcq	%r10, %rcx
-        adcq	$0x00, %r8
-        adcq	%r11, %r9
-        adcq	$0x00, %rsi
         andq	%rsi, %r10
         andq	%rsi, %r11
         addq	%rsi, %rax
@@ -39761,10 +39726,10 @@ L_256_get_entry_64_4_start:
         movdqa	%xmm10, %xmm8
         paddd	%xmm11, %xmm10
         pcmpeqd	%xmm9, %xmm8
-        movdqa	(%rsi), %xmm4
-        movdqa	16(%rsi), %xmm5
-        movdqa	32(%rsi), %xmm6
-        movdqa	48(%rsi), %xmm7
+        movdqu	(%rsi), %xmm4
+        movdqu	16(%rsi), %xmm5
+        movdqu	32(%rsi), %xmm6
+        movdqu	48(%rsi), %xmm7
         addq	$0x40, %rsi
         pand	%xmm8, %xmm4
         pand	%xmm8, %xmm5
@@ -39868,10 +39833,10 @@ L_256_get_entry_65_4_start:
         movdqa	%xmm10, %xmm8
         paddd	%xmm11, %xmm10
         pcmpeqd	%xmm9, %xmm8
-        movdqa	(%rsi), %xmm4
-        movdqa	16(%rsi), %xmm5
-        movdqa	32(%rsi), %xmm6
-        movdqa	48(%rsi), %xmm7
+        movdqu	(%rsi), %xmm4
+        movdqu	16(%rsi), %xmm5
+        movdqu	32(%rsi), %xmm6
+        movdqu	48(%rsi), %xmm7
         addq	$0x40, %rsi
         pand	%xmm8, %xmm4
         pand	%xmm8, %xmm5
@@ -41665,13 +41630,6 @@ L_256_mod_inv_avx2_4_usubv_sub_shr1:
         vpand	%ymm14, %ymm1, %ymm1
         vpaddd	%ymm5, %ymm0, %ymm0
         vpaddd	%ymm4, %ymm1, %ymm1
-        vpsrad	$26, %ymm1, %ymm5
-        vpsrad	$26, %ymm0, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm0, %ymm0
-        vpand	%ymm14, %ymm1, %ymm1
-        vpaddd	%ymm5, %ymm0, %ymm0
-        vpaddd	%ymm4, %ymm1, %ymm1
         vpextrd	$0x00, %xmm0, %eax
         vpextrd	$0x01, %xmm0, %r8d
         vpextrd	$2, %xmm0, %r10d
@@ -41732,13 +41690,6 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         vpand	%ymm14, %ymm3, %ymm3
         vpaddd	%ymm5, %ymm2, %ymm2
         vpaddd	%ymm4, %ymm3, %ymm3
-        vpsrad	$26, %ymm3, %ymm5
-        vpsrad	$26, %ymm2, %ymm4
-        vpermd	%ymm5, %ymm13, %ymm5
-        vpand	%ymm14, %ymm2, %ymm2
-        vpand	%ymm14, %ymm3, %ymm3
-        vpaddd	%ymm5, %ymm2, %ymm2
-        vpaddd	%ymm4, %ymm3, %ymm3
         vpextrd	$0x00, %xmm2, %eax
         vpextrd	$0x01, %xmm2, %r8d
         vpextrd	$2, %xmm2, %r10d
@@ -41752,19 +41703,14 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         vpextrd	$0x00, %xmm2, %r14d
         vpextrd	$0x00, %xmm3, %r15d
 L_256_mod_inv_avx2_4_store_done:
-        movslq	%eax, %rax
         shlq	$26, %rcx
         addq	%rcx, %rax
-        movslq	%r8d, %r8
         shlq	$26, %r9
         addq	%r9, %r8
-        movslq	%r10d, %r10
         shlq	$26, %r11
         addq	%r11, %r10
-        movslq	%r12d, %r12
         shlq	$26, %r13
         addq	%r13, %r12
-        movslq	%r14d, %r14
         shlq	$26, %r15
         addq	%r15, %r14
         movq	%r8, %rcx
@@ -43975,12 +43921,12 @@ L_384_get_entry_256_6_start:
         movdqa	%xmm14, %xmm12
         paddd	%xmm15, %xmm14
         pcmpeqd	%xmm13, %xmm12
-        movdqa	(%rsi), %xmm6
-        movdqa	16(%rsi), %xmm7
-        movdqa	32(%rsi), %xmm8
-        movdqa	48(%rsi), %xmm9
-        movdqa	64(%rsi), %xmm10
-        movdqa	80(%rsi), %xmm11
+        movdqu	(%rsi), %xmm6
+        movdqu	16(%rsi), %xmm7
+        movdqu	32(%rsi), %xmm8
+        movdqu	48(%rsi), %xmm9
+        movdqu	64(%rsi), %xmm10
+        movdqu	80(%rsi), %xmm11
         addq	$0x60, %rsi
         pand	%xmm12, %xmm6
         pand	%xmm12, %xmm7
