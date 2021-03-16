@@ -39,6 +39,8 @@
         <li>\ref ECC</li>
         <li>\ref ED25519</li>
         <li>\ref ED448</li>
+        <li>\ref ECCSI</li>
+        <li>\ref SAKKE</li>
         <li>\ref HC128</li>
         <li>\ref HMAC</li>
         <li>\ref IDEA</li>
@@ -56,3 +58,17 @@
         <li>\ref SRP</li>
     </ul>
 */
+/*!
+    \page ECCSI ECCSI API Reference
+    - \ref ECCSI_Overview
+    - \ref ECCSI_Setup
+    - \ref ECCSI_Operations
+*/
+/*!
+    \page SAKKE SAKKE API Reference
+    - \ref SAKKE_Overview
+    - \ref SAKKE_Setup
+    - \ref SAKKE_RSK
+    - \ref SAKKE_Operations
+*/
+

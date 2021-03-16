@@ -1,6 +1,6 @@
 /* ssl.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -5704,21 +5704,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case CTC_SHA256wECDSA:
             case CTC_SHA384wECDSA:
             case CTC_SHA512wECDSA:
-                WOLFSSL_MSG("ECDSA cert signature");
-                if (ssl)
-                    ssl->options.haveECDSAsig = 1;
-                else if (ctx)
-                    ctx->haveECDSAsig = 1;
-                break;
             case CTC_ED25519:
-                WOLFSSL_MSG("ED25519 cert signature");
-                if (ssl)
-                    ssl->options.haveECDSAsig = 1;
-                else if (ctx)
-                    ctx->haveECDSAsig = 1;
-                break;
             case CTC_ED448:
-                WOLFSSL_MSG("ED448 cert signature");
+                WOLFSSL_MSG("ECDSA/ED25519/ED448 cert signature");
                 if (ssl)
                     ssl->options.haveECDSAsig = 1;
                 else if (ctx)
@@ -6238,7 +6226,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 #endif
     }
     else {
-        InitDecodedCert(cert, (byte*)buff, (word32)sz, cm->heap);
+        InitDecodedCert(cert, buff, (word32)sz, cm->heap);
     }
 
     if (ret == 0)
@@ -11384,8 +11372,10 @@ int wolfSSL_restore_session_cache(const char *fname)
 #endif /* NO_SESSION_CACHE */
 
 
-void wolfSSL_load_error_strings(void)   /* compatibility only */
-{}
+void wolfSSL_load_error_strings(void)
+{
+    /* compatibility only */
+}
 
 
 int wolfSSL_library_init(void)
@@ -13411,7 +13401,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     if (idx < 0)
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+    for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
         ClientSession   clSess;
 
@@ -13435,6 +13425,8 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
         } else {
             WOLFSSL_MSG("ServerID not a match from client table");
         }
+
+        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
     wc_UnLockMutex(&session_mutex);
@@ -13536,7 +13528,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
     if (idx < 0)
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
 
-    for (; count > 0; --count, idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1) {
+    for (; count > 0; --count) {
         WOLFSSL_SESSION* current;
 
         if (idx >= SESSIONS_PER_ROW || idx < 0) { /* sanity check */
@@ -13559,6 +13551,8 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         } else {
             WOLFSSL_MSG("SessionID not a match at this idx");
         }
+
+        idx = idx ? idx - 1 : SESSIONS_PER_ROW - 1;
     }
 
     wc_UnLockMutex(&session_mutex);
@@ -22485,6 +22479,8 @@ static const char* wolfssl_ffdhe_name(word16 group)
         case WOLFSSL_FFDHE_8192:
             str = "FFDHE_8192";
             break;
+        default:
+            break;
     }
     return str;
 }
@@ -24693,32 +24689,40 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_create_callback
+ *  CRYPTO_set_dynlock_create_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_create_callback(WOLFSSL_dynlock_value* (*f)(
                                                           const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_dynlock_create_callback");
     (void)f;
 }
-#endif
-
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_lock_callback
+ *  CRYPTO_set_dynlock_lock_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_lock_callback(
              void (*f)(int, WOLFSSL_dynlock_value*, const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_set_dynlock_lock_callback");
     (void)f;
 }
-#endif
-
-#ifndef NO_WOLFSSL_STUB
+/*  wolfSSL_set_dynlock_destroy_callback
+ *  CRYPTO_set_dynlock_destroy_callback has been deprecated since openSSL 1.0.1.
+ *  This function exists for compatibility purposes because wolfSSL satisfies
+ *  thread safety without relying on the callback.
+ */
 void wolfSSL_set_dynlock_destroy_callback(
                   void (*f)(WOLFSSL_dynlock_value*, const char*, int))
 {
     WOLFSSL_STUB("CRYPTO_set_set_dynlock_destroy_callback");
     (void)f;
 }
-#endif
+
 
 #endif /* OPENSSL_EXTRA */
 
@@ -30197,8 +30201,9 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *s, const char *str)
     }
     if (s) {
         XMEMCPY(s->data, str, slen);
-        s->length = slen;
-        s->type = slen == ASN_UTC_TIME_SIZE ? ASN_UTC_TIME : ASN_GENERALIZED_TIME;
+        s->length = slen - 1; /* do not include null terminator in length */
+        s->type = slen == ASN_UTC_TIME_SIZE ? V_ASN1_UTCTIME :
+            V_ASN1_GENERALIZEDTIME;
     }
     return WOLFSSL_SUCCESS;
 }
@@ -42168,7 +42173,8 @@ err:
 #endif
 #endif /* !NO_BIO */
 
-    int wolfSSL_PEM_get_EVP_CIPHER_INFO(char* header, EncryptedInfo* cipher)
+    int wolfSSL_PEM_get_EVP_CIPHER_INFO(const char* header,
+                                        EncryptedInfo* cipher)
     {
         if (header == NULL || cipher == NULL)
             return WOLFSSL_FAILURE;
@@ -51952,9 +51958,6 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         char utc_str[ASN_UTC_TIME_SIZE];
         int utc_year = 0,utc_mon,utc_day,utc_hour,utc_min,utc_sec;
 
-        s->type = V_ASN1_UTCTIME;
-        s->length = ASN_UTC_TIME_SIZE;
-
         if (ts->tm_year >= 50 && ts->tm_year < 100){
             utc_year = ts->tm_year;
         } else if (ts->tm_year >= 100 && ts->tm_year < 150){
@@ -51968,14 +51971,12 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)utc_str, sizeof(utc_str),
                   "%02d%02d%02d%02d%02d%02dZ",
                   utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
-        XMEMCPY(s->data, (byte *)utc_str, s->length);
+        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS)
+            return NULL;
     /* GeneralizedTime */
     } else {
         char gt_str[ASN_GENERALIZED_TIME_MAX];
         int gt_year,gt_mon,gt_day,gt_hour,gt_min,gt_sec;
-
-        s->type = V_ASN1_GENERALIZEDTIME;
-        s->length = ASN_GENERALIZED_TIME_SIZE;
 
         gt_year = ts->tm_year + 1900;
         gt_mon  = ts->tm_mon + 1;
@@ -51986,7 +51987,8 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)gt_str, sizeof(gt_str),
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
-        XMEMCPY(s->data, (byte *)gt_str, s->length);
+        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS)
+            return NULL;
     }
 
     return s;
@@ -53911,61 +53913,93 @@ int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
 int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 {
     byte* p = NULL;
+    int derSz;
     WOLFSSL_ENTER("wolfSSL_X509_set_pubkey");
 
     if (cert == NULL || pkey == NULL)
         return WOLFSSL_FAILURE;
 
-    if (pkey->type == EVP_PKEY_RSA
-#ifndef NO_DSA
-            || pkey->type == EVP_PKEY_DSA
-#endif /* !NO_DSA */
-            ) {
-        p = (byte*)XMALLOC(pkey->pkey_sz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (p == NULL)
-            return WOLFSSL_FAILURE;
+    /* Regenerate since pkey->pkey.ptr may contain private key */
+    switch (pkey->type) {
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA)
+    case EVP_PKEY_RSA:
+        {
+            RsaKey* rsa;
 
-        if (cert->pubKey.buffer != NULL)
-            XFREE(cert->pubKey.buffer, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        cert->pubKey.buffer = p;
-        XMEMCPY(cert->pubKey.buffer, pkey->pkey.ptr, pkey->pkey_sz);
-        cert->pubKey.length = pkey->pkey_sz;
-#ifndef NO_DSA
-        if (pkey->type == EVP_PKEY_DSA)
-            cert->pubKeyOID = DSAk;
-        else
-#endif /* !NO_DSA */
+            if (pkey->rsa == NULL || pkey->rsa->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            rsa = (RsaKey*)pkey->rsa->internal;
+            derSz = wc_RsaPublicKeyDerSize(rsa, 1);
+            if (derSz <= 0)
+                return WOLFSSL_FAILURE;
+
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_RsaKeyToPublicDer(rsa, p, derSz)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
             cert->pubKeyOID = RSAk;
-    }
-#ifdef HAVE_ECC
-    else if (pkey->type == EVP_PKEY_EC) {
-        /* Generate since pkey->pkey.ptr may contain private key */
-        ecc_key* ecc;
-        int derSz;
-
-        if (pkey->ecc == NULL || pkey->ecc->internal == NULL)
-            return WOLFSSL_FAILURE;
-
-        ecc = (ecc_key*)pkey->ecc->internal;
-        derSz = wc_EccPublicKeyDerSize(ecc, 1);
-        if (derSz <= 0)
-            return WOLFSSL_FAILURE;
-
-        p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (p == NULL)
-            return WOLFSSL_FAILURE;
-
-        if ((derSz = wc_EccPublicKeyToDer(ecc, p, derSz, 1)) <= 0) {
-            XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            return WOLFSSL_FAILURE;
         }
-        cert->pubKey.buffer = p;
-        cert->pubKey.length = derSz;
-        cert->pubKeyOID = ECDSAk;
-    }
-#endif /* HAVE_ECC */
-    else
+        break;
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
+#if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
+        defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
+    case EVP_PKEY_DSA:
+        {
+            DsaKey* dsa;
+
+            if (pkey->dsa == NULL || pkey->dsa->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            dsa = (DsaKey*)pkey->dsa->internal;
+            /* size of pub, priv, p, q, g + ASN.1 additional information */
+            derSz = 5 * mp_unsigned_bin_size(&dsa->g) + MAX_ALGO_SZ;
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_DsaKeyToPublicDer(dsa, p, derSz)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            cert->pubKeyOID = RSAk;
+        }
+        break;
+#endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) && !NO_DSA */
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        {
+            ecc_key* ecc;
+
+            if (pkey->ecc == NULL || pkey->ecc->internal == NULL)
+                return WOLFSSL_FAILURE;
+
+            ecc = (ecc_key*)pkey->ecc->internal;
+            derSz = wc_EccPublicKeyDerSize(ecc, 1);
+            if (derSz <= 0)
+                return WOLFSSL_FAILURE;
+
+            p = (byte*)XMALLOC(derSz, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            if (p == NULL)
+                return WOLFSSL_FAILURE;
+
+            if ((derSz = wc_EccPublicKeyToDer(ecc, p, derSz, 1)) <= 0) {
+                XFREE(p, cert->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                return WOLFSSL_FAILURE;
+            }
+            cert->pubKeyOID = ECDSAk;
+        }
+        break;
+#endif
+    default:
         return WOLFSSL_FAILURE;
+    }
+    cert->pubKey.buffer = p;
+    cert->pubKey.length = derSz;
 
     return WOLFSSL_SUCCESS;
 }

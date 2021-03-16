@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -310,7 +310,7 @@ enum {
     drbgReseed    = 1,
     drbgGenerateW = 2,
     drbgGenerateH = 3,
-    drbgInitV
+    drbgInitV     = 4
 };
 
 typedef struct DRBG_internal DRBG_internal;
@@ -353,7 +353,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     len = (outSz / OUTPUT_BLOCK_LEN)
         + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
-    for (i = 0, ctr = 1; i < len; i++, ctr++) {
+    ctr = 1;
+    for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
     #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
         ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
@@ -366,8 +367,10 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         if (ret == 0)
 #endif
             ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
-        if (ret == 0)
+        if (ret == 0) {
+            ctr++;
             ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));
+        }
 
         if (ret == 0) {
             /* churning V is the only string that doesn't have the type added */
@@ -551,10 +554,12 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
     if (dLen > 0 && sLen > 0 && dLen >= sLen) {
         int sIdx, dIdx;
 
-        for (sIdx = sLen - 1, dIdx = dLen - 1; sIdx >= 0; dIdx--, sIdx--) {
+        dIdx = dLen - 1;
+        for (sIdx = sLen - 1; sIdx >= 0; sIdx--) {
             carry += (word16)d[dIdx] + (word16)s[sIdx];
             d[dIdx] = (byte)carry;
             carry >>= 8;
+            dIdx--;
         }
 
         for (; carry != 0 && dIdx >= 0; dIdx--) {

@@ -1,6 +1,6 @@
 /* hmac.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1164,6 +1164,8 @@ void wc_HmacFree(Hmac* hmac)
             wc_Sha512Free(&hmac->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            break;
     }
 }
 

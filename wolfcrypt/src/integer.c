@@ -1,6 +1,6 @@
 /* integer.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -238,7 +238,7 @@ void mp_forcezero(mp_int * a)
 
 
 /* get the size for an unsigned equivalent */
-int mp_unsigned_bin_size (mp_int * a)
+int mp_unsigned_bin_size (const mp_int * a)
 {
   int     size = mp_count_bits (a);
   return (size / 8 + ((size & 7) != 0 ? 1 : 0));
@@ -246,7 +246,7 @@ int mp_unsigned_bin_size (mp_int * a)
 
 
 /* returns the number of bits in an int */
-int mp_count_bits (mp_int * a)
+int mp_count_bits (const mp_int * a)
 {
   int     r;
   mp_digit q;
@@ -350,7 +350,7 @@ int mp_init_copy (mp_int * a, mp_int * b)
 
 
 /* copy, b = a */
-int mp_copy (mp_int * a, mp_int * b)
+int mp_copy (const mp_int * a, mp_int * b)
 {
   int     res, n;
 

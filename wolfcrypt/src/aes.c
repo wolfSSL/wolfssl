@@ -1,6 +1,6 @@
 /* aes.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -4355,12 +4355,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
 
 #ifdef OPENSSL_EXTRA
-    if (aes != NULL) {
-        XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
-        aes->aadLen = 0;
-    }
+    XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
+    aes->aadLen = 0;
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
@@ -5262,7 +5262,7 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
     else
         aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T);
 
-    for (i=0; i<abytes/16; i++) {
+    for (i=0; i<(int)(abytes/16); i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
         tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);
         X = _mm_xor_si128(X, tmp1);
@@ -5270,7 +5270,7 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
     }
     if (abytes%16) {
         last_block = _mm_setzero_si128();
-        for (j=0; j<abytes%16; j++)
+        for (j=0; j<(int)(abytes%16); j++)
             ((unsigned char*)&last_block)[j] = addt[i*16+j];
         tmp1 = last_block;
         tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);
@@ -5295,7 +5295,7 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
         HT[6] = gfmul_shifted(HT[2], HT[3]);
         HT[7] = gfmul_shifted(HT[3], HT[3]);
 
-        for (; i < nbytes/16/8; i++) {
+        for (; i < (int)(nbytes/16/8); i++) {
                 r0 = _mm_setzero_si128();
                 r1 = _mm_setzero_si128();
 
@@ -5475,7 +5475,7 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 
 #endif /* AES_GCM_AESNI_NO_UNROLL */
 
-    for (k = i*8; k < nbytes/16; k++) {
+    for (k = i*8; k < (int)(nbytes/16); k++) {
         tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
         ctr1 = _mm_add_epi32(ctr1, ONE);
         tmp1 = _mm_xor_si128(tmp1, KEY[0]);
@@ -5536,12 +5536,12 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
         }
         tmp1 = _mm_aesenclast_si128(tmp1, lastKey);
         last_block = _mm_setzero_si128();
-        for (j=0; j < nbytes%16; j++)
+        for (j=0; j < (int)(nbytes%16); j++)
             ((unsigned char*)&last_block)[j] = in[k*16+j];
         XV = last_block;
         tmp1 = _mm_xor_si128(tmp1, last_block);
         last_block = tmp1;
-        for (j=0; j < nbytes%16; j++)
+        for (j=0; j < (int)(nbytes%16); j++)
             out[k*16+j] = ((unsigned char*)&last_block)[j];
         XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
         XV = _mm_xor_si128(XV, X);

@@ -1,6 +1,6 @@
 /* wolfmath.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -55,8 +55,8 @@ This library provides big integer math functions.
 
 
 /* common math functions */
-MP_API int get_digit_count(mp_int* a);
-MP_API mp_digit get_digit(mp_int* a, int n);
+MP_API int get_digit_count(const mp_int* a);
+MP_API mp_digit get_digit(const mp_int* a, int n);
 MP_API int get_rand_digit(WC_RNG* rng, mp_digit* d);
 
 WOLFSSL_API int mp_cond_copy(mp_int* a, int copy, mp_int* b);
