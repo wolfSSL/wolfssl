@@ -95,16 +95,18 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
 
     XMEMSET(cmac, 0, sizeof(Cmac));
 
-    #ifdef WOLF_CRYPTO_CB
+#ifdef WOLF_CRYPTO_CB
     if (devId != INVALID_DEVID) {
         cmac->devId = devId;
+        cmac->devCtx = NULL;
+
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, NULL, 0, NULL, NULL,
                 type, unused);
         if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
         /* fall-through when unavailable */
     }
-    #endif
+#endif
 
     if (key == NULL)
         return BAD_FUNC_ARG;

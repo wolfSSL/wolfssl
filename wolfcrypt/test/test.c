@@ -28884,8 +28884,16 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
 
         XMEMSET(tag, 0, sizeof(tag));
         tagSz = AES_BLOCK_SIZE;
+
+#if !defined(HAVE_FIPS) || \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)    
+        if (wc_InitCmac_ex(cmac, tc->k, tc->kSz, tc->type, NULL, HEAP_HINT, devId) != 0)
+#else
         if (wc_InitCmac(cmac, tc->k, tc->kSz, tc->type, NULL) != 0)
+#endif
+        {
             ERROR_OUT(-12000, out);
+        }
         if (tc->partial) {
             if (wc_CmacUpdate(cmac, tc->m,
                                  tc->mSz/2 - tc->partial) != 0)
@@ -36686,6 +36694,10 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     if (ret == 0)
         ret = pbkdf2_test();
     #endif
+#endif
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    if (ret == 0)
+        ret = cmac_test();
 #endif
 
     /* reset devId */
