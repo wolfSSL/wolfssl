@@ -4520,13 +4520,16 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
                                  DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
+    if (cert == NULL) {
+        FreeDer(&der);
         return MEMORY_E;
+    }
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
         FreeDecodedCert(cert);
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+        FreeDer(&der);
         return ret;
     }
     WOLFSSL_MSG("\tParsed new trusted peer cert");
@@ -4536,6 +4539,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
     if (peerCert == NULL) {
         FreeDecodedCert(cert);
         XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+        FreeDer(&der);
         return MEMORY_E;
     }
     XMEMSET(peerCert, 0, sizeof(TrustedPeerCert));
@@ -4572,6 +4576,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
             FreeDecodedCert(cert);
             XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
             FreeTrustedPeer(peerCert, cm->heap);
+            FreeDer(&der);
             return MEMORY_E;
         }
         XMEMCPY(peerCert->sig, cert->signature, cert->sigLength);
@@ -4619,6 +4624,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
                 FreeDecodedCert(cert);
                 XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
                 FreeTrustedPeer(peerCert, cm->heap);
+                FreeDer(&der);
                 return BAD_MUTEX_E;
             }
         }
@@ -5537,8 +5543,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             FreeDer(&der);
             return BAD_FUNC_ARG;
         }
-        /* add trusted peer cert */
+        /* add trusted peer cert. der is freed within */
         ret = AddTrustedPeer(ctx->cm, &der, !ctx->verifyNone);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error adding trusted peer");
+        }
         done = 1;
     }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
