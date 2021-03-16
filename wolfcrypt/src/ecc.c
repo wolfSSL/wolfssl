@@ -5842,13 +5842,13 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
         ret = wc_HmacUpdate(&hmac, oct, 1);
 
     if (ret == 0)
-        wc_HmacUpdate(&hmac, x, xSz);
+        ret = wc_HmacUpdate(&hmac, x, xSz);
 
     if (ret == 0)
-        wc_HmacUpdate(&hmac, h1, h1Sz);
+        ret = wc_HmacUpdate(&hmac, h1, h1Sz);
 
     if (ret == 0)
-        wc_HmacFinal(&hmac, out);
+        ret = wc_HmacFinal(&hmac, out);
 
     wc_HmacFree(&hmac);
     return ret;
