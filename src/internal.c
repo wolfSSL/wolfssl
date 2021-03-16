@@ -6367,7 +6367,9 @@ void FreeSuites(WOLFSSL* ssl)
 #endif
     {
     #ifdef OPENSSL_ALL
-        wolfSSL_sk_SSL_CIPHER_free(ssl->suites->stack);
+        if (ssl->suites != NULL) {
+            wolfSSL_sk_SSL_CIPHER_free(ssl->suites->stack);
+        }
     #endif
         XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     }
