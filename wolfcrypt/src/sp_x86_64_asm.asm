@@ -38455,6 +38455,13 @@ sp_256_mont_add_4 PROC
         and	r13, rdx
         sub	rax, rdx
         sbb	r9, r12
+        sbb	r10, 0
+        sbb	r11, r13
+        adc	rdx, 0
+        and	r12, rdx
+        and	r13, rdx
+        sub	rax, rdx
+        sbb	r9, r12
         mov	QWORD PTR [rcx], rax
         sbb	r10, 0
         mov	QWORD PTR [rcx+8], r9
@@ -38488,6 +38495,13 @@ sp_256_mont_dbl_4 PROC
         mov	r13, 0
         adc	r10, r10
         sbb	r13, 0
+        and	r11, r13
+        and	r12, r13
+        sub	rax, r13
+        sbb	r8, r11
+        sbb	r9, 0
+        sbb	r10, r12
+        adc	r13, 0
         and	r11, r13
         and	r12, r13
         sub	rax, r13
@@ -38531,6 +38545,13 @@ sp_256_mont_tpl_4 PROC
         sbb	r8, r11
         sbb	r9, 0
         sbb	r10, r12
+        adc	r13, 0
+        and	r11, r13
+        and	r12, r13
+        sub	rax, r13
+        sbb	r8, r11
+        sbb	r9, 0
+        sbb	r10, r12
         mov	r11, 4294967295
         mov	r12, 18446744069414584321
         add	rax, QWORD PTR [rdx]
@@ -38539,6 +38560,13 @@ sp_256_mont_tpl_4 PROC
         mov	r13, 0
         adc	r10, QWORD PTR [rdx+24]
         sbb	r13, 0
+        and	r11, r13
+        and	r12, r13
+        sub	rax, r13
+        sbb	r8, r11
+        sbb	r9, 0
+        sbb	r10, r12
+        adc	r13, 0
         and	r11, r13
         and	r12, r13
         sub	rax, r13
@@ -38577,6 +38605,13 @@ sp_256_mont_sub_4 PROC
         mov	rdx, 0
         sbb	r11, QWORD PTR [r8+24]
         sbb	rdx, 0
+        and	r12, rdx
+        and	r13, rdx
+        add	rax, rdx
+        adc	r9, r12
+        adc	r10, 0
+        adc	r11, r13
+        adc	rdx, 0
         and	r12, rdx
         and	r13, rdx
         add	rax, rdx
@@ -39345,10 +39380,10 @@ L_256_get_entry_64_4_start:
         movdqa	xmm8, xmm10
         paddd	xmm10, xmm11
         pcmpeqd	xmm8, xmm9
-        movdqa	xmm4, [rdx]
-        movdqa	xmm5, [rdx+16]
-        movdqa	xmm6, [rdx+32]
-        movdqa	xmm7, [rdx+48]
+        movdqu	xmm4, [rdx]
+        movdqu	xmm5, [rdx+16]
+        movdqu	xmm6, [rdx+32]
+        movdqu	xmm7, [rdx+48]
         add	rdx, 64
         pand	xmm4, xmm8
         pand	xmm5, xmm8
@@ -39432,10 +39467,10 @@ L_256_get_entry_65_4_start:
         movdqa	xmm8, xmm10
         paddd	xmm10, xmm11
         pcmpeqd	xmm8, xmm9
-        movdqa	xmm4, [rdx]
-        movdqa	xmm5, [rdx+16]
-        movdqa	xmm6, [rdx+32]
-        movdqa	xmm7, [rdx+48]
+        movdqu	xmm4, [rdx]
+        movdqu	xmm5, [rdx+16]
+        movdqu	xmm6, [rdx+32]
+        movdqu	xmm7, [rdx+48]
         add	rdx, 64
         pand	xmm4, xmm8
         pand	xmm5, xmm8
@@ -40774,6 +40809,13 @@ L_256_mod_inv_avx2_4_usubv_sub_shr1:
         vpand	ymm1, ymm1, ymm14
         vpaddd	ymm0, ymm0, ymm5
         vpaddd	ymm1, ymm1, ymm4
+        vpsrad	ymm5, ymm1, 26
+        vpsrad	ymm4, ymm0, 26
+        vpermd	ymm5, ymm13, ymm5
+        vpand	ymm0, ymm0, ymm14
+        vpand	ymm1, ymm1, ymm14
+        vpaddd	ymm0, ymm0, ymm5
+        vpaddd	ymm1, ymm1, ymm4
         vpextrd	eax, xmm0, 0
         vpextrd	r10d, xmm0, 1
         vpextrd	r12d, xmm0, 2
@@ -40834,6 +40876,13 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         vpand	ymm3, ymm3, ymm14
         vpaddd	ymm2, ymm2, ymm5
         vpaddd	ymm3, ymm3, ymm4
+        vpsrad	ymm5, ymm3, 26
+        vpsrad	ymm4, ymm2, 26
+        vpermd	ymm5, ymm13, ymm5
+        vpand	ymm2, ymm2, ymm14
+        vpand	ymm3, ymm3, ymm14
+        vpaddd	ymm2, ymm2, ymm5
+        vpaddd	ymm3, ymm3, ymm4
         vpextrd	eax, xmm2, 0
         vpextrd	r10d, xmm2, 1
         vpextrd	r12d, xmm2, 2
@@ -40847,14 +40896,19 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         vpextrd	edi, xmm2, 0
         vpextrd	esi, xmm3, 0
 L_256_mod_inv_avx2_4_store_done:
+        movslq	rax, eax
         shl	r9, 26
         add	rax, r9
+        movslq	r10, r10d
         shl	r11, 26
         add	r10, r11
+        movslq	r12, r12d
         shl	r13, 26
         add	r12, r13
+        movslq	r14, r14d
         shl	r15, 26
         add	r14, r15
+        movslq	rdi, edi
         shl	rsi, 26
         add	rdi, rsi
         mov	r9, r10
@@ -43037,12 +43091,12 @@ L_384_get_entry_64_6_start:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqa	xmm6, [rdx]
-        movdqa	xmm7, [rdx+16]
-        movdqa	xmm8, [rdx+32]
-        movdqa	xmm9, [rdx+48]
-        movdqa	xmm10, [rdx+64]
-        movdqa	xmm11, [rdx+80]
+        movdqu	xmm6, [rdx]
+        movdqu	xmm7, [rdx+16]
+        movdqu	xmm8, [rdx+32]
+        movdqu	xmm9, [rdx+48]
+        movdqu	xmm10, [rdx+64]
+        movdqu	xmm11, [rdx+80]
         add	rdx, 96
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -43144,12 +43198,12 @@ L_384_get_entry_65_6_start:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqa	xmm6, [rdx]
-        movdqa	xmm7, [rdx+16]
-        movdqa	xmm8, [rdx+32]
-        movdqa	xmm9, [rdx+48]
-        movdqa	xmm10, [rdx+64]
-        movdqa	xmm11, [rdx+80]
+        movdqu	xmm6, [rdx]
+        movdqu	xmm7, [rdx+16]
+        movdqu	xmm8, [rdx+32]
+        movdqu	xmm9, [rdx+48]
+        movdqu	xmm10, [rdx+64]
+        movdqu	xmm11, [rdx+80]
         add	rdx, 96
         pand	xmm6, xmm12
         pand	xmm7, xmm12
