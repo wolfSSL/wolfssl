@@ -385,7 +385,7 @@ struct WOLFSSL_EVP_PKEY_CTX {
 struct WOLFSSL_EVP_ENCODE_CTX {
     void* heap;
     int   remaining;     /* num of bytes in data[] */
-    byte  data[128];     /* storage for unprocessed raw data */
+    byte  data[BASE64_ENCODE_BLOCK_SIZE];/* storage for unprocessed raw data */
 };
 typedef struct WOLFSSL_EVP_ENCODE_CTX WOLFSSL_EVP_ENCODE_CTX;
 

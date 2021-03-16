@@ -6880,26 +6880,20 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
 
 /* Base64 encoding APIs */
 #if defined(WOLFSSL_BASE64_ENCODE) || defined(WOLFSSL_BASE64_DECODE)
-static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap);
+
 /*  wolfSSL_EVP_ENCODE_CTX_new allocates WOLFSSL_EVP_ENCODE_CTX
  *  Returns WOLFSSL_EVP_ENCODE_CTX structure on success, NULL on failure.
  */
 struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
 {
-    return wolfSSL_EVP_ENCODE_CTX_new_ex(NULL);
-}
-/* wolfSSL_EVP_ENCODE_CTX_new_ex is a helper function of
- * wolfSSL_EVP_ENCODE_CTX_new to allocate WOLFSSL_EVP_ENCODE_CTX structure.
- */
-static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
-{
     WOLFSSL_EVP_ENCODE_CTX* ctx = NULL;
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_new");
-    ctx = (WOLFSSL_EVP_ENCODE_CTX*)XMALLOC( sizeof(WOLFSSL_EVP_ENCODE_CTX),heap,DYNAMIC_TYPE_OPENSSL );
+    ctx = (WOLFSSL_EVP_ENCODE_CTX*)XMALLOC( sizeof(WOLFSSL_EVP_ENCODE_CTX),
+             NULL, DYNAMIC_TYPE_OPENSSL );
 
-    if(ctx != NULL) {
-        XMEMSET(ctx,0,sizeof(WOLFSSL_EVP_ENCODE_CTX) );
-        ctx->heap = heap;
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(WOLFSSL_EVP_ENCODE_CTX) );
+        ctx->heap = NULL;
         return ctx;
     }
     return NULL;
@@ -6909,13 +6903,13 @@ static struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new_ex(void* heap)
 void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_free");
-    if(ctx != NULL) {
-        XFREE(ctx,ctx->heap,DYNAMIC_TYPE_OPENSSL);
+    if (ctx != NULL) {
+        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_OPENSSL);
     }
 }
 #endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
 #if defined(WOLFSSL_BASE64_ENCODE)
-/*  wolfSSL_EVP_EncodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX ojbect
+/*  wolfSSL_EVP_EncodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX object
  *  for the subsequent wolfSSL_EVP_EncodeUpdate.
  */
 void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
@@ -6923,19 +6917,19 @@ void wolfSSL_EVP_EncodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_EVP_EncodeInit");
 
     /* clean up ctx */
-    if(ctx != NULL) {
+    if (ctx != NULL) {
         ctx->remaining = 0;
-        XMEMSET(ctx->data,0, sizeof(ctx->data));
+        XMEMSET(ctx->data, 0, sizeof(ctx->data));
     }
 }
-/*  wolfSSL_EVP_EncodeUpdate encodes the input data in 64-byte units
- *  and outputs it to out. If less than 64 bytes of data remain, save it in
+/*  wolfSSL_EVP_EncodeUpdate encodes the input data in 48-byte units
+ *  and outputs it to out. If less than 48 bytes of data remain, save it in
  *  ctx. The data given in the subsequent wolfSSL_EVP_EncodeUpdate
  *  is combined with the data stored in CTX and used for encoding.
  *  Returns 1 on success, 0 on error.
  */
 int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
-                unsigned char*out, int *outl, const unsigned char*in, int inl)
+            unsigned char* out, int* outl, const unsigned char* in, int inl)
 {
     int cpysz;
     int res;
@@ -6943,25 +6937,28 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     WOLFSSL_ENTER("wolfSSL_EVP_EncodeUpdate");
 
-    if( ctx == NULL || out == NULL || in == NULL || outl == NULL )
+    if (ctx == NULL || out == NULL || in == NULL || outl == NULL)
         return 0;
 
     *outl = 0;
 
-    /* if the remaining data exit in the ctx, add input data to them to create a block(48bytes) for encoding*/
-    if( ctx->remaining > 0 && inl > 0) {
-        cpysz = min( (BASE64_ENCODE_BLOCK_SIZE - ctx->remaining), inl );
-        XMEMCPY( ctx->data + ctx->remaining, in, cpysz);
+    /* if the remaining data exit in the ctx, add input data to them 
+     * to create a block(48bytes) for encoding
+     */
+    if (ctx->remaining > 0 && inl > 0) {
+        cpysz = min((BASE64_ENCODE_BLOCK_SIZE - ctx->remaining), inl);
+        XMEMCPY(ctx->data + ctx->remaining, in, cpysz);
         ctx->remaining += cpysz;
         in             += cpysz;
         inl            -= cpysz;
 
         /* check if a block for encoding exists in ctx.data, if so encode it */
-        if( ctx->remaining >= BASE64_ENCODE_BLOCK_SIZE ) {
+        if (ctx->remaining >= BASE64_ENCODE_BLOCK_SIZE) {
             /* Base64_Encode asks the out buff size via the 4th param*/
             outsz = BASE64_ENCODED_BLOCK_SIZE + 1;
-            res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, &outsz);
-            if( res == 0)
+            res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, 
+            &outsz);
+            if (res == 0)
                 *outl = outsz;
             else
                 return 0;   /* return with error */
@@ -6972,12 +6969,14 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             return  1;
         }
     }
-    /* Here, there is no data left in ctx, so try processing the data of the specified input data.  */
+    /* Here, there is no data left in ctx, so try processing the data of 
+     * the specified input data.
+     */
 
-    while( inl >= BASE64_ENCODE_BLOCK_SIZE) {
+    while (inl >= BASE64_ENCODE_BLOCK_SIZE) {
         outsz = BASE64_ENCODED_BLOCK_SIZE + 1;   /* 64 byte and one for LF*/
-        res = Base64_Encode( in, BASE64_ENCODE_BLOCK_SIZE,out,&outsz);
-        if( res == 0) {
+        res = Base64_Encode(in, BASE64_ENCODE_BLOCK_SIZE,out,&outsz);
+        if (res == 0) {
             in    += BASE64_ENCODE_BLOCK_SIZE;
             inl   -= BASE64_ENCODE_BLOCK_SIZE;
             out   += outsz;
@@ -6990,9 +6989,9 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     }
 
     /* if remaining data exit, copy them into ctx for the next call*/
-    if( inl > 0 ) {
-        XMEMSET( ctx->data,0,sizeof(ctx->data));
-        XMEMCPY( ctx->data, in, inl);
+    if (inl > 0) {
+        XMEMSET(ctx->data, 0, sizeof(ctx->data));
+        XMEMCPY(ctx->data, in, inl);
         ctx->remaining = inl;
     }
 
@@ -7001,66 +7000,36 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 /*  wolfSSL_EVP_EncodeFinal encodes data in ctx and outputs to out.
  */
 void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
-                unsigned char*out, int *outl)
+                unsigned char* out, int* outl)
 {
     word32 outsz = 0;
     int res;
 
     WOLFSSL_ENTER("wolfSSL_EVP_EncodeFinal");
 
-    if( outl == NULL)
+    if (outl == NULL)
         return;
 
-    if( ctx == NULL || out == NULL  ) {
+    if (ctx == NULL || out == NULL) {
         *outl = 0;
         return;
     }
     /* process remaining data in ctx */
     outsz = BASE64_ENCODED_BLOCK_SIZE + 1;   /* 64 byte and one for LF*/
-    res = Base64_Encode( ctx->data, ctx->remaining ,out, &outsz);
-    if( res == 0)
+    res = Base64_Encode(ctx->data, ctx->remaining ,out, &outsz);
+    if (res == 0)
         *outl = outsz;
     else
         *outl = 0;
 
     ctx->remaining = 0;
-    XMEMSET( ctx->data,0,sizeof(ctx->data));
+    XMEMSET(ctx->data, 0, sizeof(ctx->data));
 
     return;
 }
 #endif /* WOLFSSL_BASE64_ENCODE */
 #if defined(WOLFSSL_BASE64_DECODE)
-/* borrowed from coding.c */
-static WC_INLINE int Base64_SkipNewline(const byte* in, word32* inLen,
-             word32* outJ)
-{
-    word32 len = *inLen;
-    word32 j = *outJ;
-    if (len && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
-        byte endLine = in[j++];
-        len--;
-        while (len && endLine == ' ') {   /* allow trailing whitespace */
-            endLine = in[j++];
-            len--;
-        }
-        if (endLine == '\r') {
-            if (len) {
-                endLine = in[j++];
-                len--;
-            }
-        }
-        if (endLine != '\n') {
-            WOLFSSL_MSG("Bad end of line in Base64 Decode");
-            return ASN_INPUT_E;
-        }
-    }
-    if (!len) {
-        return BUFFER_E;
-    }
-    *inLen = len;
-    *outJ = j;
-    return 0;
-}
+
 /*  wolfSSL_EVP_DecodeInit initializes specified WOLFSSL_EVP_ENCODE_CTX struct
  *  for subsequent wolfSSL_EVP_DecodeUpdate.
  */
@@ -7068,9 +7037,9 @@ void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeInit");
     /* clean up ctx */
-    if(ctx != NULL) {
+    if (ctx != NULL) {
         ctx->remaining = 0;
-        XMEMSET(ctx->data,0, sizeof(ctx->data));
+        XMEMSET(ctx->data, 0, sizeof(ctx->data));
     }
 }
 /*  wolfSSL_EVP_DecodeUpdate encodes the input data in 4-byte units
@@ -7081,7 +7050,7 @@ void wolfSSL_EVP_DecodeInit(WOLFSSL_EVP_ENCODE_CTX* ctx)
  *  clients should call wolfSSL_EVP_DecodeFinal as next call.
  */
 int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
-            unsigned char*out, int *outl, const unsigned char*in, int inl)
+            unsigned char* out, int* outl, const unsigned char* in, int inl)
 {
     word32 outsz = 0;
     word32 j = 0;
@@ -7089,14 +7058,18 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     int    res;
     int    pad = 0;
     int    i;
-    char es;
+    int cpySz;
+    unsigned char c;
+    int pad3 = 0;
+    int pad4 = 0;
+    byte e[4];
 
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeUpdate");
 
     if (outl == NULL)
         return -1;
 
-    if (ctx == NULL || out == NULL || in == NULL ) {
+    if (ctx == NULL || out == NULL || in == NULL) {
         *outl = 0;
         return -1;
     }
@@ -7111,25 +7084,23 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     /* if the remaining data exist in the ctx, add input data to them to create
     a block(4bytes) for decoding*/
-    if( ctx->remaining > 0 && inl > 0) {
-        int cpysz;
-        unsigned char e0;
+    if ( ctx->remaining > 0 && inl > 0) {
 
-        cpysz = min( (BASE64_DECODE_BLOCK_SIZE - ctx->remaining), inl );
+        cpySz = min((BASE64_DECODE_BLOCK_SIZE - ctx->remaining), inl);
 
-        for ( i = 0; cpysz > 0 && inLen > 0;i++) {
+        for ( i = 0; cpySz > 0 && inLen > 0; i++) {
             if ((res = Base64_SkipNewline(in, &inLen, &j))
                                             == ASN_INPUT_E) {
                 return -1;  /* detected an illegal char in input */
             }
-            e0 = in[j++];
+            c = in[j++];
 
-            if (e0 == '=')
+            if (c == '=')
                 pad = 1;
 
-            *(ctx->data + ctx->remaining + i) = e0;
+            *(ctx->data + ctx->remaining + i) = c;
             inLen--;
-            cpysz--;
+            cpySz--;
         }
 
         outsz = sizeof(ctx->data);
@@ -7149,11 +7120,6 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     /* process data in input buffer */
     while (inLen > 3) {
-        int pad3 = 0;
-        int pad4 = 0;
-
-        byte e[4];
-
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             if (res == BUFFER_E) {
                 break;
@@ -7232,20 +7198,20 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
     }
     /* copy left data to ctx */
     if (inLen > 0) {
-        unsigned char el;
+
         XMEMSET(ctx->data, 0, sizeof(ctx->data));
 
         i = 0;
-        while ( inLen > 0) {
-            el = in[j++];
-            if (el== '\n' || el == '\r' || el == ' ') {
+        while (inLen > 0) {
+            c = in[j++];
+            if (c== '\n' || c == '\r' || c == ' ') {
                 inLen--;
                 continue;
             }
-            if (el == '=') {
+            if (c == '=') {
                 pad = 1;
             }
-            ctx->data[i++] = el;
+            ctx->data[i++] = c;
             ctx->remaining++;
             inLen--;
         }
@@ -7257,15 +7223,15 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     }
     /* if the last data is '\n', remove it */
-    es = in[j - 1];
-    if (es == '\n') {
-        es = (in[j - 2]);
-        if (es == '=')
+    c = in[j - 1];
+    if (c == '\n') {
+        c = (in[j - 2]);
+        if (c == '=')
             return 0;
         else
             return 1;
     }
-    if (es == '=')
+    if (c == '=')
         return 0;
     else
         return 1;
@@ -7276,7 +7242,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
  *  Returns 1 on success, -1 on failure.
  */
 int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
-                unsigned char*out, int *outl)
+                unsigned char* out, int* outl)
 {
     word32 outsz = 0;
     word32 inLen;
@@ -7285,36 +7251,40 @@ int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     WOLFSSL_ENTER("wolfSSL_EVP_DecodeFinal");
 
-    if (ctx != NULL) {
-        if (ctx->remaining > 0) {
-            inLen = ctx->remaining;
-            if ((res = Base64_SkipNewline(ctx->data, &inLen, &j)) != 0) {
-                *outl = 0;
-                if (res == BUFFER_E)
-                    return 1;
-                else
-                    return -1;
-            }
+    if (outl == NULL)
+        return -1;
 
+    if (ctx == NULL || out == NULL ) {
+        *outl = 0;
+        return -1;
+    }
 
-            outsz = ctx->remaining;
-            res = Base64_Decode(ctx->data, ctx->remaining, out, &outsz);
-            if (res == 0) {
-                *outl = outsz;
-                return 1;
-            }
-            else {
-                *outl = 0;
+    if (ctx->remaining > 0) {
+        inLen = ctx->remaining;
+        if ((res = Base64_SkipNewline(ctx->data, &inLen, &j)) != 0) {
+            *outl = 0;
+            if (res == BUFFER_E) /* means no valid data to decode in buffer */
+                return  1; /* returns as success with no output */
+            else
                 return -1;
-            }
+        }
+
+
+        outsz = ctx->remaining;
+        res = Base64_Decode(ctx->data, ctx->remaining, out, &outsz);
+        if (res == 0) {
+            *outl = outsz;
+            return 1;
         }
         else {
             *outl = 0;
-            return 1;
+            return -1;
         }
     }
-
-    return -1;
+    else {
+        *outl = 0;
+        return 1;
+    }
 }
 #endif /* WOLFSSL_BASE64_DECODE */
 
