@@ -2598,7 +2598,7 @@ static void test_wolfSSL_EVP_EncodeUpdate(void)
     total += outl;
 
     AssertIntNE(outl, 0);   /* some output is expected this time*/
-    AssertIntEQ(outl, BASE64_ENCODED_BLOCK_SIZE +1); /* 64 bytes and LF */
+    AssertIntEQ(outl, BASE64_ENCODE_RESULT_BLOCK_SIZE +1); /* 64 bytes and LF */
     AssertIntEQ(
         XSTRNCMP((const char*)encOutBuff,(const char*)enc1,sizeof(enc1) ),0);
 
@@ -2669,7 +2669,8 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
     WOLFSSL_EVP_ENCODE_CTX* ctx = wolfSSL_EVP_ENCODE_CTX_new();
     wolfSSL_EVP_DecodeInit(ctx);
 
-    const unsigned char enc1[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
+    const unsigned char enc1[]   =
+            {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
 /*    const unsigned char plain1[] =
     {"This is a base64 decoding test."} */
 
@@ -2736,7 +2737,8 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
 
     /* decode correct base64 string */
 
-        const unsigned char enc2[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
+        const unsigned char enc2[]   =
+        {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg==\n"};
         const unsigned char plain2[] =
         {"This is a base64 decoding test."};
 
@@ -2768,7 +2770,8 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
 
     /* decode correct base64 string which does not have '\n' in its last*/
 
-        const unsigned char enc3[]   = {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg=="}; /* 44 chars */
+        const unsigned char enc3[]   =
+        {"VGhpcyBpcyBhIGJhc2U2NCBkZWNvZGluZyB0ZXN0Lg=="}; /* 44 chars */
         const unsigned char plain3[] =
         {"This is a base64 decoding test."}; /* 31 chars */
 
@@ -2801,8 +2804,9 @@ static void test_wolfSSL_EVP_DecodeUpdate(void)
 
     /* decode string which has a padding char ('=') in the illegal position*/
 
-        const unsigned char enc4[]   = {"VGhpcyBpcyBhIGJhc2U2N=CBkZWNvZGluZyB0ZXN0Lg==\n"};
-                       /*      ^-- illegal padding */
+        const unsigned char enc4[]   =
+            {"VGhpcyBpcyBhIGJhc2U2N=CBkZWNvZGluZyB0ZXN0Lg==\n"};
+
 
     wolfSSL_EVP_EncodeInit(ctx);
 

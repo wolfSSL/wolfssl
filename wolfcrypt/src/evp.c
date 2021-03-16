@@ -6955,7 +6955,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         /* check if a block for encoding exists in ctx.data, if so encode it */
         if (ctx->remaining >= BASE64_ENCODE_BLOCK_SIZE) {
             /* Base64_Encode asks the out buff size via the 4th param*/
-            outsz = BASE64_ENCODED_BLOCK_SIZE + 1;
+            outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1;
             res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, 
             &outsz);
             if (res == 0)
@@ -6974,7 +6974,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
      */
 
     while (inl >= BASE64_ENCODE_BLOCK_SIZE) {
-        outsz = BASE64_ENCODED_BLOCK_SIZE + 1;   /* 64 byte and one for LF*/
+        outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1;/* 64 byte and one for LF*/
         res = Base64_Encode(in, BASE64_ENCODE_BLOCK_SIZE,out,&outsz);
         if (res == 0) {
             in    += BASE64_ENCODE_BLOCK_SIZE;
@@ -7015,7 +7015,7 @@ void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
         return;
     }
     /* process remaining data in ctx */
-    outsz = BASE64_ENCODED_BLOCK_SIZE + 1;   /* 64 byte and one for LF*/
+    outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1; /* 64 byte and one for LF*/
     res = Base64_Encode(ctx->data, ctx->remaining ,out, &outsz);
     if (res == 0)
         *outl = outsz;
