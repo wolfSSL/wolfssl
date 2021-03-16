@@ -696,6 +696,7 @@ enum AlertLevel {
  * Since wolfSSL 4.7.0, the following functions use this macro:
  * - wolfSSL_CTX_load_verify_locations
  * - wolfSSL_X509_LOOKUP_load_file
+ * - wolfSSL_EVP_PKEY_cmp
  */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     #define WS_RETURN_CODE(item1,item2) \

@@ -1975,17 +1975,29 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 }
 #endif
 
+/* wolfSSL_EVP_PKEY_cmp
+ * returns 0 on success, -1 on failure.
+ *
+ * This behavior is different from openssl.
+ *  EVP_PKEY_cmp returns:
+ *    1 : two keys match
+ *    0 : do not match
+ *    -1: key types are different
+ *    -2: the operation is not supported
+ * If you mant this function behave the same as openSSL,
+ * define WOLFSSL_ERROR_CODE_OPENSSL so that WS_RETURN_CODE fills the gap.
+ */
 WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 {
     int ret = -1; /* failure */
     int a_sz = 0, b_sz = 0;
 
     if (a == NULL || b == NULL)
-        return ret;
+        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
 
     /* check its the same type of key */
     if (a->type != b->type)
-        return ret;
+        return WS_RETURN_CODE(ret, -1);
 
     /* get size based on key type */
     switch (a->type) {
@@ -2006,27 +2018,30 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
         break;
 #endif /* HAVE_ECC */
     default:
-        return ret;
+        return WS_RETURN_CODE(ret, -2);
     } /* switch (a->type) */
 
     /* check size */
     if (a_sz <= 0 || b_sz <= 0 || a_sz != b_sz) {
-        return ret;
+        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
     }
 
     /* check public key size */
     if (a->pkey_sz > 0 && b->pkey_sz > 0 && a->pkey_sz != b->pkey_sz) {
-        return ret;
+        return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
     }
 
     /* check public key */
     if (a->pkey.ptr && b->pkey.ptr) {
         if (XMEMCMP(a->pkey.ptr, b->pkey.ptr, a->pkey_sz) != 0) {
-            return ret;
+            return WS_RETURN_CODE(ret, WOLFSSL_FAILURE);
         }
     }
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ret = 1; /* the keys match */
+#else
     ret = 0; /* success */
-
+#endif
     return ret;
 }
 
@@ -4124,9 +4139,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ctx->gcmAuthInSz = 0;
 #endif
+            return WOLFSSL_SUCCESS;
         }
 
-        return WOLFSSL_SUCCESS;
+        return WOLFSSL_FAILURE;
     }
 
     /* Permanent stub for Qt compilation. */
