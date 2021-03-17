@@ -5982,8 +5982,13 @@ then
 fi
 if test "$ENABLED_AESGCM_STREAM" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
+    if test "$ENABLED_AESGCM" = "no"
+    then
+        AC_MSG_ERROR([AES-GCM streaming enabled but AES-GCM is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
+    fi
 fi
 
 

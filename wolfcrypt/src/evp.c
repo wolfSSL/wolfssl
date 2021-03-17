@@ -4521,9 +4521,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
 #ifdef WOLFSSL_AESGCM_STREAM
             /* Initialize with key and IV if available. */
-            if (wc_AesGcmInit(&ctx->cipher.aes, key,
-                                    (key == NULL) ? 0 : ctx->keyLen, iv,
-                                    (iv == NULL) ? 0 : GCM_NONCE_MID_SZ) != 0) {
+            if (wc_AesGcmInit(&ctx->cipher.aes,
+                                key, (key == NULL) ? 0 : ctx->keyLen,
+                                iv, (iv == NULL) ? 0 : GCM_NONCE_MID_SZ) != 0) {
                 WOLFSSL_MSG("wc_AesGcmInit() failed");
                 return WOLFSSL_FAILURE;
             }
@@ -5221,13 +5221,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                              int ivLen)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv_length");
-        if (ctx) {
+        if (ctx)
             ctx->ivSz= ivLen;
-        #ifdef WOLFSSL_AESGCM_STREAM
-            /* Store IV len in AES object for init. */
-            ctx->cipher.aes.nonceSz = ivLen;
-        #endif /* WOLFSSL_AESGCM_STREAM */
-        }
         else
             return WOLFSSL_FAILURE;
 
@@ -5411,12 +5406,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 }
                 if (ret == 0) {
                     if (ctx->enc) {
-                        /* Calcuate authentication tag. */
+                        /* Calculate authentication tag. */
                         ret = wc_AesGcmEncryptFinal(&ctx->cipher.aes,
                             ctx->authTag, ctx->authTagSz);
                     }
                     else {
-                        /* Calcuate authentication tag and compare. */
+                        /* Calculate authentication tag and compare. */
                         ret = wc_AesGcmDecryptFinal(&ctx->cipher.aes,
                             ctx->authTag, ctx->authTagSz);
                     }
