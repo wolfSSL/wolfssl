@@ -41554,6 +41554,7 @@ cleanup:
         pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;
+        XMEMSET(pem, 0, l);
 
         i = 0;
         if (wc_PemGetHeaderFooter(type, NULL, &footer) != 0) {
