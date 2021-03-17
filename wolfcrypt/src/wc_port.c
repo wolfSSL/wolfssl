@@ -441,11 +441,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
     XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
 
-    #ifdef _WIN32_WCE
-    ctx->hFind = FindFirstFileA((LPCWSTR) ctx->name, &ctx->FindFileData);
-    #else
     ctx->hFind = FindFirstFileA(ctx->name, &ctx->FindFileData);
-    #endif
     if (ctx->hFind == INVALID_HANDLE_VALUE) {
         WOLFSSL_MSG("FindFirstFile for path verify locations failed");
         return BAD_PATH_ERROR;

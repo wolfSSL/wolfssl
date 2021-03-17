@@ -4577,8 +4577,6 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
     DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #else
-        int idxenc;
-        int inner_idx_enc;
         byte* enc[BENCH_MAX_PENDING];
     #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
@@ -4586,8 +4584,6 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
           /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
             DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
             #else
-              int idxout;
-              int inner_idx_out;
               byte* out[BENCH_MAX_PENDING];
         #endif
     #else

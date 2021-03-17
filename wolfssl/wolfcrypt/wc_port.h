@@ -631,6 +631,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  SEEK_END
     #define XBADFILE   NULL
     #define XFGETS     fgets
+    #define XVSNPRINTF _vsnprintf
 
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
@@ -883,7 +884,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     time_t windows_time(time_t* timer);
 
     #define FindNextFileA(h, d) FindNextFile(h, (LPWIN32_FIND_DATAW) d)
-    #define FindFirstFileA(fn, d) FindFirstFile(fn, (LPWIN32_FIND_DATAW) d)
+    #define FindFirstFileA(fn, d) FindFirstFile((LPCWSTR) fn, \
+                                                (LPWIN32_FIND_DATAW) d)
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
 
