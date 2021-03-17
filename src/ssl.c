@@ -9790,8 +9790,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     gn = wolfSSL_GENERAL_NAME_new();
                     if (gn == NULL) {
                         WOLFSSL_MSG("Error creating GENERAL_NAME");
-                        wolfSSL_sk_free(sk);
-                        return NULL;
+                        goto err;
                     }
 
                     gn->type = dns->type;
@@ -9799,18 +9798,14 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
                                 gn->d.ia5->length) != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("ASN1_STRING_set failed");
-                        wolfSSL_GENERAL_NAME_free(gn);
-                        wolfSSL_sk_free(sk);
-                        return NULL;
+                        goto err;
                     }
 
                     dns = dns->next;
                     if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) !=
                                                       WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("Error pushing ASN1 object onto stack");
-                        wolfSSL_GENERAL_NAME_free(gn);
-                        wolfSSL_sk_free(sk);
-                        sk = NULL;
+                        goto err;
                     }
                     /* null so that it doesn't get pushed again after switch */
                     gn = NULL;
