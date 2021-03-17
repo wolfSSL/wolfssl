@@ -639,40 +639,24 @@ struct WOLFSSL_X509_STORE_CTX {
 
 typedef char* WOLFSSL_STRING;
 
-/* seed = Data to mix into the random generator.
-   len = Number of bytes to mix from seed. */
-typedef int RandSeedMethod(const void* seed, int len);
-/* buf = Buffer to store random bytes in.
-   len = Number of bytes to store in buf. */
-typedef int RandBytesMethod(unsigned char* buf, int len);
-typedef void RandCleanupMethod(void);
-/* add = Data to mix into the random generator.
-   len = Number of bytes to mix from add.
-   entropy = Estimate of randomness contained in seed.
-             Should be between 0 and len. */
-typedef int RandAddMethod(const void* add, int len, double entropy);
-/* buf = Buffer to store pseudorandom bytes in.
-   len = Number of bytes to store in buf. */
-typedef int RandPseudorandMethod(unsigned char *buf, int len);
-typedef int RandStatusMethod(void);
-
 typedef struct WOLFSSL_RAND_METHOD {
-    RandSeedMethod* seed;
-    RandBytesMethod* bytes;
-    RandCleanupMethod* cleanup;
-    RandAddMethod* add;
-    RandPseudorandMethod* pseudorand;
-    RandStatusMethod* status;
+    /* seed = Data to mix into the random generator.
+     * len = Number of bytes to mix from seed. */
+    int  (*seed)(const void* seed, int len);
+    /* buf = Buffer to store random bytes in.
+    * len = Number of bytes to store in buf. */
+    int  (*bytes)(unsigned char* buf, int len);
+    void (*cleanup)(void);
+    /* add = Data to mix into the random generator.
+     * len = Number of bytes to mix from add.
+     * entropy = Estimate of randomness contained in seed.
+     *           Should be between 0 and len. */
+    int  (*add)(const void* add, int len, double entropy);
+    /* buf = Buffer to store pseudorandom bytes in.
+     * len = Number of bytes to store in buf. */
+    int  (*pseudorand)(unsigned char *buf, int len);
+    int  (*status)(void);
 } WOLFSSL_RAND_METHOD;
-
-typedef enum RandFunction {
-    RAND_SEED,
-    RAND_BYTES,
-    RAND_CLEANUP,
-    RAND_ADD,
-    RAND_PSEUDORAND,
-    RAND_STATUS
-} RandFunction;
 
 /* Valid Alert types from page 16/17
  * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
@@ -1424,7 +1408,7 @@ WOLFSSL_API const char* wolfSSL_RAND_file_name(char*, unsigned long);
 WOLFSSL_API int         wolfSSL_RAND_write_file(const char*);
 WOLFSSL_API int         wolfSSL_RAND_load_file(const char*, long);
 WOLFSSL_API int         wolfSSL_RAND_egd(const char*);
-WOLFSSL_API int         wolfSSL_RAND_seed(const void*, int);
+WOLFSSL_API void        wolfSSL_RAND_seed(const void*, int);
 WOLFSSL_API void        wolfSSL_RAND_Cleanup(void);
 WOLFSSL_API void        wolfSSL_RAND_add(const void*, int, double);
 WOLFSSL_API int         wolfSSL_RAND_poll(void);

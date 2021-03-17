@@ -30381,7 +30381,7 @@ static void test_wolfSSL_BUF(void)
     #endif /* OPENSSL_EXTRA */
 }
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
 static int stub_rand_seed(const void *buf, int num)
 {
     (void)buf;
@@ -30446,11 +30446,11 @@ static int stub_rand_status(void)
 {
     return 5432;
 }
-#endif
+#endif /* OPENSSL_EXTRA && !WOLFSSL_NO_OPENSSL_RAND_CB */
 
 static void test_wolfSSL_RAND_set_rand_method(void)
 {
-    #if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
     WOLFSSL_RAND_METHOD rand_methods = {NULL, NULL, NULL, NULL, NULL, NULL};
     unsigned char* buf = NULL;
     int num = 0;
@@ -30473,8 +30473,8 @@ static void test_wolfSSL_RAND_set_rand_method(void)
     rand_methods.pseudorand = &stub_rand_pseudo_bytes;
     rand_methods.status = &stub_rand_status;
 
-    AssertIntEQ(wolfSSL_RAND_set_rand_method(&rand_methods), SSL_SUCCESS);
-    AssertIntEQ(wolfSSL_RAND_seed(buf, num), 123);
+    AssertIntEQ(wolfSSL_RAND_set_rand_method(&rand_methods), WOLFSSL_SUCCESS);
+    wolfSSL_RAND_seed(buf, num);
     AssertIntEQ(wolfSSL_RAND_bytes(buf, num), 456);
     AssertIntEQ(wolfSSL_RAND_pseudo_bytes(buf, num), 9876);
     AssertIntEQ(wolfSSL_RAND_status(), 5432);
@@ -30490,14 +30490,14 @@ static void test_wolfSSL_RAND_set_rand_method(void)
     *was_cleanup_called = 0;
 
 
-    AssertIntEQ(wolfSSL_RAND_set_rand_method(NULL), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_RAND_set_rand_method(NULL), WOLFSSL_SUCCESS);
     AssertIntNE(wolfSSL_RAND_status(), 5432);
     AssertIntEQ(*was_cleanup_called, 0);
     wolfSSL_RAND_Cleanup();
     AssertIntEQ(*was_cleanup_called, 0);
 
     printf(resultFmt, passed);
-    #endif
+#endif /* OPENSSL_EXTRA && !WOLFSSL_NO_OPENSSL_RAND_CB */
 }
 
 static void test_wolfSSL_RAND_bytes(void)
