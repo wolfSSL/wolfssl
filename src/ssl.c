@@ -50833,7 +50833,7 @@ int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n)
 int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
-    int           len    = bits / 8;
+    int           len;
     int           initTmpRng = 0;
     WC_RNG*       rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -50848,8 +50848,18 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     (void)bottom;
     WOLFSSL_MSG("wolfSSL_BN_rand");
 
+    if (bits <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    len = bits / 8;
     if (bits % 8)
         len++;
+
+    /* has to be a length of at least 1 since we set buf[0] and buf[len-1] */
+    if (len < 1) {
+        return WOLFSSL_FAILURE;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -50906,7 +50916,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
-    int           len    = bits / 8;
+    int           len;
     int           initTmpRng = 0;
     WC_RNG*       rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -50917,10 +50927,22 @@ int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     byte          buff[1024];
 #endif
 
-    WOLFSSL_MSG("wolfSSL_BN_rand");
+    WOLFSSL_MSG("wolfSSL_BN_pseudo_rand");
 
+    if (bits <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    len = bits / 8;
     if (bits % 8)
         len++;
+
+    /* has to be a length of at least 1 since we set buf[0] and buf[len-1] */
+    if (top == 1 || top == 0 || bottom == 1) {
+        if (len < 1) {
+            return WOLFSSL_FAILURE;
+        }
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);

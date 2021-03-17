@@ -30458,6 +30458,29 @@ static void test_wolfSSL_RAND_bytes(void)
     #endif
 }
 
+static void test_wolfSSL_BN_rand(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIGNUM* bn;
+
+    printf(testingFmt, "wolfSSL_BN_rand()");
+
+    AssertNotNull(bn = BN_new());
+    AssertIntNE(BN_rand(bn, 0, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 8, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 64, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
 static void test_wolfSSL_pseudo_rand(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -41550,6 +41573,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_ecdh_auto();
     test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_bytes();
+    test_wolfSSL_BN_rand();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_PKCS8_d2i();
