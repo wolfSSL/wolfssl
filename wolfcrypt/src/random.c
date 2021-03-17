@@ -819,18 +819,19 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         rng->drbg = (struct DRBG*)&rng->drbg_data;
 #endif
         if (ret == 0) {
-            ret = -1;
-
 #ifdef WC_RNG_SEED_CB
-            if (seedCb != NULL) {
+            if (seedCb == NULL) {
+                ret = DRBG_FAILURE;
+            }
+            else {
                 ret = seedCb(seed, seedSz);
+                if (ret != 0) {
+                    ret = DRBG_FAILURE;
+                }
             }
+#else
+            ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
 #endif
-
-            if (ret < 0) {
-                ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
-            }
-
             if (ret == 0)
                 ret = wc_RNG_TestSeed(seed, seedSz);
             else {
