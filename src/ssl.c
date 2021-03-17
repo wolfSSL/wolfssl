@@ -16459,7 +16459,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             wc_RemoveErrorNode(0);
         }
         } while (ret >= 0);
-        wolfSSL_BIO_write(bio, "", 1);
+        if (wolfSSL_BIO_write(bio, "", 1) != 1) {
+            WOLFSSL_MSG("Issue writing final string terminator");
+        }
     }
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
