@@ -2177,11 +2177,6 @@ int wc_DhImportKeyPair(DhKey* key, const byte* priv, word32 privSz,
             WOLFSSL_MSG("DH Public Key Set");
         }
     }
-    /* Free Memory if error occurred */
-    if (havePriv == 0 && keyPriv != NULL)
-        mp_clear(keyPriv);
-    if (havePub == 0 && keyPub != NULL)
-        mp_clear(keyPub);
 
     if (havePriv == 0 && havePub == 0) {
         return MEMORY_E;
