@@ -639,6 +639,41 @@ struct WOLFSSL_X509_STORE_CTX {
 
 typedef char* WOLFSSL_STRING;
 
+/* seed = Data to mix into the random generator.
+   len = Number of bytes to mix from seed. */
+typedef int RandSeedMethod(const void* seed, int len);
+/* buf = Buffer to store random bytes in.
+   len = Number of bytes to store in buf. */
+typedef int RandBytesMethod(unsigned char* buf, int len);
+typedef void RandCleanupMethod(void);
+/* add = Data to mix into the random generator.
+   len = Number of bytes to mix from add.
+   entropy = Estimate of randomness contained in seed.
+             Should be between 0 and len. */
+typedef int RandAddMethod(const void* add, int len, double entropy);
+/* buf = Buffer to store pseudorandom bytes in.
+   len = Number of bytes to store in buf. */
+typedef int RandPseudorandMethod(unsigned char *buf, int len);
+typedef int RandStatusMethod(void);
+
+typedef struct WOLFSSL_RAND_METHOD {
+    RandSeedMethod* seed;
+    RandBytesMethod* bytes;
+    RandCleanupMethod* cleanup;
+    RandAddMethod* add;
+    RandPseudorandMethod* pseudorand;
+    RandStatusMethod* status;
+} WOLFSSL_RAND_METHOD;
+
+typedef enum RandFunction {
+    RAND_SEED,
+    RAND_BYTES,
+    RAND_CLEANUP,
+    RAND_ADD,
+    RAND_PSEUDORAND,
+    RAND_STATUS
+} RandFunction;
+
 /* Valid Alert types from page 16/17
  * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
  */
@@ -3769,7 +3804,7 @@ WOLFSSL_API int wolfSSL_FIPS_mode(void);
 
 WOLFSSL_API int wolfSSL_FIPS_mode_set(int r);
 
-WOLFSSL_API int wolfSSL_RAND_set_rand_method(const void *meth);
+WOLFSSL_API int wolfSSL_RAND_set_rand_method(const WOLFSSL_RAND_METHOD *methods);
 
 WOLFSSL_API int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits);
 
