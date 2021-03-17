@@ -324,6 +324,11 @@ then
     AC_MSG_ERROR([cannot enable sp-math and sp-math-all simultaneously.])
 fi
 
+AC_ARG_ENABLE([sp-asm],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
+    [ ENABLED_SP_ASM=$enableval ],
+    [ ENABLED_SP_ASM=no ],
+    )
 
 # ALL FEATURES
 AC_ARG_ENABLE([all],
@@ -5134,6 +5139,10 @@ do
     ENABLED_SP_SMALL=yes
     ;;
 
+  asm)
+    ENABLED_SP_ASM=yes
+    ;;
+
   *)
     AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
     break;;
@@ -5313,11 +5322,6 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
 fi
 
 
-AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
-    [ ENABLED_SP_ASM=$enableval ],
-    [ ENABLED_SP_ASM=no ],
-    )
 if test "$ENABLED_SP_ASM" = "yes"; then
   if test "$ENABLED_SP" = "no"; then
     AC_MSG_ERROR([Must have SP enabled: --enable-sp])
