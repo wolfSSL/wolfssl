@@ -31994,6 +31994,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
         }
         else {
             len = wolfSSL_BN_bn2bin(bn, a->data);
+            if (len < 0) {
+                wolfSSL_ASN1_INTEGER_free(a);
+                return NULL;
+            }
         }
         a->length = len;
 
