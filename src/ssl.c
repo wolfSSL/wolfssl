@@ -48230,7 +48230,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
         asn1->isDynamic = 0;
     }
-    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    XMEMSET(asn1->intData, 0, WOLFSSL_ASN1_INTEGER_MAX);
     asn1->data = asn1->intData;
     asn1->length = 0;
     asn1->negative = 0;
@@ -48259,7 +48259,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         len = asn1->length + (lineLen/2);
         /* Check if it will fit in static memory and
          * save space for the ASN tag in front */
-        if (len > (int)(sizeof(asn1->intData) - extraTagSz)) {
+        if (len > (int)(WOLFSSL_ASN1_INTEGER_MAX - extraTagSz)) {
             /* Allocate mem for data */
             if (asn1->isDynamic) {
                 byte* tmp = (byte*)XREALLOC(asn1->data, len + extraTagSz, NULL,
@@ -48271,12 +48271,17 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
                 asn1->data = tmp;
             }
             else {
+                /* Up to this point asn1->data pointed to asn1->intData.
+                 * Now that the size has grown larger than intData can handle
+                 * the asn1 structure moves to a dynamic type with isDynamic
+                 * flag being set and asn1->data being malloc'd. */
                 asn1->data = (byte*)XMALLOC(len + extraTagSz, NULL,
                         DYNAMIC_TYPE_OPENSSL);
                 if (!asn1->data) {
                     WOLFSSL_MSG("malloc error");
                     return WOLFSSL_FAILURE;
                 }
+                asn1->isDynamic = 1;
                 XMEMCPY(asn1->data, asn1->intData, asn1->length);
             }
         }
