@@ -27,6 +27,10 @@
     #endif
 #else
 
+#ifndef USE_WOLFSSL_IO
+    /* The BIO component is hard coded to use wolfSSL IO */
+    #error "USE_WOLFSSL_IO must be defined to use BIO. Disable with NO_BIO"
+#endif
 
 /* Helper function to decode a base64 input
  *

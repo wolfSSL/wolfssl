@@ -10716,7 +10716,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
                        break;
                     }
                 } 
-#ifdef HAVE_CRL
+#if defined(HAVE_CRL) && !defined(NO_BIO)
                 else if (type == X509_LU_CRL) {
                     ret = wolfSSL_X509_load_crl_file(&store->lookup, filename,
                                                     WOLFSSL_FILETYPE_PEM);

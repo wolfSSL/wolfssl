@@ -20417,6 +20417,7 @@ WOLFSSL_STACK *wolfSSL_NCONF_get_section(
         return NULL;
 }
 
+#ifndef NO_BIO
 static WOLFSSL_CONF_VALUE *wolfSSL_CONF_VALUE_new_values(char* section,
         char* name, char* value)
 {
@@ -20558,6 +20559,7 @@ expand_cleanup:
         XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
     return NULL;
 }
+
 
 #define SKIP_WHITESPACE(idx, max_idx) \
     while (idx < max_idx && (*idx == ' ' || *idx == '\t')) \
@@ -20725,6 +20727,7 @@ cleanup:
     return ret;
 }
 
+#endif /* !def NO_BIO */
 
 void wolfSSL_NCONF_free(WOLFSSL_CONF *conf)
 {
@@ -22223,6 +22226,7 @@ void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+#ifndef NO_BIO
 /**
  * This function reads a tab delimetered CSV input and returns
  * a populated WOLFSSL_TXT_DB structure.
@@ -22404,6 +22408,7 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
 
     return totalLen;
 }
+#endif /* !def NO_BIO */
 
 int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
 {
@@ -24085,7 +24090,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #endif /* NO_FILESYSTEM */
 
 #endif /* XSNPRINTF */
-#endif /* !NO_BIO */
 
     int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
             const WOLFSSL_X509_ALGOR *sigalg, const WOLFSSL_ASN1_STRING *sig)
@@ -24111,6 +24115,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         return WOLFSSL_SUCCESS;
     }
+#endif /* !NO_BIO */
 
 #ifndef NO_WOLFSSL_STUB
     void wolfSSL_X509_get0_signature(const WOLFSSL_ASN1_BIT_STRING **psig,
@@ -25159,7 +25164,6 @@ cleanup:
 
     return ret;
 }
-#endif /* !NO_BIO */
 
 /* Converts the X509 to DER format and outputs it into bio.
  *
@@ -25179,6 +25183,7 @@ int wolfSSL_i2d_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     return loadX509orX509REQFromBio(bio, x509, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
+#endif /* !NO_BIO */
 #endif /* WOLFSSL_CERT_GEN */
 
 /* Converts an internal structure to a DER buffer
@@ -25284,7 +25289,6 @@ static WOLFSSL_X509* d2i_X509orX509REQ_bio(WOLFSSL_BIO* bio,
     XFREE(mem, NULL, DYNAMIC_TYPE_OPENSSL);
     return localX509;
 }
-#endif /* !NO_BIO */
 
 WOLFSSL_X509* wolfSSL_d2i_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 {
@@ -25297,6 +25301,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
     return d2i_X509orX509REQ_bio(bio, x509, 1);
 }
 #endif
+#endif /* !NO_BIO */
 
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
 #ifndef NO_BIO
@@ -26455,7 +26460,7 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         }
 
     } else {
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_BIO)
         bio = wolfSSL_BIO_new_file(file, "rb");
         if(!bio) {
             WOLFSSL_MSG("wolfSSL_BIO_new error");
@@ -26501,7 +26506,7 @@ WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     (void)info_tmp;
     (void)info;
     (void)bio;
-#endif
+#endif /* defined(OPENSSL_ALL) && !defined(NO_BIO) */
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", cnt);
@@ -26538,7 +26543,7 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
     
     return crl;
 }
-#endif
+#endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
@@ -26547,6 +26552,7 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
     return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (void **)crl, CRL_TYPE);
 }
 
+#ifndef NO_BIO
 /* Read CRL file, and add it to store and corresponding cert manager    */
 /* @param ctx   a pointer of X509_LOOKUP back to the X509_STORE         */
 /* @param file  a file to read                                          */
@@ -26611,6 +26617,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     WOLFSSL_LEAVE("wolfSSL_X509_load_crl_file", ret);
     return ret;
 }
+#endif /* !NO_BIO */
 #endif /* !NO_FILESYSTEM */
 
 
@@ -46981,7 +46988,6 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
     }
     return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
 int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
@@ -47004,6 +47010,7 @@ int wolfSSL_X509_NAME_print_ex_fp(XFILE file, WOLFSSL_X509_NAME* name,
     return ret;
 }
 #endif /* NO_FILESYSTEM */
+#endif /* !NO_BIO */
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_X509_get0_pubkey_bitstr(const WOLFSSL_X509* x)
@@ -54586,6 +54593,7 @@ void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
     }
 }
 
+#ifndef NO_BIO
 int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
 {
     int derSz = 0;
@@ -54628,6 +54636,7 @@ cleanup:
 
     return ret;
 }
+#endif /* !NO_BIO */
 
 WOLFSSL_X509* wolfSSL_X509_REQ_new(void)
 {
