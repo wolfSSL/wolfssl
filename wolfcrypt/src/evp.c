@@ -6710,17 +6710,24 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap)
         XMEMSET(pkey, 0, sizeof(WOLFSSL_EVP_PKEY));
         pkey->heap = heap;
         pkey->type = WOLFSSL_EVP_PKEY_DEFAULT;
+
+        /* init of mutex needs to come before wolfSSL_EVP_PKEY_free */
+        ret = wc_InitMutex(&pkey->refMutex);
+        if (ret != 0){
+            XFREE(pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            WOLFSSL_MSG("Issue initializing mutex");
+            return NULL;
+        }
+
 #ifndef HAVE_FIPS
         ret = wc_InitRng_ex(&pkey->rng, heap, INVALID_DEVID);
 #else
         ret = wc_InitRng(&pkey->rng);
 #endif
         pkey->references = 1;
-        wc_InitMutex(&pkey->refMutex); /* init of mutex needs to come before
-                                        * wolfSSL_EVP_PKEY_free */
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
-            WOLFSSL_MSG("memory failure");
+            WOLFSSL_MSG("Issue initializing RNG");
             return NULL;
         }
     }
