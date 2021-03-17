@@ -681,12 +681,15 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #if defined(USE_WINDOWS_API)
         #include <sys/stat.h>
         #define XSTAT       _stat
+        #define XS_ISREG(s) (s & _S_IFREG)
         #define SEPARATOR_CHAR ';'
     #elif defined(WOLFSSL_ZEPHYR)
         #define XSTAT       fs_stat
+        #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
         #define SEPARATOR_CHAR ':'
     #elif defined(WOLFSSL_TELIT_M2MB)
         #define XSTAT       m2mb_fs_stat
+        #define XS_ISREG(s) (s & M2MB_S_IFREG)
         #define SEPARATOR_CHAR ':'
     #else
         #include <dirent.h>
@@ -696,6 +699,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XREAD       read
         #define XCLOSE      close
         #define XSTAT       stat
+        #define XS_ISREG(s) S_ISREG(s)
         #define SEPARATOR_CHAR ':'
     #endif
     #endif

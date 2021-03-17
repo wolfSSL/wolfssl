@@ -4836,7 +4836,7 @@ WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
-WOLFSSL_LOCAL int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, 
+WOLFSSL_LOCAL int LoadCertByIssuer(WOLFSSL_X509_STORE* store, 
                                            X509_NAME* issuer, int Type);
 #endif
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)

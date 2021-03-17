@@ -429,20 +429,19 @@ int wc_FileExists(const char* fname)
          return BAD_PATH_ERROR;
     } else
 #if defined(USE_WINDOWS_API)
-    if (ctx.s.st_mode & _S_IFREG) {
+    if (XS_ISREG(ctx.s.st_mode)) {
         return 0;
     }
 #elif defined(WOLFSSL_ZEPHYR)
-    if (ctx.s.type == FS_DIR_ENTRY_FILE) {
+    if (XS_ISREG(ctx.s.type)) {
         return 0;
     }
-
 #elif defined(WOLFSSL_TELIT_M2MB)
-    if (ctx.s.st_mode & M2MB_S_IFREG) {
+    if (XS_ISREG(ctx.s.st_mode)) {
         return 0;
     }
 #else
-    if (S_ISREG(ctx.s.st_mode)) {
+    if (XS_ISREG(ctx.s.st_mode)) {
         return 0;
     }
 #endif

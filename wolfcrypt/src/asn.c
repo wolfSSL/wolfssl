@@ -13201,7 +13201,7 @@ int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr, char nameType
 int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
                   byte type)
 {
-    return wc_EncodeName_ex(name, nameStr, nameType, type, 0x16);
+    return wc_EncodeName_ex(name, nameStr, nameType, type, ASN_IA5_STRING);
 }
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)

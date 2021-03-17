@@ -10593,11 +10593,11 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 /* @param issuer a pointer to X509_NAME that presents an issuer     */
 /* @param type   X509_LU_X509 or X509_LU_CRL                        */
 /* @return WOLFSSL_SUCCESS on successful, otherwise WOLFSSL_FAILURE */
-int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
+int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
 {
     const int MAX_SUFFIX = 10;/* The number comes from CA_TABLE_SIZE=10 */
     int ret = WOLFSSL_SUCCESS;
-    WOLFSSL_X509_LOOKUP* lookup = &store->lookup;
+    WOLFSSL_X509_LOOKUP* lookup;
     WOLFSSL_BY_DIR_entry* entry;
     WOLFSSL_BY_DIR_HASH   hash_tmp;
     WOLFSSL_BY_DIR_HASH*  ph = NULL;
@@ -10611,11 +10611,14 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     int retHash = NOT_COMPILED_IN;
     byte dgt[WC_MAX_DIGEST_SIZE];
     
-    WOLFSSL_ENTER("LoadCrlCertByIssuer");
+    WOLFSSL_ENTER("LoadCertByIssuer");
 
     /* sanity check */
-    if (store == NULL || issuer == NULL || lookup->dirs == NULL ||
-        lookup->type != 1 || (type != X509_LU_X509 && type != X509_LU_CRL)) {
+    if (store == NULL || issuer == NULL || (type != X509_LU_X509 && type != X509_LU_CRL)) {
+        return WOLFSSL_FAILURE;
+    }
+    lookup = &store->lookup;
+    if (lookup->dirs == NULL || lookup->type != 1) {
         return WOLFSSL_FAILURE;
     }
     
@@ -10766,7 +10769,7 @@ int LoadCrlCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
     (void) i;
     ret = WOLFSSL_NOT_IMPLEMENTED;
 #endif
-    WOLFSSL_LEAVE("LoadCrlCertByIssuer", ret);
+    WOLFSSL_LEAVE("LoadCertByIssuer", ret);
 
     return ret;
 }
@@ -11305,11 +11308,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == ASN_NO_SIGNER_E) {
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
                         if (ssl->ctx->x509_store_pt != NULL) {
-                            ret = LoadCrlCertByIssuer(ssl->ctx->x509_store_pt, 
+                            ret = LoadCertByIssuer(ssl->ctx->x509_store_pt, 
                                (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
                                                               X509_LU_X509);
                         } else {
-                            ret = LoadCrlCertByIssuer(&ssl->ctx->x509_store, 
+                            ret = LoadCertByIssuer(&ssl->ctx->x509_store, 
                                (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
                                                              X509_LU_X509);
                         }
@@ -11523,11 +11526,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ret == ASN_NO_SIGNER_E) {
                         WOLFSSL_MSG("try to load certificate if hash dir is set");
                         if (ssl->ctx->x509_store_pt != NULL) {
-                            ret = LoadCrlCertByIssuer(ssl->ctx->x509_store_pt, 
+                            ret = LoadCertByIssuer(ssl->ctx->x509_store_pt, 
                                (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
                                                               X509_LU_X509);
                         } else {
-                            ret = LoadCrlCertByIssuer(&ssl->ctx->x509_store, 
+                            ret = LoadCertByIssuer(&ssl->ctx->x509_store, 
                                (WOLFSSL_X509_NAME*)args->dCert->issuerName, 
                                                              X509_LU_X509);
                         }

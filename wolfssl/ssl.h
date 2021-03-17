@@ -196,9 +196,6 @@ typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_OTHERNAME WOLFSSL_ASN1_OTHERNAME;
 typedef struct WOLFSSL_X509V3_CTX     WOLFSSL_X509V3_CTX;
 typedef struct WOLFSSL_v3_ext_method  WOLFSSL_v3_ext_method;
-typedef struct WOLFSSL_BY_DIR         WOLFSSL_BY_DIR;
-typedef struct WOLFSSL_BY_DIR_entry   WOLFSSL_BY_DIR_entry;
-typedef struct WOLFSSL_BY_DIR_HASH    WOLFSSL_BY_DIR_HASH;
 
 typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;

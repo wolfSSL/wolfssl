@@ -369,7 +369,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
     if (foundEntry == 0) {
         if (crl->cm->x509_store_p != NULL) {
-            ret = LoadCrlCertByIssuer(crl->cm->x509_store_p, 
+            ret = LoadCertByIssuer(crl->cm->x509_store_p, 
                           (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
             if (ret == WOLFSSL_SUCCESS) {
                 /* try again */
