@@ -1485,6 +1485,7 @@ end:
     #else
         return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
     #endif
+    }
 #elif defined(WOLFSSL_QNX_CAAM)
     word32 TimeNowInMilliseconds(void)
     {
