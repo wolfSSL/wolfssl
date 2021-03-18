@@ -29454,15 +29454,12 @@ static void test_wolfSSL_a2i_ASN1_INTEGER(void)
     ASN1_INTEGER* ai;
     char buf[] = "123456\n12345\n112345678912345678901234567890\n";
     char tmp[1024];
-    int bufSz, tmpSz;
-    char* pt;
+    int  tmpSz;
 
     const char expected1[] = "123456";
     const char expected2[] = "112345678912345678901234567890";
 
     printf(testingFmt, "test_wolfSSL_a2i_ASN1_INTEGER()");
-    pt    = (char*)buf;
-    bufSz = sizeof(buf);
 
     AssertNotNull(bio = BIO_new_mem_buf(buf, -1));
     AssertNotNull(out = BIO_new(BIO_s_mem()));
