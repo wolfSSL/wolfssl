@@ -1408,7 +1408,7 @@ WOLFSSL_API const char* wolfSSL_RAND_file_name(char*, unsigned long);
 WOLFSSL_API int         wolfSSL_RAND_write_file(const char*);
 WOLFSSL_API int         wolfSSL_RAND_load_file(const char*, long);
 WOLFSSL_API int         wolfSSL_RAND_egd(const char*);
-WOLFSSL_API void        wolfSSL_RAND_seed(const void*, int);
+WOLFSSL_API int         wolfSSL_RAND_seed(const void*, int);
 WOLFSSL_API void        wolfSSL_RAND_Cleanup(void);
 WOLFSSL_API void        wolfSSL_RAND_add(const void*, int, double);
 WOLFSSL_API int         wolfSSL_RAND_poll(void);

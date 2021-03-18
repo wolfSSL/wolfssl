@@ -4981,7 +4981,10 @@ int wolfSSL_Init(void)
             return BAD_MUTEX_E;
         }
     #endif
-        wolfSSL_RAND_seed(NULL, 0);
+        if (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
+            return WC_INIT_E;
+        }
 #endif
 
 #ifndef NO_SESSION_CACHE
@@ -31572,13 +31575,14 @@ static int wolfSSL_RAND_Init(void)
 
 
 /* WOLFSSL_SUCCESS on ok */
-void wolfSSL_RAND_seed(const void* seed, int len)
+int wolfSSL_RAND_seed(const void* seed, int len)
 {
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
         if (gRandMethods && gRandMethods->seed) {
-            /* seed callback has return code, but function RAND_seed does not */
-            (void)gRandMethods->seed(seed, len);
+            int ret = gRandMethods->seed(seed, len);
+            wc_UnLockMutex(&gRandMethodMutex);
+            return ret;
         }
         wc_UnLockMutex(&gRandMethodMutex);
     }
@@ -31588,7 +31592,7 @@ void wolfSSL_RAND_seed(const void* seed, int len)
 #endif
 
     /* Make sure global shared RNG (globalRNG) is initialized */
-    (void)wolfSSL_RAND_Init();
+    return wolfSSL_RAND_Init();
 }
 
 

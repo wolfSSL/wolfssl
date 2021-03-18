@@ -30474,7 +30474,7 @@ static void test_wolfSSL_RAND_set_rand_method(void)
     rand_methods.status = &stub_rand_status;
 
     AssertIntEQ(wolfSSL_RAND_set_rand_method(&rand_methods), WOLFSSL_SUCCESS);
-    wolfSSL_RAND_seed(buf, num);
+    AssertIntEQ(wolfSSL_RAND_seed(buf, num), 123);
     AssertIntEQ(wolfSSL_RAND_bytes(buf, num), 456);
     AssertIntEQ(wolfSSL_RAND_pseudo_bytes(buf, num), 9876);
     AssertIntEQ(wolfSSL_RAND_status(), 5432);
