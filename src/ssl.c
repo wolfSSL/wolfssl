@@ -13244,11 +13244,6 @@ int wolfSSL_Cleanup(void)
 
 #ifdef OPENSSL_EXTRA
     wolfSSL_RAND_Cleanup();
-
-    if (wc_FreeMutex(&gRandMethodMutex) != 0)
-        ret = BAD_MUTEX_E;
-    else
-        gRandMethodsInit = 0;
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {
@@ -31902,6 +31897,9 @@ void wolfSSL_RAND_Cleanup(void)
             gRandMethods->cleanup();
         wc_UnLockMutex(&gRandMethodMutex);
     }
+
+    if (wc_FreeMutex(&gRandMethodMutex) == 0)
+        gRandMethodsInit = 0;
 #endif
 #ifdef HAVE_GLOBAL_RNG
     if (wc_LockMutex(&globalRNGMutex) == 0) {
