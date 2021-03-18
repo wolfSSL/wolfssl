@@ -13244,6 +13244,11 @@ int wolfSSL_Cleanup(void)
 
 #ifdef OPENSSL_EXTRA
     wolfSSL_RAND_Cleanup();
+
+    if (wc_FreeMutex(&gRandMethodMutex) != 0)
+        ret = BAD_MUTEX_E;
+    else
+        gRandMethodsInit = 0;
 #endif
 
     if (wolfCrypt_Cleanup() != 0) {
@@ -17843,11 +17848,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
             gRandMethods = methods;
             wc_UnLockMutex(&gRandMethodMutex);
+            return WOLFSSL_SUCCESS;
         }
     #else
         (void)methods;
     #endif
-        return WOLFSSL_SUCCESS;
+        return WOLFSSL_FAILURE;
     }
 
     /* Returns WOLFSSL_SUCCESS if the RNG has been seeded with enough data */
@@ -17859,6 +17865,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
             if (gRandMethods && gRandMethods->status)
                 ret = gRandMethods->status();
             wc_UnLockMutex(&gRandMethodMutex);
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
         }
     #else
         /* wolfCrypt provides enough seed internally, so return success */
