@@ -4171,6 +4171,19 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #ifdef HAVE_AESGCM
 
+#ifdef WOLFSSL_AESGCM_STREAM
+    /* Access initialization counter data. */
+    #define AES_INITCTR(aes)        ((aes)->streamData + 0 * AES_BLOCK_SIZE)
+    /* Access counter data. */
+    #define AES_COUNTER(aes)        ((aes)->streamData + 1 * AES_BLOCK_SIZE)
+    /* Access tag data. */
+    #define AES_TAG(aes)            ((aes)->streamData + 2 * AES_BLOCK_SIZE)
+    /* Access last GHASH block. */
+    #define AES_LASTGBLOCK(aes)     ((aes)->streamData + 3 * AES_BLOCK_SIZE)
+    /* Access last encrypted block. */
+    #define AES_LASTBLOCK(aes)      ((aes)->streamData + 4 * AES_BLOCK_SIZE)
+#endif
+
 #if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-GCM mode"
 
@@ -4364,6 +4377,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #endif
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
+#ifdef WOLFSSL_AESGCM_STREAM
+    aes->gcmKeySet = 1;
+#endif
 
     #ifdef WOLFSSL_AESNI
         /* AES-NI code generates its own H value. */
@@ -5569,7 +5585,6 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 #endif /* _MSC_VER */
 #endif /* WOLFSSL_AESNI */
 
-
 #if defined(GCM_SMALL)
 static void GMULT(byte* X, byte* Y)
 {
@@ -5650,6 +5665,27 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     XMEMCPY(s, x, sSz);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+/* No extra initialization for small implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                 \
+    do {                                            \
+        xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
+        GMULT(AES_TAG(aes), aes->H);                    \
+    }                                               \
+    while (0)
+#endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_SMALL */
 #elif defined(GCM_TABLE)
 
@@ -5826,6 +5862,27 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     XMEMCPY(s, x, sSz);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+/* No extra initialization for table implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H using pre-computed table.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                 \
+    do {                                            \
+        xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
+        GMULT(AES_TAG(aes), aes->M0);                   \
+    }                                               \
+    while (0)
+#endif /* WOLFSSL_AESGCM_STREAM */
 /* end GCM_TABLE */
 #elif defined(GCM_TABLE_4BIT)
 
@@ -6101,6 +6158,27 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     XMEMCPY(s, x, sSz);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+/* No extra initialization for 4-bit table implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H using pre-computed table.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                 \
+    do {                                            \
+        xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
+        GMULT(AES_TAG(aes), aes->M0);                   \
+    }                                               \
+    while (0)
+#endif /* WOLFSSL_AESGCM_STREAM */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
 
 #if !defined(FREESCALE_LTC_AES_GCM)
@@ -6409,10 +6487,282 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     XMEMCPY(s, x, sSz);
 }
 
+#ifdef WOLFSSL_AESGCM_STREAM
+#ifdef LITTLE_ENDIAN_ORDER
+/* Little-endian 32-bit word implementation requires byte reversal of H.
+ *
+ * H is all-zeros block encrypted with key.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes) \
+    ByteReverseWords((word32*)aes->H, (word32*)aes->H, AES_BLOCK_SIZE)
+
+/* GHASH one block of data..
+ *
+ * XOR block, in big-endian form, into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                         \
+    do {                                                    \
+        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* h = (word32*)aes->H;                        \
+        word32 bigEnd[4];                                   \
+        XMEMCPY(bigEnd, block, AES_BLOCK_SIZE);             \
+        ByteReverseWords(bigEnd, bigEnd, AES_BLOCK_SIZE);   \
+        x[0] ^= bigEnd[0];                                  \
+        x[1] ^= bigEnd[1];                                  \
+        x[2] ^= bigEnd[2];                                  \
+        x[3] ^= bigEnd[3];                                  \
+        GMULT(x, h);                                        \
+    }                                                       \
+    while (0)
+
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * Convert tag back to little-endian.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                                \
+    do {                                                    \
+        word32 len[4];                                      \
+        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* h = (word32*)aes->H;                        \
+        len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
+        len[1] = aes->aSz << 3;                             \
+        len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
+        len[3] = aes->cSz << 3;                             \
+        x[0] ^= len[0];                                     \
+        x[1] ^= len[1];                                     \
+        x[2] ^= len[2];                                     \
+        x[3] ^= len[3];                                     \
+        GMULT(x, h);                                        \
+        ByteReverseWords(x, x, AES_BLOCK_SIZE);             \
+    }                                                       \
+    while (0)
+#else
+/* No extra initialization for 32-bit word implementation.
+ *
+ * @param [in] aes  AES GCM object.
+ */
+#define GHASH_INIT_EXTRA(aes)
+
+/* GHASH one block of data..
+ *
+ * XOR block into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK(aes, block)                         \
+    do {                                                    \
+        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* h = (word32*)aes->H;                        \
+        word32 block32[4];                                  \
+        XMEMCPY(block32, block, AES_BLOCK_SIZE);            \
+        x[0] ^= block32[0];                                 \
+        x[1] ^= block32[1];                                 \
+        x[2] ^= block32[2];                                 \
+        x[3] ^= block32[3];                                 \
+        GMULT(x, h);                                        \
+    }                                                       \
+    while (0)
+
+/* GHASH in AAD and cipher text lengths in bits.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                                \
+    do {                                                    \
+        word32 len[4];                                      \
+        word32* x = (word32*)AES_TAG(aes);                      \
+        word32* h = (word32*)aes->H;                        \
+        len[0] = (aes->aSz >> (8*sizeof(aes->aSz) - 3));    \
+        len[1] = aes->aSz << 3;                             \
+        len[2] = (aes->cSz >> (8*sizeof(aes->cSz) - 3));    \
+        len[3] = aes->cSz << 3;                             \
+        x[0] ^= len[0];                                     \
+        x[1] ^= len[1];                                     \
+        x[2] ^= len[2];                                     \
+        x[3] ^= len[3];                                     \
+        GMULT(x, h);                                        \
+    }                                                       \
+    while (0)
+#endif /* LITTLE_ENDIAN_ORDER */
+#endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* end GCM_WORD32 */
 
-
 #if !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
+#ifdef WOLFSSL_AESGCM_STREAM
+#ifndef GHASH_LEN_BLOCK
+/* Hash in the lengths of the AAD and cipher text in bits.
+ *
+ * Default implementation.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+#define GHASH_LEN_BLOCK(aes)                    \
+    do {                                        \
+        byte scratch[AES_BLOCK_SIZE];           \
+        FlattenSzInBits(&scratch[0], aes->aSz); \
+        FlattenSzInBits(&scratch[8], aes->cSz); \
+        GHASH_ONE_BLOCK(aes, scratch);          \
+    }                                           \
+    while (0)
+#endif
+
+/* Initialize a GHASH for streaming operations.
+ *
+ * @param [in, out] aes  AES GCM object.
+ */
+static void GHASH_INIT(Aes* aes) {
+    /* Set tag to all zeros as initial value. */
+    XMEMSET(AES_TAG(aes), 0, AES_BLOCK_SIZE);
+    /* Reset counts of AAD and cipher text. */
+    aes->aOver = 0;
+    aes->cOver = 0;
+    /* Extra initialization baed on implementation. */
+    GHASH_INIT_EXTRA(aes);
+}
+
+/* Update the GHASH with AAD and/or cipher text.
+ *
+ * @param [in,out] aes   AES GCM object.
+ * @param [in]     a     Additional authentication data buffer.
+ * @param [in]     aSz   Size of data in AAD buffer.
+ * @param [in]     c     Cipher text buffer.
+ * @param [in]     cSz   Size of data in cipher text buffer.
+ */
+static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
+    word32 cSz)
+{
+    word32 blocks;
+    word32 partial;
+
+    /* Hash in A, the Additional Authentication Data */
+    if (aSz != 0 && a != NULL) {
+        /* Update count of AAD we have hashed. */
+        aes->aSz += aSz;
+        /* Check if we have unprocessed data. */
+        if (aes->aOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = AES_BLOCK_SIZE - aes->aOver;
+            if (sz > aSz) {
+                sz = aSz;
+            }
+            /* Copy extra into last GHASH block array and update count. */
+            XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
+            aes->aOver += sz;
+            if (aes->aOver == AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+                GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
+                /* Reset count. */
+                aes->aOver = 0;
+            }
+            /* Used up some data. */
+            aSz -= sz;
+            a += sz;
+        }
+
+        /* Calculate number of blocks of AAD and the leftover. */
+        blocks = aSz / AES_BLOCK_SIZE;
+        partial = aSz % AES_BLOCK_SIZE;
+        /* GHASH full blocks now. */
+        while (blocks--) {
+            GHASH_ONE_BLOCK(aes, a);
+            a += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Cache the partial block. */
+            XMEMCPY(AES_LASTGBLOCK(aes), a, partial);
+            aes->aOver = (byte)partial;
+        }
+    }
+    if (aes->aOver > 0 && cSz > 0 && c != NULL) {
+        /* No more AAD coming and we have a partial block. */
+        /* Fill the rest of the block with zeros. */
+        byte sz = AES_BLOCK_SIZE - aes->aOver;
+        XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0, sz);
+        /* GHASH last AAD block. */
+        GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
+        /* Clear partial count for next time through. */
+        aes->aOver = 0;
+    }
+
+    /* Hash in C, the Ciphertext */
+    if (cSz != 0 && c != NULL) {
+        /* Update count of cipher text we have hashed. */
+        aes->cSz += cSz;
+        if (aes->cOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = AES_BLOCK_SIZE - aes->cOver;
+            if (sz > cSz) {
+                sz = cSz;
+            }
+            XMEMCPY(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
+            /* Update count of unsed encrypted counter. */
+            aes->cOver += sz;
+            if (aes->cOver == AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+                GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
+                /* Reset count. */
+                aes->cOver = 0;
+            }
+            /* Used up some data. */
+            cSz -= sz;
+            c += sz;
+        }
+
+        /* Calculate number of blocks of cipher text and the leftover. */
+        blocks = cSz / AES_BLOCK_SIZE;
+        partial = cSz % AES_BLOCK_SIZE;
+        /* GHASH full blocks now. */
+        while (blocks--) {
+            GHASH_ONE_BLOCK(aes, c);
+            c += AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Cache the partial block. */
+            XMEMCPY(AES_LASTGBLOCK(aes), c, partial);
+            aes->cOver = (byte)partial;
+        }
+    }
+}
+
+/* Finalize the GHASH calculation.
+ *
+ * Complete hashing cipher text and hash the AAD and cipher text lengths.
+ *
+ * @param [in, out] aes  AES GCM object.
+ * @param [out]     s    Authentication tag.
+ * @param [in]      sSz  Size of authentication tag required.
+ */
+static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
+{
+    /* AAD block incomplete when > 0 */
+    byte over = aes->aOver;
+
+    if (aes->cOver > 0) {
+        /* Cipher text block incomplete. */
+        over = aes->cOver;
+    }
+    if (over > 0) {
+        /* Zeroize the unused part of the block. */
+        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, AES_BLOCK_SIZE - over);
+        /* Hash the last block of cipher text. */
+        GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
+    }
+    /* Hash in the lengths of AAD and cipher text in bits */
+    GHASH_LEN_BLOCK(aes);
+    /* Copy the result into s. */
+    XMEMCPY(s, AES_TAG(aes), sSz);
+}
+#endif /* WOLFSSL_AESGCM_STREAM */
+
+
 #ifdef FREESCALE_LTC_AES_GCM
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
@@ -6452,8 +6802,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef STM32_CRYPTO_AES_GCM
 
 /* this function supports inline encrypt */
-/* define STM32_AESGCM_PARTIAL for newer STM Cube HAL's with workaround 
-   for handling partial packets to improve auth tag calculation performance by 
+/* define STM32_AESGCM_PARTIAL for newer STM Cube HAL's with workaround
+   for handling partial packets to improve auth tag calculation performance by
    using hardware */
 static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz,
                                   const byte* iv, word32 ivSz,
@@ -6668,6 +7018,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 #endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
+/* For performance reasons, this code needs to be not inlined. */
 int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
                       const byte* iv, word32 ivSz,
                       byte* authTag, word32 authTagSz,
@@ -6885,7 +7236,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
 
-
 /* AES GCM Decrypt */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifdef FREESCALE_LTC_AES_GCM
@@ -6973,7 +7323,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         GHASH(aes, NULL, 0, iv, ivSz, (byte*)ctr, AES_BLOCK_SIZE);
     }
 
-    /* Make copy of expected authTag, which could get corrupted in some 
+    /* Make copy of expected authTag, which could get corrupted in some
      * Cube HAL versions without proper partial block support.
      * For TLS blocks the authTag is after the output buffer, so save it */
     XMEMCPY(tagExpected, authTag, authTagSz);
@@ -7150,6 +7500,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
+/* For performance reasons, this code needs to be not inlined. */
 int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
                       const byte* iv, word32 ivSz,
                       const byte* authTag, word32 authTagSz,
@@ -7384,6 +7735,1177 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 #endif
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+
+#ifdef WOLFSSL_AESGCM_STREAM
+/* Initialize the AES GCM cipher with an IV. C implementation.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      iv    IV/nonce buffer.
+ * @param [in]      ivSz  Length of IV/nonce data.
+ */
+static void AesGcmInit_C(Aes* aes, const byte* iv, word32 ivSz)
+{
+    ALIGN32 byte counter[AES_BLOCK_SIZE];
+
+    if (ivSz == GCM_NONCE_MID_SZ) {
+        /* Counter is IV with bottom 4 bytes set to: 0x00,0x00,0x00,0x01. */
+        XMEMCPY(counter, iv, ivSz);
+        XMEMSET(counter + GCM_NONCE_MID_SZ, 0,
+                                         AES_BLOCK_SIZE - GCM_NONCE_MID_SZ - 1);
+        counter[AES_BLOCK_SIZE - 1] = 1;
+    }
+    else {
+        /* Counter is GHASH of IV. */
+    #ifdef OPENSSL_EXTRA
+        word32 aadTemp = aes->aadLen;
+        aes->aadLen = 0;
+    #endif
+        GHASH(aes, NULL, 0, iv, ivSz, counter, AES_BLOCK_SIZE);
+    #ifdef OPENSSL_EXTRA
+        aes->aadLen = aadTemp;
+    #endif
+    }
+
+    /* Copy in the counter for use with cipher. */
+    XMEMCPY(AES_COUNTER(aes), counter, AES_BLOCK_SIZE);
+    /* Encrypt initial counter into a buffer for GCM. */
+    wc_AesEncrypt(aes, counter, AES_INITCTR(aes));
+    /* Reset state fields. */
+    aes->over = 0;
+    aes->aSz = 0;
+    aes->cSz = 0;
+    /* Initialization for GHASH. */
+    GHASH_INIT(aes);
+}
+
+/* Update the AES GCM cipher with data. C implementation.
+ *
+ * Only enciphers data.
+ *
+ * @param [in, out] aes  AES object.
+ * @param [in]      out  Cipher text or plaintext buffer.
+ * @param [in]      in   Plaintext or cipher text buffer.
+ * @param [in]      sz   Length of data.
+ */
+static void AesGcmCryptUpdate_C(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks;
+    word32 partial;
+
+    /* Check if previous encrypted block was not used up. */
+    if (aes->over > 0) {
+        byte pSz = AES_BLOCK_SIZE - aes->over;
+        if (pSz > sz) pSz = sz;
+
+        /* Use some/all of last encrypted block. */
+        xorbufout(out, AES_LASTBLOCK(aes) + aes->over, in, pSz);
+        aes->over = (aes->over + pSz) & (AES_BLOCK_SIZE - 1);
+
+        /* Some data used. */
+        sz  -= pSz;
+        in  += pSz;
+        out += pSz;
+    }
+
+    /* Calculate the number of blocks needing to be encrypted and any leftover.
+     */
+    blocks  = sz / AES_BLOCK_SIZE;
+    partial = sz & (AES_BLOCK_SIZE - 1);
+
+#if defined(HAVE_AES_ECB)
+    /* Some hardware acceleration can gain performance from doing AES encryption
+     * of the whole buffer at once.
+     * Overwrites the cipher text before using plaintext - no inline encryption.
+     */
+    if ((out != in) && blocks > 0) {
+        word32 b;
+        /* Place incrementing counter blocks into cipher text. */
+        for (b = 0; b < blocks; b++) {
+            IncrementGcmCounter(AES_COUNTER(aes));
+            XMEMCPY(out + b * AES_BLOCK_SIZE, AES_COUNTER(aes), AES_BLOCK_SIZE);
+        }
+
+        /* Encrypt counter blocks. */
+        wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
+        /* XOR in plaintext. */
+        xorbuf(out, in, AES_BLOCK_SIZE * blocks);
+        /* Skip over processed data. */
+        in += AES_BLOCK_SIZE * blocks;
+        out += AES_BLOCK_SIZE * blocks;
+    }
+    else
+#endif /* HAVE_AES_ECB */
+    {
+        /* Encrypt block by block. */
+        while (blocks--) {
+            ALIGN32 byte scratch[AES_BLOCK_SIZE];
+            IncrementGcmCounter(AES_COUNTER(aes));
+            /* Encrypt counter into a buffer. */
+            wc_AesEncrypt(aes, AES_COUNTER(aes), scratch);
+            /* XOR plain text into encrypted counter into cipher text buffer. */
+            xorbufout(out, scratch, in, AES_BLOCK_SIZE);
+            /* Data complete. */
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+        }
+    }
+
+    if (partial != 0) {
+        /* Generate an extra block and use up as much as needed. */
+        IncrementGcmCounter(AES_COUNTER(aes));
+        /* Encrypt counter into cache. */
+        wc_AesEncrypt(aes, AES_COUNTER(aes), AES_LASTBLOCK(aes));
+        /* XOR plain text into encrypted counter into cipher text buffer. */
+        xorbufout(out, AES_LASTBLOCK(aes), in, partial);
+        /* Keep amount of encrypted block used. */
+        aes->over = partial;
+    }
+}
+
+/* Calculates authentication tag for AES GCM. C implementation.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [out]     authTag    Buffer to store authentication tag in.
+ * @param [in]      authTagSz  Length of tag to create.
+ */
+static void AesGcmFinal_C(Aes* aes, byte* authTag, word32 authTagSz)
+{
+    /* Calculate authentication tag. */
+    GHASH_FINAL(aes, authTag, authTagSz);
+    /* XOR in as much of encrypted counter as is required. */
+    xorbuf(authTag, AES_INITCTR(aes), authTagSz);
+#ifdef OPENSSL_EXTRA
+    /* store AAD size for next call */
+    aes->aadLen = aes->aSz;
+#endif
+    /* Zeroize last block to protect sensitive data. */
+    ForceZero(AES_LASTBLOCK(aes), sizeof(AES_LASTBLOCK(aes)));
+}
+
+#ifdef WOLFSSL_AESNI
+/* Assembly code implementations in: aes_gcm_asm.S */
+#ifdef HAVE_INTEL_AVX2
+extern void AES_GCM_init_avx2(const unsigned char* key, int nr,
+    const unsigned char* ivec, unsigned int ibytes, unsigned char* h,
+    unsigned char* counter, unsigned char* initCtr);
+extern void AES_GCM_aad_update_avx2(const unsigned char* addt,
+    unsigned int abytes, unsigned char* tag, unsigned char* h);
+extern void AES_GCM_encrypt_block_avx2(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned char* counter);
+extern void AES_GCM_ghash_block_avx2(const unsigned char* data,
+    unsigned char* tag, unsigned char* h);
+
+extern void AES_GCM_encrypt_update_avx2(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_encrypt_final_avx2(unsigned char* tag,
+    unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr);
+#endif
+#ifdef HAVE_INTEL_AVX1
+extern void AES_GCM_init_avx1(const unsigned char* key, int nr,
+    const unsigned char* ivec, unsigned int ibytes, unsigned char* h,
+    unsigned char* counter, unsigned char* initCtr);
+extern void AES_GCM_aad_update_avx1(const unsigned char* addt,
+    unsigned int abytes, unsigned char* tag, unsigned char* h);
+extern void AES_GCM_encrypt_block_avx1(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned char* counter);
+extern void AES_GCM_ghash_block_avx1(const unsigned char* data,
+    unsigned char* tag, unsigned char* h);
+
+extern void AES_GCM_encrypt_update_avx1(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_encrypt_final_avx1(unsigned char* tag,
+    unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr);
+#endif
+extern void AES_GCM_init_aesni(const unsigned char* key, int nr,
+    const unsigned char* ivec, unsigned int ibytes, unsigned char* h,
+    unsigned char* counter, unsigned char* initCtr);
+extern void AES_GCM_aad_update_aesni(const unsigned char* addt,
+    unsigned int abytes, unsigned char* tag, unsigned char* h);
+extern void AES_GCM_encrypt_block_aesni(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned char* counter);
+extern void AES_GCM_ghash_block_aesni(const unsigned char* data,
+    unsigned char* tag, unsigned char* h);
+
+extern void AES_GCM_encrypt_update_aesni(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_encrypt_final_aesni(unsigned char* tag,
+    unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr);
+
+/* Initialize the AES GCM cipher with an IV. AES-NI implementations.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      iv    IV/nonce buffer.
+ * @param [in]      ivSz  Length of IV/nonce data.
+ */
+static void AesGcmInit_aesni(Aes* aes, const byte* iv, word32 ivSz)
+{
+    /* Reset state fields. */
+    aes->aSz = 0;
+    aes->cSz = 0;
+    /* Set tag to all zeros as initial value. */
+    XMEMSET(AES_TAG(aes), 0, AES_BLOCK_SIZE);
+    /* Reset counts of AAD and cipher text. */
+    aes->aOver = 0;
+    aes->cOver = 0;
+
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_AVX2(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
+        AES_GCM_init_avx2((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+                          AES_COUNTER(aes), AES_INITCTR(aes));
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+#ifdef HAVE_INTEL_AVX1
+    if (IS_INTEL_AVX1(intel_flags)) {
+        SAVE_VECTOR_REGISTERS();
+        AES_GCM_init_avx1((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+                          AES_COUNTER(aes), AES_INITCTR(aes));
+        RESTORE_VECTOR_REGISTERS();
+    }
+    else
+#endif
+    {
+        SAVE_VECTOR_REGISTERS();
+        AES_GCM_init_aesni((byte*)aes->key, aes->rounds, iv, ivSz, aes->H,
+                           AES_COUNTER(aes), AES_INITCTR(aes));
+        RESTORE_VECTOR_REGISTERS();
+    }
+}
+
+/* Update the AES GCM for encryption with authentication data.
+ *
+ * Implementation uses AVX2, AVX1 or straight AES-NI optimized assembly code.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      a     Buffer holding authentication data.
+ * @param [in]      aSz   Length of authentication data in bytes.
+ * @param [in]      endA  Whether no more authentication data is expected.
+ */
+static void AesGcmAadUpdate_aesni(Aes* aes, const byte* a, word32 aSz, int endA)
+{
+    word32 blocks;
+    int partial;
+
+    if (aSz != 0 && a != NULL) {
+        /* Total count of AAD updated. */
+        aes->aSz += aSz;
+        /* Check if we have unprocessed data. */
+        if (aes->aOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = AES_BLOCK_SIZE - aes->aOver;
+            if (sz > aSz) {
+                sz = aSz;
+            }
+            /* Copy extra into last GHASH block array and update count. */
+            XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
+            aes->aOver += sz;
+            if (aes->aOver == AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+            #ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_AVX2(intel_flags)) {
+                    AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+            #ifdef HAVE_INTEL_AVX1
+                if (IS_INTEL_AVX1(intel_flags)) {
+                    AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+                {
+                    AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                              aes->H);
+                }
+                /* Reset count. */
+                aes->aOver = 0;
+            }
+            /* Used up some data. */
+            aSz -= sz;
+            a += sz;
+        }
+
+        /* Calculate number of blocks of AAD and the leftover. */
+        blocks = aSz / AES_BLOCK_SIZE;
+        partial = aSz % AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* GHASH full blocks now. */
+        #ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_AVX2(intel_flags)) {
+                AES_GCM_aad_update_avx2(a, blocks * AES_BLOCK_SIZE,
+                                        AES_TAG(aes), aes->H);
+            }
+            else
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                AES_GCM_aad_update_avx1(a, blocks * AES_BLOCK_SIZE,
+                                        AES_TAG(aes), aes->H);
+            }
+            else
+        #endif
+            {
+                AES_GCM_aad_update_aesni(a, blocks * AES_BLOCK_SIZE,
+                                         AES_TAG(aes), aes->H);
+            }
+            /* Skip over to end of AAD blocks. */
+            a += blocks * AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Cache the partial block. */
+            XMEMCPY(AES_LASTGBLOCK(aes), a, partial);
+            aes->aOver = (byte)partial;
+        }
+    }
+    if (endA && (aes->aOver > 0)) {
+        /* No more AAD coming and we have a partial block. */
+        /* Fill the rest of the block with zeros. */
+        XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0,
+                AES_BLOCK_SIZE - aes->aOver);
+        /* GHASH last AAD block. */
+    #ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_AVX2(intel_flags)) {
+            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+    #ifdef HAVE_INTEL_AVX1
+        if (IS_INTEL_AVX1(intel_flags)) {
+            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+        {
+            AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                      aes->H);
+        }
+        /* Clear partial count for next time through. */
+        aes->aOver = 0;
+    }
+}
+
+/* Update the AES GCM for encryption with data and/or authentication data.
+ *
+ * Implementation uses AVX2, AVX1 or straight AES-NI optimized assembly code.
+ *
+ * @param [in, out] aes  AES object.
+ * @param [out]     c    Buffer to hold cipher text.
+ * @param [in]      p    Buffer holding plaintext.
+ * @param [in]      cSz  Length of cipher text/plaintext in bytes.
+ * @param [in]      a    Buffer holding authentication data.
+ * @param [in]      aSz  Length of authentication data in bytes.
+ */
+static void AesGcmEncryptUpdate_aesni(Aes* aes, byte* c, const byte* p,
+    word32 cSz, const byte* a, word32 aSz)
+{
+    word32 blocks;
+    int partial;
+
+    SAVE_VECTOR_REGISTERS();
+    /* Hash in A, the Authentication Data */
+    AesGcmAadUpdate_aesni(aes, a, aSz, (cSz > 0) && (c != NULL));
+
+    /* Encrypt plaintext and Hash in C, the Cipher text */
+    if (cSz != 0 && c != NULL) {
+        /* Update count of cipher text we have hashed. */
+        aes->cSz += cSz;
+        if (aes->cOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = AES_BLOCK_SIZE - aes->cOver;
+            if (sz > cSz) {
+                sz = cSz;
+            }
+            /* Encrypt some of the plaintext. */
+            xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, p, sz);
+            XMEMCPY(c, AES_LASTGBLOCK(aes) + aes->cOver, sz);
+            /* Update count of unsed encrypted counter. */
+            aes->cOver += sz;
+            if (aes->cOver == AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+            #ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_AVX2(intel_flags)) {
+                    AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+            #ifdef HAVE_INTEL_AVX1
+                if (IS_INTEL_AVX1(intel_flags)) {
+                    AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+                {
+                    AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                              aes->H);
+                }
+                /* Reset count. */
+                aes->cOver = 0;
+            }
+            /* Used up some data. */
+            cSz -= sz;
+            p += sz;
+            c += sz;
+        }
+
+        /* Calculate number of blocks of plaintext and the leftover. */
+        blocks = cSz / AES_BLOCK_SIZE;
+        partial = cSz % AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* Encrypt and GHASH full blocks now. */
+        #ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_AVX2(intel_flags)) {
+                AES_GCM_encrypt_update_avx2((byte*)aes->key, aes->rounds, c, p,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            else
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                AES_GCM_encrypt_update_avx1((byte*)aes->key, aes->rounds, c, p,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            else
+        #endif
+            {
+                AES_GCM_encrypt_update_aesni((byte*)aes->key, aes->rounds, c, p,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            /* Skip over to end of blocks. */
+            p += blocks * AES_BLOCK_SIZE;
+            c += blocks * AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Encrypt the counter - XOR in zeros as proxy for plaintext. */
+            XMEMSET(AES_LASTGBLOCK(aes), 0, AES_BLOCK_SIZE);
+        #ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_AVX2(intel_flags)) {
+                AES_GCM_encrypt_block_avx2((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            else
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                AES_GCM_encrypt_block_avx1((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            else
+        #endif
+            {
+                AES_GCM_encrypt_block_aesni((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            /* XOR the remaining plaintext to calculate cipher text.
+             * Keep cipher text for GHASH of last partial block.
+             */
+            xorbuf(AES_LASTGBLOCK(aes), p, partial);
+            XMEMCPY(c, AES_LASTGBLOCK(aes), partial);
+            /* Update count of the block used. */
+            aes->cOver = (byte)partial;
+        }
+    }
+    RESTORE_VECTOR_REGISTERS();
+}
+
+/* Finalize the AES GCM for encryption and calculate the authentication tag.
+ *
+ * Calls AVX2, AVX1 or straight AES-NI optimized assembly code.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [in]      authTag    Buffer to hold authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ */
+static void AesGcmEncryptFinal_aesni(Aes* aes, byte* authTag, word32 authTagSz)
+{
+    /* AAD block incomplete when > 0 */
+    byte over = aes->aOver;
+
+    SAVE_VECTOR_REGISTERS();
+    if (aes->cOver > 0) {
+        /* Cipher text block incomplete. */
+        over = aes->cOver;
+    }
+    if (over > 0) {
+        /* Fill the rest of the block with zeros. */
+        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, AES_BLOCK_SIZE - over);
+        /* GHASH last cipher block. */
+    #ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_AVX2(intel_flags)) {
+            AES_GCM_ghash_block_avx2(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+    #ifdef HAVE_INTEL_AVX1
+        if (IS_INTEL_AVX1(intel_flags)) {
+            AES_GCM_ghash_block_avx1(AES_LASTGBLOCK(aes), AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+        {
+            AES_GCM_ghash_block_aesni(AES_LASTGBLOCK(aes), AES_TAG(aes),
+                                      aes->H);
+        }
+    }
+    /* Calculate the authentication tag. */
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_AVX2(intel_flags)) {
+        AES_GCM_encrypt_final_avx2(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes));
+    }
+    else
+#endif
+#ifdef HAVE_INTEL_AVX1
+    if (IS_INTEL_AVX1(intel_flags)) {
+        AES_GCM_encrypt_final_avx1(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes));
+    }
+    else
+#endif
+    {
+        AES_GCM_encrypt_final_aesni(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes));
+    }
+    RESTORE_VECTOR_REGISTERS();
+}
+
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+/* Assembly code implementations in: aes_gcm_asm.S */
+#ifdef HAVE_INTEL_AVX2
+extern void AES_GCM_decrypt_update_avx2(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_decrypt_final_avx2(unsigned char* tag,
+    const unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr, int* res);
+#endif
+#ifdef HAVE_INTEL_AVX1
+extern void AES_GCM_decrypt_update_avx1(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_decrypt_final_avx1(unsigned char* tag,
+    const unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr, int* res);
+#endif
+extern void AES_GCM_decrypt_update_aesni(const unsigned char* key, int nr,
+    unsigned char* out, const unsigned char* in, unsigned int nbytes,
+    unsigned char* tag, unsigned char* h, unsigned char* counter);
+extern void AES_GCM_decrypt_final_aesni(unsigned char* tag,
+    const unsigned char* authTag, unsigned int tbytes, unsigned int nbytes,
+    unsigned int abytes, unsigned char* h, unsigned char* initCtr, int* res);
+
+/* Update the AES GCM for decryption with data and/or authentication data.
+ *
+ * @param [in, out] aes  AES object.
+ * @param [out]     p    Buffer to hold plaintext.
+ * @param [in]      c    Buffer holding ciper text.
+ * @param [in]      cSz  Length of cipher text/plaintext in bytes.
+ * @param [in]      a    Buffer holding authentication data.
+ * @param [in]      aSz  Length of authentication data in bytes.
+ */
+static void AesGcmDecryptUpdate_aesni(Aes* aes, byte* p, const byte* c,
+    word32 cSz, const byte* a, word32 aSz)
+{
+    word32 blocks;
+    int partial;
+
+    SAVE_VECTOR_REGISTERS();
+    /* Hash in A, the Authentication Data */
+    AesGcmAadUpdate_aesni(aes, a, aSz, (cSz > 0) && (c != NULL));
+
+    /* Hash in C, the Cipher text, and decrypt. */
+    if (cSz != 0 && p != NULL) {
+        /* Update count of cipher text we have hashed. */
+        aes->cSz += cSz;
+        if (aes->cOver > 0) {
+            /* Calculate amount we can use - fill up the block. */
+            byte sz = AES_BLOCK_SIZE - aes->cOver;
+            if (sz > cSz) {
+                sz = cSz;
+            }
+            /* Keep a copy of the cipher text for GHASH. */
+            XMEMCPY(AES_LASTBLOCK(aes) + aes->cOver, c, sz);
+            /* Decrypt some of the cipher text. */
+            xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
+            XMEMCPY(p, AES_LASTGBLOCK(aes) + aes->cOver, sz);
+            /* Update count of unsed encrypted counter. */
+            aes->cOver += sz;
+            if (aes->cOver == AES_BLOCK_SIZE) {
+                /* We have filled up the block and can process. */
+            #ifdef HAVE_INTEL_AVX2
+                if (IS_INTEL_AVX2(intel_flags)) {
+                    AES_GCM_ghash_block_avx2(AES_LASTBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+            #ifdef HAVE_INTEL_AVX1
+                if (IS_INTEL_AVX1(intel_flags)) {
+                    AES_GCM_ghash_block_avx1(AES_LASTBLOCK(aes), AES_TAG(aes),
+                                             aes->H);
+                }
+                else
+            #endif
+                {
+                    AES_GCM_ghash_block_aesni(AES_LASTBLOCK(aes), AES_TAG(aes),
+                                              aes->H);
+                }
+                /* Reset count. */
+                aes->cOver = 0;
+            }
+            /* Used up some data. */
+            cSz -= sz;
+            c += sz;
+            p += sz;
+        }
+
+        /* Calculate number of blocks of plaintext and the leftover. */
+        blocks = cSz / AES_BLOCK_SIZE;
+        partial = cSz % AES_BLOCK_SIZE;
+        if (blocks > 0) {
+            /* Decrypt and GHASH full blocks now. */
+        #ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_AVX2(intel_flags)) {
+                AES_GCM_decrypt_update_avx2((byte*)aes->key, aes->rounds, p, c,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            else
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                AES_GCM_decrypt_update_avx1((byte*)aes->key, aes->rounds, p, c,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            else
+        #endif
+            {
+                AES_GCM_decrypt_update_aesni((byte*)aes->key, aes->rounds, p, c,
+                    blocks * AES_BLOCK_SIZE, AES_TAG(aes), aes->H,
+                    AES_COUNTER(aes));
+            }
+            /* Skip over to end of blocks. */
+            c += blocks * AES_BLOCK_SIZE;
+            p += blocks * AES_BLOCK_SIZE;
+        }
+        if (partial != 0) {
+            /* Encrypt the counter - XOR in zeros as proxy for cipher text. */
+            XMEMSET(AES_LASTGBLOCK(aes), 0, AES_BLOCK_SIZE);
+        #ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_AVX2(intel_flags)) {
+                AES_GCM_encrypt_block_avx2((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            else
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                AES_GCM_encrypt_block_avx1((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            else
+        #endif
+            {
+                AES_GCM_encrypt_block_aesni((byte*)aes->key, aes->rounds,
+                    AES_LASTGBLOCK(aes), AES_LASTGBLOCK(aes), AES_COUNTER(aes));
+            }
+            /* Keep cipher text for GHASH of last partial block. */
+            XMEMCPY(AES_LASTBLOCK(aes), c, partial);
+            /* XOR the remaining cipher text to calculate plaintext. */
+            xorbuf(AES_LASTGBLOCK(aes), c, partial);
+            XMEMCPY(p, AES_LASTGBLOCK(aes), partial);
+            /* Update count of the block used. */
+            aes->cOver = (byte)partial;
+        }
+    }
+    RESTORE_VECTOR_REGISTERS();
+}
+
+/* Finalize the AES GCM for decryption and check the authentication tag.
+ *
+ * Calls AVX2, AVX1 or straight AES-NI optimized assembly code.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [in]      authTag    Buffer holding authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ * @return  AES_GCM_AUTH_E when authentication tag doesn't match calculated
+ *          value.
+ */
+static int AesGcmDecryptFinal_aesni(Aes* aes, const byte* authTag,
+                                    word32 authTagSz)
+{
+    int ret = 0;
+    int res;
+    /* AAD block incomplete when > 0 */
+    byte over = aes->aOver;
+    byte *lastBlock = AES_LASTGBLOCK(aes);
+
+    SAVE_VECTOR_REGISTERS();
+    if (aes->cOver > 0) {
+        /* Cipher text block incomplete. */
+        over = aes->cOver;
+        lastBlock = AES_LASTBLOCK(aes);
+    }
+    if (over > 0) {
+        /* Zeroize the unused part of the block. */
+        XMEMSET(lastBlock + over, 0, AES_BLOCK_SIZE - over);
+        /* Hash the last block of cipher text. */
+    #ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_AVX2(intel_flags)) {
+            AES_GCM_ghash_block_avx2(lastBlock, AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+    #ifdef HAVE_INTEL_AVX1
+        if (IS_INTEL_AVX1(intel_flags)) {
+            AES_GCM_ghash_block_avx1(lastBlock, AES_TAG(aes), aes->H);
+        }
+        else
+    #endif
+        {
+            AES_GCM_ghash_block_aesni(lastBlock, AES_TAG(aes), aes->H);
+        }
+    }
+    /* Calculate and compare the authentication tag. */
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_AVX2(intel_flags)) {
+        AES_GCM_decrypt_final_avx2(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+    }
+    else
+#endif
+#ifdef HAVE_INTEL_AVX1
+    if (IS_INTEL_AVX1(intel_flags)) {
+        AES_GCM_decrypt_final_avx1(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+    }
+    else
+#endif
+    {
+        AES_GCM_decrypt_final_aesni(AES_TAG(aes), authTag, authTagSz, aes->cSz,
+            aes->aSz, aes->H, AES_INITCTR(aes), &res);
+    }
+    RESTORE_VECTOR_REGISTERS();
+    /* Return error code when calculated doesn't match input. */
+    if (res == 0) {
+        ret = AES_GCM_AUTH_E;
+    }
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* WOLFSSL_AESNI */
+
+/* Initialize an AES GCM cipher for encryption or decryption.
+ *
+ * Must call wc_AesInit() before calling this function.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      key   Buffer holding key.
+ * @param [in]      len   Length of key in bytes.
+ * @param [in]      iv    Buffer holding IV/nonce.
+ * @param [in]      ivSz  Length of IV/nonce in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL, or the IV is NULL and no previous IV has been set.
+ * @return  MEMORY_E when dynamic memory allocation fails. (WOLFSSL_SMALL_STACK)
+ */
+int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
+    word32 ivSz)
+{
+    int ret = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || ((len > 0) && (key == NULL)) ||
+            ((ivSz == 0) && (iv != NULL)) || (ivSz > AES_BLOCK_SIZE) ||
+            ((ivSz > 0) && (iv == NULL))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    if ((ret == 0) && (aes->streamData == NULL)) {
+        /* Allocate buffers for streaming. */
+        aes->streamData = (byte*)XMALLOC(5 * AES_BLOCK_SIZE, aes->heap,
+                                                              DYNAMIC_TYPE_AES);
+        if (aes->streamData == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
+
+    /* Set the key if passed in. */
+    if ((ret == 0) && (key != NULL)) {
+        ret = wc_AesGcmSetKey(aes, key, len);
+    }
+
+    if (ret == 0) {
+        /* Setup with IV if needed. */
+        if (iv != NULL) {
+            /* Cache the IV in AES GCM object. */
+            XMEMCPY((byte*)aes->reg, iv, ivSz);
+            aes->nonceSz = ivSz;
+        }
+        else if (aes->nonceSz != 0) {
+            /* Copy out the cached copy. */
+            iv = (byte*)aes->reg;
+            ivSz = aes->nonceSz;
+        }
+
+        if (iv != NULL) {
+            /* Initialize with the IV. */
+        #ifdef WOLFSSL_AESNI
+            if (haveAESNI
+            #ifdef HAVE_INTEL_AVX2
+                || IS_INTEL_AVX2(intel_flags)
+            #endif
+            #ifdef HAVE_INTEL_AVX1
+                || IS_INTEL_AVX1(intel_flags)
+            #endif
+                ) {
+                AesGcmInit_aesni(aes, iv, ivSz);
+            }
+            else
+        #endif
+            {
+                AesGcmInit_C(aes, iv, ivSz);
+            }
+
+            aes->nonceSet = 1;
+        }
+    }
+
+    return ret;
+}
+
+/* Initialize an AES GCM cipher for encryption.
+ *
+ * Must call wc_AesInit() before calling this function.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      key   Buffer holding key.
+ * @param [in]      len   Length of key in bytes.
+ * @param [in]      iv    Buffer holding IV/nonce.
+ * @param [in]      ivSz  Length of IV/nonce in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL, or the IV is NULL and no previous IV has been set.
+ */
+int wc_AesGcmEncryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
+    word32 ivSz)
+{
+    return wc_AesGcmInit(aes, key, len, iv, ivSz);
+}
+
+/* Initialize an AES GCM cipher for encryption or decryption. Get IV.
+ *
+ * Must call wc_AesInit() before calling this function.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      key   Buffer holding key.
+ * @param [in]      len   Length of key in bytes.
+ * @param [in]      iv    Buffer holding IV/nonce.
+ * @param [in]      ivSz  Length of IV/nonce in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL, or the IV is NULL and no previous IV has been set.
+ */
+int wc_AesGcmEncryptInit_ex(Aes* aes, const byte* key, word32 len, byte* ivOut,
+    word32 ivOutSz)
+{
+    XMEMCPY(ivOut, aes->reg, ivOutSz);
+    return wc_AesGcmInit(aes, key, len, NULL, 0);
+}
+
+/* Update the AES GCM for encryption with data and/or authentication data.
+ *
+ * All the AAD must be passed to update before the plaintext.
+ * Last part of AAD can be passed with first part of plaintext.
+ *
+ * Must set key and IV before calling this function.
+ * Must call wc_AesGcmInit() before calling this function.
+ *
+ * @param [in, out] aes       AES object.
+ * @param [out]     out       Buffer to hold cipher text.
+ * @param [in]      in        Buffer holding plaintext.
+ * @param [in]      sz        Length of plaintext in bytes.
+ * @param [in]      authIn    Buffer holding authentication data.
+ * @param [in]      authInSz  Length of authentication data in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL.
+ */
+int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
+    const byte* authIn, word32 authInSz)
+{
+    int ret = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || ((authInSz > 0) && (authIn == NULL)) || ((sz > 0) &&
+            ((out == NULL) || (in == NULL)))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Check key has been set. */
+    if ((ret == 0) && (!aes->gcmKeySet)) {
+        ret = MISSING_KEY;
+    }
+    /* Check IV has been set. */
+    if ((ret == 0) && (!aes->nonceSet)) {
+        ret = MISSING_IV;
+    }
+
+    if ((ret == 0) && aes->ctrSet && (aes->aSz == 0) && (aes->cSz == 0)) {
+        aes->invokeCtr[0]++;
+        if (aes->invokeCtr[0] == 0) {
+            aes->invokeCtr[1]++;
+            if (aes->invokeCtr[1] == 0)
+                ret = AES_GCM_OVERFLOW_E;
+        }
+    }
+
+    if (ret == 0) {
+        /* Encrypt with AAD and/or plaintext. */
+    #if defined(WOLFSSL_AESNI)
+        if (haveAESNI
+        #ifdef HAVE_INTEL_AVX2
+            || IS_INTEL_AVX2(intel_flags)
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            || IS_INTEL_AVX1(intel_flags)
+        #endif
+            ) {
+            AesGcmEncryptUpdate_aesni(aes, out, in, sz, authIn, authInSz);
+        }
+        else
+    #endif
+        {
+            /* Encrypt the plaintext. */
+            AesGcmCryptUpdate_C(aes, out, in, sz);
+            /* Update the authenication tag with any authentication data and the
+             * new cipher text. */
+            GHASH_UPDATE(aes, authIn, authInSz, out, sz);
+        }
+    }
+
+    return ret;
+}
+
+/* Finalize the AES GCM for encryption and return the authentication tag.
+ *
+ * Must set key and IV before calling this function.
+ * Must call wc_AesGcmInit() before calling this function.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [out]     authTag    Buffer to hold authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ */
+int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
+{
+    int ret = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || (authTag == NULL) || (authTagSz > AES_BLOCK_SIZE) ||
+            (authTagSz == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Check key has been set. */
+    if ((ret == 0) && (!aes->gcmKeySet)) {
+        ret = MISSING_KEY;
+    }
+    /* Check IV has been set. */
+    if ((ret == 0) && (!aes->nonceSet)) {
+        ret = MISSING_IV;
+    }
+
+    if (ret == 0) {
+        /* Calculate authentication tag. */
+    #ifdef WOLFSSL_AESNI
+        if (haveAESNI
+        #ifdef HAVE_INTEL_AVX2
+            || IS_INTEL_AVX2(intel_flags)
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            || IS_INTEL_AVX1(intel_flags)
+        #endif
+            ) {
+            AesGcmEncryptFinal_aesni(aes, authTag, authTagSz);
+        }
+        else
+    #endif
+        {
+            AesGcmFinal_C(aes, authTag, authTagSz);
+        }
+    }
+
+    if ((ret == 0) && aes->ctrSet) {
+        IncCtr((byte*)aes->reg, aes->nonceSz);
+    }
+
+    return ret;
+}
+
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
+/* Initialize an AES GCM cipher for decryption.
+ *
+ * Must call wc_AesInit() before calling this function.
+ *
+ * @param [in, out] aes   AES object.
+ * @param [in]      key   Buffer holding key.
+ * @param [in]      len   Length of key in bytes.
+ * @param [in]      iv    Buffer holding IV/nonce.
+ * @param [in]      ivSz  Length of IV/nonce in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL, or the IV is NULL and no previous IV has been set.
+ */
+int wc_AesGcmDecryptInit(Aes* aes, const byte* key, word32 len, const byte* iv,
+    word32 ivSz)
+{
+    return wc_AesGcmInit(aes, key, len, iv, ivSz);
+}
+
+/* Update the AES GCM for decryption with data and/or authentication data.
+ *
+ * All the AAD must be passed to update before the cipher text.
+ * Last part of AAD can be passed with first part of cipher text.
+ *
+ * Must set key and IV before calling this function.
+ * Must call wc_AesGcmInit() before calling this function.
+ *
+ * @param [in, out] aes       AES object.
+ * @param [out]     out       Buffer to hold plaintext.
+ * @param [in]      in        Buffer holding cipher text.
+ * @param [in]      sz        Length of cipher text in bytes.
+ * @param [in]      authIn    Buffer holding authentication data.
+ * @param [in]      authInSz  Length of authentication data in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when aes is NULL, or a length is non-zero but buffer
+ *          is NULL.
+ */
+int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
+    const byte* authIn, word32 authInSz)
+{
+    int ret = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || ((authInSz > 0) && (authIn == NULL)) || ((sz > 0) &&
+            ((out == NULL) || (in == NULL)))) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Check key has been set. */
+    if ((ret == 0) && (!aes->gcmKeySet)) {
+        ret = MISSING_KEY;
+    }
+    /* Check IV has been set. */
+    if ((ret == 0) && (!aes->nonceSet)) {
+        ret = MISSING_IV;
+    }
+
+    if (ret == 0) {
+        /* Decrypt with AAD and/or cipher text. */
+    #if defined(WOLFSSL_AESNI)
+        if (haveAESNI
+        #ifdef HAVE_INTEL_AVX2
+            || IS_INTEL_AVX2(intel_flags)
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            || IS_INTEL_AVX1(intel_flags)
+        #endif
+            ) {
+            AesGcmDecryptUpdate_aesni(aes, out, in, sz, authIn, authInSz);
+        }
+        else
+    #endif
+        {
+            /* Update the authenication tag with any authentication data and
+             * cipher text. */
+            GHASH_UPDATE(aes, authIn, authInSz, in, sz);
+            /* Decrypt the cipher text. */
+            AesGcmCryptUpdate_C(aes, out, in, sz);
+        }
+    }
+
+    return ret;
+}
+
+/* Finalize the AES GCM for decryption and check the authentication tag.
+ *
+ * Must set key and IV before calling this function.
+ * Must call wc_AesGcmInit() before calling this function.
+ *
+ * @param [in, out] aes        AES object.
+ * @param [in]      authTag    Buffer holding authentication tag.
+ * @param [in]      authTagSz  Length of authentication tag in bytes.
+ * @return  0 on success.
+ */
+int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
+{
+    int ret = 0;
+
+    /* Check validity of parameters. */
+    if ((aes == NULL) || (authTag == NULL) || (authTagSz > AES_BLOCK_SIZE) ||
+            (authTagSz == 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Check key has been set. */
+    if ((ret == 0) && (!aes->gcmKeySet)) {
+        ret = MISSING_KEY;
+    }
+    /* Check IV has been set. */
+    if ((ret == 0) && (!aes->nonceSet)) {
+        ret = MISSING_IV;
+    }
+
+    if (ret == 0) {
+        /* Calculate authentication tag and compare with one passed in.. */
+    #ifdef WOLFSSL_AESNI
+        if (haveAESNI
+        #ifdef HAVE_INTEL_AVX2
+            || IS_INTEL_AVX2(intel_flags)
+        #endif
+        #ifdef HAVE_INTEL_AVX1
+            || IS_INTEL_AVX1(intel_flags)
+        #endif
+            ) {
+            ret = AesGcmDecryptFinal_aesni(aes, authTag, authTagSz);
+        }
+        else
+    #endif
+        {
+            ALIGN32 byte calcTag[AES_BLOCK_SIZE];
+            /* Calculate authentication tag. */
+            AesGcmFinal_C(aes, calcTag, authTagSz);
+            /* Check calculated tag matches the one passed in. */
+            if (ConstantCompare(authTag, calcTag, authTagSz) != 0) {
+                ret = AES_GCM_AUTH_E;
+            }
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* WOLFSSL_XILINX_CRYPT */
 #endif /* end of block for AESGCM implementation selection */
 
@@ -7411,6 +8933,9 @@ int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
          * counter to 32-bits. (SP 800-38D 8.3) */
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
         aes->nonceSz = ivSz;
     }
 
@@ -7448,6 +8973,9 @@ int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
          * counter to 32-bits. (SP 800-38D 8.3) */
         aes->invokeCtr[0] = 0;
         aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
         aes->nonceSz = ivSz;
     }
 
@@ -7734,7 +9262,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (status != 0) {
         return status;
     }
-    
+
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0)
         return status;
@@ -8210,6 +9738,18 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     aes->aadLen = 0;
 #endif
 #endif
+
+#ifdef WOLFSSL_AESGCM_STREAM
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_AESNI)
+    aes->streamData = NULL;
+#endif
+    aes->keylen = 0;
+    aes->nonceSz = 0;
+    aes->gcmKeySet = 0;
+    aes->nonceSet = 0;
+    aes->ctrSet = 0;
+#endif
+
     return ret;
 }
 
@@ -8287,6 +9827,12 @@ void wc_AesFree(Aes* aes)
 #endif
 #if defined(WOLFSSL_IMXRT_DCP)
     DCPAesFree(aes);
+#endif
+#if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
+    !defined(WOLFSSL_AESNI)
+    if (aes->streamData != NULL) {
+        XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
+    }
 #endif
 }
 

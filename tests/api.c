@@ -11614,6 +11614,208 @@ static int test_wc_AesCmacGenerate (void)
 } /* END test_wc_AesCmacGenerate */
 
 
+/*
+ * Testing streaming AES-GCM API.
+ */
+static int test_wc_AesGcmStream (void)
+{
+    int ret = 0;
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM) && \
+    defined(WOLFSSL_AESGCM_STREAM)
+
+    int i;
+    WC_RNG rng[1];
+    Aes aesEnc[1];
+    Aes aesDec[1];
+    byte tag[AES_BLOCK_SIZE];
+    byte in[AES_BLOCK_SIZE * 3 + 2] = { 0, };
+    byte out[AES_BLOCK_SIZE * 3 + 2];
+    byte plain[AES_BLOCK_SIZE * 3 + 2];
+    byte aad[AES_BLOCK_SIZE * 3 + 2] = { 0, };
+    byte key[AES_128_KEY_SIZE] = { 0, };
+    byte iv[AES_IV_SIZE] = { 1, };
+    byte ivOut[AES_IV_SIZE];
+    static const byte expTagAAD1[AES_BLOCK_SIZE] = {
+        0x6c, 0x35, 0xe6, 0x7f, 0x59, 0x9e, 0xa9, 0x2f,
+        0x27, 0x2d, 0x5f, 0x8e, 0x7e, 0x42, 0xd3, 0x05
+    };
+    static const byte expTagPlain1[AES_BLOCK_SIZE] = {
+        0x24, 0xba, 0x57, 0x95, 0xd0, 0x27, 0x9e, 0x78,
+        0x3a, 0x88, 0x4c, 0x0a, 0x5d, 0x50, 0x23, 0xd1
+    };
+    static const byte expTag[AES_BLOCK_SIZE] = {
+        0x22, 0x91, 0x70, 0xad, 0x42, 0xc3, 0xad, 0x96,
+        0xe0, 0x31, 0x57, 0x60, 0xb7, 0x92, 0xa3, 0x6d
+    };
+
+    /* Create a random for generating IV/nonce. */
+    AssertIntEQ(wc_InitRng(rng), 0);
+
+    /* Initialize data structures. */
+    AssertIntEQ(wc_AesInit(aesEnc, NULL, INVALID_DEVID), 0);
+    AssertIntEQ(wc_AesInit(aesDec, NULL, INVALID_DEVID), 0);
+
+    /* BadParameters to streaming init. */
+    AssertIntEQ(wc_AesGcmEncryptInit(NULL, NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptInit(NULL, NULL, 0, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptInit(aesEnc, NULL, AES_128_KEY_SIZE, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptInit(aesEnc, NULL, 0, NULL, GCM_NONCE_MID_SZ),
+                BAD_FUNC_ARG);
+
+    /* Bad parameters to encrypt update. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(NULL, NULL, NULL, 0, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, in, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, NULL, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 0, NULL, 1),
+                BAD_FUNC_ARG);
+    /* Bad parameters to decrypt update. */
+    AssertIntEQ(wc_AesGcmDecryptUpdate(NULL, NULL, NULL, 0, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, in, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, out, NULL, 1, NULL, 0),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 0, NULL, 1),
+                BAD_FUNC_ARG);
+
+    /* Bad parameters to encrypt final. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptFinal(NULL, tag, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptFinal(NULL, NULL, AES_BLOCK_SIZE),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, NULL, AES_BLOCK_SIZE),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE + 1),
+                BAD_FUNC_ARG);
+    /* Bad parameters to decrypt final. */
+    AssertIntEQ(wc_AesGcmDecryptFinal(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptFinal(NULL, tag, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptFinal(NULL, NULL, AES_BLOCK_SIZE),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, NULL, AES_BLOCK_SIZE),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE + 1),
+                BAD_FUNC_ARG);
+
+    /* Check calling final before setting key fails. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, sizeof(tag)), MISSING_KEY);
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesDec, tag, sizeof(tag)), MISSING_KEY);
+    /* Check calling update before setting key else fails. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 0, aad, 1),
+                MISSING_KEY);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 0, aad, 1),
+                MISSING_KEY);
+
+    /* Set key but not IV. */
+    AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), NULL, 0), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), NULL, 0), 0);
+    /* Check calling final before setting IV fails. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, sizeof(tag)), MISSING_IV);
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesDec, tag, sizeof(tag)), MISSING_IV);
+    /* Check calling update before setting IV else fails. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 0, aad, 1),
+                MISSING_IV);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 0, aad, 1),
+                MISSING_IV);
+
+    /* Set IV using fixed part IV and external IV APIs. */
+    AssertIntEQ(wc_AesGcmSetIV(aesEnc, GCM_NONCE_MID_SZ, iv, AES_IV_FIXED_SZ,
+                               rng), 0);
+    AssertIntEQ(wc_AesGcmEncryptInit_ex(aesEnc, NULL, 0, ivOut,
+                                        GCM_NONCE_MID_SZ), 0);
+    AssertIntEQ(wc_AesGcmSetExtIV(aesDec, ivOut, GCM_NONCE_MID_SZ), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, NULL, 0, NULL, 0), 0);
+    /* Encrypt and decrypt data. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, 1, aad, 1), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, 1, aad, 1), 0);
+    AssertIntEQ(XMEMCMP(plain, in, 1), 0);
+    /* Finalize and check tag matches. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Set key and IV through streaming init API. */
+    AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    /* Encrypt/decrypt one block and AAD of one block. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, AES_BLOCK_SIZE, aad,
+                                       AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, AES_BLOCK_SIZE, aad,
+                                       AES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(plain, in, AES_BLOCK_SIZE), 0);
+    /* Finalize and check tag matches. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Set key and IV through streaming init API. */
+    AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    /* No data to encrypt/decrypt one byte of AAD. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 0, aad, 1), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 0, aad, 1), 0);
+    /* Finalize and check tag matches. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(tag, expTagAAD1, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Set key and IV through streaming init API. */
+    AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    /* Encrypt/decrypt one byte and no AAD. */
+    AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out, in, 1, NULL, 0), 0);
+    AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain, out, 1, NULL, 0), 0);
+    AssertIntEQ(XMEMCMP(plain, in, 1), 0);
+    /* Finalize and check tag matches. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(tag, expTagPlain1, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Set key and IV through streaming init API. */
+    AssertIntEQ(wc_AesGcmInit(aesEnc, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    AssertIntEQ(wc_AesGcmInit(aesDec, key, sizeof(key), iv, AES_IV_SIZE), 0);
+    /* Encryption AES is one byte at a time */
+    for (i = 0; i < (int)sizeof(aad); i++) {
+        AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, NULL, NULL, 0, aad + i, 1),
+            0);
+    }
+    for (i = 0; i < (int)sizeof(in); i++) {
+        AssertIntEQ(wc_AesGcmEncryptUpdate(aesEnc, out + i, in + i, 1, NULL, 0),
+                    0);
+    }
+    /* Decryption AES is two bytes at a time */
+    for (i = 0; i < (int)sizeof(aad); i += 2) {
+        AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, NULL, NULL, 0, aad + i, 2),
+            0);
+    }
+    for (i = 0; i < (int)sizeof(aad); i += 2) {
+        AssertIntEQ(wc_AesGcmDecryptUpdate(aesDec, plain + i, out + i, 2, NULL,
+                                           0), 0);
+    }
+    AssertIntEQ(XMEMCMP(plain, in, sizeof(in)), 0);
+    /* Finalize and check tag matches. */
+    AssertIntEQ(wc_AesGcmEncryptFinal(aesEnc, tag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(tag, expTag, AES_BLOCK_SIZE), 0);
+    AssertIntEQ(wc_AesGcmDecryptFinal(aesDec, tag, AES_BLOCK_SIZE), 0);
+
+    /* Check streaming encryption can be decrypted with one shot. */
+    AssertIntEQ(wc_AesGcmSetKey(aesDec, key, sizeof(key)), 0);
+    AssertIntEQ(wc_AesGcmDecrypt(aesDec, plain, out, sizeof(in), iv,
+        AES_IV_SIZE, tag, AES_BLOCK_SIZE, aad, sizeof(aad)), 0);
+    AssertIntEQ(XMEMCMP(plain, in, sizeof(in)), 0);
+
+#endif
+    return ret;
+
+} /* END test_wc_AesGcmStream */
 
 
 /*
@@ -39748,15 +39950,19 @@ static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
     const byte iv[12] = { 0 };
     const byte key[16] = { 0 };
     const byte cleartext[16] = { 0 };
-    const byte aad[] = {0x01, 0x10, 0x00, 0x2a, 0x08, 0x00, 0x04, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0xdc, 0x4d,
-            0xad, 0x6b, 0x06, 0x93, 0x4f};
+    const byte aad[] = {
+        0x01, 0x10, 0x00, 0x2a, 0x08, 0x00, 0x04, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,
+        0x00, 0x00, 0xdc, 0x4d, 0xad, 0x6b, 0x06, 0x93,
+        0x4f
+    };
     byte out1Part[16];
     byte outTag1Part[16];
     byte out2Part[16];
     byte outTag2Part[16];
     byte decryptBuf[16];
     int len;
+    int tlen;
     EVP_CIPHER_CTX* ctx = NULL;
 
     printf(testingFmt, "wolfssl_EVP_aes_gcm_AAD_2_parts");
@@ -39764,25 +39970,37 @@ static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
     /* ENCRYPT */
     /* Send AAD and data in 1 part */
     AssertNotNull(ctx = EVP_CIPHER_CTX_new());
-    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    tlen = 0;
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+                1);
     AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
     AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad, sizeof(aad)), 1);
-    AssertIntEQ(EVP_EncryptUpdate(ctx, out1Part, &len, cleartext, sizeof(cleartext)), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out1Part, &len, cleartext,
+                                  sizeof(cleartext)), 1);
+    tlen += len;
     AssertIntEQ(EVP_EncryptFinal_ex(ctx, out1Part, &len), 1);
-    AssertIntEQ(len, sizeof(cleartext));
-    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, outTag1Part), 1);
+    tlen += len;
+    AssertIntEQ(tlen, sizeof(cleartext));
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16,
+                                    outTag1Part), 1);
     EVP_CIPHER_CTX_free(ctx);
 
     /* DECRYPT */
     /* Send AAD and data in 1 part */
     AssertNotNull(ctx = EVP_CIPHER_CTX_new());
-    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    tlen = 0;
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+                1);
     AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
     AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad, sizeof(aad)), 1);
-    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part, sizeof(cleartext)), 1);
-    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, outTag1Part), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part,
+                                  sizeof(cleartext)), 1);
+    tlen += len;
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16,
+                                    outTag1Part), 1);
     AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf, &len), 1);
-    AssertIntEQ(len, sizeof(cleartext));
+    tlen += len;
+    AssertIntEQ(tlen, sizeof(cleartext));
     EVP_CIPHER_CTX_free(ctx);
 
     AssertIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
@@ -39790,16 +40008,23 @@ static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
     /* ENCRYPT */
     /* Send AAD and data in 2 parts */
     AssertNotNull(ctx = EVP_CIPHER_CTX_new());
-    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    tlen = 0;
+    AssertIntEQ(EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+                1);
     AssertIntEQ(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv), 1);
     AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad, 1), 1);
-    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1), 1);
+    AssertIntEQ(EVP_EncryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1),
+                1);
     AssertIntEQ(EVP_EncryptUpdate(ctx, out2Part, &len, cleartext, 1), 1);
-    AssertIntEQ(EVP_EncryptUpdate(ctx, out2Part, &len, cleartext + 1,
+    tlen += len;
+    AssertIntEQ(EVP_EncryptUpdate(ctx, out2Part + tlen, &len, cleartext + 1,
                                   sizeof(cleartext) - 1), 1);
-    AssertIntEQ(EVP_EncryptFinal_ex(ctx, out2Part, &len), 1);
-    AssertIntEQ(len, sizeof(cleartext));
-    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, outTag2Part), 1);
+    tlen += len;
+    AssertIntEQ(EVP_EncryptFinal_ex(ctx, out2Part + tlen, &len), 1);
+    tlen += len;
+    AssertIntEQ(tlen, sizeof(cleartext));
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16,
+                                    outTag2Part), 1);
 
     AssertIntEQ(XMEMCMP(out1Part, out2Part, sizeof(out1Part)), 0);
     AssertIntEQ(XMEMCMP(outTag1Part, outTag2Part, sizeof(outTag1Part)), 0);
@@ -39808,16 +40033,23 @@ static void test_wolfssl_EVP_aes_gcm_AAD_2_parts(void)
     /* DECRYPT */
     /* Send AAD and data in 2 parts */
     AssertNotNull(ctx = EVP_CIPHER_CTX_new());
-    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL), 1);
+    tlen = 0;
+    AssertIntEQ(EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL),
+                1);
     AssertIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv), 1);
     AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad, 1), 1);
-    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1), 1);
+    AssertIntEQ(EVP_DecryptUpdate(ctx, NULL, &len, aad + 1, sizeof(aad) - 1),
+                1);
     AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part, 1), 1);
-    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf, &len, out1Part + 1,
+    tlen += len;
+    AssertIntEQ(EVP_DecryptUpdate(ctx, decryptBuf + tlen, &len, out1Part + 1,
                                   sizeof(cleartext) - 1), 1);
-    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, outTag1Part), 1);
-    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf, &len), 1);
-    AssertIntEQ(len, sizeof(cleartext));
+    tlen += len;
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16,
+                                    outTag1Part), 1);
+    AssertIntEQ(EVP_DecryptFinal_ex(ctx, decryptBuf + tlen, &len), 1);
+    tlen += len;
+    AssertIntEQ(tlen, sizeof(cleartext));
 
     AssertIntEQ(XMEMCMP(decryptBuf, cleartext, len), 0);
 
@@ -39834,14 +40066,15 @@ static void test_wolfssl_EVP_aes_gcm_zeroLen(void)
 {
     /* Zero length plain text */
 
-    byte key[] =
-        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    byte key[] = {
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}; /* align */
-    byte iv[]  =
-        {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-                                                            /* align */
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
+    byte iv[]  = {
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    }; /* align */
     byte plaintxt[0];
     int ivSz  = 12;
     int plaintxtSz = 0;
@@ -39861,7 +40094,8 @@ static void test_wolfssl_EVP_aes_gcm_zeroLen(void)
 
     AssertIntEQ(1, EVP_EncryptInit_ex(en, EVP_aes_256_gcm(), NULL, key, iv));
     AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
-    AssertIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt, plaintxtSz));
+    AssertIntEQ(1, EVP_EncryptUpdate(en, ciphertxt, &ciphertxtSz , plaintxt,
+                                     plaintxtSz));
     AssertIntEQ(1, EVP_EncryptFinal_ex(en, ciphertxt, &len));
     ciphertxtSz += len;
     AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(en, EVP_CTRL_GCM_GET_TAG, 16, tag));
@@ -41833,6 +42067,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_CmacUpdate(), 0);
     AssertIntEQ(test_wc_CmacFinal(), 0);
     AssertIntEQ(test_wc_AesCmacGenerate(), 0);
+    AssertIntEQ(test_wc_AesGcmStream(), 0);
 
     AssertIntEQ(test_wc_Des3_SetIV(), 0);
     AssertIntEQ(test_wc_Des3_SetKey(), 0);
