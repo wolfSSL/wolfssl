@@ -5077,6 +5077,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content type */
@@ -5136,7 +5141,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
             }
             else {
-                /* last state expect the reset of the buffer */
+                /* last state expect the rest of the buffer */
                 pkcs7->stream->expected = (pkcs7->stream->maxLen -
                     pkcs7->stream->totalRd) + pkcs7->stream->length;
             }
@@ -5155,6 +5160,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content */
