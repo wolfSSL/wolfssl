@@ -28925,7 +28925,8 @@ static void test_wolfSSL_X509_STORE(void)
 
 static void test_wolfSSL_X509_STORE_load_locations(void)
 {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)\
+    && !defined(NO_WOLFSSL_DIR)
     SSL_CTX *ctx;
     X509_STORE *store;
 
@@ -40867,7 +40868,7 @@ static void test_wolfSSL_X509_print(void)
    !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(XSNPRINTF)
     X509 *x509;
     BIO *bio;
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
     const X509_ALGOR *cert_sig_alg;
 #endif
 
@@ -40888,14 +40889,16 @@ static void test_wolfSSL_X509_print(void)
 
     AssertNotNull(bio = BIO_new_fd(STDOUT_FILENO, BIO_NOCLOSE));
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
     /* Print signature */
     AssertNotNull(cert_sig_alg = X509_get0_tbs_sigalg(x509));
     AssertIntEQ(X509_signature_print(bio, cert_sig_alg, NULL), SSL_SUCCESS);
 #endif
 
     /* print to stdout */
+#if !defined(NO_WOLFSSL_DIR)
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+#endif
     /* print again */
     AssertIntEQ(X509_print_fp(stdout, x509), SSL_SUCCESS);
 

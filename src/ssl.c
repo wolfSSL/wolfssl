@@ -24985,7 +24985,8 @@ int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
 #if !defined(NO_WOLFSSL_DIR)
             lret = x509AddCertDir(ctx->dirs, argc, argl);
 #else
-            lret = WOLFSSL_NOT_IMPLEMENTED
+            (void)x509AddCertDir;
+            lret = WOLFSSL_NOT_IMPLEMENTED;
 #endif
             break;
         case WOLFSSL_X509_L_ADD_STORE:
