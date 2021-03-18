@@ -413,6 +413,7 @@ then
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_mcast" = "" && enable_mcast=yes
+    test "$enable_network_introspection" = "" && enable_network_introspection=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
@@ -2500,6 +2501,20 @@ if test "$ENABLED_STACKLOG" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
+
+
+# API for tracking network connection attributes
+AC_ARG_ENABLE([network-introspection],
+    [AS_HELP_STRING([--enable-network-introspection],[Enable network connection attribute tracking and callbacks (default: disabled)])],
+    [ ENABLED_NETWORK_INTROSPECTION=$enableval ],
+    [ ENABLED_NETWORK_INTROSPECTION=no ]
+    )
+
+if test "$ENABLED_NETWORK_INTROSPECTION" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NETWORK_INTROSPECTION"
+fi
+
 
 if test "$ENABLED_QT" = "yes"
 then
@@ -6567,8 +6582,8 @@ echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
-echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
-echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
+echo "   * ECC Custom Curves:          $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
@@ -6582,6 +6597,7 @@ echo "   * Anonymous cipher:           $ENABLED_ANON"
 echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
+echo "   * Connection tracking:        $ENABLED_NETWORK_INTROSPECTION"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
@@ -6589,8 +6605,8 @@ echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
-echo "   * Qt                          $ENABLED_QT"
-echo "   * Qt Unit Testing             $ENABLED_QT_TEST"
+echo "   * Qt:                         $ENABLED_QT"
+echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
@@ -6631,12 +6647,12 @@ echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
-echo "   * PKCS#7                      $ENABLED_PKCS7"
-echo "   * S/MIME                      $ENABLED_SMIME"
-echo "   * wolfSSH                     $ENABLED_WOLFSSH"
-echo "   * wolfTPM                     $ENABLED_WOLFTPM"
-echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
-echo "   * Secure Remote Password      $ENABLED_SRP"
+echo "   * PKCS#7:                     $ENABLED_PKCS7"
+echo "   * S/MIME:                     $ENABLED_SMIME"
+echo "   * wolfSSH:                    $ENABLED_WOLFSSH"
+echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
+echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
+echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"

@@ -1141,6 +1141,84 @@ WOLFSSL_API int wolfSSL_export_keying_material(WOLFSSL *ssl,
         int use_context);
 #endif /* HAVE_KEYING_MATERIAL */
 
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+
+#ifndef WOLFSSL_NETWORK_INTROSPECTION_STATIC_ADDR_BYTES
+#define WOLFSSL_NETWORK_INTROSPECTION_STATIC_ADDR_BYTES 32  /* enough for 2 IPv6 addresses. */
+#endif
+
+struct wolfSSL_network_connection {
+    word16 family;
+    word16 proto;
+    word16 remote_port;
+    word16 local_port;
+    word16 remote_addr_len;
+    word16 local_addr_len;
+    byte interface;
+    byte addr_buffer[0];
+};
+
+#define WOLFSSL_NETWORK_CONNECTION_BUFSIZ(remote_addr_len, local_addr_len) \
+    ((unsigned int)(unsigned long int)(&((struct wolfSSL_network_connection *)0)->addr_buffer[0]) + \
+     (remote_addr_len) + (local_addr_len));
+
+WOLFSSL_API int wolfSSL_set_endpoints(
+    WOLFSSL *ssl,
+    unsigned int interface_id,
+    unsigned int family,
+    unsigned int proto,
+    unsigned int addr_len,
+    const byte *remote_addr,
+    const byte *local_addr,
+    unsigned int remote_port,
+    unsigned int local_port);
+
+WOLFSSL_API int wolfSSL_get_endpoints(
+    WOLFSSL *ssl,
+    const struct wolfSSL_network_connection **nc,
+    const void **remote_addr,
+    const void **local_addr);
+
+WOLFSSL_API int wolfSSL_copy_endpoints(
+    WOLFSSL *ssl,
+    struct wolfSSL_network_connection *nc,
+    size_t nc_size,
+    const void **remote_addr,
+    const void **local_addr);
+
+WOLFSSL_API int wolfSSL_set_endpoints_layer2(
+    WOLFSSL *ssl,
+    unsigned int interface_id,
+    unsigned int family,
+    unsigned int addr_len,
+    const byte *remote_addr,
+    const byte *local_addr);
+
+WOLFSSL_API int wolfSSL_get_endpoints_layer2(
+    WOLFSSL *ssl,
+    const struct wolfSSL_network_connection **nc,
+    const void **remote_addr,
+    const void **local_addr);
+
+WOLFSSL_API int wolfSSL_copy_endpoints_layer2(
+    WOLFSSL *ssl,
+    struct wolfSSL_network_connection *nc,
+    size_t nc_size,
+    const void **remote_addr,
+    const void **local_addr);
+
+typedef enum {
+    WOLFSSL_NETFILTER_PASS = 0,
+    WOLFSSL_NETFILTER_ACCEPT = 1,
+    WOLFSSL_NETFILTER_REJECT = 2
+} wolfSSL_netfilter_decision_t;
+
+typedef int (*NetworkFilterCallback_t)(WOLFSSL *ssl, struct wolfSSL_network_connection *nc, void *ctx, wolfSSL_netfilter_decision_t *decision);
+WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg);
+WOLFSSL_API int wolfSSL_set_AcceptFilter(WOLFSSL *ssl, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg);
+
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+
 /* Nonblocking DTLS helper functions */
 WOLFSSL_API void wolfSSL_dtls_set_using_nonblock(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);

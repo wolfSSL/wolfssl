@@ -8356,6 +8356,25 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+    if (ssl->AcceptFilter && (ssl->buffers.network_connection.remote_addr_len > 0)) {
+        wolfSSL_netfilter_decision_t res;
+        if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+            (res == WOLFSSL_NETFILTER_REJECT)) {
+            WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+    if (ssl->AcceptFilter && (ssl->buffers.network_connection_layer2.remote_addr_len > 0)) {
+        wolfSSL_netfilter_decision_t res;
+        if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection_layer2, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+            (res == WOLFSSL_NETFILTER_REJECT)) {
+            WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+
 #ifndef NO_CERTS
     /* allow no private key if using PK callbacks and CB is set */
     if (!havePSK) {

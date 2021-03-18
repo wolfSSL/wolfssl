@@ -5581,6 +5581,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
 #endif
 
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+    ssl->AcceptFilter = ctx->AcceptFilter;
+    ssl->AcceptFilter_arg = ctx->AcceptFilter_arg;
+#endif
+
     ssl->CBIORecv = ctx->CBIORecv;
     ssl->CBIOSend = ctx->CBIOSend;
 #ifdef OPENSSL_EXTRA
@@ -6460,6 +6465,12 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
     ssl->peerRsaKeyPresent = 0;
 #endif
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection))
+        XFREE(ssl->buffers.network_connection_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection_layer2))
+        XFREE(ssl->buffers.network_connection_layer2_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     XFREE(ssl->peerTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);
 #endif

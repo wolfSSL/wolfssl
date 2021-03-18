@@ -1013,6 +1013,234 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 }
 #endif /* NO_CERTS */
 
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+
+/* all ints in host byte order, addresses in network order (big endian). */
+static WC_INLINE int wolfSSL_set_endpoints_1(
+    WOLFSSL* ssl,
+    struct wolfSSL_network_connection *nc,
+    byte **nc_addr_buffer_dynamic,
+    unsigned int interface_id,
+    unsigned int family,
+    unsigned int proto,
+    unsigned int remote_addr_len,
+    const byte *remote_addr,
+    unsigned int local_addr_len,
+    const byte *local_addr,
+    unsigned int remote_port,
+    unsigned int local_port)
+{
+    size_t current_dynamic_alloc, needed_dynamic_alloc;
+
+    if ((ssl == NULL) || (nc == NULL) || (remote_addr_len == 0) || (local_addr_len == 0))
+        return BAD_FUNC_ARG;
+
+    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(*nc))
+        current_dynamic_alloc = nc->local_addr_len + nc->remote_addr_len;
+    else
+        current_dynamic_alloc = 0;
+
+    if (local_addr_len + remote_addr_len > WOLFSSL_NETWORK_INTROSPECTION_STATIC_ADDR_BYTES)
+        needed_dynamic_alloc = local_addr_len + remote_addr_len;
+    else
+        needed_dynamic_alloc = 0;
+
+    nc->local_addr_len = nc->remote_addr_len = 0;
+
+    if (current_dynamic_alloc != needed_dynamic_alloc) {
+        if (current_dynamic_alloc > 0)
+            XFREE(*nc_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+        if (needed_dynamic_alloc > 0) {
+            *nc_addr_buffer_dynamic = (byte *)XMALLOC
+                (needed_dynamic_alloc,
+                 ssl->heap,
+                 DYNAMIC_TYPE_SOCKADDR);
+            if (*nc_addr_buffer_dynamic == NULL)
+                return MEMORY_E;
+        }
+    }
+
+    nc->family = family;
+    nc->proto = proto;
+    nc->remote_addr_len = remote_addr_len;
+    nc->local_addr_len = local_addr_len;
+    nc->interface = interface_id;
+    nc->remote_port = remote_port;
+    nc->local_port = local_port;
+
+    if (needed_dynamic_alloc == 0) {
+        XMEMCPY(nc->addr_buffer, remote_addr, remote_addr_len);
+        XMEMCPY(nc->addr_buffer + remote_addr_len, local_addr, local_addr_len);
+    } else {
+        XMEMCPY(*nc_addr_buffer_dynamic, remote_addr, remote_addr_len);
+        XMEMCPY((*nc_addr_buffer_dynamic) + remote_addr_len, local_addr, local_addr_len);
+    }
+    nc->remote_addr_len = remote_addr_len;
+    nc->local_addr_len = local_addr_len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_set_endpoints(
+    WOLFSSL* ssl,
+    unsigned int interface_id,
+    unsigned int family,
+    unsigned int proto,
+    unsigned int addr_len,
+    const byte *remote_addr,
+    const byte *local_addr,
+    unsigned int remote_port,
+    unsigned int local_port)
+{
+    return wolfSSL_set_endpoints_1(
+        ssl,
+        &ssl->buffers.network_connection,
+        &ssl->buffers.network_connection_addr_buffer_dynamic,
+        interface_id,
+        family,
+        proto,
+        addr_len,
+        remote_addr,
+        addr_len,
+        local_addr,
+        remote_port,
+        local_port);
+}
+
+int wolfSSL_set_endpoints_layer2(
+    WOLFSSL* ssl,
+    unsigned int interface_id,
+    unsigned int family,
+    unsigned int addr_len,
+    const byte *remote_addr,
+    const byte *local_addr)
+{
+    return wolfSSL_set_endpoints_1(
+        ssl,
+        &ssl->buffers.network_connection_layer2,
+        &ssl->buffers.network_connection_layer2_addr_buffer_dynamic,
+        interface_id,
+        family,
+        0 /* proto */,
+        addr_len,
+        remote_addr,
+        addr_len,
+        local_addr,
+        0 /* remote_port */,
+        0 /* local_port */);
+}
+
+static WC_INLINE int wolfSSL_get_endpoints_1(
+    const struct wolfSSL_network_connection *nc,
+    byte *nc_addr_buffer_dynamic,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    if ((remote_addr == NULL) || (local_addr == NULL))
+        return BAD_FUNC_ARG;
+    if (nc->remote_addr_len == 0)
+        return INCOMPLETE_DATA;
+
+    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(*nc)) {
+        *remote_addr = nc_addr_buffer_dynamic;
+        *local_addr = nc_addr_buffer_dynamic + nc->remote_addr_len;
+    } else {
+        *remote_addr = nc->addr_buffer;
+        *local_addr = nc->addr_buffer + nc->remote_addr_len;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_API int wolfSSL_get_endpoints(
+    WOLFSSL *ssl,
+    const struct wolfSSL_network_connection **nc,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    *nc = &ssl->buffers.network_connection;
+    return wolfSSL_get_endpoints_1(*nc, ssl->buffers.network_connection_addr_buffer_dynamic, remote_addr, local_addr);
+}
+
+WOLFSSL_API int wolfSSL_get_endpoints_layer2(
+    WOLFSSL *ssl,
+    const struct wolfSSL_network_connection **nc,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    *nc = &ssl->buffers.network_connection_layer2;
+    return wolfSSL_get_endpoints_1(*nc, ssl->buffers.network_connection_layer2_addr_buffer_dynamic, remote_addr, local_addr);
+}
+
+static WC_INLINE int wolfSSL_copy_endpoints_1(
+    struct wolfSSL_network_connection *nc_src,
+    byte *nc_addr_buffer_dynamic,
+    struct wolfSSL_network_connection *nc_dst,
+    size_t nc_dst_size,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    size_t nc_bufsiz;
+
+    if ((nc_dst == NULL) || (remote_addr == NULL) || (local_addr == NULL))
+        return BAD_FUNC_ARG;
+    if (nc_src->remote_addr_len == 0)
+        return INCOMPLETE_DATA;
+
+    nc_bufsiz = WOLFSSL_NETWORK_CONNECTION_BUFSIZ(nc_src->remote_addr_len, nc_src->local_addr_len);
+    if (nc_dst_size < nc_bufsiz)
+        return BUFFER_E;
+    XMEMCPY(nc_dst, nc_src, ((unsigned int)(unsigned long int)(&((struct wolfSSL_network_connection *)0)->addr_buffer[0])));
+    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(*nc_src))
+        XMEMCPY(nc_dst->addr_buffer, nc_addr_buffer_dynamic, nc_src->remote_addr_len + nc_src->local_addr_len);
+    else
+        XMEMCPY(nc_dst->addr_buffer, nc_src->addr_buffer, nc_src->remote_addr_len + nc_src->local_addr_len);
+    *remote_addr = nc_dst->addr_buffer;
+    *local_addr = nc_dst->addr_buffer + nc_dst->remote_addr_len;
+
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_API int wolfSSL_copy_endpoints(
+    WOLFSSL *ssl,
+    struct wolfSSL_network_connection *nc,
+    size_t nc_size,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection, ssl->buffers.network_connection_addr_buffer_dynamic, nc, nc_size, remote_addr, local_addr);
+}
+
+WOLFSSL_API int wolfSSL_copy_endpoints_layer2(
+    WOLFSSL *ssl,
+    struct wolfSSL_network_connection *nc,
+    size_t nc_size,
+    const void **remote_addr,
+    const void **local_addr)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection_layer2, ssl->buffers.network_connection_layer2_addr_buffer_dynamic, nc, nc_size, remote_addr, local_addr);
+}
+
+WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {
+    ctx->AcceptFilter = AcceptFilter;
+    ctx->AcceptFilter_arg = AcceptFilter_arg;
+    return WOLFSSL_SUCCESS;
+}
+
+WOLFSSL_API int wolfSSL_set_AcceptFilter(WOLFSSL *ssl, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {
+    ssl->AcceptFilter = AcceptFilter;
+    ssl->AcceptFilter_arg = AcceptFilter_arg;
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+
 #ifndef WOLFSSL_LEANPSK
 int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
@@ -12897,6 +13125,25 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             ssl->error = 0; /* expected to be zero here */
         }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
+
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+        if (ssl->AcceptFilter && (ssl->buffers.network_connection.remote_addr_len > 0)) {
+            wolfSSL_netfilter_decision_t res;
+            if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+                (res == WOLFSSL_NETFILTER_REJECT)) {
+                WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ssl->AcceptFilter && (ssl->buffers.network_connection_layer2.remote_addr_len > 0)) {
+            wolfSSL_netfilter_decision_t res;
+            if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection_layer2, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+                (res == WOLFSSL_NETFILTER_REJECT)) {
+                WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
 
 #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13)
         return wolfSSL_accept_TLSv13(ssl);
