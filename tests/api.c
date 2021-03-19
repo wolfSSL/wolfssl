@@ -307,6 +307,7 @@
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/objects.h>
+    #include <wolfssl/openssl/rand.h>
 #ifdef OPENSSL_ALL
     #include <wolfssl/openssl/txt_db.h>
     #include <wolfssl/openssl/lhash.h>
@@ -30582,6 +30583,125 @@ static void test_wolfSSL_BUF(void)
     #endif /* OPENSSL_EXTRA */
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
+static int stub_rand_seed(const void *buf, int num)
+{
+    (void)buf;
+    (void)num;
+
+    return 123;
+}
+
+static int stub_rand_bytes(unsigned char *buf, int num)
+{
+    (void)buf;
+    (void)num;
+
+    return 456;
+}
+
+static byte* was_stub_rand_cleanup_called(void)
+{
+    static byte was_called = 0;
+
+    return &was_called;
+}
+
+static void stub_rand_cleanup(void)
+{
+    byte* was_called = was_stub_rand_cleanup_called();
+
+    *was_called = 1;
+
+    return;
+}
+
+static byte* was_stub_rand_add_called(void)
+{
+    static byte was_called = 0;
+
+    return &was_called;
+}
+
+static int stub_rand_add(const void *buf, int num, double entropy)
+{
+    byte* was_called = was_stub_rand_add_called();
+
+    (void)buf;
+    (void)num;
+    (void)entropy;
+
+    *was_called = 1;
+
+    return 0;
+}
+
+static int stub_rand_pseudo_bytes(unsigned char *buf, int num)
+{
+    (void)buf;
+    (void)num;
+
+    return 9876;
+}
+
+static int stub_rand_status(void)
+{
+    return 5432;
+}
+#endif /* OPENSSL_EXTRA && !WOLFSSL_NO_OPENSSL_RAND_CB */
+
+static void test_wolfSSL_RAND_set_rand_method(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
+    WOLFSSL_RAND_METHOD rand_methods = {NULL, NULL, NULL, NULL, NULL, NULL};
+    unsigned char* buf = NULL;
+    int num = 0;
+    double entropy = 0;
+    byte* was_cleanup_called = was_stub_rand_cleanup_called();
+    byte* was_add_called = was_stub_rand_add_called();
+
+    printf(testingFmt, "wolfSSL_RAND_set_rand_method()");
+
+    AssertIntNE(wolfSSL_RAND_status(), 5432);
+    AssertIntEQ(*was_cleanup_called, 0);
+    wolfSSL_RAND_Cleanup();
+    AssertIntEQ(*was_cleanup_called, 0);
+
+
+    rand_methods.seed = &stub_rand_seed;
+    rand_methods.bytes = &stub_rand_bytes;
+    rand_methods.cleanup = &stub_rand_cleanup;
+    rand_methods.add = &stub_rand_add;
+    rand_methods.pseudorand = &stub_rand_pseudo_bytes;
+    rand_methods.status = &stub_rand_status;
+
+    AssertIntEQ(wolfSSL_RAND_set_rand_method(&rand_methods), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_RAND_seed(buf, num), 123);
+    AssertIntEQ(wolfSSL_RAND_bytes(buf, num), 456);
+    AssertIntEQ(wolfSSL_RAND_pseudo_bytes(buf, num), 9876);
+    AssertIntEQ(wolfSSL_RAND_status(), 5432);
+
+    AssertIntEQ(*was_add_called, 0);
+    /* The function pointer for RAND_add returns int, but RAND_add itself returns void. */
+    wolfSSL_RAND_add(buf, num, entropy);
+    AssertIntEQ(*was_add_called, 1);
+    was_add_called = 0;
+    AssertIntEQ(*was_cleanup_called, 0);
+    wolfSSL_RAND_Cleanup();
+    AssertIntEQ(*was_cleanup_called, 1);
+    *was_cleanup_called = 0;
+
+
+    AssertIntEQ(wolfSSL_RAND_set_rand_method(NULL), WOLFSSL_SUCCESS);
+    AssertIntNE(wolfSSL_RAND_status(), 5432);
+    AssertIntEQ(*was_cleanup_called, 0);
+    wolfSSL_RAND_Cleanup();
+    AssertIntEQ(*was_cleanup_called, 0);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && !WOLFSSL_NO_OPENSSL_RAND_CB */
+}
+
 static void test_wolfSSL_RAND_bytes(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -41734,6 +41854,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_password();
     test_wolfSSL_CTX_set_ecdh_auto();
     test_wolfSSL_THREADID_hash();
+    test_wolfSSL_RAND_set_rand_method();
     test_wolfSSL_RAND_bytes();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_PKCS8_Compat();

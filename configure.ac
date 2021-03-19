@@ -954,16 +954,12 @@ then
   AM_CFLAGS="-DHAVE_EXT_CACHE $AM_CFLAGS"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-   AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
-fi
-
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
 then
   AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
   AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL $AM_CFLAGS"
   AM_CFLAGS="-DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_NO_OPENSSL_RAND_CB $AM_CFLAGS"
 fi
 
 # One Error Queue per Thread
@@ -5208,11 +5204,6 @@ if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
-if test "$ENABLED_SMALL" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
-fi
-
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then

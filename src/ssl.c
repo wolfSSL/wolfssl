@@ -151,9 +151,17 @@
 #ifndef WOLFCRYPT_ONLY
 
 #ifdef OPENSSL_EXTRA
-/* Global pointer to constant BN on */
-static WOLFSSL_BIGNUM* bn_one = NULL;
-#endif
+    /* Global pointer to constant BN on */
+    static WOLFSSL_BIGNUM* bn_one = NULL;
+
+    /* WOLFSSL_NO_OPENSSL_RAND_CB: Allows way to reduce code size for 
+     *                OPENSSL_EXTRA where RAND callbacks are not used */
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        static const WOLFSSL_RAND_METHOD* gRandMethods = NULL;
+        static int gRandMethodsInit = 0;
+        static wolfSSL_Mutex gRandMethodMutex;
+    #endif /* !WOLFSSL_NO_OPENSSL_RAND_CB */
+#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -4933,9 +4941,25 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
 #if defined(OPENSSL_EXTRA) || \
     (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-static WC_RNG globalRNG;
-static int initGlobalRNG = 0;
-static wolfSSL_Mutex globalRNGMutex;
+
+    #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
+    static WC_RNG globalRNG;
+    static int initGlobalRNG = 0;
+    static wolfSSL_Mutex globalRNGMutex;
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
+static int wolfSSL_RAND_InitMutex(void)
+{
+    if (gRandMethodsInit == 0) {
+        if (wc_InitMutex(&gRandMethodMutex) != 0) {
+            WOLFSSL_MSG("Bad Init Mutex rand methods");
+            return BAD_MUTEX_E;
+        }
+        gRandMethodsInit = 1;
+    }
+    return 0;
+}
 #endif
 
 WOLFSSL_ABI
@@ -4950,8 +4974,7 @@ int wolfSSL_Init(void)
             return WC_INIT_E;
         }
 
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+#ifdef HAVE_GLOBAL_RNG
         if (wc_InitMutex(&globalRNGMutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex rng");
             return BAD_MUTEX_E;
@@ -4959,6 +4982,11 @@ int wolfSSL_Init(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        if (wolfSSL_RAND_InitMutex() != 0) {
+            return BAD_MUTEX_E;
+        }
+    #endif
         if (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
             return WC_INIT_E;
@@ -17816,24 +17844,62 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif
     }
 
+    /* If a valid struct is provided with function pointers, will override
+       RAND_seed, bytes, cleanup, add, pseudo_bytes and status.  If a NULL
+       pointer is passed in, it will cancel any previous function overrides.
 
-    int wolfSSL_RAND_status(void)
+       Returns WOLFSSL_SUCCESS on success, WOLFSSL_FAILURE on failure. */
+    int wolfSSL_RAND_set_rand_method(const WOLFSSL_RAND_METHOD *methods)
     {
-        return WOLFSSL_SUCCESS;  /* wolfCrypt provides enough seed internally */
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+            gRandMethods = methods;
+            wc_UnLockMutex(&gRandMethodMutex);
+            return WOLFSSL_SUCCESS;
+        }
+    #else
+        (void)methods;
+    #endif
+        return WOLFSSL_FAILURE;
     }
 
+    /* Returns WOLFSSL_SUCCESS if the RNG has been seeded with enough data */
+    int wolfSSL_RAND_status(void)
+    {
+        int ret = WOLFSSL_SUCCESS;
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+            if (gRandMethods && gRandMethods->status)
+                ret = gRandMethods->status();
+            wc_UnLockMutex(&gRandMethodMutex);
+        }
+        else {
+            ret = WOLFSSL_FAILURE;
+        }
+    #else
+        /* wolfCrypt provides enough seed internally, so return success */
+    #endif
+        return ret;
+    }
 
-    #ifndef NO_WOLFSSL_STUB
     void wolfSSL_RAND_add(const void* add, int len, double entropy)
     {
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+            if (gRandMethods && gRandMethods->add) {
+                /* callback has return code, but RAND_add does not */
+                (void)gRandMethods->add(add, len, entropy);
+            }
+            wc_UnLockMutex(&gRandMethodMutex);
+        }
+    #else
+        /* wolfSSL seeds/adds internally, use explicit RNG if you want
+           to take control */
         (void)add;
         (void)len;
         (void)entropy;
-        WOLFSSL_STUB("RAND_add");
-        /* wolfSSL seeds/adds internally, use explicit RNG if you want
-           to take control */
-    }
     #endif
+    }
 
 #ifndef NO_DES3
     /* 0 on ok */
@@ -31500,33 +31566,41 @@ WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
  */
 static int wolfSSL_RAND_Init(void)
 {
-    if (wc_LockMutex(&globalRNGMutex) != 0) {
-        WOLFSSL_MSG("Bad Lock Mutex rng");
-        return 0;
-    }
-    if (initGlobalRNG == 0) {
-        if (wc_InitRng(&globalRNG) < 0) {
-            WOLFSSL_MSG("wolfSSL Init Global RNG failed");
-            wc_UnLockMutex(&globalRNGMutex);
-            return 0;
+    int ret = WOLFSSL_FAILURE;
+#ifdef HAVE_GLOBAL_RNG
+    if (wc_LockMutex(&globalRNGMutex) == 0) {
+        if (initGlobalRNG == 0) {
+            ret = wc_InitRng(&globalRNG);
+            if (ret == 0) {
+                initGlobalRNG = 1;
+                ret = WOLFSSL_SUCCESS;
+            }
         }
-        initGlobalRNG = 1;
+        wc_UnLockMutex(&globalRNGMutex);
     }
-
-    wc_UnLockMutex(&globalRNGMutex);
-    return WOLFSSL_SUCCESS;
+#endif
+    return ret;
 }
 
 
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_RAND_seed(const void* seed, int len)
 {
-
-    WOLFSSL_MSG("wolfSSL_RAND_seed");
-
+#ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+    if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+        if (gRandMethods && gRandMethods->seed) {
+            int ret = gRandMethods->seed(seed, len);
+            wc_UnLockMutex(&gRandMethodMutex);
+            return ret;
+        }
+        wc_UnLockMutex(&gRandMethodMutex);
+    }
+#else
     (void)seed;
     (void)len;
+#endif
 
+    /* Make sure global shared RNG (globalRNG) is initialized */
     return wolfSSL_RAND_Init();
 }
 
@@ -31830,48 +31904,75 @@ int wolfSSL_RAND_egd(const char* nm)
 
 void wolfSSL_RAND_Cleanup(void)
 {
-    WOLFSSL_ENTER("wolfSSL_RAND_Cleanup()");
+#ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+    if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+        if (gRandMethods && gRandMethods->cleanup)
+            gRandMethods->cleanup();
+        wc_UnLockMutex(&gRandMethodMutex);
+    }
 
-    if (wc_LockMutex(&globalRNGMutex) != 0) {
-        WOLFSSL_MSG("Bad Lock Mutex rng");
-        return;
+    if (wc_FreeMutex(&gRandMethodMutex) == 0)
+        gRandMethodsInit = 0;
+#endif
+#ifdef HAVE_GLOBAL_RNG
+    if (wc_LockMutex(&globalRNGMutex) == 0) {
+        if (initGlobalRNG) {
+            wc_FreeRng(&globalRNG);
+            initGlobalRNG = 0;
+        }
+        wc_UnLockMutex(&globalRNGMutex);
     }
-    if (initGlobalRNG != 0) {
-        wc_FreeRng(&globalRNG);
-        initGlobalRNG = 0;
-    }
-    wc_UnLockMutex(&globalRNGMutex);
+#endif
 }
 
-
+/* returns WOLFSSL_SUCCESS if the bytes generated are valid otherwise WOLFSSL_FAILURE */
 int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
 {
+#ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+    if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+        if (gRandMethods && gRandMethods->pseudorand) {
+            int ret = gRandMethods->pseudorand(buf, num);
+            wc_UnLockMutex(&gRandMethodMutex);
+            return ret;
+        }
+        wc_UnLockMutex(&gRandMethodMutex);
+    }
+#endif
+
+    /* fallback to using the global shared RNG */
     return wolfSSL_RAND_bytes(buf, num);
 }
 
-
-/* WOLFSSL_SUCCESS on ok */
+/* returns WOLFSSL_SUCCESS if the bytes generated are valid otherwise WOLFSSL_FAILURE */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
     int     ret = 0;
-    int     initTmpRng = 0;
     WC_RNG* rng = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    WC_RNG* tmpRNG;
+    WC_RNG* tmpRNG = NULL;
 #else
     WC_RNG  tmpRNG[1];
 #endif
-    int used_global = 0;
+    int initTmpRng = 0;
     int blockCount = 0;
+#ifdef HAVE_GLOBAL_RNG
+    int used_global = 0;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (tmpRNG == NULL)
-        return ret;
+    /* if a RAND callback has been set try and use it */
+#ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+    if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
+        if (gRandMethods && gRandMethods->bytes) {
+            ret = gRandMethods->bytes(buf, num);
+            wc_UnLockMutex(&gRandMethodMutex);
+            return ret;
+        }
+        wc_UnLockMutex(&gRandMethodMutex);
+    }
 #endif
-
+#ifdef HAVE_GLOBAL_RNG
     if (initGlobalRNG) {
         if (wc_LockMutex(&globalRNGMutex) != 0) {
             WOLFSSL_MSG("Bad Lock Mutex rng");
@@ -31881,41 +31982,51 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         rng = &globalRNG;
         used_global = 1;
     }
-    else if(wc_InitRng(tmpRNG) == 0) {
-        rng = tmpRNG;
-        initTmpRng = 1;
+    else
+#endif
+    {
+    #ifdef WOLFSSL_SMALL_STACK
+        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (tmpRNG == NULL)
+            return ret;
+    #endif
+        if (wc_InitRng(tmpRNG) == 0) {
+            rng = tmpRNG;
+            initTmpRng = 1;
+        }
     }
     if (rng) {
-        /* handles size grater than RNG_MAX_BLOCK_LEN */
+        /* handles size greater than RNG_MAX_BLOCK_LEN */
         blockCount = num / RNG_MAX_BLOCK_LEN;
-        
-        while(blockCount--) {
-            if((ret = wc_RNG_GenerateBlock(rng, buf, RNG_MAX_BLOCK_LEN) != 0)){
+
+        while (blockCount--) {
+            ret = wc_RNG_GenerateBlock(rng, buf, RNG_MAX_BLOCK_LEN);
+            if (ret != 0) {
                 WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
                 break;
             }
             num -= RNG_MAX_BLOCK_LEN;
             buf += RNG_MAX_BLOCK_LEN;
         }
-        
+
         if (ret == 0 && num)
             ret = wc_RNG_GenerateBlock(rng, buf, num);
-        
+
         if (ret != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         else
             ret = WOLFSSL_SUCCESS;
     }
 
-    if (used_global == 1) {
+#ifdef HAVE_GLOBAL_RNG
+    if (used_global == 1)
         wc_UnLockMutex(&globalRNGMutex);
-    }
-
+#endif
     if (initTmpRng)
         wc_FreeRng(tmpRNG);
-
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG)
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;
@@ -45766,19 +45877,6 @@ int wolfSSL_FIPS_mode_set(int r)
     WOLFSSL_STUB("FIPS_mode_set");
 
     return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_RAND_set_rand_method(const void *meth)
-{
-    (void) meth;
-    WOLFSSL_ENTER("wolfSSL_RAND_set_rand_method");
-    WOLFSSL_STUB("RAND_set_rand_method");
-
-    /* if implemented RAND_bytes and RAND_pseudo_bytes need updated
-     * those two functions will call the respective functions from meth */
-    return SSL_FAILURE;
 }
 #endif
 

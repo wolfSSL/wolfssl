@@ -639,6 +639,25 @@ struct WOLFSSL_X509_STORE_CTX {
 
 typedef char* WOLFSSL_STRING;
 
+typedef struct WOLFSSL_RAND_METHOD {
+    /* seed = Data to mix into the random generator.
+     * len = Number of bytes to mix from seed. */
+    int  (*seed)(const void* seed, int len);
+    /* buf = Buffer to store random bytes in.
+    * len = Number of bytes to store in buf. */
+    int  (*bytes)(unsigned char* buf, int len);
+    void (*cleanup)(void);
+    /* add = Data to mix into the random generator.
+     * len = Number of bytes to mix from add.
+     * entropy = Estimate of randomness contained in seed.
+     *           Should be between 0 and len. */
+    int  (*add)(const void* add, int len, double entropy);
+    /* buf = Buffer to store pseudorandom bytes in.
+     * len = Number of bytes to store in buf. */
+    int  (*pseudorand)(unsigned char *buf, int len);
+    int  (*status)(void);
+} WOLFSSL_RAND_METHOD;
+
 /* Valid Alert types from page 16/17
  * Add alert string to the function wolfSSL_alert_type_string_long in src/ssl.c
  */
@@ -3769,7 +3788,7 @@ WOLFSSL_API int wolfSSL_FIPS_mode(void);
 
 WOLFSSL_API int wolfSSL_FIPS_mode_set(int r);
 
-WOLFSSL_API int wolfSSL_RAND_set_rand_method(const void *meth);
+WOLFSSL_API int wolfSSL_RAND_set_rand_method(const WOLFSSL_RAND_METHOD *methods);
 
 WOLFSSL_API int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits);
 
