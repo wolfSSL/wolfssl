@@ -2445,8 +2445,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line,
-           "       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n",
-    sizeof("       00:bc:73:0e:a8:49:f3:74:a2:a9:ef:18:a5:da:55:\n")),0);
+           "       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n",
+    sizeof("       00:BC:73:0E:A8:49:F3:74:A2:A9:EF:18:A5:DA:55:\n")),0);
 
 
     /* skip to the end of modulus element*/
@@ -2497,8 +2497,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line,
-           "    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n",
-    sizeof("    00:c2:35:2d:ec:83:83:6c:73:13:9e:52:7c:74:c8:\n")),0);
+           "    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n",
+    sizeof("    00:C2:35:2D:EC:83:83:6C:73:13:9E:52:7C:74:C8:\n")),0);
 
     /* skip to the end of pub element*/
     for( i = 0; i < 17 ;i++) {
@@ -2572,8 +2572,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line,
-           "    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n",
-    sizeof("    04:55:bf:f4:0f:44:50:9a:3d:ce:9b:b7:f0:c5:4d:\n")),0);
+           "    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n",
+    sizeof("    04:55:BF:F4:0F:44:50:9A:3D:CE:9B:B7:F0:C5:4D:\n")),0);
 
     /* skip to the end of pub element*/
     for( i = 0; i < 4 ;i++) {
@@ -2628,8 +2628,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line,
-           "    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n",
-    sizeof("    34:41:bf:e9:f2:11:bf:05:db:b2:72:a8:29:cc:bd:\n")),0);
+           "    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n",
+    sizeof("    34:41:BF:E9:F2:11:BF:05:DB:B2:72:A8:29:CC:BD:\n")),0);
 
     /* skip to the end of public-key element*/
     for( i = 0; i < 17 ;i++) {
@@ -2643,8 +2643,8 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line,
-           "    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n",
-    sizeof("    00:d3:b2:99:84:5c:0a:4c:e7:37:cc:fc:18:37:01:\n")),0);
+           "    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n",
+    sizeof("    00:D3:B2:99:84:5C:0A:4C:E7:37:CC:FC:18:37:01:\n")),0);
 
     /* skip to the end of prime element*/
     for( i = 0; i < 17 ;i++) {
@@ -22595,91 +22595,7 @@ static int test_wc_EccPrivateKeyToDer (void)
 #endif
     return ret;
 }/* End test_wc_EccPrivateKeyToDer*/
-/*
- * Testing wc_EccPublicKeyDecode_ex
- */
-static int test_wc_EccPublicKeyDecode_ex(void)
-{
-    int ret = 0;
-    word32  inOutIdx;
-    int     curveId;
-    word32  pointIdx;
-    int     pointSz;
 
-#if defined(HAVE_ECC)
-    printf(testingFmt, "test_wc_EccPublicKeyDecode_ex()");
-
-    if (ret == 0) {
-        ret = wc_EccPublicKeyDecode_ex(NULL,NULL,NULL,NULL,NULL,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-#if defined(USE_CERT_BUFFERS_256)
-
-    if (ret == 0) {
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    NULL,NULL,NULL,NULL,0);
-        if(ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,NULL,NULL,NULL,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,&curveId,NULL,NULL,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,&curveId,&pointIdx,NULL,0);
-        if(ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,&curveId,&pointIdx,&pointSz,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    /* pass bad input size */
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,&curveId,&pointIdx,&pointSz,sizeof_ecc_clikeypub_der_256 - 3 );
-        if (ret < 0 )
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_EccPublicKeyDecode_ex(ecc_clikeypub_der_256,
-                    &inOutIdx,&curveId,&pointIdx,&pointSz,sizeof_ecc_clikeypub_der_256);
-        if (ret == 0 && inOutIdx == 91 && curveId == 7 &&
-            pointIdx == 26 && pointSz == 65 ) {
-            ret = 0;
-        }
-        else
-            ret = -1;
-    }
-
-#endif /* USE_CERT_BUFFERS_256 */
-
-    printf(resultFmt, ret == 0 ? passed : failed);
-#endif /* HAVE_ECC */
-    (void)inOutIdx;
-    (void)curveId;
-    (void)pointIdx;
-    (void)pointSz;
-    return ret;
-}
 /*
  * Testing wc_DhPublicKeyDecode
  */
@@ -22690,45 +22606,30 @@ static int test_wc_DhPublicKeyDecode(void)
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
     DhKey  key = {0};
-    ret = wc_InitDhKey(&key);
-    printf(testingFmt, "test_wc_DhPublicKeyDecode()");
+    AssertIntEQ(wc_InitDhKey(&key), 0);
+    printf(testingFmt, "wc_DhPublicKeyDecode()");
 
-    if (ret == 0) {
-        ret = wc_DhPublicKeyDecode(NULL,NULL,NULL,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,NULL,NULL,0);
-        if(ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,NULL,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,0);
-        if (ret == BAD_FUNC_ARG)
-            ret = 0;
-    }
-    if (ret == 0) {
-        inOutIdx = 0;
-        ret = wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
-                sizeof_dh_pub_key_der_2048);
-        if (ret == 0 && key.p.used != 0 && key.g.used != 0 &&
-                       key.q.used == 0 && key.pub.used != 0 &&
-                       key.priv.used == 0 ) {
-            ret = 0;
-        }
-        else
-            ret = -1;
-    }
+    AssertIntEQ(wc_DhPublicKeyDecode(NULL,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,NULL,NULL,0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,NULL, 0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key, 0),
+                                                        BAD_FUNC_ARG);
+    inOutIdx = 0;
+    AssertIntEQ(wc_DhPublicKeyDecode(dh_pub_key_der_2048,&inOutIdx,&key,
+                                            sizeof_dh_pub_key_der_2048), 0);
+    AssertTrue(key.p.used != 0 && key.g.used != 0 && key.q.used == 0 &&
+              key.pub.used != 0 && key.priv.used == 0);
 
-    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_FreeDhKey(&key);
+    printf(resultFmt, passed);
+
 #endif
     (void)inOutIdx;
     return ret;
@@ -42457,7 +42358,6 @@ void ApiTest(void)
 
     AssertIntEQ(test_ToTraditional(), 0);
     AssertIntEQ(test_wc_EccPrivateKeyToDer(), 0);
-    AssertIntEQ(test_wc_EccPublicKeyDecode_ex(), 0);
     AssertIntEQ(test_wc_DhPublicKeyDecode(), 0);
     AssertIntEQ(test_wc_Ed25519KeyToDer(), 0);
     AssertIntEQ(test_wc_Ed25519PrivateKeyToDer(), 0);
