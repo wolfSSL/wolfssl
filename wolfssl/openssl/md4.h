@@ -24,6 +24,7 @@
 #define WOLFSSL_MD4_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl_types.h>
 
 #ifndef NO_MD4
 
@@ -36,17 +37,10 @@
 #endif
 
 
-typedef struct WOLFSSL_MD4_CTX {
-    int buffer[32];      /* big enough to hold, check size in Init */
-} WOLFSSL_MD4_CTX;
-
-
 WOLFSSL_API void wolfSSL_MD4_Init(WOLFSSL_MD4_CTX*);
 WOLFSSL_API void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX*, const void*, unsigned long);
 WOLFSSL_API void wolfSSL_MD4_Final(unsigned char*, WOLFSSL_MD4_CTX*);
 
-
-typedef WOLFSSL_MD4_CTX MD4_CTX;
 
 #define MD4_Init   wolfSSL_MD4_Init
 #define MD4_Update wolfSSL_MD4_Update

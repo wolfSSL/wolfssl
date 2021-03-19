@@ -130,10 +130,6 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 
 #define EVP_CIPHER_INFO        EncryptedInfo
 
-#define STACK_OF(x) WOLFSSL_STACK
-#define OPENSSL_STACK WOLFSSL_STACK
-#define _STACK OPENSSL_STACK
-
 #define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 

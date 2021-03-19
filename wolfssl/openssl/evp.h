@@ -36,6 +36,7 @@
 #include "prefix_evp.h"
 #endif
 
+#include <wolfssl/ssl_types.h>
 #ifndef NO_MD4
     #include <wolfssl/openssl/md4.h>
 #endif
@@ -62,18 +63,6 @@
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-
-typedef char WOLFSSL_EVP_CIPHER;
-#ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
-typedef char   WOLFSSL_EVP_MD;
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
-typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
-#define WOLFSSL_EVP_TYPE_DEFINED
-#endif
-
-typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
-typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
 
 #ifndef NO_MD4
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void);
@@ -140,79 +129,6 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_enc_null(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void);
-
-
-typedef union {
-    #ifndef NO_MD4
-        WOLFSSL_MD4_CTX    md4;
-    #endif
-    #ifndef NO_MD5
-        WOLFSSL_MD5_CTX    md5;
-    #endif
-    WOLFSSL_SHA_CTX    sha;
-    #ifdef WOLFSSL_SHA224
-        WOLFSSL_SHA224_CTX sha224;
-    #endif
-    WOLFSSL_SHA256_CTX sha256;
-    #ifdef WOLFSSL_SHA384
-        WOLFSSL_SHA384_CTX sha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        WOLFSSL_SHA512_CTX sha512;
-    #endif
-    #ifdef WOLFSSL_RIPEMD
-        WOLFSSL_RIPEMD_CTX ripemd;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_224
-        WOLFSSL_SHA3_224_CTX sha3_224;
-    #endif
-    #ifndef WOLFSSL_NOSHA3_256
-        WOLFSSL_SHA3_256_CTX sha3_256;
-    #endif
-        WOLFSSL_SHA3_384_CTX sha3_384;
-    #ifndef WOLFSSL_NOSHA3_512
-        WOLFSSL_SHA3_512_CTX sha3_512;
-    #endif
-} WOLFSSL_Hasher;
-
-typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
-typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
-
-struct WOLFSSL_EVP_MD_CTX {
-    union {
-        WOLFSSL_Hasher digest;
-    #ifndef NO_HMAC
-        Hmac hmac;
-    #endif
-    } hash;
-    enum wc_HashType macType;
-    WOLFSSL_EVP_PKEY_CTX *pctx;
-#ifndef NO_HMAC
-    unsigned int isHMAC;
-#endif
-};
-
-
-typedef union {
-#ifndef NO_AES
-    Aes  aes;
-#ifdef WOLFSSL_AES_XTS
-    XtsAes xts;
-#endif
-#endif
-#ifndef NO_DES3
-    Des  des;
-    Des3 des3;
-#endif
-    Arc4 arc4;
-#ifdef HAVE_IDEA
-    Idea idea;
-#endif
-#ifdef WOLFSSL_QT
-    int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
-#endif
-} WOLFSSL_Cipher;
-
 
 enum {
     AES_128_CBC_TYPE  = 1,
@@ -664,11 +580,6 @@ WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
 
 /* end OpenSSH compat */
 
-typedef WOLFSSL_EVP_MD         EVP_MD;
-typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
-typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
-typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
-
 #ifndef NO_MD4
     #define EVP_md4       wolfSSL_EVP_md4
 #endif
@@ -939,6 +850,13 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
+
+/*
+ * This include is placed at the end because evp.h does not depend on ssl.h
+ * but ssl.h depends on evp.h. ssl.h is included because user projects
+ * including evp.h expect functionality that is provided by ssl.h in wolfSSL.
+ */
+#include <wolfssl/openssl/ssl.h>
 
 #ifdef __cplusplus
     } /* extern "C" */

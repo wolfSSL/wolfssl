@@ -46,7 +46,7 @@ typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
                                 void *ext, STACK_OF(CONF_VALUE) *extlist);
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
 typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method,
-                               void *ext, BIO *out, int indent);
+                               void *ext, WOLFSSL_BIO *out, int indent);
 typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
 
 struct WOLFSSL_v3_ext_method {

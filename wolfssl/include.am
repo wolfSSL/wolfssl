@@ -9,6 +9,7 @@ EXTRA_DIST+= wolfssl/sniffer_error.rc
 
 nobase_include_HEADERS+= \
                          wolfssl/error-ssl.h \
+                         wolfssl/ssl_types.h \
                          wolfssl/ssl.h \
                          wolfssl/sniffer_error.h \
                          wolfssl/sniffer.h \

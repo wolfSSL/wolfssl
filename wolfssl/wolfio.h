@@ -48,6 +48,7 @@
     #endif
 #endif
 
+#include <wolfssl/ssl_types.h>
 
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 

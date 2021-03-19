@@ -25,7 +25,7 @@
 #ifndef WOLFSSL_PKCS7_H_
 #define WOLFSSL_PKCS7_H_
 
-#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/ssl_types.h>
 #include <wolfssl/wolfcrypt/pkcs7.h>
 
 #ifdef __cplusplus

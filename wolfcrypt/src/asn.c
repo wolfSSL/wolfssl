@@ -136,7 +136,7 @@ extern int wc_InitRsaHw(RsaKey* key);
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    #include <wolfssl/openssl/objects.h>
+    #include <wolfssl/openssl/ssl.h>
 #endif
 
 #ifdef _MSC_VER

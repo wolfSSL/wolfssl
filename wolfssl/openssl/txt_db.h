@@ -22,7 +22,7 @@
 #ifndef WOLFSSL_TXT_DB_H_
 #define WOLFSSL_TXT_DB_H_
 
-#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/ssl_types.h>
 
 #define WOLFSSL_TXT_DB_MAX_FIELDS 10
 

@@ -302,6 +302,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/evp.h>
+    #include <wolfssl/openssl/ssl.h>
   #endif
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>

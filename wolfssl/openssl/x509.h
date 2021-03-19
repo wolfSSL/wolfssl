@@ -1,6 +1,6 @@
 /* x509.h for openssl */
 
-#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/ssl_types.h>
 #include <wolfssl/openssl/crypto.h>
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/openssl/ec.h>

@@ -29,7 +29,7 @@
 #define WOLFSSL_RC4_COMPAT_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/ssl.h> /* included for size_t */
+#include <wolfssl/ssl_types.h> /* included for size_t */
 
 #ifdef __cplusplus
     extern "C" {

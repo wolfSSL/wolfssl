@@ -30,15 +30,13 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/ssl_types.h>
 
 typedef struct WOLFSSL_CONF_VALUE {
     char *section;
     char *name;
     char *value;
 } WOLFSSL_CONF_VALUE;
-
-/* ssl.h requires WOLFSSL_CONF_VALUE */
-#include <wolfssl/ssl.h>
 
 typedef struct WOLFSSL_CONF {
     void *meth_data;

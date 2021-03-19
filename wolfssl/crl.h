@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CRL
 
-#include <wolfssl/ssl.h>
+#include <wolfssl/ssl_types.h>
 #include <wolfssl/wolfcrypt/asn.h>
 
 #ifdef __cplusplus

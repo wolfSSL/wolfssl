@@ -31,22 +31,11 @@
 #define WOLFSSL_BN_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/ssl_types.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-typedef struct WOLFSSL_BIGNUM {
-    int neg;        /* openssh deference */
-    void *internal; /* our big num */
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    sp_int fp;
-#elif defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
-    fp_int fp;
-#endif
-} WOLFSSL_BIGNUM;
-
 
 #define BN_ULONG WOLFSSL_BN_ULONG
 #define WOLFSSL_BN_ULONG unsigned long

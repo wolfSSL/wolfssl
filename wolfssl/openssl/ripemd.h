@@ -32,17 +32,11 @@
 #endif
 
 
-typedef struct WOLFSSL_RIPEMD_CTX {
-    int holder[32];   /* big enough to hold wolfcrypt, but check on init */
-} WOLFSSL_RIPEMD_CTX;
-
 WOLFSSL_API void wolfSSL_RIPEMD_Init(WOLFSSL_RIPEMD_CTX*);
 WOLFSSL_API void wolfSSL_RIPEMD_Update(WOLFSSL_RIPEMD_CTX*, const void*,
                                      unsigned long);
 WOLFSSL_API void wolfSSL_RIPEMD_Final(unsigned char*, WOLFSSL_RIPEMD_CTX*);
 
-
-typedef WOLFSSL_RIPEMD_CTX RIPEMD_CTX;
 
 #define RIPEMD_Init   wolfSSL_RIPEMD_Init
 #define RIPEMD_Update wolfSSL_RIPEMD_Update
