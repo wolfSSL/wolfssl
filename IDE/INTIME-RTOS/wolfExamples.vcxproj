@@ -66,7 +66,7 @@
     </Link>
     <ClCompile>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PreprocessorDefinitions>WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WOLFSSL_USER_SETTINGS;_USE_64BIT_TIME_T;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>

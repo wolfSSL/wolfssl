@@ -464,6 +464,37 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             return 0;
         }
     } while (FindNextFileA(ctx->hFind, &ctx->FindFileData));
+
+#elif defined(INTIME_RTOS)
+	if (pathLen > MAX_FILENAME_SZ - 3)
+		return BAD_PATH_ERROR;
+
+	XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
+	XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
+
+	if (!FindFirstRtFile(ctx->name, &ctx->FindFileData, 0)) {
+		WOLFSSL_MSG("FindFirstFile for path verify locations failed");
+		return BAD_PATH_ERROR;
+	}
+
+	do {
+		if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
+			dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+
+			if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+				return BAD_PATH_ERROR;
+			}
+			XSTRNCPY(ctx->name, path, pathLen + 1);
+			ctx->name[pathLen] = '\\';
+			XSTRNCPY(ctx->name + pathLen + 1,
+				ctx->FindFileData.cFileName,
+				MAX_FILENAME_SZ - pathLen - 1);
+			if (name)
+				*name = ctx->name;
+			return 0;
+		}
+	} while (FindNextRtFile(&ctx->FindFileData));
+
 #elif defined(WOLFSSL_ZEPHYR)
     if (fs_opendir(&ctx->dir, path) != 0) {
         WOLFSSL_MSG("opendir path verify locations failed");
@@ -600,6 +631,26 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             return 0;
         }
     }
+
+#elif defined(INTIME_RTOS)
+while (FindNextRtFile(&ctx->FindFileData)) {
+	if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
+		dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+
+		if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+			return BAD_PATH_ERROR;
+		}
+		XSTRNCPY(ctx->name, path, pathLen + 1);
+		ctx->name[pathLen] = '\\';
+		XSTRNCPY(ctx->name + pathLen + 1,
+			ctx->FindFileData.cFileName,
+			MAX_FILENAME_SZ - pathLen - 1);
+		if (name)
+			*name = ctx->name;
+		return 0;
+	}
+}
+
 #elif defined(WOLFSSL_ZEPHYR)
     while ((fs_readdir(&ctx->dir, &ctx->entry)) != 0) {
         dnameLen = (int)XSTRLEN(ctx->entry.name);
@@ -695,6 +746,10 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
         FindClose(ctx->hFind);
         ctx->hFind = INVALID_HANDLE_VALUE;
     }
+
+#elif defined(INTIME_RTOS)
+	FindRtFileClose(&ctx->FindFileData);
+
 #elif defined(WOLFSSL_ZEPHYR)
     if (ctx->dirp) {
         fs_closedir(ctx->dirp);
