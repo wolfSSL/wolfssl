@@ -523,9 +523,6 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                      word32* outLen);
 
     /* public key helper */
-    WOLFSSL_API int wc_EccPublicKeyDecode_ex(const byte* input,
-                                word32* inOutIdx, int* curveId,
-                                word32* pointIdx, int* pointSz, word32 inSz);
     WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
                                               ecc_key*, word32);
     WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
