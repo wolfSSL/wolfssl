@@ -27609,16 +27609,18 @@ int eccsi_test(void)
     mp_int* ssk;
     ecc_point* pvt;
 
-    priv = XMALLOC(sizeof(EccsiKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
         return -10205;
     }
-    pub = XMALLOC(sizeof(EccsiKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (pub == NULL) {
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -10206;
     }
-    ssk = XMALLOC(sizeof(mp_int), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ssk == NULL) {
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28733,16 +28735,19 @@ int sakke_test(void)
     SakkeKey* key;
     ecc_point* rsk = NULL;
 
-    priv = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
         return -10404;
     }
-    pub = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (pub == NULL) {
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -10405;
     }
-    key = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
