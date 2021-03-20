@@ -1984,8 +1984,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
  *    0 : do not match
  *    -1: key types are different
  *    -2: the operation is not supported
- * If you mant this function behave the same as openSSL,
- * define WOLFSSL_ERROR_CODE_OPENSSL so that WS_RETURN_CODE fills the gap.
+ * If you want this function behave the same as openSSL,
+ * define WOLFSSL_ERROR_CODE_OPENSSL so that WS_RETURN_CODE translates return
+ * codes to match OpenSSL equivalent behavior.
  */
 WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 {
@@ -4139,10 +4140,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ctx->gcmAuthInSz = 0;
 #endif
-            return WOLFSSL_SUCCESS;
         }
 
-        return WOLFSSL_FAILURE;
+        return WOLFSSL_SUCCESS;
     }
 
     /* Permanent stub for Qt compilation. */
