@@ -2083,7 +2083,9 @@ struct WOLFSSL_CERT_MANAGER {
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
 #if defined(OPENSSL_EXTRA)
-    WOLFSSL_X509_STORE  *x509_store_p;   /* pointer back to x509 store */
+    WOLFSSL_X509_STORE  *x509_store_p;  /* a pointer back to CTX x509 store  */
+                                        /* CTX has ownership and free this   */
+                                        /* with CTX free.                    */
 #endif
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
     int             refCount;         /* reference count */

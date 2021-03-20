@@ -367,6 +367,11 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    /* if not find entry in the CRL list, it looks at the folder that sets  */
+    /* by LOOKUP_ctrl because user would want to use hash_dir.              */
+    /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
+    /* and try again checking Cert in the CRL list.                         */
+    /* When not set the folder or not use hash_dir, do nothing.             */
     if (foundEntry == 0) {
         if (crl->cm->x509_store_p != NULL) {
             ret = LoadCertByIssuer(crl->cm->x509_store_p, 
