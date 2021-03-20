@@ -6850,22 +6850,27 @@ static int ToDec(word32 in, byte* hex)
     }
     return written;
 }
-/* Indent adds white spaces of the number specified by "indents"
- * to the buffer specified by "dst".
+/* Indent writes white spaces of the number specified by "indents"
+ * to the BIO. The number of white spaces is limited from 0 to
+ * EVP_PKEY_PRINT_INDENT_MAX.
+ * returns the amount written to BIO.
  */
-static int Indent(int indents, byte* dst )
+static int Indent(WOLFSSL_BIO* out, int indents )
 {
     int i;
+    char space = ' ';
 
     if (indents < 0)
         indents = 0;
-    else if (indents >= EVP_PKEY_PRINT_INDENT_MAX)
+    else if (indents > EVP_PKEY_PRINT_INDENT_MAX)
         indents = EVP_PKEY_PRINT_INDENT_MAX;
 
-    if (dst == NULL)
+    if (out == NULL)
         return 0;
 
-    for (i = indents; i; i--) {*dst++ = ' ';}
+    for (i = indents; i; i--) {
+        wolfSSL_BIO_write(out, &space, 1);
+    }
     return indents;
 }
 /* DumpElement dump byte-data specified by "input" to the "out".
@@ -6873,6 +6878,7 @@ static int Indent(int indents, byte* dst )
  * four spaces, then hex coded 15 byte data with separator ":" follow.   
  * Each line looks like: 
  * "    00:e6:ab: --- 9f:ef:"
+ * Returns 1 on success, 0 on failure.
  */
 static int DumpElement(WOLFSSL_BIO* out, const byte* input,
     int inlen, int indent)
@@ -6899,8 +6905,9 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
     if (indent < 0)
         indent = 0;
-    else if (indent >= EVP_PKEY_PRINT_INDENT_MAX)
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
         indent = EVP_PKEY_PRINT_INDENT_MAX;
+
 
     point = input;
     len  = inlen;
@@ -6916,28 +6923,26 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
     while (line) {
         idx = 0;
-        wsz = Indent(indent, buff + idx);
-        idx += wsz;
+        Indent(out, indent);
 
         for (i = 0; i < 15; i++) { /* 15 byte per line*/
             outSz = sizeof(outHex);
             Base16_Encode((const byte*)&point[in++], 1, outHex, &outSz );
-            XMEMCPY(buff + idx, outHex, 2);
-            idx += 2;
-            XMEMSET(buff + idx, ':', 1);
-            idx += 1;
+            if (idx + 3 <EVP_PKEY_PRINT_LINE_WIDTH_MAX) {
+                XMEMCPY(buff + idx, outHex, 2);
+                idx += 2;
+                XMEMSET(buff + idx, ':', 1);
+                idx += 1;
+            }
         }
-        wsz = 1;
-        XMEMSET(buff + idx, '\n', wsz);
-        idx += wsz;
 
         wolfSSL_BIO_write(out, buff, idx);
-        XMEMSET(buff, 0, sizeof(buff));
+        wolfSSL_BIO_write(out, "\n", 1);
+        XMEMSET(buff, 0, EVP_PKEY_PRINT_LINE_WIDTH_MAX);
         line--;
     }
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
+    Indent(out, indent);
 
     for (i = 0; i < left; i++) {
         outSz = sizeof(outHex);
@@ -6953,18 +6958,13 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
             }
         }
     }
-    wsz = 1;
-    if (idx + wsz <= EVP_PKEY_PRINT_LINE_WIDTH_MAX) {
-        XMEMSET(buff + idx, '\n', wsz);
-        idx += wsz;
-    }
 
     wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    wolfSSL_BIO_write(out, "\n", 1);
+    idx++;
 
 #ifdef WOLFSSL_SMALL_STACK
-    buff = (byte*)XMALLOC(EVP_PKEY_PRINT_LINE_WIDTH_MAX, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return idx;
 }
@@ -6975,12 +6975,8 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte*  buff = NULL;
-#else
-    byte   buff[EVP_PKEY_PRINT_LINE_WIDTH_MAX] = { 0 };
-#endif /* WOLFSSL_SMALL_STACK */
 
+    byte   buff[8] = { 0 };
     word32 inOutIdx = 0;
     int length = 0;
     word32 nSz = 0;         /* size of modulus */
@@ -6997,12 +6993,12 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     word32 outSz;
     byte   outHex[3];
 
+    (void)pctx;
+
     if (indent < 0)
         indent = 0;
-    else if (indent >= EVP_PKEY_PRINT_INDENT_MAX)
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
         indent = EVP_PKEY_PRINT_INDENT_MAX;
-
-    (void)pctx;
 
     if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
         return WOLFSSL_FAILURE;
@@ -7033,7 +7029,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         inOutIdx ++;
 
         /* should have bit tag length and seq next */
-        if( CheckBitString(pkey, &inOutIdx, NULL, pkeySz, 1, NULL) != 0)
+        if (CheckBitString(pkey, &inOutIdx, NULL, pkeySz, 1, NULL) != 0)
             return WOLFSSL_FAILURE;
 
         if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
@@ -7065,86 +7061,58 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
 
 
-#ifdef WOLFSSL_SMALL_STACK
-    buff = (byte*)XMALLOC(EVP_PKEY_PRINT_LINE_WIDTH_MAX, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
     eSz = length;
     e   = (byte*)(&pkey[inOutIdx]);
 
     /* print out public key elements */
-
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("RSA Public-Key: (") ;
-    XSTRNCPY((char*)(buff + idx), "RSA Public-Key: (", wsz );
-    idx += wsz -1;
+    XMEMSET(buff, 0, sizeof(buff));
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "RSA Public-Key: (",
+                          sizeof("RSA Public-Key: (") -1);
 
     wsz = ToDec(bitlen, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof(" bit)\n");
-    XSTRNCPY((char*)(buff + idx), " bit)\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") -1);
 
     /* print Modulus */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("Modulus:\n");
-    XSTRNCPY((char*)(buff + idx), "Modulus:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "Modulus:\n", sizeof("Modulus:\n") -1);
     DumpElement(out, n, nSz, indent + 4);
 
     /* print public Exponent */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("Exponent: ");
-    XSTRNCPY((char*)(buff + idx), "Exponent: ", wsz);
-    idx += wsz -1;
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "Exponent: ", sizeof("Exponent: ") -1);
 
     for (i = 0; i < eSz; i++) {
         exponent <<= 8;
         exponent += e[i];
     }
+
+    XMEMSET(buff, 0, sizeof(buff));
     wsz = ToDec(exponent, buff + idx);
-    idx += wsz;
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " (0x", sizeof(" (0x") -1);
 
-    wsz = sizeof(" (0x");
-    XSTRNCPY((char*)(buff + idx), " (0x", wsz);
-    idx += wsz -1;
-
+    idx = 0;
+    XMEMSET(buff, 0, sizeof(buff));
     for (i = 0; i < eSz; i++) {
-            outSz = sizeof(outHex);
-            Base16_Encode((const byte*)&e[i], 1, outHex, &outSz );
+        outSz = sizeof(outHex);
+        Base16_Encode((const byte*)&e[i], 1, outHex, &outSz );
+        if ((unsigned int)idx + 2 <= sizeof(buff)) {
             XMEMCPY(buff + idx, outHex, 2);
             idx += 2;
+        }
     }
-    wsz = sizeof(")\n");
-    XSTRNCPY((char*)(buff + idx), ")\n", wsz);
-    idx += wsz -1;
 
     wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    wolfSSL_BIO_write(out, ")\n", sizeof(")\n") -1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
     return WOLFSSL_SUCCESS;
 }
+
 #if defined(HAVE_ECC)
 /* PrintPubKeyEC is a helper function for wolfSSL_EVP_PKEY_print_public
  * to parses a DER format ECC public key specified in the second parameter.
@@ -7153,12 +7121,8 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte*   buff = NULL;
-#else
-    byte    buff[EVP_PKEY_PRINT_LINE_WIDTH_MAX] = { 0 };
-#endif /* WOLFSSL_SMALL_STACK */
 
+    byte    buff[8] = { 0 };
     int     res = WOLFSSL_SUCCESS;
     word32  inOutIdx = 0;
     int     length = 0;
@@ -7175,12 +7139,12 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int idx = 0;
     int wsz = 0;
 
+    (void)pctx;
+
     if (indent < 0)
         indent = 0;
-    else if (indent >= EVP_PKEY_PRINT_INDENT_MAX)
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
         indent = EVP_PKEY_PRINT_INDENT_MAX;
-
-    (void)pctx;
 
     if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
         return ASN_PARSE_E;
@@ -7241,89 +7205,46 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     /* get NIST curve name */
     nistCurveName = wolfSSL_EC_curve_nid2nist(nid);
 
-#ifdef WOLFSSL_SMALL_STACK
-    buff = (byte*)XMALLOC(EVP_PKEY_PRINT_LINE_WIDTH_MAX, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
+    Indent(out, indent);
 
-    wsz = sizeof("Public-Key: (");
-    XSTRNCPY((char*)(buff + idx), "Public-Key: (", wsz);
-    idx += wsz -1;
+    wolfSSL_BIO_write(out, "Public-Key: (",
+                            sizeof("Public-Key: (") - 1);
 
     wsz = ToDec(bitlen, buff + idx);
-    idx += wsz;
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
-    wsz = sizeof(" bit)\n");
-    XSTRNCPY((char*)(buff + idx), " bit)\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
 
     /* print pub element */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("pub:\n");
-    XSTRNCPY((char*)(buff + idx), "pub:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "pub:\n", sizeof("pub:\n") - 1);
     DumpElement(out, pkey + pointIdx, pointSz, indent + 4);
 
     /* print OID in name */
 
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
+    Indent(out, indent);
 
-    wsz = sizeof("ASN1 OID: ");
-    XSTRNCPY((char*)(buff + idx), "ASN1 OID: ", wsz);
-    idx += wsz -1;
+    wolfSSL_BIO_write(out, "ASN1 OID: ", sizeof("ASN1 OID: ") - 1);
 
-    wsz = (int)XSTRLEN(OIDName);
-    XSTRNCPY((char*)(buff + idx), OIDName, wsz +1);
-    idx += wsz;
-
-    wsz = sizeof("\n");
-    XSTRNCPY((char*)(buff + idx), "\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    if (OIDName && XSTRLEN(OIDName) > 0) {
+        wolfSSL_BIO_write(out, OIDName, XSTRLEN(OIDName));
+        wolfSSL_BIO_write(out, "\n", 1);
+    }
 
     /* print NIST curve name */
 
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "NIST CURVE: ", sizeof("NIST CURVE: ") -1);
 
-    wsz = sizeof("NIST CURVE: ");
-    XSTRNCPY((char*)(buff + idx), "NIST CURVE: ", wsz);
-    idx += wsz -1;
+    if (nistCurveName && XSTRLEN(nistCurveName) > 0) {
+        wolfSSL_BIO_write(out, nistCurveName, XSTRLEN(nistCurveName));
+        wolfSSL_BIO_write(out, "\n", 1);
+    }
 
-    wsz = (int)XSTRLEN(nistCurveName);
-    XSTRNCPY((char*)(buff + idx), nistCurveName, wsz +1);
-    idx += wsz;
-
-    wsz = sizeof("\n");
-    XSTRNCPY((char*)(buff + idx), "\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
     return WOLFSSL_SUCCESS;
 }
 #endif /* HAVE_ECC */
@@ -7334,11 +7255,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte*   buff = NULL;
-#else
-    byte    buff[EVP_PKEY_PRINT_LINE_WIDTH_MAX] = { 0 };
-#endif /* WOLFSSL_SMALL_STACK */
+
+    byte    buff[8] = { 0 };
     int     length;
     int     res;
     word32  inOutIdx = 0;
@@ -7349,13 +7267,14 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int idx = 0;
     int wsz = 0;
 
-    if (indent < 0)
-        indent = 0;
-    else if (indent >= EVP_PKEY_PRINT_INDENT_MAX)
-        indent = EVP_PKEY_PRINT_INDENT_MAX;
-
     inOutIdx = 0;
     (void)pctx;
+
+    if (indent < 0)
+        indent = 0;
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
+        indent = EVP_PKEY_PRINT_INDENT_MAX;
+
     if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
         return WOLFSSL_FAILURE;
     if (GetSequence(pkey, &inOutIdx, &length, pkeySz) < 0)
@@ -7430,89 +7349,39 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     y = (byte*)(pkey + inOutIdx);
     ySz = length;
 
-#ifdef WOLFSSL_SMALL_STACK
-    buff = (byte*)XMALLOC(EVP_PKEY_PRINT_LINE_WIDTH_MAX, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("DSA Public-Key: (");
-    XSTRNCPY((char*)(buff + idx), "DSA Public-Key: (", wsz);
-    idx += wsz -1;
+    XMEMSET(buff, 0, sizeof(buff));
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "DSA Public-Key: (",
+                        sizeof("DSA Public-Key: (") -1);
 
     wsz = ToDec(bitlen, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof(" bit)\n");
-    XSTRNCPY((char*)(buff + idx), " bit)\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
     /* print pub element */
-    idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("pub:\n");
-    XSTRNCPY((char*)(buff + idx), "pub:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "pub:\n", sizeof("pub:\n") - 1);
     DumpElement(out, y, ySz, indent + 4);
 
     /* print P element */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("P:\n");
-    XSTRNCPY((char*)(buff + idx), "P:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "P:\n", sizeof("P:\n") - 1);
     DumpElement(out, p, pSz, indent + 4);
 
     /* print Q element */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("Q:\n");
-    XSTRNCPY((char*)(buff + idx), "Q:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "Q:\n", sizeof("Q:\n") - 1);
     DumpElement(out, q, qSz, indent + 4);
 
     /* print G element */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("G:\n");
-    XSTRNCPY((char*)(buff + idx), "G:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "G:\n", sizeof("G:\n") - 1);
     DumpElement(out, g, gSz, indent + 4);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
     return WOLFSSL_SUCCESS;
 }
 /* PrintPubKeyDH is a helper function for wolfSSL_EVP_PKEY_print_public
@@ -7522,11 +7391,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    byte*   buff = NULL;
-#else
-    byte    buff[EVP_PKEY_PRINT_LINE_WIDTH_MAX] = { 0 };
-#endif /* WOLFSSL_SMALL_STACK */
+
+    byte    buff[8] = { 0 };
     word32  length;
     word32  inOutIdx = 0;
     word32  oid;
@@ -7541,13 +7407,14 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     word32  outSz;
     byte    outHex[3];
 
-    if (indent < 0)
-        indent = 0;
-    else if (indent >= EVP_PKEY_PRINT_INDENT_MAX)
-        indent = EVP_PKEY_PRINT_INDENT_MAX;
-
     inOutIdx = 0;
     (void)pctx;
+
+    if (indent < 0)
+        indent = 0;
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
+        indent = EVP_PKEY_PRINT_INDENT_MAX;
+
     if (GetSequence(pkey, &inOutIdx, (int*)&length, pkeySz) < 0)
         return WOLFSSL_FAILURE;
     if (GetSequence(pkey, &inOutIdx, (int*)&length, pkeySz) < 0)
@@ -7608,87 +7475,43 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
             bitlen = publicKeySz * 8;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    buff = (byte*)XMALLOC(EVP_PKEY_PRINT_LINE_WIDTH_MAX, NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
     /* print elements */
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("DH Public-Key: (");
-    XSTRNCPY((char*)(buff + idx), "DH Public-Key: (", wsz);
-    idx += wsz -1;
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "DH Public-Key: (",
+                        sizeof("DH Public-Key: (") - 1);
 
     wsz = ToDec(bitlen, buff + idx);
-    idx += wsz;
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
-    wsz = sizeof(" bit)\n");
-    XSTRNCPY((char*)(buff + idx), " bit)\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
-    idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("public-key:\n");
-    XSTRNCPY((char*)(buff + idx), "public-key:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "public-key:\n", sizeof("public-key:\n") - 1);
     DumpElement(out, publicKey, publicKeySz, indent + 4);
 
-    idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("prime:\n");
-    XSTRNCPY((char*)(buff + idx), "prime:\n", wsz);
-    idx += wsz -1;
-
-    wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
-
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "prime:\n", sizeof("prime:\n") - 1);
     DumpElement(out, prime, primeSz, indent + 4);
 
     idx = 0;
-    wsz = Indent(indent, buff + idx);
-    idx += wsz;
-
-    wsz = sizeof("generator: ");
-    XSTRNCPY((char*)(buff + idx), "generator: ", wsz);
-    idx += wsz -1;
-
+    XMEMSET(buff, 0, sizeof(buff));
+    Indent(out, indent);
+    wolfSSL_BIO_write(out, "generator: ", sizeof("generator: ") - 1);
     wsz = ToDec(generator, buff + idx);
-    idx += wsz;
+    wolfSSL_BIO_write(out, buff + idx, wsz);
+    wolfSSL_BIO_write(out, " (0x", sizeof(" (0x") - 1);
 
-    wsz = sizeof(" (0x");
-    XSTRNCPY((char*)(buff + idx), " (0x", wsz);
-    idx += wsz -1;
+
     outSz = sizeof(outHex);
     Base16_Encode((const byte*)&generator, 1, outHex, &outSz );
     XMEMCPY(buff + idx, outHex, 2);
     idx += 2;
-
-    wsz = sizeof(")\n");
-    XSTRNCPY((char*)(buff + idx), ")\n", wsz);
-    idx += wsz -1;
-
     wolfSSL_BIO_write(out, buff, idx);
-    XMEMSET(buff, 0, sizeof(buff));
+    wolfSSL_BIO_write(out, ")\n", sizeof(")\n") -1);
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
     return WOLFSSL_SUCCESS;
 }
+
 /*  wolfSSL_EVP_PKEY_print_public parses the specified key then 
  *  outputs public key info in human readable format to the specified BIO.
  *  White spaces of the same number which 'indent" gives, will be added to
@@ -7707,6 +7530,11 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
 
     if (pkey == NULL || out == NULL)
         return 0;
+
+    if (indent < 0)
+        indent = 0;
+    if (indent > EVP_PKEY_PRINT_INDENT_MAX)
+        indent = EVP_PKEY_PRINT_INDENT_MAX;
 
     switch (pkey->type) {
         case EVP_PKEY_RSA:

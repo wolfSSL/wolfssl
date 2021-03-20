@@ -386,7 +386,7 @@ typedef WOLFSSL_EVP_PKEY_CTX EVP_PKEY_CTX;
 #define EVP_PKEY_OP_DECRYPT (1 << 7)
 #define EVP_PKEY_OP_DERIVE  (1 << 8)
 
-#define EVP_PKEY_PRINT_INDENT_MAX    20
+#define EVP_PKEY_PRINT_INDENT_MAX    128
 
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* md);
