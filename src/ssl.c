@@ -15821,7 +15821,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->x509_store.cache = str->cache;
         ctx->x509_store_pt    = str; /* take ownership of store and free it
                                         with CTX free */
-        ctx->cm->x509_store_p = ctx->x509_store_pt;
+        ctx->cm->x509_store_p = ctx->x509_store_pt;/* CTX has onwership
+                                                    and free it with CTX free*/
     }
 
 
