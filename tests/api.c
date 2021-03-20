@@ -22605,7 +22605,7 @@ static int test_wc_DhPublicKeyDecode(void)
     word32 inOutIdx;
 
 #if defined(WOLFSSL_DH_EXTRA) && defined(USE_CERT_BUFFERS_2048)
-    DhKey  key = {0};
+    DhKey  key;
     AssertIntEQ(wc_InitDhKey(&key), 0);
     printf(testingFmt, "wc_DhPublicKeyDecode()");
 

@@ -7230,7 +7230,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "ASN1 OID: ", sizeof("ASN1 OID: ") - 1);
 
     if (OIDName && XSTRLEN(OIDName) > 0) {
-        wolfSSL_BIO_write(out, OIDName, XSTRLEN(OIDName));
+        wolfSSL_BIO_write(out, OIDName, (int)XSTRLEN(OIDName));
         wolfSSL_BIO_write(out, "\n", 1);
     }
 
@@ -7241,7 +7241,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "NIST CURVE: ", sizeof("NIST CURVE: ") -1);
 
     if (nistCurveName && XSTRLEN(nistCurveName) > 0) {
-        wolfSSL_BIO_write(out, nistCurveName, XSTRLEN(nistCurveName));
+        wolfSSL_BIO_write(out, nistCurveName, (int)XSTRLEN(nistCurveName));
         wolfSSL_BIO_write(out, "\n", 1);
     }
 
