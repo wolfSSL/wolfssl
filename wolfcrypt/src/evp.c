@@ -6806,16 +6806,17 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 }
 #if defined(OPENSSL_EXTRA)
 /* Converts input value "i" to upto five digit decimal
- * and copys to the specified buffer.
+ * and copies to the specified buffer.
+ * Returns the number of written, 0 on failure.
  */
-static int ToDec(word32 in, byte* hex)
+static int ToDec(word32 in, byte* out, int outSz)
 {
     int     i = 0;
     byte    dgt[5];
     word32  quo;
     int     written;
 
-    if (hex == NULL || in > 99999 )
+    if (out == NULL || in > 99999 )
         return 0;
     quo = in;
     dgt[4] = quo % 10;
@@ -6845,8 +6846,11 @@ static int ToDec(word32 in, byte* hex)
 
     written = 5 - i;
 
+    if ( outSz < written)
+        return 0;
+
     for (; i < 5; i++) {
-        *hex++ = dgt[i] + '0';
+        *out++ = dgt[i] + '0';
     }
     return written;
 }
@@ -6891,7 +6895,7 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
     word32 in = 0;
     word32 i;
-    int    idx = 0;
+    int    idx;
     int    wsz = 0;
     word32 line;
     word32 len;
@@ -6961,15 +6965,14 @@ static int DumpElement(WOLFSSL_BIO* out, const byte* input,
 
     wolfSSL_BIO_write(out, buff, idx);
     wolfSSL_BIO_write(out, "\n", 1);
-    idx++;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    return idx;
+    return WOLFSSL_SUCCESS;
 }
 /* PrintPubKeyRSA is a helper function for wolfSSL_EVP_PKEY_print_public
- * to parses a DER format RSA public key specified in the second parameter.
+ * to parse a DER format RSA public key specified in the second parameter.
  * Returns 1 on success, 0 on failure.
 */
 static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
@@ -6979,15 +6982,15 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     byte   buff[8] = { 0 };
     word32 inOutIdx = 0;
     int length = 0;
-    word32 nSz = 0;         /* size of modulus */
-    word32 eSz = 0;         /* size of public exponent */
+    word32 nSz;             /* size of modulus */
+    word32 eSz;             /* size of public exponent */
     byte*  n   = NULL;
-    byte*  e   = NULL;       /* pointer to modulus/exponent */
+    byte*  e   = NULL;      /* pointer to modulus/exponent */
     word32 localIdx;
     word32 oid;
     byte   tag;
-    int idx = 0;
-    int wsz = 0;
+    int idx;
+    int wsz;
     word32 i;
     word32 exponent = 0;
     word32 outSz;
@@ -7071,12 +7074,11 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "RSA Public-Key: (",
                           sizeof("RSA Public-Key: (") -1);
 
-    wsz = ToDec(bitlen, buff + idx);
+    wsz = ToDec(bitlen, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") -1);
 
     /* print Modulus */
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "Modulus:\n", sizeof("Modulus:\n") -1);
     DumpElement(out, n, nSz, indent + 4);
@@ -7092,7 +7094,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     }
 
     XMEMSET(buff, 0, sizeof(buff));
-    wsz = ToDec(exponent, buff + idx);
+    wsz = ToDec(exponent, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " (0x", sizeof(" (0x") -1);
 
@@ -7115,7 +7117,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
 #if defined(HAVE_ECC)
 /* PrintPubKeyEC is a helper function for wolfSSL_EVP_PKEY_print_public
- * to parses a DER format ECC public key specified in the second parameter.
+ * to parse a DER format ECC public key specified in the second parameter.
  * Returns 1 on success, 0 on failure.
 */
 static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
@@ -7136,7 +7138,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     WOLFSSL_ObjectInfo* oi = NULL;
     word32  i;
     byte    tag;
-    int idx = 0;
+    int idx;
     int wsz = 0;
 
     (void)pctx;
@@ -7211,22 +7213,18 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "Public-Key: (",
                             sizeof("Public-Key: (") - 1);
 
-    wsz = ToDec(bitlen, buff + idx);
+    wsz = ToDec(bitlen, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
 
     /* print pub element */
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "pub:\n", sizeof("pub:\n") - 1);
     DumpElement(out, pkey + pointIdx, pointSz, indent + 4);
 
     /* print OID in name */
-
-    idx = 0;
     Indent(out, indent);
-
     wolfSSL_BIO_write(out, "ASN1 OID: ", sizeof("ASN1 OID: ") - 1);
 
     if (OIDName && XSTRLEN(OIDName) > 0) {
@@ -7235,8 +7233,6 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     }
 
     /* print NIST curve name */
-
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "NIST CURVE: ", sizeof("NIST CURVE: ") -1);
 
@@ -7249,7 +7245,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 }
 #endif /* HAVE_ECC */
 /* PrintPubKeyDSA is a helper function for wolfSSL_EVP_PKEY_print_public
- * to parses a DER format DSA public key specified in the second parameter.
+ * to parse a DER format DSA public key specified in the second parameter.
  * Returns 1 on success, 0 on failure.
 */
 static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
@@ -7264,8 +7260,8 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     byte    tagFound;
     byte    *p = NULL, * q = NULL, * g = NULL, * y = NULL;
     int     pSz, qSz, gSz, ySz;
-    int idx = 0;
-    int wsz = 0;
+    int idx;
+    int wsz;
 
     inOutIdx = 0;
     (void)pctx;
@@ -7355,7 +7351,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "DSA Public-Key: (",
                         sizeof("DSA Public-Key: (") -1);
 
-    wsz = ToDec(bitlen, buff + idx);
+    wsz = ToDec(bitlen, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
@@ -7365,19 +7361,16 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     DumpElement(out, y, ySz, indent + 4);
 
     /* print P element */
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "P:\n", sizeof("P:\n") - 1);
     DumpElement(out, p, pSz, indent + 4);
 
     /* print Q element */
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "Q:\n", sizeof("Q:\n") - 1);
     DumpElement(out, q, qSz, indent + 4);
 
     /* print G element */
-    idx = 0;
     Indent(out, indent);
     wolfSSL_BIO_write(out, "G:\n", sizeof("G:\n") - 1);
     DumpElement(out, g, gSz, indent + 4);
@@ -7385,7 +7378,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     return WOLFSSL_SUCCESS;
 }
 /* PrintPubKeyDH is a helper function for wolfSSL_EVP_PKEY_print_public
- * to parses a DER format DH public key specified in the second parameter.
+ * to parse a DER format DH public key specified in the second parameter.
  * Returns 1 on success, 0 on failure.
 */
 static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
@@ -7394,7 +7387,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     byte    buff[8] = { 0 };
     word32  length;
-    word32  inOutIdx = 0;
+    word32  inOutIdx;
     word32  oid;
     byte    tagFound;
     byte*   prime = NULL;
@@ -7402,8 +7395,8 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     byte    generator;
     byte*   publicKey = NULL;
     int     publicKeySz;
-    int idx = 0;
-    int wsz = 0;
+    int     idx;
+    int     wsz;
     word32  outSz;
     byte    outHex[3];
 
@@ -7481,7 +7474,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     wolfSSL_BIO_write(out, "DH Public-Key: (",
                         sizeof("DH Public-Key: (") - 1);
 
-    wsz = ToDec(bitlen, buff + idx);
+    wsz = ToDec(bitlen, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1);
 
@@ -7497,15 +7490,18 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     XMEMSET(buff, 0, sizeof(buff));
     Indent(out, indent);
     wolfSSL_BIO_write(out, "generator: ", sizeof("generator: ") - 1);
-    wsz = ToDec(generator, buff + idx);
+    wsz = ToDec(generator, buff + idx, sizeof(buff) - idx);
     wolfSSL_BIO_write(out, buff + idx, wsz);
     wolfSSL_BIO_write(out, " (0x", sizeof(" (0x") - 1);
 
-
+    idx = 0;
+    XMEMSET(buff, 0, sizeof(buff));
     outSz = sizeof(outHex);
     Base16_Encode((const byte*)&generator, 1, outHex, &outSz );
-    XMEMCPY(buff + idx, outHex, 2);
-    idx += 2;
+    if (idx + 2 < (int)sizeof(buff) ) {
+        XMEMCPY(buff + idx, outHex, 2);
+        idx += 2;
+    }
     wolfSSL_BIO_write(out, buff, idx);
     wolfSSL_BIO_write(out, ")\n", sizeof(")\n") -1);
 
