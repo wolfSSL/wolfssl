@@ -97,7 +97,6 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     word32 ecdsel = 0;
     byte r[MAX_ECC_BYTES] = {0};
     byte s[MAX_ECC_BYTES] = {0};
-    word32 outSz;
     word32 idx = 0;
 
     byte pk[MAX_ECC_BYTES] = {0};
@@ -127,16 +126,16 @@ int wc_CAAM_EccSign(const byte* in, int inlen, byte* out, word32* outlen,
     /* private key */
     if (key->blackKey > 0) {
         buf[idx].TheAddress = (CAAM_ADDRESS)key->blackKey;
-        buf[idx].Length = keySz;
         args[0] = 1; /* is a black key */
     }
     else {
-        outSz = mp_unsigned_bin_size(&key->k);
-        mp_to_unsigned_bin(&key->k, pk);
+        if (mp_to_unsigned_bin_len(&key->k, pk, keySz) != MP_OKAY) {
+            return MP_TO_E;
+        }
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        buf[idx].Length = outSz;
         args[0] = 0; /* non black key */
     }
+    buf[idx].Length = keySz;
     idx++;
 
     /* hash to sign */
@@ -195,7 +194,7 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
     word32 args[4] = {0};
     CAAM_BUFFER buf[9] = {0};
     int ret;
-    int rSz, sSz;
+    int keySz;
     word32 idx = 0;
     word32 ecdsel = 0;
 
@@ -230,9 +229,8 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
     }
 
     /* Wx,y public key */
+    keySz = wc_ecc_size(key);
     if (key->securePubKey > 0) {
-        int keySz = wc_ecc_size(key);
-
         buf[idx].TheAddress = (CAAM_ADDRESS)key->securePubKey;
         buf[idx].Length = keySz * 2;
         args[0] = 1; /* using public key in secure memory */
@@ -251,18 +249,20 @@ static int wc_CAAM_EccVerify_ex(mp_int* r, mp_int *s, const byte* hash,
     buf[idx].Length = hashlen;
     idx++;
 
-    rSz = mp_unsigned_bin_size(r);
-    mp_to_unsigned_bin(r, rbuf);
+    if (mp_to_unsigned_bin_len(r, rbuf, keySz) != MP_OKAY) {
+        return MP_TO_E;
+    }
 
     buf[idx].TheAddress = (CAAM_ADDRESS)rbuf;
-    buf[idx].Length = rSz;
+    buf[idx].Length = keySz;
     idx++;
 
-    sSz = mp_unsigned_bin_size(s);
-    mp_to_unsigned_bin(s, sbuf);
+    if (mp_to_unsigned_bin_len(s, sbuf, keySz) != MP_OKAY) {
+        return MP_TO_E;
+    }
 
     buf[idx].TheAddress = (CAAM_ADDRESS)sbuf;
-    buf[idx].Length = sSz;
+    buf[idx].Length = keySz;
     idx++;
 
     /* temporary scratch buffer, the manual calls for it and HW expects it */
@@ -313,7 +313,6 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     CAAM_BUFFER buf[9]  = {0};
     int ret, keySz;
     word32 ecdsel = 0; /* ecc parameters in hardware */
-    word32 outSz;
     word32 idx    = 0;
 
     byte pk[MAX_ECC_BYTES] = {0};
@@ -365,16 +364,21 @@ int wc_CAAM_Ecdh(ecc_key* private_key, ecc_key* public_key, byte* out,
     /* private key */
     if (private_key->blackKey > 0) {
         buf[idx].TheAddress = (CAAM_ADDRESS)private_key->blackKey;
-        buf[idx].Length = keySz;
         args[0] = 1; /* is a black key */
     }
     else {
-        outSz = mp_unsigned_bin_size(&private_key->k);
-        mp_to_unsigned_bin(&private_key->k, pk);
+        if (keySz > MAX_ECC_BYTES) {
+            return BUFFER_E;
+        }
+
+        if (mp_to_unsigned_bin_len(&private_key->k, pk, keySz) != MP_OKAY) {
+            return MP_TO_E;
+        }
+
         buf[idx].TheAddress = (CAAM_ADDRESS)pk;
-        buf[idx].Length = outSz;
         args[0] = 0; /* non black key */
     }
+    buf[idx].Length = keySz;
     idx++;
 
     /* output shared secret */
