@@ -3625,6 +3625,7 @@ WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 WOLFSSL_API size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio);
+/* non-standard API to determine if BIO supports "pending" */
 WOLFSSL_API int wolfSSL_BIO_supports_pending(const WOLFSSL_BIO *bio);
 WOLFSSL_API size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *b);
 

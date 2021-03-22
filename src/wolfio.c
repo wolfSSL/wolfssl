@@ -133,11 +133,6 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (wolfSSL_BIO_supports_pending(ssl->biord) &&
-            wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
-        WOLFSSL_MSG("BIO want read");
-       return WOLFSSL_CBIO_ERR_WANT_READ;
-    }
     recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
     if (recvd <= 0) {
         if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
