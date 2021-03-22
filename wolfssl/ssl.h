@@ -1310,7 +1310,11 @@ WOLFSSL_API WOLFSSL_METHOD* wolfSSLv23_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD* wolfSSLv2_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD* wolfSSLv2_server_method(void);
 
+#if defined(WOLFSSL_QT)
+WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(const WOLFSSL_BIO_METHOD*);
+#else
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
+#endif
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
 WOLFSSL_API void wolfSSL_BIO_vfree(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
@@ -1524,6 +1528,10 @@ WOLFSSL_API void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1);
 WOLFSSL_API int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1,
                                                   const void* data, int dataSz);
 WOLFSSL_API unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
+#ifdef WOLFSSL_QT
+WOLFSSL_API const unsigned char* wolfSSL_ASN1_STRING_get0_data(
+                                            const WOLFSSL_ASN1_STRING*);
+#endif
 WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst, 
                                                 const WOLFSSL_ASN1_STRING* src);
@@ -2272,7 +2280,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_Cleanup(void);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
+#ifdef WOLFSSL_QT
+WOLFSSL_API const char* wolfSSL_OpenSSL_version(int a);
+#else
 WOLFSSL_API const char* wolfSSL_OpenSSL_version(void);
+#endif
 /* which library version do we have in hex */
 WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 
@@ -4063,7 +4075,11 @@ WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *,
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s);
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s);
 WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
+#if defined(WOLFSSL_QT)
+WOLFSSL_API int wolfSSL_SSL_in_init(const WOLFSSL*);
+#else
 WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL*);
+#endif
 WOLFSSL_API int wolfSSL_SSL_in_connect_init(WOLFSSL*);
 
 #ifndef NO_SESSION_CACHE
@@ -4240,8 +4256,25 @@ WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format);
 #endif
 
+#if defined(OPENSSL_EXTRA)
+WOLFSSL_API int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
+WOLFSSL_API void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
+WOLFSSL_API int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
 
+typedef int (*wolfSSL_psk_use_session_cb_func)(WOLFSSL* ssl, const WOLFSSL_EVP_MD* md,
+                                               const unsigned char **id,
+                                               size_t* idlen,
+                                               WOLFSSL_SESSION **sess);
+WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
+                                               wolfSSL_psk_use_session_cb_func cb);
 
+WOLFSSL_API int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s);
+
+#ifdef WOLFSSL_QT
+WOLFSSL_API void wolfSSL_CRYPTO_free(void *str, const char *file, int line);
+WOLFSSL_API void *wolfSSL_CRYPTO_malloc(size_t num, const char *file, int line);
+#endif /* WOLFSSL_QT */
+#endif /* OPENSSL_EXTRA */
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

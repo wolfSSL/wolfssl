@@ -1516,6 +1516,19 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     return 32;   /* length of key in octets or 0 for error */
 }
 
+static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl, 
+            const WOLFSSL_EVP_MD* md, const unsigned char **id,
+            size_t* idlen,  WOLFSSL_SESSION **sess)
+{
+    (void)ssl;
+    (void)md;
+    (void)id;
+    (void)idlen;
+    (void)sess;
+   
+    return 0;
+}
+
 #endif /* !NO_PSK */
 
 
