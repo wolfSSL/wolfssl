@@ -625,7 +625,6 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
         if (certStatus)
             XFREE(certStatus, NULL, DYNAMIC_TYPE_OPENSSL);
 
-        wolfSSL_CertManagerFree(cm);
         return NULL;
     }
 
