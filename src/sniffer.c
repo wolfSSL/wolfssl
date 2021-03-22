@@ -1681,10 +1681,14 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 
     #ifdef WOLFSSL_STATIC_EPHEMERAL
         if (isEphemeralKey) {
-            /* auto detect key type with WC_PK_TYPE_NONE */
+            int pkType = WC_PK_TYPE_NONE;
+            if (type == WOLFSSL_FILETYPE_ASN1)
+                pkType = WC_PK_TYPE_ECDH;
+            /* for PEM we can auto detect key type with WC_PK_TYPE_NONE */
             /* keySz == 0 mean load file */
-            ret = wolfSSL_CTX_set_ephemeral_key(sniffer->ctx, WC_PK_TYPE_NONE, 
-                keyFile, 0, type);
+            /* for DER assume WC_PK_TYPE_ECDH */
+            ret = wolfSSL_CTX_set_ephemeral_key(sniffer->ctx, pkType, 
+                keyFile, keySz, type);
             if (ret == 0)
                 ret = WOLFSSL_SUCCESS;
         }
@@ -5716,8 +5720,21 @@ int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
     keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
                                           WOLFSSL_FILETYPE_ASN1;
 
-    ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
+#ifdef WOLFSSL_STATIC_EPHEMERAL
+    /* try setting static ephemeral first */
+    /* auto detect key type with WC_PK_TYPE_NONE */
+    ret = wolfSSL_set_ephemeral_key(sniffer->sslServer, 
+        WC_PK_TYPE_NONE, (const char*)key, keySz,
+            WOLFSSL_FILETYPE_ASN1);
+    if (ret == 0) {
+        ret = WOLFSSL_SUCCESS;
+    }
+    else
+#endif
+    {
+        ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
             key, keySz, keyType);
+    }
     if (ret != WOLFSSL_SUCCESS) {
         SetError(KEY_FILE_STR, error, sniffer, FATAL_ERROR_STATE);
         return -1;

@@ -7,7 +7,16 @@ noinst_PROGRAMS += sslSniffer/sslSnifferTest/snifftest
 sslSniffer_sslSnifferTest_snifftest_SOURCES = sslSniffer/sslSnifferTest/snifftest.c
 sslSniffer_sslSnifferTest_snifftest_LDADD        = src/libwolfssl.la -lpcap $(LIB_STATIC_ADD)
 sslSniffer_sslSnifferTest_snifftest_DEPENDENCIES = src/libwolfssl.la
+
+# Use a custom make target for the ETSI client to build after installing wolfssl and wolfkeymgr
+# Usage: make sslSniffer/sslSnifferTest/sniffetsi
+EXTRA_PROGRAMS += sslSniffer/sslSnifferTest/sniffetsi
+sslSniffer_sslSnifferTest_sniffetsi_SOURCES      = sslSniffer/sslSnifferTest/snifftest.c
+sslSniffer_sslSnifferTest_sniffetsi_CFLAGS       = -DUSE_ETSI_CLIENT $(AM_CFLAGS)
+sslSniffer_sslSnifferTest_sniffetsi_LDADD        = src/libwolfssl.la -lpcap -lwolfkeymgr $(LIB_STATIC_ADD)
+sslSniffer_sslSnifferTest_sniffetsi_DEPENDENCIES = src/libwolfssl.la
 endif
+
 EXTRA_DIST += sslSniffer/README.md
 EXTRA_DIST += sslSniffer/sslSniffer.vcproj
 EXTRA_DIST += sslSniffer/sslSniffer.vcxproj

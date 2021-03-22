@@ -74,6 +74,7 @@ examples/sctp/sctp-client
 examples/sctp/sctp-client-dtls
 server_ready
 snifftest
+sslSniffer/sslSnifferTest/sniffetsi
 output
 mcapi/test
 testsuite/testsuite
