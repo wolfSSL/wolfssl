@@ -264,12 +264,6 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         if (ret > 0) {
             sz = ret; /* adjust size for formatting */
         }
-        else {
-            if (wolfSSL_BIO_supports_pending(bio) &&
-                wolfSSL_BIO_ctrl_pending(bio) == 0) {
-                ret = WOLFSSL_CBIO_ERR_WANT_READ;
-            }
-        }
 
         /* previous WOLFSSL_BIO in list working towards head of list */
         bio = bio->prev;
