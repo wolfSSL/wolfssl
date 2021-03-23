@@ -7098,7 +7098,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 {
     WOLFSSL_ENTER("DtlsMsgSet()");
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-                    fragOffset <= msg->sz && (fragOffset + fragSz) <= msg->sz) {
+        fragSz <= msg->sz && fragOffset <= msg->sz &&
+        (fragOffset + fragSz) <= msg->sz) {
         DtlsFrag* cur = msg->fragList;
         DtlsFrag* prev = cur;
         DtlsFrag* newFrag;
