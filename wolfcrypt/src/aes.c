@@ -6987,10 +6987,14 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-#ifndef STM32_AESGCM_PARTIAL
+    #ifndef CRYP_HEADERWIDTHUNIT_BYTE
+        /* or harware that does not support partial block */
+        || sz == 0 || partial != 0
+    #endif
+    #ifndef STM32_AESGCM_PARTIAL
         /* or authIn is not a multiple of 4  */
-        || authPadSz != authInSz || sz == 0 || partial != 0
-#endif
+        || authPadSz != authInSz
+    #endif
     ) {
         useSwGhash = 1;
     }
@@ -7008,7 +7012,12 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
+    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    /* V2 with CRYP_DATAWIDTHUNIT_BYTE uses byte size for header */
+    hcryp.Init.HeaderSize = authPadSz;
+    #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
+    #endif
     #ifdef STM32_AESGCM_PARTIAL
     hcryp.Init.HeaderPadSize = authPadSz - authInSz;
     #endif
@@ -7448,10 +7457,10 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ || sz == 0 || partial != 0
-#ifndef STM32_AESGCM_PARTIAL
+    #ifndef STM32_AESGCM_PARTIAL
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
-#endif
+    #endif
     ) {
 		GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
 		wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
@@ -7492,7 +7501,12 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
+    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    /* V2 with CRYP_DATAWIDTHUNIT_BYTE uses byte size for header */
+    hcryp.Init.HeaderSize = authPadSz;
+    #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
+    #endif
     #ifdef STM32_AESGCM_PARTIAL
     hcryp.Init.HeaderPadSize = authPadSz - authInSz;
     #endif
@@ -7503,7 +7517,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     /* GCM payload phase - can handle partial blocks */
     status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
         (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
-    if (status == HAL_OK && tagComputed == 0) {
+    if (status == HAL_OK && !tagComputed) {
         /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
             STM32_HAL_TIMEOUT);
