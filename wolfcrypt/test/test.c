@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -11860,6 +11859,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #elif defined(WOLFSSL_uTKERNEL2)
     #define CERT_PREFIX "/uda/"
     #define CERT_PATH_SEP "/"
+#elif defined(_WIN32_WCE)
+    #define CERT_PREFIX "\\windows\\"
+    #define CERT_PATH_SEP "\\"
 #endif
 
 #ifndef CERT_PREFIX
@@ -13701,8 +13703,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
 #elif !defined(NO_FILESYSTEM)
     file = XFOPEN(clientKey, "rb");
     if (!file) {
-        err_sys("can't open ./certs/client-key.der, "
-                "Please run from wolfSSL home dir", -40);
+        err_sys("can't open clientKey, Please run from wolfSSL home dir", -40);
         ERROR_OUT(-7801, exit_rsa_nopadding);
     }
 

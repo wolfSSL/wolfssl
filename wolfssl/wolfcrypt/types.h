@@ -556,17 +556,17 @@ decouple library dependencies with standard string, memory and so on.
                     {
                         va_list ap;
                         int ret;
-                        
+
                         if ((int)n <= 0) return -1;
-                        
+
                         va_start(ap, format);
-                        
-                        ret = vsnprintf(s, n, format, ap);
+
+                        ret = XVSNPRINTF(s, n, format, ap);
                         if (ret < 0)
                             ret = -1;
-                            
+
                         va_end(ap);
-                        
+
                         return ret;
                     }
                 #define XSNPRINTF _xsnprintf_
@@ -597,7 +597,7 @@ decouple library dependencies with standard string, memory and so on.
 
                         if ((int)bufsize <= 0) return -1;
                         va_start(ap, format);
-                        ret = vsnprintf(buffer, bufsize, format, ap);
+                        ret = XVSNPRINTF(buffer, bufsize, format, ap);
                         if (ret >= (int)bufsize)
                             ret = -1;
                         va_end(ap);
