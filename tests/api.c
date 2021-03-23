@@ -27968,7 +27968,272 @@ static int verify_cb(int ok, X509_STORE_CTX *ctx)
 }
 #endif
 
+static void test_wolfSSL_X509_Name_canon(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_SHA) && \
+     defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT))
+    
+    const long ex_hash1 = 0x0fdb2da4;
+    const long ex_hash2 = 0x9f3e8c9e;
+    X509_NAME *name = NULL;
+    X509 *x509 = NULL;
+    FILE* file = NULL;
+    unsigned long hash = 0;
+    byte digest[WC_MAX_DIGEST_SIZE] = {0};
+    byte  *pbuf = NULL;
+    word32 len = 0;
+    (void) ex_hash2;
+    printf(testingFmt, "test_wolfSSL_X509_Name_canon()");
 
+    file = XFOPEN(caCertFile, "rb");
+    AssertNotNull(file);
+    AssertNotNull(x509 = PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(name = X509_get_issuer_name(x509));
+    
+    AssertIntGT((len = wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
+    AssertIntEQ(wc_ShaHash((const byte*)pbuf, (word32)len, digest), 0);
+    
+    hash = (((unsigned long)digest[3] << 24) |
+            ((unsigned long)digest[2] << 16) |
+            ((unsigned long)digest[1] <<  8) |
+            ((unsigned long)digest[0]));
+    AssertIntEQ(hash, ex_hash1);
+
+    XFCLOSE(file);
+    X509_free(x509);
+    XFREE(pbuf, NULL, DYNAMIC_TYPE_OPENSSL);
+    pbuf = NULL;
+
+    file = XFOPEN(cliCertFile, "rb");
+    AssertNotNull(file);
+    AssertNotNull(x509 = PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(name = X509_get_issuer_name(x509));
+
+    AssertIntGT((len = wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
+    AssertIntEQ(wc_ShaHash((const byte*)pbuf, (word32)len, digest), 0);
+
+    hash = (((unsigned long)digest[3] << 24) |
+            ((unsigned long)digest[2] << 16) |
+            ((unsigned long)digest[1] <<  8) |
+            ((unsigned long)digest[0]));
+    
+    AssertIntEQ(hash, ex_hash2);
+
+    XFCLOSE(file);
+    X509_free(x509);
+    XFREE(pbuf, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    printf(resultFmt, passed);
+
+#endif
+
+}
+
+static void test_wolfSSL_X509_LOOKUP_ctrl_hash_dir(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    const int  MAX_DIR = 4;
+    const char paths[][32] = { 
+                             "./certs/ed25519",
+                             "./certs/ecc",
+                             "./certs/crl",
+                             "./certs/",
+                            };
+                            
+    char CertCrl_path[MAX_FILENAME_SZ];
+    char *p;
+    X509_STORE* str;
+    X509_LOOKUP* lookup;
+    WOLFSSL_STACK* sk = NULL;
+    int len, total_len, i;
+    
+    (void) sk;
+    
+    printf(testingFmt, "test_wolfSSL_X509_LOOKUP_ctrl_hash_dir()");
+    
+    XMEMSET(CertCrl_path, 0, MAX_FILENAME_SZ);
+    
+    /* illegal string */
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, "", 
+                                    SSL_FILETYPE_PEM,NULL), 0);
+    
+    /* free store */
+    X509_STORE_free(str);
+    
+    /* short folder string */
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, "./", 
+                                    SSL_FILETYPE_PEM,NULL), 1);
+    #if defined(WOLFSSL_INT_H)
+    /* only available when including internal.h */
+    AssertNotNull(sk = lookup->dirs->dir_entry);
+    #endif
+    /* free store */
+    X509_STORE_free(str);
+    
+    /* typical function check */
+    p = &CertCrl_path[0];
+    total_len = 0;
+    
+    for(i = MAX_DIR - 1; i>=0 && total_len < MAX_FILENAME_SZ; i--) {
+        len = (int)XSTRLEN((const char*)&paths[i]);
+        total_len += len;
+        XSTRNCPY(p, paths[i], MAX_FILENAME_SZ - total_len);
+        p += len;
+        if (i != 0) *(p++) = SEPARATOR_CHAR;
+    }
+    
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_ADD_DIR, CertCrl_path, 
+                                    SSL_FILETYPE_PEM,NULL), 1);
+    #if defined(WOLFSSL_INT_H)
+    /* only available when including internal.h */
+    AssertNotNull(sk = lookup->dirs->dir_entry);
+    #endif
+    
+    X509_STORE_free(str);
+    
+    printf(resultFmt, passed);
+#endif
+
+}
+
+static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+    defined(WOLFSSL_SIGNER_DER_CERT)
+     
+    X509_STORE_CTX* ctx;
+    X509_STORE* str;
+    X509_LOOKUP* lookup;
+
+    X509* cert1;
+    X509* x509Ca;
+    X509* x509Svr;
+    X509* issuer;
+
+    WOLFSSL_STACK* sk = NULL;
+    X509_NAME* caName;
+    X509_NAME* issuerName;
+
+    FILE* file1 = NULL;
+    int i, cert_count, cmp;
+    
+    char der[] = "certs/ca-cert.der";
+
+#ifdef HAVE_CRL
+    char pem[][100] = {
+        "./certs/crl/crl.pem",
+        "./certs/crl/crl2.pem",
+        "./certs/crl/caEccCrl.pem",
+        "./certs/crl/eccCliCRL.pem",
+        "./certs/crl/eccSrvCRL.pem",
+        ""
+    };
+#endif
+    printf(testingFmt, "test_wolfSSL_X509_LOOKUP_ctrl_file()");
+    AssertNotNull(file1=fopen("./certs/ca-cert.pem", "rb"));
+
+    AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
+    fclose(file1);
+
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, caCertFile, 
+                                    SSL_FILETYPE_PEM,NULL), 1);
+    AssertNotNull(sk = wolfSSL_CertManagerGetCerts(str->cm));
+    AssertIntEQ((cert_count = sk_X509_num(sk)), 1);
+
+    /* check if CA cert is loaded into the store */
+    for (i = 0; i < cert_count; i++) {
+        x509Ca = sk_X509_value(sk, i);
+        AssertIntEQ(0, wolfSSL_X509_cmp(x509Ca, cert1));
+    }
+
+    AssertNotNull((x509Svr =
+            wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
+
+    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509Svr, NULL), SSL_SUCCESS);
+
+    AssertNull(X509_STORE_CTX_get0_current_issuer(NULL));
+    issuer = X509_STORE_CTX_get0_current_issuer(ctx);
+    AssertNotNull(issuer);
+
+    caName = X509_get_subject_name(x509Ca);
+    AssertNotNull(caName);
+    issuerName = X509_get_subject_name(issuer);
+    AssertNotNull(issuerName);
+    cmp = X509_NAME_cmp(caName, issuerName);
+    AssertIntEQ(cmp, 0);
+
+    /* load der format */
+    X509_free(issuer);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(str);
+    sk_X509_free(sk);
+    X509_free(x509Svr);
+
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, der, 
+                                    SSL_FILETYPE_ASN1,NULL), 1);
+    AssertNotNull(sk = wolfSSL_CertManagerGetCerts(str->cm));
+    AssertIntEQ((cert_count = sk_X509_num(sk)), 1);
+    /* check if CA cert is loaded into the store */
+    for (i = 0; i < cert_count; i++) {
+        x509Ca = sk_X509_value(sk, i);
+        AssertIntEQ(0, wolfSSL_X509_cmp(x509Ca, cert1));
+    }
+
+    X509_STORE_free(str);
+    sk_X509_free(sk);
+    X509_free(cert1);
+    
+#ifdef HAVE_CRL
+    AssertNotNull(str = wolfSSL_X509_STORE_new());
+    AssertNotNull(lookup = X509_STORE_add_lookup(str, X509_LOOKUP_file()));
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, caCertFile, 
+                                                    SSL_FILETYPE_PEM,NULL), 1);
+    AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, 
+                                "certs/server-revoked-cert.pem", 
+                                 SSL_FILETYPE_PEM,NULL), 1);
+    if (str) {
+        AssertIntEQ(wolfSSL_CertManagerVerify(str->cm, svrCertFile,
+                    WOLFSSL_FILETYPE_PEM), 1);
+        /* since store hasn't yet known the revoked cert*/
+        AssertIntEQ(wolfSSL_CertManagerVerify(str->cm, 
+                    "certs/server-revoked-cert.pem",
+                    WOLFSSL_FILETYPE_PEM), 1);
+    }
+    for (i = 0; pem[i][0] != '\0'; i++)
+    {
+        AssertIntEQ(X509_LOOKUP_ctrl(lookup, X509_L_FILE_LOAD, pem[i], 
+                                        SSL_FILETYPE_PEM, NULL), 1);
+    }
+    
+    if (str) {
+        /* since store knows crl list */
+        AssertIntEQ(wolfSSL_CertManagerVerify(str->cm, 
+                    "certs/server-revoked-cert.pem",
+                    WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
+    }
+    
+    X509_STORE_free(str);
+    
+#endif
+
+
+    printf(resultFmt, passed);
+#endif
+}
 static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
@@ -28661,7 +28926,8 @@ static void test_wolfSSL_X509_STORE(void)
 
 static void test_wolfSSL_X509_STORE_load_locations(void)
 {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)\
+    && !defined(NO_WOLFSSL_DIR)
     SSL_CTX *ctx;
     X509_STORE *store;
 
@@ -39728,7 +39994,7 @@ static void test_wolfSSL_X509_load_crl_file(void)
     WOLFSSL_X509_STORE*  store;
     WOLFSSL_X509_LOOKUP* lookup;
 
-    printf(testingFmt, "wolfSSL_X509_laod_crl_file");
+    printf(testingFmt, "wolfSSL_X509_load_crl_file");
 
     AssertNotNull(store = wolfSSL_X509_STORE_new());
     AssertNotNull(lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file()));
@@ -40722,7 +40988,7 @@ static void test_wolfSSL_X509_print(void)
    !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(XSNPRINTF)
     X509 *x509;
     BIO *bio;
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
     const X509_ALGOR *cert_sig_alg;
 #endif
 
@@ -40743,14 +41009,16 @@ static void test_wolfSSL_X509_print(void)
 
     AssertNotNull(bio = BIO_new_fd(STDOUT_FILENO, BIO_NOCLOSE));
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_DIR)
     /* Print signature */
     AssertNotNull(cert_sig_alg = X509_get0_tbs_sigalg(x509));
     AssertIntEQ(X509_signature_print(bio, cert_sig_alg, NULL), SSL_SUCCESS);
 #endif
 
     /* print to stdout */
+#if !defined(NO_WOLFSSL_DIR)
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
+#endif
     /* print again */
     AssertIntEQ(X509_print_fp(stdout, x509), SSL_SUCCESS);
 
@@ -41818,6 +42086,9 @@ void ApiTest(void)
     test_generate_cookie();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
+    test_wolfSSL_X509_Name_canon();
+    test_wolfSSL_X509_LOOKUP_ctrl_file();
+    test_wolfSSL_X509_LOOKUP_ctrl_hash_dir();
     test_wolfSSL_X509_NID();
     test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_get0_param();

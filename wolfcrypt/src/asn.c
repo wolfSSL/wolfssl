@@ -13048,11 +13048,11 @@ int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
  * nameStr  value to be encoded
  * nameType type of encoding i.e CTC_UTF8
  * type     id of attribute i.e ASN_COMMON_NAME
- *
+ * emailType type of email i.e CTC_UTF8
  * returns length on success
  */
-int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
-                  byte type)
+static int wc_EncodeName_ex(EncodedName* name, const char* nameStr, char nameType,
+                  byte type, byte emailType)
 {
     word32 idx = 0;
     /* bottom up */
@@ -13127,11 +13127,12 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
         case ASN_EMAIL_NAME:
         {
             const byte EMAIL_OID[] = {
-                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01, 0x16
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x01
             };
             /* email joint id */
             XMEMCPY(name->encoded + idx, EMAIL_OID, sizeof(EMAIL_OID));
             idx += (int)sizeof(EMAIL_OID);
+            name->encoded[idx++] = emailType;
             break;
         }
 
@@ -13172,6 +13173,36 @@ int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
     return idx;
 }
 
+/* canonical encoding one attribute of the name (issuer/subject)
+ * call wc_EncodeName_ex with CTC_UTF8 for email type
+ *
+ * name     structure to hold result of encoding
+ * nameStr  value to be encoded
+ * nameType type of encoding i.e CTC_UTF8
+ * type     id of attribute i.e ASN_COMMON_NAME
+ *
+ * returns length on success
+ */
+int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr, char nameType,
+        byte type)
+{
+    return wc_EncodeName_ex(name, nameStr, nameType, type, 0x0c/* CTC_UTF8 */);
+}
+
+/* Encodes one attribute of the name (issuer/subject)
+ * call we_EncodeName_ex with 0x16, IA5String for email type
+ * name     structure to hold result of encoding
+ * nameStr  value to be encoded
+ * nameType type of encoding i.e CTC_UTF8
+ * type     id of attribute i.e ASN_COMMON_NAME
+ *
+ * returns length on success
+ */
+int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
+                  byte type)
+{
+    return wc_EncodeName_ex(name, nameStr, nameType, type, ASN_IA5_STRING);
+}
 /* encode CertName into output, return total bytes written */
 int SetName(byte* output, word32 outputSz, CertName* name)
 {

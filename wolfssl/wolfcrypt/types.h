@@ -659,6 +659,8 @@ decouple library dependencies with standard string, memory and so on.
         #endif
         #ifdef OPENSSL_ALL
         #define XISALNUM(c)     isalnum((c))
+        #define XISASCII(c)     isascii((c))
+        #define XISSPACE(c)     isspace((c))
         #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))

@@ -15849,6 +15849,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->x509_store.cache = str->cache;
         ctx->x509_store_pt    = str; /* take ownership of store and free it
                                         with CTX free */
+        ctx->cm->x509_store_p = ctx->x509_store_pt;/* CTX has onwership
+                                                    and free it with CTX free*/
     }
 
 
@@ -23198,6 +23200,21 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL))
 
+    int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dest, 
+                            const WOLFSSL_ASN1_STRING* src)
+    {
+        if (src == NULL || dest == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+        dest->type = src->type;
+        if(wolfSSL_ASN1_STRING_set(dest, src->data, src->length) 
+                    != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+        }
+        dest->flags = src->flags;
+
+        return WOLFSSL_SUCCESS;
+    }
     /* Creates a new WOLFSSL_ASN1_STRING structure given the input type.
      *
      * type is the type of set when WOLFSSL_ASN1_STRING is created
@@ -24879,35 +24896,185 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
     return &meth;
 }
 
+/* set directory path to load certificate or CRL which have the hash.N form */
+/* for late use                                                             */
+/* @param ctx    a pointer to WOLFSSL_BY_DIR structure                      */
+/* @param argc   directory path                                             */
+/* @param argl   file type, either WOLFSSL_FILETYPE_PEM or                  */
+/*                                          WOLFSSL_FILETYPE_ASN1           */
+/* @return WOLFSSL_SUCCESS on successful, othewise negative or zero         */
+static int x509AddCertDir(WOLFSSL_BY_DIR *ctx, const char *argc, long argl)
+{
+    WOLFSSL_ENTER("x509AddCertDir");
 
+    (void)argl;
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    WOLFSSL_BY_DIR_entry *entry;
+    size_t pathLen;
+    int i, num;
+    const char* c;
+#ifdef WOLFSSL_SMALL_STACK
+    char *buf;
+#else
+    char  buf[MAX_FILENAME_SZ];
+#endif
+    
+    pathLen = 0;
+    c = argc;
+    /* sanity check, zero length */
+    if (ctx == NULL || c == NULL || *c == '\0')
+        return WOLFSSL_FAILURE;
+    
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (char*)XMALLOC(MAX_FILENAME_SZ, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (buf == NULL) {
+        WOLFSSL_LEAVE("x509AddCertDir", MEMORY_E);
+        return MEMORY_E;
+    }
+#endif
+
+    XMEMSET(buf, 0, MAX_FILENAME_SZ);
+    
+    do {
+        if (*c == SEPARATOR_CHAR || *c == '\0') {
+            
+            num = wolfSSL_sk_BY_DIR_entry_num(ctx->dir_entry);
+            
+            for (i=0; i<num; i++) {
+                
+                entry = wolfSSL_sk_BY_DIR_entry_value(ctx->dir_entry, i);
+                
+                if (XSTRLEN(entry->dir_name) == pathLen && 
+                    XSTRNCMP(entry->dir_name, buf, pathLen) == 0) {
+                    WOLFSSL_MSG("dir entry found");
+                    break;
+                }
+            }
+            
+            if (num == -1 || i == num) {
+                WOLFSSL_MSG("no entry found");
+                
+                if (ctx->dir_entry == NULL) {
+                    ctx->dir_entry = wolfSSL_sk_BY_DIR_entry_new_null();
+                    
+                    if (ctx->dir_entry == NULL) {
+                        WOLFSSL_MSG("failed to allocate dir_entry");
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                        #endif
+                        return 0;
+                    }
+                }
+                
+                entry = wolfSSL_BY_DIR_entry_new();
+                if (entry == NULL) {
+                    WOLFSSL_MSG("failed to allocate dir entry");
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
+                    return 0;
+                }
+                entry->dir_type = (int)argl;
+                entry->dir_name = (char*)XMALLOC(pathLen + 1/* \0 termination*/
+                                                , NULL, DYNAMIC_TYPE_OPENSSL);
+                entry->hashes = wolfSSL_sk_BY_DIR_HASH_new_null();
+                if (entry->dir_name == NULL || entry->hashes == NULL) {
+                    WOLFSSL_MSG("failed to allocate dir name");
+                    wolfSSL_BY_DIR_entry_free(entry);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
+                    return 0;
+                }
+                
+                XSTRNCPY(entry->dir_name, buf, pathLen);
+                entry->dir_name[pathLen] = '\0';
+                
+                if (wolfSSL_sk_BY_DIR_entry_push(ctx->dir_entry, entry) 
+                                                    != WOLFSSL_SUCCESS) {
+                    wolfSSL_BY_DIR_entry_free(entry);
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+                    #endif
+                    return 0;
+                }
+            }
+            /* skip separator */
+            if (*c == SEPARATOR_CHAR) c++;
+            
+            pathLen = 0;
+            XMEMSET(buf, 0, MAX_FILENAME_SZ);
+        }
+        buf[pathLen++] = *c;
+        
+    } while(*c++ != '\0');
+    
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, 0, DYNAMIC_TYPE_OPENSSL);
+#endif
+    
+    return WOLFSSL_SUCCESS;
+#else
+    (void)ctx;
+    (void)argc;
+    return WOLFSSL_NOT_IMPLEMENTED;
+#endif
+}
+
+/* set additional data to X509_LOOKUP                                   */
+/* @param ctx    a pointer to X509_LOOKUP structure                     */
+/* @param cmd    control command :                                      */
+/*               X509_L_FILE_LOAD, X509_L_ADD_DIR X509_L_ADD_STORE or   */
+/*               X509_L_LOAD_STORE                                      */
+/* @param argc   arguments for the control command                      */
+/* @param argl   arguments for the control command                      */
+/* @param **ret  return value of the control command                    */
+/* @return WOLFSSL_SUCCESS on successful, othewise WOLFSSL_FAILURE      */
+/* note: WOLFSSL_X509_L_ADD_STORE and WOLFSSL_X509_L_LOAD_STORE have not*/
+/*       yet implemented. It retutns WOLFSSL_NOT_IMPLEMENTED            */
+/*       when those control commands are passed.                        */
 int wolfSSL_X509_LOOKUP_ctrl(WOLFSSL_X509_LOOKUP *ctx, int cmd,
         const char *argc, long argl, char **ret)
 {
-    /* control commands:
-     * X509_L_FILE_LOAD, X509_L_ADD_DIR, X509_L_ADD_STORE, X509_L_LOAD_STORE
-     */
+    int lret = WOLFSSL_FAILURE;
 
-    /* returns -1 if the X509_LOOKUP doesn't have an associated X509_LOOKUP_METHOD */
-
-
-
+    WOLFSSL_ENTER("wolfSSL_X509_LOOKUP_ctrl");
+#if !defined(NO_FILESYSTEM)
     if (ctx != NULL) {
         switch (cmd) {
         case WOLFSSL_X509_L_FILE_LOAD:
+            /* expects to return a number of processed cert or crl file */
+            lret = wolfSSL_X509_load_cert_crl_file(ctx, argc, (int)argl) > 0 ?
+                            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+            break;
         case WOLFSSL_X509_L_ADD_DIR:
+            /* store directory loaction to use it later */
+#if !defined(NO_WOLFSSL_DIR)
+            lret = x509AddCertDir(ctx->dirs, argc, argl);
+#else
+            (void)x509AddCertDir;
+            lret = WOLFSSL_NOT_IMPLEMENTED;
+#endif
+            break;
         case WOLFSSL_X509_L_ADD_STORE:
         case WOLFSSL_X509_L_LOAD_STORE:
-            return WOLFSSL_SUCCESS;
+            return WOLFSSL_NOT_IMPLEMENTED;
 
         default:
             break;
         }
-
     }
-
-    (void)argc; (void)argl; (void)ret;
-
-    return WOLFSSL_FAILURE;
+    (void)ret;
+#else
+    (void)ctx;
+    (void)argc;
+    (void)argl;
+    (void)ret;
+    (void)cmd;
+    (void)x509AddCertDir;
+    lret = WOLFSSL_NOT_IMPLEMENTED;
+#endif
+    return lret;
 }
 
 
@@ -24915,13 +25082,13 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
     WOLFSSL_ENTER("SSL_X509_STORE_add_lookup");
-    if (store == NULL)
+    if (store == NULL || m == NULL)
         return NULL;
 
-    /* Method is a dummy value and is not needed. */
-    (void)m;
     /* Make sure the lookup has a back reference to the store. */
     store->lookup.store = store;
+    /* store a type to know which method wants to be used for */
+    store->lookup.type = m->type;
     return &store->lookup;
 }
 
@@ -25776,7 +25943,17 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
                            NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         goto err_exit;
     }
-
+    XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+    if ((store->lookup.dirs = (WOLFSSL_BY_DIR*)XMALLOC(sizeof(WOLFSSL_BY_DIR),
+                           NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("store->lookup.dir memory allocation error");
+        goto err_exit;
+    }
+    XMEMSET(store->lookup.dirs, 0, sizeof(WOLFSSL_BY_DIR));
+    if (wc_InitMutex(&store->lookup.dirs->lock) != 0) {
+            WOLFSSL_MSG("Bad mutex init");
+            goto err_exit;
+    }
 #endif
 
     return store;
@@ -25801,6 +25978,17 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         if (store->param != NULL) {
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
             store->param = NULL;
+        }
+
+        if (store->lookup.dirs != NULL) {
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+            if (store->lookup.dirs->dir_entry) {
+                wolfSSL_sk_BY_DIR_entry_free(store->lookup.dirs->dir_entry);
+            }
+#endif
+            wc_FreeMutex(&store->lookup.dirs->lock);
+            XFREE(store->lookup.dirs, NULL, DYNAMIC_TYPE_OPENSSL);
+            store->lookup.dirs = NULL;
         }
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
@@ -26214,6 +26402,99 @@ WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
     return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)x509, CERT_TYPE);
+}
+/* load certificate or CRL file, and add it to the STORE           */
+/* @param ctx    a pointer to X509_LOOKUP structure                */
+/* @param file   file name to load                                 */
+/* @param type   WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1     */
+/* @return a number of loading CRL or certificate, otherwise zero  */
+WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
+    const char *file, int type)
+{
+    STACK_OF(WOLFSSL_X509_INFO) *info;
+    WOLFSSL_X509_INFO *info_tmp;
+    WOLFSSL_BIO *bio;
+    WOLFSSL_X509 *x509 = NULL;
+
+    int i;
+    int cnt = 0;
+    int num = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_load_cert_crl_file");
+    
+    /* stanity check */
+    if (ctx == NULL || file == NULL) {
+        WOLFSSL_MSG("bad arguments");
+        return 0;
+    }
+    
+    if (type != WOLFSSL_FILETYPE_PEM) {
+        x509 = wolfSSL_X509_load_certificate_file(file, type);
+        if (x509 != NULL) {
+            if (wolfSSL_X509_STORE_add_cert(ctx->store, x509) 
+                                    == WOLFSSL_SUCCESS) {
+                cnt++;
+            } else {
+                WOLFSSL_MSG("wolfSSL_X509_STORE_add_cert error");
+            }
+            wolfSSL_X509_free(x509);
+            x509 = NULL;
+        } else {
+            WOLFSSL_MSG("wolfSSL_X509_load_certificate_file error");
+        }
+
+    } else {
+#ifdef OPENSSL_ALL
+        bio = wolfSSL_BIO_new_file(file, "rb");
+        if(!bio) {
+            WOLFSSL_MSG("wolfSSL_BIO_new error");
+            return cnt;
+        }
+        
+        info = wolfSSL_PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL);
+
+        wolfSSL_BIO_free(bio);
+
+        if (!info) {
+            WOLFSSL_MSG("wolfSSL_PEM_X509_INFO_read_bio error");
+            return cnt;
+        }
+        num = wolfSSL_sk_X509_INFO_num(info);
+        for (i=0; i < num; i++) {
+            info_tmp = wolfSSL_sk_X509_INFO_value(info, i);
+
+            if (info_tmp->x509) {
+                if(wolfSSL_X509_STORE_add_cert(ctx->store, info_tmp->x509) ==
+                    WOLFSSL_SUCCESS) {
+                    cnt ++;
+                } else { 
+                    WOLFSSL_MSG("wolfSSL_X509_STORE_add_cert failed");
+                }
+            }
+#ifdef HAVE_CRL
+            if (info_tmp->crl) {
+                if(wolfSSL_X509_STORE_add_crl(ctx->store, info_tmp->crl) ==
+                    WOLFSSL_SUCCESS) {
+                    cnt ++;
+                } else {
+                    WOLFSSL_MSG("wolfSSL_X509_STORE_add_crl failed");
+                }
+            }
+#endif
+        }
+        wolfSSL_sk_X509_INFO_pop_free(info, X509_INFO_free);
+#else
+    (void)i;
+    (void)cnt;
+    (void)num;
+    (void)info_tmp;
+    (void)info;
+    (void)bio;
+#endif
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_X509_load_ceretificate_crl_file", cnt);
+    return cnt;
 }
 #endif /* !NO_FILESYSTEM */
 
@@ -41423,6 +41704,193 @@ static int ConvertNIDToWolfSSL(int nid)
     }
 }
 
+#if defined(OPENSSL_ALL)
+/* Convert ASN1 input string into canonical ASN1 string                     */
+/*  , which has the following rules:                                        */
+/*   convert to UTF8                                                        */
+/*   convert to lower case                                                  */
+/*   multi-spaces collapsed                                                 */
+/* @param  asn_out a pointer to ASN1_STRING to be converted                 */
+/* @param  asn_in  a pointer to input ASN1_STRING                           */
+/* @return WOLFSSL_SUCCESS on successful converted, otherwise <=0 error code*/
+static int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
+                                        const WOLFSSL_ASN1_STRING* asn_in)
+{
+    char* dst;
+    char* src;
+    int i, len;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_canon");
+    
+    /* sanity check */
+    if (asn_out == NULL || asn_in == NULL) {
+        WOLFSSL_MSG("invalid function arguments");
+        return BAD_FUNC_ARG;
+    }
+    
+    switch (asn_in->type) {
+        case MBSTRING_UTF8:
+        case V_ASN1_PRINTABLESTRING:
+             break;
+        default:
+           WOLFSSL_MSG("just copy string");
+           return wolfSSL_ASN1_STRING_copy(asn_out, asn_in);
+    }
+    /* type is set as UTF8 */
+    asn_out->type = MBSTRING_UTF8;
+    asn_out->length = wolfSSL_ASN1_STRING_to_UTF8(
+                                            (unsigned char**)&asn_out->data
+                                            , (WOLFSSL_ASN1_STRING*)asn_in);
+
+    if (asn_out->length < 0) {
+        return WOLFSSL_FAILURE;
+    }
+    /* point to the last */
+    dst = asn_out->data + asn_out->length;
+    /* point to the start */
+    src = asn_out->data;
+
+    len = asn_out->length;
+
+    /* trimming spaces at the head and tail */
+    dst--;
+    for (; (len > 0 && XISSPACE(*dst)); len--) {
+        dst--;
+    }
+    for (; (len > 0 && XISSPACE(*src)); len--) {
+        src++;
+    }
+
+    /* point to the start */
+    dst = asn_out->data;
+
+    for (i = 0; i < len; dst++, i++) {
+        if (!XISASCII(*src)) {
+            /* keep non-ascii code */
+            *dst = *src++;
+        } else if (XISSPACE(*src)) {
+            *dst = 0x20; /* space */
+            /* remove the rest of spaces */
+            while (XISSPACE(*++src) && i++ < len);
+        } else {
+            *dst = XTOLOWER(*src++);
+        }
+    }
+    /* put actual length */
+    asn_out->length = (int)(dst - asn_out->data);
+    return WOLFSSL_SUCCESS;
+}
+
+/* This is to convert the x509 name structure into canonical DER format     */
+/*  , which has the following rules:                                        */
+/*   convert to UTF8                                                        */
+/*   convert to lower case                                                  */
+/*   multi-spaces collapsed                                                 */
+/*   leading SEQUENCE hader is skipped                                      */
+/* @param  name a pointer to X509_NAME that is to be converted              */
+/* @param  out  a pointer to conveted data                                  */
+/* @return a number of converted bytes, otherwise <=0 error code            */
+int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, unsigned char** out)
+{
+    int  totalBytes = 0, i, idx;
+    byte *output, *local = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    EncodedName* names = NULL;
+#else
+    EncodedName  names[MAX_NAME_ENTRIES];
+#endif
+
+    if (out == NULL || name == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    names = (EncodedName*)XMALLOC(sizeof(EncodedName) * MAX_NAME_ENTRIES, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (names == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(names, 0, sizeof(EncodedName) * MAX_NAME_ENTRIES);
+
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        WOLFSSL_X509_NAME_ENTRY* entry;
+        int ret;
+
+        entry = wolfSSL_X509_NAME_get_entry(name, i);
+        if (entry != NULL && entry->set == 1) {
+            const char* nameStr;
+            WOLFSSL_ASN1_STRING* data;
+            WOLFSSL_ASN1_STRING* cano_data;
+
+            cano_data = wolfSSL_ASN1_STRING_new();
+            if (cano_data == NULL) {
+                #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                #endif
+                return MEMORY_E;
+            }
+
+            data = wolfSSL_X509_NAME_ENTRY_get_data(entry);
+            if (data == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                wolfSSL_ASN1_STRING_free(cano_data);
+                WOLFSSL_MSG("Error getting entry data");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            if (wolfSSL_ASN1_STRING_canon(cano_data, data) != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
+            nameStr = (const char*)wolfSSL_ASN1_STRING_data(cano_data);
+
+            ret = wc_EncodeNameCanonical(&names[i], nameStr, CTC_UTF8,
+                ConvertNIDToWolfSSL(entry->nid));
+            if (ret < 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                wolfSSL_ASN1_STRING_free(cano_data);
+                WOLFSSL_MSG("EncodeName failed");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            totalBytes += ret;
+            wolfSSL_OPENSSL_free(cano_data->data);
+            wolfSSL_ASN1_STRING_free(cano_data);
+        }
+    }
+
+    /* skip header */
+    /* check if using buffer passed in */
+    if (*out == NULL) {
+        *out = local = (unsigned char*)XMALLOC(totalBytes, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (*out == NULL) {
+            return MEMORY_E;
+        }
+    }
+    output = *out;
+    idx = 0;
+
+    for (i = 0; i < MAX_NAME_ENTRIES; i++) {
+        if (names[i].used) {
+            XMEMCPY(output + idx, names[i].encoded, names[i].totalLen);
+            idx += names[i].totalLen;
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(names, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    /* used existing buffer passed in, so increment pointer */
+    if (local == NULL) {
+        *out += totalBytes;
+    }
+    return totalBytes;
+}
+#endif
+
 /* Converts the x509 name structure into DER format.
  *
  * out  pointer to either a pre setup buffer or a pointer to null for
@@ -42529,6 +42997,8 @@ err:
         }
 
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        if (der)
+            FreeDer(&der);
         return WOLFSSL_SUCCESS;
 err:
         if (pem)
@@ -45989,7 +46459,6 @@ void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
         wolfSSL_sk_free_node(toFree);
     }
 }
-
 
 int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {

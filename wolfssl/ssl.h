@@ -143,6 +143,10 @@ typedef struct WOLFSSL_X509_STORE_CTX WOLFSSL_X509_STORE_CTX;
 
 typedef int (*WOLFSSL_X509_STORE_CTX_verify_cb)(int, WOLFSSL_X509_STORE_CTX *);
 
+typedef struct WOLFSSL_BY_DIR_HASH  WOLFSSL_BY_DIR_HASH;
+typedef struct WOLFSSL_BY_DIR_entry WOLFSSL_BY_DIR_entry;
+typedef struct WOLFSSL_BY_DIR       WOLFSSL_BY_DIR;
+
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -275,8 +279,6 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 struct WOLFSSL_X509V3_CTX {
     WOLFSSL_X509* x509;
 };
-
-
 
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
@@ -531,6 +533,8 @@ struct WOLFSSL_X509_LOOKUP_METHOD {
 
 struct WOLFSSL_X509_LOOKUP {
     WOLFSSL_X509_STORE *store;
+    int type;
+    WOLFSSL_BY_DIR* dirs;
 };
 
 struct WOLFSSL_X509_STORE {
@@ -1440,6 +1444,8 @@ WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
+WOLFSSL_API int wolfSSL_i2d_X509_NAME_canon(WOLFSSL_X509_NAME* name, 
+                                                    unsigned char** out);
 WOLFSSL_API WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
                                               unsigned char **in, long length);
 #ifndef NO_RSA
@@ -1518,6 +1524,8 @@ WOLFSSL_API int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1,
                                                   const void* data, int dataSz);
 WOLFSSL_API unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
+WOLFSSL_API int wolfSSL_ASN1_STRING_copy(WOLFSSL_ASN1_STRING* dst, 
+                                                const WOLFSSL_ASN1_STRING* src);
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long);
 WOLFSSL_API int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
@@ -1608,6 +1616,8 @@ WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1(WOLFSSL_X509_VERIFY_PARAM* to,
                                     const WOLFSSL_X509_VERIFY_PARAM* from);
 WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx, 
+                                              const char *file, int type);
+WOLFSSL_API int wolfSSL_X509_load_cert_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                                               const char *file, int type);
 #endif
 WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL*);

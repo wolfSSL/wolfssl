@@ -415,6 +415,38 @@ int wc_FileLoad(const char* fname, unsigned char** buf, size_t* bufLen,
 
 #if !defined(NO_WOLFSSL_DIR) && \
     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
+/* File Handling Helper */
+/* returns 0 if file exists, WC_ISFILEEXIST_NOFILE if file doesn't exist */
+int wc_FileExists(const char* fname)
+{
+    struct ReadDirCtx ctx;
+
+    if (fname == NULL)
+        return 0;
+
+    if (XSTAT(fname, &ctx.s) != 0) {
+         WOLFSSL_MSG("stat on name failed");
+         return BAD_PATH_ERROR;
+    } else
+#if defined(USE_WINDOWS_API)
+    if (XS_ISREG(ctx.s.st_mode)) {
+        return 0;
+    }
+#elif defined(WOLFSSL_ZEPHYR)
+    if (XS_ISREG(ctx.s.type)) {
+        return 0;
+    }
+#elif defined(WOLFSSL_TELIT_M2MB)
+    if (XS_ISREG(ctx.s.st_mode)) {
+        return 0;
+    }
+#else
+    if (XS_ISREG(ctx.s.st_mode)) {
+        return 0;
+    }
+#endif
+    return WC_ISFILEEXIST_NOFILE;
+}
 
 /* File Handling Helpers */
 /* returns 0 if file found, WC_READDIR_NOFILE if no files or negative error */
@@ -485,11 +517,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
          * of earlier check it is known that dnameLen is less than
          * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry.name, dnameLen + 1);
-        if (fs_stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        } else if (ctx->s.type == FS_DIR_ENTRY_FILE) {
+        if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -517,12 +545,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
          * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
 
-        if (m2mb_fs_stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        }
-        else if (ctx->s.st_mode & M2MB_S_IFREG) {
+        if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -549,11 +572,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
          * of earlier check it is known that dnameLen is less than
          * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
-        if (stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        } else if (S_ISREG(ctx->s.st_mode)) {
+        if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -615,11 +634,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
          * MAX_FILENAME_SZ - (pathLen + 2) so that dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry.name, dnameLen + 1);
 
-        if (fs_stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        } else if (ctx->s.type == FS_DIR_ENTRY_FILE) {
+       if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -641,12 +656,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
          * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
 
-        if (m2mb_fs_stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        }
-        else if (ctx->s.st_mode & M2MB_S_IFREG) {
+        if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -667,11 +677,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
          * MAX_FILENAME_SZ - (pathLen + 2) so that dnameLen +1 will fit */
         XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
 
-        if (stat(ctx->name, &ctx->s) != 0) {
-            WOLFSSL_MSG("stat on name failed");
-            ret = BAD_PATH_ERROR;
-            break;
-        } else if (S_ISREG(ctx->s.st_mode)) {
+        if ((ret = wc_FileExists(ctx->name)) == 0) {
             if (name)
                 *name = ctx->name;
             return 0;
