@@ -50235,11 +50235,11 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
 #ifdef WOLFSSL_SMALL_STACK
        tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
        if (tmp == NULL) {
-           goto cleanup;
+           goto end;
        }
 #endif
         if (mp_init(tmp) != MP_OKAY) {
-            goto cleanup;
+            goto end;
         }
         if (mp_set_bit(tmp, n) != MP_OKAY) {
             goto cleanup;
@@ -50247,16 +50247,19 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
         if (mp_sub((mp_int*)bn->internal, tmp, (mp_int*)bn->internal) != MP_OKAY) {
             goto cleanup;
         }
+    } else {
+        goto end;
     }
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
     mp_clear(tmp);
+
+end:
 #ifdef WOLFSSL_SMALL_STACK
     if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
-end:
     return ret;
 }
 
