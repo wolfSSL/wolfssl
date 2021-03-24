@@ -11043,7 +11043,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
 
-        if (offset + size > length)
+        if (length - offset < size)
             return BUFFER_ERROR;
 
         switch (type) {
