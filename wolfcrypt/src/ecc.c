@@ -1224,6 +1224,11 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
+static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+static int _ecc_pairwise_consistency_test(ecc_key* key);
+#endif
+
 
 int mp_jacobi(mp_int* a, mp_int* n, int* c);
 int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
@@ -4829,8 +4834,16 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 #endif
 
 #endif /* WOLFSSL_ATECC508A */
-    if (err == MP_OKAY)
-        err = wc_ecc_check_key(key);
+
+    if (err == MP_OKAY) {
+        err = _ecc_validate_public_key(key, 0, 0);
+    }
+
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    if (err == MP_OKAY) {
+        err = _ecc_pairwise_consistency_test(key);
+    }
+#endif
 
     return err;
 }
@@ -8281,6 +8294,18 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     return err;
 }
 
+
+/* Performs a Pairwise Consistency Test on an ECC key pair. */
+static int _ecc_pairwise_consistency_test(ecc_key* key)
+{
+    int err = 0;
+
+    if (ecc_check_privkey_gen_helper(key) != 0)
+        err = ECC_PCT_FIPS_E;
+
+    return err;
+}
+
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
@@ -8367,8 +8392,14 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 }
 #endif /* OPENSSLALL */
 
-/* perform sanity checks on ecc key validity, 0 on success */
-int wc_ecc_check_key(ecc_key* key)
+
+/* Validate the public key per SP 800-56Ar3 section 5.6.2.3.3,
+ * ECC Full Public Key Validation Routine. If the parameter
+ * partial is set, then it follows section 5.6.2.3.4, the ECC
+ * Partial Public Key Validation Routine.
+ * If the parameter priv is set, add in a few extra
+ * checks on the bounds of the private key. */
+static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 {
     int    err = MP_OKAY;
 #ifndef WOLFSSL_SP_MATH
@@ -8449,6 +8480,7 @@ int wc_ecc_check_key(ecc_key* key)
     #endif
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 1 */
+    /* SP 800-56Ar3, section 5.6.2.3.4, process step 1 */
     /* pubkey point cannot be at infinity */
     if (wc_ecc_point_is_at_infinity(&key->pubkey)) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -8479,6 +8511,7 @@ int wc_ecc_check_key(ecc_key* key)
 #endif
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 2 */
+    /* SP 800-56Ar3, section 5.6.2.3.4, process step 2 */
     /* Qx must be in the range [0, p-1] */
     if (err == MP_OKAY) {
         if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
@@ -8491,29 +8524,34 @@ int wc_ecc_check_key(ecc_key* key)
             err = ECC_OUT_OF_RANGE_E;
     }
 
-    /* SP 800-56Ar3, section 5.6.2.3.3, process steps 3 */
+    /* SP 800-56Ar3, section 5.6.2.3.3, process step 3 */
+    /* SP 800-56Ar3, section 5.6.2.3.4, process step 3 */
     /* make sure point is actually on curve */
     if (err == MP_OKAY)
         err = wc_ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
 
-    /* SP 800-56Ar3, section 5.6.2.3.3, process steps 4 */
-    /* pubkey * order must be at infinity */
-    if (err == MP_OKAY)
-        err = ecc_check_pubkey_order(key, &key->pubkey, curve->Af, curve->prime,
-                curve->order);
-
-    /* SP 800-56Ar3, section 5.6.2.1.2 */
-    /* private keys must be in the range [1, n-1] */
-    if ((err == MP_OKAY) && (key->type == ECC_PRIVATEKEY) &&
-                                    (mp_iszero(&key->k) || mp_isneg(&key->k) ||
-                                    (mp_cmp(&key->k, curve->order) != MP_LT))) {
-        err = ECC_PRIV_KEY_E;
+    if (!partial) {
+        /* SP 800-56Ar3, section 5.6.2.3.3, process step 4 */
+        /* pubkey * order must be at infinity */
+        if (err == MP_OKAY)
+            err = ecc_check_pubkey_order(key, &key->pubkey, curve->Af,
+                    curve->prime, curve->order);
     }
 
-    /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
-    /* private * base generator must equal pubkey */
-    if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
-        err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
+    if (priv) {
+        /* SP 800-56Ar3, section 5.6.2.1.2 */
+        /* private keys must be in the range [1, n-1] */
+        if ((err == MP_OKAY) && (key->type == ECC_PRIVATEKEY) &&
+            (mp_iszero(&key->k) || mp_isneg(&key->k) ||
+            (mp_cmp(&key->k, curve->order) != MP_LT))) {
+            err = ECC_PRIV_KEY_E;
+        }
+
+        /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
+        /* private * base generator must equal pubkey */
+        if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
+            err = ecc_check_privkey_gen(key, curve->Af, curve->prime);
+    }
 
     wc_ecc_curve_free(curve);
 
@@ -8531,6 +8569,14 @@ int wc_ecc_check_key(ecc_key* key)
 #endif /* !WOLFSSL_SP_MATH */
     return err;
 }
+
+
+/* perform sanity checks on ecc key validity, 0 on success */
+int wc_ecc_check_key(ecc_key* key)
+{
+    return _ecc_validate_public_key(key, 0, 1);
+}
+
 
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import public ECC key in ANSI X9.63 format */

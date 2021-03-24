@@ -545,6 +545,12 @@ const char* wc_GetErrorString(int error)
     case KDF_SSH_KAT_FIPS_E:
         return "wolfcrypt FIPS SSH KDF Known Answer Test Failure";
 
+     case DHE_PCT_FIPS_E:
+        return "wolfcrypt FIPS DHE Pairwise Consistency Test Failure";
+
+    case ECC_PCT_FIPS_E:
+        return "wolfcrypt FIPS ECDHE Pairwise Consistency Test Failure";
+
     default:
         return "unknown error number";
 

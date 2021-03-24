@@ -243,8 +243,10 @@ enum {
     KDF_TLS12_KAT_FIPS_E = -282,  /* TLS12 KDF KAT failure */
     KDF_TLS13_KAT_FIPS_E = -283,  /* TLS13 KDF KAT failure */
     KDF_SSH_KAT_FIPS_E  = -284,  /* SSH KDF KAT failure */
+    DHE_PCT_FIPS_E      = -285,  /* DHE Pairwise Consistency Test failure */
+    ECC_PCT_FIPS_E      = -286,  /* ECDHE Pairwise Consistency Test failure */
 
-    WC_LAST_E           = -284,  /* Update this to indicate last error */
+    WC_LAST_E           = -286,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
