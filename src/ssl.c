@@ -38546,7 +38546,10 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
                 return WOLFSSL_FAILURE;
             }
             XMEMSET(rawKey, 0, rawLen);
-            mp_to_unsigned_bin(rsaElem, rawKey);
+            if (mp_to_unsigned_bin(rsaElem, rawKey) < 0) {
+                XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                return WOLFSSL_FAILURE;
+            }
             if ((word32)rawLen <= sizeof(word32)) {
                 idx = *(word32*)rawKey;
                 #ifdef BIG_ENDIAN_ORDER
