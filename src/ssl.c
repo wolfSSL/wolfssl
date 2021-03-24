@@ -50928,7 +50928,7 @@ int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     byte          buff[1024];
 #endif
 
-    WOLFSSL_MSG("wolfSSL_BN_pseudo_rand");
+    WOLFSSL_ENTER("wolfSSL_BN_pseudo_rand");
 
     if (bits <= 0) {
         return WOLFSSL_FAILURE;
