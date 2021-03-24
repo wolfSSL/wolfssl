@@ -2024,18 +2024,24 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
 #ifndef NO_WOLFSSL_SERVER
     if (!extension || !extension->data) {
-        #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
-            /* This will keep SNI even though TLSX_UseSNI has not been called.
-            * Enable it so that the received sni is available to functions
-            * that use a custom callback when SNI is received.
-            */
-
+        /* This will keep SNI even though TLSX_UseSNI has not been called.
+         * Enable it so that the received sni is available to functions
+         * that use a custom callback when SNI is received.
+         */
+    #ifdef WOLFSSL_ALWAYS_KEEP_SNI
+        cacheOnly = 1;
+    #endif
+        if (ssl->ctx->sniRecvCb) {
             cacheOnly = 1;
+        }
+
+        if (cacheOnly) {
             WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
-        #else
+        }
+        else {
             /* Skipping, SNI not enabled at server side. */
             return 0;
-        #endif
+        }
     }
 
     if (OPAQUE16_LEN > length)
@@ -2096,7 +2102,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
 
-        if(!cacheOnly)
+        if (!cacheOnly)
             TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
     }
     else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
