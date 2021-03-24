@@ -85,6 +85,11 @@ int CAAM_SET_BASEADDR()
 }
 
 
+/* cleans up having set the base address */
+void CAAM_UNSET_BASEADDR()
+{
+    munmap_device_io(virtual_base, 0x00010000);
+}
 
 /* convert a virtual address to a physical address
  * returns the physical address on success
@@ -105,7 +110,7 @@ CAAM_ADDRESS CAAM_ADR_TO_PHYSICAL(void* in, int inSz)
         if (ret != 0) {
             WOLFSSL_MSG("posix offset failed");
         #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-            perror("");
+            perror("posix offset failed : ");
         #endif
         }
         msync(in, inSz, MS_INVALIDATE);
@@ -146,7 +151,7 @@ void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy)
     if (vaddr == MAP_FAILED) {
         WOLFSSL_MSG("Failed to map memory");
     #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
-        perror("");
+        perror("Failed to map memory : ");
     #endif
     }
     else {
@@ -229,10 +234,8 @@ int CAAM_ADR_SYNC(void* vaddr, int sz)
  */
 static int sanityCheckPartitionAddress(CAAM_ADDRESS partAddr, int partSz)
 {
-    unsigned int phys;
-
-    phys = CAAM_ADR_TO_PHYSICAL((void*)partAddr, partSz);
-    if (phys < CAAM_PAGE || (phys + partSz) > CAAM_PAGE*7) {
+    if (partAddr < CAAM_PAGE || partAddr > CAAM_PAGE * MAX_PART ||
+            partSz > 4096) {
         WOLFSSL_MSG("error in physical address range");
         return -1;
     }
@@ -924,7 +927,11 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     partNumber = args[0];
     partSz     = args[1];
 
-    partAddr = caamGetPartition(partNumber, partSz, NULL, 0);
+    partAddr = caamGetPartition(partNumber, partSz, 0);
+    if (partAddr == 0) {
+        return EBADMSG;
+    }
+
     SETIOV(&out_iov, &partAddr, sizeof(CAAM_ADDRESS));
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
 
@@ -943,6 +950,7 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
 {
     int partSz, ret;
     CAAM_ADDRESS partAddr;
+    CAAM_ADDRESS vaddr;
     unsigned char *buf;
     iov_t in_iov;
 
@@ -968,7 +976,14 @@ static int doWRITE_PART(resmgr_context_t *ctp, io_devctl_t *msg,
         return EBADMSG;
     }
 
-    CAAM_ADR_UNMAP(buf, partAddr, partSz, 1);
+    vaddr = CAAM_ADR_TO_VIRTUAL(partAddr, partSz);
+    if (vaddr == 0) {
+        CAAM_ADR_UNMAP(buf, 0, partSz, 0);
+        return ECANCELED;
+    }
+
+    CAAM_ADR_UNMAP(buf, vaddr, partSz, 1);
+    CAAM_ADR_UNMAP((void*)vaddr, 0, partSz, 0);
     return EOK;
 }
 
@@ -981,6 +996,7 @@ static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg,
 {
     int partSz;
     CAAM_ADDRESS partAddr;
+    CAAM_ADDRESS vaddr;
     unsigned char *buf;
     iov_t out_iov;
 
@@ -1002,10 +1018,18 @@ static int doREAD_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     if (buf == NULL) {
         return ECANCELED;
     }
-    memcpy(buf, (unsigned int*)partAddr, partSz);
+
+    vaddr = CAAM_ADR_TO_VIRTUAL(partAddr, partSz);
+    if (vaddr == 0) {
+        CAAM_ADR_UNMAP(buf, 0, partSz, 0);
+        return ECANCELED;
+    }
+
+    memcpy(buf, (unsigned char*)vaddr, partSz);
     SETIOV(&out_iov, buf, partSz);
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
-    CAAM_ADR_UNMAP(buf, 0, partSz, 0);
+    CAAM_ADR_UNMAP(buf,   0, partSz, 0);
+    CAAM_ADR_UNMAP((void*)vaddr, 0, partSz, 0);
     return EOK;
 }
 
@@ -1249,14 +1273,14 @@ int main(int argc, char *argv[])
     while (1) {
         ctp = dispatch_block(ctp);
         if (ctp == NULL) {
-            caamJobRingFree();
+            CleanupCAAM();
             exit (1);
         }
         dispatch_handler (ctp);
     }
 
     pthread_mutex_destroy(&sm_mutex);
-    caamJobRingFree();
+    CleanupCAAM();
     return 0;
 }
 

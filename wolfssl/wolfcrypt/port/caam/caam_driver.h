@@ -271,6 +271,7 @@
 unsigned int CAAM_READ(unsigned int reg);
 void CAAM_WRITE(unsigned int reg, unsigned int in);
 int CAAM_SET_BASEADDR(void);
+void CAAM_UNSET_BASEADDR(void);
 unsigned int CAAM_ADR_TO_PHYSICAL(void* in, int inSz);
 void* CAAM_ADR_MAP(unsigned int in, int inSz, unsigned char copy);
 void CAAM_ADR_UNMAP(void* vaddr, unsigned int out, int outSz,
@@ -278,20 +279,18 @@ void CAAM_ADR_UNMAP(void* vaddr, unsigned int out, int outSz,
 int CAAM_ADR_SYNC(void* vaddr, int sz);
 CAAM_ADDRESS CAAM_ADR_TO_VIRTUAL(CAAM_ADDRESS in, int length);
 
-
-
-    #ifndef WOLFSSL_CAAM_BUFFER
-    #define WOLFSSL_CAAM_BUFFER
-    typedef struct CAAM_BUFFER {
-        int BufferType;
-        CAAM_ADDRESS TheAddress;
-        int Length;
-    } CAAM_BUFFER;
-    #endif
-    unsigned int caamReadRegister(unsigned int reg);
-    void caamWriteRegister(unsigned int reg, unsigned int in);
-    int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf, int sz);
-    int caamJobRingFree(void);
+#ifndef WOLFSSL_CAAM_BUFFER
+#define WOLFSSL_CAAM_BUFFER
+typedef struct CAAM_BUFFER {
+    int BufferType;
+    CAAM_ADDRESS TheAddress;
+    int Length;
+} CAAM_BUFFER;
+#endif
+unsigned int caamReadRegister(unsigned int reg);
+void caamWriteRegister(unsigned int reg, unsigned int in);
+int SynchronousSendRequest(int type, unsigned int args[4], CAAM_BUFFER *buf, int sz);
+int CleanupCAAM(void);
 
 
 /* Driver API that can be called by caam_<env>.c port layers */
@@ -309,8 +308,7 @@ int caamECDSAMake(DESCSTRUCT *desc, CAAM_BUFFER *buf, unsigned int args[4]);
 int caamAesCmac(DESCSTRUCT *desc, int sz, unsigned int args[4]);
 int caamBlob(DESCSTRUCT *desc);
 
-CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int* phys,
-        unsigned int flag);
+CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag);
 int caamFreePart(unsigned int part);
 int caamFindUnusuedPartition(void);
 

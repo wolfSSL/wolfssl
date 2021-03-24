@@ -335,13 +335,10 @@ static Error caamCreatePartition(unsigned int page, unsigned int par,
 }
 
 
-/* return a mapped address to the partition on success, returns 0 on fail */
-CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int* phys,
-        unsigned int flag)
+/* return a partitions physical address on success, returns 0 on fail */
+CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int flag)
 {
     int err;
-    CAAM_ADDRESS vaddr;
-    unsigned int local;
 
     (void)flag; /* flag is for future changes to flag passed when creating */
 
@@ -353,13 +350,7 @@ CAAM_ADDRESS caamGetPartition(unsigned int part, int partSz, unsigned int* phys,
         return 0;
     }
 
-    /* map secure partition to virtual address */
-    local = (CAAM_PAGE + (part << 12));
-    vaddr = CAAM_ADR_TO_VIRTUAL(local, partSz);
-    if (phys != NULL) {
-        *phys = local;
-    }
-    return vaddr;
+    return (CAAM_ADDRESS)(CAAM_PAGE + (part << 12));
 }
 
 
@@ -839,11 +830,19 @@ int caamAesCmac(DESCSTRUCT* desc, int sz, unsigned int args[4])
     }
     #endif
 
-    CAAM_ADR_UNMAP(vaddr[0], desc->buf[1].data, desc->buf[1].dataSz, 1);
-    CAAM_ADR_UNMAP(vaddr[1], desc->buf[0].data, desc->buf[0].dataSz + macSz, 0);
-    for (vidx = 2, i = 2; i < sz; i = i + 1) { /* unmap the input buffers */
-        CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data, desc->buf[i].dataSz, 0);
+    vidx = 0;
+    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[1].data, desc->buf[1].dataSz, 1);
+    CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[0].data, desc->buf[0].dataSz + macSz, 0);
+    if (sz == 2) {
+        CAAM_ADR_UNMAP(vaddr[vidx], 0, 0, 0);
     }
+    else {
+        for (i = 2; i < sz; i = i + 1) { /* unmap the input buffers */
+            CAAM_ADR_UNMAP(vaddr[vidx++], desc->buf[i].data,
+                    desc->buf[i].dataSz, 0);
+        }
+    }
+
     return err;
 }
 
@@ -888,8 +887,7 @@ int caamECDSAMake(DESCSTRUCT* desc, CAAM_BUFFER* buf, unsigned int args[4])
 
         /* map secure partition to virtual address */
         phys = (CAAM_PAGE + (part << 12));
-        buf[0].TheAddress = CAAM_ADR_TO_VIRTUAL(phys,
-               buf[0].Length + buf[1].Length + BLACK_KEY_MAC_SZ);
+        buf[0].TheAddress       = phys;
         desc->desc[desc->idx++] = phys;
 
         /* public x,y out */
@@ -979,8 +977,7 @@ int caamECDSAVerify(DESCSTRUCT* desc, CAAM_BUFFER* buf, int sz,
         vidx = vidx + 1;
     }
     else {
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL((void*)desc->buf[i].data,
-                desc->buf[i].dataSz);
+        desc->desc[desc->idx++] = desc->buf[i].data;
     }
     i = i + 1;
 
@@ -1089,8 +1086,7 @@ int caamECDSASign(DESCSTRUCT* desc, int sz, unsigned int args[4])
         vidx++;
     }
     else {
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL((void*)desc->buf[i].data,
-                desc->buf[i].dataSz);
+        desc->desc[desc->idx++] = desc->buf[i].data;
     }
     i++;
 
@@ -1162,9 +1158,9 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
     void* vaddr[sz];
 
     if (args != NULL) {
-        isBlackKey = args[0];
+        isBlackKey   = args[0];
         peerBlackKey = args[1];
-        pdECDSEL   = args[2];
+        pdECDSEL     = args[2];
     }
 
     if (pdECDSEL == 0) {
@@ -1193,8 +1189,7 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
         vidx++;
     }
     else {
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL((void*)desc->buf[i].data,
-                desc->buf[i].dataSz);
+        desc->desc[desc->idx++] = desc->buf[i].data;
     }
     i++;
 
@@ -1216,8 +1211,7 @@ int caamECDSA_ECDH(DESCSTRUCT* desc, int sz, unsigned int args[4])
         vidx++;
     }
     else {
-        desc->desc[desc->idx++] = CAAM_ADR_TO_PHYSICAL((void*)desc->buf[i].data,
-                desc->buf[i].dataSz);
+        desc->desc[desc->idx++] = desc->buf[i].data;
     }
     i++;
 
@@ -1507,9 +1501,10 @@ int InitCAAM(void)
 }
 
 
-int caamJobRingFree()
+int CleanupCAAM()
 {
     CAAM_FREE_MUTEX(&caam.ring.jr_lock);
+    CAAM_UNSET_BASEADDR();
     caamFreeAllPart();
     return 0;
 }
