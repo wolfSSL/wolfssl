@@ -16000,7 +16000,7 @@ static int dh_generate_test(WC_RNG *rng)
 {
     int    ret = 0;
     DhKey  smallKey;
-    byte   p[2] = { 0, 5 };
+    byte   p[2] = { 1, 7 }; /* 263 in decimal */
     byte   g[2] = { 0, 2 };
 #if !defined(WOLFSSL_SP_MATH)
 #ifdef WOLFSSL_DH_CONST

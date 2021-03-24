@@ -974,6 +974,12 @@ int wc_FreeDhKey(DhKey* key)
 }
 
 
+static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
+       const byte* prime, word32 primeSz, int partial);
+static int _ffc_pairwise_consistency_test(DhKey* key,
+        const byte* pub, word32 pubSz, const byte* priv, word32 privSz);
+
+
 #ifndef WC_NO_RNG
 /* if defined to not use floating point values do not compile in */
 #ifndef WOLFSSL_DH_CONST
@@ -1328,7 +1334,16 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
 
     ret = GeneratePrivateDh(key, rng, priv, privSz);
 
-    return (ret != 0) ? ret : GeneratePublicDh(key, priv, *privSz, pub, pubSz);
+    if (ret == 0)
+        ret = GeneratePublicDh(key, priv, *privSz, pub, pubSz);
+    if (ret == 0)
+        ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
+    if (ret == 0) {
+        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
+        if (ret != 0) ret = DHE_PCT_FIPS_E;
+    }
+
+    return ret;
 }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
@@ -1391,20 +1406,132 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_DH */
 
 
+/* Performs a Pairwise Consistency Test on an FFC key pair. */
+static int _ffc_pairwise_consistency_test(DhKey* key,
+        const byte* pub, word32 pubSz, const byte* priv, word32 privSz)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* publicKey = NULL;
+    mp_int* privateKey = NULL;
+    mp_int* checkKey = NULL;
+#else
+    mp_int publicKey[1];
+    mp_int privateKey[1];
+    mp_int checkKey[1];
+#endif
+    int ret = 0;
+
+    if (key == NULL || pub == NULL || priv == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SMALL_STACK
+    publicKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
+    if (publicKey == NULL)
+        return MEMORY_E;
+    privateKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
+    if (privateKey == NULL) {
+        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+        return MEMORY_E;
+    }
+    checkKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
+    if (checkKey == NULL) {
+        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+        return MEMORY_E;
+    }
+#endif
+
+    if (mp_init_multi(publicKey, privateKey, checkKey,
+                      NULL, NULL, NULL) != MP_OKAY) {
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
+    #endif
+        return MP_INIT_E;
+    }
+
+    /* Load the private and public keys into big integers. */
+    if (mp_read_unsigned_bin(publicKey, pub, pubSz) != MP_OKAY ||
+        mp_read_unsigned_bin(privateKey, priv, privSz) != MP_OKAY) {
+
+        ret = MP_READ_E;
+    }
+
+    /* Calculate checkKey = g^privateKey mod p */
+    if (ret == 0) {
+#ifdef WOLFSSL_HAVE_SP_DH
+#ifndef WOLFSSL_SP_NO_2048
+        if (mp_count_bits(&key->p) == 2048) {
+            ret = sp_ModExp_2048(&key->g, privateKey, &key->p, checkKey);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+        if (mp_count_bits(&key->p) == 3072) {
+            ret = sp_ModExp_3072(&key->g, privateKey, &key->p, checkKey);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#ifdef WOLFSSL_SP_4096
+        if (mp_count_bits(&key->p) == 4096) {
+            ret = sp_ModExp_4096(&key->g, privateKey, &key->p, checkKey);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#endif
+        {
+#if !defined(WOLFSSL_SP_MATH)
+            if (mp_exptmod(&key->g, privateKey, &key->p, checkKey) != MP_OKAY)
+                ret = MP_EXPTMOD_E;
+#else
+            ret = WC_KEY_SIZE_E;
+#endif
+        }
+    }
+
+    /* Compare the calculated public key to the supplied check value. */
+    if (ret == 0) {
+        if (mp_cmp(checkKey, publicKey) != MP_EQ)
+            ret = MP_CMP_E;
+    }
+
+    mp_forcezero(privateKey);
+    mp_clear(publicKey);
+    mp_clear(checkKey);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
+    XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
+    XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+#endif
+
+    return ret;
+}
+
+
 /* Check DH Public Key for invalid numbers, optionally allowing
  * the public key to be checked against the large prime (q).
- * Check per process in SP 800-56Ar3, section 5.6.2.3.1.
+ * If q is NULL, the q value of key is used.
+ * Check per process in SP 800-56Ar3, section 5.6.2.3.1 or 2.
  *
  * key     DH key group parameters.
  * pub     Public Key.
  * pubSz   Public Key size.
  * prime   Large prime (q), optionally NULL to skip check
  * primeSz Size of large prime
+ * partial Do the partial test process. (section 5.6.2.3.2)
  *
  *  returns 0 on success or error code
  */
-int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
-                        const byte* prime, word32 primeSz)
+static int _ffc_validate_public_key(DhKey* key, const byte* pub, word32 pubSz,
+       const byte* prime, word32 primeSz, int partial)
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1461,7 +1588,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
             ret = MP_INIT_E;
     }
 
-    /* SP 800-56Ar3, section 5.6.2.3.1, process step 1 */
+    /* SP 800-56Ar3, section 5.6.2.3.2 */
     /* pub (y) should not be 0 or 1 */
     if (ret == 0 && mp_cmp_d(y, 2) == MP_LT) {
         ret = MP_CMP_E;
@@ -1478,55 +1605,57 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         ret = MP_CMP_E;
     }
 
-    if (ret == 0 && (prime != NULL || (mp_iszero(&key->q) == MP_NO) )) {
+    if (!partial) {
+        if (ret == 0 && (prime != NULL || (mp_iszero(&key->q) == MP_NO) )) {
 
-        /* restore key->p into p */
-        if (mp_copy(&key->p, p) != MP_OKAY)
-            ret = MP_INIT_E;
-    }
+            /* restore key->p into p */
+            if (mp_copy(&key->p, p) != MP_OKAY)
+                ret = MP_INIT_E;
+        }
 
-    /* SP 800-56Ar3, section 5.6.2.3.1, process step 2 */
-    if (ret == 0 && prime != NULL) {
+        /* SP 800-56Ar3, section 5.6.2.3.1, process step 2 */
+        if (ret == 0 && prime != NULL) {
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
-        if (mp_count_bits(&key->p) == 2048) {
-            ret = sp_ModExp_2048(y, q, p, y);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
+            if (mp_count_bits(&key->p) == 2048) {
+                ret = sp_ModExp_2048(y, q, p, y);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+            }
+            else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
-        if (mp_count_bits(&key->p) == 3072) {
-            ret = sp_ModExp_3072(y, q, p, y);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
+            if (mp_count_bits(&key->p) == 3072) {
+                ret = sp_ModExp_3072(y, q, p, y);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+            }
+            else
 #endif
 #ifdef WOLFSSL_SP_4096
-        if (mp_count_bits(&key->p) == 4096) {
-            ret = sp_ModExp_4096(y, q, p, y);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
+            if (mp_count_bits(&key->p) == 4096) {
+                ret = sp_ModExp_4096(y, q, p, y);
+                if (ret != 0)
+                    ret = MP_EXPTMOD_E;
+            }
+            else
 #endif
 #endif
 
-        {
+            {
 #if !defined(WOLFSSL_SP_MATH)
-            /* calculate (y^q) mod(p), store back into y */
-            if (mp_exptmod(y, q, p, y) != MP_OKAY)
-                ret = MP_EXPTMOD_E;
+                /* calculate (y^q) mod(p), store back into y */
+                if (mp_exptmod(y, q, p, y) != MP_OKAY)
+                    ret = MP_EXPTMOD_E;
 #else
-            ret = WC_KEY_SIZE_E;
+                ret = WC_KEY_SIZE_E;
 #endif
-        }
+            }
 
-        /* verify above == 1 */
-        if (ret == 0 && mp_cmp_d(y, 1) != MP_EQ)
-            ret = MP_CMP_E;
+            /* verify above == 1 */
+            if (ret == 0 && mp_cmp_d(y, 1) != MP_EQ)
+                ret = MP_CMP_E;
+        }
     }
 
     mp_clear(y);
@@ -1542,7 +1671,16 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
 }
 
 
-/* Check DH Public Key for invalid numbers
+/* Performs a full public-key validation routine. */
+int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
+                        const byte* prime, word32 primeSz)
+{
+    return _ffc_validate_public_key(key, pub, pubSz, prime, primeSz, 0);
+}
+
+
+/* Check DH Public Key for invalid numbers. Performs a partial public-key
+ * validation routine.
  *
  * key   DH key group parameters.
  * pub   Public Key.
@@ -1552,7 +1690,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
  */
 int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 {
-    return wc_DhCheckPubKey_ex(key, pub, pubSz, NULL, 0);
+    return _ffc_validate_public_key(key, pub, pubSz, NULL, 0, 1);
 }
 
 
@@ -1722,109 +1860,7 @@ int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 privSz)
 int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
                       const byte* priv, word32 privSz)
 {
-#ifdef WOLFSSL_SMALL_STACK
-    mp_int* publicKey = NULL;
-    mp_int* privateKey = NULL;
-    mp_int* checkKey = NULL;
-#else
-    mp_int publicKey[1];
-    mp_int privateKey[1];
-    mp_int checkKey[1];
-#endif
-    int ret = 0;
-
-    if (key == NULL || pub == NULL || priv == NULL)
-        return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_SMALL_STACK
-    publicKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
-    if (publicKey == NULL)
-        return MEMORY_E;
-    privateKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
-    if (privateKey == NULL) {
-        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
-        return MEMORY_E;
-    }
-    checkKey = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_DH);
-    if (checkKey == NULL) {
-        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
-        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
-        return MEMORY_E;
-    }
-#endif
-
-    if (mp_init_multi(publicKey, privateKey, checkKey,
-                      NULL, NULL, NULL) != MP_OKAY) {
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
-        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
-        XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
-    #endif
-        return MP_INIT_E;
-    }
-
-    /* Load the private and public keys into big integers. */
-    if (mp_read_unsigned_bin(publicKey, pub, pubSz) != MP_OKAY ||
-        mp_read_unsigned_bin(privateKey, priv, privSz) != MP_OKAY) {
-
-        ret = MP_READ_E;
-    }
-
-    /* Calculate checkKey = g^privateKey mod p */
-    if (ret == 0) {
-#ifdef WOLFSSL_HAVE_SP_DH
-#ifndef WOLFSSL_SP_NO_2048
-        if (mp_count_bits(&key->p) == 2048) {
-            ret = sp_ModExp_2048(&key->g, privateKey, &key->p, checkKey);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
-#endif
-#ifndef WOLFSSL_SP_NO_3072
-        if (mp_count_bits(&key->p) == 3072) {
-            ret = sp_ModExp_3072(&key->g, privateKey, &key->p, checkKey);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
-#endif
-#ifdef WOLFSSL_SP_4096
-        if (mp_count_bits(&key->p) == 4096) {
-            ret = sp_ModExp_4096(&key->g, privateKey, &key->p, checkKey);
-            if (ret != 0)
-                ret = MP_EXPTMOD_E;
-        }
-        else
-#endif
-#endif
-        {
-#if !defined(WOLFSSL_SP_MATH)
-            if (mp_exptmod(&key->g, privateKey, &key->p, checkKey) != MP_OKAY)
-                ret = MP_EXPTMOD_E;
-#else
-            ret = WC_KEY_SIZE_E;
-#endif
-        }
-    }
-
-    /* Compare the calculated public key to the supplied check value. */
-    if (ret == 0) {
-        if (mp_cmp(checkKey, publicKey) != MP_EQ)
-            ret = MP_CMP_E;
-    }
-
-    mp_forcezero(privateKey);
-    mp_clear(publicKey);
-    mp_clear(checkKey);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
-    XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
-    XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
-#endif
-
-    return ret;
+    return _ffc_pairwise_consistency_test(key, pub, pubSz, priv, privSz);
 }
 
 
