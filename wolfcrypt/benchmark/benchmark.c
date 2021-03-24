@@ -1972,6 +1972,9 @@ int benchmark_init(void)
         printf("wolfCrypt_Init failed %d\n", ret);
         return EXIT_FAILURE;
     }
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 
     bench_stats_init();
 
