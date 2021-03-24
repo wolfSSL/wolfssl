@@ -64,6 +64,9 @@ int unit_test(int argc, char** argv)
     wolfSSL_Debugging_ON();
 #endif
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0)
         err_sys("Whitewood netRandom global config failed");

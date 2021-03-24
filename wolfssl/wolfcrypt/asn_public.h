@@ -65,9 +65,6 @@ This library defines the interface APIs for X509 certificates.
 #endif
 #ifndef WC_RNG_TYPE_DEFINED
     typedef struct WC_RNG WC_RNG;
-    #ifdef WC_RNG_SEED_CB
-        typedef int (*wc_RngSeed_Cb)(byte* seed, word32 sz);
-    #endif
     #define WC_RNG_TYPE_DEFINED
 #endif
 #ifndef WC_DH_TYPE_DEFINED

@@ -1517,6 +1517,10 @@ initDefaultName();
             err_sys("Error with wolfCrypt_Init!\n", -1003);
         }
 
+#ifdef WC_RNG_SEED_CB
+    wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
+
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, wolfcrypt_test);
     #else
@@ -11667,9 +11671,10 @@ static int random_rng_test(void)
 #if defined(HAVE_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
 
 #ifdef WC_RNG_SEED_CB
-static int seed_cb(byte* output, word32 sz)
+static int seed_cb(OS_Seed* os, byte* output, word32 sz)
 {
     word32 i;
+    (void)os;
     /* Known answer test. Set the seed to the same value every time. */
     for (i = 0; i < sz; i++)
         output[i] = (byte)i;
@@ -11725,7 +11730,7 @@ static int rng_seed_test(void)
         ret = -7011;
         goto exit;
     }
-    ret = wc_SetSeed_Cb(NULL);
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
     if (ret != 0) {
         ret = -7012;
     }

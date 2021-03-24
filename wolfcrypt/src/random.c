@@ -307,6 +307,7 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 #define DRBG_FAILURE      1
 #define DRBG_NEED_RESEED  2
 #define DRBG_CONT_FAILURE 3
+#define DRBG_NO_SEED_CB   4
 
 /* RNG health states */
 #define DRBG_NOT_INIT     0
@@ -821,10 +822,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         if (ret == 0) {
 #ifdef WC_RNG_SEED_CB
             if (seedCb == NULL) {
-                ret = DRBG_FAILURE;
+                ret = DRBG_NO_SEED_CB;
             }
             else {
-                ret = seedCb(seed, seedSz);
+                ret = seedCb(&rng->seed, seed, seedSz);
                 if (ret != 0) {
                     ret = DRBG_FAILURE;
                 }

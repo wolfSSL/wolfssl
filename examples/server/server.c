@@ -3315,6 +3315,9 @@ exit:
         wolfSSL_Debugging_ON();
 #endif
         wolfSSL_Init();
+#ifdef WC_RNG_SEED_CB
+        wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
         ChangeToWolfRoot();
 
 #ifndef NO_WOLFSSL_SERVER
