@@ -7895,10 +7895,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     {
         DhKey   dh;
         word32  keyIdx = 0;
+        DhKey*  key = NULL;
 
         /* test if DH-public key */
-        if (wc_InitDhKey(&dh) == 0 &&
-            wc_DhPublicKeyDecode(mem, &keyIdx, &dh, (word32)memSz) == 0) {
+        if (wc_InitDhKey(&dh) != 0)
+            return NULL;
+
+        if (wc_DhPublicKeyDecode(mem, &keyIdx, &dh, (word32)memSz) == 0) {
             wc_FreeDhKey(&dh);
             pkey = wolfSSL_EVP_PKEY_new();
             if (pkey != NULL) {
@@ -7921,7 +7924,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                     return NULL;
                 }
 
-                DhKey* key = (DhKey*)pkey->dh->internal;
+                key = (DhKey*)pkey->dh->internal;
 
                 keyIdx = 0;
                 if (wc_DhPublicKeyDecode(mem, &keyIdx, key, (word32)memSz) == 0)
@@ -7934,7 +7937,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
                         == WOLFSSL_SUCCESS &&
                         SetIndividualExternal(&(pkey->dh->pub_key), &key->pub)
                         == WOLFSSL_SUCCESS) {
-                        wc_FreeDhKey(&dh);
                         return pkey;
                     }
                 }
@@ -7945,7 +7947,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
             }
             wolfSSL_EVP_PKEY_free(pkey);
         }
-        wc_FreeDhKey(&dh);
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
