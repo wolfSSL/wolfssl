@@ -14061,14 +14061,34 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     #ifdef CHACHA_AEAD_TEST
         int i;
     #endif
+    Keys* keys = &ssl->keys;
 
     XMEMSET(tag,   0, sizeof(tag));
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(add,   0, sizeof(add));
 
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+    /*
+     * For epochs 2+:
+     * * use ssl->secure_renegotiation when encrypting the current epoch as it
+     *   has the current epoch cipher material
+     * * use PREV_ORDER if encrypting the epoch not in
+     *   ssl->secure_renegotiation
+     */
     /* opaque SEQ number stored for AD */
-    WriteSEQ(ssl, CUR_ORDER, add);
+    if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
+        if (ssl->keys.dtls_epoch ==
+                    ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
+            keys = &ssl->secure_renegotiation->tmp_keys;
+            WriteSEQ(ssl, CUR_ORDER, add);
+        }
+        else
+            WriteSEQ(ssl, PREV_ORDER, add);
+    }
+    else
+#endif
+        WriteSEQ(ssl, CUR_ORDER, add);
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce. SEQ should not be incremented again here */
@@ -14107,7 +14127,7 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     if (ssl->options.oldPoly == 0) {
         /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
          * record sequence number XORed with client_write_IV/server_write_IV */
-        XMEMCPY(nonce, ssl->keys.aead_enc_imp_IV, CHACHA20_IMP_IV_SZ);
+        XMEMCPY(nonce, keys->aead_enc_imp_IV, CHACHA20_IMP_IV_SZ);
         nonce[4]  ^= add[0];
         nonce[5]  ^= add[1];
         nonce[6]  ^= add[2];
@@ -14215,6 +14235,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     byte poly[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
     int ret    = 0;
     int msgLen = (sz - ssl->specs.aead_mac_size);
+    Keys* keys = &ssl->keys;
 
     #ifdef CHACHA_AEAD_TEST
        int i;
@@ -14231,6 +14252,17 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(add,   0, sizeof(add));
+
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+    /*
+     * For epochs 2+:
+     * * use ssl->secure_renegotiation when decrypting the latest epoch as it
+     *   has the latest epoch cipher material
+     */
+    if (ssl->options.dtls && DtlsSCRKeysSet(ssl) &&
+        ssl->keys.curEpoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+        keys = &ssl->secure_renegotiation->tmp_keys;
+#endif
 
     /* sequence number field is 64-bits */
     WriteSEQ(ssl, PEER_ORDER, add);
@@ -14261,7 +14293,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     if (ssl->options.oldPoly == 0) {
         /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
          * record sequence number XORed with client_write_IV/server_write_IV */
-        XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, CHACHA20_IMP_IV_SZ);
+        XMEMCPY(nonce, keys->aead_dec_imp_IV, CHACHA20_IMP_IV_SZ);
         nonce[4]  ^= add[0];
         nonce[5]  ^= add[1];
         nonce[6]  ^= add[2];
