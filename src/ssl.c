@@ -53380,6 +53380,7 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
     pkcs7->len = ret;
 
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len) != 0) {
+        wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }
 
