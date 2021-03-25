@@ -8630,6 +8630,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return LENGTH_ERROR;
 #endif
 
+    if (*size == 0 && rh->type != application_data) {
+        WOLFSSL_MSG("0 length, non-app data record.");
+        return LENGTH_ERROR;
+    }
+
     /* verify record type here as well */
     switch (rh->type) {
         case handshake:
@@ -15659,7 +15664,7 @@ int ProcessReply(WOLFSSL* ssl)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < ssl->curSize)
-                    if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+                    if ((ret = GetInputData(ssl, ssl->curSize - used)) < 0)
                         return ret;
             #endif  /* WOLFSSL_DTLS */
             }
@@ -15687,6 +15692,7 @@ int ProcessReply(WOLFSSL* ssl)
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
+
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
                 WOLFSSL_MSG("Silently dropping out of order DTLS message");
@@ -16174,6 +16180,12 @@ int ProcessReply(WOLFSSL* ssl)
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
+                    if (ssl->buffers.inputBuffer.idx >=
+                            ssl->buffers.inputBuffer.length ||
+                            ssl->curSize < 1) {
+                        WOLFSSL_MSG("ChangeCipher msg too short");
+                        return LENGTH_ERROR;
+                    }
                     if (ssl->buffers.inputBuffer.buffer[
                             ssl->buffers.inputBuffer.idx] != 1) {
                         WOLFSSL_MSG("ChangeCipher msg wrong value");
