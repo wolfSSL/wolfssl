@@ -7641,11 +7641,13 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                         indent,                   /* indent size */
                         keybits,                  /* bit length of the key */
                         pctx);                    /* not used */
-            break;
 #else
             res = -2;       /* not supported algo */
 #endif
+            break;
+
         case EVP_PKEY_DH:
+
 #if defined(WOLFSSL_DH_EXTRA)
             keybits = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey) * 8;
             res     = PrintPubKeyDH(
@@ -7655,13 +7657,14 @@ int wolfSSL_EVP_PKEY_print_public(WOLFSSL_BIO* out,
                         indent,                   /* indent size */
                         keybits,                  /* bit length of the key */
                         pctx);                    /* not used */
-            break;
 #else
             res = -2;       /* not supported algo */
 #endif
+            break;
 
         default:
             res = -2;      /* not supported algo */
+            break;
     }
     return res;
 }
