@@ -17999,7 +17999,7 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
     sp_point_256* t = NULL;
     sp_digit* tmp = NULL;
 #else
-    sp_point_256 t[16];
+    sp_point_256 t[16 + 1];
     sp_digit tmp[2 * 8 * 5];
 #endif
     sp_point_256* rt = NULL;
@@ -18021,7 +18021,7 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
     (void)heap;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 16,
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 16 + 1,
         heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
@@ -25132,7 +25132,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     sp_point_384* t = NULL;
     sp_digit* tmp = NULL;
 #else
-    sp_point_384 t[16];
+    sp_point_384 t[16 + 1];
     sp_digit tmp[2 * 12 * 6];
 #endif
     sp_point_384* rt = NULL;
@@ -25154,7 +25154,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
     (void)heap;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 16,
+    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 16 + 1,
         heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
@@ -33838,7 +33838,7 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
     sp_point_1024* t = NULL;
     sp_digit* tmp = NULL;
 #else
-    sp_point_1024 t[16];
+    sp_point_1024 t[16 + 1];
     sp_digit tmp[2 * 32 * 5];
 #endif
     sp_point_1024* rt = NULL;
@@ -33853,7 +33853,7 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
     (void)heap;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 16,
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 16 + 1,
         heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
