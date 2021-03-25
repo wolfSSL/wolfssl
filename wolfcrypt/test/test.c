@@ -23249,7 +23249,7 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
             );
             count++;
 
-            /* TODO: Real-time work can be called here */
+            /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
     #ifdef DEBUG_WOLFSSL
         printf("ECC non-block verify: %d times\n", count);
@@ -23333,7 +23333,7 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
             );
             count++;
 
-            /* TODO: Real-time work can be called here */
+            /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
 
     #ifdef DEBUG_WOLFSSL
@@ -23343,8 +23343,8 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
 
     if (ret == 0) {
         /* export r/s */
-        mp_to_unsigned_bin(&r, sig);
-        mp_to_unsigned_bin(&s, sig + curveSz);
+        mp_to_unsigned_bin_len(&r, sig, curveSz);
+        mp_to_unsigned_bin_len(&s, sig + curveSz, curveSz);
     }
 
     mp_clear(&r);
