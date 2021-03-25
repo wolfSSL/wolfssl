@@ -32095,6 +32095,7 @@ int wolfSSL_RAND_egd(const char* nm)
     }
 #endif
 
+    XMEMSET(&rem, 0, sizeof(struct sockaddr_un));
     if (nm == NULL) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
