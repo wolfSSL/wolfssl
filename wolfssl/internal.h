@@ -4330,6 +4330,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     CertReqCtx*     certReqCtx;
 #endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+    WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
 #endif
@@ -4490,6 +4493,21 @@ struct WOLFSSL {
 #endif
 };
 
+/*
+ * The SSL object may have its own certificate store. The below macros simplify
+ * logic for choosing which WOLFSSL_CERT_MANAGER and WOLFSSL_X509_STORE to use.
+ * Always use SSL specific objects when available and revert to CTX otherwise.
+ */
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
+#define SSL_CM(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt->cm : ssl->ctx->cm)
+#define SSL_STORE(ssl) (ssl->x509_store_pt ? ssl->x509_store_pt : \
+                  (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
+                                            &ssl->ctx->x509_store))
+#else
+#define SSL_CM(ssl) ssl->ctx->cm
+#define SSL_STORE(ssl) (ssl->ctx->x509_store_pt ? ssl->ctx->x509_store_pt : \
+                                                 &ssl->ctx->x509_store)
+#endif
 
 WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
 WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);

@@ -30991,24 +30991,33 @@ static void test_wolfSSL_X509_STORE(void)
     {
         SSL_CTX* ctx;
         SSL* ssl;
-    #ifndef NO_WOLFSSL_SERVER
-        AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    #else
-        AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
-    #endif
-        AssertNotNull(store = (X509_STORE *)X509_STORE_new());
-        SSL_CTX_set_cert_store(ctx, store);
-        AssertNotNull(store = (X509_STORE *)X509_STORE_new());
-        SSL_CTX_set_cert_store(ctx, store);
-        AssertNotNull(store = (X509_STORE *)X509_STORE_new());
-        AssertIntEQ(SSL_CTX_use_certificate_file(ctx, svrCertFile,
-                SSL_FILETYPE_PEM), SSL_SUCCESS);
-        AssertIntEQ(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
-                SSL_FILETYPE_PEM), SSL_SUCCESS);
-        AssertNotNull(ssl = SSL_new(ctx));
-        AssertIntEQ(SSL_set0_verify_cert_store(ssl, store), SSL_SUCCESS);
-        SSL_free(ssl);
-        SSL_CTX_free(ctx);
+        int i;
+        for (i = 0; i < 2; i++) {
+        #ifndef NO_WOLFSSL_SERVER
+            AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+        #else
+            AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+        #endif
+            AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+            SSL_CTX_set_cert_store(ctx, store);
+            AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+            SSL_CTX_set_cert_store(ctx, store);
+            AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+            AssertIntEQ(SSL_CTX_use_certificate_file(ctx, svrCertFile,
+                    SSL_FILETYPE_PEM), SSL_SUCCESS);
+            AssertIntEQ(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                    SSL_FILETYPE_PEM), SSL_SUCCESS);
+            AssertNotNull(ssl = SSL_new(ctx));
+            if (i == 0) {
+                AssertIntEQ(SSL_set0_verify_cert_store(ssl, store), SSL_SUCCESS);
+            }
+            else {
+                AssertIntEQ(SSL_set1_verify_cert_store(ssl, store), SSL_SUCCESS);
+                X509_STORE_free(store);
+            }
+            SSL_free(ssl);
+            SSL_CTX_free(ctx);
+        }
     }
     #endif
     printf(resultFmt, passed);

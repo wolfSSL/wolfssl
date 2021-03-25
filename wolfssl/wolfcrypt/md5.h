@@ -42,17 +42,12 @@
     extern "C" {
 #endif
 
-#if !defined(NO_OLD_MD5_NAME)
+#ifndef NO_OLD_MD5_NAME
     #define MD5             WC_MD5
 #endif
 
 #ifndef NO_OLD_WC_NAMES
     #define Md5             wc_Md5
-#if defined(HAVE_FIPS) && \
-        (!defined(HAVE_FIPS_VERSION) || HAVE_FIPS_VERSION <= 2)
-    /* Maintain for old fips compatibility */
-    #define MD5               WC_MD5
-#endif
     #define MD5_BLOCK_SIZE  WC_MD5_BLOCK_SIZE
     #define MD5_DIGEST_SIZE WC_MD5_DIGEST_SIZE
     #define WC_MD5_PAD_SIZE WC_MD5_PAD_SIZE

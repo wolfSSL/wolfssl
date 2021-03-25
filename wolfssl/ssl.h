@@ -559,6 +559,8 @@ struct WOLFSSL_X509_STORE {
 #if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)) && defined(HAVE_CRL)
     WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
+    wolfSSL_Mutex   refMutex;   /* reference count mutex */
+    int             refCount;         /* reference count */
 };
 
 #define WOLFSSL_NO_WILDCARDS   0x4
@@ -1650,6 +1652,7 @@ WOLFSSL_API WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STOR
                                                     WOLFSSL_X509_LOOKUP_METHOD*);
 WOLFSSL_API WOLFSSL_X509_STORE*  wolfSSL_X509_STORE_new(void);
 WOLFSSL_API void         wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE*);
+WOLFSSL_API int          wolfSSL_X509_STORE_up_ref(WOLFSSL_X509_STORE*);
 WOLFSSL_API int          wolfSSL_X509_STORE_add_cert(
                                               WOLFSSL_X509_STORE*, WOLFSSL_X509*);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
@@ -3811,6 +3814,8 @@ WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(
 WOLFSSL_API void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
                                                        WOLFSSL_X509_STORE* str);
 WOLFSSL_API int wolfSSL_set0_verify_cert_store(WOLFSSL *ssl,
+                                                       WOLFSSL_X509_STORE* str);
+WOLFSSL_API int wolfSSL_set1_verify_cert_store(WOLFSSL *ssl,
                                                        WOLFSSL_X509_STORE* str);
 WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */

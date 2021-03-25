@@ -70,7 +70,8 @@ typedef WOLFSSL_MD5_CTX MD5_CTX;
 #endif
 
 #if (!defined(HAVE_FIPS) || \
-        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
+        (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2)) && \
+         defined(OPENSSL_EXTRA)
 /* For fips v1 defined in wolfssl/wolfcrypt/md5.h as
  * WC_MD5 for compatibility */
 #define MD5               wolfSSL_MD5
