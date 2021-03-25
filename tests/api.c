@@ -2411,9 +2411,9 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     char line[256] = { 0 };
     int i;
 
-    printf(testingFmt, "wolfSSL_EVP_PKEY_print_public()");
+    printf(testingFmt, "EVP_PKEY_print_public()");
     /* test error cases */
-    AssertIntEQ( wolfSSL_EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
+    AssertIntEQ( EVP_PKEY_print_public(NULL,NULL,0,NULL),0L);
 
     /*
      *  test RSA public key print
@@ -2431,7 +2431,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,3,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line, "   RSA Public-Key: (1024 bit)\n",
@@ -2485,7 +2485,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line, "DSA Public-Key: (2048 bit)\n",
@@ -2560,7 +2560,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line, "Public-Key: (256 bit)\n",
@@ -2616,7 +2616,7 @@ static void test_wolfSSL_EVP_PKEY_print_public(void)
     wbio = BIO_new(BIO_s_mem());
     AssertNotNull(wbio);
 
-    AssertIntEQ(wolfSSL_EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
+    AssertIntEQ(EVP_PKEY_print_public(wbio, pkey,0,NULL),1);
 
     BIO_gets(wbio, line, sizeof(line));
     AssertIntEQ(XSTRNCMP( line, "DH Public-Key: (2048 bit)\n",
