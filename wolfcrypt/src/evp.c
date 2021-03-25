@@ -2033,16 +2033,31 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
 
 WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* return compliant with OpneSSL */
+    /* 1 : match                     */
+    /* 0 : dont match                */
+    /* -1 : different type           */
+    /* -2 : not support              */
+    int ret = 0;  /* dont match */
+#else
     int ret = -1; /* failure */
+#endif
+
     int a_sz = 0, b_sz = 0;
 
     if (a == NULL || b == NULL)
         return ret;
 
     /* check its the same type of key */
-    if (a->type != b->type)
+    if (a->type != b->type) {
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        return -1;
+#else
         return ret;
-
+#endif
+    }
+    
     /* get size based on key type */
     switch (a->type) {
 #ifndef NO_RSA
@@ -2062,7 +2077,11 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
         break;
 #endif /* HAVE_ECC */
     default:
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        return -2;
+#else
         return ret;
+#endif
     } /* switch (a->type) */
 
     /* check size */
@@ -2081,8 +2100,11 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
             return ret;
         }
     }
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    ret = 1; /* 1 : match */
+#else
     ret = 0; /* success */
-
+#endif
     return ret;
 }
 

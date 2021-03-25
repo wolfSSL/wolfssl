@@ -38287,7 +38287,16 @@ static void test_EVP_PKEY_cmp(void)
         &in, (long)sizeof_client_key_der_2048));
 
     /* Test success case RSA */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* return compliant with OpneSSL */
+    /* 1 : match                     */
+    /* 0 : dont match                */
+    /* -1 : different type           */
+    /* -2 : not support              */
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 1);
+#else
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#endif
 
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
@@ -38302,7 +38311,11 @@ static void test_EVP_PKEY_cmp(void)
         &in, (long)sizeof_ecc_clikey_der_256));
 
     /* Test success case ECC */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 1);
+#else
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#endif
 
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
@@ -38318,8 +38331,11 @@ static void test_EVP_PKEY_cmp(void)
     in = ecc_clikey_der_256;
     AssertNotNull(b = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL,
         &in, (long)sizeof_ecc_clikey_der_256));
-
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(a, b), -1);
+#else
     AssertIntNE(EVP_PKEY_cmp(a, b), 0);
+#endif
 
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
@@ -38328,10 +38344,20 @@ static void test_EVP_PKEY_cmp(void)
     /* invalid or empty failure cases */
     a = EVP_PKEY_new();
     b = EVP_PKEY_new();
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(NULL, NULL), 0);
+    AssertIntEQ(EVP_PKEY_cmp(a, NULL), 0);
+    AssertIntEQ(EVP_PKEY_cmp(NULL, b), 0);
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+    /* not support type */
+    a->type = b->type = EVP_PKEY_DSA;
+    AssertIntEQ(EVP_PKEY_cmp(a, b), -2);
+#else
     AssertIntNE(EVP_PKEY_cmp(NULL, NULL), 0);
     AssertIntNE(EVP_PKEY_cmp(a, NULL), 0);
     AssertIntNE(EVP_PKEY_cmp(NULL, b), 0);
     AssertIntNE(EVP_PKEY_cmp(a, b), 0);
+#endif
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
 
