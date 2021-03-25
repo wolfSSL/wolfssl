@@ -41545,6 +41545,10 @@ err:
             return BAD_FUNC_ARG;
         }
 
+        if (*info == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         /* check is fresh "info" passed in, if not free it */
         if ((*info)->x509 != NULL || (*info)->x_pkey != NULL) {
             WOLFSSL_X509_INFO* tmp;
