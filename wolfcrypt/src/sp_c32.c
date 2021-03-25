@@ -1838,6 +1838,7 @@ static int sp_2048_div_45(const sp_digit* a, const sp_digit* d,
 
             sp_2048_mul_d_45(t2, sd, r1);
             (void)sp_2048_sub_45(&t1[i], &t1[i], t2);
+            sp_2048_norm_45(&t1[i]);
             t1[45 + i] -= t2[45];
             t1[45 + i] += t1[45 + i - 1] >> 23;
             t1[45 + i - 1] &= 0x7fffff;
@@ -2725,6 +2726,7 @@ static int sp_2048_div_90(const sp_digit* a, const sp_digit* d,
 
             sp_2048_mul_d_90(t2, sd, r1);
             (void)sp_2048_sub_90(&t1[i], &t1[i], t2);
+            sp_2048_norm_90(&t1[i]);
             t1[90 + i] -= t2[90];
             t1[90 + i] += t1[90 + i - 1] >> 23;
             t1[90 + i - 1] &= 0x7fffff;
@@ -3560,6 +3562,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_2048_sub_45(tmpa, tmpa, tmpb);
+        sp_2048_norm_45(tmpa);
         sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
         sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
 
@@ -3656,6 +3659,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_2048_sub_45(tmpa, tmpa, tmpb);
+        sp_2048_norm_45(tmpa);
         sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
         sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
         sp_2048_mul_45(tmpa, tmpa, qi);
@@ -5704,6 +5708,7 @@ static int sp_3072_div_67(const sp_digit* a, const sp_digit* d,
 
             sp_3072_mul_d_67(t2, d, r1);
             (void)sp_3072_sub_67(&t1[i], &t1[i], t2);
+            sp_3072_norm_67(&t1[i]);
             t1[67 + i] -= t2[67];
             t1[67 + i] += t1[67 + i - 1] >> 23;
             t1[67 + i - 1] &= 0x7fffff;
@@ -6620,6 +6625,7 @@ static int sp_3072_div_134(const sp_digit* a, const sp_digit* d,
 
             sp_3072_mul_d_134(t2, sd, r1);
             (void)sp_3072_sub_134(&t1[i], &t1[i], t2);
+            sp_3072_norm_134(&t1[i]);
             t1[134 + i] -= t2[134];
             t1[134 + i] += t1[134 + i - 1] >> 23;
             t1[134 + i - 1] &= 0x7fffff;
@@ -7455,6 +7461,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_3072_sub_67(tmpa, tmpa, tmpb);
+        sp_3072_norm_67(tmpa);
         sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
         sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
 
@@ -7551,6 +7558,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_3072_sub_67(tmpa, tmpa, tmpb);
+        sp_3072_norm_67(tmpa);
         sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
         sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
         sp_3072_mul_67(tmpa, tmpa, qi);
@@ -9759,6 +9767,7 @@ static int sp_4096_div_98(const sp_digit* a, const sp_digit* d,
 
             sp_4096_mul_d_98(t2, sd, r1);
             (void)sp_4096_sub_98(&t1[i], &t1[i], t2);
+            sp_4096_norm_98(&t1[i]);
             t1[98 + i] -= t2[98];
             t1[98 + i] += t1[98 + i - 1] >> 21;
             t1[98 + i - 1] &= 0x1fffff;
@@ -10663,6 +10672,7 @@ static int sp_4096_div_196(const sp_digit* a, const sp_digit* d,
 
             sp_4096_mul_d_196(t2, sd, r1);
             (void)sp_4096_sub_196(&t1[i], &t1[i], t2);
+            sp_4096_norm_196(&t1[i]);
             t1[196 + i] -= t2[196];
             t1[196 + i] += t1[196 + i - 1] >> 21;
             t1[196 + i - 1] &= 0x1fffff;
@@ -11498,6 +11508,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_4096_sub_98(tmpa, tmpa, tmpb);
+        sp_4096_norm_98(tmpa);
         sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
         sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
 
@@ -11594,6 +11605,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_4096_sub_98(tmpa, tmpa, tmpb);
+        sp_4096_norm_98(tmpa);
         sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
         sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
         sp_4096_mul_98(tmpa, tmpa, qi);
@@ -17728,6 +17740,7 @@ static int sp_256_div_10(const sp_digit* a, const sp_digit* d,
 
             sp_256_mul_d_10(t2, d, r1);
             (void)sp_256_sub_10(&t1[i], &t1[i], t2);
+            sp_256_norm_10(&t1[i]);
             t1[10 + i] -= t2[10];
             t1[10 + i] += t1[10 + i - 1] >> 26;
             t1[10 + i - 1] &= 0x3ffffff;
@@ -25464,6 +25477,7 @@ static int sp_384_div_15(const sp_digit* a, const sp_digit* d,
 
             sp_384_mul_d_15(t2, d, r1);
             (void)sp_384_sub_15(&t1[i], &t1[i], t2);
+            sp_384_norm_15(&t1[i]);
             t1[15 + i] -= t2[15];
             t1[15 + i] += t1[15 + i - 1] >> 26;
             t1[15 + i - 1] &= 0x3ffffff;
@@ -27941,6 +27955,7 @@ static int sp_1024_div_42(const sp_digit* a, const sp_digit* d,
 
             sp_1024_mul_d_42(t2, d, r1);
             (void)sp_1024_sub_42(&t1[i], &t1[i], t2);
+            sp_1024_norm_42(&t1[i]);
             t1[42 + i] -= t2[42];
             t1[41 + i] += t1[41 + i - 1] >> 25;
             t1[41 + i - 1] &= 0x1ffffff;
