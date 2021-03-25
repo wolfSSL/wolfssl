@@ -41925,11 +41925,11 @@ static int test_wolfSSL_CTX_set_ecdh_auto(void)
     int ret = 0;
     WOLFSSL_CTX* ctx = NULL;
 #if defined(OPENSSL_EXTRA)
-    printf(testingFmt, "wolfSSL_CTX_set_ecdh_auto");
-    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(NULL,0),1);
-    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(NULL,1),1);
-    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(ctx,0),1);
-    AssertIntEQ( wolfSSL_CTX_set_ecdh_auto(ctx,1),1);
+    printf(testingFmt, "SSL_CTX_set_ecdh_auto");
+    AssertIntEQ( SSL_CTX_set_ecdh_auto(NULL,0),1);
+    AssertIntEQ( SSL_CTX_set_ecdh_auto(NULL,1),1);
+    AssertIntEQ( SSL_CTX_set_ecdh_auto(ctx,0),1);
+    AssertIntEQ( SSL_CTX_set_ecdh_auto(ctx,1),1);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
     (void)ctx;
