@@ -13083,11 +13083,12 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
-    byte    vector[] = /* Now is the time for all w/o trailing 0 */
+    byte    vector[] = /* Now is the time for all good men w/o trailing 0 */
     {
         0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20,
+        0x67,0x6f,0x6f,0x64,0x20,0x6d,0x65,0x6e
     };
     byte    iv[]    = "1234567890abcdef";
     byte    enc[sizeof(vector)];
@@ -13117,8 +13118,8 @@ static int test_wc_AesCbcEncryptDecrypt (void)
                                                     iv, AES_DECRYPTION);
         }
         if (ret == 0) {
-            ret = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE);
-            if (ret != 0 || XMEMCMP(vector, dec, AES_BLOCK_SIZE) != 0) {
+            ret = wc_AesCbcDecrypt(&aes, dec, enc, sizeof(vector));
+            if (ret != 0 || XMEMCMP(vector, dec, sizeof(vector)) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             } else {
                 /* Set flag. */
@@ -13150,6 +13151,16 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         } else {
             cbcE = WOLFSSL_FATAL_ERROR;
         }
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (cbcE == 0) {
+            cbcE = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector) - 1);
+        }
+        if (cbcE == BAD_ALIGN_E) {
+            cbcE = 0;
+        } else {
+            cbcE = WOLFSSL_FATAL_ERROR;
+        }
+#endif
     }
     if (cbcE == 0) {
         /* Test passing in size of 0  */
@@ -13178,11 +13189,19 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         if (cbcD == BAD_FUNC_ARG) {
             cbcD = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE * 2 - 1);
         }
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (cbcD == BAD_ALIGN_E) {
+            cbcD = 0;
+        } else {
+            cbcD = WOLFSSL_FATAL_ERROR;
+        }
+#else
         if (cbcD == BAD_FUNC_ARG) {
             cbcD = 0;
         } else {
             cbcD = WOLFSSL_FATAL_ERROR;
         }
+#endif
     }
     if (cbcD == 0) {
         /* Test passing in size of 0  */

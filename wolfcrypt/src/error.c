@@ -527,6 +527,9 @@ const char* wc_GetErrorString(int error)
     case MISSING_KEY:
         return "Required key not set";
 
+    case BAD_LENGTH_E:
+        return "Value of length parameter is invalid.";
+
     default:
         return "unknown error number";
 
