@@ -7048,7 +7048,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
 
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
@@ -7080,7 +7080,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
 
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
@@ -7217,7 +7217,7 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
     if (wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1) < 0)
@@ -7376,7 +7376,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
     if (wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1) < 0)
@@ -7521,7 +7521,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
     if (wolfSSL_BIO_write(out, " bit)\n", sizeof(" bit)\n") - 1) < 0)
@@ -7549,7 +7549,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         return WOLFSSL_FAILURE;
     if (mp_todecimal(&a, (char*)buff) != 0)
         return WOLFSSL_FAILURE;
-    wsz = XSTRLEN((const char*)buff);
+    wsz = (int)XSTRLEN((const char*)buff);
     if (wolfSSL_BIO_write(out, buff + idx, wsz) < 0)
         return WOLFSSL_FAILURE;
     if (wolfSSL_BIO_write(out, " (0x", sizeof(" (0x") - 1) < 0)
