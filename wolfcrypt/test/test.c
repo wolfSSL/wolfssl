@@ -28771,82 +28771,99 @@ static int sakke_op_test(SakkeKey* priv, SakkeKey* pub, WC_RNG* rng,
 
 int sakke_test(void)
 {
-    int ret;
+    int ret = 0;
     WC_RNG rng;
-    SakkeKey* priv;
-    SakkeKey* pub;
-    SakkeKey* key;
+    SakkeKey* priv = NULL;
+    SakkeKey* pub  = NULL;
+    SakkeKey* key  = NULL;
     ecc_point* rsk = NULL;
 
     priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
-        return -10404;
+        ret = -10404;
     }
-    pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+
+    if (ret == 0) {
+        pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10405;
+        if (pub == NULL) {
+            ret = -10405;
+        }
     }
-    key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+
+    if (ret == 0) {
+        key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL) {
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10406;
+        if (key == NULL) {
+            ret = -10406;
+        }
     }
 
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
-    ret = wc_InitRng(&rng);
-#endif
-    if (ret != 0)
-        return -10400;
+    if (ret == 0) {
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    #else
+        ret = wc_InitRng(&rng);
+    #endif
+        if (ret != 0)
+            ret = -10400;
+    }
 
-    rsk = wc_ecc_new_point();
-    if (rsk == NULL)
-        return -10401;
+    if (ret == 0) {
+        rsk = wc_ecc_new_point();
+        if (rsk == NULL)
+            ret = -10401;
+    }
 
-    ret = wc_InitSakkeKey(pub, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10402;
+    if (ret == 0) {
+        ret = wc_InitSakkeKey(pub, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10402;
+    }
 
-    ret = wc_InitSakkeKey(priv, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10403;
+    if (ret == 0) {
+        ret = wc_InitSakkeKey(priv, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10403;
+    }
 
-    ret = sakke_api_test(&rng, key, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_api_test(&rng, key, rsk);
+    }
 
-    ret = sakke_kat_derive_test(pub, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_kat_derive_test(pub, rsk);
+    }
 
-    ret = sakke_kat_encapsulate_test(pub);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_kat_encapsulate_test(pub);
+    }
 
-    ret = sakke_make_key_test(priv, pub, key, &rng, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_make_key_test(priv, pub, key, &rng, rsk);
+    }
 
-    ret = sakke_op_test(priv, pub, &rng, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_op_test(priv, pub, &rng, rsk);
+    }
 
     wc_FreeSakkeKey(priv);
     wc_FreeSakkeKey(pub);
     wc_ecc_forcezero_point(rsk);
     wc_ecc_del_point(rsk);
-    wc_FreeRng(&rng);
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return 0;
+    if (ret != -10400)
+        wc_FreeRng(&rng);
+
+    if (key != NULL)
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub != NULL)
+        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv != NULL)
+        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 #endif /* WOLFCRYPT_HAVE_SAKKE */
 
