@@ -1,6 +1,6 @@
 /* suites.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -995,6 +995,20 @@ int SuiteTest(int argc, char** argv)
     strcpy(argv0[1], "tests/test-dtls-fails.conf");
     strcpy(argv0[2], "expFail"); /* tests are expected to fail */
     printf("starting dtls tests that expect failure\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    strcpy(argv0[2], "");
+#endif
+#ifdef WOLFSSL_EXTRA_ALERTS
+    /* failure tests */
+    args.argc = 3;
+    strcpy(argv0[1], "tests/test-dtls-fails-cipher.conf");
+    strcpy(argv0[2], "expFail"); /* tests are expected to fail */
+    printf("starting dtls cipher mismatch tests that expect failure\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

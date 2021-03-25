@@ -1,6 +1,6 @@
 /* bio.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -202,8 +202,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
     }
 
-    /* start at end of list and work backwards */
-    while ((bio != NULL) && (bio->next != NULL)) {
+    /* start at end of list (or a WOLFSSL_BIO_SSL object since it takes care of
+     * the rest of the chain) and work backwards */
+    while (bio != NULL && bio->next != NULL && bio->type != WOLFSSL_BIO_SSL) {
         bio = bio->next;
     }
 
@@ -249,6 +250,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             ret = wolfSSL_BIO_MD_read(bio, buf, ret);
         }
     #endif
+
+        if (bio->type == WOLFSSL_BIO_SOCKET) {
+            ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
+        }
 
         /* case where front of list is done */
         if (bio == front) {
@@ -606,6 +611,8 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             else {
                 ret = wolfSSL_BIO_SSL_write(bio, data, len, front);
             }
+            /* Rest of chain is taken care of inside call */
+            break;
         }
 
         if (bio->type == WOLFSSL_BIO_MD) {
@@ -614,6 +621,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             }
         }
     #endif /* WOLFCRYPT_ONLY */
+
+        if (bio->type == WOLFSSL_BIO_SOCKET) {
+            ret = wolfIO_Send(bio->num, (char*)data, len, 0);
+        }
 
         /* advance to the next bio in list */
         bio = bio->next;
@@ -941,6 +952,21 @@ size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio)
         return pair->wrIdx;
     }
 
+    return 0;
+}
+
+/* Custom wolfSSL API to check if current bio object supports checking
+ * pending state.
+ */
+int wolfSSL_BIO_supports_pending(const WOLFSSL_BIO *bio)
+{
+    while (bio) {
+        if (bio->type == WOLFSSL_BIO_SSL ||
+                bio->type == WOLFSSL_BIO_MEMORY ||
+                bio->type == WOLFSSL_BIO_BIO)
+            return 1;
+        bio = bio->next;
+    }
     return 0;
 }
 
@@ -1438,6 +1464,31 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
       }
 
       return 0;
+}
+/* wolfSSL_BIO_tell is provided as compatible API with
+ * BIO_tell which returns the current file position of a file related BIO.
+ * Returns the current file position on success and -1 for failure.
+ * Returns 0 for a BIOs except file related BIO.
+ */
+int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
+{
+    int pos;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_tell");
+
+    if (bio == NULL) {
+        return -1;
+    }
+
+    if (bio->type != WOLFSSL_BIO_FILE) {
+        return 0;
+    }
+
+    pos = (int)XFTELL((XFILE)bio->ptr);
+    if (pos < 0)
+        return -1;
+    else
+        return pos;
 }
 #endif /* NO_FILESYSTEM */
 

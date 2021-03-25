@@ -1,6 +1,6 @@
 /* wolfSSL_conf.h (example of generated wolfSSL.I-CUBE-wolfSSL_conf.h)
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -174,6 +174,11 @@
     #define NO_STM32_RNG
 #elif defined(STM32F401xE)
     #define WOLFSSL_STM32F4
+    #define HAL_CONSOLE_UART huart2
+    #define NO_STM32_RNG
+    #define WOLFSSL_GENSEED_FORTEST
+#elif defined(STM32G071xx)
+    #define WOLFSSL_STM32G0
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST

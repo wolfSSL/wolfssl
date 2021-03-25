@@ -1052,7 +1052,19 @@ if (WOLFSSL_TLS13)
         "-DHAVE_SUPPORTED_CURVES")
 endif()
 
-# TODO: - Session ticket
+# Session Ticket Extension
+set(WOLFSSL_SESSION_TICKET_HELP_STRING "Enable Session Ticket (default: disabled)")
+add_option("WOLFSSL_SESSION_TICKET" ${WOLFSSL_SESSION_TICKET_HELP_STRING} "no" "yes;no")
+
+if(WOLFSSL_NGINX OR WOLFSSL_WPAS OR WOLFSSL_HAPROXY OR WOLFSSL_LIGHTY)
+    override_cache(WOLFSSL_SESSION_TICKET "yes")
+endif()
+
+if(WOLFSSL_SESSION_TICKET)
+    list(APPEND WOLFSSL_DEFINITIONS
+        "-DHAVE_TLS_EXTENSIONS"
+        "-DHAVE_SESSION_TICKET")
+endif()
 
 # Extended master secret extension
 set(WOLFSSL_EXTENDED_MASTER_HELP_STRING "Enable Extended Master Secret (default: enabled)")
@@ -1344,6 +1356,8 @@ file(APPEND ${OPTION_FILE} "#define WOLFSSL_OPTIONS_H\n\n\n")
 file(APPEND ${OPTION_FILE} "#ifdef __cplusplus\n")
 file(APPEND ${OPTION_FILE} "extern \"C\" {\n")
 file(APPEND ${OPTION_FILE} "#endif\n\n")
+
+list(REMOVE_DUPLICATES WOLFSSL_DEFINITIONS)
 
 foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
     if(DEF MATCHES "^-D")

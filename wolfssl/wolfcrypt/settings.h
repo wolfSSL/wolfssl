@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1240,7 +1240,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
     defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1) || \
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-    defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7)
+    defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
+    defined(WOLFSSL_STM32G0)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -1293,6 +1294,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32h7xx_hal.h"
         #elif defined(WOLFSSL_STM32WB)
             #include "stm32wbxx_hal.h"
+        #elif defined(WOLFSSL_STM32G0)
+            #include "stm32g0xx_hal.h"
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -1343,7 +1346,8 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || 
-          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || WOLFSSL_STM32H7 */
+          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB || 
+          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
@@ -1652,6 +1656,10 @@ extern void uITRON4_free(void *p) ;
     /* large performance gain with HAVE_AES_ECB defined */
     #undef HAVE_AES_ECB
     #define HAVE_AES_ECB
+
+    //@TODO used for now until plugging in caam aes use with qnx
+    #undef WOLFSSL_AES_DIRECT
+    #define WOLFSSL_AES_DIRECT
 #endif
 #endif
 
@@ -2096,8 +2104,9 @@ extern void uITRON4_free(void *p) ;
     #if defined(HAVE_IO_POOL) || defined(XMALLOC_USER) || defined(NO_WOLFSSL_MEMORY)
          #error static memory cannot be used with HAVE_IO_POOL, XMALLOC_USER or NO_WOLFSSL_MEMORY
     #endif
-    #if !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
-        #error static memory requires fast math please define USE_FAST_MATH
+    #if !defined(WOLFSSL_SP_NO_MALLOC) && \
+        !defined(USE_FAST_MATH) && !defined(NO_BIG_INT)
+         #error The static memory option is only supported for fast math or SP with no malloc
     #endif
     #ifdef WOLFSSL_SMALL_STACK
         #error static memory does not support small stack please undefine
@@ -2273,8 +2282,13 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
     /* added to have compatibility with SHA256() */
-    #if !defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
+    #if !defined(NO_OLD_SHA_NAMES) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
         #define NO_OLD_SHA_NAMES
+    #endif
+    #if !defined(NO_OLD_MD5_NAME) && (!defined(HAVE_FIPS) || \
+            (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+        #define NO_OLD_MD5_NAME
     #endif
 #endif
 

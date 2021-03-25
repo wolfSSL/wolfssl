@@ -1,6 +1,6 @@
 /* pkcs7.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -5077,6 +5077,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content type */
@@ -5136,7 +5141,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
             }
             else {
-                /* last state expect the reset of the buffer */
+                /* last state expect the rest of the buffer */
                 pkcs7->stream->expected = (pkcs7->stream->maxLen -
                     pkcs7->stream->totalRd) + pkcs7->stream->length;
             }
@@ -5155,6 +5160,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, 0, &length);
             if (pkcs7->stream->flagOne) {
                 pkiMsg2 = pkiMsg;
+
+                /* check if using internal stream buffer and should adjust sz */
+                if (pkiMsg != in && pkcs7->stream->length > 0) {
+                    pkiMsg2Sz = pkcs7->stream->length;
+                }
             }
 
             /* restore content */
@@ -8422,6 +8432,9 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
+
+                if (KEYID_SIZE > pkiMsgSz - (*idx))
+                    return BUFFER_E;
 
                 /* if we found correct recipient, SKID will match */
                 if (XMEMCMP(pkiMsg + (*idx), pkcs7->issuerSubjKeyId,

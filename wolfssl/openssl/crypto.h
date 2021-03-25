@@ -1,6 +1,6 @@
 /* crypto.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,7 +50,13 @@ WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 WOLFSSL_API int wolfSSL_OPENSSL_init_crypto(word64 opts, const OPENSSL_INIT_SETTINGS *settings);
 #endif
 
-#define CRYPTO_THREADID void
+typedef struct WOLFSSL_CRYPTO_THREADID {
+    int dummy;
+}WOLFSSL_CRYPTO_THREADID;
+typedef struct crypto_threadid_st   CRYPTO_THREADID;
+
+#define crypto_threadid_st          WOLFSSL_CRYPTO_THREADID
+#define CRYPTO_THREADID             WOLFSSL_CRYPTO_THREADID
 
 #define SSLeay_version wolfSSLeay_version
 #define SSLeay wolfSSLeay
@@ -88,6 +94,8 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
         long argl, void* argp);
 #define CRYPTO_THREADID_set_callback wolfSSL_THREADID_set_callback
 #define CRYPTO_THREADID_set_numeric wolfSSL_THREADID_set_numeric
+#define CRYPTO_THREADID_current      wolfSSL_THREADID_current
+#define CRYPTO_THREADID_hash         wolfSSL_THREADID_hash
 
 #define CRYPTO_r_lock wc_LockMutex_ex
 #define CRYPTO_unlock wc_LockMutex_ex

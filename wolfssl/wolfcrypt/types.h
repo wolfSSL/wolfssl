@@ -1,6 +1,6 @@
 /* types.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -556,17 +556,17 @@ decouple library dependencies with standard string, memory and so on.
                     {
                         va_list ap;
                         int ret;
-                        
+
                         if ((int)n <= 0) return -1;
-                        
+
                         va_start(ap, format);
-                        
-                        ret = vsnprintf(s, n, format, ap);
+
+                        ret = XVSNPRINTF(s, n, format, ap);
                         if (ret < 0)
                             ret = -1;
-                            
+
                         va_end(ap);
-                        
+
                         return ret;
                     }
                 #define XSNPRINTF _xsnprintf_
@@ -597,7 +597,7 @@ decouple library dependencies with standard string, memory and so on.
 
                         if ((int)bufsize <= 0) return -1;
                         va_start(ap, format);
-                        ret = vsnprintf(buffer, bufsize, format, ap);
+                        ret = XVSNPRINTF(buffer, bufsize, format, ap);
                         if (ret >= (int)bufsize)
                             ret = -1;
                         va_end(ap);
@@ -659,6 +659,8 @@ decouple library dependencies with standard string, memory and so on.
         #endif
         #ifdef OPENSSL_ALL
         #define XISALNUM(c)     isalnum((c))
+        #define XISASCII(c)     isascii((c))
+        #define XISSPACE(c)     isspace((c))
         #endif
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
@@ -789,8 +791,9 @@ decouple library dependencies with standard string, memory and so on.
         WC_ALGO_TYPE_RNG = 4,
         WC_ALGO_TYPE_SEED = 5,
         WC_ALGO_TYPE_HMAC = 6,
+        WC_ALGO_TYPE_CMAC = 7,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HMAC
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CMAC
     };
 
     /* hash types */

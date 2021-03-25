@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -516,6 +516,7 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
     WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
     WOLFSSL_API int wc_EccPrivateKeyToDer(ecc_key* key, byte* output,
                                           word32 inLen);
+    WOLFSSL_API int wc_EccKeyDerSize(ecc_key*, int pub);
     WOLFSSL_API int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output,
                                             word32* outLen);
     WOLFSSL_API int wc_EccKeyToPKCS8(ecc_key* key, byte* output,

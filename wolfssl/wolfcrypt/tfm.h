@@ -1,6 +1,6 @@
 /* tfm.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -422,13 +422,16 @@ MP_API void fp_free(fp_int* a);
 /* zero/one/even/odd/neg/word ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_isone(a) \
-    ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
-#define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
-#define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
-#define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
-#define fp_isword(a, w) \
-    ((((a)->used == 1) && ((a)->dp[0] == w)) || ((w == 0) && ((a)->used == 0)) \
+    ((((a)->used == 1) && ((a)->dp[0] == 1) && ((a)->sign == FP_ZPOS)) \
                                                                ? FP_YES : FP_NO)
+#define fp_iseven(a) \
+    (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
+#define fp_isodd(a)  \
+    (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
+#define fp_isneg(a)  (((a)->sign != FP_ZPOS) ? FP_YES : FP_NO)
+#define fp_isword(a, w) \
+    (((((a)->used == 1) && ((a)->dp[0] == w)) || \
+                               ((w == 0) && ((a)->used == 0))) ? FP_YES : FP_NO)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
@@ -440,7 +443,7 @@ int fp_is_bit_set(fp_int *a, fp_digit b);
 int fp_set_bit (fp_int * a, fp_digit b);
 
 /* copy from a to b */
-void fp_copy(fp_int *a, fp_int *b);
+void fp_copy(const fp_int *a, fp_int *b);
 void fp_init_copy(fp_int *a, fp_int *b);
 
 /* clamp digits */
@@ -643,10 +646,10 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y);
 /*int fp_prime_random_ex(fp_int *a, int t, int size, int flags, tfm_prime_callback cb, void *dat);*/
 
 /* radix conversions */
-int fp_count_bits(fp_int *a);
+int fp_count_bits(const fp_int *a);
 int fp_leading_bit(fp_int *a);
 
-int fp_unsigned_bin_size(fp_int *a);
+int fp_unsigned_bin_size(const fp_int *a);
 int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
 int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c);
@@ -771,17 +774,17 @@ MP_API int  mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 MP_API int  mp_cmp(mp_int *a, mp_int *b);
 MP_API int  mp_cmp_d(mp_int *a, mp_digit b);
 
-MP_API int  mp_unsigned_bin_size(mp_int * a);
+MP_API int  mp_unsigned_bin_size(const mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
 MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 
 MP_API int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
-MP_API int  mp_copy(fp_int* a, fp_int* b);
+MP_API int  mp_copy(const fp_int* a, fp_int* b);
 MP_API int  mp_isodd(mp_int* a);
 MP_API int  mp_iszero(mp_int* a);
-MP_API int  mp_count_bits(mp_int *a);
+MP_API int  mp_count_bits(const mp_int *a);
 MP_API int  mp_leading_bit(mp_int *a);
 MP_API int  mp_set_int(mp_int *a, unsigned long b);
 MP_API int  mp_is_bit_set (mp_int * a, mp_digit b);
