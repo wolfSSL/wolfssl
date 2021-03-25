@@ -1,6 +1,6 @@
 /* crl.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -364,6 +364,25 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     }
 #endif
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    /* if not find entry in the CRL list, it looks at the folder that sets  */
+    /* by LOOKUP_ctrl because user would want to use hash_dir.              */
+    /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
+    /* and try again checking Cert in the CRL list.                         */
+    /* When not set the folder or not use hash_dir, do nothing.             */
+    if (foundEntry == 0) {
+        if (crl->cm->x509_store_p != NULL) {
+            ret = LoadCertByIssuer(crl->cm->x509_store_p, 
+                          (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
+            if (ret == WOLFSSL_SUCCESS) {
+                /* try again */
+                ret = CheckCertCRLList(crl, cert, &foundEntry);
+            }
+        }
+    }
+#endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         ret = CRL_MISSING;
@@ -911,7 +930,7 @@ static void* DoMonitor(void* arg)
     if (kevent(crl->mfd, &change, 1, NULL, 0, NULL) < 0) {
         WOLFSSL_MSG("kevent monitor customer event failed");
         SignalSetup(crl, MONITOR_SETUP_E);
-        close(crl->mfd);
+        (void)close(crl->mfd);
         return NULL;
     }
 
@@ -923,7 +942,7 @@ static void* DoMonitor(void* arg)
         if (fPEM == -1) {
             WOLFSSL_MSG("PEM event dir open failed");
             SignalSetup(crl, MONITOR_SETUP_E);
-            close(crl->mfd);
+            (void)close(crl->mfd);
             return NULL;
         }
     }
@@ -933,8 +952,8 @@ static void* DoMonitor(void* arg)
         if (fDER == -1) {
             WOLFSSL_MSG("DER event dir open failed");
             if (fPEM != -1)
-                close(fPEM);
-            close(crl->mfd);
+                (void)close(fPEM);
+            (void)close(crl->mfd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -951,10 +970,10 @@ static void* DoMonitor(void* arg)
     /* signal to calling thread we're setup */
     if (SignalSetup(crl, 1) != 0) {
         if (fPEM != -1)
-            close(fPEM);
+            (void)close(fPEM);
         if (fDER != -1)
-            close(fDER);
-        close(crl->mfd);
+            (void)close(fDER);
+        (void)close(crl->mfd);
         return NULL;
     }
 
@@ -980,11 +999,11 @@ static void* DoMonitor(void* arg)
     }
 
     if (fPEM != -1)
-        close(fPEM);
+        (void)close(fPEM);
     if (fDER != -1)
-        close(fDER);
+        (void)close(fDER);
 
-    close(crl->mfd);
+    (void)close(crl->mfd);
 
     return NULL;
 }
@@ -1045,7 +1064,7 @@ static void* DoMonitor(void* arg)
     notifyFd = inotify_init();
     if (notifyFd < 0) {
         WOLFSSL_MSG("inotify failed");
-        close(crl->mfd);
+        (void)close(crl->mfd);
         SignalSetup(crl, MONITOR_SETUP_E);
         return NULL;
     }
@@ -1055,8 +1074,8 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             WOLFSSL_MSG("PEM notify add watch failed");
-            close(crl->mfd);
-            close(notifyFd);
+            (void)close(crl->mfd);
+            (void)close(notifyFd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -1067,8 +1086,8 @@ static void* DoMonitor(void* arg)
                                                                 IN_DELETE);
         if (wd < 0) {
             WOLFSSL_MSG("DER notify add watch failed");
-            close(crl->mfd);
-            close(notifyFd);
+            (void)close(crl->mfd);
+            (void)close(notifyFd);
             SignalSetup(crl, MONITOR_SETUP_E);
             return NULL;
         }
@@ -1088,8 +1107,8 @@ static void* DoMonitor(void* arg)
 
         if (wd > 0)
             inotify_rm_watch(notifyFd, wd);
-        close(crl->mfd);
-        close(notifyFd);
+        (void)close(crl->mfd);
+        (void)close(notifyFd);
         return NULL;
     }
 
@@ -1143,8 +1162,8 @@ static void* DoMonitor(void* arg)
 
     if (wd > 0)
         inotify_rm_watch(notifyFd, wd);
-    close(crl->mfd);
-    close(notifyFd);
+    (void)close(crl->mfd);
+    (void)close(notifyFd);
 
     return NULL;
 }

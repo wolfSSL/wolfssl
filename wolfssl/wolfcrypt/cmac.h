@@ -1,6 +1,6 @@
 /* cmac.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,6 +53,16 @@ struct Cmac {
     byte k2[AES_BLOCK_SIZE];
     word32 bufferSz;
     word32 totalSz;
+#ifdef WOLF_CRYPTO_CB
+    int devId;
+    void* devCtx;
+    #ifdef WOLFSSL_QNX_CAAM
+    byte ctx[32]; /* hold state for save and return */
+    word32 blackKey;
+    word32 keylen;
+    byte   initialized;
+    #endif
+#endif
 };
 
 
@@ -70,6 +80,12 @@ WOLFSSL_API
 int wc_InitCmac(Cmac* cmac,
                 const byte* key, word32 keySz,
                 int type, void* unused);
+
+WOLFSSL_API
+int wc_InitCmac_ex(Cmac* cmac,
+                const byte* key, word32 keySz,
+                int type, void* unused, void* heap, int devId);
+
 WOLFSSL_API
 int wc_CmacUpdate(Cmac* cmac,
                   const byte* in, word32 inSz);

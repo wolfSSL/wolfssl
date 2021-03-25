@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1605,11 +1605,11 @@ enum Misc {
     /* Check chosen encryption is available. */
     #if !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) && \
         defined(WOLFSSL_TICKET_ENC_CHACHA20_POLY1305)
-        #error "ChaCha20-Poly1305 not availble for default ticket encryption"
+        #error "ChaCha20-Poly1305 not available for default ticket encryption"
     #endif
     #if !defined(HAVE_AESGCM) && (defined(WOLFSSL_TICKET_ENC_AES128_GCM) || \
         defined(WOLFSSL_TICKET_ENC_AES256_GCM))
-        #error "AES-GCM not availble for default ticket encryption"
+        #error "AES-GCM not available for default ticket encryption"
     #endif
 
     #ifndef WOLFSSL_TICKET_KEY_LIFETIME
@@ -1684,6 +1684,21 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
     #endif
 #endif
 
+struct WOLFSSL_BY_DIR_HASH {
+    unsigned long hash_value;
+    int last_suffix;
+};
+
+struct WOLFSSL_BY_DIR_entry {
+    char*   dir_name;
+    int     dir_type;
+    WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *hashes;
+};
+
+struct WOLFSSL_BY_DIR {
+    WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *dir_entry;
+    wolfSSL_Mutex    lock; /* dir list lock */
+};
 
 /* wolfSSL method type */
 struct WOLFSSL_METHOD {
@@ -2067,6 +2082,11 @@ struct WOLFSSL_CERT_MANAGER {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_STORE  *x509_store_p;  /* a pointer back to CTX x509 store  */
+                                        /* CTX has ownership and free this   */
+                                        /* with CTX free.                    */
+#endif
     wolfSSL_Mutex   refMutex;   /* reference count mutex */
     int             refCount;         /* reference count */
 };
@@ -2284,9 +2304,9 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
-WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length,
-                                      byte msgType, int* found);
-WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
+WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, const byte* input,
+                                      word16 length, byte msgType, int* found);
+WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                                byte msgType, Suites *suites);
 
 #elif defined(HAVE_SNI)                           \
@@ -2588,7 +2608,7 @@ typedef struct Cookie {
     byte   data;
 } Cookie;
 
-WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len,
+WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, const byte* data, word16 len,
                                   byte* mac, byte macSz, int resp);
 
 
@@ -2642,7 +2662,7 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
                                                  word16* pSz);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
                                                    byte msgType, word16* pSz);
-WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity,
+WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, const byte* identity,
                                         word16 len, word32 age, byte hmac,
                                         byte cipherSuite0, byte cipherSuite,
                                         byte resumption,
@@ -3691,6 +3711,8 @@ typedef struct Arrays {
 #define STACK_TYPE_X509_NAME          9
 #define STACK_TYPE_CONF_VALUE         10
 #define STACK_TYPE_X509_INFO          11
+#define STACK_TYPE_BY_DIR_entry       12
+#define STACK_TYPE_BY_DIR_hash        13
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3716,6 +3738,8 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME*  gn;
+        WOLFSSL_BY_DIR_entry*  dir_entry;
+        WOLFSSL_BY_DIR_HASH*   dir_hash;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
@@ -4811,6 +4835,43 @@ WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
     WOLFSSL_LOCAL int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev);
 #endif
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+WOLFSSL_LOCAL int LoadCertByIssuer(WOLFSSL_X509_STORE* store, 
+                                           X509_NAME* issuer, int Type);
+#endif
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_BY_DIR_HASH_new(void);
+WOLFSSL_LOCAL void wolfSSL_BY_DIR_HASH_free(WOLFSSL_BY_DIR_HASH* dir_hash);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfSSL_sk_BY_DIR_HASH_new_null(void);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_find(
+   WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk, const WOLFSSL_BY_DIR_HASH* toFind);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk, int i);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_HASH* wolfSSL_sk_BY_DIR_HASH_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk);
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_HASH_pop_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+    void (*f) (WOLFSSL_BY_DIR_HASH*));
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_HASH_free(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_HASH_push(WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH)* sk,
+                                               WOLFSSL_BY_DIR_HASH* in);
+/* WOLFSSL_BY_DIR_entry stuff */
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_BY_DIR_entry_new(void);
+WOLFSSL_LOCAL void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfSSL_sk_BY_DIR_entry_new_null(void);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_value(
+                        const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk, int i);
+WOLFSSL_LOCAL WOLFSSL_BY_DIR_entry* wolfSSL_sk_BY_DIR_entry_pop(
+                                WOLF_STACK_OF(WOLFSSL_BY_DIR_entry)* sk);
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_entry_pop_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
+    void (*f) (WOLFSSL_BY_DIR_entry*));
+WOLFSSL_LOCAL void wolfSSL_sk_BY_DIR_entry_free(WOLF_STACK_OF(wolfSSL_BY_DIR_entry) *sk);
+WOLFSSL_LOCAL int wolfSSL_sk_BY_DIR_entry_push(WOLF_STACK_OF(wolfSSL_BY_DIR_entry)* sk,
+                                               WOLFSSL_BY_DIR_entry* in);
+#endif /* OPENSSL_ALL && !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 #ifdef __cplusplus
     }  /* extern "C" */

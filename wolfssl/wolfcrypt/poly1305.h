@@ -1,6 +1,6 @@
 /* poly1305.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -109,18 +109,20 @@ typedef struct Poly1305 {
 /* does init */
 
 WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,
-                                  word32 kySz);
+    word32 kySz);
 WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
 
 /* AEAD Functions */
 WOLFSSL_API int wc_Poly1305_Pad(Poly1305* ctx, word32 lenToPad);
-WOLFSSL_API int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz, word32 dataSz);
+WOLFSSL_API int wc_Poly1305_EncodeSizes(Poly1305* ctx, word32 aadSz,
+    word32 dataSz);
 #ifdef WORD64_AVAILABLE
-WOLFSSL_API int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz, word64 dataSz);
+WOLFSSL_API int wc_Poly1305_EncodeSizes64(Poly1305* ctx, word64 aadSz,
+     word64 dataSz);
 #endif
-WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
-                               byte* input, word32 sz, byte* tag, word32 tagSz);
+WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
+    word32 addSz, const byte* input, word32 sz, byte* tag, word32 tagSz);
 
 #if defined(__aarch64__ ) && defined(WOLFSSL_ARMASM)
 void poly1305_blocks(Poly1305* ctx, const unsigned char *m,

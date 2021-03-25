@@ -1,6 +1,6 @@
 /* caam_aes.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -142,7 +142,7 @@ int  wc_AesCbcEncrypt(Aes* aes, byte* out,
         arg[1] = keySz;
         arg[2] = blocks * AES_BLOCK_SIZE;
 
-        if ((ret = wc_caamAddAndWait(buf, arg, CAAM_AESCBC)) != 0) {
+        if ((ret = wc_caamAddAndWait(buf, 4, arg, CAAM_AESCBC)) != 0) {
             WOLFSSL_MSG("Error with CAAM AES CBC encrypt");
             return ret;
         }

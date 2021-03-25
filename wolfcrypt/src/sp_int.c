@@ -1,6 +1,6 @@
 /* sp_int.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -77,6 +77,11 @@ This library provides single precision (SP) integer math functions.
  *      called again until complete.
  * WOLFSSL_SP_FAST_NCT_EXPTMOD  Enables the faster non-constant time modular
  *      exponentation implementation.
+ * WOLFSSL_SP_INT_NEGATIVE      Enables negative values to be used.
+ * WOLFSSL_SP_INT_DIGIT_ALIGN   Enable when unaligned access of sp_int_digit
+ *                              pointer is not allowed.
+ * WOLFSSL_SP_NO_DYN_STACK      Disable use of dynamic stack items.
+ *                              Used with small code size and not small stack.
  */
 
 #if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
@@ -91,7 +96,7 @@ This library provides single precision (SP) integer math functions.
         sp_int* n = NULL
 #else
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL)
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT(n, s)               \
             byte    n##d[MP_INT_SIZEOF(s)];     \
@@ -161,7 +166,7 @@ This library provides single precision (SP) integer math functions.
         sp_int* n[c] = { NULL, }
 #else
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL)
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Declare a variable on the stack with the required data size. */
         #define DECL_SP_INT_ARRAY(n, s, c)          \
             byte    n##d[MP_INT_SIZEOF(s) * (c)];   \
@@ -202,7 +207,7 @@ This library provides single precision (SP) integer math functions.
     while (0)
 #else
     #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL)
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         /* Data declared on stack that supports multiple sp_ints of the
          * required size. Use pointers into data to make up array and set sizes.
          */
@@ -2364,7 +2369,7 @@ void sp_forcezero(sp_int* a)
  *
  * @return  MP_OKAY on success.
  */
-int sp_copy(sp_int* a, sp_int* r)
+int sp_copy(const sp_int* a, sp_int* r)
 {
     int err = MP_OKAY;
 
@@ -2686,7 +2691,7 @@ int sp_is_bit_set(sp_int* a, unsigned int b)
  *
  * @return  The number of bits in the number.
  */
-int sp_count_bits(sp_int* a)
+int sp_count_bits(const sp_int* a)
 {
     int r = 0;
 
@@ -2997,7 +3002,8 @@ int sp_cmp_d(sp_int* a, sp_int_digit d)
 
 #if defined(WOLFSSL_SP_INT_NEGATIVE) || !defined(NO_PWDBASED) || \
     defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY))
+    ((defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_RSA)) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY))
 /* Add a one digit number to the multi-precision number.
  *
  * @param  [in]   a  SP integer be added to.
@@ -3104,25 +3110,33 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
+    /* Check validity of parameters. */
     if ((a == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
     else
     {
     #ifndef WOLFSSL_SP_INT_NEGATIVE
+        /* Positive only so just use internal function. */
         err = _sp_add_d(a, d, r);
     #else
         if (a->sign == MP_ZPOS) {
+            /* Positive so use interal function. */
             r->sign = MP_ZPOS;
             err = _sp_add_d(a, d, r);
         }
         else if ((a->used > 1) || (a->dp[0] > d)) {
+            /* Negative value bigger than digit so subtract digit. */
             r->sign = MP_NEG;
             _sp_sub_d(a, d, r);
         }
         else {
+            /* Negative value smaller or equal to digit. */
             r->sign = MP_ZPOS;
+            /* Subtract negative value from digit. */
             r->dp[0] = d - a->dp[0];
+            /* Result is a digit equal to or greater than zero. */
+            r->used = ((r->dp[0] == 0) ? 0 : 1);
         }
     #endif
     }
@@ -3146,25 +3160,32 @@ int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
     int err = MP_OKAY;
 
+    /* Check validity of parameters. */
     if ((a == NULL) || (r == NULL)) {
         err = MP_VAL;
     }
     else {
     #ifndef WOLFSSL_SP_INT_NEGATIVE
+        /* Positive only so just use internal function. */
         _sp_sub_d(a, d, r);
     #else
         if (a->sign == MP_NEG) {
+            /* Subtracting from negative use interal add. */
             r->sign = MP_NEG;
             err = _sp_add_d(a, d, r);
         }
         else if ((a->used > 1) || (a->dp[0] >= d)) {
+            /* Positive number greater than digit so add digit. */
             r->sign = MP_ZPOS;
             _sp_sub_d(a, d, r);
         }
         else {
+            /* Negative value smaller than digit. */
             r->sign = MP_NEG;
+            /* Subtract positive value from digit. */
             r->dp[0] = d - a->dp[0];
-            r->used = r->dp[0] > 0;
+            /* Result is a digit equal to or greater than zero. */
+            r->used = 1;
         }
     #endif
     }
@@ -3487,7 +3508,7 @@ static void _sp_div_small(sp_int* a, sp_int_digit d, sp_int* r,
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
-/* Divide a multi-precision number by a digit size number and calcualte
+/* Divide a multi-precision number by a digit size number and calculate
  * remainder.
  *   r = a / d; rem = a % d
  *
@@ -3958,7 +3979,8 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
  ****************************/
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES))
+    (!defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_CUSTOM_CURVES)) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Add two value and reduce: r = (a + b) % m
  *
  * @param  [in]   a  SP integer to add.
@@ -4002,7 +4024,8 @@ int sp_addmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
     FREE_SP_INT(t, NULL);
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL || (!WOLFSSL_SP_MATH && WOLFSSL_CUSTOM_CURVES) */
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_CUSTOM_CURVES) ||
+        * WOLFCRYPT_HAVE_ECCSI || WOLFCRYPT_HAVE_SAKKE */
 
 #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Sub b from a and reduce: r = (a - b) % m
@@ -4696,7 +4719,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         err = sp_div(a, m, NULL, r);
     }
 #else
-    ALLOC_SP_INT(t, m->used, err, NULL);
+    ALLOC_SP_INT(t, a->used + 1, err, NULL);
     if (err == MP_OKAY) {
         sp_init_size(t, a->used + 1);
         err = sp_div(a, m, NULL, t);
@@ -4747,7 +4770,8 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         int k;
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) &&         defined(WOLFSSL_SP_SMALL)
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         sp_int_digit t[a->used * 2];
     #else
         sp_int_digit t[SP_INT_DIGITS];
@@ -4823,7 +4847,8 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         int k;
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) &&         defined(WOLFSSL_SP_SMALL)
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         sp_int_digit t[a->used + b->used];
     #else
         sp_int_digit t[SP_INT_DIGITS];
@@ -4900,7 +4925,8 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
         int k;
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         sp_int_digit* t = NULL;
-    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) &&         defined(WOLFSSL_SP_SMALL)
+    #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         sp_int_digit t[a->used + b->used];
     #else
         sp_int_digit t[SP_INT_DIGITS];
@@ -7679,7 +7705,8 @@ int sp_mul(sp_int* a, sp_int* b, sp_int* r)
 }
 /* END SP_MUL implementations. */
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(WOLFCRYPT_HAVE_ECCSI)
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *
  * @param  [in]   a  SP integer to multiply.
@@ -9278,7 +9305,7 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         sp_int_digit* t = NULL;
     #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL)
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         sp_int_digit t[a->used * 2];
     #else
         sp_int_digit t[SP_INT_DIGITS];
@@ -9387,7 +9414,7 @@ int sp_mul_2d(sp_int* a, int e, sp_int* r)
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         sp_int_digit* t = NULL;
     #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-        defined(WOLFSSL_SP_SMALL)
+        defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SP_NO_DYN_STACK)
         sp_int_digit t[a->used * 2];
     #else
         sp_int_digit t[SP_INT_DIGITS];
@@ -11667,7 +11694,8 @@ int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
  * Montogmery functions
  **********************/
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH) || \
+    defined(WOLFCRYPT_HAVE_ECCSI) || defined(WOLFCRYPT_HAVE_SAKKE)
 /* Reduce a number in montgomery form.
  *
  * Assumes a and m are not NULL and m is not 0.
@@ -12063,7 +12091,8 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
 
     return err;
 }
-#endif
+#endif /* WOLFSSL_SP_MATH_ALL || WOLFSSL_HAVE_SP_DH ||
+        * WOLFCRYPT_HAVE_ECCSI || WOLFCRYPT_HAVE_SAKKE */
 
 /*********************************
  * To and from binary and strings.
@@ -12078,7 +12107,7 @@ int sp_mont_norm(sp_int* norm, sp_int* m)
  *
  * @return  The count of 8-bit values.
  */
-int sp_unsigned_bin_size(sp_int* a)
+int sp_unsigned_bin_size(const sp_int* a)
 {
     int cnt = 0;
 
@@ -12118,9 +12147,29 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
         int j;
         int s;
 
+    #ifndef WOLFSSL_SP_INT_DIGIT_ALIGN
         for (i = inSz-1,j = 0; i > SP_WORD_SIZEOF-1; i -= SP_WORD_SIZEOF,j++) {
             a->dp[j] = *(sp_int_digit*)(in + i - (SP_WORD_SIZEOF - 1));
         }
+    #else
+        for (i = inSz-1, j = 0; i >= SP_WORD_SIZEOF - 1; i -= SP_WORD_SIZEOF) {
+            a->dp[j]  = ((sp_int_digit)in[i - 0] <<  0);
+        #if SP_WORD_SIZE >= 16
+            a->dp[j] |= ((sp_int_digit)in[i - 1] <<  8);
+        #endif
+        #if SP_WORD_SIZE >= 32
+            a->dp[j] |= ((sp_int_digit)in[i - 2] << 16) |
+                        ((sp_int_digit)in[i - 3] << 24);
+        #endif
+        #if SP_WORD_SIZE >= 64
+            a->dp[j] |= ((sp_int_digit)in[i - 4] << 32) |
+                        ((sp_int_digit)in[i - 5] << 40) |
+                        ((sp_int_digit)in[i - 6] << 48) |
+                        ((sp_int_digit)in[i - 7] << 56);
+        #endif
+            j++;
+        }
+    #endif
         a->dp[j] = 0;
         for (s = 0; i >= 0; i--,s += 8) {
             a->dp[j] |= ((sp_int_digit)in[i]) << s;

@@ -1,6 +1,6 @@
 /* sha512.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -185,7 +185,8 @@
         }
 #endif
 
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_SILABS_SHA384)
@@ -975,7 +976,8 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 /* -------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SHA384
 
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_SILABS_SHA512)

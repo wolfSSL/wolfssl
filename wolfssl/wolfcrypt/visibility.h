@@ -1,6 +1,6 @@
 /* visibility.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -43,7 +43,8 @@
 */
 
 #if defined(BUILDING_WOLFSSL)
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__)
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+        defined(_WIN32_WCE)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllexport)
         #else
@@ -61,7 +62,8 @@
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__)
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__) || \
+        defined(_WIN32_WCE)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
         #else

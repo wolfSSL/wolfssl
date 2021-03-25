@@ -1,6 +1,6 @@
 /* rsa.h
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -283,7 +283,7 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
                                enum wc_HashType hash, int mgf,
                                RsaKey* key);
 
-WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
+WOLFSSL_API int  wc_RsaEncryptSize(const RsaKey* key);
 
 #if !defined(HAVE_FIPS) || \
 	(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))

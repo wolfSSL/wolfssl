@@ -1,6 +1,6 @@
 /* sha512.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -482,6 +482,17 @@ void wc_Sha512Free(wc_Sha512* sha512)
     }
 #endif
 }
+
+#ifdef OPENSSL_EXTRA
+int wc_Sha512Transform(wc_Sha512* sha512, const unsigned char* data)
+{
+    if (sha512 == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    Transform_Sha512_Len(sha512, data, WC_SHA512_BLOCK_SIZE);
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SHA512 */
 

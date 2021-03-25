@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -284,7 +284,8 @@
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH) && \
+    !defined(WOLFSSL_QNX_CAAM)
     /* wolfcrypt/src/port/caam/caam_sha.c */
 
 #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
@@ -494,6 +495,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
+    sha->devCtx = NULL;
 #endif
 
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \

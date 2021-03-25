@@ -1,6 +1,6 @@
 /* logging.c
  *
- * Copyright (C) 2006-2020 wolfSSL Inc.
+ * Copyright (C) 2006-2021 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -227,20 +227,24 @@ void wolfSSL_Debugging_OFF(void)
  */
 void WOLFSSL_START(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
-#ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
-#endif
-    wc_func_start[funcNum] = now;
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
+    #ifdef WOLFSSL_FUNC_TIME_LOG
+        fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+    #endif
+        wc_func_start[funcNum] = now;
+    }
 }
 
 void WOLFSSL_END(int funcNum)
 {
-    double now = current_time(0) * 1000.0;
-    wc_func_time[funcNum] += now - wc_func_start[funcNum];
-#ifdef WOLFSSL_FUNC_TIME_LOG
-    fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
-#endif
+    if (funcNum < WC_FUNC_COUNT) {
+        double now = current_time(0) * 1000.0;
+        wc_func_time[funcNum] += now - wc_func_start[funcNum];
+    #ifdef WOLFSSL_FUNC_TIME_LOG
+        fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+    #endif
+    }
 }
 
 void WOLFSSL_TIME(int count)
