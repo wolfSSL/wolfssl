@@ -3888,8 +3888,10 @@ error:
     if (sk)
         wolfSSL_sk_X509_free(sk);
 
-    for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
-        FreeDer(&certBuffers[i]);
+    if (certBuffers != NULL) {
+        for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
+            FreeDer(&certBuffers[i]);
+        }
     }
 
     if (certBuffers)
