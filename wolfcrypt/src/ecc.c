@@ -7632,6 +7632,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 }
 
 
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
 /* Performs a Pairwise Consistency Test on an ECC key pair. */
 static int _ecc_pairwise_consistency_test(ecc_key* key)
 {
@@ -7642,6 +7643,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key)
 
     return err;
 }
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
 
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
