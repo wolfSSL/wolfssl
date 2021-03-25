@@ -47493,7 +47493,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
         asn1->isDynamic = 0;
     }
-    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER_MAX));
+    XMEMSET(asn1->intData, 0, WOLFSSL_ASN1_INTEGER_MAX);
     asn1->data = asn1->intData;
     asn1->length = 0;
     asn1->negative = 0;
@@ -50012,8 +50012,8 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
             return NULL;
         }
     } else {
-	/* This may be overly defensive */
-	if (weOwn)
+        /* This may be overly defensive */
+        if (weOwn)
             wolfSSL_BN_free(ret);
         return NULL;
     }
