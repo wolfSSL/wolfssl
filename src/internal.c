@@ -1113,7 +1113,7 @@ static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
     }
 #else
     if (ver > DTLS_EXPORT_VERSION_3) {
-        exp[idx++] = 0;
+        idx++;
     }
 #endif
 #else
