@@ -40479,6 +40479,72 @@ static void test_stubs_are_stubs()
 #endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB */
 }
 
+
+static void test_CONF_modules_xxx(void)
+{
+#if defined(OPENSSL_EXTRA)
+    CONF_modules_free();
+    AssertTrue(1);   /* to confirm previous call gives no harm */
+
+    CONF_modules_unload(0);
+    AssertTrue(1);
+
+    CONF_modules_unload(1);
+    AssertTrue(1);
+
+    CONF_modules_unload(-1);
+    AssertTrue(1);
+
+#endif /* OPENSSL_EXTRA */
+}
+static void test_CRYPTO_set_dynlock_xxx(void)
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "CRYPTO_set_dynlock_xxx()");
+
+    CRYPTO_set_dynlock_create_callback(
+        (struct CRYPTO_dynlock_value *(*)(const char*, int))NULL);
+
+    CRYPTO_set_dynlock_create_callback(
+        (struct CRYPTO_dynlock_value *(*)(const char*, int))1);
+
+    CRYPTO_set_dynlock_destroy_callback(
+        (void (*)(struct CRYPTO_dynlock_value*, const char*, int))NULL);
+
+    CRYPTO_set_dynlock_destroy_callback(
+        (void (*)(struct CRYPTO_dynlock_value*, const char*, int))1);
+
+    CRYPTO_set_dynlock_lock_callback(
+        (void (*)(int, struct CRYPTO_dynlock_value *, const char*, int))NULL);
+
+    CRYPTO_set_dynlock_lock_callback(
+        (void (*)(int, struct CRYPTO_dynlock_value *, const char*, int))1);
+
+    AssertTrue(1);   /* to confirm previous call gives no harm */
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+static void test_CRYPTO_THREADID_xxx(void)
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "CRYPTO_THREADID_xxx()");
+
+    CRYPTO_THREADID_current((CRYPTO_THREADID*)NULL);
+    CRYPTO_THREADID_current((CRYPTO_THREADID*)1);
+    AssertIntEQ(CRYPTO_THREADID_hash((const CRYPTO_THREADID*)NULL), 0);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+static void test_ENGINE_cleanup(void)
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "ENGINE_cleanup()");
+    ENGINE_cleanup();
+    AssertTrue(1);   /* to confirm previous call gives no harm */
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 static void test_wolfSSL_CTX_LoadCRL()
 {
 #ifdef HAVE_CRL
@@ -41284,6 +41350,11 @@ void ApiTest(void)
 #ifndef NO_RSA   
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
 #endif    
+
+    test_CONF_modules_xxx();
+    test_CRYPTO_set_dynlock_xxx();
+    test_CRYPTO_THREADID_xxx();
+    test_ENGINE_cleanup();
 
 #if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
