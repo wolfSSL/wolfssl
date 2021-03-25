@@ -52566,7 +52566,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     ts             = (struct tm *)XGMTIME(&t_adj, tmpTime);
     if (ts == NULL){
         WOLFSSL_MSG("failed to get time data.");
-        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_ASN1_TIME_free(s);
         return NULL;
     }
 
@@ -52589,8 +52589,10 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)utc_str, sizeof(utc_str),
                   "%02d%02d%02d%02d%02d%02dZ",
                   utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS)
+        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS) {
+            wolfSSL_ASN1_TIME_free(s);
             return NULL;
+        }
     /* GeneralizedTime */
     } else {
         char gt_str[ASN_GENERALIZED_TIME_MAX];
@@ -52605,8 +52607,10 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)gt_str, sizeof(gt_str),
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS)
+        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS) {
+            wolfSSL_ASN1_TIME_free(s);
             return NULL;
+        }
     }
 
     return s;
