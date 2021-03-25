@@ -111,6 +111,7 @@ WOLFSSL_API int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
                             unsigned char* out, WOLFSSL_RSA* rsa, int padding);
 
 WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_bits(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA*);
