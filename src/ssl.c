@@ -41269,9 +41269,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 WOLFSSL_MSG("Serial size error");
                 return WOLFSSL_FAILURE;
             }
-            if ((int)sizeof(cert->serial) < serialSz) {
-                WOLFSSL_MSG("Serial buffer too small");
-                return BUFFER_E;
+
+            if (serialSz > EXTERNAL_SERIAL_SIZE ||
+                    serialSz > CTC_SERIAL_SIZE) {
+                WOLFSSL_MSG("Serial size too large error");
+                return WOLFSSL_FAILURE;
             }
             XMEMCPY(cert->serial, serial, serialSz);
             cert->serialSz = serialSz;
