@@ -624,7 +624,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         bio = bio->next;
     }
 
+#ifndef WOLFCRYPT_ONLY
 exit_chain:
+#endif
 
     /* info cb, user can override return value */
     if (front != NULL && front->infoCb != NULL) {
