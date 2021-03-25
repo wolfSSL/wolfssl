@@ -7895,6 +7895,8 @@ static int _ecc_validate_public_key(ecc_key* key, int partial, int priv)
 #endif /* WOLFSSL_ATECC508A */
     return err;
 #else
+    (void)partial;
+    (void)priv;
     return WC_KEY_SIZE_E;
 #endif /* !WOLFSSL_SP_MATH */
 }
