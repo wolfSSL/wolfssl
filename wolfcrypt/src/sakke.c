@@ -6120,7 +6120,7 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
     int err = 0;
     byte h[WC_MAX_DIGEST_SIZE];
     byte v[WC_MAX_DIGEST_SIZE];
-    word32 hashSz;
+    word32 hashSz = 0;
     word32 i;
 
     /* Step 1: A = hashfn( s ), where s = data | extra
