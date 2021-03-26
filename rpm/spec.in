@@ -270,6 +270,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/hmac.h
 %{_includedir}/wolfssl/wolfcrypt/idea.h
 %{_includedir}/wolfssl/wolfcrypt/integer.h
+%{_includedir}/wolfssl/wolfcrypt/kdf.h
 %{_includedir}/wolfssl/wolfcrypt/logging.h
 %{_includedir}/wolfssl/wolfcrypt/md2.h
 %{_includedir}/wolfssl/wolfcrypt/md4.h
@@ -309,6 +310,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %changelog
 * Thu Jul 08 2021 Jacob Barthelmeh <jacob@wolfssl.com>
 - Add a missing header eccsi, sakke.
+* Thu Mar 25 2021 John Safranek <john@wolfssl.com>
+- Add new header kdf.h
 * Mon Aug 17 2020 John Safranek <john@wolfssl.com>
 - Add a missing header.
 - Update for release.

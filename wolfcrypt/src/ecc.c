@@ -131,10 +131,8 @@ ECC Curve Sizes:
 #include <wolfssl/wolfcrypt/sp.h>
 #endif
 
-#if defined(HAVE_ECC_ENCRYPT) || defined(WOLFSSL_ECDSA_SET_K) || \
-    defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
-    defined(WOLFSSL_ECDSA_DETERMINISTIC_K)
-    #include <wolfssl/wolfcrypt/hmac.h>
+#ifdef HAVE_ECC_ENCRYPT
+    #include <wolfssl/wolfcrypt/kdf.h>
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 

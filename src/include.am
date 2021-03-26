@@ -317,6 +317,7 @@ if BUILD_CMAC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 
+src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
                              wolfcrypt/src/fips_test.c
 
@@ -335,6 +336,7 @@ if !BUILD_FIPS_RAND
 # CtaoCrypt files included above.
 if !BUILD_FIPS_CURRENT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hmac.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
 endif !BUILD_FIPS_CURRENT
 
 # CAVP self test

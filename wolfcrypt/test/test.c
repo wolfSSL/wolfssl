@@ -238,6 +238,7 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 #include <wolfssl/wolfcrypt/poly1305.h>
 #include <wolfssl/wolfcrypt/camellia.h>
 #include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/kdf.h>
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/dsa.h>
 #include <wolfssl/wolfcrypt/srp.h>
