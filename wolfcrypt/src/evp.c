@@ -6942,7 +6942,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
 
     *outl = 0;
 
-    /* if the remaining data exit in the ctx, add input data to them 
+    /* if the remaining data exists in the ctx, add input data to them
      * to create a block(48bytes) for encoding
      */
     if (ctx->remaining > 0 && inl > 0) {
@@ -6958,6 +6958,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             outsz = BASE64_ENCODE_RESULT_BLOCK_SIZE + 1;
             res = Base64_Encode(ctx->data, BASE64_ENCODE_BLOCK_SIZE, out, 
             &outsz);
+            ctx->remaining = 0;
             if (res == 0)
                 *outl = outsz;
             else
@@ -6988,7 +6989,7 @@ int  wolfSSL_EVP_EncodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         }
     }
 
-    /* if remaining data exit, copy them into ctx for the next call*/
+    /* if remaining data exists, copy them into ctx for the next call*/
     if (inl > 0) {
         XMEMSET(ctx->data, 0, sizeof(ctx->data));
         XMEMCPY(ctx->data, in, inl);
@@ -7011,6 +7012,10 @@ void wolfSSL_EVP_EncodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
         return;
 
     if (ctx == NULL || out == NULL) {
+        *outl = 0;
+        return;
+    }
+    if (ctx->remaining >= BASE64_ENCODE_RESULT_BLOCK_SIZE) {
         *outl = 0;
         return;
     }
@@ -7118,7 +7123,16 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         }
     }
 
-    /* process data in input buffer */
+    /* Base64_Decode is not a streaming process, so it processes
+     * the input data and exits. If a line break or whitespace
+     * character is found in the input data, it will be skipped,
+     * but if the end point of the input data is reached as a result,
+     * Base64_Decode will stop processing there. The data cleansing is
+     * required before Base64_Decode so that the processing does not
+     * stop within 4 bytes, which is the unit of Base64 decoding processing.
+     * The logic that exists before calling Base64_Decode in a While Loop is
+     * a data cleansing process that removes line breaks and whitespace.
+     */
     while (inLen > 3) {
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             if (res == BUFFER_E) {
@@ -7188,7 +7202,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         /* decode four bytes */
         outsz = sizeof(ctx->data);
         res = Base64_Decode( e, BASE64_DECODE_BLOCK_SIZE, out, &outsz);
-        if (res == ASN_INPUT_E) {
+        if (res < 0) {
             *outl = 0;
             return -1;
         }
