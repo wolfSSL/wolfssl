@@ -1340,7 +1340,7 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
     if (ret == 0) {
         ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
-        if (ret != 0) ret = DHE_PCT_FIPS_E;
+        if (ret != 0) ret = DHE_PCT_E;
     }
 
     return ret;
