@@ -276,6 +276,36 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #endif /* WOLFSSL_DTLS */
 
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+
+static int test_NetworkFilterCallback(WOLFSSL *ssl, struct wolfSSL_network_connection *nc, void *ctx, wolfSSL_netfilter_decision_t *decision) {
+    const void *remote_addr2;
+    const void *local_addr2;
+    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
+    int ret;
+
+    (void)ssl;
+    (void)ctx;
+
+    if ((ret = wolfSSL_get_endpoint_addrs(nc, &remote_addr2, &local_addr2)) != WOLFSSL_SUCCESS) {
+        printf("wolfSSL_get_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
+        err_sys_ex(catastrophic, "error in wolfSSL_get_endpoints()");
+    }
+
+    printf("got network filter callback: family=%d proto=%d rport=%d lport=%d raddr=%s laddr=%s interface=%d\n",
+           nc->family,
+           nc->proto,
+           nc->remote_port,
+           nc->local_port,
+           inet_ntop(nc->family, remote_addr2, inet_ntop_buf, sizeof inet_ntop_buf),
+           inet_ntop(nc->family, local_addr2, inet_ntop_buf2, sizeof inet_ntop_buf2),
+           nc->interface);
+
+    *decision = WOLFSSL_NETFILTER_ACCEPT;
+    return 0;
+}
+
+#endif /* WOLFSSL_NETWORK_INTROSPECTION */
 
 static int NonBlockingSSL_Accept(SSL* ssl)
 {
@@ -1839,6 +1869,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
         err_sys_ex(catastrophic, "unable to get ctx");
+
+#ifdef WOLFSSL_NETWORK_INTROSPECTION
+    if (wolfSSL_CTX_set_AcceptFilter(ctx, test_NetworkFilterCallback, NULL /* AcceptFilter_arg */) < 0)
+        err_sys_ex(catastrophic, "unable to install test_NetworkFilterCallback");
+#endif
 
     if (simulateWantWrite)
     {

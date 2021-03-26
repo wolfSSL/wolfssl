@@ -6467,9 +6467,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef WOLFSSL_NETWORK_INTROSPECTION
     if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection))
-        XFREE(ssl->buffers.network_connection_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+        XFREE(ssl->buffers.network_connection.addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection_layer2))
-        XFREE(ssl->buffers.network_connection_layer2_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+        XFREE(ssl->buffers.network_connection_layer2.addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
 #endif /* WOLFSSL_NETWORK_INTROSPECTION */
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     XFREE(ssl->peerTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);

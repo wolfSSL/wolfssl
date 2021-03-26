@@ -1019,7 +1019,6 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 static WC_INLINE int wolfSSL_set_endpoints_1(
     WOLFSSL* ssl,
     struct wolfSSL_network_connection *nc,
-    byte **nc_addr_buffer_dynamic,
     unsigned int interface_id,
     unsigned int family,
     unsigned int proto,
@@ -1049,13 +1048,13 @@ static WC_INLINE int wolfSSL_set_endpoints_1(
 
     if (current_dynamic_alloc != needed_dynamic_alloc) {
         if (current_dynamic_alloc > 0)
-            XFREE(*nc_addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
+            XFREE(nc->addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
         if (needed_dynamic_alloc > 0) {
-            *nc_addr_buffer_dynamic = (byte *)XMALLOC
+            nc->addr_buffer_dynamic = (byte *)XMALLOC
                 (needed_dynamic_alloc,
                  ssl->heap,
                  DYNAMIC_TYPE_SOCKADDR);
-            if (*nc_addr_buffer_dynamic == NULL)
+            if (nc->addr_buffer_dynamic == NULL)
                 return MEMORY_E;
         }
     }
@@ -1072,8 +1071,8 @@ static WC_INLINE int wolfSSL_set_endpoints_1(
         XMEMCPY(nc->addr_buffer, remote_addr, remote_addr_len);
         XMEMCPY(nc->addr_buffer + remote_addr_len, local_addr, local_addr_len);
     } else {
-        XMEMCPY(*nc_addr_buffer_dynamic, remote_addr, remote_addr_len);
-        XMEMCPY((*nc_addr_buffer_dynamic) + remote_addr_len, local_addr, local_addr_len);
+        XMEMCPY(nc->addr_buffer_dynamic, remote_addr, remote_addr_len);
+        XMEMCPY((nc->addr_buffer_dynamic) + remote_addr_len, local_addr, local_addr_len);
     }
     nc->remote_addr_len = remote_addr_len;
     nc->local_addr_len = local_addr_len;
@@ -1095,7 +1094,6 @@ int wolfSSL_set_endpoints(
     return wolfSSL_set_endpoints_1(
         ssl,
         &ssl->buffers.network_connection,
-        &ssl->buffers.network_connection_addr_buffer_dynamic,
         interface_id,
         family,
         proto,
@@ -1118,7 +1116,6 @@ int wolfSSL_set_endpoints_layer2(
     return wolfSSL_set_endpoints_1(
         ssl,
         &ssl->buffers.network_connection_layer2,
-        &ssl->buffers.network_connection_layer2_addr_buffer_dynamic,
         interface_id,
         family,
         0 /* proto */,
@@ -1130,9 +1127,8 @@ int wolfSSL_set_endpoints_layer2(
         0 /* local_port */);
 }
 
-static WC_INLINE int wolfSSL_get_endpoints_1(
+WOLFSSL_API int wolfSSL_get_endpoint_addrs(
     const struct wolfSSL_network_connection *nc,
-    byte *nc_addr_buffer_dynamic,
     const void **remote_addr,
     const void **local_addr)
 {
@@ -1142,8 +1138,8 @@ static WC_INLINE int wolfSSL_get_endpoints_1(
         return INCOMPLETE_DATA;
 
     if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(*nc)) {
-        *remote_addr = nc_addr_buffer_dynamic;
-        *local_addr = nc_addr_buffer_dynamic + nc->remote_addr_len;
+        *remote_addr = nc->addr_buffer_dynamic;
+        *local_addr = nc->addr_buffer_dynamic + nc->remote_addr_len;
     } else {
         *remote_addr = nc->addr_buffer;
         *local_addr = nc->addr_buffer + nc->remote_addr_len;
@@ -1159,7 +1155,7 @@ WOLFSSL_API int wolfSSL_get_endpoints(
     const void **local_addr)
 {
     *nc = &ssl->buffers.network_connection;
-    return wolfSSL_get_endpoints_1(*nc, ssl->buffers.network_connection_addr_buffer_dynamic, remote_addr, local_addr);
+    return wolfSSL_get_endpoint_addrs(*nc, remote_addr, local_addr);
 }
 
 WOLFSSL_API int wolfSSL_get_endpoints_layer2(
@@ -1169,12 +1165,11 @@ WOLFSSL_API int wolfSSL_get_endpoints_layer2(
     const void **local_addr)
 {
     *nc = &ssl->buffers.network_connection_layer2;
-    return wolfSSL_get_endpoints_1(*nc, ssl->buffers.network_connection_layer2_addr_buffer_dynamic, remote_addr, local_addr);
+    return wolfSSL_get_endpoint_addrs(*nc, remote_addr, local_addr);
 }
 
 static WC_INLINE int wolfSSL_copy_endpoints_1(
     struct wolfSSL_network_connection *nc_src,
-    byte *nc_addr_buffer_dynamic,
     struct wolfSSL_network_connection *nc_dst,
     size_t nc_dst_size,
     const void **remote_addr,
@@ -1192,7 +1187,7 @@ static WC_INLINE int wolfSSL_copy_endpoints_1(
         return BUFFER_E;
     XMEMCPY(nc_dst, nc_src, ((unsigned int)(unsigned long int)(&((struct wolfSSL_network_connection *)0)->addr_buffer[0])));
     if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(*nc_src))
-        XMEMCPY(nc_dst->addr_buffer, nc_addr_buffer_dynamic, nc_src->remote_addr_len + nc_src->local_addr_len);
+        XMEMCPY(nc_dst->addr_buffer, nc_src->addr_buffer_dynamic, nc_src->remote_addr_len + nc_src->local_addr_len);
     else
         XMEMCPY(nc_dst->addr_buffer, nc_src->addr_buffer, nc_src->remote_addr_len + nc_src->local_addr_len);
     *remote_addr = nc_dst->addr_buffer;
@@ -1211,7 +1206,7 @@ WOLFSSL_API int wolfSSL_copy_endpoints(
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection, ssl->buffers.network_connection_addr_buffer_dynamic, nc, nc_size, remote_addr, local_addr);
+    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection, nc, nc_size, remote_addr, local_addr);
 }
 
 WOLFSSL_API int wolfSSL_copy_endpoints_layer2(
@@ -1224,7 +1219,7 @@ WOLFSSL_API int wolfSSL_copy_endpoints_layer2(
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection_layer2, ssl->buffers.network_connection_layer2_addr_buffer_dynamic, nc, nc_size, remote_addr, local_addr);
+    return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection_layer2, nc, nc_size, remote_addr, local_addr);
 }
 
 WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {

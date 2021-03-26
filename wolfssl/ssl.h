@@ -1155,7 +1155,10 @@ struct wolfSSL_network_connection {
     word16 remote_addr_len;
     word16 local_addr_len;
     byte interface;
-    byte addr_buffer[0];
+    union {
+        byte addr_buffer[WOLFSSL_NETWORK_INTROSPECTION_STATIC_ADDR_BYTES];
+        byte *addr_buffer_dynamic;
+    };
 };
 
 #define WOLFSSL_NETWORK_CONNECTION_BUFSIZ(remote_addr_len, local_addr_len) \
@@ -1172,6 +1175,11 @@ WOLFSSL_API int wolfSSL_set_endpoints(
     const byte *local_addr,
     unsigned int remote_port,
     unsigned int local_port);
+
+WOLFSSL_API int wolfSSL_get_endpoint_addrs(
+    const struct wolfSSL_network_connection *nc,
+    const void **remote_addr,
+    const void **local_addr);
 
 WOLFSSL_API int wolfSSL_get_endpoints(
     WOLFSSL *ssl,
