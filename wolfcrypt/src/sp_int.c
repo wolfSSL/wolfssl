@@ -12290,7 +12290,7 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
     return err;
 }
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Store the number in big-endian format in array at an offset.
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
  * to calculate the number of bytes required.
@@ -12312,9 +12312,9 @@ int sp_to_unsigned_bin_at_pos(int o, sp_int*a, unsigned char* out)
 
     return ret;
 }
-#endif /* WOLFSSL_SP_MATH_ALL */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(HAVE_ECC)
 /* Convert hexadecimal number as string in big-endian format to a
  * multi-precision number.
@@ -12388,9 +12388,9 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
     }
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
+#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Convert decimal number as string in big-endian format to a multi-precision
  * number.
  *
@@ -12447,9 +12447,9 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(HAVE_ECC)
 /* Convert a number as string in big-endian format to a big number.
  * Only supports base-16 (hexadecimal) and base-10 (decimal).
@@ -12482,7 +12482,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
         if (radix == 16) {
             err = _sp_read_radix_16(a, in);
         }
-    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         else if (radix == 10) {
             err = _sp_read_radix_10(a, in);
         }
@@ -12494,7 +12494,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
+#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)
