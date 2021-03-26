@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* For AES-CBC, input lengths can optionally be validated to be a
+ * multiple of the block size, by defining WOLFSSL_AES_CBC_LENGTH_CHECKS,
+ * also available via the configure option --enable-aescbc-length-checks.
+ */
+
 
 /*----------------------------------------------------------------------------*
  | Includes
@@ -13155,7 +13160,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         if (cbcE == 0) {
             cbcE = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector) - 1);
         }
-        if (cbcE == BAD_ALIGN_E) {
+        if (cbcE == BAD_LENGTH_E) {
             cbcE = 0;
         } else {
             cbcE = WOLFSSL_FATAL_ERROR;
@@ -13190,7 +13195,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
             cbcD = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE * 2 - 1);
         }
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-        if (cbcD == BAD_ALIGN_E) {
+        if (cbcD == BAD_LENGTH_E) {
             cbcD = 0;
         } else {
             cbcD = WOLFSSL_FATAL_ERROR;
