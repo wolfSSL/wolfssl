@@ -16516,7 +16516,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(HAVE_SECRET_CALLBACK)
 #if !defined(NO_WOLFSSL_SERVER)
 size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
                                                                    size_t outSz)
@@ -16548,7 +16549,7 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
     return size;
 }
 #endif /* !NO_WOLFSSL_SERVER */
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || HAVE_SECRET_CALLBACK */
 
 #ifdef OPENSSL_EXTRA
 #if !defined(NO_WOLFSSL_SERVER)
@@ -16810,7 +16811,8 @@ WOLFSSL_API int wolfSSL_CTX_get_min_proto_version(WOLFSSL_CTX* ctx)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(HAVE_SECRET_CALLBACK)
 #if !defined(NO_WOLFSSL_CLIENT)
 /* Return the amount of random bytes copied over or error case.
  * ssl : ssl struct after handshake
@@ -16849,7 +16851,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     return size;
 }
 #endif /* !NO_WOLFSSL_CLIENT */
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || HAVE_SECRET_CALLBACK */
 
 #ifdef OPENSSL_EXTRA
     unsigned long wolfSSLeay(void)
