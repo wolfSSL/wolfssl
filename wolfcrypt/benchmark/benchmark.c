@@ -6188,7 +6188,7 @@ void bench_eccsiPairGen(void)
     byte id[] = { 0x01, 0x23, 0x34, 0x45 };
     int ret;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6227,7 +6227,7 @@ void bench_eccsiValidate(void)
     int valid;
     int ret;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6272,7 +6272,7 @@ void bench_eccsi(void)
     int ret;
     int verified;
 
-    mp_init(&ssk);
+    (void)mp_init(&ssk);
     pvt = wc_ecc_new_point();
     (void)wc_InitEccsiKey(&genKey, NULL, INVALID_DEVID);
     (void)wc_MakeEccsiKey(&genKey, &gRng);
@@ -6518,10 +6518,10 @@ void bench_sakke(void)
     bench_stats_asym_finish("SAKKE", 1024, desc[10], 0, count, start, 0);
 
     len = 0;
-    wc_GenerateSakkeRskTable(&genKey, rsk, NULL, &len);
+    (void)wc_GenerateSakkeRskTable(&genKey, rsk, NULL, &len);
     if (len > 0) {
         table = (byte*)XMALLOC(len, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_GenerateSakkeRskTable(&genKey, rsk, table, &len);
+        (void)wc_GenerateSakkeRskTable(&genKey, rsk, table, &len);
     }
     (void)wc_SetSakkeRsk(&genKey, rsk, table, len);
 

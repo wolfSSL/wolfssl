@@ -2748,6 +2748,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         }
         ctx = wolfSSL_CTX_new(method);
     }
+    if (ctx == NULL) {
+        goto done;
+    }
 
 #if defined(HAVE_SESSION_TICKET) && \
     ((defined(HAVE_CHACHA) && defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))

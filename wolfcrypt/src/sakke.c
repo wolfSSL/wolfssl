@@ -6134,6 +6134,10 @@ static int sakke_hash_to_range(SakkeKey* key, enum wc_HashType hashType,
         XMEMSET(h, 0, hashSz);
         err = 0; /* reset err value after getting digest size */
     }
+    else if (err == 0) {
+        /* invalid hash digest size */
+        err = BAD_FUNC_ARG;
+    }
 
     /* Step 3: l = Ceiling(lg(n)/hashlen) */
     /* Step 4: For each i in 1 to l, do */
