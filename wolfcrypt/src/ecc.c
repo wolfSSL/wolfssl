@@ -8302,7 +8302,7 @@ static int _ecc_pairwise_consistency_test(ecc_key* key)
     int err = 0;
 
     if (ecc_check_privkey_gen_helper(key) != 0)
-        err = ECC_PCT_FIPS_E;
+        err = ECC_PCT_E;
 
     return err;
 }
