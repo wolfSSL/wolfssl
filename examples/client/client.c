@@ -3334,7 +3334,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
                              defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
                              defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
-#if !defined(NO_SESSION_CACHE)
+#if !defined(NO_SESSION_CACHE) && \
+    (defined(HAVE_SESSION_TICKET) || defined(SESSION_CERTS)) && \
+        !defined(NO_FILESYSTEM)
     #ifndef NO_BIO
     /* print out session to stdout */
     {
