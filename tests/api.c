@@ -38278,6 +38278,7 @@ static void test_EVP_PKEY_cmp(void)
     EVP_PKEY *a, *b;
     const unsigned char *in;
 
+    printf(testingFmt, "wolfSSL_EVP_PKEY_cmp()");
 #if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
     in = client_key_der_2048;
     AssertNotNull(a = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL,
@@ -38287,7 +38288,11 @@ static void test_EVP_PKEY_cmp(void)
         &in, (long)sizeof_client_key_der_2048));
 
     /* Test success case RSA */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 1);
+#else
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#endif /* WOLFSSL_ERROR_CODE_OPENSSL */
 
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
@@ -38302,7 +38307,11 @@ static void test_EVP_PKEY_cmp(void)
         &in, (long)sizeof_ecc_clikey_der_256));
 
     /* Test success case ECC */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 1);
+#else
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#endif /* WOLFSSL_ERROR_CODE_OPENSSL */
 
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
@@ -38319,8 +38328,11 @@ static void test_EVP_PKEY_cmp(void)
     AssertNotNull(b = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL,
         &in, (long)sizeof_ecc_clikey_der_256));
 
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(a, b), -1);
+#else
     AssertIntNE(EVP_PKEY_cmp(a, b), 0);
-
+#endif /* WOLFSSL_ERROR_CODE_OPENSSL */
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
 #endif
@@ -38328,10 +38340,17 @@ static void test_EVP_PKEY_cmp(void)
     /* invalid or empty failure cases */
     a = EVP_PKEY_new();
     b = EVP_PKEY_new();
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(EVP_PKEY_cmp(NULL, NULL), 0);
+    AssertIntEQ(EVP_PKEY_cmp(a, NULL), 0);
+    AssertIntEQ(EVP_PKEY_cmp(NULL, b), 0);
+    AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
+#else
     AssertIntNE(EVP_PKEY_cmp(NULL, NULL), 0);
     AssertIntNE(EVP_PKEY_cmp(a, NULL), 0);
     AssertIntNE(EVP_PKEY_cmp(NULL, b), 0);
     AssertIntNE(EVP_PKEY_cmp(a, b), 0);
+#endif
     EVP_PKEY_free(b);
     EVP_PKEY_free(a);
 

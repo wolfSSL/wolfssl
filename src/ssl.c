@@ -16336,8 +16336,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
             XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
+            return WOLFSSL_SUCCESS;
         }
-        return 1;
+        return WOLFSSL_FAILURE;
     }
 
     /* like BIO_free, but no return value */
