@@ -764,6 +764,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         M2MB_DIR_T* dir;
         struct M2MB_DIRENT* entry;
         struct M2MB_STAT s;
+    #elif defined(INTIME_RTOS)
+        FIND_FILE_DATA FindFileData;
     #else
         struct dirent* entry;
         DIR*   dir;
