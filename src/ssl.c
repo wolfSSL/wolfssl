@@ -52769,6 +52769,18 @@ int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa)
     }
     return wc_RsaEncryptSize((RsaKey*)rsa->internal);
 }
+/* return RSA modulus in bits                      */
+/* @param rsa a pointer to WOLFSSL_RSA structur    */
+/* @return RSA modulus size in bits, 0 if error    */
+int wolfSSL_RSA_bits(const WOLFSSL_RSA* rsa)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_bits");
+    
+    if (rsa == NULL)
+        return WOLFSSL_FAILURE;
+    
+    return wolfSSL_BN_num_bits(rsa->n);
+}
 #endif
 
 #if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) && \
