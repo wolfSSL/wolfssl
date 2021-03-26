@@ -5040,7 +5040,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
-#endif /* WLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)

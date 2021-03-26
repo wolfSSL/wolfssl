@@ -666,7 +666,7 @@ TEST_CASE("wolfssl sha crypt-test", "[wolfssl]")
     ESP_LOGI(TAG, "sha256_test()");
     TEST_ASSERT_EQUAL(0, sha256_test());
 #endif
-#ifdef WOLSSL_SHA384
+#ifdef WOLFSSL_SHA384
     ESP_LOGI(TAG, "sha384_test()");
     TEST_ASSERT_EQUAL(0, sha384_test());
 #endif

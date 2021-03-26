@@ -2360,7 +2360,7 @@ void sp_forcezero(sp_int* a)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-#if defined(WOLSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 /* Copy value of multi-precision number a into r.
  *
@@ -2390,7 +2390,7 @@ int sp_copy(const sp_int* a, sp_int* r)
 }
 #endif
 
-#if defined(WOLSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && defined(FP_ECC))
+#if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && defined(FP_ECC))
 /* Initializes r and copies in value from a.
  *
  * @param  [out]  r  SP integer - destination.
@@ -2409,7 +2409,7 @@ int sp_init_copy(sp_int* r, sp_int* a)
     }
     return err;
 }
-#endif /* WOLSSL_SP_MATH_ALL || (HAVE_ECC && FP_ECC) */
+#endif /* WOLFSSL_SP_MATH_ALL || (HAVE_ECC && FP_ECC) */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     !defined(NO_DH) || !defined(NO_DSA)

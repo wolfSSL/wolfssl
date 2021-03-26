@@ -35554,7 +35554,7 @@ WOLFSSL_TEST_SUBROUTINE int mp_test(void)
     if (ret != 0)
         return -13300;
 
-#ifdef WOLSSL_SP_MATH_ALL
+#ifdef WOLFSSL_SP_MATH_ALL
     mp_init_copy(&p, &a);
 #else
     ret = mp_init(&p);
