@@ -194,13 +194,7 @@ struct WC_RNG {
     #define RNG WC_RNG
 #endif
 
-#ifndef WC_RNG_SEED_CB
-WOLFSSL_LOCAL
-int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
-#else
-WOLFSSL_API
-int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
-#endif
+WOLFSSL_API int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 
 
 #ifdef HAVE_WNR
