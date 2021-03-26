@@ -128,7 +128,7 @@ ECC Curve Sizes:
 #endif
 
 #ifdef HAVE_ECC_ENCRYPT
-    #include <wolfssl/wolfcrypt/hmac.h>
+    #include <wolfssl/wolfcrypt/kdf.h>
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
