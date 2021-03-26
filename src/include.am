@@ -250,7 +250,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
 src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 endif BUILD_FIPS_V3
 
-if BUILD_FIPS_V4
+if BUILD_FIPS_V5
 # FIPS 140-3 first file
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/wolfcrypt_first.c
@@ -323,7 +323,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
 
 # fips last file
 src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
-endif BUILD_FIPS_V4
+endif BUILD_FIPS_V5
 
 endif BUILD_FIPS
 

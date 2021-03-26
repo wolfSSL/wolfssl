@@ -152,12 +152,10 @@ if BUILD_SELFTEST
 nobase_include_HEADERS+= wolfssl/wolfcrypt/selftest.h
 endif
 
-if BUILD_FIPS_V2
+if BUILD_FIPS
+if !BUILD_FIPS_V1
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
-
-if BUILD_FIPS_RAND
-nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
 
 if BUILD_QNXCAAM
@@ -170,11 +168,4 @@ endif
 
 if BUILD_IOTSAFE
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/iotsafe/iotsafe.h
-
-if BUILD_FIPS_V3
-nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
-endif
-
-if BUILD_FIPS_V4
-nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
