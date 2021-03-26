@@ -46262,6 +46262,7 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || FORTRESS */
 
+/* Note: This is a huge section of API's - through wolfSSL_SESSION_print */
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
                              defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
                              defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))

@@ -3331,7 +3331,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE)
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
+#if !defined(NO_SESSION_CACHE)
     #ifndef NO_BIO
     /* print out session to stdout */
     {
@@ -3345,6 +3348,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_BIO_free(bio);
     }
     #endif /* !NO_BIO */
+#endif
 #endif
 
     if (doSTARTTLS && starttlsProt != NULL) {
