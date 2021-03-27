@@ -6501,10 +6501,10 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
     word32 derSz = 0;
     if (!pkey || !ecc)
         return WOLFSSL_FAILURE;
-    if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
+    if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
         byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
         if (derBuf) {
-            if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) >= 0) {
+            if (wc_EccKeyToDer(ecc, derBuf, derSz) >= 0) {
                 if (pkey->pkey.ptr) {
                     XFREE(pkey->pkey.ptr, NULL, DYNAMIC_TYPE_OPENSSL);
                 }
