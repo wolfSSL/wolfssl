@@ -6498,7 +6498,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 /* try and populate public pkey_sz and pkey.ptr */
 static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 {
-    word32 derSz = 0;
+    int derSz = 0;
     if (!pkey || !ecc)
         return WOLFSSL_FAILURE;
     if ((derSz = wc_EccKeyDerSize(ecc, 1)) > 0) {
