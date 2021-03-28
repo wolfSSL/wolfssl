@@ -28,7 +28,7 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.c
  */
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_SHA512)
 #ifdef __aarch64__
 #include <wolfssl/wolfcrypt/sha512.h>
 
@@ -1050,4 +1050,4 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 }
 
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM && WOLFSSL_SHA512 */

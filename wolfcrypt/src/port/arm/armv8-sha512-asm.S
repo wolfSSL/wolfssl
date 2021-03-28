@@ -28,7 +28,7 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_SHA512)
 #ifdef __aarch64__
 #ifndef __APPLE__
 	.text
@@ -1093,7 +1093,7 @@ L_sha512_len_neon_start:
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* __APPLE__ */
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM && WOLFSSL_SHA512 */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
