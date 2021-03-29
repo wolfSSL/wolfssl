@@ -7947,6 +7947,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
             }
             wolfSSL_EVP_PKEY_free(pkey);
         }
+        else
+            wc_FreeDhKey(&dh);
     }
     #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
     #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
