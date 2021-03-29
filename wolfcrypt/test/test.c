@@ -16168,7 +16168,7 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
     byte   p[2] = { 1, 7 }; /* 263 in decimal */
     byte   g[2] = { 0, 2 };
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FFDHE)
 #ifdef WOLFSSL_DH_CONST
     /* the table for constant DH lookup will round to the lowest byte size 21 */
     byte   priv[21];
@@ -16222,7 +16222,7 @@ static int dh_generate_test(WC_RNG *rng)
         ERROR_OUT(-8017, exit_gen_test);
     }
 
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FFDHE)
     /* Use API. */
     ret = wc_DhGenerateKeyPair(smallKey, rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
