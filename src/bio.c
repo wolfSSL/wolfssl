@@ -235,17 +235,29 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                 else {
                     ret = (int)XREAD(bio->num, buf, len);
                 }
+                #else
+                WOLFSSL_MSG("No file pointer and XREAD not enabled");
+                ret = NOT_COMPILED_IN;
                 #endif
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_FILE used with NO_FILESYSTEM");
+                ret = NOT_COMPILED_IN;
             #endif /* !NO_FILESYSTEM */
                 break;
             case WOLFSSL_BIO_SSL:
             #ifndef WOLFCRYPT_ONLY
                 ret = wolfSSL_BIO_SSL_read(bio, buf, len, front);
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_SSL used with WOLFCRYPT_ONLY");
+                ret = NOT_COMPILED_IN;
             #endif
                 break;
             case WOLFSSL_BIO_MD: /* data passing through BIO MD wrapper */
             #ifndef WOLFCRYPT_ONLY
                 ret = wolfSSL_BIO_MD_read(bio, buf, ret);
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_MD used with WOLFCRYPT_ONLY");
+                ret = NOT_COMPILED_IN;
             #endif
                 break;
             case WOLFSSL_BIO_SOCKET:
@@ -283,11 +295,15 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
  *
  * returns the resulting buffer size on success.
  */
+/**
+ * `out` buffer is allocated here and the caller is responsible
+ *       for free'ing it
+ */
 static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
-        word32 inLen, byte* out, word32* outLen)
+        word32 inLen, byte** out, word32* outLen, WOLFSSL_BIO* front)
 {
+    word32 sz = 0;
     byte* tmp = NULL;
-    int ret   = 0;
 
     WOLFSSL_ENTER("wolfSSL_BIO_BASE64_write");
 
@@ -295,33 +311,69 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         return BAD_FUNC_ARG;
     }
 
-    tmp = (byte*)XMALLOC(*outLen, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    /* get the encoded length */
+    if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
+        if (Base64_Encode_NoNl((const byte*)data, inLen, NULL,
+                    &sz) != LENGTH_ONLY_E) {
+            WOLFSSL_MSG("Error with base64 get length");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+    else {
+        if (Base64_Encode((const byte*)data, inLen, NULL, &sz) !=
+            LENGTH_ONLY_E) {
+            WOLFSSL_MSG("Error with base64 get length");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    /* allocate buffer for encoded output */
+    if (*out == NULL && sz > 0) {
+        *out = (void*)XMALLOC(sz, front->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (*out == NULL) {
+            WOLFSSL_MSG("Memory error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+    else if (sz > *outLen) {
+        tmp = (void*)XREALLOC(*out, sz, front->heap,
+               DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            WOLFSSL_MSG("Memory error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        *out = tmp;
+    }
+    *outLen = sz;
+
+    /* Allocate temporary buffer since base64 functions can't work in place */
+    tmp = (byte*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
+        WOLFSSL_MSG("Memory error");
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if ((bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) ==
-            WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
+    if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
         if (Base64_Encode_NoNl((const byte*)data, inLen,
                 tmp, outLen) < 0) {
-            ret = WOLFSSL_FATAL_ERROR;
+            XFREE(tmp, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FATAL_ERROR;
         }
     }
     else {
         if (Base64_Encode((const byte*)data, inLen,
                 tmp, outLen) < 0) {
-            ret = WOLFSSL_FATAL_ERROR;
+            XFREE(tmp, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
-    if (ret != WOLFSSL_FATAL_ERROR) {
-        ret = (int) inLen;
-        XMEMCPY(out, tmp, *outLen);
-
-    }
+    XMEMCPY(*out, tmp, *outLen);
     XFREE(tmp, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return ret;
+    /* Encode successful */
+    return inLen;
 }
 #endif /* WOLFSSL_BASE64_ENCODE */
 
@@ -497,6 +549,8 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
 int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 {
     int ret = 0;
+    /* Use extra return var as we want to return how much of input we have
+     * written, not how big the base64 encoding ended up being */
     int retB64 = 0;
     WOLFSSL_BIO* front = bio;
     void* frmt = NULL;
@@ -523,55 +577,17 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             case WOLFSSL_BIO_BASE64:
             {
             #ifdef WOLFSSL_BASE64_ENCODE
-                word32 sz = 0;
-
-                /* get the encoded length */
-                if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
-                    if (Base64_Encode_NoNl((const byte*)data, len, NULL,
-                                &sz) != LENGTH_ONLY_E) {
-                        WOLFSSL_MSG("Error with base64 get length");
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                }
-                else {
-                    if (Base64_Encode((const byte*)data, len, NULL, &sz) !=
-                        LENGTH_ONLY_E) {
-                        WOLFSSL_MSG("Error with base64 get length");
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                }
-
-                /* allocate buffer for encoded output */
-                if (frmt == NULL && sz > 0 && ret != WOLFSSL_FATAL_ERROR) {
-                    frmt = (void*)XMALLOC(sz, front->heap,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-                    if (frmt == NULL) {
-                        WOLFSSL_MSG("Memory error");
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                    frmtSz = sz;
-                }
-                else if (sz > frmtSz) {
-                    frmt = (void*)XREALLOC(frmt, sz, front->heap,
-                            DYNAMIC_TYPE_TMP_BUFFER);
-                    if (frmt == NULL) {
-                        WOLFSSL_MSG("Memory error");
-                        ret = WOLFSSL_FATAL_ERROR;
-                    }
-                    /* since frmt already existed then data should point to 
-                        new formatted buffer */
-                    data = frmt;
-                    len  = frmtSz;
-                    frmtSz = sz;
-                }
-
-                if (ret >= 0) {
+                ret = retB64 = wolfSSL_BIO_BASE64_write(bio, data, (word32)len,
+                                                (byte**)&frmt, &frmtSz, front);
+                if (ret > 0) {
                     /* change so that data is formatted buffer */
-                    retB64 = wolfSSL_BIO_BASE64_write(bio, data, (word32)len,
-                            (byte*)frmt, &frmtSz);
                     data = frmt;
                     len  = frmtSz;
                 }
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_BASE64 used without "
+                            "WOLFSSL_BASE64_ENCODE");
+                ret = NOT_COMPILED_IN;
             #endif /* WOLFSSL_BASE64_ENCODE */
                 break;
             }
@@ -591,7 +607,13 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 else {
                     ret = (int)XWRITE(bio->num, data, len);
                 }
+                #else
+                WOLFSSL_MSG("No file pointer and XWRITE not enabled");
+                ret = NOT_COMPILED_IN;
                 #endif
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_FILE used with NO_FILESYSTEM");
+                ret = NOT_COMPILED_IN;
             #endif /* !NO_FILESYSTEM */
                 break;
             case WOLFSSL_BIO_SSL:
@@ -605,6 +627,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 }
                 /* Rest of chain is taken care of inside call */
                 goto exit_chain;
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_SSL used with WOLFCRYPT_ONLY");
+                ret = NOT_COMPILED_IN;
             #endif
                 break;
             case WOLFSSL_BIO_MD:
@@ -612,6 +637,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 if (bio->next != NULL) { /* data passing through MD BIO */
                     ret = wolfSSL_BIO_MD_write(bio, data, len);
                 }
+            #else
+                WOLFSSL_MSG("WOLFSSL_BIO_MD used with WOLFCRYPT_ONLY");
+                ret = NOT_COMPILED_IN;
             #endif
                 break;
             case WOLFSSL_BIO_SOCKET:
@@ -639,7 +667,7 @@ exit_chain:
         XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
-    if (retB64 != 0)
+    if (retB64 > 0 && ret > 0)
         return retB64;
     else
         return ret;
