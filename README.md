@@ -155,3 +155,5 @@ More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
 [TLS 1.3](https://www.wolfssl.com/docs/tls13/)
 
 [wolfSSL Vulnerabilities](https://www.wolfssl.com/docs/security-vulnerabilities/)
+
+[Additional wolfSSL Examples](https://github.com/wolfssl/wolfssl-examples)
