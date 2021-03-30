@@ -3085,8 +3085,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         int ret = 0;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_HandleTypeDef hcryp;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         ret = wc_Stm32_Aes_Init(aes, &hcryp);
         if (ret != 0)
@@ -3135,8 +3143,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
         int ret = 0;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_HandleTypeDef hcryp;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         ret = wc_Stm32_Aes_Init(aes, &hcryp);
         if (ret != 0)
@@ -3191,10 +3207,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
         word32 *iv;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_InitTypeDef cryptInit;
         CRYP_KeyInitTypeDef keyInit;
         CRYP_IVInitTypeDef ivInit;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
         if (ret != 0)
@@ -3266,10 +3290,18 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
         word32 *iv;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_InitTypeDef cryptInit;
         CRYP_KeyInitTypeDef keyInit;
         CRYP_IVInitTypeDef ivInit;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
         if (ret != 0)
@@ -3363,6 +3395,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if ((pi == NULL) || (po == NULL))
             return BAD_FUNC_ARG;    /*wrong pointer*/
 
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+
         wc_LockMutex(&Mutex_AesSEC);
 
         /* Set descriptor for SEC */
@@ -3388,16 +3426,24 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         secDesc->pointer7 = NULL;
         secDesc->nextDescriptorPtr = NULL;
 
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        size = AES_BUFFER_SIZE;
+#endif
         while (sz) {
             secDesc->header = descHeader;
             XMEMCPY(secReg, aes->reg, AES_BLOCK_SIZE);
-            if ((sz % AES_BUFFER_SIZE) == sz) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            sz -= AES_BUFFER_SIZE;
+#else
+            if (sz < AES_BUFFER_SIZE) {
                 size = sz;
                 sz = 0;
             } else {
                 size = AES_BUFFER_SIZE;
                 sz -= AES_BUFFER_SIZE;
             }
+#endif
+
             secDesc->length4 = size;
             secDesc->length5 = size;
 
@@ -3463,6 +3509,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         byte *iv, *enc_key;
         word32 blocks = (sz / AES_BLOCK_SIZE);
 
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
+
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
 
@@ -3492,8 +3546,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         word32 keySize;
         status_t status;
         byte* iv, *dec_key;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         byte temp_block[AES_BLOCK_SIZE];
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
@@ -3527,9 +3589,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int i;
         int offset = 0;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         iv = (byte*)aes->reg;
 
@@ -3555,9 +3625,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int i;
         int offset = 0;
-        word32 blocks = (sz / AES_BLOCK_SIZE);
         byte* iv;
         byte temp_block[AES_BLOCK_SIZE];
+        word32 blocks = (sz / AES_BLOCK_SIZE);
+
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+        if (blocks == 0)
+            return 0;
 
         iv = (byte*)aes->reg;
 
@@ -3586,9 +3664,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret;
 
+        if (sz == 0)
+            return 0;
+
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % AES_BLOCK_SIZE != 0) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
             return BAD_FUNC_ARG;
+#endif
         }
 
         ret = wc_Pic32AesCrypt(
@@ -3609,9 +3694,16 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int ret;
         byte scratch[AES_BLOCK_SIZE];
 
+        if (sz == 0)
+            return 0;
+
         /* hardware fails on input that is not a multiple of AES block size */
         if (sz % AES_BLOCK_SIZE != 0) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
             return BAD_FUNC_ARG;
+#endif
         }
         XMEMCPY(scratch, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
@@ -3666,7 +3758,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     /* Software AES - CBC Encrypt */
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        word32 blocks = (sz / AES_BLOCK_SIZE);
+        word32 blocks;
 
         if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
@@ -3675,6 +3767,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         if (sz == 0) {
             return 0;
         }
+
+        blocks = sz / AES_BLOCK_SIZE;
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        if (sz % AES_BLOCK_SIZE) {
+            return BAD_LENGTH_E;
+        }
+#endif
+
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -3779,14 +3879,23 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         word32 blocks;
 
-        if (aes == NULL || out == NULL || in == NULL
-                                       || sz % AES_BLOCK_SIZE != 0) {
+        if (aes == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
         }
 
         if (sz == 0) {
             return 0;
         }
+
+        blocks = sz / AES_BLOCK_SIZE;
+        if (sz % AES_BLOCK_SIZE) {
+#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+#else
+            return BAD_FUNC_ARG;
+#endif
+        }
+
     #ifdef WOLFSSL_IMXRT_DCP
         /* Implemented in wolfcrypt/src/port/nxp/dcp_port.c */
         if (aes->keylen == 16)
@@ -3856,7 +3965,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
     #endif
 
-        blocks = sz / AES_BLOCK_SIZE;
         while (blocks--) {
             XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
             wc_AesDecrypt(aes, (byte*)aes->tmp, out);
