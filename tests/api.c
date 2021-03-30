@@ -29916,6 +29916,51 @@ static void test_wolfSSL_ASN1_BIT_STRING(void)
 #endif
 }
 
+static void test_wolfSSL_a2i_ASN1_INTEGER(void)
+{
+#ifdef OPENSSL_EXTRA
+    BIO *bio, *out;
+    ASN1_INTEGER* ai;
+    char buf[] = "123456\n12345\n112345678912345678901234567890\n";
+    char tmp[1024];
+    int  tmpSz;
+
+    const char expected1[] = "123456";
+    const char expected2[] = "112345678912345678901234567890";
+
+    printf(testingFmt, "test_wolfSSL_a2i_ASN1_INTEGER()");
+
+    AssertNotNull(bio = BIO_new_mem_buf(buf, -1));
+    AssertNotNull(out = BIO_new(BIO_s_mem()));
+    AssertNotNull(ai = ASN1_INTEGER_new());
+
+    /* read first line */
+    AssertIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), SSL_SUCCESS);
+    AssertIntEQ(i2a_ASN1_INTEGER(out, ai), 6);
+    XMEMSET(tmp, 0, 1024);
+    tmpSz = BIO_read(out, tmp, 1024);
+    AssertIntEQ(tmpSz, 6);
+    AssertIntEQ(XMEMCMP(tmp, expected1, tmpSz), 0);
+
+    /* fail on second line (not % 2) */
+    AssertIntNE(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), SSL_SUCCESS);
+
+    /* read 3rd long line */
+    AssertIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), SSL_SUCCESS);
+    AssertIntEQ(i2a_ASN1_INTEGER(out, ai), 30);
+    XMEMSET(tmp, 0, 1024);
+    tmpSz = BIO_read(out, tmp, 1024);
+    AssertIntEQ(tmpSz, 30);
+    AssertIntEQ(XMEMCMP(tmp, expected2, tmpSz), 0);
+
+    BIO_free(out);
+    BIO_free(bio);
+    ASN1_INTEGER_free(ai);
+
+    printf(resultFmt, passed);
+
+#endif
+}
 
 static void test_wolfSSL_DES_ecb_encrypt(void)
 {
@@ -30995,6 +31040,29 @@ static void test_wolfSSL_RAND_bytes(void)
 
     printf(resultFmt, passed);
 
+    #endif
+}
+
+static void test_wolfSSL_BN_rand(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIGNUM* bn;
+
+    printf(testingFmt, "wolfSSL_BN_rand()");
+
+    AssertNotNull(bn = BN_new());
+    AssertIntNE(BN_rand(bn, 0, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 8, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    AssertNotNull(bn = BN_new());
+    AssertIntEQ(BN_rand(bn, 64, 0, 0), SSL_SUCCESS);
+    BN_free(bn);
+
+    printf(resultFmt, passed);
     #endif
 }
 
@@ -42220,6 +42288,7 @@ void ApiTest(void)
 #endif
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_ASN1_BIT_STRING();
+    test_wolfSSL_a2i_ASN1_INTEGER();
     test_wolfSSL_X509();
     test_wolfSSL_X509_VERIFY_PARAM();
     test_wolfSSL_X509_sign();
@@ -42242,6 +42311,7 @@ void ApiTest(void)
     test_wolfSSL_THREADID_hash();
     test_wolfSSL_RAND_set_rand_method();
     test_wolfSSL_RAND_bytes();
+    test_wolfSSL_BN_rand();
     test_wolfSSL_pseudo_rand();
     test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_PKCS8_d2i();

@@ -9827,8 +9827,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     gn = wolfSSL_GENERAL_NAME_new();
                     if (gn == NULL) {
                         WOLFSSL_MSG("Error creating GENERAL_NAME");
-                        wolfSSL_sk_free(sk);
-                        return NULL;
+                        goto err;
                     }
 
                     gn->type = dns->type;
@@ -9836,18 +9835,14 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                     if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
                                 gn->d.ia5->length) != WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("ASN1_STRING_set failed");
-                        wolfSSL_GENERAL_NAME_free(gn);
-                        wolfSSL_sk_free(sk);
-                        return NULL;
+                        goto err;
                     }
 
                     dns = dns->next;
                     if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) !=
                                                       WOLFSSL_SUCCESS) {
                         WOLFSSL_MSG("Error pushing ASN1 object onto stack");
-                        wolfSSL_GENERAL_NAME_free(gn);
-                        wolfSSL_sk_free(sk);
-                        sk = NULL;
+                        goto err;
                     }
                     /* null so that it doesn't get pushed again after switch */
                     gn = NULL;
@@ -16510,7 +16505,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             wc_RemoveErrorNode(0);
         }
         } while (ret >= 0);
-        wolfSSL_BIO_write(bio, "", 1);
+        if (wolfSSL_BIO_write(bio, "", 1) != 1) {
+            WOLFSSL_MSG("Issue writing final string terminator");
+        }
     }
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
@@ -32405,6 +32402,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
         }
         else {
             len = wolfSSL_BN_bn2bin(bn, a->data);
+            if (len < 0) {
+                wolfSSL_ASN1_INTEGER_free(a);
+                return NULL;
+            }
         }
         a->length = len;
 
@@ -42154,6 +42155,7 @@ cleanup:
         pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;
+        XMEMSET(pem, 0, l);
 
         i = 0;
         if (wc_PemGetHeaderFooter(type, NULL, &footer) != 0) {
@@ -48818,7 +48820,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
         asn1->isDynamic = 0;
     }
-    XMEMSET(asn1->intData, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    XMEMSET(asn1->intData, 0, WOLFSSL_ASN1_INTEGER_MAX);
     asn1->data = asn1->intData;
     asn1->length = 0;
     asn1->negative = 0;
@@ -48847,7 +48849,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
         len = asn1->length + (lineLen/2);
         /* Check if it will fit in static memory and
          * save space for the ASN tag in front */
-        if (len > (int)(sizeof(asn1->intData) - extraTagSz)) {
+        if (len > (int)(WOLFSSL_ASN1_INTEGER_MAX - extraTagSz)) {
             /* Allocate mem for data */
             if (asn1->isDynamic) {
                 byte* tmp = (byte*)XREALLOC(asn1->data, len + extraTagSz, NULL,
@@ -48859,12 +48861,17 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
                 asn1->data = tmp;
             }
             else {
+                /* Up to this point asn1->data pointed to asn1->intData.
+                 * Now that the size has grown larger than intData can handle
+                 * the asn1 structure moves to a dynamic type with isDynamic
+                 * flag being set and asn1->data being malloc'd. */
                 asn1->data = (byte*)XMALLOC(len + extraTagSz, NULL,
                         DYNAMIC_TYPE_OPENSSL);
                 if (!asn1->data) {
                     WOLFSSL_MSG("malloc error");
                     return WOLFSSL_FAILURE;
                 }
+                asn1->isDynamic = 1;
                 XMEMCPY(asn1->data, asn1->intData, asn1->length);
             }
         }
@@ -51415,7 +51422,7 @@ int wolfSSL_mask_bits(WOLFSSL_BIGNUM* bn, int n)
 int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
-    int           len    = bits / 8;
+    int           len;
     int           initTmpRng = 0;
     WC_RNG*       rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -51430,8 +51437,18 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     (void)bottom;
     WOLFSSL_MSG("wolfSSL_BN_rand");
 
+    if (bits <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    len = bits / 8;
     if (bits % 8)
         len++;
+
+    /* has to be a length of at least 1 since we set buf[0] and buf[len-1] */
+    if (len < 1) {
+        return WOLFSSL_FAILURE;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -51488,7 +51505,7 @@ int wolfSSL_BN_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
 {
     int           ret    = 0;
-    int           len    = bits / 8;
+    int           len;
     int           initTmpRng = 0;
     WC_RNG*       rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
@@ -51499,10 +51516,22 @@ int wolfSSL_BN_pseudo_rand(WOLFSSL_BIGNUM* bn, int bits, int top, int bottom)
     byte          buff[1024];
 #endif
 
-    WOLFSSL_MSG("wolfSSL_BN_rand");
+    WOLFSSL_ENTER("wolfSSL_BN_pseudo_rand");
 
+    if (bits <= 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    len = bits / 8;
     if (bits % 8)
         len++;
+
+    /* has to be a length of at least 1 since we set buf[0] and buf[len-1] */
+    if (top == 1 || top == 0 || bottom == 1) {
+        if (len < 1) {
+            return WOLFSSL_FAILURE;
+        }
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     buff   = (byte*)XMALLOC(1024,        NULL, DYNAMIC_TYPE_TMP_BUFFER);
