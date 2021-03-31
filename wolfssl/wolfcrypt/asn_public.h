@@ -32,6 +32,7 @@ This library defines the interface APIs for X509 certificates.
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/dsa.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -507,6 +508,13 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
         word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
     #endif
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
+#endif
+
+#ifndef NO_DSA
+    /* DSA parameter DER helper functions */
+    WOLFSSL_API int wc_DsaParamsDecode(const byte* input, word32* inOutIdx,
+                                       DsaKey*, word32);
+    WOLFSSL_API int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen);
 #endif
 
 #ifdef HAVE_ECC

@@ -4708,6 +4708,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     int    length;
     int    ret = 0;
     word32 oid;
+    word32 maxIdx;
 
     if (input == NULL || inOutIdx == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -4715,10 +4716,11 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+    maxIdx = (word32)(*inOutIdx + length);
+    if (GetInt(&key->p,  input, inOutIdx, maxIdx) < 0 ||
+        GetInt(&key->q,  input, inOutIdx, maxIdx) < 0 ||
+        GetInt(&key->g,  input, inOutIdx, maxIdx) < 0 ||
+        GetInt(&key->y,  input, inOutIdx, maxIdx) < 0 )
         ret = ASN_DH_KEY_E;
 
     if (ret != 0) {
@@ -4748,6 +4750,27 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     key->type = DSA_PUBLIC;
     return ret;
+}
+
+int wc_DsaParamsDecode(const byte* input, word32* inOutIdx, DsaKey* key,
+                        word32 inSz)
+{
+    int    length;
+    word32 maxIdx;
+
+    if (input == NULL || inOutIdx == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    maxIdx = (word32)(*inOutIdx + length);
+    if (GetInt(&key->p, input, inOutIdx, maxIdx) < 0 ||
+        GetInt(&key->q, input, inOutIdx, maxIdx) < 0 ||
+        GetInt(&key->g, input, inOutIdx, maxIdx) < 0)
+        return ASN_DH_KEY_E;
+
+    return 0;
 }
 
 
@@ -4828,6 +4851,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
 static mp_int* GetDsaInt(DsaKey* key, int idx)
 {
+    /* Other functions depend on this order. Please don't change it. */
     if (idx == 0)
         return &key->p;
     if (idx == 1)
@@ -4843,11 +4867,11 @@ static mp_int* GetDsaInt(DsaKey* key, int idx)
 }
 
 /* Release Tmp DSA resources */
-static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
+static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap, int ints)
 {
     int i;
 
-    for (i = 0; i < DSA_INTS; i++)
+    for (i = 0; i < ints; i++)
         XFREE(tmps[i], heap, DYNAMIC_TYPE_DSA);
 
     (void)heap;
@@ -5047,11 +5071,10 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 }
 #endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 
-/* Convert private DsaKey key to DER format, write to output (inLen),
-   return bytes written */
-int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
+static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32 inLen,
+                           int ints, int includeVersion)
 {
-    word32 seqSz, verSz, rawLen, intTotalLen = 0;
+    word32 seqSz = 0, verSz = 0, rawLen, intTotalLen = 0;
     word32 sizes[DSA_INTS];
     int    i, j, outLen, ret = 0, mpSz;
 
@@ -5059,17 +5082,14 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     byte  ver[MAX_VERSION_SZ];
     byte* tmps[DSA_INTS];
 
-    if (!key || !output)
+    if (ints > DSA_INTS)
         return BAD_FUNC_ARG;
 
-    if (key->type != DSA_PRIVATE)
-        return BAD_FUNC_ARG;
-
-    for (i = 0; i < DSA_INTS; i++)
+    for (i = 0; i < ints; i++)
         tmps[i] = NULL;
 
     /* write all big ints from key to DER tmps */
-    for (i = 0; i < DSA_INTS; i++) {
+    for (i = 0; i < ints; i++) {
         mp_int* keyInt = GetDsaInt(key, i);
 
         rawLen = mp_unsigned_bin_size(keyInt) + 1;
@@ -5089,33 +5109,60 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     }
 
     if (ret != 0) {
-        FreeTmpDsas(tmps, key->heap);
+        FreeTmpDsas(tmps, key->heap, ints);
         return ret;
     }
 
     /* make headers */
-    verSz = SetMyVersion(0, ver, FALSE);
+    if (includeVersion)
+        verSz = SetMyVersion(0, ver, FALSE);
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
     if (outLen > (int)inLen) {
-        FreeTmpDsas(tmps, key->heap);
+        FreeTmpDsas(tmps, key->heap, ints);
         return BAD_FUNC_ARG;
     }
 
     /* write to output */
     XMEMCPY(output, seq, seqSz);
     j = seqSz;
-    XMEMCPY(output + j, ver, verSz);
-    j += verSz;
+    if (includeVersion) {
+        XMEMCPY(output + j, ver, verSz);
+        j += verSz;
+    }
 
-    for (i = 0; i < DSA_INTS; i++) {
+    for (i = 0; i < ints; i++) {
         XMEMCPY(output + j, tmps[i], sizes[i]);
         j += sizes[i];
     }
-    FreeTmpDsas(tmps, key->heap);
+    FreeTmpDsas(tmps, key->heap, ints);
 
     return outLen;
+}
+
+/* Convert private DsaKey key to DER format, write to output (inLen),
+   return bytes written */
+int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
+{
+    if (!key || !output)
+        return BAD_FUNC_ARG;
+
+    if (key->type != DSA_PRIVATE)
+        return BAD_FUNC_ARG;
+
+    return DsaKeyIntsToDer(key, output, inLen, DSA_INTS, 1);
+}
+
+/* Convert DsaKey parameters to DER format, write to output (inLen),
+   return bytes written. Version is excluded to be compatible with
+   OpenSSL d2i_DSAparams */
+int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen)
+{
+    if (!key || !output)
+        return BAD_FUNC_ARG;
+
+    return DsaKeyIntsToDer(key, output, inLen, DSA_PARAM_INTS, 0);
 }
 
 #endif /* NO_DSA */
