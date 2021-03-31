@@ -1677,7 +1677,7 @@ then
 
     if test "$ENABLED_INTELASM" = "yes"
     then
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_RDSEED -DUSE_INTEL_SPEEDUP"
+        AM_CFLAGS="$AM_CFLAGS -DUSE_INTEL_SPEEDUP"
         ENABLED_AESNI=yes
     fi
 fi
