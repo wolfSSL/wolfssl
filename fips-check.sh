@@ -273,7 +273,7 @@ linuxv5)
   CRYPT_VERSION="fipsv3"
   CRYPT_INC_PATH="wolfssl/wolfcrypt"
   CRYPT_SRC_PATH="wolfcrypt/src"
-  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 )
+  WC_MODS=( aes sha sha256 sha512 rsa hmac random cmac dh ecc sha3 kdf )
   RNG_VERSION="fipsv3"
   FIPS_SRCS=( fips.c fips_test.c wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
