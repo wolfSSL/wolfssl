@@ -1117,7 +1117,7 @@ static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
     }
 #else
     if (ver > DTLS_EXPORT_VERSION_3) {
-        exp[idx++] = 0;
+        idx++;
     }
 #endif
 #else
@@ -7160,7 +7160,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 {
     WOLFSSL_ENTER("DtlsMsgSet()");
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-                                             (fragOffset + fragSz) <= msg->sz) {
+        fragSz <= msg->sz && fragOffset <= msg->sz &&
+        (fragOffset + fragSz) <= msg->sz) {
         DtlsFrag* cur = msg->fragList;
         DtlsFrag* prev = cur;
         DtlsFrag* newFrag;
@@ -9864,9 +9865,13 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             } else {
                 wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
             }
-            if (!(x509->key.algor->algorithm =
-                    wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
-                ret = PUBLIC_KEY_E;
+            if (!x509->key.algor) {
+                ret = MEMORY_E;
+            } else {
+                if (!(x509->key.algor->algorithm =
+                        wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
+                    ret = PUBLIC_KEY_E;
+                }
             }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
@@ -21853,7 +21858,7 @@ exit_dpk:
             ato16(input + *inOutIdx, &len);
             *inOutIdx += OPAQUE16_LEN;
 
-            if ((*inOutIdx - begin) + len > size)
+            if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
             if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&

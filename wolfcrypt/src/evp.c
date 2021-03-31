@@ -2228,7 +2228,10 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+        int nid;
+        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL) break;
+        nid = wolfSSL_EVP_MD_type(ctxmd);
         if (nid < 0) break;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, pkey->rsa);
@@ -2304,7 +2307,10 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+        int nid;
+        const WOLFSSL_EVP_MD *ctxmd = wolfSSL_EVP_MD_CTX_md(ctx);
+        if (ctxmd == NULL) break;
+        nid = wolfSSL_EVP_MD_type(ctxmd);
         if (nid < 0) break;
         return wolfSSL_RSA_verify(nid, md, mdsize, sig,
                 (unsigned int)siglen, pkey->rsa);
@@ -2680,7 +2686,11 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
             unsigned int sigSz;
-            int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+            int nid;
+            const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
+            if (md == NULL)
+                break;
+            nid = wolfSSL_EVP_MD_type(md);
             if (nid < 0)
                 break;
             ret = wolfSSL_RSA_sign_generic_padding(nid, digest, hashLen,
@@ -2773,7 +2783,11 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         switch (ctx->pctx->pkey->type) {
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
-            int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
+            int nid;
+            const WOLFSSL_EVP_MD *md = wolfSSL_EVP_MD_CTX_md(ctx);
+            if (md == NULL)
+                return WOLFSSL_FAILURE;
+            nid = wolfSSL_EVP_MD_type(md);
             if (nid < 0)
                 return WOLFSSL_FAILURE;
             return wolfSSL_RSA_verify_ex(nid, digest, hashLen, sig,
