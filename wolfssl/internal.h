@@ -2860,10 +2860,10 @@ struct WOLFSSL_CTX {
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
     void *AcceptFilter_arg;
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
@@ -4084,10 +4084,10 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
 #endif
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
     NetworkFilterCallback_t AcceptFilter;
     void *AcceptFilter_arg;
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv  CBIORecv;
     CallbackIOSend  CBIOSend;
 #ifdef WOLFSSL_STATIC_MEMORY

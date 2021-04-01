@@ -8356,12 +8356,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         return WOLFSSL_FATAL_ERROR;
     }
 
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if (ssl->AcceptFilter && (ssl->buffers.network_connection.remote_addr_len > 0)) {
         wolfSSL_netfilter_decision_t res;
         if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
             (res == WOLFSSL_NETFILTER_REJECT)) {
-            WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
             return WOLFSSL_FATAL_ERROR;
         }
     }
@@ -8369,11 +8369,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         wolfSSL_netfilter_decision_t res;
         if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection_layer2, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
             (res == WOLFSSL_NETFILTER_REJECT)) {
-            WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
             return WOLFSSL_FATAL_ERROR;
         }
     }
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #ifndef NO_CERTS
     /* allow no private key if using PK callbacks and CB is set */

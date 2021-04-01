@@ -2503,16 +2503,55 @@ then
 fi
 
 
+AC_ARG_ENABLE([wolfsentry],
+    [AS_HELP_STRING([--enable-wolfsentry],[Enable wolfSentry hooks and plugins (default: disabled)])],
+    [ ENABLED_WOLFSENTRY=$enableval ],
+    [ ENABLED_WOLFSENTRY=no ]
+    )
+
+if test "$ENABLED_WOLFSENTRY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS"
+    ENABLED_NETWORK_INTROSPECTION_DEFAULT=yes
+else
+    ENABLED_NETWORK_INTROSPECTION_DEFAULT=no
+fi
+
+AC_ARG_WITH([wolfsentry-lib],
+    [AS_HELP_STRING([--with-wolfsentry-lib=PATH],[PATH to directory with wolfSentry library])],
+    [WOLFSENTRY_LIB=-L$withval],
+    [WOLFSENTRY_LIB=""])
+
+if test "$ENABLED_WOLFSENTRY" = "yes"
+then
+    WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
+fi
+
+AC_ARG_WITH([wolfsentry-include],
+    [AS_HELP_STRING([--with-wolfsentry-include=PATH],[PATH to directory with wolfSentry header files])],
+    [WOLFSENTRY_INCLUDE=-I$withval],
+    [WOLFSENTRY_INCLUDE=""])
+
+AC_SUBST([WOLFSENTRY_LIB])
+AC_SUBST([WOLFSENTRY_INCLUDE])
+
+
 # API for tracking network connection attributes
 AC_ARG_ENABLE([network-introspection],
     [AS_HELP_STRING([--enable-network-introspection],[Enable network connection attribute tracking and callbacks (default: disabled)])],
     [ ENABLED_NETWORK_INTROSPECTION=$enableval ],
-    [ ENABLED_NETWORK_INTROSPECTION=no ]
+    [ ENABLED_NETWORK_INTROSPECTION=$ENABLED_NETWORK_INTROSPECTION_DEFAULT ]
     )
 
 if test "$ENABLED_NETWORK_INTROSPECTION" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NETWORK_INTROSPECTION"
+fi
+
+
+if test "$ENABLED_WOLFSENTRY" = "yes" && test "$ENABLED_NETWORK_INTROSPECTION" != "yes"
+then
+    AC_MSG_ERROR([--enable-wolfsentry requires --enable-network-introspection])
 fi
 
 
@@ -6598,6 +6637,7 @@ echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * Connection tracking:        $ENABLED_NETWORK_INTROSPECTION"
+echo "   * wolfSentry:                 $ENABLED_WOLFSENTRY"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"

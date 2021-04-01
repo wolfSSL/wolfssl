@@ -1222,6 +1222,8 @@ WOLFSSL_API int wolfSSL_copy_endpoints_layer2(
     return wolfSSL_copy_endpoints_1(&ssl->buffers.network_connection_layer2, nc, nc_size, remote_addr, local_addr);
 }
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+
 WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {
     ctx->AcceptFilter = AcceptFilter;
     ctx->AcceptFilter_arg = AcceptFilter_arg;
@@ -1233,6 +1235,8 @@ WOLFSSL_API int wolfSSL_set_AcceptFilter(WOLFSSL *ssl, NetworkFilterCallback_t A
     ssl->AcceptFilter_arg = AcceptFilter_arg;
     return WOLFSSL_SUCCESS;
 }
+
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #endif /* WOLFSSL_NETWORK_INTROSPECTION */
 
@@ -13126,7 +13130,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             wolfSSL_netfilter_decision_t res;
             if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
                 (res == WOLFSSL_NETFILTER_REJECT)) {
-                WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
                 return WOLFSSL_FATAL_ERROR;
             }
         }
@@ -13134,7 +13138,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             wolfSSL_netfilter_decision_t res;
             if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection_layer2, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
                 (res == WOLFSSL_NETFILTER_REJECT)) {
-                WOLFSSL_ERROR(ssl->error = SOCKET_ERROR_E);
+                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
                 return WOLFSSL_FATAL_ERROR;
             }
         }

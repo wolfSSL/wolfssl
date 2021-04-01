@@ -19449,7 +19449,10 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case TOO_MUCH_EARLY_DATA:
         return "Too much early data";
-        
+
+    case SOCKET_FILTERED_E:
+        return "Session stopped by network filter";
+
     default :
         return "unknown error number";
     }
