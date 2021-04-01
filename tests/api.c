@@ -30997,6 +30997,9 @@ static void test_wolfSSL_RAND_set_rand_method(void)
 
     printf(testingFmt, "wolfSSL_RAND_set_rand_method()");
 
+    buf = (byte*)XMALLOC(32 * sizeof(byte), NULL,
+                                               DYNAMIC_TYPE_TMP_BUFFER);
+                                                     
     AssertIntNE(wolfSSL_RAND_status(), 5432);
     AssertIntEQ(*was_cleanup_called, 0);
     wolfSSL_RAND_Cleanup();
@@ -31033,6 +31036,8 @@ static void test_wolfSSL_RAND_set_rand_method(void)
     wolfSSL_RAND_Cleanup();
     AssertIntEQ(*was_cleanup_called, 0);
 
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA && !WOLFSSL_NO_OPENSSL_RAND_CB */
 }
@@ -31048,17 +31053,24 @@ static void test_wolfSSL_RAND_bytes(void)
     byte *my_buf;
 
     printf(testingFmt, "test_wolfSSL_RAND_bytes()");
-
+    /* sanity check */
+    AssertIntEQ(RAND_bytes(NULL, 16), 0);
+    AssertIntEQ(RAND_bytes(NULL, 0), 0);
+    
     max_bufsize = size4;
 
     my_buf = (byte*)XMALLOC(max_bufsize * sizeof(byte), NULL,
                                                      DYNAMIC_TYPE_TMP_BUFFER);
+    
+    AssertIntEQ(RAND_bytes(my_buf, 0), 1);
+    AssertIntEQ(RAND_bytes(my_buf, -1), 0);
+    
     AssertNotNull(my_buf);
     XMEMSET(my_buf, 0, max_bufsize);
-    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size1), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size2), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size3), 1);
-    AssertIntEQ(wolfSSL_RAND_bytes(my_buf, size4), 1);
+    AssertIntEQ(RAND_bytes(my_buf, size1), 1);
+    AssertIntEQ(RAND_bytes(my_buf, size2), 1);
+    AssertIntEQ(RAND_bytes(my_buf, size3), 1);
+    AssertIntEQ(RAND_bytes(my_buf, size4), 1);
 
     XFREE(my_buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
