@@ -1338,10 +1338,6 @@ static int wc_DhGenerateKeyPair_Sync(DhKey* key, WC_RNG* rng,
         ret = GeneratePublicDh(key, priv, *privSz, pub, pubSz);
     if (ret == 0)
         ret = _ffc_validate_public_key(key, pub, *pubSz, NULL, 0, 0);
-    if (ret == 0) {
-        ret = _ffc_pairwise_consistency_test(key, pub, *pubSz, priv, *privSz);
-        if (ret != 0) ret = DHE_PCT_E;
-    }
 
     return ret;
 }
@@ -1737,6 +1733,8 @@ int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 privSz)
 
 
 /* Performs a Pairwise Consistency Test on an FFC key pair. */
+/* Check DH Keys for pair-wise consistency per process in
+ * SP 800-56Ar3, section 5.6.2.1.4, method (b) for FFC. */
 static int _ffc_pairwise_consistency_test(DhKey* key,
         const byte* pub, word32 pubSz, const byte* priv, word32 privSz)
 {
