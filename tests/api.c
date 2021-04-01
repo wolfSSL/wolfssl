@@ -28455,6 +28455,28 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         X509_STORE_CTX_free(ctx);
     }
 
+    /* test X509_STORE_get/set_ex_data */
+    {
+        int i = 0, tmpData = 99;
+        void* tmpDataRet;
+        AssertNotNull(str = X509_STORE_new());
+    #if defined(HAVE_EX_DATA)
+        for (i = 0; i < MAX_EX_DATA; i++) {
+            AssertIntEQ(X509_STORE_set_ex_data(str, i, &tmpData),
+                        WOLFSSL_SUCCESS);
+            tmpDataRet = (int*)X509_STORE_get_ex_data(str, i);
+            AssertNotNull(tmpDataRet);
+            AssertIntEQ(tmpData, *(int*)tmpDataRet);
+        }
+    #else
+        AssertIntEQ(X509_STORE_set_ex_data(str, i, &tmpData),
+                    WOLFSSL_FAILURE);
+        tmpDataRet = (int*)X509_STORE_get_ex_data(str, i);
+        AssertNull(tmpDataRet);
+    #endif
+        X509_STORE_free(str);
+    }
+
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
