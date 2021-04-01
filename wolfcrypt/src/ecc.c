@@ -4545,13 +4545,6 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     }
 #endif
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    /* validate the public key, order * pubkey = point at infinity */
-    if (err == MP_OKAY)
-        err = ecc_check_pubkey_order(key, pub, curve->Af, curve->prime,
-                curve->order);
-#endif /* WOLFSSL_VALIDATE_KEYGEN */
-
     if (err != MP_OKAY) {
         /* clean up if failed */
     #ifndef ALT_ECC_SIZE
@@ -4836,12 +4829,6 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-        err = _ecc_pairwise_consistency_test(key);
-    }
-#endif
 
     return err;
 }
@@ -9057,7 +9044,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if ((pub != NULL) && (ret == MP_OKAY))
         /* public key needed to perform key validation */
-        ret = ecc_check_privkey_gen_helper(key);
+        ret = _ecc_pairwise_consistency_test(key);
 #endif
 
     return ret;
