@@ -699,6 +699,16 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XSTAT       _stat
         #define XS_ISREG(s) (s & _S_IFREG)
         #define SEPARATOR_CHAR ';'
+
+    #elif defined(INTIME_RTOS)
+        #include <sys/stat.h>
+        #define XSTAT _stat64
+        #define XS_ISREG(s) S_ISREG(s)
+        #define SEPARATOR_CHAR ';'
+        #define XWRITE      write
+        #define XREAD       read
+        #define XCLOSE      close
+
     #elif defined(WOLFSSL_ZEPHYR)
         #define XSTAT       fs_stat
         #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
@@ -765,7 +775,23 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         struct M2MB_DIRENT* entry;
         struct M2MB_STAT s;
     #elif defined(INTIME_RTOS)
-        FIND_FILE_DATA FindFileData;
+        struct stat64 s;
+        #if defined(INTIMEVER) && INTIMEVER > 0x0600
+            FIND_FILE_DATA FindFileData;
+            #define IntimeFindFirst(name, data) FindFirstRtFile(name, data, 0)
+            #define IntimeFindNext(data)  FindNextRtFile(data)
+            #define IntimeFindClose(data) FindRtFileClose(data)
+            #define IntimeFilename(ctx)   ctx->FindFileData.cFileName
+            #define IntimeNormalFile(ctx) (ctx->FindFileData.dwFileAttributes \
+                                           & FILE_ATTR_NORMAL)
+        #else
+            struct _find64 FindFileData;
+            #define IntimeFindFirst(name, data) _findfirst64(name, data)
+            #define IntimeFindNext(data)  _findnext64(data)
+            #define IntimeFindClose(data) _findclose64(data)
+            #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
+            #define IntimeNormalFile(ctx) (0 == wc_FileExists(IntimeFilename(ctx)))
+        #endif
     #else
         struct dirent* entry;
         DIR*   dir;
