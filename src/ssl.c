@@ -16618,13 +16618,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         /* NO-OP when setting existing store */
-        if (str == ssl->ctx->x509_store_pt || str == ssl->x509_store_pt)
+        if (str == ssl->x509_store_pt || (ssl->x509_store_pt == NULL &&
+                str == ssl->ctx->x509_store_pt))
             return WOLFSSL_SUCCESS;
 
         /* free existing store if it exists */
         wolfSSL_X509_STORE_free(ssl->x509_store_pt);
-        ssl->x509_store_pt = str; /* take ownership of store and free it
-                                     with SSL free */
+        if (str == ssl->ctx->x509_store_pt)
+            ssl->x509_store_pt = NULL; /* if setting ctx store then just revert
+                                          to using that instead */
+        else
+            ssl->x509_store_pt = str; /* take ownership of store and free it
+                                         with SSL free */
         return WOLFSSL_SUCCESS;
     }
 
@@ -16639,7 +16644,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         /* NO-OP when setting existing store */
-        if (str == ssl->ctx->x509_store_pt || str == ssl->x509_store_pt)
+        if (str == ssl->x509_store_pt || (ssl->x509_store_pt == NULL &&
+                str == ssl->ctx->x509_store_pt))
             return WOLFSSL_SUCCESS;
 
         if (wolfSSL_X509_STORE_up_ref(str) != WOLFSSL_SUCCESS) {
@@ -16649,8 +16655,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         /* free existing store if it exists */
         wolfSSL_X509_STORE_free(ssl->x509_store_pt);
-        ssl->x509_store_pt = str; /* take ownership of store and free it
-                                     with SSL free */
+        if (str == ssl->ctx->x509_store_pt)
+            ssl->x509_store_pt = NULL; /* if setting ctx store then just revert
+                                          to using that instead */
+        else
+            ssl->x509_store_pt = str; /* take ownership of store and free it
+                                         with SSL free */
         return WOLFSSL_SUCCESS;
     }
 
