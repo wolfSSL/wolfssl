@@ -311,6 +311,9 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         return BAD_FUNC_ARG;
     }
 
+    /* Potentially unused when memory functions ignore heap hints */
+    (void)front;
+
     /* get the encoded length */
     if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
         if (Base64_Encode_NoNl((const byte*)data, inLen, NULL,
