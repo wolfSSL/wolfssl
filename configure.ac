@@ -369,6 +369,7 @@ then
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha512" = "" && enable_sha512=yes
@@ -1302,6 +1303,18 @@ AC_ARG_ENABLE([aescbc],
 if test "$ENABLED_AESCBC" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
+fi
+
+# AES-CBC length checks (checks that input lengths are multiples of block size)
+AC_ARG_ENABLE([aescbc_length_checks],
+    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: disabled)])],
+    [ ENABLED_AESCBC_LENGTH_CHECKS=$enableval ],
+    [ ENABLED_AESCBC_LENGTH_CHECKS=no ]
+    )
+
+if test "$ENABLED_AESCBC_LENGTH_CHECKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CBC_LENGTH_CHECKS"
 fi
 
 # leanpsk and leantls don't need gcm
@@ -6584,6 +6597,7 @@ echo "   * ARC4:                       $ENABLED_ARC4"
 echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-CBC:                    $ENABLED_AESCBC"
+echo "   * AES-CBC length checks:      $ENABLED_AESCBC_LENGTH_CHECKS"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"

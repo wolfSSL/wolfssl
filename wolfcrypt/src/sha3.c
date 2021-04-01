@@ -638,44 +638,35 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  */
 static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
-#if defined(BIG_ENDIAN_ORDER)
-    word32 q = (l + 7) / 8;
-#endif
-    word32 k, rate = p * 8;
+    word32 rate = p * 8;
+    word32 j;
     byte i;
-    byte *state = (byte *)sha3->s;
 
     sha3->t[rate - 1]  = 0x00;
 #ifdef WOLFSSL_HASH_FLAGS
-    if (p == WC_SHA3_256_COUNT && sha3->flags & WC_HASH_SHA3_KECCAK256) {
+    if (p == WC_SHA3_256_COUNT && sha3->flags & WC_HASH_SHA3_KECCAK256)
         padChar = 0x01;
-    }
 #endif
-    sha3->t[  sha3->i]  = padChar;
+    sha3->t[sha3->i ]  = padChar;
     sha3->t[rate - 1] |= 0x80;
     for (i=sha3->i + 1; i < rate - 1; i++)
         sha3->t[i] = 0;
     for (i = 0; i < p; i++)
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
-    BlockSha3(sha3->s);
-#if defined(BIG_ENDIAN_ORDER)
-    ByteReverseWords64(sha3->s, sha3->s, (q > p) ? rate : q * 8);
-#endif
-    i = 0;
-    for (k = 0; k < l; k++)
-    {
-        if (i == rate)
-        {
-            i = 0;
-#if defined(BIG_ENDIAN_ORDER)
-            ByteReverseWords64(sha3->s, sha3->s, rate);
-            BlockSha3(sha3->s);
-            ByteReverseWords64(sha3->s, sha3->s, rate);
-#else
-            BlockSha3(sha3->s);
-#endif
-        }
-        hash[k] = state[i++];
+    for (j = 0; l - j >= rate; j += rate) {
+        BlockSha3(sha3->s);
+    #if defined(BIG_ENDIAN_ORDER)
+        ByteReverseWords64((word64*)(hash + j), sha3->s, rate);
+    #else
+        XMEMCPY(hash + j, sha3->s, rate);
+    #endif
+    }
+    if (j != l) {
+        BlockSha3(sha3->s);
+    #if defined(BIG_ENDIAN_ORDER)
+        ByteReverseWords64(sha3->s, sha3->s, rate);
+    #endif
+        XMEMCPY(hash + j, sha3->s, l - j);
     }
     return 0;
 }

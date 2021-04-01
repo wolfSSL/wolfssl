@@ -40479,7 +40479,7 @@ L_256_mod_inv_4_uv_u:
         shrd	r10, r11, 1
         shrd	r11, r12, 1
         shr	r12, 1
-        test	r8b, 1
+        test	r9b, 1
         jnz	L_256_mod_inv_4_usubv_even_end
 L_256_mod_inv_4_usubv_even_start:
         shrd	r9, r10, 1
@@ -40488,7 +40488,7 @@ L_256_mod_inv_4_usubv_even_start:
         shr	r12, 1
         mov	BYTE PTR [rsp+rsi], 0
         inc	rsi
-        test	r8b, 1
+        test	r9b, 1
         jz	L_256_mod_inv_4_usubv_even_start
 L_256_mod_inv_4_usubv_even_end:
         cmp	r9, 1
@@ -40561,7 +40561,7 @@ L_256_mod_inv_4_op_b_sub_d:
         adc	r11, QWORD PTR [r8+16]
         adc	r12, QWORD PTR [r8+24]
 L_256_mod_inv_4_op_div2_b:
-        test	r8b, 1
+        test	r9b, 1
         mov	rdx, 0
         jz	L_256_mod_inv_4_op_div2_b_mod
         add	r9, QWORD PTR [r8]
@@ -40896,19 +40896,19 @@ L_256_mod_inv_avx2_4_vsubu_sub_shr1:
         vpextrd	edi, xmm2, 0
         vpextrd	esi, xmm3, 0
 L_256_mod_inv_avx2_4_store_done:
-        movslq	rax, eax
+        movsxd	rax, eax
         shl	r9, 26
         add	rax, r9
-        movslq	r10, r10d
+        movsxd	r10, r10d
         shl	r11, 26
         add	r10, r11
-        movslq	r12, r12d
+        movsxd	r12, r12d
         shl	r13, 26
         add	r12, r13
-        movslq	r14, r14d
+        movsxd	r14, r14d
         shl	r15, 26
         add	r14, r15
-        movslq	rdi, edi
+        movsxd	rdi, edi
         shl	rsi, 26
         add	rdi, rsi
         mov	r9, r10

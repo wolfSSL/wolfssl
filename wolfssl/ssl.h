@@ -719,6 +719,7 @@ enum AlertLevel {
  * Since wolfSSL 4.7.0, the following functions use this macro:
  * - wolfSSL_CTX_load_verify_locations
  * - wolfSSL_X509_LOOKUP_load_file
+ * - wolfSSL_EVP_PKEY_cmp
  */
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     #define WS_RETURN_CODE(item1,item2) \
@@ -3613,11 +3614,14 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio,
 WOLFSSL_API void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx,
                                                        WOLFSSL_X509_STORE* str);
 WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx);
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(HAVE_SECRET_CALLBACK)
 WOLFSSL_API size_t wolfSSL_get_server_random(const WOLFSSL *ssl,
                                              unsigned char *out, size_t outlen);
 WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
                                               unsigned char* out, size_t outSz);
-#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || HAVE_SECRET_CALLBACK */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 WOLFSSL_API size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio);

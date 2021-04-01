@@ -2648,7 +2648,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
         }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
     {
         byte*  rnd = NULL;
         byte*  pt;

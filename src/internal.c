@@ -1117,7 +1117,7 @@ static int dtls_export_load(WOLFSSL* ssl, const byte* exp, word32 len, byte ver)
     }
 #else
     if (ver > DTLS_EXPORT_VERSION_3) {
-        exp[idx++] = 0;
+        idx++;
     }
 #endif
 #else
@@ -7160,7 +7160,8 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, word16 epoch, const byte* data, byte ty
 {
     WOLFSSL_ENTER("DtlsMsgSet()");
     if (msg != NULL && data != NULL && msg->fragSz <= msg->sz &&
-                                             (fragOffset + fragSz) <= msg->sz) {
+        fragSz <= msg->sz && fragOffset <= msg->sz &&
+        (fragOffset + fragSz) <= msg->sz) {
         DtlsFrag* cur = msg->fragList;
         DtlsFrag* prev = cur;
         DtlsFrag* newFrag;
@@ -8630,6 +8631,11 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return LENGTH_ERROR;
 #endif
 
+    if (*size == 0 && rh->type != application_data) {
+        WOLFSSL_MSG("0 length, non-app data record.");
+        return LENGTH_ERROR;
+    }
+
     /* verify record type here as well */
     switch (rh->type) {
         case handshake:
@@ -9859,9 +9865,13 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             } else {
                 wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
             }
-            if (!(x509->key.algor->algorithm =
-                    wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
-                ret = PUBLIC_KEY_E;
+            if (!x509->key.algor) {
+                ret = MEMORY_E;
+            } else {
+                if (!(x509->key.algor->algorithm =
+                        wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
+                    ret = PUBLIC_KEY_E;
+                }
             }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
@@ -14056,14 +14066,34 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     #ifdef CHACHA_AEAD_TEST
         int i;
     #endif
+    Keys* keys = &ssl->keys;
 
     XMEMSET(tag,   0, sizeof(tag));
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(add,   0, sizeof(add));
 
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+    /*
+     * For epochs 2+:
+     * * use ssl->secure_renegotiation when encrypting the current epoch as it
+     *   has the current epoch cipher material
+     * * use PREV_ORDER if encrypting the epoch not in
+     *   ssl->secure_renegotiation
+     */
     /* opaque SEQ number stored for AD */
-    WriteSEQ(ssl, CUR_ORDER, add);
+    if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
+        if (ssl->keys.dtls_epoch ==
+                    ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
+            keys = &ssl->secure_renegotiation->tmp_keys;
+            WriteSEQ(ssl, CUR_ORDER, add);
+        }
+        else
+            WriteSEQ(ssl, PREV_ORDER, add);
+    }
+    else
+#endif
+        WriteSEQ(ssl, CUR_ORDER, add);
 
     if (ssl->options.oldPoly != 0) {
         /* get nonce. SEQ should not be incremented again here */
@@ -14102,7 +14132,7 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     if (ssl->options.oldPoly == 0) {
         /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
          * record sequence number XORed with client_write_IV/server_write_IV */
-        XMEMCPY(nonce, ssl->keys.aead_enc_imp_IV, CHACHA20_IMP_IV_SZ);
+        XMEMCPY(nonce, keys->aead_enc_imp_IV, CHACHA20_IMP_IV_SZ);
         nonce[4]  ^= add[0];
         nonce[5]  ^= add[1];
         nonce[6]  ^= add[2];
@@ -14210,6 +14240,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     byte poly[CHACHA20_256_KEY_SIZE]; /* generated key for mac */
     int ret    = 0;
     int msgLen = (sz - ssl->specs.aead_mac_size);
+    Keys* keys = &ssl->keys;
 
     #ifdef CHACHA_AEAD_TEST
        int i;
@@ -14226,6 +14257,17 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     XMEMSET(poly,  0, sizeof(poly));
     XMEMSET(nonce, 0, sizeof(nonce));
     XMEMSET(add,   0, sizeof(add));
+
+#if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
+    /*
+     * For epochs 2+:
+     * * use ssl->secure_renegotiation when decrypting the latest epoch as it
+     *   has the latest epoch cipher material
+     */
+    if (ssl->options.dtls && DtlsSCRKeysSet(ssl) &&
+        ssl->keys.curEpoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+        keys = &ssl->secure_renegotiation->tmp_keys;
+#endif
 
     /* sequence number field is 64-bits */
     WriteSEQ(ssl, PEER_ORDER, add);
@@ -14256,7 +14298,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     if (ssl->options.oldPoly == 0) {
         /* nonce is formed by 4 0x00 byte padded to the left followed by 8 byte
          * record sequence number XORed with client_write_IV/server_write_IV */
-        XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, CHACHA20_IMP_IV_SZ);
+        XMEMCPY(nonce, keys->aead_dec_imp_IV, CHACHA20_IMP_IV_SZ);
         nonce[4]  ^= add[0];
         nonce[5]  ^= add[1];
         nonce[6]  ^= add[2];
@@ -15659,7 +15701,7 @@ int ProcessReply(WOLFSSL* ssl)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < ssl->curSize)
-                    if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+                    if ((ret = GetInputData(ssl, ssl->curSize - used)) < 0)
                         return ret;
             #endif  /* WOLFSSL_DTLS */
             }
@@ -15687,6 +15729,7 @@ int ProcessReply(WOLFSSL* ssl)
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
+
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
                 WOLFSSL_MSG("Silently dropping out of order DTLS message");
@@ -16174,6 +16217,12 @@ int ProcessReply(WOLFSSL* ssl)
 #endif
 
 #ifndef WOLFSSL_NO_TLS12
+                    if (ssl->buffers.inputBuffer.idx >=
+                            ssl->buffers.inputBuffer.length ||
+                            ssl->curSize < 1) {
+                        WOLFSSL_MSG("ChangeCipher msg too short");
+                        return LENGTH_ERROR;
+                    }
                     if (ssl->buffers.inputBuffer.buffer[
                             ssl->buffers.inputBuffer.idx] != 1) {
                         WOLFSSL_MSG("ChangeCipher msg wrong value");
@@ -21809,7 +21858,7 @@ exit_dpk:
             ato16(input + *inOutIdx, &len);
             *inOutIdx += OPAQUE16_LEN;
 
-            if ((*inOutIdx - begin) + len > size)
+            if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
             if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&

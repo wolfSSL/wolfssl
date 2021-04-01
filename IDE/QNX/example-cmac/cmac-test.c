@@ -94,6 +94,9 @@ int main(int argc, char* argv[])
     if (virtual_base == (uintptr_t)MAP_FAILED) {
         perror("mmap_device_io failed for base address ");
     }
+    else {
+        munmap_device_io(virtual_base, 0x00010000);
+    }
 
     wolfCrypt_Init();
 

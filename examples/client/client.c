@@ -3293,7 +3293,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
     printf("Session timeout set to %ld seconds\n", wolfSSL_get_timeout(ssl));
     {
         byte*  rnd;
@@ -3329,9 +3329,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
+#endif
 
-    #if defined(OPENSSL_ALL) && !defined(NO_SESSION_CACHE)
-
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
+#if !defined(NO_SESSION_CACHE) && \
+    (defined(HAVE_SESSION_TICKET) || defined(SESSION_CERTS)) && \
+        !defined(NO_FILESYSTEM)
     #ifndef NO_BIO
     /* print out session to stdout */
     {
@@ -3344,8 +3349,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         wolfSSL_BIO_free(bio);
     }
-    #endif
-    #endif
+    #endif /* !NO_BIO */
+#endif
 #endif
 
     if (doSTARTTLS && starttlsProt != NULL) {

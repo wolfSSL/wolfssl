@@ -755,7 +755,14 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             outerSz += mac->saltSz;
 
             /* MAC iterations */
-            outerSz += SetShortInt(ASNSHORT, &tmpIdx, mac->itt, MAX_SHORT_SZ);
+            ret = SetShortInt(ASNSHORT, &tmpIdx, mac->itt, MAX_SHORT_SZ);
+            if (ret >= 0) {
+                outerSz += ret;
+                ret = 0;
+            }
+            else {
+                return ret;
+            }
 
             /* sequence of inner data */
             outerSz += SetSequence(innerSz, seq);
@@ -1817,6 +1824,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         idx += SetObjectId(sizeof(WC_PKCS12_DATA_OID), out + idx);
         if (idx + sizeof(WC_PKCS12_DATA_OID) > *outSz){
             WOLFSSL_MSG("Buffer not large enough for DATA OID");
+            XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return BUFFER_E;
         }
         XMEMCPY(out + idx, WC_PKCS12_DATA_OID, sizeof(WC_PKCS12_DATA_OID));
@@ -1824,6 +1832,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
         /* copy over encrypted data */
         if (idx + encSz > *outSz){
+            XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return BUFFER_E;
         }
         XMEMCPY(out + idx, tmp, encSz);
