@@ -36,8 +36,7 @@
 #endif
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-#    include <wolfsentry.h>
-#    include <wolfsentry_diag.h>
+#    include <wolfsentry/wolfsentry.h>
 #endif
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
@@ -1065,6 +1064,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 {
     SOCKET_T sockfd   = WOLFSSL_SOCKET_INVALID;
     SOCKET_T clientfd = WOLFSSL_SOCKET_INVALID;
+    SOCKADDR_IN_T client_addr;
+    socklen_t client_len;
 
     wolfSSL_method_func method = NULL;
     SSL_CTX*    ctx    = 0;
@@ -2287,9 +2288,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         /* allow resume option */
         if (resumeCount > 1) {
             if (dtlsUDP == 0) {
-                SOCKADDR_IN_T client;
-                socklen_t client_len = sizeof(client);
-                clientfd = accept(sockfd, (struct sockaddr*)&client,
+                client_len = sizeof client_addr;
+                clientfd = accept(sockfd, (struct sockaddr*)&client_addr,
                                  (ACCEPT_THIRD_T)&client_len);
             }
             else {
@@ -2599,16 +2599,68 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             readySignal->srfName = serverReadyFile;
         }
 
-        {
-            SOCKADDR_IN_T client_addr;
-            socklen_t client_len = sizeof(client_addr);
+        client_len = sizeof client_addr;
+        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
+                   dtlsUDP, dtlsSCTP, serverReadyFile ? 1 : 0, doListen,
+                   &client_addr, &client_len);
 
-            tcp_accept(&sockfd, &clientfd, (func_args*)args, port, useAnyAddr,
-                       dtlsUDP, dtlsSCTP, serverReadyFile ? 1 : 0, doListen,
-                       &client_addr, &client_len);
+        doListen = 0; /* Don't listen next time */
+
+        if (port == 0) {
+            port = readySignal->port;
+        }
+
+        if (SSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
+            err_sys_ex(catastrophic, "error in setting fd");
+        }
+
+#ifdef HAVE_TRUSTED_CA
+        if (trustedCaKeyId) {
+            if (wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED,
+                        NULL, 0) != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "UseTrustedCA failed");
+            }
+        }
+#endif /* HAVE_TRUSTED_CA */
+
+#ifdef HAVE_ALPN
+        if (alpnList != NULL) {
+            printf("ALPN accepted protocols list : %s\n", alpnList);
+            wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
+        }
+#endif
+
+#ifdef WOLFSSL_DTLS
+        if (doDTLS && dtlsUDP) {
+            byte          b[1500];
+            int           n;
+
+            client_len = sizeof client_addr;
+
+            /* For DTLS, peek at the next datagram so we can get the client's
+             * address and set it into the ssl object later to generate the
+             * cookie. */
+            n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
+                              (struct sockaddr*)&client_addr, &client_len);
+            if (n <= 0)
+                err_sys_ex(runWithErrors, "recvfrom failed");
+
+            if (doBlockSeq) {
+                XMEMCPY(&dtlsCtx.peer.sa, &client_addr, client_len);
+                dtlsCtx.peer.sz = client_len;
+                dtlsCtx.wfd = clientfd;
+                dtlsCtx.failOnce = 1;
+
+                wolfSSL_SetIOWriteCtx(ssl, &dtlsCtx);
+            }
+            else {
+                wolfSSL_dtls_set_peer(ssl, &client_addr, client_len);
+            }
+        }
+#endif
 
 #ifdef WOLFSSL_NETWORK_INTROSPECTION
-
+        {
             SOCKADDR_IN_T local_addr;
             socklen_t local_len = sizeof(local_addr);
             getsockname(clientfd, (struct sockaddr *)&local_addr, (socklen_t *)&local_len);
@@ -2670,64 +2722,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                        inet_ntop(nc->family, local_addr2, inet_ntop_buf2, sizeof inet_ntop_buf2),
                        nc->interface);
             }
-
+        }
 #endif /* WOLFSSL_NETWORK_INTROSPECTION */
-        }
 
-        doListen = 0; /* Don't listen next time */
-
-        if (port == 0) {
-            port = readySignal->port;
-        }
-
-        if (SSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
-            err_sys_ex(catastrophic, "error in setting fd");
-        }
-
-#ifdef HAVE_TRUSTED_CA
-        if (trustedCaKeyId) {
-            if (wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED,
-                        NULL, 0) != WOLFSSL_SUCCESS) {
-                err_sys_ex(runWithErrors, "UseTrustedCA failed");
-            }
-        }
-#endif /* HAVE_TRUSTED_CA */
-
-#ifdef HAVE_ALPN
-        if (alpnList != NULL) {
-            printf("ALPN accepted protocols list : %s\n", alpnList);
-            wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
-        }
-#endif
-
-#ifdef WOLFSSL_DTLS
-        if (doDTLS && dtlsUDP) {
-            SOCKADDR_IN_T cliaddr;
-            byte          b[1500];
-            int           n;
-            socklen_t     len = sizeof(cliaddr);
-
-            /* For DTLS, peek at the next datagram so we can get the client's
-             * address and set it into the ssl object later to generate the
-             * cookie. */
-            n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
-                              (struct sockaddr*)&cliaddr, &len);
-            if (n <= 0)
-                err_sys_ex(runWithErrors, "recvfrom failed");
-
-            if (doBlockSeq) {
-                XMEMCPY(&dtlsCtx.peer.sa, &cliaddr, len);
-                dtlsCtx.peer.sz = len;
-                dtlsCtx.wfd = clientfd;
-                dtlsCtx.failOnce = 1;
-
-                wolfSSL_SetIOWriteCtx(ssl, &dtlsCtx);
-            }
-            else {
-                wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
-            }
-        }
-#endif
         if ((usePsk == 0 || usePskPlus) || useAnon == 1 || cipherList != NULL
                                                                || needDH == 1) {
             #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
