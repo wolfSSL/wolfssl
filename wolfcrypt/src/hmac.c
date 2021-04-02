@@ -108,6 +108,17 @@
             HmacFree(hmac); */
     }
 
+    #ifdef HAVE_HKDF
+        int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                    const byte* salt, word32 saltSz,
+                    const byte* info, word32 infoSz,
+                    byte* out, word32 outSz)
+        {
+            return HKDF(type, inKey, inKeySz, salt, saltSz,
+                info, infoSz, out, outSz);
+        }
+    #endif /* HAVE_HKDF */
+
 #else /* else build without fips, or for new fips */
 
 
@@ -1167,7 +1178,149 @@ int wolfSSL_GetHmacMaxSize(void)
     return WC_MAX_DIGEST_SIZE;
 }
 
+#ifdef HAVE_HKDF
+    /* HMAC-KDF-Extract.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * salt     The optional salt value.
+     * saltSz   The size of the salt.
+     * inKey    The input keying material.
+     * inKeySz  The size of the input keying material.
+     * out      The pseudorandom key with the length that of the hash.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
+                        const byte* inKey, word32 inKeySz, byte* out)
+    {
+        byte   tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
+        Hmac   myHmac;
+        int    ret;
+        const  byte* localSalt;  /* either points to user input or tmp */
+        int    hashSz;
 
+        ret = wc_HmacSizeByType(type);
+        if (ret < 0)
+            return ret;
+
+        hashSz = ret;
+        localSalt = salt;
+        if (localSalt == NULL) {
+            XMEMSET(tmp, 0, hashSz);
+            localSalt = tmp;
+            saltSz    = hashSz;
+        }
+
+        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
+            if (ret == 0)
+                ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
+            if (ret == 0)
+                ret = wc_HmacFinal(&myHmac,  out);
+            wc_HmacFree(&myHmac);
+        }
+
+        return ret;
+    }
+
+    /* HMAC-KDF-Expand.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * inKey    The input key.
+     * inKeySz  The size of the input key.
+     * info     The application specific information.
+     * infoSz   The size of the application specific information.
+     * out      The output keying material.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
+                       const byte* info, word32 infoSz, byte* out, word32 outSz)
+    {
+        byte   tmp[WC_MAX_DIGEST_SIZE];
+        Hmac   myHmac;
+        int    ret = 0;
+        word32 outIdx = 0;
+        word32 hashSz = wc_HmacSizeByType(type);
+        byte   n = 0x1;
+
+        /* RFC 5869 states that the length of output keying material in
+           octets must be L <= 255*HashLen or N = ceil(L/HashLen) */
+
+        if (out == NULL || ((outSz/hashSz) + ((outSz % hashSz) != 0)) > 255)
+            return BAD_FUNC_ARG;
+
+        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
+        if (ret != 0)
+            return ret;
+
+
+        while (outIdx < outSz) {
+            int    tmpSz = (n == 1) ? 0 : hashSz;
+            word32 left = outSz - outIdx;
+
+            ret = wc_HmacSetKey(&myHmac, type, inKey, inKeySz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, info, infoSz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, &n, 1);
+            if (ret != 0)
+                break;
+            ret = wc_HmacFinal(&myHmac, tmp);
+            if (ret != 0)
+                break;
+
+            left = min(left, hashSz);
+            XMEMCPY(out+outIdx, tmp, left);
+
+            outIdx += hashSz;
+            n++;
+        }
+
+        wc_HmacFree(&myHmac);
+
+        return ret;
+    }
+
+    /* HMAC-KDF.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * inKey    The input keying material.
+     * inKeySz  The size of the input keying material.
+     * salt     The optional salt value.
+     * saltSz   The size of the salt.
+     * info     The application specific information.
+     * infoSz   The size of the application specific information.
+     * out      The output keying material.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                       const byte* salt,  word32 saltSz,
+                       const byte* info,  word32 infoSz,
+                       byte* out,         word32 outSz)
+    {
+        byte   prk[WC_MAX_DIGEST_SIZE];
+        int    hashSz = wc_HmacSizeByType(type);
+        int    ret;
+
+        if (hashSz < 0)
+            return BAD_FUNC_ARG;
+
+        ret = wc_HKDF_Extract(type, salt, saltSz, inKey, inKeySz, prk);
+        if (ret != 0)
+            return ret;
+
+        return wc_HKDF_Expand(type, prk, hashSz, info, infoSz, out, outSz);
+    }
+
+#endif /* HAVE_HKDF */
 
 #endif /* HAVE_FIPS */
 #endif /* NO_HMAC */

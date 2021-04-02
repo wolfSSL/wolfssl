@@ -41,7 +41,6 @@
     #endif
 #endif
 
-#include <wolfssl/wolfcrypt/hmac.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -50,6 +49,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/kdf.h>
 
 
@@ -334,148 +334,7 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 #endif /* WOLFSSL_HAVE_PRF */
 
 
-#ifdef HAVE_HKDF
-
-    /* HMAC-KDF-Extract.
-     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
-     *
-     * type     The hash algorithm type.
-     * salt     The optional salt value.
-     * saltSz   The size of the salt.
-     * inKey    The input keying material.
-     * inKeySz  The size of the input keying material.
-     * out      The pseudorandom key with the length that of the hash.
-     * returns 0 on success, otherwise failure.
-     */
-    int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
-                        const byte* inKey, word32 inKeySz, byte* out)
-    {
-        byte   tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
-        Hmac   myHmac;
-        int    ret;
-        const  byte* localSalt;  /* either points to user input or tmp */
-        int    hashSz;
-
-        ret = wc_HmacSizeByType(type);
-        if (ret < 0)
-            return ret;
-
-        hashSz = ret;
-        localSalt = salt;
-        if (localSalt == NULL) {
-            XMEMSET(tmp, 0, hashSz);
-            localSalt = tmp;
-            saltSz    = hashSz;
-        }
-
-        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
-        if (ret == 0) {
-            ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
-            if (ret == 0)
-                ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
-            if (ret == 0)
-                ret = wc_HmacFinal(&myHmac,  out);
-            wc_HmacFree(&myHmac);
-        }
-
-        return ret;
-    }
-
-    /* HMAC-KDF-Expand.
-     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
-     *
-     * type     The hash algorithm type.
-     * inKey    The input key.
-     * inKeySz  The size of the input key.
-     * info     The application specific information.
-     * infoSz   The size of the application specific information.
-     * out      The output keying material.
-     * returns 0 on success, otherwise failure.
-     */
-    int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
-                       const byte* info, word32 infoSz, byte* out, word32 outSz)
-    {
-        byte   tmp[WC_MAX_DIGEST_SIZE];
-        Hmac   myHmac;
-        int    ret = 0;
-        word32 outIdx = 0;
-        word32 hashSz = wc_HmacSizeByType(type);
-        byte   n = 0x1;
-
-        /* RFC 5869 states that the length of output keying material in
-           octets must be L <= 255*HashLen or N = ceil(L/HashLen) */
-
-        if (out == NULL || ((outSz/hashSz) + ((outSz % hashSz) != 0)) > 255)
-            return BAD_FUNC_ARG;
-
-        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
-        if (ret != 0)
-            return ret;
-
-
-        while (outIdx < outSz) {
-            int    tmpSz = (n == 1) ? 0 : hashSz;
-            word32 left = outSz - outIdx;
-
-            ret = wc_HmacSetKey(&myHmac, type, inKey, inKeySz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, info, infoSz);
-            if (ret != 0)
-                break;
-            ret = wc_HmacUpdate(&myHmac, &n, 1);
-            if (ret != 0)
-                break;
-            ret = wc_HmacFinal(&myHmac, tmp);
-            if (ret != 0)
-                break;
-
-            left = min(left, hashSz);
-            XMEMCPY(out+outIdx, tmp, left);
-
-            outIdx += hashSz;
-            n++;
-        }
-
-        wc_HmacFree(&myHmac);
-
-        return ret;
-    }
-
-    /* HMAC-KDF.
-     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
-     *
-     * type     The hash algorithm type.
-     * inKey    The input keying material.
-     * inKeySz  The size of the input keying material.
-     * salt     The optional salt value.
-     * saltSz   The size of the salt.
-     * info     The application specific information.
-     * infoSz   The size of the application specific information.
-     * out      The output keying material.
-     * returns 0 on success, otherwise failure.
-     */
-    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                       const byte* salt,  word32 saltSz,
-                       const byte* info,  word32 infoSz,
-                       byte* out,         word32 outSz)
-    {
-        byte   prk[WC_MAX_DIGEST_SIZE];
-        int    hashSz = wc_HmacSizeByType(type);
-        int    ret;
-
-        if (hashSz < 0)
-            return BAD_FUNC_ARG;
-
-        ret = wc_HKDF_Extract(type, salt, saltSz, inKey, inKeySz, prk);
-        if (ret != 0)
-            return ret;
-
-        return wc_HKDF_Expand(type, prk, hashSz, info, infoSz, out, outSz);
-    }
+#if defined(HAVE_HKDF)
 
     /* Extract data using HMAC, salt and input.
      * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
@@ -606,8 +465,33 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 #ifdef WOLFSSL_WOLFSSH
 
+/* hash union */
+typedef union {
+#ifndef NO_MD5
+    wc_Md5 md5;
+#endif
+#ifndef NO_SHA
+    wc_Sha sha;
+#endif
+#ifdef WOLFSSL_SHA224
+    wc_Sha224 sha224;
+#endif
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+#endif
+#ifdef WOLFSSL_SHA384
+    wc_Sha384 sha384;
+#endif
+#ifdef WOLFSSL_SHA512
+    wc_Sha512 sha512;
+#endif
+#ifdef WOLFSSL_SHA3
+    wc_Sha3 sha3;
+#endif
+} _hash;
+
 static
-int _HashInit(byte hashId, wc_Hmac_Hash* hash)
+int _HashInit(byte hashId, _hash* hash)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -640,7 +524,7 @@ int _HashInit(byte hashId, wc_Hmac_Hash* hash)
 }
 
 static
-int _HashUpdate(byte hashId, wc_Hmac_Hash* hash,
+int _HashUpdate(byte hashId, _hash* hash,
         const byte* data, word32 dataSz)
 {
     int ret = BAD_FUNC_ARG;
@@ -674,7 +558,7 @@ int _HashUpdate(byte hashId, wc_Hmac_Hash* hash,
 }
 
 static
-int _HashFinal(byte hashId, wc_Hmac_Hash* hash, byte* digest)
+int _HashFinal(byte hashId, _hash* hash, byte* digest)
 {
     int ret = BAD_FUNC_ARG;
 
@@ -707,7 +591,7 @@ int _HashFinal(byte hashId, wc_Hmac_Hash* hash, byte* digest)
 }
 
 static
-void _HashFree(byte hashId, wc_Hmac_Hash* hash)
+void _HashFree(byte hashId, _hash* hash)
 {
     switch (hashId) {
     #ifndef NO_SHA
@@ -743,7 +627,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         const byte* sessionId, word32 sessionIdSz)
 {
     word32 blocks, remainder;
-    wc_Hmac_Hash hash;
+    _hash hash;
     enum wc_HashType enmhashId = (enum wc_HashType)hashId;
     byte kPad = 0;
     byte pad = 0;
