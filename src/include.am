@@ -260,6 +260,8 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/random.c \
                wolfcrypt/src/sha256.c
 
+src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
+
 if BUILD_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
 endif
@@ -317,7 +319,6 @@ if BUILD_CMAC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cmac.c
 endif
 
-src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
                              wolfcrypt/src/fips_test.c
 
@@ -336,7 +337,6 @@ if !BUILD_FIPS_RAND
 # CtaoCrypt files included above.
 if !BUILD_FIPS_CURRENT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hmac.c
-src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
 endif !BUILD_FIPS_CURRENT
 
 # CAVP self test
@@ -351,6 +351,10 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/cpuid.c
 
 if !BUILD_FIPS_RAND
+
+if !BUILD_FIPS_V5
+src_libwolfssl_la_SOURCES += wolfcrypt/src/kdf.c
+endif !BUILD_FIPS_V5
 
 if !BUILD_FIPS_CURRENT
 if BUILD_RNG

@@ -1223,7 +1223,7 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int _ecc_pairwise_consistency_test(ecc_key* key);
 #endif
 
@@ -8279,8 +8279,10 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     return err;
 }
 
+#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 /* Performs a Pairwise Consistency Test on an ECC key pair. */
 static int _ecc_pairwise_consistency_test(ecc_key* key)
 {
@@ -8291,9 +8293,8 @@ static int _ecc_pairwise_consistency_test(ecc_key* key)
 
     return err;
 }
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || WOLFSSL_VALIDATE_ECC_IMPORT */
 
-#endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 /* validate order * pubkey = point at infinity, 0 on success */

@@ -33,6 +33,8 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hmac.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -64,17 +66,6 @@ WOLFSSL_API int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret,
 #endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef HAVE_HKDF
-
-WOLFSSL_API int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
-                                const byte* inKey, word32 inKeySz, byte* out);
-WOLFSSL_API int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
-                               const byte* info, word32 infoSz,
-                               byte* out,        word32 outSz);
-
-WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                    const byte* salt, word32 saltSz,
-                    const byte* info, word32 infoSz,
-                    byte* out, word32 outSz);
 
 enum {
 /*
