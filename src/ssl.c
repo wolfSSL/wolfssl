@@ -13125,7 +13125,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
         if (ssl->AcceptFilter && (ssl->buffers.network_connection.remote_addr_len > 0)) {
             wolfSSL_netfilter_decision_t res;
             if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
@@ -13142,7 +13142,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
 #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13)
         return wolfSSL_accept_TLSv13(ssl);
