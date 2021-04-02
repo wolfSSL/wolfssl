@@ -1157,7 +1157,8 @@ enum {
 #endif /* WOLFSSL_MULTICAST */
 
 #ifndef WOLFSSL_MAX_MTU
-    #define WOLFSSL_MAX_MTU 1500
+    /* 1500 - 100 bytes to account for UDP and IP headers */
+    #define WOLFSSL_MAX_MTU 1400
 #endif /* WOLFSSL_MAX_MTU */
 
 

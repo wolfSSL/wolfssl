@@ -17558,8 +17558,6 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
 #endif
 #endif /* !NO_WOLFSSL_SERVER */
 
-#if (!defined(WOLFSSL_NO_TLS12) && !defined(NO_CERTS)) \
-    || (defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER))
 static int cipherExtraData(WOLFSSL* ssl)
 {
     /* Cipher data that may be added by BuildMessage */
@@ -17567,7 +17565,6 @@ static int cipherExtraData(WOLFSSL* ssl)
             ssl->specs.aead_mac_size + ssl->specs.iv_size +
             ssl->specs.pad_size;
 }
-#endif
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -17630,16 +17627,6 @@ int SendCertificate(WOLFSSL* ssl)
         length -= (ssl->fragOffset + headerSz);
 
     maxFragment = MAX_RECORD_SIZE;
-
-    if (ssl->options.dtls) {
-    #ifdef WOLFSSL_DTLS
-        /* The 100 bytes is used to account for the UDP and IP headers.
-           It can also include the record padding and MAC if the
-           SendCertificate is called for a secure renegotiation. */
-        maxFragment = MAX_MTU - DTLS_RECORD_HEADER_SZ
-                      - DTLS_HANDSHAKE_HEADER_SZ - 100;
-    #endif /* WOLFSSL_DTLS */
-    }
 
     maxFragment = wolfSSL_GetMaxRecordSize(ssl, maxFragment);
 
@@ -18401,8 +18388,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
         sendSz,
-        ret,
-        dtlsExtra = 0;
+        ret;
     int groupMsgs = 0;
 
     if (ssl->error == WANT_WRITE
@@ -18478,14 +18464,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         }
     }
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        dtlsExtra = DTLS_RECORD_EXTRA;
-    }
-#endif
-
     for (;;) {
-        int   len;
         byte* out;
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
         int   buffSz;                           /* may switch on comp */
@@ -18496,19 +18475,21 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         if (sent == sz) break;
 
-        len = wolfSSL_GetMaxRecordSize(ssl, sz - sent);
+        buffSz = wolfSSL_GetMaxRecordSize(ssl, sz - sent);
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
-        if (ssl->options.dtls && (len < sz - sent)) {
+        if (ssl->options.dtls && (buffSz < sz - sent)) {
             ssl->error = DTLS_SIZE_ERROR;
             WOLFSSL_ERROR(ssl->error);
             return ssl->error;
         }
 #endif
-        buffSz = len;
+        outputSz = buffSz + COMP_EXTRA + DTLS_RECORD_HEADER_SZ +
+                DTLS_HANDSHAKE_HEADER_SZ;
+        if (IsEncryptionOn(ssl, 1))
+            outputSz += cipherExtraData(ssl);
 
         /* check for available size */
-        outputSz = len + COMP_EXTRA + dtlsExtra + MAX_MSG_EXTRA;
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ssl->error = ret;
 
@@ -18551,7 +18532,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             WOLFSSL_ERROR(ssl->error);
             /* store for next call if WANT_WRITE or user embedSend() that
                doesn't present like WANT_WRITE */
-            ssl->buffers.plainSz  = len;
+            ssl->buffers.plainSz  = buffSz;
             ssl->buffers.prevSent = sent;
             if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
                                                  ssl->options.isClosed)) {
@@ -18562,7 +18543,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             return ssl->error;
         }
 
-        sent += len;
+        sent += buffSz;
 
         /* only one message per attempt */
         if (ssl->options.partialWrite == 1) {
@@ -31643,10 +31624,21 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
         if (maxFragment > MAX_UDP_SIZE) {
             maxFragment = MAX_UDP_SIZE;
         }
+        if (maxFragment > MAX_MTU - COMP_EXTRA - DTLS_RECORD_HEADER_SZ -
+                DTLS_HANDSHAKE_HEADER_SZ) {
+            maxFragment = MAX_MTU - COMP_EXTRA - DTLS_RECORD_HEADER_SZ -
+                    DTLS_HANDSHAKE_HEADER_SZ;
+        }
     #if defined(WOLFSSL_DTLS_MTU)
-        if (maxFragment >
-                        ssl->dtlsMtuSz - RECORD_HEADER_SZ - DTLS_RECORD_EXTRA) {
-            maxFragment = ssl->dtlsMtuSz - RECORD_HEADER_SZ - DTLS_RECORD_EXTRA;
+        {
+            int overheadSz = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ +
+                    COMP_EXTRA;
+            if (IsEncryptionOn(ssl, 1))
+                overheadSz += cipherExtraData(ssl);
+            if (maxFragment >
+                            ssl->dtlsMtuSz - overheadSz) {
+                maxFragment = ssl->dtlsMtuSz - overheadSz;
+            }
         }
     #endif
     }
