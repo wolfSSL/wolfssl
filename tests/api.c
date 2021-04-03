@@ -36705,6 +36705,7 @@ static void test_wolfSSL_EVP_PKEY_param_check(void)
     AssertIntEQ(EVP_PKEY_param_check(ctx), WOLFSSL_FAILURE);
     
     EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
     printf(resultFmt, passed);
 #endif
 }
@@ -36728,6 +36729,8 @@ static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
         /* int */
         AssertIntEQ(EVP_PKEY_CTX_free(ctx), WOLFSSL_SUCCESS);
     #endif
+    
+    EVP_PKEY_free(pkey);
     printf(resultFmt, passed);
 #endif
 }
