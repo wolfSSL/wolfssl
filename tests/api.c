@@ -42470,7 +42470,7 @@ static void test_CONF_CTX(void)
 
 static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
+#if defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB) && defined(HAVE_EX_DATA)
     printf(testingFmt, "test_wolfSSL_CRYPTO_get_ex_new_index");
     
     int class_index = 0;
