@@ -1,0 +1,34 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
+        with:
+          arch: x64
+
+      - name: Upgrade Project
+        run: devenv wolfssl64.sln /Upgrade
+
+      - name: Build Project
+        run: devenv wolfssl64.sln /Build Release
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: wolfssl-windows64
+          path: Release/wolfssl.lib
+          if-no-files-found: error
