@@ -332,7 +332,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 
     /* allocate buffer for encoded output */
     if (*out == NULL && sz > 0) {
-        *out = (void*)XMALLOC(sz, front->heap,
+        *out = (byte*)XMALLOC(sz, front->heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
         if (*out == NULL) {
             WOLFSSL_MSG("Memory error");
@@ -340,7 +340,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         }
     }
     else if (sz > *outLen) {
-        tmp = (void*)XREALLOC(*out, sz, front->heap,
+        tmp = (byte*)XREALLOC(*out, sz, front->heap,
                DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             WOLFSSL_MSG("Memory error");
@@ -372,7 +372,9 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         }
     }
 
-    XMEMCPY(*out, tmp, *outLen);
+    if (*out) {
+        XMEMCPY(*out, tmp, *outLen);
+    }
     XFREE(tmp, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* Encode successful */
