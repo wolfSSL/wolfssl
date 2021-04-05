@@ -12315,7 +12315,7 @@ int sp_to_unsigned_bin_at_pos(int o, sp_int*a, unsigned char* out)
 #endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) || !defined(NO_DSA)
 /* Convert hexadecimal number as string in big-endian format to a
  * multi-precision number.
  *
@@ -12450,7 +12450,7 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 #endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC)
+    defined(HAVE_ECC) || !defined(NO_DSA)
 /* Convert a number as string in big-endian format to a big number.
  * Only supports base-16 (hexadecimal) and base-10 (decimal).
  *
