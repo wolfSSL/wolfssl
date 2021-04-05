@@ -8874,7 +8874,7 @@ static int _sp_exptmod_nct(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
                 /* Sqaure until we find bit that is 1 or there's less than a
                  * window of bits left.
                  */
-                while ((i >= 0) || (c >= winBits)) {
+                while (err == MP_OKAY && ((i >= 0) || (c >= winBits))) {
                     sp_digit n2 = n;
                     int c2 = c;
                     int i2 = i;
