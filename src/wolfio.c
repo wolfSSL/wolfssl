@@ -800,6 +800,11 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
         nfds = (int)sockfd + 1;
     #endif
 
+        if ((sockfd < 0) || (sockfd >= FD_SETSIZE)) {
+            WOLFSSL_MSG("socket fd out of FDSET range");
+            return -1;
+        }
+
         FD_ZERO(&rfds);
         FD_SET(sockfd, &rfds);
         wfds = rfds;
