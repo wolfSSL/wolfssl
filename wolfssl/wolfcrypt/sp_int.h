@@ -113,29 +113,33 @@ extern "C" {
     #error "Size of unsigned long not detected"
 #endif
 
-#if ULLONG_MAX == 18446744073709551615ULL
-    #define SP_ULLONG_BITS    64
+#ifdef ULLONG_MAX
+    #if ULLONG_MAX == 18446744073709551615ULL
+        #define SP_ULLONG_BITS    64
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint64;
-        typedef          long long  sp_int64;
-    #endif
-#elif ULLONG_MAX == 4294967295UL
-    #define SP_ULLONG_BITS    32
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint64;
+            typedef          long long  sp_int64;
+        #endif
+    #elif ULLONG_MAX == 4294967295UL
+        #define SP_ULLONG_BITS    32
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint32;
-        typedef          long long  sp_int32;
-    #endif
-#elif ULLONG_MAX == 65535
-    #define SP_ULLONG_BITS    16
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint32;
+            typedef          long long  sp_int32;
+        #endif
+    #elif ULLONG_MAX == 65535
+        #define SP_ULLONG_BITS    16
 
-    #if SP_ULLONG_BITS > SP_ULONG_BITS
-        typedef unsigned long long sp_uint16;
-        typedef          long long  sp_int16;
+        #if SP_ULLONG_BITS > SP_ULONG_BITS
+            typedef unsigned long long sp_uint16;
+            typedef          long long  sp_int16;
+        #endif
+    #else
+        #error "Size of unsigned long long not detected"
     #endif
 #else
-    #error "Size of unsigned long long not detected"
+    #define SP_ULLONG_BITS    0
 #endif
 
 
