@@ -55171,7 +55171,6 @@ int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     return SetStaticEphemeralKey(&ctx->staticKE, keyAlgo, key, keySz, format, 
         ctx->heap, NULL);
 }
-
 int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
     const char* key, unsigned int keySz, int format)
 {
@@ -55181,6 +55180,65 @@ int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 
     return SetStaticEphemeralKey(&ssl->staticKE, keyAlgo, key, keySz, format, 
         ssl->heap, ssl->ctx);
+}
+
+static int GetStaticEphemeralKey(StaticKeyExchangeInfo_t* staticKE, int keyAlgo, 
+    const unsigned char** key, unsigned int* keySz)
+{
+    int ret = 0;
+    DerBuffer* der = NULL;
+
+    if (staticKE == NULL || key == NULL || keySz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    *key = NULL;
+    *keySz = 0;
+
+    switch (keyAlgo) {
+    #ifndef NO_DH
+        case WC_PK_TYPE_DH:
+            der = staticKE->dhKey;
+            break;
+    #endif
+    #ifdef HAVE_ECC
+        case WC_PK_TYPE_ECDH:
+            der = staticKE->ecKey;
+            break;
+    #endif
+        default:
+            /* not supported */
+            ret = NOT_COMPILED_IN;
+            break;
+    }
+
+    if (der) {
+        *key = der->buffer;
+        *keySz = der->length;
+    }
+
+    return ret;
+}
+
+/* returns pointer to currently loaded static ephemeral as ASN.1 */
+/* this can be converted to PEM using wc_DerToPem */
+int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+    const unsigned char** key, unsigned int* keySz)
+{
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return GetStaticEphemeralKey(&ctx->staticKE, keyAlgo, key, keySz);
+}
+int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+    const unsigned char** key, unsigned int* keySz)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return GetStaticEphemeralKey(&ssl->staticKE, keyAlgo, key, keySz);
 }
 
 #endif /* WOLFSSL_STATIC_EPHEMERAL */
