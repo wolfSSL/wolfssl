@@ -696,7 +696,7 @@ static int ltc_get_ecc_specs(const uint8_t **modulus, const uint8_t **r2modn,
             (1==map, 0 == leave in projective)
    return MP_OKAY on success
 */
-int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     mp_int *modulus, int map, void* heap)
 {
     ltc_pkha_ecc_point_t B;
@@ -726,7 +726,7 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     szModulus = mp_unsigned_bin_size(modulus);
     szkbin = mp_unsigned_bin_size(k);
 
-    res = ltc_get_from_mp_int(kbin, k, szkbin);
+    res = ltc_get_from_mp_int(kbin, (mp_int*)k, szkbin);
     if (res == MP_OKAY)
         res = ltc_get_from_mp_int(Gxbin, G->x, szModulus);
     if (res == MP_OKAY)
@@ -768,7 +768,7 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     return res;
 }
 
-int wc_ecc_mulmod_ex2(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
+int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                       mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
                       void* heap)
 {

@@ -64,10 +64,10 @@
 
 // UART TX Port, Pin, Mux and Baud
 #ifdef FREESCALE_KSDK_BM
-    #define UART_PORT       LPUART0                     /* UART Port */
-    #define UART_TX_PORT    PORTA                       /* UART TX Port */
-    #define UART_TX_PIN     2U                          /* UART TX Pin */
-    #define UART_TX_MUX     kPORT_MuxAlt2               /* Kinetis UART pin mux */
+    #define UART_PORT       LPUART4                     /* UART Port */
+    #define UART_TX_PORT    PORTC                       /* UART TX Port */
+    #define UART_TX_PIN     15U                         /* UART TX Pin */
+    #define UART_TX_MUX     kPORT_MuxAlt3               /* Kinetis UART pin mux */
 #elif defined (WOLFSSL_FRDM_K64)
     #define UART_PORT       UART0                       /* UART Port */
     #define UART_TX_PORT    PORTB                       /* UART TX Port */
@@ -91,7 +91,7 @@
 /* Note: TWR-K60 is UART3, PTC17 */
 /* Note: FRDM-K64 is UART4, PTE24 or UART0 PTB17 for OpenOCD  (SIM_SCGC4_UART0_MASK)*/
 /* Note: TWR-K64 is UART5, PTE8 */
-/* Note: FRDM-K82F is LPUART0 A2, LPUART4 PTC15 */
+/* Note: FRDM-K82F is LPUART4 PTC15 Alt3 (OpenOCD UART) */
 
 /***********************************************/
 
