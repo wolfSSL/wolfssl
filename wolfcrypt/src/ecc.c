@@ -171,6 +171,9 @@ ECC Curve Sizes:
     #define GEN_MEM_ERR MP_MEM
 #endif
 
+/* forward declarations */
+static int  wc_ecc_new_point_ex(ecc_point** point, void* heap);
+static void wc_ecc_del_point_ex(ecc_point* p, void* heap);
 
 /* internal ECC states */
 enum {
@@ -3002,9 +3005,12 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #if !defined(WOLFSSL_SP_MATH)
 {
    ecc_point     *tG, *M[M_POINTS];
+#ifdef WOLFSSL_NO_MALLOC
+   ecc_point     lcl_tG, lcl_M[M_POINTS];
+#endif
    int           i, err;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-   ecc_key       *key = (ecc_key *)XMALLOC(sizeof *key, heap, DYNAMIC_TYPE_ECC);
+   ecc_key       *key = (ecc_key *)XMALLOC(sizeof(*key), heap, DYNAMIC_TYPE_ECC);
 #endif
    mp_digit      mp;
 
@@ -3030,9 +3036,11 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
   /* alloc ram for window temps */
   for (i = 0; i < M_POINTS; i++) {
-      M[i] = wc_ecc_new_point_h(heap);
-      if (M[i] == NULL) {
-         err = MEMORY_E;
+  #ifdef WOLFSSL_NO_MALLOC
+      M[i] = &lcl_M[i];
+  #endif
+      err = wc_ecc_new_point_ex(&M[i], heap);
+      if (err != MP_OKAY) {
          goto exit;
       }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -3041,9 +3049,11 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
   }
 
    /* make a copy of G in case R==G */
-   tG = wc_ecc_new_point_h(heap);
-   if (tG == NULL) {
-       err = MEMORY_E;
+#ifdef WOLFSSL_NO_MALLOC
+   tG = &lcl_tG;
+#endif
+   err = wc_ecc_new_point_ex(&tG, heap);
+   if (err != MP_OKAY) {
        goto exit;
    }
    if ((err = ecc_point_to_mont(G, tG, modulus, heap)) != MP_OKAY) {
@@ -3067,10 +3077,11 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 exit:
 
    /* done */
-   wc_ecc_del_point_h(tG, heap);
+   wc_ecc_del_point_ex(tG, heap);
    for (i = 0; i < M_POINTS; i++) {
-       wc_ecc_del_point_h(M[i], heap);
+       wc_ecc_del_point_ex(M[i], heap);
    }
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    if (key) {
        if (R)
@@ -3130,6 +3141,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #if !defined(WOLFSSL_SP_MATH)
 {
    ecc_point     *tG, *M[M_POINTS];
+#ifdef WOLFSSL_NO_MALLOC
+   ecc_point     lcl_tG, lcl_M[M_POINTS];
+#endif
    int           i, err;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    ecc_key       key;
@@ -3154,11 +3168,13 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    R->key = &key;
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
 
-  /* alloc ram for window temps */
-  for (i = 0; i < M_POINTS; i++) {
-      M[i] = wc_ecc_new_point_h(heap);
-      if (M[i] == NULL) {
-         err = MEMORY_E;
+   /* alloc ram for window temps */
+   for (i = 0; i < M_POINTS; i++) {
+   #ifdef WOLFSSL_NO_MALLOC
+      M[i] = &lcl_M[i];
+   #endif
+      err = wc_ecc_new_point_ex(&M[i], heap);
+      if (err != MP_OKAY) {
          goto exit;
       }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -3167,9 +3183,11 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
   }
 
    /* make a copy of G in case R==G */
-   tG = wc_ecc_new_point_h(heap);
-   if (tG == NULL) {
-       err = MEMORY_E;
+#ifdef WOLFSSL_NO_MALLOC
+   tG = &lcl_tG;
+#endif
+   err = wc_ecc_new_point_ex(&tG, heap);
+   if (err != MP_OKAY) {
        goto exit;
    }
    if ((err = ecc_point_to_mont(G, tG, modulus, heap)) != MP_OKAY) {
@@ -3228,9 +3246,9 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 exit:
 
    /* done */
-   wc_ecc_del_point_h(tG, heap);
+   wc_ecc_del_point_ex(tG, heap);
    for (i = 0; i < M_POINTS; i++) {
-      wc_ecc_del_point_h(M[i], heap);
+      wc_ecc_del_point_ex(M[i], heap);
    }
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    R->key = NULL;
@@ -3290,25 +3308,37 @@ int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 #endif /* !WOLFSSL_ATECC508A */
 
 /**
+ * Allocate a new ECC point (if one not provided)
  * use a heap hint when creating new ecc_point
  * return an allocated point on success or NULL on failure
- */
-ecc_point* wc_ecc_new_point_h(void* heap)
+*/
+static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
 {
+   int err = MP_OKAY;
    ecc_point* p;
 
-   (void)heap;
+   if (point == NULL) {
+       return BAD_FUNC_ARG;
+   }
 
-   p = (ecc_point*)XMALLOC(sizeof(ecc_point), heap, DYNAMIC_TYPE_ECC);
+   p = *point;
+#ifndef WOLFSSL_NO_MALLOC
    if (p == NULL) {
-      return NULL;
+      p = (ecc_point*)XMALLOC(sizeof(ecc_point), heap, DYNAMIC_TYPE_ECC);
+   }
+#endif
+   if (p == NULL) {
+      return MEMORY_E;
    }
    XMEMSET(p, 0, sizeof(ecc_point));
 
 #ifndef ALT_ECC_SIZE
-   if (mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL) != MP_OKAY) {
+   err = mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL);
+   if (err != MP_OKAY) {
+   #ifndef WOLFSSL_NO_MALLOC
       XFREE(p, heap, DYNAMIC_TYPE_ECC);
-      return NULL;
+   #endif
+      return err;
    }
 #else
    p->x = (mp_int*)&p->xyz[0];
@@ -3319,41 +3349,46 @@ ecc_point* wc_ecc_new_point_h(void* heap)
    alt_fp_init(p->z);
 #endif
 
-   return p;
+   *point = p;
+   (void)heap;
+   return err;
 }
-
-
-/**
-   Allocate a new ECC point
-   return A newly allocated point or NULL on error
-*/
+ecc_point* wc_ecc_new_point_h(void* heap)
+{
+    ecc_point* p = NULL;
+    (void)wc_ecc_new_point_ex(&p, heap);
+    return p;
+}
 ecc_point* wc_ecc_new_point(void)
 {
-  return wc_ecc_new_point_h(NULL);
+   ecc_point* p = NULL;
+   (void)wc_ecc_new_point_ex(&p, NULL);
+   return p;
 }
-
-
-void wc_ecc_del_point_h(ecc_point* p, void* heap)
-{
-   /* prevents free'ing null arguments */
-   if (p != NULL) {
-      mp_clear(p->x);
-      mp_clear(p->y);
-      mp_clear(p->z);
-      XFREE(p, heap, DYNAMIC_TYPE_ECC);
-   }
-   (void)heap;
-}
-
 
 /** Free an ECC point from memory
   p   The point to free
 */
+static void wc_ecc_del_point_ex(ecc_point* p, void* heap)
+{
+   if (p != NULL) {
+      mp_clear(p->x);
+      mp_clear(p->y);
+      mp_clear(p->z);
+   #ifndef WOLFSSL_NO_MALLOC
+      XFREE(p, heap, DYNAMIC_TYPE_ECC);
+   #endif
+   }
+   (void)heap;
+}
+void wc_ecc_del_point_h(ecc_point* p, void* heap)
+{
+   wc_ecc_del_point_ex(p, heap);
+}
 void wc_ecc_del_point(ecc_point* p)
 {
-    wc_ecc_del_point_h(p, NULL);
+    wc_ecc_del_point_ex(p, NULL);
 }
-
 
 void wc_ecc_forcezero_point(ecc_point* p)
 {
@@ -3890,13 +3925,19 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     int err = MP_OKAY;
 #if !defined(WOLFSSL_SP_MATH)
     ecc_point* result = NULL;
+    #ifdef WOLFSSL_NO_MALLOC
+    ecc_point  lcl_result;
+    #endif
     word32 x = 0;
 #endif
     mp_int* k = &private_key->k;
 #ifdef HAVE_ECC_CDH
     mp_int k_lcl;
+#endif
 
     WOLFSSL_ENTER("wc_ecc_shared_secret_gen_sync");
+
+#ifdef HAVE_ECC_CDH
     /* if cofactor flag has been set */
     if (private_key->flags & WC_ECC_FLAG_COFACTOR) {
         mp_digit cofactor = (mp_digit)private_key->dp->cofactor;
@@ -3913,8 +3954,6 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
             }
         }
     }
-#else
-    WOLFSSL_ENTER("wc_ecc_shared_secret_gen_sync");
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -3949,13 +3988,16 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         mp_digit mp = 0;
 
         /* make new point */
-        result = wc_ecc_new_point_h(private_key->heap);
-        if (result == NULL) {
-#ifdef HAVE_ECC_CDH
+    #ifdef WOLFSSL_NO_MALLOC
+        result = &lcl_result;
+    #endif
+        err = wc_ecc_new_point_ex(&result, private_key->heap);
+        if (err != MP_OKAY) {
+        #ifdef HAVE_ECC_CDH
             if (k == &k_lcl)
                 mp_clear(k);
-#endif
-            return MEMORY_E;
+        #endif
+            return err;
         }
 
 #ifdef ECC_TIMING_RESISTANT
@@ -3996,7 +4038,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
         }
         *outlen = x;
 
-        wc_ecc_del_point_h(result, private_key->heap);
+        wc_ecc_del_point_ex(result, private_key->heap);
     }
 #endif
 #ifdef HAVE_ECC_CDH
@@ -4312,6 +4354,9 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
   && !defined(WOLFSSL_SILABS_SE_ACCEL)
 #if !defined(WOLFSSL_SP_MATH)
     ecc_point* base = NULL;
+    #ifdef WOLFSSL_NO_MALLOC
+    ecc_point  lcl_base;
+    #endif
 #endif
     ecc_point* pub;
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
@@ -4390,10 +4435,11 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #else
     {
         mp_digit mp = 0;
+    #ifdef WOLFSSL_NO_MALLOC
+        base = &lcl_base;
+    #endif
+        err = wc_ecc_new_point_ex(&base, key->heap);
 
-        base = wc_ecc_new_point_h(key->heap);
-        if (base == NULL)
-            err = MEMORY_E;
         /* read in the x/y for this key */
         if (err == MP_OKAY)
             err = mp_copy(curve->Gx, base->x);
@@ -4418,7 +4464,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
             err = ecc_map_ex(pub, curve->prime, mp, 1);
         }
 
-        wc_ecc_del_point_h(base, key->heap);
+        wc_ecc_del_point_ex(base, key->heap);
     }
 #endif
 
@@ -5961,10 +6007,18 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   ecc_point**    precomp = NULL;
 #else
   ecc_point*     precomp[SHAMIR_PRECOMP_SZ];
+  #ifdef WOLFSSL_NO_MALLOC
+  ecc_point      lcl_precomp[SHAMIR_PRECOMP_SZ];
+  #endif
 #endif
   unsigned       bitbufA, bitbufB, lenA, lenB, len, nA, nB, nibble;
-  unsigned char* tA;
-  unsigned char* tB;
+#ifdef WOLFSSL_NO_MALLOC
+  unsigned char tA[ECC_BUFSIZE];
+  unsigned char tB[ECC_BUFSIZE];
+#else
+  unsigned char* tA = NULL;
+  unsigned char* tB = NULL;
+#endif
   int            err = MP_OKAY, first, x, y;
   mp_digit       mp = 0;
 
@@ -5974,6 +6028,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
      return ECC_BAD_ARG_E;
   }
 
+#ifndef WOLFSSL_NO_MALLOC
   /* allocate memory */
   tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (tA == NULL) {
@@ -5984,6 +6039,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
      return GEN_MEM_ERR;
   }
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
   precomp = (ecc_point**)XMALLOC(sizeof(ecc_point*) * SHAMIR_PRECOMP_SZ, heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
@@ -6001,6 +6058,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   key.y = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
   key.z = (mp_int*)XMALLOC(sizeof(mp_int), heap, DYNAMIC_TYPE_ECC);
 #endif
+
   if (key.t1 == NULL || key.t2 == NULL
 #ifdef ALT_ECC_SIZE
      || key.x == NULL || key.y == NULL || key.z == NULL
@@ -6051,11 +6109,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
     /* allocate the table */
     if (err == MP_OKAY) {
         for (x = 0; x < SHAMIR_PRECOMP_SZ; x++) {
-            precomp[x] = wc_ecc_new_point_h(heap);
-            if (precomp[x] == NULL) {
-                err = GEN_MEM_ERR;
+        #ifdef WOLFSSL_NO_MALLOC
+            precomp[x] = &lcl_precomp[x];
+        #endif
+            err = wc_ecc_new_point_ex(&precomp[x], heap);
+            if (err != MP_OKAY)
                 break;
-            }
         #ifdef WOLFSSL_SMALL_STACK_CACHE
             precomp[x]->key = &key;
         #endif
@@ -6215,7 +6274,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   /* clean up */
   for (x = 0; x < SHAMIR_PRECOMP_SZ; x++) {
-     wc_ecc_del_point_h(precomp[x], heap);
+     wc_ecc_del_point_ex(precomp[x], heap);
   }
 
   ForceZero(tA, ECC_BUFSIZE);
@@ -6233,9 +6292,10 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(precomp, heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
+#ifndef WOLFSSL_NO_MALLOC
   XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
   XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
-
+#endif
   return err;
 }
 
@@ -6449,6 +6509,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
+   #ifdef WOLFSSL_NO_MALLOC
+   ecc_point    lcl_mG, lcl_mQ;
+   #endif
    #ifdef WOLFSSL_SMALL_STACK
    mp_int*       v = NULL;
    mp_int*       w = NULL;
@@ -6779,10 +6842,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    /* allocate points */
    if (err == MP_OKAY) {
-       mG = wc_ecc_new_point_h(key->heap);
-       mQ = wc_ecc_new_point_h(key->heap);
-       if (mQ  == NULL || mG == NULL)
-          err = MEMORY_E;
+   #ifdef WOLFSSL_NO_MALLOC
+       mG = &lcl_mG;
+   #endif
+       err = wc_ecc_new_point_ex(&mG, key->heap);
+   }
+   if (err == MP_OKAY) {
+   #ifdef WOLFSSL_NO_MALLOC
+       mQ = &lcl_mQ;
+   #endif
+       err = wc_ecc_new_point_ex(&mQ, key->heap);
    }
 
    /*  w  = s^-1 mod n */
@@ -6876,8 +6945,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
 
    /* cleanup */
-   wc_ecc_del_point_h(mG, key->heap);
-   wc_ecc_del_point_h(mQ, key->heap);
+   wc_ecc_del_point_ex(mG, key->heap);
+   wc_ecc_del_point_ex(mQ, key->heap);
 
    mp_clear(e);
    if (did_init) {
@@ -7498,9 +7567,13 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 /* validate privkey * generator == pubkey, 0 on success */
 static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 {
-    int        err = MP_OKAY;
+    int        err;
     ecc_point* base = NULL;
     ecc_point* res  = NULL;
+#ifdef WOLFSSL_NO_MALLOC
+    ecc_point lcl_base;
+    ecc_point lcl_res;
+#endif
     DECLARE_CURVE_SPECS(curve, 3);
 
     if (key == NULL)
@@ -7508,9 +7581,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 
     ALLOC_CURVE_SPECS(3);
 
-    res = wc_ecc_new_point_h(key->heap);
-    if (res == NULL)
-        err = MEMORY_E;
+#ifdef WOLFSSL_NO_MALLOC
+    res = &lcl_res;
+#endif
+    err = wc_ecc_new_point_ex(&res, key->heap);
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
@@ -7531,9 +7605,12 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
 #endif
 #endif
     {
-        base = wc_ecc_new_point_h(key->heap);
-        if (base == NULL)
-            err = MEMORY_E;
+        if (err == MP_OKAY) {
+        #ifdef WOLFSSL_NO_MALLOC
+            base = &lcl_base;
+        #endif
+            err = wc_ecc_new_point_ex(&base, key->heap);
+        }
 
         if (err == MP_OKAY) {
             /* load curve info */
@@ -7571,8 +7648,8 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
     }
 
     wc_ecc_curve_free(curve);
-    wc_ecc_del_point_h(res, key->heap);
-    wc_ecc_del_point_h(base, key->heap);
+    wc_ecc_del_point_ex(res, key->heap);
+    wc_ecc_del_point_ex(base, key->heap);
     FREE_CURVE_SPECS();
 
     return err;
@@ -7624,15 +7701,19 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order)
 {
     ecc_point* inf = NULL;
-    int        err;
+#ifdef WOLFSSL_NO_MALLOC
+    ecc_point  lcl_inf;
+#endif
+    int err;
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
-    inf = wc_ecc_new_point_h(key->heap);
-    if (inf == NULL)
-        err = MEMORY_E;
-    else {
+#ifdef WOLFSSL_NO_MALLOC
+    inf = &lcl_inf;
+#endif
+    err = wc_ecc_new_point_ex(&inf, key->heap);
+    if (err == MP_OKAY) {
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
         if (key->idx != ECC_CUSTOM_IDX &&
@@ -7663,7 +7744,7 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 #endif
     }
 
-    wc_ecc_del_point_h(inf, key->heap);
+    wc_ecc_del_point_ex(inf, key->heap);
 
     return err;
 }
