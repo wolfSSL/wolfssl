@@ -36900,7 +36900,8 @@ static void test_wolfSSL_NCONF(void)
 
 static void test_wolfSSL_EC_KEY_set_group(void)
 {
-#if !defined(NO_ECC256) && !defined(NO_ECC_SECP) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(OPENSSL_EXTRA)
     EC_KEY   *key    = NULL;
     EC_GROUP *group  = NULL;
     const EC_GROUP *group2 = NULL;
