@@ -1,6 +1,9 @@
 #ifndef _WIN_USER_SETTINGS_H_
 #define _WIN_USER_SETTINGS_H_
 
+#undef HAVE_FIPS_VERSION
+#define HAVE_FIPS_VERSION 5
+
 /* For FIPS Ready, uncomment the following: */
 /* #define WOLFSSL_FIPS_READY */
 #ifdef WOLFSSL_FIPS_READY
@@ -54,6 +57,36 @@
         #define HAVE_INTEL_RDSEED
         #define FORCE_FAILURE_RDSEED
     #endif /* FIPS v2 */
+    #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
+        #undef WOLFSSL_AESNI /* Comment out if using PAA */
+        #undef HAVE_INTEL_RDSEED
+        #undef FORCE_FAILURE_RDSEED
+
+        #define NO_DES
+        #define NO_DES3
+        #define NO_MD5
+        #define NO_OLD_TLS
+
+        #define GCM_TABLE_4BIT
+        #define WOLFSSL_NO_SHAKE256
+        #define WOLFSSL_VALIDATE_ECC_KEYGEN
+        #define WOLFSSL_ECDSA_SET_K
+        #define WOLFSSL_WOLFSSH
+        #define WC_RNG_SEED_CB
+        #define TFM_ECC256
+        #define ECC_USER_CURVES
+        #define HAVE_ECC192
+        #define HAVE_ECC224
+        #define HAVE_ECC256
+        #define HAVE_ECC384
+        #define HAVE_ECC521
+        #define HAVE_FFDHE_2048
+        #define HAVE_FFDHE_3072
+        #define HAVE_FFDHE_4096
+        #define HAVE_FFDHE_6144
+        #define HAVE_FFDHE_8192
+        #define FP_MAX_BITS=16384
+    #endif /* FIPS v5 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING
