@@ -2523,6 +2523,8 @@ static void test_wolfSSL_EVP_CIPHER_CTX(void)
     AssertIntEQ(EVP_CIPHER_CTX_reset(NULL), WOLFSSL_FAILURE);
 
     EVP_CIPHER_CTX_free(ctx);
+    /* test EVP_CIPHER_CTX_cleanup with NULL */
+    AssertIntEQ(EVP_CIPHER_CTX_cleanup(NULL), WOLFSSL_SUCCESS);
 #endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_128 */
 }
 #endif /* OPENSSL_EXTRA */
@@ -29190,6 +29192,8 @@ static void test_wolfSSL_BIO(void)
     for (i = 0; i < 20; i++) {
         buff[i] = i;
     }
+    /* test BIO_free with NULL */
+    AssertIntEQ(BIO_free(NULL), WOLFSSL_FAILURE);
 
     /* Creating and testing type BIO_s_bio */
     AssertNotNull(bio1 = BIO_new(BIO_s_bio()));
