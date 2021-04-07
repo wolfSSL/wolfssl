@@ -36901,6 +36901,28 @@ static void test_wolfSSL_NCONF(void)
 }
 #endif /* OPENSSL_ALL */
 
+static void test_wolfSSL_EC_KEY_set_group(void)
+{
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP) && \
+    defined(OPENSSL_EXTRA)
+    EC_KEY   *key    = NULL;
+    EC_GROUP *group  = NULL;
+    const EC_GROUP *group2 = NULL;
+
+    printf(testingFmt, "wolfSSL_EC_KEY_dup()");
+
+    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(key = EC_KEY_new());
+    AssertIntEQ(EC_KEY_set_group(key, group), WOLFSSL_SUCCESS);
+    AssertNotNull(group2 = EC_KEY_get0_group(key));
+    AssertIntEQ(EC_GROUP_cmp(group2, group, NULL), 0);
+
+    EC_GROUP_free(group);
+    EC_KEY_free(key);
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_X509V3_EXT_get(void) {
 #if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
@@ -42433,6 +42455,7 @@ void ApiTest(void)
     test_CRYPTO_THREADID_xxx();
     test_ENGINE_cleanup();
 
+    test_wolfSSL_EC_KEY_set_group();
 #if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_sk_CIPHER_description();

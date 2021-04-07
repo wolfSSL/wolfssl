@@ -36387,8 +36387,8 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
         goto error;
     }
 
-    /* curve group */
-    external->group = wolfSSL_EC_GROUP_new_by_curve_name(ECC_CURVE_DEF);
+    /* Group unknown at creation */
+    external->group = wolfSSL_EC_GROUP_new_by_curve_name(NID_undef);
     if (external->group == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc WOLFSSL_EC_GROUP failure");
         goto error;
@@ -36433,18 +36433,28 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     }
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+/* set the group in WOLFSSL_EC_KEY and return WOLFSSL_SUCCESS on success */
 int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
 {
-    (void)key;
-    (void)group;
+    if (key == NULL || group == NULL)
+        return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_set_group");
-    WOLFSSL_STUB("EC_KEY_set_group");
 
-    return -1;
+    if (key->group != NULL) {
+        /* free the current group */
+        wolfSSL_EC_GROUP_free(key->group);
+    }
+
+    key->group = wolfSSL_EC_GROUP_dup(group);
+    if (key->group == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
-#endif
+
 
 int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 {
