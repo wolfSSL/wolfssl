@@ -2360,7 +2360,7 @@ void sp_forcezero(sp_int* a)
 }
 #endif /* !WOLFSSL_RSA_VERIFY_ONLY || !NO_DH || HAVE_ECC */
 
-#if defined(WOLSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
+#if defined(WOLFSSL_SP_MATH_ALL) || !defined(NO_DH) || defined(HAVE_ECC) || \
     !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 /* Copy value of multi-precision number a into r.
  *
@@ -2390,7 +2390,7 @@ int sp_copy(const sp_int* a, sp_int* r)
 }
 #endif
 
-#if defined(WOLSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && defined(FP_ECC))
+#if defined(WOLFSSL_SP_MATH_ALL) || (defined(HAVE_ECC) && defined(FP_ECC))
 /* Initializes r and copies in value from a.
  *
  * @param  [out]  r  SP integer - destination.
@@ -2409,7 +2409,7 @@ int sp_init_copy(sp_int* r, sp_int* a)
     }
     return err;
 }
-#endif /* WOLSSL_SP_MATH_ALL || (HAVE_ECC && FP_ECC) */
+#endif /* WOLFSSL_SP_MATH_ALL || (HAVE_ECC && FP_ECC) */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     !defined(NO_DH) || !defined(NO_DSA)
@@ -12290,7 +12290,7 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
     return err;
 }
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Store the number in big-endian format in array at an offset.
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
  * to calculate the number of bytes required.
@@ -12312,10 +12312,10 @@ int sp_to_unsigned_bin_at_pos(int o, sp_int*a, unsigned char* out)
 
     return ret;
 }
-#endif /* WOLFSSL_SP_MATH_ALL */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC)
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_ECC) || !defined(NO_DSA)
 /* Convert hexadecimal number as string in big-endian format to a
  * multi-precision number.
  *
@@ -12388,9 +12388,9 @@ static int _sp_read_radix_16(sp_int* a, const char* in)
     }
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
+#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
 
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 /* Convert decimal number as string in big-endian format to a multi-precision
  * number.
  *
@@ -12447,10 +12447,10 @@ static int _sp_read_radix_10(sp_int* a, const char* in)
 
     return err;
 }
-#endif /* WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY */
+#endif /* WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(HAVE_ECC)
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_ECC) || !defined(NO_DSA)
 /* Convert a number as string in big-endian format to a big number.
  * Only supports base-16 (hexadecimal) and base-10 (decimal).
  *
@@ -12482,7 +12482,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
         if (radix == 16) {
             err = _sp_read_radix_16(a, in);
         }
-    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    #if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
         else if (radix == 10) {
             err = _sp_read_radix_10(a, in);
         }
@@ -12494,7 +12494,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
+#endif /* (WOLFSSL_SP_MATH_ALL && !NO_RSA && !WOLFSSL_RSA_VERIFY_ONLY) || HAVE_ECC */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
     defined(WC_MP_TO_RADIX)
