@@ -27,9 +27,15 @@
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
-
-#ifndef WOLFSSL_LINUXKM
-#include <stdint.h>
+#ifdef _WIN32_WCE
+    typedef __int8           int8_t;
+    typedef __int32          int32_t;
+    typedef __int64          int64_t;
+    typedef unsigned __int8  uint8_t;
+    typedef unsigned __int32 uint32_t;
+    typedef unsigned __int64 uint64_t;
+#elif !defined(WOLFSSL_LINUXKM)
+    #include <stdint.h>
 #endif
 
 #include <wolfssl/wolfcrypt/integer.h>

@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -3328,10 +3327,10 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
 {
 #ifndef WOLFSSL_NO_SHAKE256
     wc_Shake  sha;
-    byte  hash[114];
+    byte  hash[250];
 
-    testVector a, b, c;
-    testVector test_sha[3];
+    testVector a, b, c, d, e;
+    testVector test_sha[5];
     int ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
@@ -3356,7 +3355,7 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
                "\xbc\x0e\xab\x86\x28\x53\x34\x9e\xc7\x55\x46\xf5\x8f\xb7\xc2"
                "\x77\x5c\x38\x46\x2c\x50\x10\xd8\x46";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = sizeof(hash);
+    a.outLen = 114;
 
     b.input  = "abc";
     b.output = "\x48\x33\x66\x60\x13\x60\xa8\x77\x1c\x68\x63\x08\x0c\xc4\x11"
@@ -3368,7 +3367,7 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
                "\x28\x86\x20\x94\x4d\x78\xdb\xcd\xdb\xd9\x12\x99\x3f\x09\x13"
                "\xf1\x64\xfb\x2c\xe9\x51\x31\xa2\xd0";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = sizeof(hash);
+    b.outLen = 114;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x4d\x8c\x2d\xd2\x43\x5a\x01\x28\xee\xfb\xb8\xc3\x6f\x6f\x87"
@@ -3380,11 +3379,53 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
                "\xf2\x08\xba\xf1\x9b\xe2\x12\x33\xf3\xde\xbe\x78\xd0\x67\x60"
                "\xcf\xa5\x51\xee\x1e\x07\x91\x41\xd4";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = sizeof(hash);
+    c.outLen = 114;
+
+    /* Taken from NIST CAVP test vectors - full rate output. */
+    d.input  = "\xdc\x88\x6d\xf3\xf6\x9c\x49\x51\x3d\xe3\x62\x7e\x94\x81\xdb"
+               "\x58\x71\xe8\xee\x88\xeb\x9f\x99\x61\x15\x41\x93\x0a\x8b\xc8"
+               "\x85\xe0";
+    d.output = "\x00\x64\x8a\xfb\xc5\xe6\x51\x64\x9d\xb1\xfd\x82\x93\x6b\x00"
+               "\xdb\xbc\x12\x2f\xb4\xc8\x77\x86\x0d\x38\x5c\x49\x50\xd5\x6d"
+               "\xe7\xe0\x96\xd6\x13\xd7\xa3\xf2\x7e\xd8\xf2\x63\x34\xb0\xcc"
+               "\xc1\x40\x7b\x41\xdc\xcb\x23\xdf\xaa\x52\x98\x18\xd1\x12\x5c"
+               "\xd5\x34\x80\x92\x52\x43\x66\xb8\x5f\xab\xb9\x7c\x6c\xd1\xe6"
+               "\x06\x6f\x45\x9b\xcc\x56\x6d\xa8\x7e\xc9\xb7\xba\x36\x79\x2d"
+               "\x11\x8a\xc3\x9a\x4c\xce\xf6\x19\x2b\xbf\x3a\x54\xaf\x18\xe5"
+               "\x7b\x0c\x14\x61\x01\xf6\xae\xaa\x82\x2b\xc4\xb4\xc9\x70\x8b"
+               "\x09\xf0\xb3\xba\xb4\x1b\xcc\xe9\x64\xd9\x99\xd1\x10\x7b\xd7"
+               "\xc2";
+    d.inLen  = 32;
+    d.outLen = 136;
+    /* Taken from NIST CAVP test vectors - more than one output block. */
+    e.input  = "\x8d\x80\x01\xe2\xc0\x96\xf1\xb8\x8e\x7c\x92\x24\xa0\x86\xef"
+               "\xd4\x79\x7f\xbf\x74\xa8\x03\x3a\x2d\x42\x2a\x2b\x6b\x8f\x67"
+               "\x47\xe4";
+    e.output = "\x2e\x97\x5f\x6a\x8a\x14\xf0\x70\x4d\x51\xb1\x36\x67\xd8\x19"
+               "\x5c\x21\x9f\x71\xe6\x34\x56\x96\xc4\x9f\xa4\xb9\xd0\x8e\x92"
+               "\x25\xd3\xd3\x93\x93\x42\x51\x52\xc9\x7e\x71\xdd\x24\x60\x1c"
+               "\x11\xab\xcf\xa0\xf1\x2f\x53\xc6\x80\xbd\x3a\xe7\x57\xb8\x13"
+               "\x4a\x9c\x10\xd4\x29\x61\x58\x69\x21\x7f\xdd\x58\x85\xc4\xdb"
+               "\x17\x49\x85\x70\x3a\x6d\x6d\xe9\x4a\x66\x7e\xac\x30\x23\x44"
+               "\x3a\x83\x37\xae\x1b\xc6\x01\xb7\x6d\x7d\x38\xec\x3c\x34\x46"
+               "\x31\x05\xf0\xd3\x94\x9d\x78\xe5\x62\xa0\x39\xe4\x46\x95\x48"
+               "\xb6\x09\x39\x5d\xe5\xa4\xfd\x43\xc4\x6c\xa9\xfd\x6e\xe2\x9a"
+               "\xda\x5e\xfc\x07\xd8\x4d\x55\x32\x49\x45\x0d\xab\x4a\x49\xc4"
+               "\x83\xde\xd2\x50\xc9\x33\x8f\x85\xcd\x93\x7a\xe6\x6b\xb4\x36"
+               "\xf3\xb4\x02\x6e\x85\x9f\xda\x1c\xa5\x71\x43\x2f\x3b\xfc\x09"
+               "\xe7\xc0\x3c\xa4\xd1\x83\xb7\x41\x11\x1c\xa0\x48\x3d\x0e\xda"
+               "\xbc\x03\xfe\xb2\x3b\x17\xee\x48\xe8\x44\xba\x24\x08\xd9\xdc"
+               "\xfd\x01\x39\xd2\xe8\xc7\x31\x01\x25\xae\xe8\x01\xc6\x1a\xb7"
+               "\x90\x0d\x1e\xfc\x47\xc0\x78\x28\x17\x66\xf3\x61\xc5\xe6\x11"
+               "\x13\x46\x23\x5e\x1d\xc3\x83\x25\x66\x6c";
+    e.inLen  = 32;
+    e.outLen = 250;
 
     test_sha[0] = a;
     test_sha[1] = b;
     test_sha[2] = c;
+    test_sha[3] = d;
+    test_sha[4] = e;
 
     ret = wc_InitShake256(&sha, HEAP_HINT, devId);
     if (ret != 0)
@@ -3417,7 +3458,7 @@ WOLFSSL_TEST_SUBROUTINE int shake256_test(void)
     ret = wc_Shake256_Final(&sha, hash, (word32)sizeof(hash));
     if (ret != 0)
         ERROR_OUT(-3105, exit);
-    if (XMEMCMP(hash, large_digest, sizeof(hash)) != 0)
+    if (XMEMCMP(hash, large_digest, 114) != 0)
         ERROR_OUT(-3106, exit);
     } /* END LARGE HASH TEST */
 
@@ -10045,6 +10086,103 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
 #endif /* WOLFSSL_AES_256 && !(WC_NO_RNG || HAVE_SELFTEST) */
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
+#if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
+#ifdef WOLFSSL_AES_256
+#ifdef WOLFSSL_AESGCM_STREAM
+    result = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6360, out);
+    result = wc_AesGcmEncryptUpdate(enc, resultC, p, sizeof(p), a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6361, out);
+    result = wc_AesGcmEncryptFinal(enc, resultT, sizeof(resultT));
+    if (result != 0)
+        ERROR_OUT(-6362, out);
+    if (XMEMCMP(resultC, c1, sizeof(c1)) != 0)
+        ERROR_OUT(-6363, out);
+    if (XMEMCMP(resultT, t1, sizeof(t1)) != 0)
+        ERROR_OUT(-6364, out);
+
+#ifdef HAVE_AES_DECRYPT
+    result = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+    if (result != 0)
+        ERROR_OUT(-6370, out);
+    result = wc_AesGcmDecryptUpdate(enc, resultP, c1, sizeof(c1), a, sizeof(a));
+    if (result != 0)
+        ERROR_OUT(-6371, out);
+    result = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
+    if (result != 0)
+        ERROR_OUT(-6372, out);
+    if (XMEMCMP(resultP, p, sizeof(p)) != 0)
+        ERROR_OUT(-6373, out);
+#endif
+
+    /* alen is the size to pass in with each update. */
+    for (alen = 1; alen < AES_BLOCK_SIZE + 1; alen++) {
+        result = wc_AesGcmEncryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+        if (result != 0)
+            ERROR_OUT(-6380, out);
+
+        /* plen is the offset into AAD to update with. */
+        for (plen = 0; plen < (int)sizeof(a); plen += alen)  {
+            int len = sizeof(a) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmEncryptUpdate(enc, NULL, NULL, 0, a + plen, len);
+            if (result != 0)
+                ERROR_OUT(-6381, out);
+        }
+        /* plen is the offset into plaintext to update with. */
+        for (plen = 0; plen < (int)sizeof(p); plen += alen)  {
+            int len = sizeof(p) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmEncryptUpdate(enc, resultC + plen, p + plen, len,
+                NULL, 0);
+            if (result != 0)
+                ERROR_OUT(-6382, out);
+        }
+        result = wc_AesGcmEncryptFinal(enc, resultT, sizeof(resultT));
+        if (result != 0)
+            ERROR_OUT(-6383, out);
+        if (XMEMCMP(resultC, c1, sizeof(c1)) != 0)
+            ERROR_OUT(-6384, out);
+        if (XMEMCMP(resultT, t1, sizeof(t1)) != 0)
+            ERROR_OUT(-6385, out);
+    }
+
+#ifdef HAVE_AES_DECRYPT
+    for (alen = 1; alen < AES_BLOCK_SIZE + 1; alen++) {
+        result = wc_AesGcmDecryptInit(enc, k1, sizeof(k1), iv1, sizeof(iv1));
+        if (result != 0)
+            ERROR_OUT(-6390, out);
+
+        /* plen is the offset into AAD to update with. */
+        for (plen = 0; plen < (int)sizeof(a); plen += alen)  {
+            int len = sizeof(a) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmDecryptUpdate(enc, NULL, NULL, 0, a + plen, len);
+            if (result != 0)
+                ERROR_OUT(-6391, out);
+        }
+        /* plen is the offset into cipher text to update with. */
+        for (plen = 0; plen < (int)sizeof(c1); plen += alen)  {
+            int len = sizeof(c1) - plen;
+            if (len > alen) len = alen;
+            result = wc_AesGcmDecryptUpdate(enc, resultP + plen, c1 + plen, len,
+                NULL, 0);
+            if (result != 0)
+                ERROR_OUT(-6392, out);
+        }
+        result = wc_AesGcmDecryptFinal(enc, t1, sizeof(t1));
+        if (result != 0)
+            ERROR_OUT(-6393, out);
+        if (XMEMCMP(resultP, p, sizeof(p)) != 0)
+            ERROR_OUT(-6394, out);
+    }
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AESGCM_STREAM */
+#endif /* WOLFSSL_AES_256 */
+#endif /* !WOLFSSL_AFALG_XILINX_AES && !WOLFSSL_XILINX_CRYPT */
+
     wc_AesFree(enc);
     wc_AesFree(dec);
 
@@ -11763,6 +11901,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #elif defined(WOLFSSL_uTKERNEL2)
     #define CERT_PREFIX "/uda/"
     #define CERT_PATH_SEP "/"
+#elif defined(_WIN32_WCE)
+    #define CERT_PREFIX "\\windows\\"
+    #define CERT_PATH_SEP "\\"
 #endif
 
 #ifndef CERT_PREFIX
@@ -13604,8 +13745,7 @@ WOLFSSL_TEST_SUBROUTINE int rsa_no_pad_test(void)
 #elif !defined(NO_FILESYSTEM)
     file = XFOPEN(clientKey, "rb");
     if (!file) {
-        err_sys("can't open ./certs/client-key.der, "
-                "Please run from wolfSSL home dir", -40);
+        err_sys("can't open clientKey, Please run from wolfSSL home dir", -40);
         ERROR_OUT(-7801, exit_rsa_nopadding);
     }
 
@@ -23151,7 +23291,7 @@ static int crypto_ecc_verify(const uint8_t *key, uint32_t keySz,
             );
             count++;
 
-            /* TODO: Real-time work can be called here */
+            /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
     #ifdef DEBUG_WOLFSSL
         printf("ECC non-block verify: %d times\n", count);
@@ -23235,7 +23375,7 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
             );
             count++;
 
-            /* TODO: Real-time work can be called here */
+            /* This is where real-time work could be called */
         } while (ret == FP_WOULDBLOCK);
 
     #ifdef DEBUG_WOLFSSL
@@ -23245,8 +23385,8 @@ static int crypto_ecc_sign(const uint8_t *key, uint32_t keySz,
 
     if (ret == 0) {
         /* export r/s */
-        mp_to_unsigned_bin(&r, sig);
-        mp_to_unsigned_bin(&s, sig + curveSz);
+        mp_to_unsigned_bin_len(&r, sig, curveSz);
+        mp_to_unsigned_bin_len(&s, sig + curveSz, curveSz);
     }
 
     mp_clear(&r);
@@ -27512,16 +27652,18 @@ int eccsi_test(void)
     mp_int* ssk;
     ecc_point* pvt;
 
-    priv = XMALLOC(sizeof(EccsiKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
         return -10205;
     }
-    pub = XMALLOC(sizeof(EccsiKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (pub == NULL) {
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -10206;
     }
-    ssk = XMALLOC(sizeof(mp_int), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ssk == NULL) {
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28636,16 +28778,19 @@ int sakke_test(void)
     SakkeKey* key;
     ecc_point* rsk = NULL;
 
-    priv = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
         return -10404;
     }
-    pub = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (pub == NULL) {
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -10405;
     }
-    key = XMALLOC(sizeof(SakkeKey), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
         XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -28884,8 +29029,16 @@ WOLFSSL_TEST_SUBROUTINE int cmac_test(void)
 
         XMEMSET(tag, 0, sizeof(tag));
         tagSz = AES_BLOCK_SIZE;
+
+#if !defined(HAVE_FIPS) || \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)    
+        if (wc_InitCmac_ex(cmac, tc->k, tc->kSz, tc->type, NULL, HEAP_HINT, devId) != 0)
+#else
         if (wc_InitCmac(cmac, tc->k, tc->kSz, tc->type, NULL) != 0)
+#endif
+        {
             ERROR_OUT(-12000, out);
+        }
         if (tc->partial) {
             if (wc_CmacUpdate(cmac, tc->m,
                                  tc->mSz/2 - tc->partial) != 0)
@@ -36686,6 +36839,10 @@ WOLFSSL_TEST_SUBROUTINE int cryptocb_test(void)
     if (ret == 0)
         ret = pbkdf2_test();
     #endif
+#endif
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    if (ret == 0)
+        ret = cmac_test();
 #endif
 
     /* reset devId */

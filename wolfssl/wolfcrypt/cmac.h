@@ -53,12 +53,15 @@ struct Cmac {
     byte k2[AES_BLOCK_SIZE];
     word32 bufferSz;
     word32 totalSz;
-#if defined(WOLF_CRYPTO_CB)
+#ifdef WOLF_CRYPTO_CB
     int devId;
+    void* devCtx;
+    #ifdef WOLFSSL_QNX_CAAM
     byte ctx[32]; /* hold state for save and return */
     word32 blackKey;
     word32 keylen;
     byte   initialized;
+    #endif
 #endif
 };
 

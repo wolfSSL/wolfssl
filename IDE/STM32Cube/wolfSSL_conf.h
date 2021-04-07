@@ -177,6 +177,11 @@
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST
+#elif defined(STM32G071xx)
+    #define WOLFSSL_STM32G0
+    #define HAL_CONSOLE_UART huart2
+    #define NO_STM32_RNG
+    #define WOLFSSL_GENSEED_FORTEST
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */

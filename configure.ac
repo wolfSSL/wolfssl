@@ -324,6 +324,11 @@ then
     AC_MSG_ERROR([cannot enable sp-math and sp-math-all simultaneously.])
 fi
 
+AC_ARG_ENABLE([sp-asm],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
+    [ ENABLED_SP_ASM=$enableval ],
+    [ ENABLED_SP_ASM=no ],
+    )
 
 # ALL FEATURES
 AC_ARG_ENABLE([all],
@@ -348,6 +353,7 @@ then
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aesofb" = "" && enable_aesofb=yes
     test "$enable_aescfb" = "" && enable_aescfb=yes
+    test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
     test "$enable_camellia" = "" && enable_camellia=yes
     test "$enable_ripemd" = "" && enable_ripemd=yes
     test "$enable_sha512" = "" && enable_sha512=yes
@@ -949,16 +955,12 @@ then
   AM_CFLAGS="-DHAVE_EXT_CACHE $AM_CFLAGS"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
-then
-   AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
-fi
-
 if test "$ENABLED_OPENSSLEXTRA" = "x509small"
 then
   AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
   AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL $AM_CFLAGS"
   AM_CFLAGS="-DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_NO_OPENSSL_RAND_CB $AM_CFLAGS"
 fi
 
 # One Error Queue per Thread
@@ -1287,6 +1289,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
 fi
 
+# AES-CBC length checks (checks that input lengths are multiples of block size)
+AC_ARG_ENABLE([aescbc_length_checks],
+    [AS_HELP_STRING([--enable-aescbc-length-checks],[Enable AES-CBC length validity checks (default: disabled)])],
+    [ ENABLED_AESCBC_LENGTH_CHECKS=$enableval ],
+    [ ENABLED_AESCBC_LENGTH_CHECKS=no ]
+    )
+
+if test "$ENABLED_AESCBC_LENGTH_CHECKS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CBC_LENGTH_CHECKS"
+fi
+
 # leanpsk and leantls don't need gcm
 
 # AES-GCM
@@ -1294,6 +1308,11 @@ AC_ARG_ENABLE([aesgcm],
     [AS_HELP_STRING([--enable-aesgcm],[Enable wolfSSL AES-GCM support (default: enabled)])],
     [ ENABLED_AESGCM=$enableval ],
     [ ENABLED_AESGCM=yes ]
+    )
+AC_ARG_ENABLE([aesgcm-stream],
+    [AS_HELP_STRING([--enable-aesgcm-stream],[Enable wolfSSL AES-GCM support with streaming APIs (default: enabled)])],
+    [ ENABLED_AESGCM_STREAM=$enableval ],
+    [ ENABLED_AESGCM_STREAM=no ]
     )
 
 # leanpsk and leantls don't need gcm
@@ -4269,6 +4288,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA -DWOLFSSL_SIGNER_DER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT -DWOLFSSL_CERT_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
@@ -5134,6 +5154,10 @@ do
     ENABLED_SP_SMALL=yes
     ;;
 
+  asm)
+    ENABLED_SP_ASM=yes
+    ;;
+
   *)
     AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
     break;;
@@ -5194,11 +5218,6 @@ if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
-if test "$ENABLED_SMALL" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
-fi
-
 
 if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP" = "no"; then
@@ -5313,11 +5332,6 @@ if test "$ENABLED_SP_MATH_ALL" = "yes"; then
 fi
 
 
-AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
-    [ ENABLED_SP_ASM=$enableval ],
-    [ ENABLED_SP_ASM=no ],
-    )
 if test "$ENABLED_SP_ASM" = "yes"; then
   if test "$ENABLED_SP" = "no"; then
     AC_MSG_ERROR([Must have SP enabled: --enable-sp])
@@ -5975,6 +5989,16 @@ then
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
 fi
+if test "$ENABLED_AESGCM_STREAM" != "no"
+then
+    if test "$ENABLED_AESGCM" = "no"
+    then
+        AC_MSG_ERROR([AES-GCM streaming enabled but AES-GCM is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESGCM_STREAM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESGCM_STREAM"
+    fi
+fi
 
 
 AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes"],
@@ -6494,6 +6518,7 @@ echo "   * ARC4:                       $ENABLED_ARC4"
 echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-CBC:                    $ENABLED_AESCBC"
+echo "   * AES-CBC length checks:      $ENABLED_AESCBC_LENGTH_CHECKS"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"

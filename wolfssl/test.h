@@ -349,6 +349,7 @@
 #define cliEd448CertFile  "certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "certs/ed448/ca-ed448.pem"
+#define caCertFolder      "certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig     "wnr-example.conf"
@@ -382,6 +383,7 @@
 #define cliEd448CertFile  "./certs/ed448/client-ed448.pem"
 #define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.pem"
 #define caEd448CertFile   "./certs/ed448/ca-ed448.pem"
+#define caCertFolder      "./certs/"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig     "./wnr-example.conf"
@@ -4092,8 +4094,11 @@ static WC_INLINE word16 GetRandomPort(void)
 static WC_INLINE void EarlyDataStatus(WOLFSSL* ssl)
 {
     int earlyData_status;
-    
+#ifdef OPENSSL_EXTRA
+    earlyData_status = SSL_get_early_data_status(ssl);
+#else
     earlyData_status = wolfSSL_get_early_data_status(ssl);
+#endif
     if (earlyData_status < 0) return;
     
     printf("Early Data was ");

@@ -868,16 +868,13 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
      return MP_VAL;
   }
   if (mp_isone(P)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
   if (mp_iszero(X)) {
-     mp_set(Y, 1);
-     return MP_OKAY;
+     return mp_set(Y, 1);
   }
   if (mp_iszero(G)) {
-     mp_set(Y, 0);
-     return MP_OKAY;
+     return mp_set(Y, 0);
   }
 
   /* if exponent X is negative we have to recurse */
@@ -1449,10 +1446,10 @@ int mp_set (mp_int * a, mp_digit b)
 /* check if a bit is set */
 int mp_is_bit_set (mp_int *a, mp_digit b)
 {
-    int i = (int)(b / DIGIT_BIT);  /* word index */
-    int s = b % DIGIT_BIT;         /* bit index */
+    mp_digit i = b / DIGIT_BIT;  /* word index */
+    mp_digit s = b % DIGIT_BIT;  /* bit index */
 
-    if (a->used <= i) {
+    if ((mp_digit)a->used <= i) {
         /* no words avaialable at that bit count */
         return 0;
     }
@@ -2415,7 +2412,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
   }
 
   /* swap res with Y */
-  mp_copy(res, Y);
+  err = mp_copy(res, Y);
 
 LBL_RES:mp_clear (res);
 LBL_M:

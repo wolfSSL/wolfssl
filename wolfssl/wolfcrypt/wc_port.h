@@ -616,6 +616,22 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END                0
     #define XBADFILE                 NULL
     #define XFGETS(b,s,f)            f_gets((b), (s), (f))
+#elif defined (_WIN32_WCE)
+    /* stdio, WINCE case */
+    #include <stdio.h>
+    #define XFILE      FILE*
+    #define XFOPEN     fopen
+    #define XFDOPEN    fdopen
+    #define XFSEEK     fseek
+    #define XFTELL     ftell
+    #define XREWIND(F) XFSEEK(F, 0, SEEK_SET)
+    #define XFREAD     fread
+    #define XFWRITE    fwrite
+    #define XFCLOSE    fclose
+    #define XSEEK_END  SEEK_END
+    #define XBADFILE   NULL
+    #define XFGETS     fgets
+    #define XVSNPRINTF _vsnprintf
 
 #elif defined(FUSION_RTOS)
     #include <fclstdio.h>
@@ -676,14 +692,32 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
 
-    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
+    #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
+    #if defined(USE_WINDOWS_API)
+        #include <sys/stat.h>
+        #define XSTAT       _stat
+        #define XS_ISREG(s) (s & _S_IFREG)
+        #define SEPARATOR_CHAR ';'
+    #elif defined(WOLFSSL_ZEPHYR)
+        #define XSTAT       fs_stat
+        #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
+        #define SEPARATOR_CHAR ':'
+    #elif defined(WOLFSSL_TELIT_M2MB)
+        #define XSTAT       m2mb_fs_stat
+        #define XS_ISREG(s) (s & M2MB_S_IFREG)
+        #define SEPARATOR_CHAR ':'
+    #else
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
         #define XWRITE      write
         #define XREAD       read
         #define XCLOSE      close
+        #define XSTAT       stat
+        #define XS_ISREG(s) S_ISREG(s)
+        #define SEPARATOR_CHAR ':'
+    #endif
     #endif
 #endif
 
@@ -719,6 +753,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
+        struct XSTAT s;
     #elif defined(WOLFSSL_ZEPHYR)
         struct fs_dirent entry;
         struct fs_dir_t  dir;
@@ -729,10 +764,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         M2MB_DIR_T* dir;
         struct M2MB_DIRENT* entry;
         struct M2MB_STAT s;
+    #elif defined(INTIME_RTOS)
+        FIND_FILE_DATA FindFileData;
     #else
         struct dirent* entry;
         DIR*   dir;
-        struct stat s;
+        struct XSTAT s;
     #endif
         char name[MAX_FILENAME_SZ];
     } ReadDirCtx;
@@ -743,6 +780,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     WOLFSSL_API int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API void wc_ReadDirClose(ReadDirCtx* ctx);
 #endif /* !NO_WOLFSSL_DIR */
+    #define WC_ISFILEEXIST_NOFILE -1
+
+    WOLFSSL_API int wc_FileExists(const char* fname);
 
 #endif /* !NO_FILESYSTEM */
 
@@ -863,8 +903,31 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #elif defined(_WIN32_WCE)
     #include <windows.h>
+    #include <stdlib.h> /* For file system */
+
+    time_t windows_time(time_t* timer);
+
+    #define FindNextFileA(h, d) FindNextFile(h, (LPWIN32_FIND_DATAW) d)
+    #define FindFirstFileA(fn, d) FindFirstFile((LPCWSTR) fn, \
+                                                (LPWIN32_FIND_DATAW) d)
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
+
+    /* if struct tm is not defined in WINCE SDK */
+    #ifndef _TM_DEFINED
+        struct tm {
+            int tm_sec;     /* seconds */
+            int tm_min;     /* minutes */
+            int tm_hour;    /* hours */
+            int tm_mday;    /* day of month (month specific) */
+            int tm_mon;     /* month */
+            int tm_year;    /* year */
+            int tm_wday;    /* day of week (out of 1-7)*/
+            int tm_yday;    /* day of year (out of 365) */
+            int tm_isdst;   /* is it daylight savings */
+            };
+            #define _TM_DEFINED
+    #endif
 
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     #include "os/os_time.h"

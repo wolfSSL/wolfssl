@@ -1485,6 +1485,7 @@ end:
     #else
         return (word32)(ktime_get_real_ns() / (ktime_t)1000000);
     #endif
+    }
 #elif defined(WOLFSSL_QNX_CAAM)
     word32 TimeNowInMilliseconds(void)
     {
@@ -4211,6 +4212,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if (!usingPSK) {
+        /* Not using PSK so don't require no KE. */
+        ssl->options.noPskDheKe = 0;
+
 #ifndef NO_CERTS
         if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
             WOLFSSL_MSG("Client did not send a KeyShare extension");

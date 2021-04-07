@@ -364,6 +364,25 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
     }
 #endif
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
+    (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+    /* if not find entry in the CRL list, it looks at the folder that sets  */
+    /* by LOOKUP_ctrl because user would want to use hash_dir.              */
+    /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
+    /* and try again checking Cert in the CRL list.                         */
+    /* When not set the folder or not use hash_dir, do nothing.             */
+    if (foundEntry == 0) {
+        if (crl->cm->x509_store_p != NULL) {
+            ret = LoadCertByIssuer(crl->cm->x509_store_p, 
+                          (WOLFSSL_X509_NAME*)cert->issuerName, X509_LU_CRL);
+            if (ret == WOLFSSL_SUCCESS) {
+                /* try again */
+                ret = CheckCertCRLList(crl, cert, &foundEntry);
+            }
+        }
+    }
+#endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
         ret = CRL_MISSING;
@@ -633,6 +652,7 @@ static CRL_Entry* DupCRL_list(CRL_Entry* crl, void* heap)
                 current = head;
                 head = head->next;
                 FreeCRL_Entry(current, heap);
+                XFREE(current, heap, DYNAMIC_TYPE_CRL_ENTRY);
             }
 
             return NULL;
@@ -701,7 +721,8 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     if (store->cm->crl == NULL) {
         crl = wolfSSL_X509_crl_new(store->cm);
         if (DupX509_CRL(crl, newcrl) != 0) {
-            FreeCRL(crl, 1);
+            if (crl != NULL)
+                FreeCRL(crl, 1);
             return WOLFSSL_FAILURE;
         }
         store->crl = store->cm->crl = crl;

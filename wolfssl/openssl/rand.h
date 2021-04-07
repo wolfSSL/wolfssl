@@ -24,4 +24,6 @@
 #include <wolfssl/openssl/ssl.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+typedef WOLFSSL_RAND_METHOD RAND_METHOD;
+
 #define RAND_set_rand_method     wolfSSL_RAND_set_rand_method

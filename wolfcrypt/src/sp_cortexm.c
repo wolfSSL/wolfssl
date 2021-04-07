@@ -3163,12 +3163,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[16 * 64];
 #endif
     sp_digit* t[16];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -3180,19 +3180,14 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 64), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 64;
-#else
-            t[i] = &td[i * 64];
-#endif
         }
 
         sp_2048_mont_setup(m, &mp);
@@ -3288,9 +3283,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -3309,12 +3303,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[32 * 64];
 #endif
     sp_digit* t[32];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -3326,19 +3320,14 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 64), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 64;
-#else
-            t[i] = &td[i * 64];
-#endif
         }
 
         sp_2048_mont_setup(m, &mp);
@@ -3451,9 +3440,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -3900,12 +3888,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[16 * 128];
 #endif
     sp_digit* t[16];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -3917,19 +3905,14 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 128), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 128;
-#else
-            t[i] = &td[i * 128];
-#endif
         }
 
         sp_2048_mont_setup(m, &mp);
@@ -4025,9 +4008,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -4046,12 +4028,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[32 * 128];
 #endif
     sp_digit* t[32];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -4063,19 +4045,14 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 128), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 128;
-#else
-            t[i] = &td[i * 128];
-#endif
         }
 
         sp_2048_mont_setup(m, &mp);
@@ -4188,9 +4165,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -4214,18 +4190,15 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
 int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[128];
-    sp_digit m[64];
-    sp_digit r[128];
-#else
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[64 * 5];
+#endif    
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-#endif
     sp_digit *ah = NULL;
-    sp_digit e[1];
+    sp_digit e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 256) {
@@ -4239,22 +4212,18 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 5, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 5, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL)
+        if (a == NULL)
             err = MEMORY_E;
-    }
-
-    if (err == MP_OKAY) {
-        a = d;
-        r = a + 64 * 2;
-        m = r + 64 * 2;
     }
 #endif
 
     if (err == MP_OKAY) {
+        r = a + 64 * 2;
+        m = r + 64 * 2;
         ah = a + 64;
 
         sp_2048_from_bin(ah, 64, in, inLen);
@@ -4327,10 +4296,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
         *outLen = 256;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
 #endif
 
     return err;
@@ -4400,8 +4368,12 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
+#else
+    sp_digit  d[64 * 4];
+#endif
+    sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
@@ -4430,13 +4402,15 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         }
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 4, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
+        if (d == NULL)
             err = MEMORY_E;
-        }
     }
+#endif
+
     if (err == MP_OKAY) {
         a = d + 64;
         m = a + 128;
@@ -4447,34 +4421,36 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         sp_2048_from_mp(m, 64, mm);
         err = sp_2048_mod_exp_64(r, a, d, 2048, m, 0);
     }
+
     if (err == MP_OKAY) {
         sp_2048_to_bin(r, out);
         *outLen = 256;
     }
 
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 64);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (d != NULL)
+#endif
+    {
+        /* only "a" and "r" are sensitive and need zeroized (same pointer) */
+        if (a != NULL)
+            ForceZero(a, sizeof(sp_digit) * 64);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+#endif
     }
 
     return err;
 #else
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[64 * 2];
-    sp_digit p[32];
-    sp_digit q[32];
-    sp_digit dp[32];
-    sp_digit tmpa[64];
-    sp_digit tmpb[64];
-#else
-    sp_digit* t = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[32 * 11];
+#endif
     sp_digit* p = NULL;
     sp_digit* q = NULL;
     sp_digit* dp = NULL;
     sp_digit* tmpa = NULL;
     sp_digit* tmpb = NULL;
-#endif
     sp_digit* r = NULL;
     sp_digit* qi = NULL;
     sp_digit* dq = NULL;
@@ -4494,31 +4470,23 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 11, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 11, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (t == NULL)
+        if (a == NULL)
             err = MEMORY_E;
     }
+#endif
+
     if (err == MP_OKAY) {
-        a = t;
         p = a + 64 * 2;
         q = p + 32;
         qi = dq = dp = q + 32;
         tmpa = qi + 32;
         tmpb = tmpa + 64;
-
-        r = t + 64;
-    }
-#else
-#endif
-
-    if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
         r = a;
-        qi = dq = dp;
-#endif
+
         sp_2048_from_bin(a, 64, in, inLen);
         sp_2048_from_mp(p, 32, pm);
         sp_2048_from_mp(q, 32, qm);
@@ -4550,19 +4518,16 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 256;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_digit) * 32 * 11);
-        XFREE(t, NULL, DYNAMIC_TYPE_RSA);
-    }
-#else
-    XMEMSET(tmpa, 0, sizeof(tmpa));
-    XMEMSET(tmpb, 0, sizeof(tmpb));
-    XMEMSET(p,    0, sizeof(p));
-    XMEMSET(q,    0, sizeof(q));
-    XMEMSET(dp,   0, sizeof(dp));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+    {
+        ForceZero(a, sizeof(sp_digit) * 32 * 11);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
+    }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -5104,12 +5069,12 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[193];
 #endif
-    sp_digit* norm;
-    sp_digit* tmp;
+    sp_digit* norm = NULL;
+    sp_digit* tmp = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit o;
@@ -5122,18 +5087,13 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 193, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         tmp = td + 128;
-#else
-        tmp = &td[128];
-#endif
 
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
@@ -5204,9 +5164,8 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -8098,12 +8057,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[16 * 96];
 #endif
     sp_digit* t[16];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -8115,19 +8074,14 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 96), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 96;
-#else
-            t[i] = &td[i * 96];
-#endif
         }
 
         sp_3072_mont_setup(m, &mp);
@@ -8223,9 +8177,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -8244,12 +8197,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[32 * 96];
 #endif
     sp_digit* t[32];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -8261,19 +8214,14 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 96), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 96;
-#else
-            t[i] = &td[i * 96];
-#endif
         }
 
         sp_3072_mont_setup(m, &mp);
@@ -8386,9 +8334,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -8838,12 +8785,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[16 * 192];
 #endif
     sp_digit* t[16];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -8855,19 +8802,14 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 192), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 192;
-#else
-            t[i] = &td[i * 192];
-#endif
         }
 
         sp_3072_mont_setup(m, &mp);
@@ -8963,9 +8905,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -8984,12 +8925,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[32 * 192];
 #endif
     sp_digit* t[32];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -9001,19 +8942,14 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 192), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 192;
-#else
-            t[i] = &td[i * 192];
-#endif
         }
 
         sp_3072_mont_setup(m, &mp);
@@ -9126,9 +9062,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -9152,18 +9087,15 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
 int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[192];
-    sp_digit m[96];
-    sp_digit r[192];
-#else
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[96 * 5];
+#endif    
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-#endif
     sp_digit *ah = NULL;
-    sp_digit e[1];
+    sp_digit e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 384) {
@@ -9177,22 +9109,18 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 5, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 5, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL)
+        if (a == NULL)
             err = MEMORY_E;
-    }
-
-    if (err == MP_OKAY) {
-        a = d;
-        r = a + 96 * 2;
-        m = r + 96 * 2;
     }
 #endif
 
     if (err == MP_OKAY) {
+        r = a + 96 * 2;
+        m = r + 96 * 2;
         ah = a + 96;
 
         sp_3072_from_bin(ah, 96, in, inLen);
@@ -9265,10 +9193,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
         *outLen = 384;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
 #endif
 
     return err;
@@ -9338,8 +9265,12 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
+#else
+    sp_digit  d[96 * 4];
+#endif
+    sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
@@ -9368,13 +9299,15 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         }
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 4, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
+        if (d == NULL)
             err = MEMORY_E;
-        }
     }
+#endif
+
     if (err == MP_OKAY) {
         a = d + 96;
         m = a + 192;
@@ -9385,34 +9318,36 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         sp_3072_from_mp(m, 96, mm);
         err = sp_3072_mod_exp_96(r, a, d, 3072, m, 0);
     }
+
     if (err == MP_OKAY) {
         sp_3072_to_bin(r, out);
         *outLen = 384;
     }
 
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 96);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (d != NULL)
+#endif
+    {
+        /* only "a" and "r" are sensitive and need zeroized (same pointer) */
+        if (a != NULL)
+            ForceZero(a, sizeof(sp_digit) * 96);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+#endif
     }
 
     return err;
 #else
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[96 * 2];
-    sp_digit p[48];
-    sp_digit q[48];
-    sp_digit dp[48];
-    sp_digit tmpa[96];
-    sp_digit tmpb[96];
-#else
-    sp_digit* t = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[48 * 11];
+#endif
     sp_digit* p = NULL;
     sp_digit* q = NULL;
     sp_digit* dp = NULL;
     sp_digit* tmpa = NULL;
     sp_digit* tmpb = NULL;
-#endif
     sp_digit* r = NULL;
     sp_digit* qi = NULL;
     sp_digit* dq = NULL;
@@ -9432,31 +9367,23 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 48 * 11, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 48 * 11, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (t == NULL)
+        if (a == NULL)
             err = MEMORY_E;
     }
+#endif
+
     if (err == MP_OKAY) {
-        a = t;
         p = a + 96 * 2;
         q = p + 48;
         qi = dq = dp = q + 48;
         tmpa = qi + 48;
         tmpb = tmpa + 96;
-
-        r = t + 96;
-    }
-#else
-#endif
-
-    if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
         r = a;
-        qi = dq = dp;
-#endif
+
         sp_3072_from_bin(a, 96, in, inLen);
         sp_3072_from_mp(p, 48, pm);
         sp_3072_from_mp(q, 48, qm);
@@ -9488,19 +9415,16 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 384;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_digit) * 48 * 11);
-        XFREE(t, NULL, DYNAMIC_TYPE_RSA);
-    }
-#else
-    XMEMSET(tmpa, 0, sizeof(tmpa));
-    XMEMSET(tmpb, 0, sizeof(tmpb));
-    XMEMSET(p,    0, sizeof(p));
-    XMEMSET(q,    0, sizeof(q));
-    XMEMSET(dp,   0, sizeof(dp));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+    {
+        ForceZero(a, sizeof(sp_digit) * 48 * 11);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
+    }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -10238,12 +10162,12 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[289];
 #endif
-    sp_digit* norm;
-    sp_digit* tmp;
+    sp_digit* norm = NULL;
+    sp_digit* tmp = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit o;
@@ -10256,18 +10180,13 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 289, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         tmp = td + 192;
-#else
-        tmp = &td[192];
-#endif
 
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
@@ -10338,9 +10257,8 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -12189,12 +12107,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[16 * 256];
 #endif
     sp_digit* t[16];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -12206,19 +12124,14 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (16 * 256), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<16; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 256;
-#else
-            t[i] = &td[i * 256];
-#endif
         }
 
         sp_4096_mont_setup(m, &mp);
@@ -12314,9 +12227,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -12335,12 +12247,12 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
         int bits, const sp_digit* m, int reduceA)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[32 * 256];
 #endif
     sp_digit* t[32];
-    sp_digit* norm;
+    sp_digit* norm = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
@@ -12352,19 +12264,14 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 * 256), NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
         for (i=0; i<32; i++) {
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + i * 256;
-#else
-            t[i] = &td[i * 256];
-#endif
         }
 
         sp_4096_mont_setup(m, &mp);
@@ -12477,9 +12384,8 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -12503,18 +12409,15 @@ static int sp_4096_mod_exp_128(sp_digit* r, const sp_digit* a, const sp_digit* e
 int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
     const mp_int* mm, byte* out, word32* outLen)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[256];
-    sp_digit m[128];
-    sp_digit r[256];
-#else
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[128 * 5];
+#endif    
     sp_digit* m = NULL;
     sp_digit* r = NULL;
-#endif
     sp_digit *ah = NULL;
-    sp_digit e[1];
+    sp_digit e[1] = {0};
     int err = MP_OKAY;
 
     if (*outLen < 512) {
@@ -12528,22 +12431,18 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 5, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 5, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL)
+        if (a == NULL)
             err = MEMORY_E;
-    }
-
-    if (err == MP_OKAY) {
-        a = d;
-        r = a + 128 * 2;
-        m = r + 128 * 2;
     }
 #endif
 
     if (err == MP_OKAY) {
+        r = a + 128 * 2;
+        m = r + 128 * 2;
         ah = a + 128;
 
         sp_4096_from_bin(ah, 128, in, inLen);
@@ -12616,10 +12515,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
         *outLen = 512;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
 #endif
 
     return err;
@@ -12690,8 +12588,12 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
     const mp_int* qim, const mp_int* mm, byte* out, word32* outLen)
 {
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
-    sp_digit* a = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* d = NULL;
+#else
+    sp_digit  d[128 * 4];
+#endif
+    sp_digit* a = NULL;
     sp_digit* m = NULL;
     sp_digit* r = NULL;
     int err = MP_OKAY;
@@ -12720,13 +12622,15 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         }
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 4, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (d == NULL) {
+        if (d == NULL)
             err = MEMORY_E;
-        }
     }
+#endif
+
     if (err == MP_OKAY) {
         a = d + 128;
         m = a + 256;
@@ -12737,34 +12641,36 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         sp_4096_from_mp(m, 128, mm);
         err = sp_4096_mod_exp_128(r, a, d, 4096, m, 0);
     }
+
     if (err == MP_OKAY) {
         sp_4096_to_bin(r, out);
         *outLen = 512;
     }
 
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 128);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (d != NULL)
+#endif
+    {
+        /* only "a" and "r" are sensitive and need zeroized (same pointer) */
+        if (a != NULL)
+            ForceZero(a, sizeof(sp_digit) * 128);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+#endif
     }
 
     return err;
 #else
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit a[128 * 2];
-    sp_digit p[64];
-    sp_digit q[64];
-    sp_digit dp[64];
-    sp_digit tmpa[128];
-    sp_digit tmpb[128];
-#else
-    sp_digit* t = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* a = NULL;
+#else
+    sp_digit a[64 * 11];
+#endif
     sp_digit* p = NULL;
     sp_digit* q = NULL;
     sp_digit* dp = NULL;
     sp_digit* tmpa = NULL;
     sp_digit* tmpb = NULL;
-#endif
     sp_digit* r = NULL;
     sp_digit* qi = NULL;
     sp_digit* dq = NULL;
@@ -12784,31 +12690,23 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         err = MP_VAL;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 11, NULL,
+        a = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 11, NULL,
                                                               DYNAMIC_TYPE_RSA);
-        if (t == NULL)
+        if (a == NULL)
             err = MEMORY_E;
     }
+#endif
+
     if (err == MP_OKAY) {
-        a = t;
         p = a + 128 * 2;
         q = p + 64;
         qi = dq = dp = q + 64;
         tmpa = qi + 64;
         tmpb = tmpa + 128;
-
-        r = t + 128;
-    }
-#else
-#endif
-
-    if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
         r = a;
-        qi = dq = dp;
-#endif
+
         sp_4096_from_bin(a, 128, in, inLen);
         sp_4096_from_mp(p, 64, pm);
         sp_4096_from_mp(q, 64, qm);
@@ -12840,19 +12738,16 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, const mp_int* dm,
         *outLen = 512;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_digit) * 64 * 11);
-        XFREE(t, NULL, DYNAMIC_TYPE_RSA);
-    }
-#else
-    XMEMSET(tmpa, 0, sizeof(tmpa));
-    XMEMSET(tmpb, 0, sizeof(tmpb));
-    XMEMSET(p,    0, sizeof(p));
-    XMEMSET(q,    0, sizeof(q));
-    XMEMSET(dp,   0, sizeof(dp));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (a != NULL)
 #endif
-#endif /* SP_RSA_PRIVATE_EXP_D | RSA_LOW_MEM */
+    {
+        ForceZero(a, sizeof(sp_digit) * 64 * 11);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
+    }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
@@ -13786,12 +13681,12 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
         const sp_digit* m)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* td;
+    sp_digit* td = NULL;
 #else
     sp_digit td[385];
 #endif
-    sp_digit* norm;
-    sp_digit* tmp;
+    sp_digit* norm = NULL;
+    sp_digit* tmp = NULL;
     sp_digit mp = 1;
     sp_digit n;
     sp_digit o;
@@ -13804,18 +13699,13 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 385, NULL,
                             DYNAMIC_TYPE_TMP_BUFFER);
-    if (td == NULL) {
+    if (td == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
         norm = td;
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
         tmp = td + 256;
-#else
-        tmp = &td[256];
-#endif
 
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_128(norm, m);
@@ -13886,9 +13776,8 @@ static int sp_4096_mod_exp_2_128(sp_digit* r, const sp_digit* e, int bits,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (td != NULL) {
+    if (td != NULL)
         XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
 #endif
 
     return err;
@@ -15088,64 +14977,6 @@ SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-/* Create a new point.
- *
- * heap  [in]   Buffer to allocate dynamic memory from.
- * sp    [in]   Data for point - only if not allocating.
- * p     [out]  New point.
- * returns MEMORY_E when dynamic memory allocation fails and 0 otherwise.
- */
-static int sp_256_point_new_ex_8(void* heap, sp_point_256* sp,
-    sp_point_256** p)
-{
-    int ret = MP_OKAY;
-    (void)heap;
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    (void)sp;
-    *p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);
-#else
-    *p = sp;
-#endif
-    if (*p == NULL) {
-        ret = MEMORY_E;
-    }
-    return ret;
-}
-
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* Allocate memory for point and return error. */
-#define sp_256_point_new_8(heap, sp, p) sp_256_point_new_ex_8((heap), NULL, &(p))
-#else
-/* Set pointer to data and return no error. */
-#define sp_256_point_new_8(heap, sp, p) sp_256_point_new_ex_8((heap), &(sp), &(p))
-#endif
-
-
-/* Free the point.
- *
- * p      [in,out]  Point to free.
- * clear  [in]      Indicates whether to zeroize point.
- * heap   [in]      Buffer from which dynamic memory was allocate from.
- */
-static void sp_256_point_free_8(sp_point_256* p, int clear, void* heap)
-{
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* If valid pointer then clear point data if requested and free data. */
-    if (p != NULL) {
-        if (clear != 0) {
-            XMEMSET(p, 0, sizeof(*p));
-        }
-        XFREE(p, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-/* Clear point data if requested. */
-    if ((p != NULL) && (clear != 0)) {
-        XMEMSET(p, 0, sizeof(*p));
-    }
-#endif
-    (void)heap;
-}
-
 /* Multiply a number by Montogmery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
@@ -18164,56 +17995,55 @@ static void sp_256_get_point_16_8(sp_point_256* r, const sp_point_256* table,
 static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, const sp_digit* k,
         int map, int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 td[16];
-    sp_point_256 rtd;
-    sp_digit tmpd[2 * 8 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_256 t[16 + 1];
+    sp_digit tmp[2 * 8 * 5];
+#endif
+    sp_point_256* rt = NULL;
 #ifndef WC_NO_CACHE_RESISTANT
-    sp_point_256 pd;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* p = NULL;
+#else
+    sp_point_256 p[1];
 #endif
-#endif
-    sp_point_256* t;
-    sp_point_256* rt;
-#ifndef WC_NO_CACHE_RESISTANT
-    sp_point_256* p;
-#endif
-    sp_digit* tmp;
+#endif /* !WC_NO_CACHE_RESISTANT */
     sp_digit n;
     int i;
     int c;
     int y;
-    int err;
+    int err = MP_OKAY;
 
     /* Constant time used for cache attack resistance implementation. */
     (void)ct;
     (void)heap;
 
-    err = sp_256_point_new_8(heap, rtd, rt);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-#ifndef WC_NO_CACHE_RESISTANT
-    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 17, heap, DYNAMIC_TYPE_ECC);
-#else
-    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 16, heap, DYNAMIC_TYPE_ECC);
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 16 + 1,
+        heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
-    tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
-                             DYNAMIC_TYPE_ECC);
-    if (tmp == NULL)
-        err = MEMORY_E;
-#else
-    t = td;
-    tmp = tmpd;
+    #ifndef WC_NO_CACHE_RESISTANT
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256),
+            heap, DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    #endif
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                                DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
-#ifndef WC_NO_CACHE_RESISTANT
-    #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        p = t + 16;
-    #else
-        p = &pd;
-    #endif
-#endif
+        rt = t + 16;
+
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
@@ -18301,20 +18131,35 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 8 * 5);
-        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
-    }
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_point_256) * 16);
-        XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-    ForceZero(tmpd, sizeof(tmpd));
-    ForceZero(td, sizeof(td));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
 #endif
-    sp_256_point_free_8(rt, 1, heap);
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 8 * 5);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#ifndef WC_NO_CACHE_RESISTANT
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (p != NULL)
+    #endif
+        {
+            ForceZero(p, sizeof(sp_point_256));
+        #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+            XFREE(p, heap, DYNAMIC_TYPE_ECC);
+        #endif
+        }
+#endif /* !WC_NO_CACHE_RESISTANT */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_256) * 17);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
 
     return err;
 }
@@ -18538,29 +18383,30 @@ static void sp_256_proj_point_add_qz1_8(sp_point_256* r, const sp_point_256* p,
 static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         sp_table_entry_256* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 td;
-    sp_point_256 s1d;
-    sp_point_256 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+#else
+    sp_point_256 t[3];
 #endif
-    sp_point_256* t;
     sp_point_256* s1 = NULL;
     sp_point_256* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_256_point_new_8(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_256_mod_mul_norm_8(t->x, a->x, p256_mod);
     }
     if (err == MP_OKAY) {
@@ -18605,9 +18451,10 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         }
     }
 
-    sp_256_point_free_8(s2, 0, heap);
-    sp_256_point_free_8(s1, 0, heap);
-    sp_256_point_free_8( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -18683,19 +18530,19 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         const sp_table_entry_256* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 rtd;
-    sp_point_256 pd;
-    sp_digit td[2 * 8 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_256 rt[2];
+    sp_digit t[2 * 8 * 5];
 #endif
-    sp_point_256* rt;
     sp_point_256* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -18703,21 +18550,22 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     (void)heap;
 
 
-    err = sp_256_point_new_8(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p256_norm_mod, sizeof(p256_norm_mod));
         XMEMCPY(rt->z, p256_norm_mod, sizeof(p256_norm_mod));
 
@@ -18768,13 +18616,12 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(p, 0, heap);
-    sp_256_point_free_8(rt, 0, heap);
 
     return err;
 }
@@ -18940,29 +18787,30 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         sp_table_entry_256* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 td;
-    sp_point_256 s1d;
-    sp_point_256 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* t = NULL;
+#else
+    sp_point_256 t[3];
 #endif
-    sp_point_256* t;
     sp_point_256* s1 = NULL;
     sp_point_256* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_256_point_new_8(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_256_mod_mul_norm_8(t->x, a->x, p256_mod);
     }
     if (err == MP_OKAY) {
@@ -19007,9 +18855,10 @@ static int sp_256_gen_stripe_table_8(const sp_point_256* a,
         }
     }
 
-    sp_256_point_free_8(s2, 0, heap);
-    sp_256_point_free_8(s1, 0, heap);
-    sp_256_point_free_8( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -19085,19 +18934,19 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         const sp_table_entry_256* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 rtd;
-    sp_point_256 pd;
-    sp_digit td[2 * 8 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_256 rt[2];
+    sp_digit t[2 * 8 * 5];
 #endif
-    sp_point_256* rt;
     sp_point_256* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -19105,21 +18954,22 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
     (void)heap;
 
 
-    err = sp_256_point_new_8(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p256_norm_mod, sizeof(p256_norm_mod));
         XMEMCPY(rt->z, p256_norm_mod, sizeof(p256_norm_mod));
 
@@ -19170,13 +19020,12 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point_256* r, const sp_point_256* g,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(p, 0, heap);
-    sp_256_point_free_8(rt, 0, heap);
 
     return err;
 }
@@ -19340,25 +19189,28 @@ static int sp_256_ecc_mulmod_8(sp_point_256* r, const sp_point_256* g, const sp_
 int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_digit kd[8];
-#endif
-    sp_point_256* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[8];
+#endif
     int err = MP_OKAY;
 
-    err = sp_256_point_new_8(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
+                               DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
@@ -19369,12 +19221,12 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_256_point_to_ecc_point_8(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(point, 0, heap);
 
     return err;
 }
@@ -19394,37 +19246,35 @@ int sp_ecc_mulmod_256(const mp_int* km, const ecc_point* gm, ecc_point* r,
 int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_point_256 a;
-    sp_digit kd[8];
-    sp_digit t[8 * 2 * 5];
-#endif
-    sp_point_256* point;
-    sp_point_256* addP = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;    
     sp_digit* k = NULL;
+#else
+    sp_point_256 point[2];
+    sp_digit k[8 + 8 * 2 * 5];
+#endif
+    sp_point_256* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
 
-    err = sp_256_point_new_8(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, a, addP);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 + 8 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (8 + 8 * 2 * 5), heap,
+            DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
-        else {
-            tmp = k + 8;
-        }
     }
-#else
-    k = kd;
-    tmp = t;
 #endif
+
     if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 8;
+
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
         sp_256_point_from_ecc_point_8(addP, am);
@@ -19451,13 +19301,12 @@ int sp_ecc_mulmod_add_256(const mp_int* km, const ecc_point* gm,
         err = sp_256_point_to_ecc_point_8(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(addP, 0, heap);
-    sp_256_point_free_8(point, 0, heap);
 
     return err;
 }
@@ -20891,26 +20740,28 @@ static int sp_256_ecc_mulmod_base_8(sp_point_256* r, const sp_digit* k,
  */
 int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_digit kd[8];
-#endif
-    sp_point_256* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_256  point[1];
+    sp_digit k[8];
+#endif
     int err = MP_OKAY;
 
-    err = sp_256_point_new_8(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
 
@@ -20920,12 +20771,12 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_256_point_to_ecc_point_8(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(point, 0, heap);
 
     return err;
 }
@@ -20944,37 +20795,35 @@ int sp_ecc_mulmod_base_256(const mp_int* km, ecc_point* r, int map, void* heap)
 int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_point_256 a;
-    sp_digit kd[8];
-    sp_digit t[8 * 2 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_256 point[2];
+    sp_digit k[8 + 8 * 2 * 5];
 #endif
-    sp_point_256* point;
     sp_point_256* addP = NULL;
     sp_digit* tmp = NULL;
-    sp_digit* k = NULL;
     int err = MP_OKAY;
 
-    err = sp_256_point_new_8(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, a, addP);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (8 + 8 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (8 + 8 * 2 * 5),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
-        else {
-            tmp = k + 8;
-        }
     }
-#else
-    k = kd;
-    tmp = t;
 #endif
+
     if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 8;
+
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(addP, am);
     }
@@ -21000,13 +20849,12 @@ int sp_ecc_mulmod_base_add_256(const mp_int* km, const ecc_point* am,
         err = sp_256_point_to_ecc_point_8(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(addP, 0, heap);
-    sp_256_point_free_8(point, 0, heap);
 
     return err;
 }
@@ -21137,41 +20985,46 @@ static int sp_256_ecc_gen_k_8(WC_RNG* rng, sp_digit* k)
  */
 int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_digit kd[8];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_256 inf;
-#endif
-#endif
-    sp_point_256* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* point = NULL;
     sp_digit* k = NULL;
+#else
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_256 point[2];
+    #else
+    sp_point_256 point[1];
+    #endif
+    sp_digit k[8];
+#endif
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     sp_point_256* infinity = NULL;
 #endif
-    int err;
+    int err = MP_OKAY;
+    
 
     (void)heap;
 
-    err = sp_256_point_new_8(heap, p, point);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, inf, infinity);
-    }
-#endif
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap, DYNAMIC_TYPE_ECC);
+    #else
+    point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap, DYNAMIC_TYPE_ECC);    
+    #endif
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
         err = sp_256_ecc_gen_k_8(rng, k);
     }
     if (err == MP_OKAY) {
@@ -21196,15 +21049,14 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_256_point_to_ecc_point_8(point, pub);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL) {
+        /* point is not sensitive, so no need to zeroize */
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
     }
 #endif
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_256_point_free_8(infinity, 1, heap);
-#endif
-    sp_256_point_free_8(point, 1, heap);
 
     return err;
 }
@@ -21265,30 +21117,32 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
 int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 p;
-    sp_digit kd[8];
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_256* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_256 point[1];
+    sp_digit k[8];
+#endif
     int err = MP_OKAY;
 
     if (*outLen < 32U) {
         err = BUFFER_E;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, p, point);
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                         DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
     }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
+                               DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
@@ -21301,12 +21155,12 @@ int sp_ecc_secret_gen_256(const mp_int* priv, const ecc_point* pub, byte* out,
         *outLen = 32;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(point, 0, heap);
 
     return err;
 }
@@ -21877,13 +21731,10 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
             hashLen = 32U;
         }
 
-        sp_256_from_bin(ctx->e, 8, hash, (int)hashLen);
-
         ctx->i = SP_ECC_MAX_SIG_GEN;
         ctx->state = 1;
         break;
     case 1: /* GEN */
-        sp_256_from_mp(ctx->x, 8, priv);
         /* New random point. */
         if (km == NULL || mp_iszero(km)) {
             err = sp_256_ecc_gen_k_8(rng, ctx->k);
@@ -21911,6 +21762,9 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         c = sp_256_cmp_8(ctx->r, p256_order);
         sp_256_cond_sub_8(ctx->r, ctx->r, p256_order, 0L - (sp_digit)(c >= 0));
         sp_256_norm_8(ctx->r);
+
+        sp_256_from_mp(ctx->x, 8, priv);
+        sp_256_from_bin(ctx->e, 8, hash, (int)hashLen);
         ctx->state = 4;
         break;
     }
@@ -21967,6 +21821,9 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
             ctx->state = 10;
             break;
         }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        ctx->i = 1;
+    #endif
 
         /* not usable gen, try again */
         ctx->i--;
@@ -22002,22 +21859,17 @@ int sp_ecc_sign_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
-#else
-    sp_digit ed[2*8];
-    sp_digit xd[2*8];
-    sp_digit kd[2*8];
-    sp_digit rd[2*8];
-    sp_digit td[3 * 2*8];
-    sp_point_256 p;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* e = NULL;
+    sp_point_256* point = NULL;
+#else
+    sp_digit e[7 * 2 * 8];
+    sp_point_256 point[1];
+#endif
     sp_digit* x = NULL;
     sp_digit* k = NULL;
     sp_digit* r = NULL;
     sp_digit* tmp = NULL;
-    sp_point_256* point = NULL;
     sp_digit* s = NULL;
     int32_t c;
     int err = MP_OKAY;
@@ -22025,31 +21877,26 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     (void)heap;
 
-    err = sp_256_point_new_8(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (d == NULL) {
+        point = (sp_point_256*)XMALLOC(sizeof(sp_point_256), heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (point == NULL)
             err = MEMORY_E;
-        }
+    }
+    if (err == MP_OKAY) {
+        e = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 8, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (e == NULL)
+            err = MEMORY_E;
     }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        e = d + 0 * 8;
-        x = d + 2 * 8;
-        k = d + 4 * 8;
-        r = d + 6 * 8;
-        tmp = d + 8 * 8;
-#else
-        e = ed;
-        x = xd;
-        k = kd;
-        r = rd;
-        tmp = td;
-#endif
+        x = e + 2 * 8;
+        k = e + 4 * 8;
+        r = e + 6 * 8;
+        tmp = e + 8 * 8;
         s = e;
 
         if (hashLen > 32U) {
@@ -22104,19 +21951,24 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng,
         err = sp_256_to_mp(s, sm);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 8 * 8);
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-    XMEMSET(e, 0, sizeof(sp_digit) * 2U * 8U);
-    XMEMSET(x, 0, sizeof(sp_digit) * 2U * 8U);
-    XMEMSET(k, 0, sizeof(sp_digit) * 2U * 8U);
-    XMEMSET(r, 0, sizeof(sp_digit) * 2U * 8U);
-    XMEMSET(tmp, 0, sizeof(sp_digit) * 3U * 2U * 8U);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (e != NULL)
 #endif
-    sp_256_point_free_8(point, 1, heap);
+    {
+        ForceZero(e, sizeof(sp_digit) * 7 * 2 * 8);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(e, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (point != NULL)
+#endif
+    {
+        ForceZero(point, sizeof(sp_point_256));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
 
     return err;
 }
@@ -22536,7 +22388,7 @@ typedef struct sp_ecc_verify_256_ctx {
 
 int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
     word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
-    const mp_int* r, const mp_int* sm, int* res, void* heap)
+    const mp_int* rm, const mp_int* sm, int* res, void* heap)
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_verify_256_ctx* ctx = (sp_ecc_verify_256_ctx*)sp_ctx->data;
@@ -22551,7 +22403,7 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         }
 
         sp_256_from_bin(ctx->u1, 8, hash, (int)hashLen);
-        sp_256_from_mp(ctx->u2, 8, r);
+        sp_256_from_mp(ctx->u2, 8, rm);
         sp_256_from_mp(ctx->s, 8, sm);
         sp_256_from_mp(ctx->p2.x, 8, pX);
         sp_256_from_mp(ctx->p2.y, 8, pY);
@@ -22609,57 +22461,33 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         if (err == MP_OKAY)
             ctx->state = 9;
         break;
-    case 9: /* DBLPREP */
-        if (sp_256_iszero_8(ctx->p1.z)) {
-            if (sp_256_iszero_8(ctx->p1.x) && sp_256_iszero_8(ctx->p1.y)) {
-                XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
-                ctx->state = 10;
-                break;
-            }
-            else {
-                /* Y ordinate is not used from here - don't set. */
-                int i;
-                for (i=0; i<8; i++) {
-                    ctx->p1.x[i] = 0;
-                }
-                XMEMCPY(ctx->p1.z, p256_norm_mod, sizeof(p256_norm_mod));
-            }
-        }
-        ctx->state = 11;
-        break;
-    case 10: /* DBL */
-        err = sp_256_proj_point_dbl_8_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
-            &ctx->p2, ctx->tmp);
-        if (err == MP_OKAY) {
-            ctx->state = 11;
-        }
-        break;
-    case 11: /* MONT */
+    case 9: /* MONT */
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
-        sp_256_from_mp(ctx->u2, 8, r);
+        sp_256_from_mp(ctx->u2, 8, rm);
         err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
         if (err == MP_OKAY)
-            ctx->state = 12;
+            ctx->state = 10;
         break;
-    case 12: /* SQR */
+    case 10: /* SQR */
         /* u1 = r.z'.z' mod prime */
         sp_256_mont_sqr_8(ctx->p1.z, ctx->p1.z, p256_mod, p256_mp_mod);
-        ctx->state = 13;
+        ctx->state = 11;
         break;
-    case 13: /* MUL */
+    case 11: /* MUL */
         sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod, p256_mp_mod);
-        ctx->state = 14;
+        ctx->state = 12;
         break;
-    case 14: /* RES */
+    case 12: /* RES */
+    {
+        int32_t c = 0;
         err = MP_OKAY; /* math okay, now check result */
         *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
         if (*res == 0) {
             sp_digit carry;
-            int32_t c;
 
             /* Reload r and add order. */
-            sp_256_from_mp(ctx->u2, 8, r);
+            sp_256_from_mp(ctx->u2, 8, rm);
             carry = sp_256_add_8(ctx->u2, ctx->u2, p256_order);
             /* Carry means result is greater than mod and is not valid. */
             if (carry == 0) {
@@ -22667,22 +22495,23 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_256_cmp_8(ctx->u2, p256_mod);
-                if (c < 0) {
-                    /* Convert to Montogomery form */
-                    err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
-                    if (err == MP_OKAY) {
-                        /* u1 = (r + 1*order).z'.z' mod prime */
-                        sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod,
-                                                                  p256_mp_mod);
-                        *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
-                    }
-                }
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_256_mod_mul_norm_8(ctx->u2, ctx->u2, p256_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_256_mont_mul_8(ctx->u1, ctx->u2, ctx->p1.z, p256_mod,
+                                                            p256_mp_mod);
+                *res = (int)(sp_256_cmp_8(ctx->p1.x, ctx->u1) == 0);
             }
         }
         break;
     }
+    } /* switch */
 
-    if (err == MP_OKAY && ctx->state != 14) {
+    if (err == MP_OKAY && ctx->state != 12) {
         err = FP_WOULDBLOCK;
     }
 
@@ -22691,62 +22520,51 @@ int sp_ecc_verify_256_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* WOLFSSL_SP_NONBLOCK */
 
 int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
-    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
     int* res, void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
-#else
-    sp_digit u1d[2*8];
-    sp_digit u2d[2*8];
-    sp_digit sd[2*8];
-    sp_digit tmpd[2*8 * 5];
-    sp_point_256 p1d;
-    sp_point_256 p2d;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
+    sp_point_256* p1 = NULL;
+#else
+    sp_digit  u1[16 * 8];
+    sp_point_256 p1[2];
+#endif
     sp_digit* u2 = NULL;
     sp_digit* s = NULL;
     sp_digit* tmp = NULL;
-    sp_point_256* p1;
     sp_point_256* p2 = NULL;
     sp_digit carry;
     int32_t c = 0;
-    int err;
+    int err = MP_OKAY;
 
-    err = sp_256_point_new_8(heap, p1d, p1);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, p2d, p2);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (d == NULL) {
+        p1 = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (p1 == NULL)
             err = MEMORY_E;
-        }
+    }
+    if (err == MP_OKAY) {
+        u1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 8, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (u1 == NULL)
+            err = MEMORY_E;
     }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        u1  = d + 0 * 8;
-        u2  = d + 2 * 8;
-        s   = d + 4 * 8;
-        tmp = d + 6 * 8;
-#else
-        u1 = u1d;
-        u2 = u2d;
-        s  = sd;
-        tmp = tmpd;
-#endif
+        u2  = u1 + 2 * 8;
+        s   = u1 + 4 * 8;
+        tmp = u1 + 6 * 8;
+        p2 = p1 + 1;
 
         if (hashLen > 32U) {
             hashLen = 32U;
         }
 
         sp_256_from_bin(u1, 8, hash, (int)hashLen);
-        sp_256_from_mp(u2, 8, r);
+        sp_256_from_mp(u2, 8, rm);
         sp_256_from_mp(s, 8, sm);
         sp_256_from_mp(p2->x, 8, pX);
         sp_256_from_mp(p2->y, 8, pY);
@@ -22757,7 +22575,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
-        sp_256_from_mp(u2, 8, r);
+        sp_256_from_mp(u2, 8, rm);
         err = sp_256_mod_mul_norm_8(u2, u2, p256_mod);
     }
 
@@ -22768,7 +22586,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
         *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
-            sp_256_from_mp(u2, 8, r);
+            sp_256_from_mp(u2, 8, rm);
             carry = sp_256_add_8(u2, u2, p256_order);
             /* Carry means result is greater than mod and is not valid. */
             if (carry == 0) {
@@ -22777,8 +22595,8 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_256_cmp_8(u2, p256_mod);
             }
-         }
-         if ((*res == 0) && (c < 0)) {
+        }
+        if ((*res == 0) && (c < 0)) {
             /* Convert to Montogomery form */
             err = sp_256_mod_mul_norm_8(u2, u2, p256_mod);
             if (err == MP_OKAY) {
@@ -22790,12 +22608,12 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL)
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u1 != NULL)
+        XFREE(u1, heap, DYNAMIC_TYPE_ECC);
+    if (p1 != NULL)
+        XFREE(p1, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(p1, 0, heap);
-    sp_256_point_free_8(p2, 0, heap);
 
     return err;
 }
@@ -22812,32 +22630,23 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, const mp_int* pX,
 static int sp_256_ecc_is_point_8(const sp_point_256* point,
     void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
 #else
-    sp_digit t1d[2*8];
-    sp_digit t2d[2*8];
+    sp_digit t1[8 * 4];
 #endif
-    sp_digit* t1;
-    sp_digit* t2;
+    sp_digit* t2 = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8 * 4, heap, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
         err = MEMORY_E;
-    }
 #endif
     (void)heap;
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        t1 = d + 0 * 8;
-        t2 = d + 2 * 8;
-#else
-        t1 = t1d;
-        t2 = t2d;
-#endif
+        t2 = t1 + 2 * 8;
 
         sp_256_sqr_8(t1, point->y);
         (void)sp_256_mod_8(t1, t1, p256_mod);
@@ -22857,10 +22666,9 @@ static int sp_256_ecc_is_point_8(const sp_point_256* point,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -22875,14 +22683,21 @@ static int sp_256_ecc_is_point_8(const sp_point_256* point,
  */
 int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_256 pubd;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_256* pub = NULL;
+#else
+    sp_point_256 pub[1];
 #endif
-    sp_point_256* pub;
-    byte one[1] = { 1 };
-    int err;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
 
-    err = sp_256_point_new_8(NULL, pubd, pub);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
     if (err == MP_OKAY) {
         sp_256_from_mp(pub->x, 8, pX);
         sp_256_from_mp(pub->y, 8, pY);
@@ -22891,7 +22706,10 @@ int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
         err = sp_256_ecc_is_point_8(pub, NULL);
     }
 
-    sp_256_point_free_8(pub, 0, NULL);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -22910,44 +22728,44 @@ int sp_ecc_is_point_256(const mp_int* pX, const mp_int* pY)
 int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit privd[8];
-    sp_point_256 pubd;
-    sp_point_256 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* priv = NULL;
-    sp_point_256* pub;
-    sp_point_256* p = NULL;
-    byte one[1] = { 1 };
-    int err;
-
-    err = sp_256_point_new_8(heap, pubd, pub);
-    if (err == MP_OKAY) {
-        err = sp_256_point_new_8(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY && privm) {
-        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (priv == NULL) {
-            err = MEMORY_E;
-        }
-    }
+    sp_point_256* pub = NULL;
+#else
+    sp_digit priv[8];
+    sp_point_256 pub[2];
 #endif
+    sp_point_256* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
 
     /* Quick check the lengs of public key ordinates and private key are in
      * range. Proper check later.
      */
-    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 256) ||
+    if (((mp_count_bits(pX) > 256) ||
         (mp_count_bits(pY) > 256) ||
         ((privm != NULL) && (mp_count_bits(privm) > 256)))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-        priv = privd;
+        pub = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 8, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
 #endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
 
         sp_256_from_mp(pub->x, 8, pX);
         sp_256_from_mp(pub->y, 8, pY);
@@ -22997,13 +22815,12 @@ int sp_ecc_check_key_256(const mp_int* pX, const mp_int* pY,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (priv != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
         XFREE(priv, heap, DYNAMIC_TYPE_ECC);
-    }
 #endif
-    sp_256_point_free_8(p, 0, heap);
-    sp_256_point_free_8(pub, 0, heap);
 
     return err;
 }
@@ -23027,33 +22844,35 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* qX, mp_int* qY, mp_int* qZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 8 * 5];
-    sp_point_256 pd;
-    sp_point_256 qd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_256* p;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 5];
+    sp_point_256 p[2];
+#endif
     sp_point_256* q = NULL;
     int err;
 
-    err = sp_256_point_new_8(NULL, pd, p);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_256_point_new_8(NULL, qd, q);
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256) * 2, NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
     }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 5, NULL,
-                                                              DYNAMIC_TYPE_ECC);
+                                 DYNAMIC_TYPE_ECC);
         if (tmp == NULL) {
             err = MEMORY_E;
         }
     }
-#else
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
+        q = p + 1;
+
         sp_256_from_mp(p->x, 8, pX);
         sp_256_from_mp(p->y, 8, pY);
         sp_256_from_mp(p->z, 8, pZ);
@@ -23074,13 +22893,12 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         err = sp_256_to_mp(p->z, rZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(q, 0, NULL);
-    sp_256_point_free_8(p, 0, NULL);
 
     return err;
 }
@@ -23099,25 +22917,28 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
 int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 8 * 2];
-    sp_point_256 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_256* p;
-    int err;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 2];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
 
-    err = sp_256_point_new_8(NULL, pd, p);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 2, NULL,
-                                                              DYNAMIC_TYPE_ECC);
-        if (tmp == NULL) {
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
@@ -23138,12 +22959,12 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         err = sp_256_to_mp(p->z, rZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(p, 0, NULL);
 
     return err;
 }
@@ -23158,25 +22979,29 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
  */
 int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 8 * 4];
-    sp_point_256 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_256* p;
-    int err;
+    sp_point_256* p = NULL;
+#else
+    sp_digit tmp[2 * 8 * 4];
+    sp_point_256 p[1];
+#endif
+    int err = MP_OKAY;
 
-    err = sp_256_point_new_8(NULL, pd, p);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_256*)XMALLOC(sizeof(sp_point_256), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 8 * 4, NULL,
-                                                              DYNAMIC_TYPE_ECC);
-        if (tmp == NULL) {
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    tmp = tmpd;
 #endif
     if (err == MP_OKAY) {
         sp_256_from_mp(p->x, 8, pX);
@@ -23196,12 +23021,12 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
         err = sp_256_to_mp(p->z, pZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_256_point_free_8(p, 0, NULL);
 
     return err;
 }
@@ -23214,31 +23039,23 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
  */
 static int sp_256_mont_sqrt_8(sp_digit* y)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
 #else
-    sp_digit t1d[2 * 8];
-    sp_digit t2d[2 * 8];
+    sp_digit t1[4 * 8];
 #endif
-    sp_digit* t1;
-    sp_digit* t2;
+    sp_digit* t2 = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL) {
         err = MEMORY_E;
     }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        t1 = d + 0 * 8;
-        t2 = d + 2 * 8;
-#else
-        t1 = t1d;
-        t2 = t2d;
-#endif
+        t2 = t1 + 2 * 8;
 
         {
             /* t2 = y ^ 0x2 */
@@ -23273,10 +23090,9 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -23292,31 +23108,22 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
  */
 int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d;
-#else
-    sp_digit xd[2 * 8];
-    sp_digit yd[2 * 8];
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* x = NULL;
+#else
+    sp_digit x[4 * 8];
+#endif
     sp_digit* y = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    x = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
+    if (x == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        x = d + 0 * 8;
-        y = d + 2 * 8;
-#else
-        x = xd;
-        y = yd;
-#endif
+        y = x + 2 * 8;
 
         sp_256_from_mp(x, 8, xm);
         err = sp_256_mod_mul_norm_8(x, x, p256_mod);
@@ -23349,10 +23156,9 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
         err = sp_256_to_mp(y, ym);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (x != NULL)
+        XFREE(x, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -23855,64 +23661,6 @@ SP_NOINLINE static sp_digit sp_384_sub_12(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-/* Create a new point.
- *
- * heap  [in]   Buffer to allocate dynamic memory from.
- * sp    [in]   Data for point - only if not allocating.
- * p     [out]  New point.
- * returns MEMORY_E when dynamic memory allocation fails and 0 otherwise.
- */
-static int sp_384_point_new_ex_12(void* heap, sp_point_384* sp,
-    sp_point_384** p)
-{
-    int ret = MP_OKAY;
-    (void)heap;
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    (void)sp;
-    *p = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);
-#else
-    *p = sp;
-#endif
-    if (*p == NULL) {
-        ret = MEMORY_E;
-    }
-    return ret;
-}
-
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* Allocate memory for point and return error. */
-#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), NULL, &(p))
-#else
-/* Set pointer to data and return no error. */
-#define sp_384_point_new_12(heap, sp, p) sp_384_point_new_ex_12((heap), &(sp), &(p))
-#endif
-
-
-/* Free the point.
- *
- * p      [in,out]  Point to free.
- * clear  [in]      Indicates whether to zeroize point.
- * heap   [in]      Buffer from which dynamic memory was allocate from.
- */
-static void sp_384_point_free_12(sp_point_384* p, int clear, void* heap)
-{
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-/* If valid pointer then clear point data if requested and free data. */
-    if (p != NULL) {
-        if (clear != 0) {
-            XMEMSET(p, 0, sizeof(*p));
-        }
-        XFREE(p, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-/* Clear point data if requested. */
-    if ((p != NULL) && (clear != 0)) {
-        XMEMSET(p, 0, sizeof(*p));
-    }
-#endif
-    (void)heap;
-}
-
 /* Multiply a number by Montogmery normalizer mod modulus (prime).
  *
  * r  The resulting Montgomery form number.
@@ -23922,8 +23670,8 @@ static void sp_384_point_free_12(sp_point_384* p, int clear, void* heap)
  */
 static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    int64_t* t;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    int64_t* t = NULL;
 #else
     int64_t t[12];
 #endif
@@ -23932,7 +23680,7 @@ static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit
 
     (void)m;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     t = (int64_t*)XMALLOC(sizeof(int64_t) * 12, NULL, DYNAMIC_TYPE_ECC);
     if (t == NULL) {
         err = MEMORY_E;
@@ -24007,7 +23755,7 @@ static int sp_384_mod_mul_norm_12(sp_digit* r, const sp_digit* a, const sp_digit
         r[11] = t[11];
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (t != NULL)
         XFREE(t, NULL, DYNAMIC_TYPE_ECC);
 #endif
@@ -25380,56 +25128,55 @@ static void sp_384_get_point_16_12(sp_point_384* r, const sp_point_384* table,
 static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, const sp_digit* k,
         int map, int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 td[16];
-    sp_point_384 rtd;
-    sp_digit tmpd[2 * 12 * 6];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_384 t[16 + 1];
+    sp_digit tmp[2 * 12 * 6];
+#endif
+    sp_point_384* rt = NULL;
 #ifndef WC_NO_CACHE_RESISTANT
-    sp_point_384 pd;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* p = NULL;
+#else
+    sp_point_384 p[1];
 #endif
-#endif
-    sp_point_384* t;
-    sp_point_384* rt;
-#ifndef WC_NO_CACHE_RESISTANT
-    sp_point_384* p;
-#endif
-    sp_digit* tmp;
+#endif /* !WC_NO_CACHE_RESISTANT */
     sp_digit n;
     int i;
     int c;
     int y;
-    int err;
+    int err = MP_OKAY;
 
     /* Constant time used for cache attack resistance implementation. */
     (void)ct;
     (void)heap;
 
-    err = sp_384_point_new_12(heap, rtd, rt);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-#ifndef WC_NO_CACHE_RESISTANT
-    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 17, heap, DYNAMIC_TYPE_ECC);
-#else
-    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 16, heap, DYNAMIC_TYPE_ECC);
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 16 + 1,
+        heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
-    tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
-                             DYNAMIC_TYPE_ECC);
-    if (tmp == NULL)
-        err = MEMORY_E;
-#else
-    t = td;
-    tmp = tmpd;
+    #ifndef WC_NO_CACHE_RESISTANT
+    if (err == MP_OKAY) {
+        p = (sp_point_384*)XMALLOC(sizeof(sp_point_384),
+            heap, DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
+    #endif
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+                                DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
-#ifndef WC_NO_CACHE_RESISTANT
-    #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        p = t + 16;
-    #else
-        p = &pd;
-    #endif
-#endif
+        rt = t + 16;
+
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
@@ -25517,20 +25264,35 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 12 * 6);
-        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
-    }
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_point_384) * 16);
-        XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-    ForceZero(tmpd, sizeof(tmpd));
-    ForceZero(td, sizeof(td));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
 #endif
-    sp_384_point_free_12(rt, 1, heap);
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 12 * 6);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#ifndef WC_NO_CACHE_RESISTANT
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (p != NULL)
+    #endif
+        {
+            ForceZero(p, sizeof(sp_point_384));
+        #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+            XFREE(p, heap, DYNAMIC_TYPE_ECC);
+        #endif
+        }
+#endif /* !WC_NO_CACHE_RESISTANT */
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_384) * 17);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
 
     return err;
 }
@@ -25754,29 +25516,30 @@ static void sp_384_proj_point_add_qz1_12(sp_point_384* r, const sp_point_384* p,
 static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         sp_table_entry_384* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 td;
-    sp_point_384 s1d;
-    sp_point_384 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* t = NULL;
+#else
+    sp_point_384 t[3];
 #endif
-    sp_point_384* t;
     sp_point_384* s1 = NULL;
     sp_point_384* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_384_point_new_12(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_384_mod_mul_norm_12(t->x, a->x, p384_mod);
     }
     if (err == MP_OKAY) {
@@ -25821,9 +25584,10 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         }
     }
 
-    sp_384_point_free_12(s2, 0, heap);
-    sp_384_point_free_12(s1, 0, heap);
-    sp_384_point_free_12( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -25915,19 +25679,19 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         const sp_table_entry_384* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 rtd;
-    sp_point_384 pd;
-    sp_digit td[2 * 12 * 6];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_384 rt[2];
+    sp_digit t[2 * 12 * 6];
 #endif
-    sp_point_384* rt;
     sp_point_384* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -25935,21 +25699,22 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     (void)heap;
 
 
-    err = sp_384_point_new_12(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p384_norm_mod, sizeof(p384_norm_mod));
         XMEMCPY(rt->z, p384_norm_mod, sizeof(p384_norm_mod));
 
@@ -26000,13 +25765,12 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(p, 0, heap);
-    sp_384_point_free_12(rt, 0, heap);
 
     return err;
 }
@@ -26172,29 +25936,30 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         sp_table_entry_384* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 td;
-    sp_point_384 s1d;
-    sp_point_384 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* t = NULL;
+#else
+    sp_point_384 t[3];
 #endif
-    sp_point_384* t;
     sp_point_384* s1 = NULL;
     sp_point_384* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_384_point_new_12(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_384_mod_mul_norm_12(t->x, a->x, p384_mod);
     }
     if (err == MP_OKAY) {
@@ -26239,9 +26004,10 @@ static int sp_384_gen_stripe_table_12(const sp_point_384* a,
         }
     }
 
-    sp_384_point_free_12(s2, 0, heap);
-    sp_384_point_free_12(s1, 0, heap);
-    sp_384_point_free_12( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -26333,19 +26099,19 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         const sp_table_entry_384* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 rtd;
-    sp_point_384 pd;
-    sp_digit td[2 * 12 * 6];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_384 rt[2];
+    sp_digit t[2 * 12 * 6];
 #endif
-    sp_point_384* rt;
     sp_point_384* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -26353,21 +26119,22 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
     (void)heap;
 
 
-    err = sp_384_point_new_12(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p384_norm_mod, sizeof(p384_norm_mod));
         XMEMCPY(rt->z, p384_norm_mod, sizeof(p384_norm_mod));
 
@@ -26418,13 +26185,12 @@ static int sp_384_ecc_mulmod_stripe_12(sp_point_384* r, const sp_point_384* g,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(p, 0, heap);
-    sp_384_point_free_12(rt, 0, heap);
 
     return err;
 }
@@ -26588,25 +26354,28 @@ static int sp_384_ecc_mulmod_12(sp_point_384* r, const sp_point_384* g, const sp
 int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_digit kd[12];
-#endif
-    sp_point_384* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_384 point[1];
+    sp_digit k[12];
+#endif
     int err = MP_OKAY;
 
-    err = sp_384_point_new_12(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
+                               DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(point, gm);
@@ -26617,12 +26386,12 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_384_point_to_ecc_point_12(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(point, 0, heap);
 
     return err;
 }
@@ -26642,37 +26411,35 @@ int sp_ecc_mulmod_384(const mp_int* km, const ecc_point* gm, ecc_point* r,
 int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
     const ecc_point* am, int inMont, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_point_384 a;
-    sp_digit kd[12];
-    sp_digit t[12 * 2 * 6];
-#endif
-    sp_point_384* point;
-    sp_point_384* addP = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* point = NULL;    
     sp_digit* k = NULL;
+#else
+    sp_point_384 point[2];
+    sp_digit k[12 + 12 * 2 * 6];
+#endif
+    sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
     int err = MP_OKAY;
 
-    err = sp_384_point_new_12(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, a, addP);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (12 + 12 * 2 * 6), heap, DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (12 + 12 * 2 * 6), heap,
+            DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
-        else {
-            tmp = k + 12;
-        }
     }
-#else
-    k = kd;
-    tmp = t;
 #endif
+
     if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 12;
+
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(point, gm);
         sp_384_point_from_ecc_point_12(addP, am);
@@ -26699,13 +26466,12 @@ int sp_ecc_mulmod_add_384(const mp_int* km, const ecc_point* gm,
         err = sp_384_point_to_ecc_point_12(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(addP, 0, heap);
-    sp_384_point_free_12(point, 0, heap);
 
     return err;
 }
@@ -28139,26 +27905,28 @@ static int sp_384_ecc_mulmod_base_12(sp_point_384* r, const sp_digit* k,
  */
 int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_digit kd[12];
-#endif
-    sp_point_384* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_384  point[1];
+    sp_digit k[12];
+#endif
     int err = MP_OKAY;
 
-    err = sp_384_point_new_12(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_384_from_mp(k, 12, km);
 
@@ -28168,12 +27936,12 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_384_point_to_ecc_point_12(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(point, 0, heap);
 
     return err;
 }
@@ -28192,37 +27960,35 @@ int sp_ecc_mulmod_base_384(const mp_int* km, ecc_point* r, int map, void* heap)
 int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_point_384 a;
-    sp_digit kd[12];
-    sp_digit t[12 * 2 * 6];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_384 point[2];
+    sp_digit k[12 + 12 * 2 * 6];
 #endif
-    sp_point_384* point;
     sp_point_384* addP = NULL;
     sp_digit* tmp = NULL;
-    sp_digit* k = NULL;
     int err = MP_OKAY;
 
-    err = sp_384_point_new_12(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, a, addP);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (12 + 12 * 2 * 6), heap, DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (12 + 12 * 2 * 6),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
-        else {
-            tmp = k + 12;
-        }
     }
-#else
-    k = kd;
-    tmp = t;
 #endif
+
     if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 12;
+
         sp_384_from_mp(k, 12, km);
         sp_384_point_from_ecc_point_12(addP, am);
     }
@@ -28248,13 +28014,12 @@ int sp_ecc_mulmod_base_add_384(const mp_int* km, const ecc_point* am,
         err = sp_384_point_to_ecc_point_12(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(addP, 0, heap);
-    sp_384_point_free_12(point, 0, heap);
 
     return err;
 }
@@ -28398,41 +28163,46 @@ static int sp_384_ecc_gen_k_12(WC_RNG* rng, sp_digit* k)
  */
 int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_digit kd[12];
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_point_384 inf;
-#endif
-#endif
-    sp_point_384* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* point = NULL;
     sp_digit* k = NULL;
+#else
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    sp_point_384 point[2];
+    #else
+    sp_point_384 point[1];
+    #endif
+    sp_digit k[12];
+#endif
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     sp_point_384* infinity = NULL;
 #endif
-    int err;
+    int err = MP_OKAY;
+    
 
     (void)heap;
 
-    err = sp_384_point_new_12(heap, p, point);
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, inf, infinity);
-    }
-#endif
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap, DYNAMIC_TYPE_ECC);
+    #else
+    point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap, DYNAMIC_TYPE_ECC);    
+    #endif
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
+    #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+        infinity = point + 1;
+    #endif
+
         err = sp_384_ecc_gen_k_12(rng, k);
     }
     if (err == MP_OKAY) {
@@ -28457,15 +28227,14 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
         err = sp_384_point_to_ecc_point_12(point, pub);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL) {
+        /* point is not sensitive, so no need to zeroize */
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
     }
 #endif
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    sp_384_point_free_12(infinity, 1, heap);
-#endif
-    sp_384_point_free_12(point, 1, heap);
 
     return err;
 }
@@ -28526,30 +28295,32 @@ static void sp_384_to_bin(sp_digit* r, byte* a)
 int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
                           word32* outLen, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 p;
-    sp_digit kd[12];
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_384* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_384 point[1];
+    sp_digit k[12];
+#endif
     int err = MP_OKAY;
 
     if (*outLen < 48U) {
         err = BUFFER_E;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, p, point);
+        point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap,
+                                         DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
     }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
+                               DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
@@ -28562,12 +28333,12 @@ int sp_ecc_secret_gen_384(const mp_int* priv, const ecc_point* pub, byte* out,
         *outLen = 48;
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(point, 0, heap);
 
     return err;
 }
@@ -29123,13 +28894,10 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
             hashLen = 48U;
         }
 
-        sp_384_from_bin(ctx->e, 12, hash, (int)hashLen);
-
         ctx->i = SP_ECC_MAX_SIG_GEN;
         ctx->state = 1;
         break;
     case 1: /* GEN */
-        sp_384_from_mp(ctx->x, 12, priv);
         /* New random point. */
         if (km == NULL || mp_iszero(km)) {
             err = sp_384_ecc_gen_k_12(rng, ctx->k);
@@ -29157,6 +28925,9 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
         c = sp_384_cmp_12(ctx->r, p384_order);
         sp_384_cond_sub_12(ctx->r, ctx->r, p384_order, 0L - (sp_digit)(c >= 0));
         sp_384_norm_12(ctx->r);
+
+        sp_384_from_mp(ctx->x, 12, priv);
+        sp_384_from_bin(ctx->e, 12, hash, (int)hashLen);
         ctx->state = 4;
         break;
     }
@@ -29213,6 +28984,9 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
             ctx->state = 10;
             break;
         }
+    #ifdef WOLFSSL_ECDSA_SET_K_ONE_LOOP
+        ctx->i = 1;
+    #endif
 
         /* not usable gen, try again */
         ctx->i--;
@@ -29248,22 +29022,17 @@ int sp_ecc_sign_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash, word32 hashLen, W
 int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
     const mp_int* priv, mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
-#else
-    sp_digit ed[2*12];
-    sp_digit xd[2*12];
-    sp_digit kd[2*12];
-    sp_digit rd[2*12];
-    sp_digit td[3 * 2*12];
-    sp_point_384 p;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* e = NULL;
+    sp_point_384* point = NULL;
+#else
+    sp_digit e[7 * 2 * 12];
+    sp_point_384 point[1];
+#endif
     sp_digit* x = NULL;
     sp_digit* k = NULL;
     sp_digit* r = NULL;
     sp_digit* tmp = NULL;
-    sp_point_384* point = NULL;
     sp_digit* s = NULL;
     int32_t c;
     int err = MP_OKAY;
@@ -29271,31 +29040,26 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
 
     (void)heap;
 
-    err = sp_384_point_new_12(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (d == NULL) {
+        point = (sp_point_384*)XMALLOC(sizeof(sp_point_384), heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (point == NULL)
             err = MEMORY_E;
-        }
+    }
+    if (err == MP_OKAY) {
+        e = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 12, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (e == NULL)
+            err = MEMORY_E;
     }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        e = d + 0 * 12;
-        x = d + 2 * 12;
-        k = d + 4 * 12;
-        r = d + 6 * 12;
-        tmp = d + 8 * 12;
-#else
-        e = ed;
-        x = xd;
-        k = kd;
-        r = rd;
-        tmp = td;
-#endif
+        x = e + 2 * 12;
+        k = e + 4 * 12;
+        r = e + 6 * 12;
+        tmp = e + 8 * 12;
         s = e;
 
         if (hashLen > 48U) {
@@ -29350,19 +29114,24 @@ int sp_ecc_sign_384(const byte* hash, word32 hashLen, WC_RNG* rng,
         err = sp_384_to_mp(s, sm);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XMEMSET(d, 0, sizeof(sp_digit) * 8 * 12);
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-    XMEMSET(e, 0, sizeof(sp_digit) * 2U * 12U);
-    XMEMSET(x, 0, sizeof(sp_digit) * 2U * 12U);
-    XMEMSET(k, 0, sizeof(sp_digit) * 2U * 12U);
-    XMEMSET(r, 0, sizeof(sp_digit) * 2U * 12U);
-    XMEMSET(tmp, 0, sizeof(sp_digit) * 3U * 2U * 12U);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (e != NULL)
 #endif
-    sp_384_point_free_12(point, 1, heap);
+    {
+        ForceZero(e, sizeof(sp_digit) * 7 * 2 * 12);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(e, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (point != NULL)
+#endif
+    {
+        ForceZero(point, sizeof(sp_point_384));
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
 
     return err;
 }
@@ -29830,7 +29599,7 @@ typedef struct sp_ecc_verify_384_ctx {
 
 int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
     word32 hashLen, const mp_int* pX, const mp_int* pY, const mp_int* pZ,
-    const mp_int* r, const mp_int* sm, int* res, void* heap)
+    const mp_int* rm, const mp_int* sm, int* res, void* heap)
 {
     int err = FP_WOULDBLOCK;
     sp_ecc_verify_384_ctx* ctx = (sp_ecc_verify_384_ctx*)sp_ctx->data;
@@ -29845,7 +29614,7 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         }
 
         sp_384_from_bin(ctx->u1, 12, hash, (int)hashLen);
-        sp_384_from_mp(ctx->u2, 12, r);
+        sp_384_from_mp(ctx->u2, 12, rm);
         sp_384_from_mp(ctx->s, 12, sm);
         sp_384_from_mp(ctx->p2.x, 12, pX);
         sp_384_from_mp(ctx->p2.y, 12, pY);
@@ -29903,57 +29672,33 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
         if (err == MP_OKAY)
             ctx->state = 9;
         break;
-    case 9: /* DBLPREP */
-        if (sp_384_iszero_12(ctx->p1.z)) {
-            if (sp_384_iszero_12(ctx->p1.x) && sp_384_iszero_12(ctx->p1.y)) {
-                XMEMSET(&ctx->dbl_ctx, 0, sizeof(ctx->dbl_ctx));
-                ctx->state = 10;
-                break;
-            }
-            else {
-                /* Y ordinate is not used from here - don't set. */
-                int i;
-                for (i=0; i<12; i++) {
-                    ctx->p1.x[i] = 0;
-                }
-                XMEMCPY(ctx->p1.z, p384_norm_mod, sizeof(p384_norm_mod));
-            }
-        }
-        ctx->state = 11;
-        break;
-    case 10: /* DBL */
-        err = sp_384_proj_point_dbl_12_nb((sp_ecc_ctx_t*)&ctx->dbl_ctx, &ctx->p1,
-            &ctx->p2, ctx->tmp);
-        if (err == MP_OKAY) {
-            ctx->state = 11;
-        }
-        break;
-    case 11: /* MONT */
+    case 9: /* MONT */
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
-        sp_384_from_mp(ctx->u2, 12, r);
+        sp_384_from_mp(ctx->u2, 12, rm);
         err = sp_384_mod_mul_norm_12(ctx->u2, ctx->u2, p384_mod);
         if (err == MP_OKAY)
-            ctx->state = 12;
+            ctx->state = 10;
         break;
-    case 12: /* SQR */
+    case 10: /* SQR */
         /* u1 = r.z'.z' mod prime */
         sp_384_mont_sqr_12(ctx->p1.z, ctx->p1.z, p384_mod, p384_mp_mod);
-        ctx->state = 13;
+        ctx->state = 11;
         break;
-    case 13: /* MUL */
+    case 11: /* MUL */
         sp_384_mont_mul_12(ctx->u1, ctx->u2, ctx->p1.z, p384_mod, p384_mp_mod);
-        ctx->state = 14;
+        ctx->state = 12;
         break;
-    case 14: /* RES */
+    case 12: /* RES */
+    {
+        int32_t c = 0;
         err = MP_OKAY; /* math okay, now check result */
         *res = (int)(sp_384_cmp_12(ctx->p1.x, ctx->u1) == 0);
         if (*res == 0) {
             sp_digit carry;
-            int32_t c;
 
             /* Reload r and add order. */
-            sp_384_from_mp(ctx->u2, 12, r);
+            sp_384_from_mp(ctx->u2, 12, rm);
             carry = sp_384_add_12(ctx->u2, ctx->u2, p384_order);
             /* Carry means result is greater than mod and is not valid. */
             if (carry == 0) {
@@ -29961,22 +29706,23 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_384_cmp_12(ctx->u2, p384_mod);
-                if (c < 0) {
-                    /* Convert to Montogomery form */
-                    err = sp_384_mod_mul_norm_12(ctx->u2, ctx->u2, p384_mod);
-                    if (err == MP_OKAY) {
-                        /* u1 = (r + 1*order).z'.z' mod prime */
-                        sp_384_mont_mul_12(ctx->u1, ctx->u2, ctx->p1.z, p384_mod,
-                                                                  p384_mp_mod);
-                        *res = (int)(sp_384_cmp_12(ctx->p1.x, ctx->u1) == 0);
-                    }
-                }
+            }
+        }
+        if ((*res == 0) && (c < 0)) {
+            /* Convert to Montogomery form */
+            err = sp_384_mod_mul_norm_12(ctx->u2, ctx->u2, p384_mod);
+            if (err == MP_OKAY) {
+                /* u1 = (r + 1*order).z'.z' mod prime */
+                sp_384_mont_mul_12(ctx->u1, ctx->u2, ctx->p1.z, p384_mod,
+                                                            p384_mp_mod);
+                *res = (int)(sp_384_cmp_12(ctx->p1.x, ctx->u1) == 0);
             }
         }
         break;
     }
+    } /* switch */
 
-    if (err == MP_OKAY && ctx->state != 14) {
+    if (err == MP_OKAY && ctx->state != 12) {
         err = FP_WOULDBLOCK;
     }
 
@@ -29985,62 +29731,51 @@ int sp_ecc_verify_384_nb(sp_ecc_ctx_t* sp_ctx, const byte* hash,
 #endif /* WOLFSSL_SP_NONBLOCK */
 
 int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
-    const mp_int* pY, const mp_int* pZ, const mp_int* r, const mp_int* sm,
+    const mp_int* pY, const mp_int* pZ, const mp_int* rm, const mp_int* sm,
     int* res, void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
-#else
-    sp_digit u1d[2*12];
-    sp_digit u2d[2*12];
-    sp_digit sd[2*12];
-    sp_digit tmpd[2*12 * 5];
-    sp_point_384 p1d;
-    sp_point_384 p2d;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* u1 = NULL;
+    sp_point_384* p1 = NULL;
+#else
+    sp_digit  u1[16 * 12];
+    sp_point_384 p1[2];
+#endif
     sp_digit* u2 = NULL;
     sp_digit* s = NULL;
     sp_digit* tmp = NULL;
-    sp_point_384* p1;
     sp_point_384* p2 = NULL;
     sp_digit carry;
     int32_t c = 0;
-    int err;
+    int err = MP_OKAY;
 
-    err = sp_384_point_new_12(heap, p1d, p1);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, p2d, p2);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (d == NULL) {
+        p1 = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap,
+                                             DYNAMIC_TYPE_ECC);
+        if (p1 == NULL)
             err = MEMORY_E;
-        }
+    }
+    if (err == MP_OKAY) {
+        u1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 16 * 12, heap,
+                                                              DYNAMIC_TYPE_ECC);
+        if (u1 == NULL)
+            err = MEMORY_E;
     }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        u1  = d + 0 * 12;
-        u2  = d + 2 * 12;
-        s   = d + 4 * 12;
-        tmp = d + 6 * 12;
-#else
-        u1 = u1d;
-        u2 = u2d;
-        s  = sd;
-        tmp = tmpd;
-#endif
+        u2  = u1 + 2 * 12;
+        s   = u1 + 4 * 12;
+        tmp = u1 + 6 * 12;
+        p2 = p1 + 1;
 
         if (hashLen > 48U) {
             hashLen = 48U;
         }
 
         sp_384_from_bin(u1, 12, hash, (int)hashLen);
-        sp_384_from_mp(u2, 12, r);
+        sp_384_from_mp(u2, 12, rm);
         sp_384_from_mp(s, 12, sm);
         sp_384_from_mp(p2->x, 12, pX);
         sp_384_from_mp(p2->y, 12, pY);
@@ -30051,7 +29786,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
     if (err == MP_OKAY) {
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
-        sp_384_from_mp(u2, 12, r);
+        sp_384_from_mp(u2, 12, rm);
         err = sp_384_mod_mul_norm_12(u2, u2, p384_mod);
     }
 
@@ -30062,7 +29797,7 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
         *res = (int)(sp_384_cmp_12(p1->x, u1) == 0);
         if (*res == 0) {
             /* Reload r and add order. */
-            sp_384_from_mp(u2, 12, r);
+            sp_384_from_mp(u2, 12, rm);
             carry = sp_384_add_12(u2, u2, p384_order);
             /* Carry means result is greater than mod and is not valid. */
             if (carry == 0) {
@@ -30071,8 +29806,8 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
                 /* Compare with mod and if greater or equal then not valid. */
                 c = sp_384_cmp_12(u2, p384_mod);
             }
-         }
-         if ((*res == 0) && (c < 0)) {
+        }
+        if ((*res == 0) && (c < 0)) {
             /* Convert to Montogomery form */
             err = sp_384_mod_mul_norm_12(u2, u2, p384_mod);
             if (err == MP_OKAY) {
@@ -30084,12 +29819,12 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL)
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (u1 != NULL)
+        XFREE(u1, heap, DYNAMIC_TYPE_ECC);
+    if (p1 != NULL)
+        XFREE(p1, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(p1, 0, heap);
-    sp_384_point_free_12(p2, 0, heap);
 
     return err;
 }
@@ -30106,32 +29841,23 @@ int sp_ecc_verify_384(const byte* hash, word32 hashLen, const mp_int* pX,
 static int sp_384_ecc_is_point_12(const sp_point_384* point,
     void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
 #else
-    sp_digit t1d[2*12];
-    sp_digit t2d[2*12];
+    sp_digit t1[12 * 4];
 #endif
-    sp_digit* t1;
-    sp_digit* t2;
+    sp_digit* t2 = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12 * 4, heap, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
         err = MEMORY_E;
-    }
 #endif
     (void)heap;
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        t1 = d + 0 * 12;
-        t2 = d + 2 * 12;
-#else
-        t1 = t1d;
-        t2 = t2d;
-#endif
+        t2 = t1 + 2 * 12;
 
         sp_384_sqr_12(t1, point->y);
         (void)sp_384_mod_12(t1, t1, p384_mod);
@@ -30151,10 +29877,9 @@ static int sp_384_ecc_is_point_12(const sp_point_384* point,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -30169,14 +29894,21 @@ static int sp_384_ecc_is_point_12(const sp_point_384* point,
  */
 int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_384 pubd;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_384* pub = NULL;
+#else
+    sp_point_384 pub[1];
 #endif
-    sp_point_384* pub;
-    byte one[1] = { 1 };
-    int err;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
 
-    err = sp_384_point_new_12(NULL, pubd, pub);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_384*)XMALLOC(sizeof(sp_point_384), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
     if (err == MP_OKAY) {
         sp_384_from_mp(pub->x, 12, pX);
         sp_384_from_mp(pub->y, 12, pY);
@@ -30185,7 +29917,10 @@ int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
         err = sp_384_ecc_is_point_12(pub, NULL);
     }
 
-    sp_384_point_free_12(pub, 0, NULL);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -30204,44 +29939,44 @@ int sp_ecc_is_point_384(const mp_int* pX, const mp_int* pY)
 int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit privd[12];
-    sp_point_384 pubd;
-    sp_point_384 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* priv = NULL;
-    sp_point_384* pub;
-    sp_point_384* p = NULL;
-    byte one[1] = { 1 };
-    int err;
-
-    err = sp_384_point_new_12(heap, pubd, pub);
-    if (err == MP_OKAY) {
-        err = sp_384_point_new_12(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY && privm) {
-        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (priv == NULL) {
-            err = MEMORY_E;
-        }
-    }
+    sp_point_384* pub = NULL;
+#else
+    sp_digit priv[12];
+    sp_point_384 pub[2];
 #endif
+    sp_point_384* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
 
     /* Quick check the lengs of public key ordinates and private key are in
      * range. Proper check later.
      */
-    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 384) ||
+    if (((mp_count_bits(pX) > 384) ||
         (mp_count_bits(pY) > 384) ||
         ((privm != NULL) && (mp_count_bits(privm) > 384)))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-        priv = privd;
+        pub = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 12, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
 #endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
 
         sp_384_from_mp(pub->x, 12, pX);
         sp_384_from_mp(pub->y, 12, pY);
@@ -30291,13 +30026,12 @@ int sp_ecc_check_key_384(const mp_int* pX, const mp_int* pY,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (priv != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
         XFREE(priv, heap, DYNAMIC_TYPE_ECC);
-    }
 #endif
-    sp_384_point_free_12(p, 0, heap);
-    sp_384_point_free_12(pub, 0, heap);
 
     return err;
 }
@@ -30321,33 +30055,35 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* qX, mp_int* qY, mp_int* qZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 12 * 5];
-    sp_point_384 pd;
-    sp_point_384 qd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_384* p;
+    sp_point_384* p = NULL;
+#else
+    sp_digit tmp[2 * 12 * 5];
+    sp_point_384 p[2];
+#endif
     sp_point_384* q = NULL;
     int err;
 
-    err = sp_384_point_new_12(NULL, pd, p);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-        err = sp_384_point_new_12(NULL, qd, q);
+        p = (sp_point_384*)XMALLOC(sizeof(sp_point_384) * 2, NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
     }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 5, NULL,
-                                                              DYNAMIC_TYPE_ECC);
+                                 DYNAMIC_TYPE_ECC);
         if (tmp == NULL) {
             err = MEMORY_E;
         }
     }
-#else
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
+        q = p + 1;
+
         sp_384_from_mp(p->x, 12, pX);
         sp_384_from_mp(p->y, 12, pY);
         sp_384_from_mp(p->z, 12, pZ);
@@ -30368,13 +30104,12 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         err = sp_384_to_mp(p->z, rZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(q, 0, NULL);
-    sp_384_point_free_12(p, 0, NULL);
 
     return err;
 }
@@ -30393,25 +30128,28 @@ int sp_ecc_proj_add_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
 int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
                               mp_int* rX, mp_int* rY, mp_int* rZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 12 * 2];
-    sp_point_384 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_384* p;
-    int err;
+    sp_point_384* p = NULL;
+#else
+    sp_digit tmp[2 * 12 * 2];
+    sp_point_384 p[1];
+#endif
+    int err = MP_OKAY;
 
-    err = sp_384_point_new_12(NULL, pd, p);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_384*)XMALLOC(sizeof(sp_point_384), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 2, NULL,
-                                                              DYNAMIC_TYPE_ECC);
-        if (tmp == NULL) {
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
@@ -30432,12 +30170,12 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
         err = sp_384_to_mp(p->z, rZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(p, 0, NULL);
 
     return err;
 }
@@ -30452,25 +30190,29 @@ int sp_ecc_proj_dbl_point_384(mp_int* pX, mp_int* pY, mp_int* pZ,
  */
 int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit tmpd[2 * 12 * 6];
-    sp_point_384 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* tmp = NULL;
-    sp_point_384* p;
-    int err;
+    sp_point_384* p = NULL;
+#else
+    sp_digit tmp[2 * 12 * 6];
+    sp_point_384 p[1];
+#endif
+    int err = MP_OKAY;
 
-    err = sp_384_point_new_12(NULL, pd, p);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        p = (sp_point_384*)XMALLOC(sizeof(sp_point_384), NULL,
+                                         DYNAMIC_TYPE_ECC);
+        if (p == NULL)
+            err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
         tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 12 * 6, NULL,
-                                                              DYNAMIC_TYPE_ECC);
-        if (tmp == NULL) {
+                                 DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    tmp = tmpd;
 #endif
     if (err == MP_OKAY) {
         sp_384_from_mp(p->x, 12, pX);
@@ -30490,12 +30232,12 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
         err = sp_384_to_mp(p->z, pZ);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
         XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    if (p != NULL)
+        XFREE(p, NULL, DYNAMIC_TYPE_ECC);
 #endif
-    sp_384_point_free_12(p, 0, NULL);
 
     return err;
 }
@@ -30508,43 +30250,28 @@ int sp_ecc_map_384(mp_int* pX, mp_int* pY, mp_int* pZ)
  */
 static int sp_384_mont_sqrt_12(sp_digit* y)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
 #else
-    sp_digit t1d[2 * 12];
-    sp_digit t2d[2 * 12];
-    sp_digit t3d[2 * 12];
-    sp_digit t4d[2 * 12];
-    sp_digit t5d[2 * 12];
+    sp_digit t1[5 * 2 * 12];
 #endif
-    sp_digit* t1;
-    sp_digit* t2;
-    sp_digit* t3;
-    sp_digit* t4;
-    sp_digit* t5;
+    sp_digit* t2 = NULL;
+    sp_digit* t3 = NULL;
+    sp_digit* t4 = NULL;
+    sp_digit* t5 = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 5 * 2 * 12, NULL, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 5 * 2 * 12, NULL, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        t1 = d + 0 * 12;
-        t2 = d + 2 * 12;
-        t3 = d + 4 * 12;
-        t4 = d + 6 * 12;
-        t5 = d + 8 * 12;
-#else
-        t1 = t1d;
-        t2 = t2d;
-        t3 = t3d;
-        t4 = t4d;
-        t5 = t5d;
-#endif
+        t2 = t1 + 2 * 12;
+        t3 = t1 + 4 * 12;
+        t4 = t1 + 6 * 12;
+        t5 = t1 + 8 * 12;
 
         {
             /* t2 = y ^ 0x2 */
@@ -30604,10 +30331,9 @@ static int sp_384_mont_sqrt_12(sp_digit* y)
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -30623,31 +30349,22 @@ static int sp_384_mont_sqrt_12(sp_digit* y)
  */
 int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d;
-#else
-    sp_digit xd[2 * 12];
-    sp_digit yd[2 * 12];
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* x = NULL;
+#else
+    sp_digit x[4 * 12];
+#endif
     sp_digit* y = NULL;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 12, NULL, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    x = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 12, NULL, DYNAMIC_TYPE_ECC);
+    if (x == NULL)
         err = MEMORY_E;
-    }
 #endif
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        x = d + 0 * 12;
-        y = d + 2 * 12;
-#else
-        x = xd;
-        y = yd;
-#endif
+        y = x + 2 * 12;
 
         sp_384_from_mp(x, 12, xm);
         err = sp_384_mod_mul_norm_12(x, x, p384_mod);
@@ -30680,10 +30397,9 @@ int sp_ecc_uncompress_384(mp_int* xm, int odd, mp_int* ym)
         err = sp_384_to_mp(y, ym);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (x != NULL)
+        XFREE(x, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -31913,6 +31629,8 @@ static int sp_1024_mod_mul_norm_32(sp_digit* r, const sp_digit* a,
     return sp_1024_mod_32(r, r, m);
 }
 
+
+#ifdef WOLFCRYPT_HAVE_SAKKE
 /* Create a new point.
  *
  * heap  [in]   Buffer to allocate dynamic memory from.
@@ -31944,8 +31662,8 @@ static int sp_1024_point_new_ex_32(void* heap, sp_point_1024* sp,
 /* Set pointer to data and return no error. */
 #define sp_1024_point_new_32(heap, sp, p) sp_1024_point_new_ex_32((heap), &(sp), &(p))
 #endif
-
-
+#endif /* WOLFCRYPT_HAVE_SAKKE */
+#ifdef WOLFCRYPT_HAVE_SAKKE
 /* Free the point.
  *
  * p      [in,out]  Point to free.
@@ -31970,6 +31688,7 @@ static void sp_1024_point_free_32(sp_point_1024* p, int clear, void* heap)
 #endif
     (void)heap;
 }
+#endif /* WOLFCRYPT_HAVE_SAKKE */
 
 /* Convert an mp_int to an array of sp_digit.
  *
@@ -34115,43 +33834,40 @@ static void sp_1024_proj_point_add_32(sp_point_1024* r,
 static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, const sp_digit* k,
         int map, int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 td[16];
-    sp_point_1024 rtd;
-    sp_digit tmpd[2 * 32 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* t = NULL;
+    sp_digit* tmp = NULL;
+#else
+    sp_point_1024 t[16 + 1];
+    sp_digit tmp[2 * 32 * 5];
 #endif
-    sp_point_1024* t;
-    sp_point_1024* rt;
-    sp_digit* tmp;
+    sp_point_1024* rt = NULL;
     sp_digit n;
     int i;
     int c;
     int y;
-    int err;
+    int err = MP_OKAY;
 
     /* Constant time used for cache attack resistance implementation. */
     (void)ct;
     (void)heap;
 
-    err = sp_1024_point_new_32(heap, rtd, rt);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-#ifndef WC_NO_CACHE_RESISTANT
-    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 17, heap, DYNAMIC_TYPE_ECC);
-#else
-    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 16, heap, DYNAMIC_TYPE_ECC);
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 16 + 1,
+        heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
-    tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
-                             DYNAMIC_TYPE_ECC);
-    if (tmp == NULL)
-        err = MEMORY_E;
-#else
-    t = td;
-    tmp = tmpd;
+    if (err == MP_OKAY) {
+        tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                                DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
 #endif
 
     if (err == MP_OKAY) {
+        rt = t + 16;
+
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
@@ -34219,20 +33935,24 @@ static int sp_1024_ecc_mulmod_fast_32(sp_point_1024* r, const sp_point_1024* g, 
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (tmp != NULL) {
-        XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 32 * 5);
-        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
-    }
-    if (t != NULL) {
-        XMEMSET(t, 0, sizeof(sp_point_1024) * 16);
-        XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
-#else
-    ForceZero(tmpd, sizeof(tmpd));
-    ForceZero(td, sizeof(td));
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (tmp != NULL)
 #endif
-    sp_1024_point_free_32(rt, 1, heap);
+    {
+        ForceZero(tmp, sizeof(sp_digit) * 2 * 32 * 5);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(tmp, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+#endif
+    {
+        ForceZero(t, sizeof(sp_point_1024) * 17);
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    #endif
+    }
 
     return err;
 }
@@ -34456,29 +34176,30 @@ static void sp_1024_proj_point_add_qz1_32(sp_point_1024* r, const sp_point_1024*
 static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
         sp_table_entry_1024* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 td;
-    sp_point_1024 s1d;
-    sp_point_1024 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* t = NULL;
+#else
+    sp_point_1024 t[3];
 #endif
-    sp_point_1024* t;
     sp_point_1024* s1 = NULL;
     sp_point_1024* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_1024_point_new_32(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_1024_mod_mul_norm_32(t->x, a->x, p1024_mod);
     }
     if (err == MP_OKAY) {
@@ -34523,9 +34244,10 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
         }
     }
 
-    sp_1024_point_free_32(s2, 0, heap);
-    sp_1024_point_free_32(s1, 0, heap);
-    sp_1024_point_free_32( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -34551,19 +34273,19 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
         const sp_table_entry_1024* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 rtd;
-    sp_point_1024 pd;
-    sp_digit td[2 * 32 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_1024 rt[2];
+    sp_digit t[2 * 32 * 5];
 #endif
-    sp_point_1024* rt;
     sp_point_1024* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -34571,21 +34293,22 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
     (void)heap;
 
 
-    err = sp_1024_point_new_32(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p1024_norm_mod, sizeof(p1024_norm_mod));
         XMEMCPY(rt->z, p1024_norm_mod, sizeof(p1024_norm_mod));
 
@@ -34621,13 +34344,12 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(p, 0, heap);
-    sp_1024_point_free_32(rt, 0, heap);
 
     return err;
 }
@@ -34793,29 +34515,30 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
         sp_table_entry_1024* table, sp_digit* tmp, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 td;
-    sp_point_1024 s1d;
-    sp_point_1024 s2d;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* t = NULL;
+#else
+    sp_point_1024 t[3];
 #endif
-    sp_point_1024* t;
     sp_point_1024* s1 = NULL;
     sp_point_1024* s2 = NULL;
     int i;
     int j;
-    int err;
+    int err = MP_OKAY;
 
     (void)heap;
 
-    err = sp_1024_point_new_32(heap, td, t);
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, s1d, s1);
-    }
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, s2d, s2);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 3, heap,
+                                     DYNAMIC_TYPE_ECC);
+    if (t == NULL)
+        err = MEMORY_E;
+#endif
 
     if (err == MP_OKAY) {
+        s1 = t + 1;
+        s2 = t + 2;
+
         err = sp_1024_mod_mul_norm_32(t->x, a->x, p1024_mod);
     }
     if (err == MP_OKAY) {
@@ -34860,9 +34583,10 @@ static int sp_1024_gen_stripe_table_32(const sp_point_1024* a,
         }
     }
 
-    sp_1024_point_free_32(s2, 0, heap);
-    sp_1024_point_free_32(s1, 0, heap);
-    sp_1024_point_free_32( t, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -34888,19 +34612,19 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
         const sp_table_entry_1024* table, const sp_digit* k, int map,
         int ct, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 rtd;
-    sp_point_1024 pd;
-    sp_digit td[2 * 32 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* rt = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_1024 rt[2];
+    sp_digit t[2 * 32 * 5];
 #endif
-    sp_point_1024* rt;
     sp_point_1024* p = NULL;
-    sp_digit* t;
     int i;
     int j;
     int y;
     int x;
-    int err;
+    int err = MP_OKAY;
 
     (void)g;
     /* Constant time used for cache attack resistance implementation. */
@@ -34908,21 +34632,22 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
     (void)heap;
 
 
-    err = sp_1024_point_new_32(heap, rtd, rt);
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
-                           DYNAMIC_TYPE_ECC);
-    if (t == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    rt = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 2, heap,
+                                      DYNAMIC_TYPE_ECC);
+    if (rt == NULL)
         err = MEMORY_E;
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 32 * 5, heap,
+                               DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
     }
-#else
-    t = td;
 #endif
 
     if (err == MP_OKAY) {
+        p = rt + 1;
+
         XMEMCPY(p->z, p1024_norm_mod, sizeof(p1024_norm_mod));
         XMEMCPY(rt->z, p1024_norm_mod, sizeof(p1024_norm_mod));
 
@@ -34958,13 +34683,12 @@ static int sp_1024_ecc_mulmod_stripe_32(sp_point_1024* r, const sp_point_1024* g
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (rt != NULL)
+        XFREE(rt, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(p, 0, heap);
-    sp_1024_point_free_32(rt, 0, heap);
 
     return err;
 }
@@ -35128,25 +34852,28 @@ static int sp_1024_ecc_mulmod_32(sp_point_1024* r, const sp_point_1024* g, const
 int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 p;
-    sp_digit kd[32];
-#endif
-    sp_point_1024* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_1024 point[1];
+    sp_digit k[32];
+#endif
     int err = MP_OKAY;
 
-    err = sp_1024_point_new_32(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap,
-                                                              DYNAMIC_TYPE_ECC);
+                               DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_1024_from_mp(k, 32, km);
         sp_1024_point_from_ecc_point_32(point, gm);
@@ -35157,12 +34884,12 @@ int sp_ecc_mulmod_1024(const mp_int* km, const ecc_point* gm, ecc_point* r,
         err = sp_1024_point_to_ecc_point_32(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(point, 0, heap);
 
     return err;
 }
@@ -38756,26 +38483,28 @@ static int sp_1024_ecc_mulmod_base_32(sp_point_1024* r, const sp_digit* k,
  */
 int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 p;
-    sp_digit kd[32];
-#endif
-    sp_point_1024* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_1024  point[1];
+    sp_digit k[32];
+#endif
     int err = MP_OKAY;
 
-    err = sp_1024_point_new_32(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+                               DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_1024_from_mp(k, 32, km);
 
@@ -38785,12 +38514,12 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
         err = sp_1024_point_to_ecc_point_32(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(point, 0, heap);
 
     return err;
 }
@@ -38809,37 +38538,35 @@ int sp_ecc_mulmod_base_1024(const mp_int* km, ecc_point* r, int map, void* heap)
 int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
         int inMont, ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 p;
-    sp_point_1024 a;
-    sp_digit kd[32];
-    sp_digit t[32 * 2 * 5];
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* point = NULL;
+    sp_digit* k = NULL;
+#else
+    sp_point_1024 point[2];
+    sp_digit k[32 + 32 * 2 * 5];
 #endif
-    sp_point_1024* point;
     sp_point_1024* addP = NULL;
     sp_digit* tmp = NULL;
-    sp_digit* k = NULL;
     int err = MP_OKAY;
 
-    err = sp_1024_point_new_32(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 2, heap, 
+                                         DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
     if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, a, addP);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY) {
-        k = (sp_digit*)XMALLOC(sizeof(sp_digit) * (32 + 32 * 2 * 5), heap, DYNAMIC_TYPE_ECC);
-        if (k == NULL) {
+        k = (sp_digit*)XMALLOC(
+            sizeof(sp_digit) * (32 + 32 * 2 * 5),
+            heap, DYNAMIC_TYPE_ECC);
+        if (k == NULL)
             err = MEMORY_E;
-        }
-        else {
-            tmp = k + 32;
-        }
     }
-#else
-    k = kd;
-    tmp = t;
 #endif
+
     if (err == MP_OKAY) {
+        addP = point + 1;
+        tmp = k + 32;
+
         sp_1024_from_mp(k, 32, km);
         sp_1024_point_from_ecc_point_32(addP, am);
     }
@@ -38865,13 +38592,12 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
         err = sp_1024_point_to_ecc_point_32(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(addP, 0, heap);
-    sp_1024_point_free_32(point, 0, heap);
 
     return err;
 }
@@ -38889,29 +38615,43 @@ int sp_ecc_mulmod_base_add_1024(const mp_int* km, const ecc_point* am,
 int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
     void* heap)
 {
-    int err = 0;
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 p;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_point_1024* point = NULL;
+    sp_digit* t = NULL;
+#else
+    sp_point_1024 point[1];
     sp_digit t[5 * 2 * 32];
+#endif
+    int err = MP_OKAY;
 
     if ((gm == NULL) || (len == NULL)) {
         err = BAD_FUNC_ARG;
     }
 
-    if ((err == 0) && (table == NULL)) {
+    if ((err == MP_OKAY) && (table == NULL)) {
         *len = sizeof(sp_table_entry_1024) * 256;
         err = LENGTH_ONLY_E;
     }
-    if ((err == 0) && (*len < (int)(sizeof(sp_table_entry_1024) * 256))) {
+    if ((err == MP_OKAY) && (*len < (int)(sizeof(sp_table_entry_1024) * 256))) {
         err = BUFFER_E;
     }
 
-    if (err == 0) {
-        err = sp_1024_point_new_32(heap, p, point);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (err == MP_OKAY) {
+        point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
+            DYNAMIC_TYPE_ECC);
+        if (point == NULL)
+            err = MEMORY_E;
     }
-    if (err == 0) {
+    if (err == MP_OKAY) {
+        t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 5 * 2 * 32, heap,
+            DYNAMIC_TYPE_ECC);
+        if (t == NULL)
+            err = MEMORY_E;
+    }
+#endif
+
+    if (err == MP_OKAY) {
         sp_1024_point_from_ecc_point_32(point, gm);
             err = sp_1024_gen_stripe_table_32(point,
                 (sp_table_entry_1024*)table, t, heap);
@@ -38920,7 +38660,12 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
         *len = sizeof(sp_table_entry_1024) * 256;
     }
 
-    sp_1024_point_free_32(point, 0, heap);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t != NULL)
+        XFREE(t, heap, DYNAMIC_TYPE_ECC);
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -38973,24 +38718,28 @@ int sp_ecc_gen_table_1024(const ecc_point* gm, byte* table, word32* len,
 int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
         ecc_point* r, int map, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 p;
-    sp_digit kd[32];
-#endif
-    sp_point_1024* point;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* point = NULL;
     sp_digit* k = NULL;
+#else
+    sp_point_1024 point[1];
+    sp_digit k[32];
+#endif
     int err = MP_OKAY;
 
-    err = sp_1024_point_new_32(heap, p, point);
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    point = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), heap,
+        DYNAMIC_TYPE_ECC);
+    if (point == NULL)
+        err = MEMORY_E;
+    }
     if (err == MP_OKAY) {
         k = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap, DYNAMIC_TYPE_ECC);
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
+
     if (err == MP_OKAY) {
         sp_1024_from_mp(k, 32, km);
         sp_1024_point_from_ecc_point_32(point, gm);
@@ -39007,12 +38756,12 @@ int sp_ecc_mulmod_table_1024(const mp_int* km, const ecc_point* gm, byte* table,
         err = sp_1024_point_to_ecc_point_32(point, r);
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (k != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (k != NULL)
         XFREE(k, heap, DYNAMIC_TYPE_ECC);
-    }
+    if (point != NULL)
+        XFREE(point, heap, DYNAMIC_TYPE_ECC);
 #endif
-    sp_1024_point_free_32(point, 0, heap);
 
     return err;
 }
@@ -42463,33 +42212,24 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
 static int sp_1024_ecc_is_point_32(const sp_point_1024* point,
     void* heap)
 {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit* d = NULL;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_digit* t1 = NULL;
 #else
-    sp_digit t1d[2*32];
-    sp_digit t2d[2*32];
+    sp_digit t1[32 * 4];
 #endif
-    sp_digit* t1;
-    sp_digit* t2;
+    sp_digit* t2 = NULL;
     int32_t n;
     int err = MP_OKAY;
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 4, heap, DYNAMIC_TYPE_ECC);
-    if (d == NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    t1 = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (t1 == NULL)
         err = MEMORY_E;
-    }
 #endif
     (void)heap;
 
     if (err == MP_OKAY) {
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-        t1 = d + 0 * 32;
-        t2 = d + 2 * 32;
-#else
-        t1 = t1d;
-        t2 = t2d;
-#endif
+        t2 = t1 + 2 * 32;
 
         sp_1024_sqr_32(t1, point->y);
         (void)sp_1024_mod_32(t1, t1, p1024_mod);
@@ -42513,10 +42253,9 @@ static int sp_1024_ecc_is_point_32(const sp_point_1024* point,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (d != NULL) {
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
-    }
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (t1 != NULL)
+        XFREE(t1, heap, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -42531,14 +42270,21 @@ static int sp_1024_ecc_is_point_32(const sp_point_1024* point,
  */
 int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_point_1024 pubd;
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    sp_point_1024* pub = NULL;
+#else
+    sp_point_1024 pub[1];
 #endif
-    sp_point_1024* pub;
-    byte one[1] = { 1 };
-    int err;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
 
-    err = sp_1024_point_new_32(NULL, pubd, pub);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    pub = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024), NULL,
+                                       DYNAMIC_TYPE_ECC);
+    if (pub == NULL)
+        err = MEMORY_E;
+#endif
+
     if (err == MP_OKAY) {
         sp_1024_from_mp(pub->x, 32, pX);
         sp_1024_from_mp(pub->y, 32, pY);
@@ -42547,7 +42293,10 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
         err = sp_1024_ecc_is_point_32(pub, NULL);
     }
 
-    sp_1024_point_free_32(pub, 0, NULL);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     return err;
 }
@@ -42566,44 +42315,44 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY)
 int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap)
 {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-    sp_digit privd[32];
-    sp_point_1024 pubd;
-    sp_point_1024 pd;
-#endif
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* priv = NULL;
-    sp_point_1024* pub;
-    sp_point_1024* p = NULL;
-    byte one[1] = { 1 };
-    int err;
-
-    err = sp_1024_point_new_32(heap, pubd, pub);
-    if (err == MP_OKAY) {
-        err = sp_1024_point_new_32(heap, pd, p);
-    }
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (err == MP_OKAY && privm) {
-        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap,
-                                                              DYNAMIC_TYPE_ECC);
-        if (priv == NULL) {
-            err = MEMORY_E;
-        }
-    }
+    sp_point_1024* pub = NULL;
+#else
+    sp_digit priv[32];
+    sp_point_1024 pub[2];
 #endif
+    sp_point_1024* p = NULL;
+    const byte one[1] = { 1 };
+    int err = MP_OKAY;
+
 
     /* Quick check the lengs of public key ordinates and private key are in
      * range. Proper check later.
      */
-    if ((err == MP_OKAY) && ((mp_count_bits(pX) > 1024) ||
+    if (((mp_count_bits(pX) > 1024) ||
         (mp_count_bits(pY) > 1024) ||
         ((privm != NULL) && (mp_count_bits(privm) > 1024)))) {
         err = ECC_OUT_OF_RANGE_E;
     }
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     if (err == MP_OKAY) {
-#if (!defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)) || defined(WOLFSSL_SP_NO_MALLOC)
-        priv = privd;
+        pub = (sp_point_1024*)XMALLOC(sizeof(sp_point_1024) * 2, heap,
+                                           DYNAMIC_TYPE_ECC);
+        if (pub == NULL)
+            err = MEMORY_E;
+    }
+    if (err == MP_OKAY && privm) {
+        priv = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32, heap,
+                                  DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
 #endif
+
+    if (err == MP_OKAY) {
+        p = pub + 1;
 
         sp_1024_from_mp(pub->x, 32, pX);
         sp_1024_from_mp(pub->y, 32, pY);
@@ -42653,13 +42402,12 @@ int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
         }
     }
 
-#if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (priv != NULL) {
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
+    if (pub != NULL)
+        XFREE(pub, heap, DYNAMIC_TYPE_ECC);
+    if (priv != NULL)
         XFREE(priv, heap, DYNAMIC_TYPE_ECC);
-    }
 #endif
-    sp_1024_point_free_32(p, 0, heap);
-    sp_1024_point_free_32(pub, 0, heap);
 
     return err;
 }

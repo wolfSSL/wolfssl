@@ -70,6 +70,8 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 #define SHA_Init wolfSSL_SHA_Init
 #define SHA_Update wolfSSL_SHA_Update
 #define SHA_Final wolfSSL_SHA_Final
+#define SHA_Transform wolfSSL_SHA_Transform
+
 #if defined(NO_OLD_SHA_NAMES) && !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION > 2))
@@ -81,7 +83,7 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
 #define SHA1_Init wolfSSL_SHA1_Init
 #define SHA1_Update wolfSSL_SHA1_Update
 #define SHA1_Final wolfSSL_SHA1_Final
-
+#define SHA1_Transform wolfSSL_SHA1_Transform
 
 #ifdef WOLFSSL_SHA224
 
