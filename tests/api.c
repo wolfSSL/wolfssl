@@ -5056,7 +5056,7 @@ static void test_wolfSSL_PKCS12(void)
                    */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
-    !defined(NO_SHA)
+    !defined(NO_SHA) && defined(HAVE_PKCS12)
     byte buffer[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
@@ -31743,15 +31743,6 @@ static void test_wolfSSL_OBJ(void)
     ASN1_STRING *asn1 = NULL;
     unsigned char *buf_dyn = NULL;
 
-    PKCS12 *p12;
-    int boolRet;
-    EVP_PKEY *pkey = NULL;
-    const char *p12_f[] = {
-        #if !defined(NO_DES3) && !defined(NO_RSA)
-        "./certs/test-servercert.p12",
-        #endif
-        NULL};
-
     printf(testingFmt, "wolfSSL_OBJ()");
 
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), SSL_FAILURE);
@@ -31809,27 +31800,42 @@ static void test_wolfSSL_OBJ(void)
 
     }
 
-    for (i = 0; p12_f[i] != NULL; i++)
+#ifdef HAVE_PKCS12
     {
-        AssertTrue((fp = XFOPEN(p12_f[i], "rb")) != XBADFILE);
-        AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
-        XFCLOSE(fp);
-        AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
-        wc_PKCS12_free(p12);
-        EVP_PKEY_free(pkey);
-        x509Name = X509_get_issuer_name(x509);
-        AssertNotNull(x509Name);
-        AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
-        AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
-        for (j = 0; j < numNames; j++)
+        PKCS12 *p12;
+        int boolRet;
+        EVP_PKEY *pkey = NULL;
+        const char *p12_f[] = {
+            #if !defined(NO_DES3) && !defined(NO_RSA)
+            "./certs/test-servercert.p12",
+            #endif
+            NULL};
+
+        for (i = 0; p12_f[i] != NULL; i++)
         {
-            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
-            AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
-            AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
+            AssertTrue((fp = XFOPEN(p12_f[i], "rb")) != XBADFILE);
+            AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
+            XFCLOSE(fp);
+            AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test",
+                                               &pkey, &x509, NULL)) > 0);
+            wc_PKCS12_free(p12);
+            EVP_PKEY_free(pkey);
+            x509Name = X509_get_issuer_name(x509);
+            AssertNotNull(x509Name);
+            AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
+            AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
+            for (j = 0; j < numNames; j++)
+            {
+                AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
+                AssertNotNull(asn1Name =
+                        X509_NAME_ENTRY_get_object(x509NameEntry));
+                AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
+            }
+            BIO_free(bio);
+            X509_free(x509);
         }
-        BIO_free(bio);
-        X509_free(x509);
     }
+#endif /* HAVE_PKCS12 */
 
     printf(resultFmt, passed);
 #endif
