@@ -140,7 +140,8 @@ enum DN_Tags {
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
     ASN_USER_ID          = 0x01, /* UID */
-    ASN_DOMAIN_COMPONENT = 0x19  /* DC */
+    ASN_DOMAIN_COMPONENT = 0x19, /* DC */
+    ASN_FAVOURITE_DRINK  = 0x05  /* favouriteDrink */
 };
 
 /* This is the size of the smallest possible PEM header and footer */
@@ -182,6 +183,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #define WOLFSSL_USER_ID          "/UID="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
+#define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
 
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
@@ -247,6 +249,7 @@ enum
     NID_jurisdictionStateOrProvinceName = 0xd,
     NID_businessCategory = ASN_BUS_CAT,
     NID_domainComponent = ASN_DOMAIN_COMPONENT,
+    NID_favouriteDrink = 462,
     NID_userId = 458,
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */

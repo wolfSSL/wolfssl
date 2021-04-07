@@ -6169,6 +6169,15 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
                         nid = NID_domainComponent;
                     #endif /* OPENSSL_EXTRA */
                         break;
+                    case ASN_FAVOURITE_DRINK:
+                        copy = WOLFSSL_FAVOURITE_DRINK;
+                        copyLen = sizeof(WOLFSSL_FAVOURITE_DRINK) - 1;
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                        nid = NID_favouriteDrink;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
 
                     default:
                         WOLFSSL_MSG("Unknown pilot attribute type");
