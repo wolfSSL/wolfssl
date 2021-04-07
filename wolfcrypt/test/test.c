@@ -27281,7 +27281,7 @@ static int eccsi_enc_dec_pair_test(EccsiKey* priv, mp_int* ssk, ecc_point* pvt)
         return -10117;
 
     decPvt = wc_ecc_new_point();
-    if (ret != 0)
+    if (decPvt == NULL)
         return -10118;
 
     ret = wc_EncodeEccsiPair(priv, ssk, pvt, NULL, &sz);
@@ -27645,80 +27645,100 @@ static int eccsi_sign_verify_test(EccsiKey* priv, EccsiKey* pub, WC_RNG* rng,
 
 int eccsi_test(void)
 {
-    int ret;
+    int ret = 0;
     WC_RNG rng;
-    EccsiKey* priv;
-    EccsiKey* pub;
-    mp_int* ssk;
-    ecc_point* pvt;
+    EccsiKey* priv = NULL;
+    EccsiKey* pub  = NULL;
+    mp_int* ssk    = NULL;
+    ecc_point* pvt = NULL;
 
     priv = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
-        return -10205;
+        ret = -10205;
     }
-    pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
+
+    if (ret == 0) {
+        pub = (EccsiKey*)XMALLOC(sizeof(EccsiKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10206;
-    }
-    ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ssk == NULL) {
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10207;
+        if (pub == NULL) {
+        ret = -10206;
+        }
     }
 
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
-    ret = wc_InitRng(&rng);
-#endif
-    if (ret != 0)
-        return -10200;
+    if (ret == 0) {
+        ssk = (mp_int*)XMALLOC(sizeof(mp_int), HEAP_HINT,
+                DYNAMIC_TYPE_TMP_BUFFER);
+        if (ssk == NULL) {
+            ret = -10207;
+        }
+    }
 
-    pvt = wc_ecc_new_point();
-    if (pvt == NULL)
-        return -10201;
-    ret = mp_init(ssk);
-    if (ret != 0)
-        return -10202;
+    if (ret == 0) {
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    #else
+        ret = wc_InitRng(&rng);
+    #endif
+        if (ret != 0)
+            ret = -10200;
+    }
 
-    ret = eccsi_api_test(&rng, priv, ssk, pvt);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        pvt = wc_ecc_new_point();
+        if (pvt == NULL)
+            ret = -10201;
+    }
 
-    ret = wc_InitEccsiKey(pub, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10203;
+    if (ret == 0) {
+        ret = mp_init(ssk);
+        if (ret != 0)
+            ret = -10202;
+    }
 
-    ret = wc_InitEccsiKey(priv, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10204;
+    if (ret == 0) {
+        ret = eccsi_api_test(&rng, priv, ssk, pvt);
+    }
 
-    ret = eccsi_kat_verify_test(pub, pvt);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = wc_InitEccsiKey(pub, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10203;
+    }
 
-    ret = eccsi_make_key_test(priv, pub, &rng, ssk, pvt);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = wc_InitEccsiKey(priv, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10204;
+    }
 
-    ret = eccsi_sign_verify_test(priv, pub, &rng, ssk, pvt);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = eccsi_kat_verify_test(pub, pvt);
+    }
+
+    if (ret == 0) {
+        ret = eccsi_make_key_test(priv, pub, &rng, ssk, pvt);
+    }
+
+    if (ret == 0) {
+        ret = eccsi_sign_verify_test(priv, pub, &rng, ssk, pvt);
+    }
 
     wc_FreeEccsiKey(priv);
     wc_FreeEccsiKey(pub);
     mp_free(ssk);
     wc_ecc_del_point(pvt);
-    wc_FreeRng(&rng);
-    XFREE(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return 0;
+    if (ret != -10200)
+        wc_FreeRng(&rng);
+    if (ssk != NULL)
+        XFREE(ssk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub != NULL)
+        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv != NULL)
+        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 #endif /* WOLFCRYPT_HAVE_ECCSI */
 
@@ -28771,82 +28791,99 @@ static int sakke_op_test(SakkeKey* priv, SakkeKey* pub, WC_RNG* rng,
 
 int sakke_test(void)
 {
-    int ret;
+    int ret = 0;
     WC_RNG rng;
-    SakkeKey* priv;
-    SakkeKey* pub;
-    SakkeKey* key;
+    SakkeKey* priv = NULL;
+    SakkeKey* pub  = NULL;
+    SakkeKey* key  = NULL;
     ecc_point* rsk = NULL;
 
     priv = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
     if (priv == NULL) {
-        return -10404;
+        ret = -10404;
     }
-    pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+
+    if (ret == 0) {
+        pub = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (pub == NULL) {
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10405;
+        if (pub == NULL) {
+            ret = -10405;
+        }
     }
-    key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
+
+    if (ret == 0) {
+        key = (SakkeKey*)XMALLOC(sizeof(SakkeKey), HEAP_HINT,
             DYNAMIC_TYPE_TMP_BUFFER);
-    if (key == NULL) {
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -10406;
+        if (key == NULL) {
+            ret = -10406;
+        }
     }
 
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
-    ret = wc_InitRng(&rng);
-#endif
-    if (ret != 0)
-        return -10400;
+    if (ret == 0) {
+    #ifndef HAVE_FIPS
+        ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+    #else
+        ret = wc_InitRng(&rng);
+    #endif
+        if (ret != 0)
+            ret = -10400;
+    }
 
-    rsk = wc_ecc_new_point();
-    if (rsk == NULL)
-        return -10401;
+    if (ret == 0) {
+        rsk = wc_ecc_new_point();
+        if (rsk == NULL)
+            ret = -10401;
+    }
 
-    ret = wc_InitSakkeKey(pub, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10402;
+    if (ret == 0) {
+        ret = wc_InitSakkeKey(pub, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10402;
+    }
 
-    ret = wc_InitSakkeKey(priv, HEAP_HINT, INVALID_DEVID);
-    if (ret != 0)
-        return -10403;
+    if (ret == 0) {
+        ret = wc_InitSakkeKey(priv, HEAP_HINT, INVALID_DEVID);
+        if (ret != 0)
+            ret = -10403;
+    }
 
-    ret = sakke_api_test(&rng, key, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_api_test(&rng, key, rsk);
+    }
 
-    ret = sakke_kat_derive_test(pub, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_kat_derive_test(pub, rsk);
+    }
 
-    ret = sakke_kat_encapsulate_test(pub);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_kat_encapsulate_test(pub);
+    }
 
-    ret = sakke_make_key_test(priv, pub, key, &rng, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_make_key_test(priv, pub, key, &rng, rsk);
+    }
 
-    ret = sakke_op_test(priv, pub, &rng, rsk);
-    if (ret != 0)
-        return ret;
+    if (ret == 0) {
+        ret = sakke_op_test(priv, pub, &rng, rsk);
+    }
 
     wc_FreeSakkeKey(priv);
     wc_FreeSakkeKey(pub);
     wc_ecc_forcezero_point(rsk);
     wc_ecc_del_point(rsk);
-    wc_FreeRng(&rng);
-    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    return 0;
+    if (ret != -10400)
+        wc_FreeRng(&rng);
+
+    if (key != NULL)
+        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub != NULL)
+        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv != NULL)
+        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 #endif /* WOLFCRYPT_HAVE_SAKKE */
 
