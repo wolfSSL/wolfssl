@@ -39497,7 +39497,7 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
-#ifdef WOLFSSL_EARLY_DATA
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_EARLY_DATA)
     AssertIntLT(SSL_get_early_data_status(NULL), 0);
 #endif
 
