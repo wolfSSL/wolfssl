@@ -329,6 +329,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
     }
 
     if (sz == 0) {
+        *outLen = 0;
         return 0; /* nothing to do */
     }
 
@@ -338,18 +339,19 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         if (*out == NULL) {
             WOLFSSL_MSG("Memory error");
             return WOLFSSL_FATAL_ERROR;
-    }
+        }
         tmp = *out;
     }
     else {
         if (sz > *outLen) {
             /* use existing buffer as input */
-            *out = (byte*)XREALLOC(*out, sz, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (*out == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
+            tmp = (byte*)XREALLOC(*out, sz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                /* out is free'd by caller */
+                WOLFSSL_MSG("Realloc memory error");
+                return WOLFSSL_FATAL_ERROR;
+            }
+            *out = tmp;
         }
         data = *out;
         inLen = *outLen;
@@ -357,22 +359,24 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         tmp = (byte*)XMALLOC(sz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
-    *outLen = sz;
-    ret = inLen; /* For successful Encode return inLen */
+    ret = inLen; /* For successful encode return inLen */
     if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
         if (Base64_Encode_NoNl((const byte*)data, inLen,
-                tmp, outLen) < 0) {
+                tmp, &sz) < 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
     else {
         if (Base64_Encode((const byte*)data, inLen,
-                tmp, outLen) < 0) {
+                tmp, &sz) < 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+    if (ret >= 0) {
+        *outLen = sz;
+    }
 
-    /* free temp */
+    /* if temp used, copy and free */
     if (tmp != *out) {
         XMEMCPY(*out, tmp, *outLen);
         XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
