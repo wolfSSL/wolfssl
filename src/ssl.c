@@ -26021,7 +26021,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
  * Get ex_data in WOLFSSL_STORE at given index
  * @param store a pointer to WOLFSSL_X509_STORE structure
  * @param idx   Index of ex_data to get data from 
- * @return void pointer to ex_data on success or NLL on failure
+ * @return void pointer to ex_data on success or NULL on failure
  */
 void* wolfSSL_X509_STORE_get_ex_data(WOLFSSL_X509_STORE* store, int idx)
 {
