@@ -26328,9 +26328,13 @@ static void test_wolfSSL_X509_check_private_key(void)
     AssertNotNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
                 &key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(X509_check_private_key(x509, pkey), 0);
+
+    /* test for incorrect parameter */
+    AssertIntEQ(X509_check_private_key(NULL, pkey), 0);
+    AssertIntEQ(X509_check_private_key(x509, NULL), 0);
+    AssertIntEQ(X509_check_private_key(NULL, NULL), 0);
+
     EVP_PKEY_free(pkey);
-
-
     X509_free(x509);
     printf(resultFmt, passed);
 #endif
@@ -28252,11 +28256,23 @@ static void test_wolfSSL_X509_LOOKUP_ctrl_file(void)
                     WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
     }
     
+    AssertIntEQ(X509_LOOKUP_ctrl(NULL, 0, NULL, 0, NULL), 0);
     X509_STORE_free(str);
     
 #endif
 
 
+    printf(resultFmt, passed);
+#endif
+}
+static void test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup(void)
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup()");
+
+    X509_STORE_CTX_cleanup(NULL);
+    X509_STORE_CTX_trusted_stack(NULL, NULL);
+    AssertTrue(1);   /* to confirm previous call gives no harm */
     printf(resultFmt, passed);
 #endif
 }
@@ -28565,6 +28581,7 @@ static void test_wolfSSL_CTX_get0_set1_param(void)
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
     #endif
 
+    AssertNull(SSL_CTX_get0_param(NULL));
     AssertNotNull(pParam = SSL_CTX_get0_param(ctx));
 
     pvpm = (WOLFSSL_X509_VERIFY_PARAM *)XMALLOC(
@@ -28583,6 +28600,11 @@ static void test_wolfSSL_CTX_get0_set1_param(void)
                                          (int)XSTRLEN(testhostName)));
     AssertIntEQ(0x01, pParam->hostFlags);
     AssertIntEQ(0, XSTRNCMP(pParam->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
+
+    /* test for incorrect patameter */
+    AssertIntEQ(1,SSL_CTX_set1_param(ctx, NULL));
+    AssertIntEQ(1,SSL_CTX_set1_param(NULL, pvpm));
+    AssertIntEQ(1,SSL_CTX_set1_param(NULL, NULL));
 
     SSL_CTX_free(ctx);
 
@@ -28724,6 +28746,11 @@ static void test_wolfSSL_CTX_add_client_CA(void)
     AssertNotNull(x509_a = X509_load_certificate_file(cliCertFile,
                                                         SSL_FILETYPE_PEM));
     AssertIntEQ(SSL_CTX_add_client_CA(ctx, x509_a), SSL_SUCCESS);
+
+   /* test for incorrect parameter */
+    AssertIntEQ(SSL_CTX_add_client_CA(NULL, x509), 0);
+    AssertIntEQ(SSL_CTX_add_client_CA(ctx, NULL), 0);
+    AssertIntEQ(SSL_CTX_add_client_CA(NULL, NULL), 0);
 
     X509_free(x509);
     X509_free(x509_a);
@@ -30700,8 +30727,8 @@ static void test_wolfSSL_X509_ALGOR_get0(void)
 static void test_wolfSSL_X509_VERIFY_PARAM(void)
 {
 #if defined(OPENSSL_EXTRA)
-    WOLFSSL_X509_VERIFY_PARAM *paramTo;
-    WOLFSSL_X509_VERIFY_PARAM *paramFrom;
+    X509_VERIFY_PARAM *paramTo;
+    X509_VERIFY_PARAM *paramFrom;
     int ret;
     char testIPv4[] = "127.0.0.1";
     char testIPv6[] = "0001:0000:0000:0000:0000:0000:0000:0000/32";
@@ -30710,51 +30737,51 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
 
     printf(testingFmt, "wolfSSL_X509()");
 
-    paramTo = wolfSSL_X509_VERIFY_PARAM_new();
+    paramTo = X509_VERIFY_PARAM_new();
     AssertNotNull(paramTo);
-    XMEMSET(paramTo, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+    XMEMSET(paramTo, 0, sizeof(X509_VERIFY_PARAM ));
 
-    paramFrom = wolfSSL_X509_VERIFY_PARAM_new();
+    paramFrom = X509_VERIFY_PARAM_new();
     AssertNotNull(paramFrom);
-    XMEMSET(paramFrom, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+    XMEMSET(paramFrom, 0, sizeof(X509_VERIFY_PARAM ));
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_host(paramFrom, testhostName1,
+    ret = X509_VERIFY_PARAM_set1_host(paramFrom, testhostName1,
                                          (int)XSTRLEN(testhostName1));
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramFrom->hostName, testhostName1,
                                         (int)XSTRLEN(testhostName1)));
 
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
+    X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
 
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
+    X509_VERIFY_PARAM_set_hostflags(paramFrom, 0x01);
     AssertIntEQ(0x01, paramFrom->hostFlags);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(NULL, testIPv4);
+    ret = X509_VERIFY_PARAM_set1_ip_asc(NULL, testIPv4);
     AssertIntEQ(0, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv4);
+    ret = X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv4);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramFrom->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, NULL);
+    ret = X509_VERIFY_PARAM_set1_ip_asc(paramFrom, NULL);
     AssertIntEQ(1, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv6);
+    ret = X509_VERIFY_PARAM_set1_ip_asc(paramFrom, testIPv6);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramFrom->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* null pointer */
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(NULL, paramFrom);
+    ret = X509_VERIFY_PARAM_set1(NULL, paramFrom);
     AssertIntEQ(WOLFSSL_FAILURE, ret);
     /* in the case of "from" null, returns success */
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, NULL);
+    ret = X509_VERIFY_PARAM_set1(paramTo, NULL);
     AssertIntEQ(WOLFSSL_SUCCESS, ret);
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(NULL, NULL);
+    ret = X509_VERIFY_PARAM_set1(NULL, NULL);
     AssertIntEQ(WOLFSSL_FAILURE, ret);
 
     /* inherit flags test : VPARAM_DEFAULT */
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    ret = X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1,
                                     (int)XSTRLEN(testhostName1)));
@@ -30762,14 +30789,14 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM OVERWRITE */
-    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+    X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
                                     (int)XSTRLEN(testhostName2));
-    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
+    X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
 
-    paramTo->inherit_flags = WOLFSSL_VPARAM_OVERWRITE;
+    paramTo->inherit_flags = X509_VP_FLAG_OVERWRITE;
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    ret = X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1,
                                         (int)XSTRLEN(testhostName1)));
@@ -30777,14 +30804,14 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM_RESET_FLAGS */
-    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+    X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
                                       (int)XSTRLEN(testhostName2));
-    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x10);
+    X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    X509_VERIFY_PARAM_set_hostflags(paramTo, 0x10);
 
-    paramTo->inherit_flags = WOLFSSL_VPARAM_RESET_FLAGS;
+    paramTo->inherit_flags = X509_VP_FLAG_RESET_FLAGS;
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    ret = X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName1,
                                         (int)XSTRLEN(testhostName1)));
@@ -30792,37 +30819,44 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
 
     /* inherit flags test : VPARAM_LOCKED */
-    wolfSSL_X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
+    X509_VERIFY_PARAM_set1_host(paramTo, testhostName2,
                                     (int)XSTRLEN(testhostName2));
-    wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
-    wolfSSL_X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
+    X509_VERIFY_PARAM_set1_ip_asc(paramTo, testIPv4);
+    X509_VERIFY_PARAM_set_hostflags(paramTo, 0x00);
 
-    paramTo->inherit_flags = WOLFSSL_VPARAM_LOCKED;
+    paramTo->inherit_flags = X509_VP_FLAG_LOCKED;
 
-    ret = wolfSSL_X509_VERIFY_PARAM_set1(paramTo, paramFrom);
+    ret = X509_VERIFY_PARAM_set1(paramTo, paramFrom);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(paramTo->hostName, testhostName2,
                                     (int)XSTRLEN(testhostName2)));
     AssertIntEQ(0x00, paramTo->hostFlags);
     AssertIntEQ(0, XSTRNCMP(paramTo->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
-    /* inherit flags test : VPARAM_ONCE, not testable yet */
-
-    ret = wolfSSL_X509_VERIFY_PARAM_set_flags(paramTo, WOLFSSL_CRL_CHECKALL);
-    AssertIntEQ(1, ret);
-
-    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(paramTo);
-    AssertIntEQ(WOLFSSL_CRL_CHECKALL, ret);
-
-    ret = wolfSSL_X509_VERIFY_PARAM_clear_flags(paramTo, WOLFSSL_CRL_CHECKALL);
-    AssertIntEQ(1, ret);
-
-    ret = wolfSSL_X509_VERIFY_PARAM_get_flags(paramTo);
+    /* test for incorrect parameters */
+    ret = X509_VERIFY_PARAM_set_flags(NULL, X509_V_FLAG_CRL_CHECK_ALL );
     AssertIntEQ(0, ret);
 
-    wolfSSL_X509_VERIFY_PARAM_free(paramTo);
-    wolfSSL_X509_VERIFY_PARAM_free(paramFrom);
+    ret = X509_VERIFY_PARAM_set_flags(NULL, 0 );
+    AssertIntEQ(0, ret);
 
+    /* inherit flags test : VPARAM_ONCE, not testable yet */
+
+    ret = X509_VERIFY_PARAM_set_flags(paramTo, X509_V_FLAG_CRL_CHECK_ALL);
+    AssertIntEQ(1, ret);
+
+    ret = X509_VERIFY_PARAM_get_flags(paramTo);
+    AssertIntEQ(X509_V_FLAG_CRL_CHECK_ALL, ret);
+
+    ret = X509_VERIFY_PARAM_clear_flags(paramTo, X509_V_FLAG_CRL_CHECK_ALL);
+    AssertIntEQ(1, ret);
+
+    ret = X509_VERIFY_PARAM_get_flags(paramTo);
+    AssertIntEQ(0, ret);
+
+    X509_VERIFY_PARAM_free(paramTo);
+    X509_VERIFY_PARAM_free(paramFrom);
+    X509_VERIFY_PARAM_free(NULL); /* to confirm NULL parameter gives no harm */
     printf(resultFmt, passed);
 
 #endif
@@ -30992,7 +31026,7 @@ static int stub_rand_status(void)
 static void test_wolfSSL_RAND_set_rand_method(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_NO_OPENSSL_RAND_CB)
-    WOLFSSL_RAND_METHOD rand_methods = {NULL, NULL, NULL, NULL, NULL, NULL};
+    RAND_METHOD rand_methods = {NULL, NULL, NULL, NULL, NULL, NULL};
     unsigned char* buf = NULL;
     int num = 0;
     double entropy = 0;
@@ -31001,9 +31035,9 @@ static void test_wolfSSL_RAND_set_rand_method(void)
 
     printf(testingFmt, "wolfSSL_RAND_set_rand_method()");
 
-    AssertIntNE(wolfSSL_RAND_status(), 5432);
+    AssertIntNE(RAND_status(), 5432);
     AssertIntEQ(*was_cleanup_called, 0);
-    wolfSSL_RAND_Cleanup();
+    RAND_cleanup();
     AssertIntEQ(*was_cleanup_called, 0);
 
 
@@ -31014,27 +31048,27 @@ static void test_wolfSSL_RAND_set_rand_method(void)
     rand_methods.pseudorand = &stub_rand_pseudo_bytes;
     rand_methods.status = &stub_rand_status;
 
-    AssertIntEQ(wolfSSL_RAND_set_rand_method(&rand_methods), WOLFSSL_SUCCESS);
-    AssertIntEQ(wolfSSL_RAND_seed(buf, num), 123);
-    AssertIntEQ(wolfSSL_RAND_bytes(buf, num), 456);
-    AssertIntEQ(wolfSSL_RAND_pseudo_bytes(buf, num), 9876);
-    AssertIntEQ(wolfSSL_RAND_status(), 5432);
+    AssertIntEQ(RAND_set_rand_method(&rand_methods), WOLFSSL_SUCCESS);
+    AssertIntEQ(RAND_seed(buf, num), 123);
+    AssertIntEQ(RAND_bytes(buf, num), 456);
+    AssertIntEQ(RAND_pseudo_bytes(buf, num), 9876);
+    AssertIntEQ(RAND_status(), 5432);
 
     AssertIntEQ(*was_add_called, 0);
     /* The function pointer for RAND_add returns int, but RAND_add itself returns void. */
-    wolfSSL_RAND_add(buf, num, entropy);
+    RAND_add(buf, num, entropy);
     AssertIntEQ(*was_add_called, 1);
     was_add_called = 0;
     AssertIntEQ(*was_cleanup_called, 0);
-    wolfSSL_RAND_Cleanup();
+    RAND_cleanup();
     AssertIntEQ(*was_cleanup_called, 1);
     *was_cleanup_called = 0;
 
 
-    AssertIntEQ(wolfSSL_RAND_set_rand_method(NULL), WOLFSSL_SUCCESS);
-    AssertIntNE(wolfSSL_RAND_status(), 5432);
+    AssertIntEQ(RAND_set_rand_method(NULL), WOLFSSL_SUCCESS);
+    AssertIntNE(RAND_status(), 5432);
     AssertIntEQ(*was_cleanup_called, 0);
-    wolfSSL_RAND_Cleanup();
+    RAND_cleanup();
     AssertIntEQ(*was_cleanup_called, 0);
 
     printf(resultFmt, passed);
@@ -39438,6 +39472,11 @@ static int test_tls13_apis(void)
 #endif
 #endif
 
+#ifdef WOLFSSL_EARLY_DATA
+    AssertIntLT(SSL_get_early_data_status(NULL), 0);
+#endif
+
+
 #ifndef NO_WOLFSSL_SERVER
     wolfSSL_free(serverSsl);
     wolfSSL_CTX_free(serverCtx);
@@ -40195,6 +40234,11 @@ static void test_wolfSSL_X509_load_crl_file(void)
         AssertIntEQ(wolfSSL_CertManagerVerify(store->cm, "certs/server-revoked-cert.pem",
                    WOLFSSL_FILETYPE_PEM ), CRL_CERT_REVOKED);
     }
+
+    /* test for incorrect parameter */
+    AssertIntEQ(X509_load_crl_file(NULL, pem[0], 0), 0);
+    AssertIntEQ(X509_load_crl_file(lookup, NULL, 0), 0);
+    AssertIntEQ(X509_load_crl_file(NULL, NULL, 0), 0);
 
     X509_STORE_free(store);
     store = NULL;
@@ -42051,13 +42095,15 @@ static void test_export_keying_material(void)
 static int test_wolfSSL_THREADID_hash(void)
 {
     int ret = 0;
-    WOLFSSL_CRYPTO_THREADID id;
+    CRYPTO_THREADID id;
     unsigned long res;
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "wolfSSL_THREADID_hash");
-    res = wolfSSL_THREADID_hash(NULL);
+    CRYPTO_THREADID_current(NULL);
+    AssertTrue(1);
+    res = CRYPTO_THREADID_hash(NULL);
     AssertTrue( res == 0UL);
-    res = wolfSSL_THREADID_hash(&id);
+    res = CRYPTO_THREADID_hash(&id);
     AssertTrue( res == 0UL);
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
@@ -42290,6 +42336,7 @@ void ApiTest(void)
     test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_PKCS7_certs();
     test_wolfSSL_X509_STORE_CTX();
+    test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup();
     test_wolfSSL_X509_STORE_CTX_get0_current_issuer();
     test_wolfSSL_msgCb();
     test_wolfSSL_either_side();
