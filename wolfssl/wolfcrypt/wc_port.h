@@ -786,9 +786,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
                                            & FILE_ATTR_NORMAL)
         #else
             struct _find64 FindFileData;
-            #define IntimeFindFirst(name, data) _findfirst64(name, data)
-            #define IntimeFindNext(data)  _findnext64(data)
-            #define IntimeFindClose(data) _findclose64(data)
+            #define IntimeFindFirst(name, data) (0 == _findfirst64(name, data))
+            #define IntimeFindNext(data)  (0 == _findnext64(data))
+            #define IntimeFindClose(data) (0 == _findclose64(data))
             #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
             #define IntimeNormalFile(ctx) (0 == wc_FileExists(IntimeFilename(ctx)))
         #endif
