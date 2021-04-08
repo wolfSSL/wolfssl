@@ -3888,8 +3888,10 @@ error:
     if (sk)
         wolfSSL_sk_X509_free(sk);
 
-    for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
-        FreeDer(&certBuffers[i]);
+    if (certBuffers != NULL) {
+        for (i = 0; i < numCerts && certBuffers[i] != NULL; ++i) {
+            FreeDer(&certBuffers[i]);
+        }
     }
 
     if (certBuffers)
@@ -26570,8 +26572,8 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     int ret = WOLFSSL_FAILURE;
     int count = 0;
     WOLFSSL_BIO *bio = NULL;
-    WOLFSSL_X509_CRL *crl =NULL;
-    
+    WOLFSSL_X509_CRL *crl = NULL;
+
     WOLFSSL_ENTER("wolfSSL_X509_load_crl_file");
     
     if (ctx == NULL || file == NULL)
@@ -26584,7 +26586,12 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
         wolfSSL_BIO_free(bio);
         return ret;
     }
-    
+
+    if (wolfSSL_BIO_read_filename(bio, file) <= 0) {
+        wolfSSL_BIO_free(bio);
+        return ret;
+    }
+
     if (type == WOLFSSL_FILETYPE_PEM) {
         do {
             crl = wolfSSL_PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
@@ -26594,7 +26601,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
                 }
                 break;
             }
-            
+
             ret = wolfSSL_X509_STORE_add_crl(ctx->store, crl);
             if (ret == WOLFSSL_FAILURE) {
                 WOLFSSL_MSG("Adding crl failed");
@@ -26604,7 +26611,7 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
             wolfSSL_X509_CRL_free(crl);
             crl = NULL;
         }   while(crl == NULL);
-        
+
         ret = count;
     } else if (type == WOLFSSL_FILETYPE_ASN1) {
         crl = wolfSSL_d2i_X509_CRL_bio(bio, NULL);
@@ -26621,10 +26628,10 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     } else {
         WOLFSSL_MSG("Invalid file type");
     }
-    
+
     wolfSSL_X509_CRL_free(crl);
     wolfSSL_BIO_free(bio);
-    
+
     WOLFSSL_LEAVE("wolfSSL_X509_load_crl_file", ret);
     return ret;
 }
@@ -32099,6 +32106,7 @@ int wolfSSL_RAND_egd(const char* nm)
     }
 #endif
 
+    XMEMSET(&rem, 0, sizeof(struct sockaddr_un));
     if (nm == NULL) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -36390,8 +36398,8 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
         goto error;
     }
 
-    /* curve group */
-    external->group = wolfSSL_EC_GROUP_new_by_curve_name(ECC_CURVE_DEF);
+    /* Group unknown at creation */
+    external->group = wolfSSL_EC_GROUP_new_by_curve_name(NID_undef);
     if (external->group == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc WOLFSSL_EC_GROUP failure");
         goto error;
@@ -36436,18 +36444,28 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     }
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+/* set the group in WOLFSSL_EC_KEY and return WOLFSSL_SUCCESS on success */
 int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
 {
-    (void)key;
-    (void)group;
+    if (key == NULL || group == NULL)
+        return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_set_group");
-    WOLFSSL_STUB("EC_KEY_set_group");
 
-    return -1;
+    if (key->group != NULL) {
+        /* free the current group */
+        wolfSSL_EC_GROUP_free(key->group);
+    }
+
+    key->group = wolfSSL_EC_GROUP_dup(group);
+    if (key->group == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
-#endif
+
 
 int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
 {
@@ -41275,9 +41293,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 WOLFSSL_MSG("Serial size error");
                 return WOLFSSL_FAILURE;
             }
-            if ((int)sizeof(cert->serial) < serialSz) {
-                WOLFSSL_MSG("Serial buffer too small");
-                return BUFFER_E;
+
+            if (serialSz > EXTERNAL_SERIAL_SIZE ||
+                    serialSz > CTC_SERIAL_SIZE) {
+                WOLFSSL_MSG("Serial size too large error");
+                return WOLFSSL_FAILURE;
             }
             XMEMCPY(cert->serial, serial, serialSz);
             cert->serialSz = serialSz;
@@ -52576,7 +52596,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     ts             = (struct tm *)XGMTIME(&t_adj, tmpTime);
     if (ts == NULL){
         WOLFSSL_MSG("failed to get time data.");
-        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+        wolfSSL_ASN1_TIME_free(s);
         return NULL;
     }
 
@@ -52599,8 +52619,10 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)utc_str, sizeof(utc_str),
                   "%02d%02d%02d%02d%02d%02dZ",
                   utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS)
+        if (wolfSSL_ASN1_TIME_set_string(s, utc_str) != WOLFSSL_SUCCESS) {
+            wolfSSL_ASN1_TIME_free(s);
             return NULL;
+        }
     /* GeneralizedTime */
     } else {
         char gt_str[ASN_GENERALIZED_TIME_MAX];
@@ -52615,8 +52637,10 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XSNPRINTF((char *)gt_str, sizeof(gt_str),
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
-        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS)
+        if (wolfSSL_ASN1_TIME_set_string(s, gt_str) != WOLFSSL_SUCCESS) {
+            wolfSSL_ASN1_TIME_free(s);
             return NULL;
+        }
     }
 
     return s;
@@ -53386,6 +53410,7 @@ PKCS7* wolfSSL_d2i_PKCS7_bio(WOLFSSL_BIO* bio, PKCS7** p7)
     pkcs7->len = ret;
 
     if (wc_PKCS7_VerifySignedData(&pkcs7->pkcs7, pkcs7->data, pkcs7->len) != 0) {
+        wolfSSL_PKCS7_free((PKCS7*)pkcs7);
         return NULL;
     }
 

@@ -301,6 +301,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
 
             Sha256Transform(sha256, data, numBlocks);
+            data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
 
             AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
 
@@ -885,6 +886,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
 
             Sha256Transform(sha256, data, numBlocks);
+            data += numBlocks * WC_SHA256_BLOCK_SIZE - sha256->buffLen;
 
             AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
 

@@ -316,6 +316,9 @@ typedef struct ecc_set_type {
 #ifndef USE_FAST_MATH
     #error USE_FAST_MATH must be defined to use ALT_ECC_SIZE
 #endif
+#ifdef WOLFSSL_NO_MALLOC
+    #error ALT_ECC_SIZE cannot be used with no malloc (WOLFSSL_NO_MALLOC)
+#endif
 
 /* determine max bits required for ECC math */
 #ifndef FP_MAX_BITS_ECC

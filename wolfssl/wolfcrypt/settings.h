@@ -2437,6 +2437,12 @@ extern void uITRON4_free(void *p) ;
     #define NO_STRICT_ECDSA_LEN
 #endif
 
+/* Do not allow using small stack with no malloc */
+#if defined(WOLFSSL_NO_MALLOC) && \
+    (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE))
+    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

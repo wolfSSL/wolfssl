@@ -5040,7 +5040,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
-#endif /* WLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -11049,7 +11049,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         ato16(input + offset, &size);
         offset += OPAQUE16_LEN;
 
-        if (offset + size > length)
+        if (length - offset < size)
             return BUFFER_ERROR;
 
         switch (type) {
