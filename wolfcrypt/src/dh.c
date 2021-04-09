@@ -2447,7 +2447,7 @@ int wc_DhSetNamedKey(DhKey* key, int name)
             break;
         #endif /* HAVE_FFDHE_8192 */
         default:
-            return BAD_FUNC_ARG;
+            break;
     }
     return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
 }
@@ -2529,7 +2529,7 @@ int wc_DhCmpNamedKey(int name, int noQ,
     const byte* qCmp = NULL;
     const byte* gCmp = NULL;
     word32 pCmpSz = 0, qCmpSz = 0, gCmpSz = 0;
-    int cmp = 0;
+    int cmp = 0, goodName = 1;
 
     switch (name) {
         #ifdef HAVE_FFDHE_2048
@@ -2593,10 +2593,10 @@ int wc_DhCmpNamedKey(int name, int noQ,
             break;
         #endif /* HAVE_FFDHE_8192 */
         default:
-            return 0;
+            goodName = 0;
     }
 
-    cmp = (pSz == pCmpSz) && (gSz == gCmpSz) &&
+    cmp = goodName && (pSz == pCmpSz) && (gSz == gCmpSz) &&
         (noQ || ((qCmp != NULL) && (qSz == qCmpSz) &&
                  XMEMCMP(q, qCmp, qCmpSz) == 0)) &&
         (XMEMCMP(p, pCmp, pCmpSz) == 0) &&
