@@ -2511,10 +2511,7 @@ AC_ARG_ENABLE([wolfsentry],
 
 if test "$ENABLED_WOLFSENTRY" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS"
-    ENABLED_NETWORK_INTROSPECTION_DEFAULT=yes
-else
-    ENABLED_NETWORK_INTROSPECTION_DEFAULT=no
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
 fi
 
 AC_ARG_WITH([wolfsentry-lib],
@@ -2534,25 +2531,6 @@ AC_ARG_WITH([wolfsentry-include],
 
 AC_SUBST([WOLFSENTRY_LIB])
 AC_SUBST([WOLFSENTRY_INCLUDE])
-
-
-# API for tracking network connection attributes
-AC_ARG_ENABLE([network-introspection],
-    [AS_HELP_STRING([--enable-network-introspection],[Enable network connection attribute tracking and callbacks (default: disabled)])],
-    [ ENABLED_NETWORK_INTROSPECTION=$enableval ],
-    [ ENABLED_NETWORK_INTROSPECTION=$ENABLED_NETWORK_INTROSPECTION_DEFAULT ]
-    )
-
-if test "$ENABLED_NETWORK_INTROSPECTION" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NETWORK_INTROSPECTION"
-fi
-
-
-if test "$ENABLED_WOLFSENTRY" = "yes" && test "$ENABLED_NETWORK_INTROSPECTION" != "yes"
-then
-    AC_MSG_ERROR([--enable-wolfsentry requires --enable-network-introspection])
-fi
 
 
 if test "$ENABLED_QT" = "yes"
@@ -6636,7 +6614,6 @@ echo "   * Anonymous cipher:           $ENABLED_ANON"
 echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
-echo "   * Connection tracking:        $ENABLED_NETWORK_INTROSPECTION"
 echo "   * wolfSentry:                 $ENABLED_WOLFSENTRY"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"

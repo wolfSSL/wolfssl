@@ -8357,17 +8357,9 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    if (ssl->AcceptFilter && (ssl->buffers.network_connection.remote_addr_len > 0)) {
+    if (ssl->AcceptFilter) {
         wolfSSL_netfilter_decision_t res;
-        if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
-            (res == WOLFSSL_NETFILTER_REJECT)) {
-            WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-    if (ssl->AcceptFilter && (ssl->buffers.network_connection_layer2.remote_addr_len > 0)) {
-        wolfSSL_netfilter_decision_t res;
-        if ((ssl->AcceptFilter(ssl, &ssl->buffers.network_connection_layer2, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+        if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
             (res == WOLFSSL_NETFILTER_REJECT)) {
             WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
             return WOLFSSL_FATAL_ERROR;

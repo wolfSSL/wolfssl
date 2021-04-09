@@ -282,48 +282,83 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
 
-static int wolfSentry_NetworkFilterCallback(WOLFSSL *ssl, struct wolfSSL_network_connection *nc, struct wolfsentry_context *wolfsentry, wolfSSL_netfilter_decision_t *decision) {
-    const void *remote_addr2;
-    const void *local_addr2;
-    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
-    int ret;
-    struct {
-        struct wolfsentry_sockaddr s;
-        byte buf[16];
-    } remote, local;
-    wolfsentry_action_res_t action_results;
+struct wolfsentry_data {
+    struct wolfsentry_sockaddr remote;
+    byte remote_addrbuf[16];
+    struct wolfsentry_sockaddr local;
+    byte local_addrbuf[16];
+    wolfsentry_route_flags_t flags;
+    void *heap;
+    int alloctype;
+};
 
-    (void)ssl;
+static void free_wolfsentry_data(struct wolfsentry_data *data) {
+    char inet_ntop_buf[INET6_ADDRSTRLEN];
+    fprintf(stderr, "free_wolfsentry_data() for remote %s:%d\n", inet_ntop(data->remote.sa_family, data->remote.addr, inet_ntop_buf, sizeof inet_ntop_buf), data->remote.sa_port);
+    XFREE(data, data->heap, data->alloctype);
+}
 
-    if ((ret = wolfSSL_get_endpoint_addrs(nc, &remote_addr2, &local_addr2)) != WOLFSSL_SUCCESS) {
-        printf("wolfSSL_get_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
-        err_sys_ex(catastrophic, "error in wolfSSL_get_endpoints()");
+static int wolfsentry_data_index = -1;
+
+static int wolfsentry_store_endpoints(
+    WOLFSSL *ssl,
+    SOCKADDR_IN_T *remote,
+    SOCKADDR_IN_T *local,
+    int proto,
+    wolfsentry_route_flags_t flags)
+{
+    struct wolfsentry_data *data = (struct wolfsentry_data *)XMALLOC(sizeof *data, NULL, DYNAMIC_TYPE_SOCKADDR);
+    if (data == NULL)
+        return WOLFSSL_FAILURE;
+
+    data->heap = NULL;
+    data->alloctype = DYNAMIC_TYPE_SOCKADDR;
+
+#ifdef TEST_IPV6
+    if ((sizeof data->remote_addrbuf < sizeof remote->sin6_addr) ||
+        (sizeof data->local_addrbuf < sizeof local->sin6_addr))
+        return WOLFSSL_FAILURE;
+    data->remote.sa_family = data->local.sa_family = remote->sin6_family;
+    data->remote.sa_port = ntohs(remote->sin6_port);
+    data->local.sa_port = ntohs(local->sin6_port);
+    data->remote.addr_len = sizeof remote->sin6_addr * BITS_PER_BYTE;
+    XMEMCPY(data->remote.addr, &remote->sin6_addr, sizeof remote->sin6_addr);
+    data->local.addr_len = sizeof local->sin6_addr * BITS_PER_BYTE;
+    XMEMCPY(data->local.addr, &local->sin6_addr, sizeof local->sin6_addr);
+#else
+    if ((sizeof data->remote_addrbuf < sizeof remote->sin_addr) ||
+        (sizeof data->local_addrbuf < sizeof local->sin_addr))
+        return WOLFSSL_FAILURE;
+    data->remote.sa_family = data->local.sa_family = remote->sin_family;
+    data->remote.sa_port = ntohs(remote->sin_port);
+    data->local.sa_port = ntohs(local->sin_port);
+    data->remote.addr_len = sizeof remote->sin_addr * BITS_PER_BYTE;
+    XMEMCPY(data->remote.addr, &remote->sin_addr, sizeof remote->sin_addr);
+    data->local.addr_len = sizeof local->sin_addr * BITS_PER_BYTE;
+    XMEMCPY(data->local.addr, &local->sin_addr, sizeof local->sin_addr);
+#endif
+    data->remote.sa_proto = data->local.sa_proto = proto;
+    data->remote.interface = data->local.interface = 0;
+    data->flags = flags;
+
+    if (wolfSSL_set_ex_data_with_cleanup(ssl, wolfsentry_data_index, data, (wolfSSL_ex_data_cleanup_routine_t)free_wolfsentry_data) != WOLFSSL_SUCCESS) {
+        free_wolfsentry_data(data);
+        return WOLFSSL_FAILURE;
     }
 
-    printf("got network filter callback: family=%d proto=%d rport=%d lport=%d raddr=%s laddr=%s interface=%d\n",
-           nc->family,
-           nc->proto,
-           nc->remote_port,
-           nc->local_port,
-           inet_ntop(nc->family, remote_addr2, inet_ntop_buf, sizeof inet_ntop_buf),
-           inet_ntop(nc->family, local_addr2, inet_ntop_buf2, sizeof inet_ntop_buf2),
-           nc->interface);
+    return WOLFSSL_SUCCESS;
+}
 
-    remote.s.sa_family = nc->family;
-    remote.s.sa_proto = nc->proto;
-    remote.s.sa_port = nc->remote_port;
-    remote.s.addr_len = nc->remote_addr_len;
-    remote.s.interface = nc->interface;
-    memcpy(remote.s.addr, remote_addr2, nc->remote_addr_len);
+static int wolfSentry_NetworkFilterCallback(WOLFSSL *ssl, struct wolfsentry_context *wolfsentry, wolfSSL_netfilter_decision_t *decision) {
+    struct wolfsentry_data *data;
+    char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
+    int ret;
+    wolfsentry_action_res_t action_results;
 
-    local.s.sa_family = nc->family;
-    local.s.sa_proto = nc->proto;
-    local.s.sa_port = nc->local_port;
-    local.s.addr_len = nc->local_addr_len;
-    local.s.interface = nc->interface;
-    memcpy(local.s.addr, local_addr2, nc->local_addr_len);
+    if ((data = wolfSSL_get_ex_data(ssl, wolfsentry_data_index)) == NULL)
+        return WOLFSSL_FAILURE;
 
-    ret = wolfsentry_route_event_dispatch(wolfsentry, &remote.s, &local.s, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN, NULL /* event_label */, 0 /* event_label_len */, NULL /* caller_context */, NULL /* id */, NULL /* inexact_matches */, &action_results);
+    ret = wolfsentry_route_event_dispatch(wolfsentry, &data->remote, &data->local, data->flags, NULL /* event_label */, 0 /* event_label_len */, NULL /* caller_context */, NULL /* id */, NULL /* inexact_matches */, &action_results);
 
     if (ret == 0) {
         if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
@@ -332,8 +367,20 @@ static int wolfSentry_NetworkFilterCallback(WOLFSSL *ssl, struct wolfSSL_network
             *decision = WOLFSSL_NETFILTER_ACCEPT;
         else
             *decision = WOLFSSL_NETFILTER_PASS;
-    } else
+    } else {
+        printf("wolfsentry_route_event_dispatch error " WOLFSENTRY_ERROR_FMT, WOLFSENTRY_ERROR_FMT_ARGS(ret));
         *decision = WOLFSSL_NETFILTER_PASS;
+    }
+
+    printf("got network filter callback: family=%d proto=%d rport=%d lport=%d raddr=%s laddr=%s interface=%d; decision=%d\n",
+           data->remote.sa_family,
+           data->remote.sa_proto,
+           data->remote.sa_port,
+           data->local.sa_port,
+           inet_ntop(data->remote.sa_family, data->remote.addr, inet_ntop_buf, sizeof inet_ntop_buf),
+           inet_ntop(data->local.sa_family, data->local.addr, inet_ntop_buf2, sizeof inet_ntop_buf2),
+           data->remote.interface,
+           *decision);
 
     return WOLFSSL_SUCCESS;
 }
@@ -1909,11 +1956,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(catastrophic, "unable to get ctx");
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    ret =  wolfsentry_init(NULL /* allocator */, NULL /* timecbs */, 0 /* route_private_data_size */, 0 /* route_private_data_alignment */, &wolfsentry);
+    ret =  wolfsentry_init(NULL /* allocator */, NULL /* timecbs */, NULL /* default config */, &wolfsentry);
     if (ret != 0) {
         fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
         err_sys_ex(catastrophic, "unable to initialize wolfSentry");
     }
+
+    if (wolfsentry_data_index < 0)
+        wolfsentry_data_index = wolfSSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
 
     {
         struct wolfsentry_route_table *table;
@@ -2333,6 +2383,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         ssl = SSL_new(ctx);
         if (ssl == NULL)
             err_sys_ex(catastrophic, "unable to create an SSL object");
+
         #ifdef OPENSSL_EXTRA
         wolfSSL_KeepArrays(ssl);
         #endif
@@ -2659,7 +2710,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #endif
 
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
         {
             SOCKADDR_IN_T local_addr;
             socklen_t local_len = sizeof(local_addr);
@@ -2668,62 +2719,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             if (((struct sockaddr *)&client_addr)->sa_family != ((struct sockaddr *)&local_addr)->sa_family)
                 err_sys_ex(catastrophic, "client_addr.sa_family != local_addr.sa_family");
 
-#ifdef TEST_IPV6
-
-            if ((ret = wolfSSL_set_endpoints(
-                     ssl,
-                     0 /* interface_id */,
-                     client_addr.sin6_family,
-                     IPPROTO_TCP,
-                     sizeof(client_addr.sin6_addr),
-                     (byte *)&client_addr.sin6_addr,
-                     (byte *)&local_addr.sin6_addr,
-                     client_addr.sin6_port,
-                     local_addr.sin6_port) != WOLFSSL_SUCCESS)) {
-                printf("wolfSSL_set_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
-                err_sys_ex(catastrophic, "error in wolfSSL_set_endpoints()");
-            }
-
-#else /* !TEST_IPV6 */
-
-            if ((ret = wolfSSL_set_endpoints(
-                     ssl,
-                     0 /* interface_id */,
-                     client_addr.sin_family,
-                     IPPROTO_TCP,
-                     sizeof(struct in_addr),
-                     (byte *)&client_addr.sin_addr,
-                     (byte *)&local_addr.sin_addr,
-                     client_addr.sin_port,
-                     local_addr.sin_port) != WOLFSSL_SUCCESS)) {
-                printf("wolfSSL_set_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
-                err_sys_ex(catastrophic, "error in wolfSSL_set_endpoints()");
-            }
-
-#endif /* TEST_IPV6 */
-
-            {
-                const struct wolfSSL_network_connection *nc;
-                const void *remote_addr2;
-                const void *local_addr2;
-                char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
-
-                if ((ret = wolfSSL_get_endpoints(ssl, &nc, &remote_addr2, &local_addr2)) != WOLFSSL_SUCCESS) {
-                    printf("wolfSSL_get_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
-                    err_sys_ex(catastrophic, "error in wolfSSL_get_endpoints()");
-                }
-
-                printf("stored connection attrs: family=%d proto=%d rport=%d lport=%d raddr=%s laddr=%s interface=%d\n",
-                       nc->family,
-                       nc->proto,
-                       nc->remote_port,
-                       nc->local_port,
-                       inet_ntop(nc->family, remote_addr2, inet_ntop_buf, sizeof inet_ntop_buf),
-                       inet_ntop(nc->family, local_addr2, inet_ntop_buf2, sizeof inet_ntop_buf2),
-                       nc->interface);
+            if (wolfsentry_store_endpoints(ssl, &client_addr, &local_addr, dtlsUDP ? IPPROTO_UDP : IPPROTO_TCP, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) != WOLFSSL_SUCCESS) {
+                printf("wolfsentry_store_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
+                err_sys_ex(catastrophic, "error in wolfsentry_store_endpoints()");
             }
         }
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
         if ((usePsk == 0 || usePskPlus) || useAnon == 1 || cipherList != NULL
                                                                || needDH == 1) {

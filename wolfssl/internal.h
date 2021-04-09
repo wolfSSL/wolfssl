@@ -3449,11 +3449,6 @@ typedef struct Buffers {
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     buffer          tls13CookieSecret;     /* HRR cookie secret */
 #endif
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
-    struct wolfSSL_network_connection network_connection;
-    struct wolfSSL_network_connection network_connection_layer2;
-    #define WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(x) ((x).remote_addr_len + (x).local_addr_len > WOLFSSL_NETWORK_INTROSPECTION_STATIC_ADDR_BYTES)
-#endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;              /* DTLS connection context */
     #ifndef NO_WOLFSSL_SERVER

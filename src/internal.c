@@ -1892,6 +1892,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     int i;
 #endif
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    {
+        int idx;
+        for (idx = 0; idx < MAX_EX_DATA; ++idx)
+            (void)wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ctx->ex_data, idx, NULL, NULL);
+    }
+#endif
+
 #ifdef HAVE_WOLF_EVENT
     wolfEventQueue_Free(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
@@ -6423,6 +6431,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
      * example with the RNG, it isn't used beyond the handshake except when
      * using stream ciphers where it is retained. */
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    {
+        int idx;
+        for (idx = 0; idx < MAX_EX_DATA; ++idx)
+            (void)wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ssl->ex_data, idx, NULL, NULL);
+    }
+#endif
+
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
     FreeKeyExchange(ssl);
@@ -6465,12 +6481,6 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
     ssl->peerRsaKeyPresent = 0;
 #endif
-#ifdef WOLFSSL_NETWORK_INTROSPECTION
-    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection))
-        XFREE(ssl->buffers.network_connection.addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
-    if (WOLFSSL_NETWORK_INTROSPECTION_ADDR_BUFFER_IS_DYNAMIC(ssl->buffers.network_connection_layer2))
-        XFREE(ssl->buffers.network_connection_layer2.addr_buffer_dynamic, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
-#endif /* WOLFSSL_NETWORK_INTROSPECTION */
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     XFREE(ssl->peerTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);
 #endif
