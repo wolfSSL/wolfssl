@@ -16326,7 +16326,7 @@ static int dh_test_check_pubvalue(void)
 #endif
 
 #ifndef WC_NO_RNG
-static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
+static int dh_ffdhe_test(WC_RNG *rng, int name)
 {
     int    ret;
     word32 privSz, pubSz, privSz2, pubSz2;
@@ -16381,13 +16381,12 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
         ERROR_OUT(-8052, done);
     }
 
-    ret = wc_DhSetKey(key, params->p, params->p_len, params->g, params->g_len);
+    ret = wc_DhSetNamedKey(key, name);
     if (ret != 0) {
         ERROR_OUT(-8053, done);
     }
 
-    ret = wc_DhSetKey(key2, params->p, params->p_len, params->g,
-                                                                 params->g_len);
+    ret = wc_DhSetNamedKey(key2, name);
     if (ret != 0) {
         ERROR_OUT(-8054, done);
     }
@@ -16809,12 +16808,12 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #ifndef WC_NO_RNG
     /* Specialized code for key gen when using FFDHE-2048, FFDHE-3072 and FFDHE-4096 */
     #ifdef HAVE_FFDHE_2048
-    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe2048_Get());
+    ret = dh_ffdhe_test(&rng, WC_FFDHE_2048);
     if (ret != 0)
         ERROR_OUT(-8126, done);
     #endif
     #ifdef HAVE_FFDHE_3072
-    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe3072_Get());
+    ret = dh_ffdhe_test(&rng, WC_FFDHE_3072);
     if (ret != 0)
         ERROR_OUT(-8127, done);
     #endif

@@ -83,6 +83,15 @@ struct DhKey {
     #define WC_DH_TYPE_DEFINED
 #endif
 
+enum {
+    WC_FFDHE_2048 = 256,
+    WC_FFDHE_3072 = 257,
+    WC_FFDHE_4096 = 258,
+    WC_FFDHE_6144 = 259,
+    WC_FFDHE_8192 = 260,
+};
+
+#ifdef HAVE_PUBLIC_FFDHE
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);
 #endif
@@ -97,6 +106,7 @@ WOLFSSL_API const DhParams* wc_Dh_ffdhe6144_Get(void);
 #endif
 #ifdef HAVE_FFDHE_8192
 WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
+#endif
 #endif
 
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
@@ -116,6 +126,16 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
                         word32 gSz);
 WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
                         const byte* g, word32 gSz, const byte* q, word32 qSz);
+WOLFSSL_API int wc_DhSetNamedKey(DhKey* key, int name);
+WOLFSSL_API int wc_DhGetNamedKeyParamSize(int name,
+        word32* p, word32* g, word32* q);
+WOLFSSL_API word32 wc_DhGetNamedKeyMinSize(int name);
+WOLFSSL_API int wc_DhCmpNamedKey(int name, int noQ,
+        const byte* p, word32 pSz,
+        const byte* g, word32 gSz,
+        const byte* q, word32 qSz);
+WOLFSSL_API int wc_DhCopyNamedKey(int name,
+        byte* p, word32* pSz, byte* g, word32* gSz, byte* q, word32* qSz);
 
 #ifdef WOLFSSL_DH_EXTRA
 WOLFSSL_API int wc_DhPublicKeyDecode(const byte* input, word32* inOutIdx,

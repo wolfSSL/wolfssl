@@ -5072,8 +5072,8 @@ void bench_dh(int doAsync)
     word32 pubSz2 = BENCH_DH_KEY_SIZE;
     word32 privSz2 = BENCH_DH_PRIV_SIZE;
     word32 agreeSz[BENCH_MAX_PENDING];
-#ifdef HAVE_FFDHE_2048
-    const DhParams *params = NULL;
+#if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+    int paramName = 0;
 #endif
 
     DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
@@ -5112,13 +5112,13 @@ void bench_dh(int doAsync)
     }
 #ifdef HAVE_FFDHE_2048
     else if (use_ffdhe == 2048) {
-        params = wc_Dh_ffdhe2048_Get();
+        paramName = WC_FFDHE_2048;
         dhKeySz = 2048;
     }
 #endif
 #ifdef HAVE_FFDHE_3072
     else if (use_ffdhe == 3072) {
-        params = wc_Dh_ffdhe3072_Get();
+        paramName = WC_FFDHE_3072;
         dhKeySz = 3072;
     }
 #endif
@@ -5151,9 +5151,8 @@ void bench_dh(int doAsync)
     #endif
         }
     #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
-        else if (params != NULL) {
-            ret = wc_DhSetKey(&dhKey[i], params->p, params->p_len, params->g,
-                                                                 params->g_len);
+        else if (paramName != 0) {
+            ret = wc_DhSetNamedKey(&dhKey[i], paramName);
         }
     #endif
         if (ret != 0) {

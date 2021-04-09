@@ -23401,7 +23401,6 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     int             ret = 0;
     word16          length;
 #ifdef HAVE_FFDHE
-    const DhParams* params = NULL;
     word16          group = 0;
 #endif
 
@@ -23567,31 +23566,26 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     switch (ssl->options.dhKeySz) {
     #ifdef HAVE_FFDHE_2048
         case 2048/8:
-            params = wc_Dh_ffdhe2048_Get();
             group = WOLFSSL_FFDHE_2048;
             break;
     #endif
     #ifdef HAVE_FFDHE_3072
         case 3072/8:
-            params = wc_Dh_ffdhe3072_Get();
             group = WOLFSSL_FFDHE_3072;
             break;
     #endif
     #ifdef HAVE_FFDHE_4096
         case 4096/8:
-            params = wc_Dh_ffdhe4096_Get();
             group = WOLFSSL_FFDHE_4096;
             break;
     #endif
     #ifdef HAVE_FFDHE_6144
         case 6144/8:
-            params = wc_Dh_ffdhe6144_Get();
             group = WOLFSSL_FFDHE_6144;
             break;
     #endif
     #ifdef HAVE_FFDHE_8192
         case 8192/8:
-            params = wc_Dh_ffdhe8192_Get();
             group = WOLFSSL_FFDHE_8192;
             break;
     #endif
@@ -23599,11 +23593,10 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
             break;
     }
 
-    if (params == NULL || params->g_len != ssl->buffers.serverDH_G.length ||
-            (XMEMCMP(ssl->buffers.serverDH_G.buffer, params->g,
-                    params->g_len) != 0) ||
-            (XMEMCMP(ssl->buffers.serverDH_P.buffer, params->p,
-                    params->p_len) != 0)) {
+    if (!wc_DhCmpNamedKey(group, 1,
+            ssl->buffers.serverDH_P.buffer, ssl->buffers.serverDH_P.length,
+            NULL, 0,
+            ssl->buffers.serverDH_G.buffer, ssl->buffers.serverDH_G.length)) {
         WOLFSSL_MSG("Server not using FFDHE parameters");
     #ifdef WOLFSSL_REQUIRE_FFDHE
         SendAlert(ssl, alert_fatal, handshake_failure);
@@ -26870,6 +26863,65 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                          !defined(WOLFSSL_NO_TLS12))
                     case diffie_hellman_kea:
                 #endif
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+                    if (ssl->namedGroup) {
+                        word32 pSz = 0;
+
+                        wc_DhGetNamedKeyParamSize(ssl->namedGroup, &pSz,
+                                NULL, NULL);
+
+                        if (ssl->buffers.serverDH_Pub.buffer == NULL) {
+                            /* Free'd in SSL_ResourceFree and
+                             * FreeHandshakeResources */
+                            ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
+                                    pSz + OPAQUE16_LEN,
+                                    ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                            if (ssl->buffers.serverDH_Pub.buffer == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+                            ssl->buffers.serverDH_Pub.length =
+                                pSz + OPAQUE16_LEN;
+                        }
+                        if (ssl->buffers.serverDH_Priv.buffer == NULL) {
+                            /* Free'd in SSL_ResourceFree and
+                             * FreeHandshakeResources */
+                            ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
+                                    pSz + OPAQUE16_LEN,
+                                    ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+                            if (ssl->buffers.serverDH_Priv.buffer == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_sske);
+                            }
+                            ssl->buffers.serverDH_Priv.length =
+                                pSz + OPAQUE16_LEN;
+                        }
+
+                        ssl->options.dhKeySz =(word16)pSz;
+
+                        ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
+                                            (void**)&ssl->buffers.serverDH_Key);
+                        if (ret != 0) {
+                            goto exit_sske;
+                        }
+
+                        ret = wc_DhSetNamedKey(ssl->buffers.serverDH_Key,
+                                ssl->namedGroup);
+                        if (ret != 0) {
+                            goto exit_sske;
+                        }
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+        !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+                        ssl->options.dhKeyTested = 1;
+    #endif
+
+                        ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
+                            ssl->buffers.serverDH_Priv.buffer,
+                            (word32*)&ssl->buffers.serverDH_Priv.length,
+                            ssl->buffers.serverDH_Pub.buffer,
+                            (word32*)&ssl->buffers.serverDH_Pub.length);
+                        break;
+                    }
+                    else
+#endif
                     {
                         /* Allocate DH key buffers and generate key */
                         if (ssl->buffers.serverDH_P.buffer == NULL ||
