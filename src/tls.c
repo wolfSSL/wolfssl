@@ -4180,7 +4180,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     SupportedCurve* serverGroup;
     SupportedCurve* clientGroup;
     SupportedCurve* group;
-    const DhParams* params = NULL;
+    word32 p_len;
     int found = 0;
 
     extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
@@ -4228,39 +4228,11 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
             if (serverGroup->name != group->name)
                 continue;
 
-            switch (serverGroup->name) {
-            #ifdef HAVE_FFDHE_2048
-                case WOLFSSL_FFDHE_2048:
-                    params = wc_Dh_ffdhe2048_Get();
-                    break;
-            #endif
-            #ifdef HAVE_FFDHE_3072
-                case WOLFSSL_FFDHE_3072:
-                    params = wc_Dh_ffdhe3072_Get();
-                    break;
-            #endif
-            #ifdef HAVE_FFDHE_4096
-                case WOLFSSL_FFDHE_4096:
-                    params = wc_Dh_ffdhe4096_Get();
-                    break;
-            #endif
-            #ifdef HAVE_FFDHE_6144
-                case WOLFSSL_FFDHE_6144:
-                    params = wc_Dh_ffdhe6144_Get();
-                    break;
-            #endif
-            #ifdef HAVE_FFDHE_8192
-                case WOLFSSL_FFDHE_8192:
-                    params = wc_Dh_ffdhe8192_Get();
-                    break;
-            #endif
-                default:
-                    break;
-            }
-            if (params == NULL)
+            wc_DhGetNamedKeyParamSize(serverGroup->name, &p_len, NULL, NULL);
+            if (p_len == 0)
                 return BAD_FUNC_ARG;
-            if (params->p_len >= ssl->options.minDhKeySz &&
-                                     params->p_len <= ssl->options.maxDhKeySz) {
+            if (p_len >= ssl->options.minDhKeySz &&
+                                     p_len <= ssl->options.maxDhKeySz) {
                 break;
             }
         }
@@ -4270,15 +4242,26 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     }
 
     if (serverGroup) {
-        ssl->buffers.serverDH_P.buffer = (unsigned char *)params->p;
-        ssl->buffers.serverDH_P.length = params->p_len;
-        ssl->buffers.serverDH_G.buffer = (unsigned char *)params->g;
-        ssl->buffers.serverDH_G.length = params->g_len;
+        word32 pSz, gSz;
+
+        ret = wc_DhGetNamedKeyParamSize(serverGroup->name, &pSz, &gSz, NULL);
+        ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz,
+                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_P.length = pSz;
+        ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(gSz,
+                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        ssl->buffers.serverDH_G.length = gSz;
+        wc_DhCopyNamedKey(serverGroup->name,
+                ssl->buffers.serverDH_P.buffer, &pSz,
+                ssl->buffers.serverDH_G.buffer, &gSz,
+                NULL, NULL);
         ssl->namedGroup = serverGroup->name;
+
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
         !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         ssl->options.dhDoKeyTest = 0;
     #endif
+        ssl->buffers.weOwnDH = 1;
         ssl->options.haveDH = 1;
     }
 
@@ -6669,52 +6652,21 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 {
     int             ret;
 #ifndef NO_DH
-    byte*           keyData;
+    byte*           keyData = NULL;
     void*           key = NULL;
     word32          keySz;
     word32          dataSz;
-    const DhParams* params;
+    word32          p_len;
 #ifdef WOLFSSL_SMALL_STACK
     DhKey*          dhKey = NULL;
 #else
     DhKey           dhKey[1];
 #endif
 
-    /* TODO: [TLS13] The key size should come from wolfcrypt. */
     /* Pick the parameters from the named group. */
-    switch (kse->group) {
-    #ifdef HAVE_FFDHE_2048
-        case WOLFSSL_FFDHE_2048:
-            params = wc_Dh_ffdhe2048_Get();
-            keySz = 29;
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_3072
-        case WOLFSSL_FFDHE_3072:
-            params = wc_Dh_ffdhe3072_Get();
-            keySz = 34;
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_4096
-        case WOLFSSL_FFDHE_4096:
-            params = wc_Dh_ffdhe4096_Get();
-            keySz = 39;
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_6144
-        case WOLFSSL_FFDHE_6144:
-            params = wc_Dh_ffdhe6144_Get();
-            keySz = 46;
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_8192
-        case WOLFSSL_FFDHE_8192:
-            params = wc_Dh_ffdhe8192_Get();
-            keySz = 52;
-            break;
-    #endif
-        default:
-            return BAD_FUNC_ARG;
+    keySz = wc_DhGetNamedKeyMinSize(kse->group);
+    if (keySz == 0) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -6732,7 +6684,11 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     /* Allocate space for the public key */
-    dataSz = params->p_len;
+    ret = wc_DhGetNamedKeyParamSize(kse->group, &p_len, NULL, NULL);
+    if (ret != 0) {
+        goto end;
+    }
+    dataSz = p_len;
     keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (keyData == NULL) {
         ret = MEMORY_E;
@@ -6746,8 +6702,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     /* Set key */
-    ret = wc_DhSetKey(dhKey, params->p, params->p_len, params->g,
-                                                                 params->g_len);
+    ret = wc_DhSetNamedKey(dhKey, kse->group);
     if (ret != 0)
         goto end;
 
@@ -6777,14 +6732,14 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret != 0)
         goto end;
 
-    if (params->p_len != dataSz) {
+    if (p_len != dataSz) {
         /* Zero pad the front of the public key to match prime "p" size */
-        XMEMMOVE(keyData + params->p_len - dataSz, keyData, dataSz);
-        XMEMSET(keyData, 0, params->p_len - dataSz);
+        XMEMMOVE(keyData + p_len - dataSz, keyData, dataSz);
+        XMEMSET(keyData, 0, p_len - dataSz);
     }
 
     kse->pubKey = keyData;
-    kse->pubKeyLen = params->p_len;
+    kse->pubKeyLen = p_len;
     kse->key = key;
     kse->keyLen = keySz;
 
@@ -7241,42 +7196,12 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 {
 #ifndef NO_DH
     int             ret;
-    const DhParams* params;
+    word32          pSz;
 #ifdef WOLFSSL_SMALL_STACK
     DhKey*          dhKey = NULL;
 #else
     DhKey           dhKey[1];
 #endif
-
-    switch (keyShareEntry->group) {
-    #ifdef HAVE_FFDHE_2048
-        case WOLFSSL_FFDHE_2048:
-            params = wc_Dh_ffdhe2048_Get();
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_3072
-        case WOLFSSL_FFDHE_3072:
-            params = wc_Dh_ffdhe3072_Get();
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_4096
-        case WOLFSSL_FFDHE_4096:
-            params = wc_Dh_ffdhe4096_Get();
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_6144
-        case WOLFSSL_FFDHE_6144:
-            params = wc_Dh_ffdhe6144_Get();
-            break;
-    #endif
-    #ifdef HAVE_FFDHE_8192
-        case WOLFSSL_FFDHE_8192:
-            params = wc_Dh_ffdhe8192_Get();
-            break;
-    #endif
-        default:
-            return PEER_KEY_ERROR;
-    }
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Peer DH Key");
@@ -7298,8 +7223,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     /* Set key */
-    ret = wc_DhSetKey(dhKey, params->p, params->p_len, params->g,
-                                                                 params->g_len);
+    ret = wc_DhSetNamedKey(dhKey, keyShareEntry->group);
     if (ret != 0) {
         wc_FreeDhKey(dhKey);
     #ifdef WOLFSSL_SMALL_STACK
@@ -7307,6 +7231,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     #endif
         return ret;
     }
+    pSz = wc_DhGetNamedKeyMinSize(keyShareEntry->group);
 
     ret = wc_DhCheckPubKey(dhKey, keyShareEntry->ke, keyShareEntry->keLen);
     if (ret != 0) {
@@ -7331,15 +7256,15 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     /* RFC 8446 Section 7.4.1:
      *     ... left-padded with zeros up to the size of the prime. ...
      */
-    if (params->p_len > ssl->arrays->preMasterSz) {
-        word32 diff = params->p_len - ssl->arrays->preMasterSz;
+    if (pSz > ssl->arrays->preMasterSz) {
+        word32 diff = pSz - ssl->arrays->preMasterSz;
         XMEMMOVE(ssl->arrays->preMasterSecret + diff,
                         ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
         XMEMSET(ssl->arrays->preMasterSecret, 0, diff);
-        ssl->arrays->preMasterSz = params->p_len;
+        ssl->arrays->preMasterSz = pSz;
     }
 
-    ssl->options.dhKeySz = (word16)params->p_len;
+    ssl->options.dhKeySz = pSz;
 
     wc_FreeDhKey(dhKey);
 #ifdef WOLFSSL_SMALL_STACK

@@ -148,6 +148,7 @@ static const byte dh_ffdhe2048_q[] = {
 };
 #endif /* HAVE_FFDHE_Q */
 
+#ifdef HAVE_PUBLIC_FFDHE
 const DhParams* wc_Dh_ffdhe2048_Get(void)
 {
     static const DhParams ffdhe2048 = {
@@ -159,6 +160,7 @@ const DhParams* wc_Dh_ffdhe2048_Get(void)
     };
     return &ffdhe2048;
 }
+#endif
 #endif
 
 #ifdef HAVE_FFDHE_3072
@@ -266,6 +268,7 @@ static const byte dh_ffdhe3072_q[] = {
 };
 #endif /* HAVE_FFDHE_Q */
 
+#ifdef HAVE_PUBLIC_FFDHE
 const DhParams* wc_Dh_ffdhe3072_Get(void)
 {
     static const DhParams ffdhe3072 = {
@@ -277,6 +280,7 @@ const DhParams* wc_Dh_ffdhe3072_Get(void)
     };
     return &ffdhe3072;
 }
+#endif
 #endif
 
 #ifdef HAVE_FFDHE_4096
@@ -416,6 +420,7 @@ static const byte dh_ffdhe4096_q[] = {
 };
 #endif /* HAVE_FFDHE_Q */
 
+#ifdef HAVE_PUBLIC_FFDHE
 const DhParams* wc_Dh_ffdhe4096_Get(void)
 {
     static const DhParams ffdhe4096 = {
@@ -427,6 +432,7 @@ const DhParams* wc_Dh_ffdhe4096_Get(void)
     };
     return &ffdhe4096;
 }
+#endif
 #endif
 
 #ifdef HAVE_FFDHE_6144
@@ -630,6 +636,7 @@ static const byte dh_ffdhe6144_q[] = {
 };
 #endif /* HAVE_FFDHE_Q */
 
+#ifdef HAVE_PUBLIC_FFDHE
 const DhParams* wc_Dh_ffdhe6144_Get(void)
 {
     static const DhParams ffdhe6144 = {
@@ -641,6 +648,7 @@ const DhParams* wc_Dh_ffdhe6144_Get(void)
     };
     return &ffdhe6144;
 }
+#endif
 #endif
 
 #ifdef HAVE_FFDHE_8192
@@ -908,6 +916,7 @@ static const byte dh_ffdhe8192_q[] = {
 };
 #endif /* HAVE_FFDHE_Q */
 
+#ifdef HAVE_PUBLIC_FFDHE
 const DhParams* wc_Dh_ffdhe8192_Get(void)
 {
     static const DhParams ffdhe8192 = {
@@ -919,6 +928,7 @@ const DhParams* wc_Dh_ffdhe8192_Get(void)
     };
     return &ffdhe8192;
 }
+#endif
 #endif
 
 int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
@@ -2366,6 +2376,386 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 {
     return _DhSetKey(key, p, pSz, g, gSz, NULL, 0, 1, NULL);
 }
+
+
+int wc_DhSetNamedKey(DhKey* key, int name)
+{
+    const byte* p = NULL;
+    const byte* g = NULL;
+    const byte* q = NULL;
+    word32 pSz = 0, gSz = 0, qSz = 0;
+
+    switch (name) {
+        #ifdef HAVE_FFDHE_2048
+        case WC_FFDHE_2048:
+            p = dh_ffdhe2048_p;
+            pSz = sizeof(dh_ffdhe2048_p);
+            g = dh_ffdhe2048_g;
+            gSz = sizeof(dh_ffdhe2048_g);
+            #ifdef HAVE_FFDHE_Q
+            q = dh_ffdhe2048_q;
+            qSz = sizeof(dh_ffdhe2048_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_2048 */
+        #ifdef HAVE_FFDHE_3072
+        case WC_FFDHE_3072:
+            p = dh_ffdhe3072_p;
+            pSz = sizeof(dh_ffdhe3072_p);
+            g = dh_ffdhe3072_g;
+            gSz = sizeof(dh_ffdhe3072_g);
+            #ifdef HAVE_FFDHE_Q
+            q = dh_ffdhe3072_q;
+            qSz = sizeof(dh_ffdhe3072_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_3072 */
+        #ifdef HAVE_FFDHE_4096
+        case WC_FFDHE_4096:
+            p = dh_ffdhe4096_p;
+            pSz = sizeof(dh_ffdhe4096_p);
+            g = dh_ffdhe4096_g;
+            gSz = sizeof(dh_ffdhe4096_g);
+            #ifdef HAVE_FFDHE_Q
+            q = dh_ffdhe4096_q;
+            qSz = sizeof(dh_ffdhe4096_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_4096 */
+        #ifdef HAVE_FFDHE_6144
+        case WC_FFDHE_6144:
+            p = dh_ffdhe6144_p;
+            pSz = sizeof(dh_ffdhe6144_p);
+            g = dh_ffdhe6144_g;
+            gSz = sizeof(dh_ffdhe6144_g);
+            #ifdef HAVE_FFDHE_Q
+            q = dh_ffdhe6144_q;
+            qSz = sizeof(dh_ffdhe6144_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_6144 */
+        #ifdef HAVE_FFDHE_8192
+        case WC_FFDHE_8192:
+            p = dh_ffdhe8192_p;
+            pSz = sizeof(dh_ffdhe8192_p);
+            g = dh_ffdhe8192_g;
+            gSz = sizeof(dh_ffdhe8192_g);
+            #ifdef HAVE_FFDHE_Q
+            q = dh_ffdhe8192_q;
+            qSz = sizeof(dh_ffdhe8192_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_8192 */
+        default:
+            return BAD_FUNC_ARG;
+    }
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
+}
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
+    #define HAVE_FIPS_V5
+#endif
+
+word32 wc_DhGetNamedKeyMinSize(int name)
+{
+    int size;
+
+    switch (name) {
+        #ifdef HAVE_FFDHE_2048
+        case WC_FFDHE_2048:
+            #ifndef HAVE_FIPS_V5
+            size = 29;
+            #else
+            size = 256;
+            #endif
+            break;
+        #endif /* HAVE_FFDHE_2048 */
+        #ifdef HAVE_FFDHE_3072
+        case WC_FFDHE_3072:
+            #ifndef HAVE_FIPS_V5
+            size = 34;
+            #else
+            size = 384;
+            #endif
+            break;
+        #endif /* HAVE_FFDHE_3072 */
+        #ifdef HAVE_FFDHE_4096
+        case WC_FFDHE_4096:
+            #ifndef HAVE_FIPS_V5
+            size = 39;
+            #else
+            size = 512;
+            #endif
+            break;
+        #endif /* HAVE_FFDHE_4096 */
+        #ifdef HAVE_FFDHE_6144
+        case WC_FFDHE_6144:
+            #ifndef HAVE_FIPS_V5
+            size = 768;
+            #else
+            size = 256;
+            #endif
+            break;
+        #endif /* HAVE_FFDHE_6144 */
+        #ifdef HAVE_FFDHE_8192
+        case WC_FFDHE_8192:
+            #ifndef HAVE_FIPS_V5
+            size = 52;
+            #else
+            size = 1024;
+            #endif
+            break;
+        #endif /* HAVE_FFDHE_8192 */
+        default:
+            size = 0;
+    }
+
+    return size;
+}
+
+#ifdef HAVE_FIPS_V5
+    #undef HAVE_FIPS_V5
+#endif
+
+
+/* Returns 1: params match
+ *         0: params differ */
+int wc_DhCmpNamedKey(int name, int noQ,
+        const byte* p, word32 pSz,
+        const byte* g, word32 gSz,
+        const byte* q, word32 qSz)
+{
+    const byte* pCmp = NULL;
+    const byte* qCmp = NULL;
+    const byte* gCmp = NULL;
+    word32 pCmpSz = 0, qCmpSz = 0, gCmpSz = 0;
+    int cmp = 0;
+
+    switch (name) {
+        #ifdef HAVE_FFDHE_2048
+        case WC_FFDHE_2048:
+            pCmp = dh_ffdhe2048_p;
+            pCmpSz = sizeof(dh_ffdhe2048_p);
+            gCmp = dh_ffdhe2048_g;
+            gCmpSz = sizeof(dh_ffdhe2048_g);
+            #ifdef HAVE_FFDHE_Q
+            qCmp = dh_ffdhe2048_q;
+            qCmpSz = sizeof(dh_ffdhe2048_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_2048 */
+        #ifdef HAVE_FFDHE_3072
+        case WC_FFDHE_3072:
+            pCmp = dh_ffdhe3072_p;
+            pCmpSz = sizeof(dh_ffdhe3072_p);
+            gCmp = dh_ffdhe3072_g;
+            gCmpSz = sizeof(dh_ffdhe3072_g);
+            #ifdef HAVE_FFDHE_Q
+            qCmp = dh_ffdhe3072_q;
+            qCmpSz = sizeof(dh_ffdhe3072_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_3072 */
+        #ifdef HAVE_FFDHE_4096
+        case WC_FFDHE_4096:
+            pCmp = dh_ffdhe4096_p;
+            pCmpSz = sizeof(dh_ffdhe4096_p);
+            gCmp = dh_ffdhe4096_g;
+            gCmpSz = sizeof(dh_ffdhe4096_g);
+            #ifdef HAVE_FFDHE_Q
+            qCmp = dh_ffdhe4096_q;
+            qCmpSz = sizeof(dh_ffdhe4096_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_4096 */
+        #ifdef HAVE_FFDHE_6144
+        case WC_FFDHE_6144:
+            pCmp = dh_ffdhe6144_p;
+            pCmpSz = sizeof(dh_ffdhe6144_p);
+            gCmp = dh_ffdhe6144_g;
+            gCmpSz = sizeof(dh_ffdhe6144_g);
+            #ifdef HAVE_FFDHE_Q
+            qCmp = dh_ffdhe6144_q;
+            qCmpSz = sizeof(dh_ffdhe6144_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_6144 */
+        #ifdef HAVE_FFDHE_8192
+        case WC_FFDHE_8192:
+            pCmp = dh_ffdhe8192_p;
+            pCmpSz = sizeof(dh_ffdhe8192_p);
+            gCmp = dh_ffdhe8192_g;
+            gCmpSz = sizeof(dh_ffdhe8192_g);
+            #ifdef HAVE_FFDHE_Q
+            qCmp = dh_ffdhe8192_q;
+            qCmpSz = sizeof(dh_ffdhe8192_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_8192 */
+        default:
+            return 0;
+    }
+
+    cmp = (pSz == pCmpSz) && (gSz == gCmpSz) &&
+        (noQ || ((qSz == qCmpSz) && XMEMCMP(q, qCmp, qCmpSz))) &&
+        (XMEMCMP(p, pCmp, pCmpSz) == 0) &&
+        (XMEMCMP(g, gCmp, gCmpSz) == 0);
+
+    return cmp;
+}
+
+
+int wc_DhGetNamedKeyParamSize(int name, word32* p, word32* g, word32* q)
+{
+    word32 pSz = 0, gSz = 0, qSz = 0;
+
+    switch (name) {
+        #ifdef HAVE_FFDHE_2048
+        case WC_FFDHE_2048:
+            pSz = sizeof(dh_ffdhe2048_p);
+            gSz = sizeof(dh_ffdhe2048_g);
+            #ifdef HAVE_FFDHE_Q
+            qSz = sizeof(dh_ffdhe2048_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_2048 */
+        #ifdef HAVE_FFDHE_3072
+        case WC_FFDHE_3072:
+            pSz = sizeof(dh_ffdhe3072_p);
+            gSz = sizeof(dh_ffdhe3072_g);
+            #ifdef HAVE_FFDHE_Q
+            qSz = sizeof(dh_ffdhe3072_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_3072 */
+        #ifdef HAVE_FFDHE_4096
+        case WC_FFDHE_4096:
+            pSz = sizeof(dh_ffdhe4096_p);
+            gSz = sizeof(dh_ffdhe4096_g);
+            #ifdef HAVE_FFDHE_Q
+            qSz = sizeof(dh_ffdhe4096_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_4096 */
+        #ifdef HAVE_FFDHE_6144
+        case WC_FFDHE_6144:
+            pSz = sizeof(dh_ffdhe6144_p);
+            gSz = sizeof(dh_ffdhe6144_g);
+            #ifdef HAVE_FFDHE_Q
+            qSz = sizeof(dh_ffdhe6144_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_6144 */
+        #ifdef HAVE_FFDHE_8192
+        case WC_FFDHE_8192:
+            pSz = sizeof(dh_ffdhe8192_p);
+            gSz = sizeof(dh_ffdhe8192_g);
+            #ifdef HAVE_FFDHE_Q
+            qSz = sizeof(dh_ffdhe8192_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_8192 */
+        default:
+            break;
+    }
+
+    if (p != NULL) *p = pSz;
+    if (g != NULL) *g = gSz;
+    if (q != NULL) *q = qSz;
+
+    return 0;
+}
+
+
+int wc_DhCopyNamedKey(int name,
+        byte* p, word32* pSz, byte* g, word32* gSz, byte* q, word32* qSz)
+{
+    const byte* pC = NULL;
+    const byte* gC = NULL;
+    const byte* qC = NULL;
+    word32 pCSz = 0, gCSz = 0, qCSz = 0;
+
+    switch (name) {
+        #ifdef HAVE_FFDHE_2048
+        case WC_FFDHE_2048:
+            pC = dh_ffdhe2048_p;
+            pCSz = sizeof(dh_ffdhe2048_p);
+            gC = dh_ffdhe2048_g;
+            gCSz = sizeof(dh_ffdhe2048_g);
+            #ifdef HAVE_FFDHE_Q
+            qC = dh_ffdhe2048_q;
+            qCSz = sizeof(dh_ffdhe2048_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_2048 */
+        #ifdef HAVE_FFDHE_3072
+        case WC_FFDHE_3072:
+            pC = dh_ffdhe3072_p;
+            pCSz = sizeof(dh_ffdhe3072_p);
+            gC = dh_ffdhe3072_g;
+            gCSz = sizeof(dh_ffdhe3072_g);
+            #ifdef HAVE_FFDHE_Q
+            qC = dh_ffdhe3072_q;
+            qCSz = sizeof(dh_ffdhe3072_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_3072 */
+        #ifdef HAVE_FFDHE_4096
+        case WC_FFDHE_4096:
+            pC = dh_ffdhe4096_p;
+            pCSz = sizeof(dh_ffdhe4096_p);
+            gC = dh_ffdhe4096_g;
+            gCSz = sizeof(dh_ffdhe4096_g);
+            #ifdef HAVE_FFDHE_Q
+            qC = dh_ffdhe4096_q;
+            qCSz = sizeof(dh_ffdhe4096_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_4096 */
+        #ifdef HAVE_FFDHE_6144
+        case WC_FFDHE_6144:
+            pC = dh_ffdhe6144_p;
+            pCSz = sizeof(dh_ffdhe6144_p);
+            gC = dh_ffdhe6144_g;
+            gCSz = sizeof(dh_ffdhe6144_g);
+            #ifdef HAVE_FFDHE_Q
+            qC = dh_ffdhe6144_q;
+            qCSz = sizeof(dh_ffdhe6144_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_6144 */
+        #ifdef HAVE_FFDHE_8192
+        case WC_FFDHE_8192:
+            pC = dh_ffdhe8192_p;
+            pCSz = sizeof(dh_ffdhe8192_p);
+            gC = dh_ffdhe8192_g;
+            gCSz = sizeof(dh_ffdhe8192_g);
+            #ifdef HAVE_FFDHE_Q
+            qC = dh_ffdhe8192_q;
+            qCSz = sizeof(dh_ffdhe8192_q);
+            #endif /* HAVE_FFDHE_Q */
+            break;
+        #endif /* HAVE_FFDHE_8192 */
+        default:
+            break;
+    }
+
+    if (p != NULL && pC != NULL)
+        XMEMCPY(p, pC, pCSz);
+    if (pSz != NULL)
+        *pSz = pCSz;
+    if (g != NULL && gC != NULL)
+        XMEMCPY(g, gC, gCSz);
+    if (gSz != NULL)
+        *gSz = gCSz;
+    if (q != NULL && qC != NULL)
+        XMEMCPY(q, qC, qCSz);
+    if (qSz != NULL)
+        *qSz = qCSz;
+
+    return 0;
+}
+
 
 #ifdef WOLFSSL_KEY_GEN
 

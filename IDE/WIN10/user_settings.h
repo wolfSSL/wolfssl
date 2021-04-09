@@ -85,7 +85,7 @@
         #define HAVE_FFDHE_4096
         #define HAVE_FFDHE_6144
         #define HAVE_FFDHE_8192
-        #define FP_MAX_BITS=16384
+        #define FP_MAX_BITS 16384
     #endif /* FIPS v5 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
