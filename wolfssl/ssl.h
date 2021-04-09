@@ -1667,6 +1667,10 @@ WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(
         WOLFSSL_X509_STORE_CTX* ctx, int idx);
 WOLFSSL_API int  wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx,
         int idx, void *data);
+WOLFSSL_API void* wolfSSL_X509_STORE_get_ex_data(
+                                           WOLFSSL_X509_STORE* store, int idx);
+WOLFSSL_API int  wolfSSL_X509_STORE_set_ex_data(WOLFSSL_X509_STORE* store,
+        int idx, void *data);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx,
         int depth);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
