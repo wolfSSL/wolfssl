@@ -1178,8 +1178,11 @@ extern void uITRON4_free(void *p) ;
 
             /* the LTC PKHA hardware limit is 2048 bits (256 bytes) for integer arithmetic.
                the LTC_MAX_INT_BYTES defines the size of local variables that hold big integers. */
-            #ifndef LTC_MAX_INT_BYTES
-                #define LTC_MAX_INT_BYTES (256)
+            /* size is multiplication of 2 big ints */
+            #if !defined(NO_RSA) || !defined(NO_DH)
+                #define LTC_MAX_INT_BYTES   (256*2)
+            #else
+                #define LTC_MAX_INT_BYTES   (48*2)
             #endif
 
             /* This FREESCALE_LTC_TFM_RSA_4096_ENABLE macro can be defined.

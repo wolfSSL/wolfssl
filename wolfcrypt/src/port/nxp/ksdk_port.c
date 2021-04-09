@@ -179,13 +179,11 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
 int mp_mod(mp_int *a, mp_int *b, mp_int *c)
 {
     int res = MP_OKAY;
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB;
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES))
     {
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
         int neg = 0;
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
@@ -233,12 +231,15 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
         }
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
         res = wolfcrypt_mp_mod(a, b, c);
+#else
+        res = NOT_COMPILED_IN;
+#endif
     }
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+
     return res;
 }
 
@@ -246,12 +247,10 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
 int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 {
     int res = MP_OKAY;
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB;
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
-#endif
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
@@ -290,12 +289,14 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
         }
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
         res = wolfcrypt_mp_invmod(a, b, c);
+#else
+        res = NOT_COMPILED_IN;
+#endif
     }
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
     return res;
 }
 
@@ -303,13 +304,11 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 {
     int res = MP_OKAY;
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB, szC;
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     szC = mp_unsigned_bin_size(c);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && (szC <= LTC_MAX_INT_BYTES)) {
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
         mp_int t;
 
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
@@ -397,12 +396,15 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     #ifndef USE_FAST_MATH
         mp_clear(&t);
     #endif
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
         res = wolfcrypt_mp_mulmod(a, b, c, d);
+#else
+        res = NOT_COMPILED_IN;
+#endif
     }
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+
     return res;
 }
 
@@ -410,12 +412,12 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 {
     int res = MP_OKAY;
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     int szA, szB, szC;
     mp_int tmp;
 
     /* if G cannot fit into LTC_PKHA, reduce it */
     szA = mp_unsigned_bin_size(G);
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     if (szA > LTC_MAX_INT_BYTES) {
         res = mp_init(&tmp);
         if (res != MP_OKAY)
@@ -426,14 +428,13 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
         G = &tmp;
         szA = mp_unsigned_bin_size(G);
     }
-
+#endif
     szB = mp_unsigned_bin_size(X);
     szC = mp_unsigned_bin_size(P);
 
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
         mp_int t;
 
         uint16_t sizeG, sizeX, sizeP;
@@ -460,7 +461,7 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
                 res = ltc_get_lsb_bin_from_mp_int(ptrP, P, &sizeP);
 
             /* if number if greater that modulo, we must first reduce due to 
-               LTC requirement on modular exponentiaton */
+               LTC requirement on modular exponentiation */
             /* it needs number less than modulus.  */
             /* we can take advantage of modular arithmetic rule that: A^B mod C = ( (A mod C)^B ) mod C
                and so we do first (A mod N) : LTC does not give size requirement on A versus N,
@@ -506,17 +507,20 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
     #ifndef USE_FAST_MATH
         mp_clear(&t);
     #endif
-#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     }
     else {
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
         res = wolfcrypt_mp_exptmod(G, X, P, Y);
+#else
+        res = NOT_COMPILED_IN;
+#endif
     }
 
 #ifndef USE_FAST_MATH
     if (szA > LTC_MAX_INT_BYTES)
         mp_clear(&tmp);
 #endif
-#endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
+
     return res;
 }
 
@@ -733,6 +737,11 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
 
     szModulus = mp_unsigned_bin_size(modulus);
     szkbin = mp_unsigned_bin_size(k);
+
+    /* make sure LTC big number variable is large enough */
+    if (szModulus > LTC_MAX_INT_BYTES / 2) {
+        return MP_MEM;
+    }
 
     res = ltc_get_from_mp_int(kbin, (mp_int*)k, szkbin);
     if (res == MP_OKAY)
