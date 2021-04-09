@@ -2879,7 +2879,7 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
 
 #endif
 
-/* Convert the point to montogmery form.
+/* Convert the point to montgomery form.
  *
  * @param  [in]   p        Point to convert.
  * @param  [out]  r        Point in montgomery form.
@@ -4413,10 +4413,14 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
                err = MEMORY_E;
             }
         }
+#ifndef FREESCALE_LTC_ECC /* this is done in hardware */
         if (err == MP_OKAY) {
             /* Use constant time map if compiled in */
             err = ecc_map_ex(pub, curve->prime, mp, 1);
         }
+#else
+        (void)mp;
+#endif
 
         wc_ecc_del_point_h(base, key->heap);
     }
