@@ -2597,7 +2597,8 @@ int wc_DhCmpNamedKey(int name, int noQ,
     }
 
     cmp = (pSz == pCmpSz) && (gSz == gCmpSz) &&
-        (noQ || ((qSz == qCmpSz) && XMEMCMP(q, qCmp, qCmpSz))) &&
+        (noQ || ((qCmp != NULL) && (qSz == qCmpSz) &&
+                 XMEMCMP(q, qCmp, qCmpSz) == 0)) &&
         (XMEMCMP(p, pCmp, pCmpSz) == 0) &&
         (XMEMCMP(g, gCmp, gCmpSz) == 0);
 
