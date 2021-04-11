@@ -4,7 +4,7 @@
 
 # Enviornment variables used:
 # OPENSSL            (openssl app to use)
-# OPENSSL_ENGINE_ID  (engine id if any i.e. -engine wolfengine)
+# OPENSSL_ENGINE_ID  (engine id if any i.e. "wolfengine")
 
 CERT_DIR="$PWD/$(dirname "$0")/../certs"
 
@@ -133,6 +133,28 @@ start_openssl_server() {
     server_port=$port
     found_free_port=0
     counter=0
+
+    # If OPENSSL_ENGINE_ID has been set then check that the desired engine can
+    # be loaded successfully and error out if not. Otherwise the OpenSSL app
+    # will fall back to default engine.
+    if [ ! -z "${OPENSSL_ENGINE_ID}" ]; then
+        OUTPUT=`$OPENSSL engine -tt $OPENSSL_ENGINE_ID`
+        if [ $? != 0 ]; then
+            printf "not able to load engine\n"
+            printf "$OPENSSL engine -tt $OPENSSL_ENGINE_ID\n"
+            do_cleanup
+            exit 1
+        else
+            echo $OUTPUT | grep "available"
+            if [ $? != 0 ]; then
+                printf "engine not available\n"
+                do_cleanup
+                exit 1
+            fi
+        fi
+    fi
+    OPENSSL_ENGINE_ID="-engine ${OPENSSL_ENGINE_ID}"
+
     while [ "$counter" -lt 20 ]; do
         echo -e "\n# Trying to start $openssl_suite OpenSSL server on port $server_port..."
         echo "#"
