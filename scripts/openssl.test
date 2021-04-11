@@ -2,6 +2,10 @@
 
 #openssl.test
 
+# Enviornment variables used:
+# OPENSSL            (openssl app to use)
+# OPENSSL_ENGINE_ID  (engine id if any i.e. -engine wolfengine)
+
 CERT_DIR="$PWD/$(dirname "$0")/../certs"
 
 if ! test -n "$WOLFSSL_OPENSSL_TEST"; then
@@ -135,11 +139,11 @@ start_openssl_server() {
 
         if [ "$cert_file" != "" ]
         then
-            echo "# " $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -cert $cert_file -key $key_file  -quiet -CAfile $ca_file -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         else
-            echo "# " $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
-            $OPENSSL s_server -accept $server_port -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
+            echo "# " $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe
+            $OPENSSL s_server -accept $server_port $OPENSSL_ENGINE_ID -quiet -nocert -www -dhparam ${CERT_DIR}/dh2048.pem -verify 10 -verify_return_error -psk $psk_hex -cipher "ALL:eNULL" $openssl_nodhe &
         fi
         server_pid=$!
         # wait to see if s_server successfully starts before continuing
