@@ -25306,7 +25306,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 #endif
 
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-#ifndef NO_BIO
+#if !defined(NO_BIO) && defined(HAVE_PKCS12)
 WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
 {
     WC_PKCS12* localPkcs12    = NULL;
@@ -25386,7 +25386,7 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
 
     return ret;
 }
-#endif /* !NO_BIO */
+#endif /* !NO_BIO && HAVE_PKCS12 */
 
 /* Copies unencrypted DER key buffer into "der". If "der" is null then the size
  * of buffer needed is returned. If *der == NULL then it allocates a buffer.
@@ -25399,6 +25399,7 @@ int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
     return wolfSSL_EVP_PKEY_get_der(key, der);
 }
 
+#ifdef HAVE_PKCS12
 /* Creates a new WC_PKCS12 structure
  *
  * pass  password to use
@@ -25786,6 +25787,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
     return wc_PKCS12_verify_ex(pkcs12, (const byte*)psw, pswLen) == 0 ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
+#endif /* HAVE_PKCS12 */
 #endif /* !NO_ASN && !NO_PWDBASED */
 
 
@@ -26412,7 +26414,7 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
             newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
         }
     #endif
-    #if !defined(NO_ASN) && !defined(NO_PWDBASED)
+    #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
         else if (type == PKCS12_TYPE) {
             if ((newx509 = wc_PKCS12_new()) == NULL) {
                 goto err_exit;
@@ -26437,7 +26439,7 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
     goto _exit;
 
 err_exit:
-#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
     if ((newx509 != NULL) && (type == PKCS12_TYPE)) {
         wc_PKCS12_free((WC_PKCS12*)newx509);
         newx509 = NULL;
