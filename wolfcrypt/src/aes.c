@@ -7456,7 +7456,11 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
-    if (ivSz != GCM_NONCE_MID_SZ || sz == 0 || partial != 0
+    if (ivSz != GCM_NONCE_MID_SZ 
+    #ifndef CRYP_HEADERWIDTHUNIT_BYTE
+        /* or harware that does not support partial block */
+        || sz == 0 || partial != 0
+    #endif
     #ifndef STM32_AESGCM_PARTIAL
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
@@ -7515,6 +7519,18 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     HAL_CRYP_Init(&hcryp);
 
     /* GCM payload phase - can handle partial blocks */
+    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    {
+        /* clear remainder of partial input (for 32-bit uint) */
+        word32 remain = (partial & 3);
+        if (remain > 0)
+            remain = 4 - remain;
+        while (sz > 0 && remain > 0) {
+            ((byte*)in)[sz + remain - 1] = 0;
+            remain--;
+        }
+    }
+    #endif
     status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
         (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
     if (status == HAL_OK && !tagComputed) {
