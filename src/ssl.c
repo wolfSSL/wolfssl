@@ -10130,13 +10130,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             goto err;
         }
     }
-    else if (gn) {
-        if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error pushing GENERAL_NAME object onto "
-                        "stack.");
-            goto err;
-        }
-    }
 
     ret = sk;
 
