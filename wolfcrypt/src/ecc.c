@@ -4829,6 +4829,11 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
+    if (err == MP_OKAY) {
+        err = _ecc_pairwise_consistency_test(key);
+    }
+#endif
 
     return err;
 }
