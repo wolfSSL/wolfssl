@@ -978,6 +978,19 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#ifdef WOLFSSL_DTLS_MTU
+    /* Add dtls different MTU size tests.
+     * These also use grouping to force wolfSSL to
+     * bounce off the MTU limit more */
+    strcpy(argv0[1], "tests/test-dtls-mtu.conf");
+    printf("starting dtls MTU tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls-sha2.conf");

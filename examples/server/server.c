@@ -1027,6 +1027,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int    useAnon = 0;
     int    doDTLS = 0;
     int    dtlsUDP = 0;
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                               defined(WOLFSSL_DTLS)
+    int    dtlsMTU = 0;
+#endif
     int    dtlsSCTP = 0;
     int    doMcast = 0;
 #ifdef WOLFSSL_DTLS
@@ -1220,7 +1224,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     /* Not Used: h, z, W, X, 7, 9 */
     while ((ch = mygetopt(argc, argv, "?:"
-                "abc:defgijk:l:mnop:q:rstuv:wxy"
+                "abc:defgijk:l:mnop:q:rstu;v:wxy"
                 "A:B:C:D:E:FGH:IJKL:MNO:PQR:S:T;UVYZ:"
                 "01:23:4:5689"
                 "@#")) != -1) {
@@ -1268,6 +1272,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             case 'u' :
                 doDTLS  = 1;
                 dtlsUDP = 1;
+            #if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
+                dtlsMTU = atoi(myoptarg);
+            #endif
                 break;
 
             case 'G' :
@@ -1884,6 +1892,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (fewerPackets)
         wolfSSL_CTX_set_group_messages(ctx);
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
+    if (dtlsMTU)
+        wolfSSL_CTX_dtls_set_mtu(ctx, dtlsMTU);
+#endif
 
 #ifdef WOLFSSL_SCTP
     if (dtlsSCTP)
