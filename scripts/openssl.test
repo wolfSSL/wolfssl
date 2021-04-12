@@ -152,8 +152,8 @@ start_openssl_server() {
                 exit 1
             fi
         fi
+        OPENSSL_ENGINE_ID="-engine ${OPENSSL_ENGINE_ID}"
     fi
-    OPENSSL_ENGINE_ID="-engine ${OPENSSL_ENGINE_ID}"
 
     while [ "$counter" -lt 20 ]; do
         echo -e "\n# Trying to start $openssl_suite OpenSSL server on port $server_port..."
