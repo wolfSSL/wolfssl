@@ -140,8 +140,8 @@ enum DN_Tags {
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
     ASN_USER_ID          = 0x01, /* UID */
-    ASN_DOMAIN_COMPONENT = 0x19, /* DC */
-    ASN_FAVOURITE_DRINK  = 0x05  /* favouriteDrink */
+    ASN_FAVOURITE_DRINK  = 0x05, /* favouriteDrink */
+    ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
 /* This is the size of the smallest possible PEM header and footer */
