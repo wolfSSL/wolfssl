@@ -5576,6 +5576,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #if (defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)) || \
      defined(HAVE_PKCS8)
     word32        algId = 0;
+    word32        crvId = 0;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
@@ -5616,6 +5617,18 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (format == WOLFSSL_FILETYPE_PEM) {
     #ifdef WOLFSSL_PEM_TO_DER
         ret = PemToDer(buff, sz, type, &der, heap, info, &keyFormat);
+        #ifdef HAVE_PKCS8
+            /* if private key try and remove PKCS8 header */
+            if (type == PRIVATEKEY_TYPE) {
+                if ((ret = ToTraditional_ex(der->buffer, der->length,
+                                                         &algId, &crvId, 1)) > 0) {
+                    /* Found PKCS8 header */
+                    /* ToTraditional_ex moves buff and returns adjusted length */
+                    der->length = ret;
+                }
+                ret = 0; /* failures should be ignored */
+            }
+        #endif
     #else
         ret = NOT_COMPILED_IN;
     #endif
@@ -5650,7 +5663,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef HAVE_PKCS8
             /* if private key try and remove PKCS8 header */
             if (type == PRIVATEKEY_TYPE) {
-                if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
+                if ((ret = ToTraditional_ex(der->buffer, der->length,
+                                                         &algId, &crvId, 1)) > 0) {
                     /* Found PKCS8 header */
                     /* ToTraditional_ex moves buff and returns adjusted length */
                     der->length = ret;
@@ -5805,7 +5819,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
                 /* PKCS8 decrypt */
                 ret = ToTraditionalEnc(der->buffer, der->length,
-                                       password, passwordSz, &algId);
+                                       password, passwordSz, &algId, &crvId, 1);
                 if (ret >= 0) {
                     der->length = ret;
                 }
@@ -7755,7 +7769,8 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
     int memSz;
     int keySz;
     word32 algId;
-
+    word32 crvId = 0;
+    
     WOLFSSL_MSG("wolfSSL_d2i_PKCS8_PKEY_bio()");
 
     if (bio == NULL) {
@@ -7769,7 +7784,8 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
     if ((keySz = wc_KeyPemToDer(mem, memSz, mem, memSz, NULL)) < 0) {
         WOLFSSL_MSG("Not PEM format");
         keySz = memSz;
-        if ((keySz = ToTraditional_ex((byte*)mem, (word32)keySz, &algId)) < 0) {
+        if ((keySz = ToTraditional_ex((byte*)mem, (word32)keySz, &algId, 
+                                                                &crvId, 1)) < 0) {
             return NULL;
         }
     }
@@ -8196,7 +8212,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     word32 idx = 0;
     int    ret;
     word32 algId;
-
+    word32 crvId;
+    
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 
     if (in == NULL || inSz < 0) {
@@ -8207,8 +8224,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     /* Check if input buffer has PKCS8 header. In the case that it does not
      * have a PKCS8 header then do not error out. */
     if ((ret = ToTraditionalInline_ex((const byte*)(*in), &idx, (word32)inSz,
-                                                                 &algId)) > 0) {
-        WOLFSSL_MSG("Found and removed PKCS8 header");
+                                                        &algId, &crvId)) > 0) {
+        WOLFSSL_MSG("Found PKCS8 header");
+        if (algId == ECDSAk) {
+            /* in ECC case, would process header including ec param */
+            idx = 0;
+        }
     }
     else {
         if (ret != ASN_PARSE_E) {
@@ -40451,8 +40472,27 @@ int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA* dsa, const unsigned char* derBuf,
 int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
                            int derSz)
 {
-    return wolfSSL_EC_KEY_LoadDer_ex(key, derBuf, derSz,
+    int ret;
+    word32 algId = 0;
+    word32 crvId = 0;
+    word32 idx = 0;
+    
+    /* Check if input buffer has PKCS8 header. In the case that it does not
+     * have a PKCS8 header then do not error out. */
+    if ((ret = ToTraditionalInline_ex((const byte*)(derBuf), &idx, (word32)derSz,
+                                                        &algId, &crvId)) > 0) {
+        WOLFSSL_MSG("Found PKCS8 header");
+        return wolfSSL_EC_KEY_LoadDer_ex(key, derBuf, derSz,
+                                     WOLFSSL_EC_KEY_LOAD_PCKS8_PRIVATE);
+    }
+    else {
+        if (ret != ASN_PARSE_E) {
+            WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 header");
+            return ret;
+        }
+        return wolfSSL_EC_KEY_LoadDer_ex(key, derBuf, derSz,
                                      WOLFSSL_EC_KEY_LOAD_PRIVATE);
+    }
 }
 
 int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
@@ -40471,6 +40511,9 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
     if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
         ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
                                      derSz);
+    } else if (opt == WOLFSSL_EC_KEY_LOAD_PCKS8_PRIVATE) {
+        ret = wc_EccPKCS8PrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
+                                    derSz);
     }
     else {
         ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
@@ -53361,6 +53404,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
     char password[NAME_SZ];
     int passwordSz;
     word32 algId;
+    word32 crvId;
     WOLFSSL_EVP_PKEY* key;
 
     if ((len = bio_get_data(bio, &der)) < 0)
@@ -53373,7 +53417,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
             return NULL;
         }
 
-        ret = ToTraditionalEnc(der, len, password, passwordSz, &algId);
+        ret = ToTraditionalEnc(der, len, password, passwordSz, 
+                                                        &algId, &crvId, 1);
         if (ret < 0) {
             XFREE(der, bio->heap, DYNAMIC_TYPE_OPENSSL);
             return NULL;
@@ -53404,10 +53449,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
     int cnt = 0;
     int type;
     word32 algId;
+    word32 crvId;
     word32 keyLen = (word32)length;
 
     /* Take off PKCS#8 wrapper if found. */
-    if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
+    if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId, &crvId)) >= 0) {
         der += idx;
         keyLen = len;
     }

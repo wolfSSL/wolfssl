@@ -27610,13 +27610,17 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     {
         XFILE file;
         const char* fname = "./certs/ecc-key.pem";
+        const char* fname_p8  = "./certs/ecc-keyPkcs8.pem";
         size_t sz;
         byte* buf;
         EVP_PKEY* pkey2;
         EVP_PKEY* pkey3;
         EC_KEY*   ec_key;
         int nid = 0;
-
+        
+        (void) fname;
+        (void) fname_p8;
+        
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
         AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
@@ -27638,7 +27642,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         pkey2->type = EVP_PKEY_EC;
         /* Test parameter copy */
         AssertIntEQ(EVP_PKEY_copy_parameters(pkey2, pkey), 1);
-        /* Qt unit test case */
+        /* Qt unit test case 1*/
         AssertNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
         AssertIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
         #ifdef WOLFSSL_ERROR_CODE_OPENSSL
@@ -27655,6 +27659,37 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY_free(pkey);
         pkey  = NULL;
         
+        {
+            /* Qt unit test case 2*/
+            file = XFOPEN(fname_p8, "rb");
+            AssertTrue((file != XBADFILE));
+            AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
+            sz = XFTELL(file);
+            XREWIND(file);
+            AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+            if (buf)
+                AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+            XFCLOSE(file);
+            
+            AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+            AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+            XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+            BIO_free(bio);
+            bio = NULL;
+            AssertNotNull(pkey3 = EVP_PKEY_new());
+            /* Qt unit test case */
+            AssertNotNull(ec_key = EVP_PKEY_get1_EC_KEY(pkey));
+            AssertIntEQ(EVP_PKEY_set1_EC_KEY(pkey3, ec_key), WOLFSSL_SUCCESS);
+            #ifdef WOLFSSL_ERROR_CODE_OPENSSL
+            AssertIntEQ(EVP_PKEY_cmp(pkey, pkey3), 1/* match */);
+            #else
+            AssertIntEQ(EVP_PKEY_cmp(pkey, pkey3), 0);
+            #endif
+            EC_KEY_free(ec_key);
+            EVP_PKEY_free(pkey3);
+            EVP_PKEY_free(pkey);
+            pkey  = NULL;
+        }
     }
 #endif
 

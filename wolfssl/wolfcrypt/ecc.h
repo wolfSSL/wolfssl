@@ -483,6 +483,9 @@ struct ecc_key {
 #ifdef WC_ECC_NONBLOCK
     ecc_nb_ctx_t* nb_ctx;
 #endif
+#ifdef HAVE_PKCS8
+    byte haspkcs8header;
+#endif
 };
 
 
