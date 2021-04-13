@@ -32321,7 +32321,11 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 #endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
-
+    /* sanity check */
+    if (buf == NULL || num < 0)
+        /* return code compliant with OpenSSL */
+        return 0;
+        
     /* if a RAND callback has been set try and use it */
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
