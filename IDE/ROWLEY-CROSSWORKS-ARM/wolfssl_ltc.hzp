@@ -159,7 +159,6 @@
                 <file file_name="drivers/fsl_edma.h" />
                 <file file_name="drivers/fsl_ewm.c" />
                 <file file_name="drivers/fsl_ewm.h" />
-                <file file_name="drivers/fsl_flash.c" />
                 <file file_name="drivers/fsl_flash.h" />
                 <file file_name="drivers/fsl_flexbus.c" />
                 <file file_name="drivers/fsl_flexbus.h" />
@@ -223,8 +222,6 @@
                 <file file_name="drivers/fsl_ltc.h" />
                 <file file_name="drivers/fsl_ltc_edma.c" />
                 <file file_name="drivers/fsl_ltc_edma.h" />
-                <file file_name="drivers/fsl_mpu.c" />
-                <file file_name="drivers/fsl_mpu.h" />
                 <file file_name="drivers/fsl_pdb.c" />
                 <file file_name="drivers/fsl_pdb.h" />
                 <file file_name="drivers/fsl_pit.c" />
