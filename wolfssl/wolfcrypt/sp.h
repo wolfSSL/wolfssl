@@ -62,7 +62,11 @@
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
+ * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
+ * the non-const prototypes */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
 
 WOLFSSL_LOCAL int sp_RsaPublic_2048(const byte* in, word32 inLen,
     mp_int* em, mp_int* mm, byte* out, word32* outLen);
@@ -105,13 +109,17 @@ WOLFSSL_LOCAL int sp_RsaPrivate_4096(const byte* in, word32 inLen,
     const mp_int* dqm, const mp_int* qim, const mp_int* mm, byte* out,
     word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
+ * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
+ * the non-const prototypes */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
 
 WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
@@ -137,13 +145,17 @@ WOLFSSL_LOCAL int sp_ModExp_3072(const mp_int* base, const mp_int* exp,
 WOLFSSL_LOCAL int sp_ModExp_4096(const mp_int* base, const mp_int* exp,
     const mp_int* mod, mp_int* res);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
 
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
+ * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
+ * the non-const prototypes */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
 
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);
@@ -161,13 +173,17 @@ WOLFSSL_LOCAL int sp_DhExp_3072(const mp_int* base, const byte* exp,
 WOLFSSL_LOCAL int sp_DhExp_4096(const mp_int* base, const byte* exp,
     word32 expLen, const mp_int* mod, byte* out, word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
 
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 
-#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2
+/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
+ * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
+ * the non-const prototypes */
+#if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
+    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
 
 int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* rm, int map,
                       void* heap);
@@ -287,7 +303,7 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY);
 int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !gcc 4.x */
 
 #ifdef WOLFSSL_SP_NONBLOCK
 int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
