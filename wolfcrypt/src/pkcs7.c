@@ -8336,18 +8336,14 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
         case WC_PKCS7_DECRYPT_KTRI_2:
         #ifndef NO_PKCS7_STREAM
 
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, pkcs7->stream->expected,
-                            &pkiMsg, idx)) != 0) {
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                            pkcs7->stream->expected, &pkiMsg, idx)) != 0) {
                 return ret;
             }
 
-            rc = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_DEFAULT_PEEK,
-                    in, inSz);
-            if (rc < 0) {
-                ret = (int)rc;
-                break;
+            if (in != pkiMsg) {
+                pkiMsgSz =  pkcs7->stream->length;
             }
-            pkiMsgSz = (word32)rc;
 
             wc_PKCS7_StreamGetVar(pkcs7, NULL, &sidType, &version);
 
