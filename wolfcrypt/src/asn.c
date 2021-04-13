@@ -2766,14 +2766,20 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* NO_RSA */
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+#ifdef HAVE_ECC
 static int CheckCurve(word32 oid);
+#endif
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
 int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                            word32* algId, word32* crvId)
 {
     word32 idx;
+    #ifdef HAVE_ECC
     word32 oidSum;
+    #else
+    (void) crvId;
+    #endif
     int    version, length;
     int    ret;
     byte   tag;
@@ -2797,6 +2803,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     idx = idx - 1; /* reset idx after finding tag */
 
     if (tag == ASN_OBJECT_ID) {
+        #ifdef HAVE_ECC
         ret = GetObjectId(input, &idx, &oidSum, oidIgnoreType, sz);
         if (ret == 0) {
             if ((ret = CheckCurve(oidSum)) < 0)
@@ -2807,6 +2814,12 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                 ret = 0;
             }
         }
+        #else
+        if (tag == ASN_OBJECT_ID) {
+            if (SkipObjectId(input, &idx, sz) < 0)
+                return ASN_PARSE_E;
+        }
+        #endif
     }
 
     ret = GetOctetString(input, &idx, &length, sz);
