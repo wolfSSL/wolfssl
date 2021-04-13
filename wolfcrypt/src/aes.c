@@ -7013,7 +7013,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
     #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    /* V2 with CRYP_DATAWIDTHUNIT_BYTE uses byte size for header */
+    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
     hcryp.Init.HeaderSize = authPadSz;
     #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
@@ -7506,7 +7506,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
     #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    /* V2 with CRYP_DATAWIDTHUNIT_BYTE uses byte size for header */
+    /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
     hcryp.Init.HeaderSize = authPadSz;
     #else
     hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
