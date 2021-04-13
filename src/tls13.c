@@ -5034,6 +5034,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     byte   certReqCtxLen = 0;
     byte*  certReqCtx = NULL;
 
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+#endif
+
     WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
     WOLFSSL_ENTER("SendTls13Certificate");
 
@@ -5041,6 +5046,22 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
         certReqCtxLen = ssl->certReqCtx->len;
         certReqCtx = &ssl->certReqCtx->ctx;
+    }
+#endif
+
+#ifdef OPENSSL_EXTRA
+    /* call client cert callback if no cert has been loaded */
+    if ((ssl->ctx->CBClientCert != NULL) &&
+        (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)) {
+        ret = ssl->ctx->CBClientCert(ssl, &x509, &pkey);
+        if (ret == 1) {
+            if ((wolfSSL_CTX_use_certificate(ssl->ctx, x509) == WOLFSSL_SUCCESS) &&
+                (wolfSSL_CTX_use_PrivateKey(ssl->ctx, pkey) == WOLFSSL_SUCCESS)) {
+                ssl->options.sendVerify = SEND_CERT;
+            }
+            wolfSSL_X509_free(x509);
+            wolfSSL_EVP_PKEY_free(pkey);
+        }
     }
 #endif
 

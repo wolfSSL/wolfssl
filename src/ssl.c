@@ -10130,13 +10130,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             goto err;
         }
     }
-    else if (gn) {
-        if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Error pushing GENERAL_NAME object onto "
-                        "stack.");
-            goto err;
-        }
-    }
 
     ret = sk;
 
@@ -25313,7 +25306,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509_REQ_bio(WOLFSSL_BIO* bio, WOLFSSL_X509** x509)
 #endif
 
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-#ifndef NO_BIO
+#if !defined(NO_BIO) && defined(HAVE_PKCS12)
 WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
 {
     WC_PKCS12* localPkcs12    = NULL;
@@ -25393,7 +25386,7 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
 
     return ret;
 }
-#endif /* !NO_BIO */
+#endif /* !NO_BIO && HAVE_PKCS12 */
 
 /* Copies unencrypted DER key buffer into "der". If "der" is null then the size
  * of buffer needed is returned. If *der == NULL then it allocates a buffer.
@@ -25406,6 +25399,7 @@ int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
     return wolfSSL_EVP_PKEY_get_der(key, der);
 }
 
+#ifdef HAVE_PKCS12
 /* Creates a new WC_PKCS12 structure
  *
  * pass  password to use
@@ -25793,6 +25787,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
     return wc_PKCS12_verify_ex(pkcs12, (const byte*)psw, pswLen) == 0 ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
+#endif /* HAVE_PKCS12 */
 #endif /* !NO_ASN && !NO_PWDBASED */
 
 
@@ -26019,7 +26014,47 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
 }
-
+/**
+ * Get ex_data in WOLFSSL_STORE at given index
+ * @param store a pointer to WOLFSSL_X509_STORE structure
+ * @param idx   Index of ex_data to get data from 
+ * @return void pointer to ex_data on success or NULL on failure
+ */
+void* wolfSSL_X509_STORE_get_ex_data(WOLFSSL_X509_STORE* store, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_get_ex_data");
+#ifdef HAVE_EX_DATA
+    if (store != NULL && idx < MAX_EX_DATA && idx >= 0) {
+        return wolfSSL_CRYPTO_get_ex_data(&store->ex_data, idx);
+    }
+#else
+    (void)store;
+    (void)idx;
+#endif
+    return NULL;
+}
+/**
+ * Set ex_data for WOLFSSL_STORE
+ * @param store a pointer to WOLFSSL_X509_STORE structure
+ * @param idx   Index of ex data to set
+ * @param data  Data to set in ex data
+ * @return WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_STORE_set_ex_data(WOLFSSL_X509_STORE* store, int idx, 
+                                                                     void *data)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_set_ex_data");
+#ifdef HAVE_EX_DATA
+    if (store != NULL && idx < MAX_EX_DATA) {
+        return wolfSSL_CRYPTO_set_ex_data(&store->ex_data, idx, data);
+    }
+#else
+    (void)store;
+    (void)idx;
+    (void)data;
+#endif
+    return WOLFSSL_FAILURE;
+}
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
@@ -26379,7 +26414,7 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
             newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
         }
     #endif
-    #if !defined(NO_ASN) && !defined(NO_PWDBASED)
+    #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
         else if (type == PKCS12_TYPE) {
             if ((newx509 = wc_PKCS12_new()) == NULL) {
                 goto err_exit;
@@ -26404,7 +26439,7 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
     goto _exit;
 
 err_exit:
-#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
     if ((newx509 != NULL) && (type == PKCS12_TYPE)) {
         wc_PKCS12_free((WC_PKCS12*)newx509);
         newx509 = NULL;
@@ -32297,7 +32332,11 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 #endif
 
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
-
+    /* sanity check */
+    if (buf == NULL || num < 0)
+        /* return code compliant with OpenSSL */
+        return 0;
+        
     /* if a RAND callback has been set try and use it */
 #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
     if (wolfSSL_RAND_InitMutex() == 0 && wc_LockMutex(&gRandMethodMutex) == 0) {
