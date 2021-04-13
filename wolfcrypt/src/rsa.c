@@ -607,111 +607,86 @@ int wc_FreeRsaKey(RsaKey* key)
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 #if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
-/* Check the pair-wise consistency of the RSA key.
- * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
+
+/* Check the pair-wise consistency of the RSA key. */
+static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
+{
+    const char* msg = "Everyone gets Friday off.";
+    byte* sig;
+    byte* plain;
+    int ret = 0;
+    word32 msgLen, plainLen, sigLen;
+
+    msgLen = (word32)XSTRLEN(msg);
+    sigLen = wc_RsaEncryptSize(key);
+
+    /* Sign and verify. */
+    sig = (byte*)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_RSA);
+    if (sig == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(sig, 0, sigLen);
+
+    ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
+    if (ret > 0) {
+        sigLen = (word32)ret;
+        ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
+    }
+
+    if (ret > 0) {
+        plainLen = (word32)ret;
+        ret = (msgLen != plainLen) || (XMEMCMP(plain, msg, msgLen) != 0);
+    }
+
+    if (ret != 0)
+        ret = RSA_KEY_PAIR_E;
+
+    ForceZero(sig, sigLen);
+    XFREE(sig, NULL, DYNAMIC_TYPE_RSA);
+
+    return ret;
+}
+
+
 int wc_CheckRsaKey(RsaKey* key)
 {
 #if defined(WOLFSSL_CRYPTOCELL)
     return 0;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int *k = NULL, *tmp = NULL;
+    mp_int *tmp = NULL;
+    WC_RNG *rng = NULL;
 #else
-    mp_int k[1], tmp[1];
+    mp_int tmp[1];
+    WC_RNG rng[1];
 #endif
     int ret = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    k = (mp_int*)XMALLOC(sizeof(mp_int) * 2, NULL, DYNAMIC_TYPE_RSA);
-    if (k == NULL)
+    rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (rng != NULL)
+        tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_RSA);
+    if (rng == NULL || tmp == NULL) {
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
-    tmp = k + 1;
+    }
 #endif
 
-    if (mp_init_multi(k, tmp, NULL, NULL, NULL, NULL) != MP_OKAY)
-        ret = MP_INIT_E;
+    ret = wc_InitRng(rng);
+
+    if (ret == 0) {
+        if (mp_init(tmp) != MP_OKAY)
+            ret = MP_INIT_E;
+    }
 
     if (ret == 0) {
         if (key == NULL)
             ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0) {
-        if (mp_set_int(k, 0x2342) != MP_OKAY)
-            ret = MP_READ_E;
-    }
-#ifdef WOLFSSL_HAVE_SP_RSA
-    if (ret == 0) {
-        switch (mp_count_bits(&key->n)) {
-    #ifndef WOLFSSL_SP_NO_2048
-            case 2048:
-                ret = sp_ModExp_2048(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                    ret = sp_ModExp_2048(tmp, &key->d, &key->n, tmp);
-                    if (ret != 0)
-                        ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_NO_2048 */
-    #ifndef WOLFSSL_SP_NO_3072
-            case 3072:
-                ret = sp_ModExp_3072(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                  ret = sp_ModExp_3072(tmp, &key->d, &key->n, tmp);
-                  if (ret != 0)
-                      ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_NO_3072 */
-    #ifdef WOLFSSL_SP_4096
-            case 4096:
-                ret = sp_ModExp_4096(k, &key->e, &key->n, tmp);
-                if (ret != 0)
-                    ret = MP_EXPTMOD_E;
-                if (ret == 0) {
-                  ret = sp_ModExp_4096(tmp, &key->d, &key->n, tmp);
-                  if (ret != 0)
-                      ret = MP_EXPTMOD_E;
-                }
-                break;
-    #endif /* WOLFSSL_SP_4096 */
-                default:
-                /* If using only single precision math then issue key size
-                 * error, otherwise fall-back to multi-precision math
-                 * calculation */
-                #if defined(WOLFSSL_SP_MATH)
-                    ret = WC_KEY_SIZE_E;
-                #else
-                    if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
-                        ret = MP_EXPTMOD_E;
-                    if (ret == 0) {
-                        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
-                            ret = MP_EXPTMOD_E;
-                    }
-                #endif
-                    break;
-        }
-    }
-#else
-    if (ret == 0) {
-        if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
-            ret = MP_EXPTMOD_E;
-    }
-
-    if (ret == 0) {
-        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
-            ret = MP_EXPTMOD_E;
-    }
-#endif /* WOLFSSL_HAVE_SP_RSA */
-
-    if (ret == 0) {
-        if (mp_cmp(k, tmp) != MP_EQ)
-            ret = RSA_KEY_PAIR_E;
-    }
+    if (ret == 0)
+        ret = _ifc_pairwise_consistency_test(key, rng);
 
     /* Check d is less than n. */
     if (ret == 0 ) {
@@ -798,9 +773,10 @@ int wc_CheckRsaKey(RsaKey* key)
 
     mp_forcezero(tmp);
     mp_clear(tmp);
-    mp_clear(k);
+    wc_FreeRng(rng);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(k, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(tmp, NULL, DYNAMIC_TYPE_RSA);
+    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;
@@ -4499,10 +4475,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(p);
     mp_clear(q);
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
+#ifndef WOLFSSL_NO_RSA_KEY_CHECK
     /* Perform the pair-wise consistency test on the new key. */
     if (err == 0)
-        err = wc_CheckRsaKey(key);
+        err = _ifc_pairwise_consistency_test(key, rng);
 #endif
 
     if (err != 0) {
