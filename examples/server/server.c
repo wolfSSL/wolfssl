@@ -1956,7 +1956,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(catastrophic, "unable to get ctx");
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    ret =  wolfsentry_init(NULL /* allocator */, NULL /* timecbs */, NULL /* default config */, &wolfsentry);
+    ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */, &wolfsentry);
     if (ret != 0) {
         fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
         err_sys_ex(catastrophic, "unable to initialize wolfSentry");
