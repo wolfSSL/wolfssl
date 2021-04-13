@@ -102,9 +102,6 @@ int unit_test(int argc, char** argv)
     if (wc_RunCast_fips(FIPS_CAST_RSA_SIGN_PKCS1v15) != 0) {
         err_sys("RSA sign CAST failed");
     }
-    if (wc_RunCast_fips(FIPS_CAST_ECC_CDH) != 0) {
-        err_sys("ECC-CDH CAST failed");
-    }
     if (wc_RunCast_fips(FIPS_CAST_ECC_PRIMITIVE_Z) != 0) {
         err_sys("ECC Primitive Z CAST failed");
     }
