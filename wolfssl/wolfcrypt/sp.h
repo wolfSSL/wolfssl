@@ -62,11 +62,9 @@
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 
-/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
- * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
- * the non-const prototypes */
+/* non-const versions only needed for inlined ARM assembly */
 #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
-    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_RsaPublic_2048(const byte* in, word32 inLen,
     mp_int* em, mp_int* mm, byte* out, word32* outLen);
@@ -115,11 +113,9 @@ WOLFSSL_LOCAL int sp_RsaPrivate_4096(const byte* in, word32 inLen,
 
 #if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
-/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
- * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
- * the non-const prototypes */
+/* non-const versions only needed for inlined ARM assembly */
 #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
-    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
@@ -151,11 +147,9 @@ WOLFSSL_LOCAL int sp_ModExp_4096(const mp_int* base, const mp_int* exp,
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
-/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
- * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
- * the non-const prototypes */
+/* non-const versions only needed for inlined ARM assembly */
 #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
-    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);
@@ -179,11 +173,9 @@ WOLFSSL_LOCAL int sp_DhExp_4096(const mp_int* base, const byte* exp,
 
 #ifdef WOLFSSL_HAVE_SP_ECC
 
-/* NOTE: GCC 4.x disapproves of inconsistencies between prototypes and
- * Implementation, when FIPSv2 is being used, if gcc version is 4.x use
- * the non-const prototypes */
+/* non-const versions only needed for inlined ARM assembly */
 #if defined(HAVE_FIPS_VERSION) && HAVE_FIPS_VERSION == 2 \
-    && (!defined(__GNUC__) || (defined(__GNUC__) && !(__GNUC__ == 4)))
+    && ( defined(WOLFSSL_SP_ARM32_ASM) || defined(WOLFSSL_SP_ARM64_ASM) )
 
 int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* rm, int map,
                       void* heap);
