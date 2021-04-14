@@ -171,6 +171,13 @@ int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         word32 key_e_start, word32 key_e_len,
                         byte *tsip_encRsaKeyIdx);
 #endif
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+#ifdef HAVE_ECC
+    static int CheckCurve(word32 oid);
+#endif
+#endif
+
 int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
@@ -2766,9 +2773,6 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* NO_RSA */
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
-#ifdef HAVE_ECC
-static int CheckCurve(word32 oid);
-#endif
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
 int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
@@ -2806,19 +2810,16 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
         #ifdef HAVE_ECC
         ret = GetObjectId(input, &idx, &oidSum, oidIgnoreType, sz);
         if (ret == 0) {
-            if ((ret = CheckCurve(oidSum)) < 0)
-                ret = ECC_CURVE_OID_E;
-            else {
+            if ((ret = CheckCurve(oidSum)) < 0){
+                WOLFSSL_MSG("Not found corresponding Curve");
+            } else {
                 if (crvId != NULL)
                  *crvId = ret;
-                ret = 0;
             }
         }
         #else
-        if (tag == ASN_OBJECT_ID) {
-            if (SkipObjectId(input, &idx, sz) < 0)
+        if (SkipObjectId(input, &idx, sz) < 0)
                 return ASN_PARSE_E;
-        }
         #endif
     }
 
@@ -16579,13 +16580,18 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     word32 crvId = ECC_CURVE_DEF;
     
     /* check if input has pkcs8 header */
-    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx, (word32)inSz,
-                                                        &algId, &crvId)) > 0) {
-        key->haspkcs8header = 1;
-    } else {
-        WOLFSSL_MSG("key doesn't have PKCS8 header");
+    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx, 
+                                        (word32)inSz, &algId, &crvId)) <= 0) {
+       WOLFSSL_MSG("key doesn't have PKCS8 header");
     }
-    
+    #if defined(HAVE_PKCS8)
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
+     else {
+        key->haspkcs8header = 1;
+    }
+    #endif
+    #endif
     return wc_EccPrivateKeyDecode_ex(input, inOutIdx, key, inSz, crvId);
 }
 /* return ecc key with pkcs 8 header based on input                     */
@@ -16599,14 +16605,19 @@ int wc_EccPKCS8PrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* ke
 {
     int ret;
     word32 algId = 0;
-    word32 crvId = 0;
+    word32 crvId = ECC_CURVE_DEF;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
     /* check if input has pkcs8 header */
-    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx, (word32)inSz,
-                                                        &algId, &crvId)) > 0) {
+    if ((ret = ToTraditionalInline_ex((const byte*)(input), inOutIdx,
+                                           (word32)inSz, &algId, &crvId)) > 0) {
+        #if defined(HAVE_PKCS8)
+        #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
         key->haspkcs8header = 1;
+        #endif
+        #endif
         return wc_EccPrivateKeyDecode_ex(input, inOutIdx, key, inSz, crvId);
     } else {
         WOLFSSL_MSG("key doesn't have PKCS8 header");
