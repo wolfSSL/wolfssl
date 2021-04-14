@@ -21200,6 +21200,7 @@ static int ecc_test_sign_vectors(WC_RNG* rng)
     if (ret != 0) {
         goto done;
     }
+    wc_ecc_set_flags(&key, WC_ECC_FLAG_DEC_SIGN);
 
     ret = wc_ecc_sign_set_k(k, sizeof(k), &key);
     if (ret != 0) {
@@ -21566,6 +21567,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     /* make public key for shared secret */
     wc_ecc_init_ex(pub, HEAP_HINT, devId);
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, pub);
+    wc_ecc_set_flags(key, WC_ECC_FLAG_COFACTOR);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &pub->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif

@@ -1224,7 +1224,7 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 #endif
 static int _ecc_validate_public_key(ecc_key* key, int partial, int priv);
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
-static int _ecc_pairwise_consistency_test(ecc_key* key);
+static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng);
 #endif
 
 
@@ -4607,8 +4607,8 @@ int wc_ecc_make_pub_ex(ecc_key* key, ecc_point* pubOut, WC_RNG* rng)
 }
 
 
-int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
-                        int flags)
+static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
+        int curve_id, int flags)
 {
 
     int err;
@@ -4826,12 +4826,21 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
 #endif /* WOLFSSL_ATECC508A */
 
+    return err;
+}
+
+
+int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
+                        int flags)
+{
+    int err = _ecc_make_key_ex(rng, keysize, key, curve_id, flags);
+
     if (err == MP_OKAY) {
         err = _ecc_validate_public_key(key, 0, 0);
     }
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     if (err == MP_OKAY) {
-        err = _ecc_pairwise_consistency_test(key);
+        err = _ecc_pairwise_consistency_test(key, rng);
     }
 #endif
 
@@ -5549,8 +5558,8 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
         else
 #endif
         {
-            err = wc_ecc_make_key_ex(rng, key->dp->size, pubkey,
-                                                                key->dp->id);
+            err = _ecc_make_key_ex(rng, key->dp->size, pubkey, key->dp->id,
+                    WC_ECC_FLAG_NONE);
         }
         if (err != MP_OKAY) break;
 
@@ -8289,11 +8298,57 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 /* Performs a Pairwise Consistency Test on an ECC key pair. */
-static int _ecc_pairwise_consistency_test(ecc_key* key)
+static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 {
     int err = 0;
+    int flags = key->flags;
 
-    if (ecc_check_privkey_gen_helper(key) != 0)
+    if ((flags & (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN)) == 0)
+        flags = (WC_ECC_FLAG_COFACTOR | WC_ECC_FLAG_DEC_SIGN);
+
+    if (flags & WC_ECC_FLAG_COFACTOR) {
+        err = ecc_check_privkey_gen_helper(key);
+    }
+
+    if (!err && (flags & WC_ECC_FLAG_DEC_SIGN)) {
+        byte* sig;
+        byte* digest;
+        word32 sigLen, digestLen;
+        int dynRng = 0, res = 0;
+
+        sigLen = wc_ecc_sig_size(key);
+        digestLen = WC_SHA256_DIGEST_SIZE;
+        sig = (byte*)XMALLOC(sigLen + digestLen, NULL, DYNAMIC_TYPE_ECC);
+        if (sig == NULL)
+            return MEMORY_E;
+        digest = sig + sigLen;
+
+        if (rng == NULL) {
+            dynRng = 1;
+            rng = wc_rng_new(NULL, 0, NULL);
+            if (rng == NULL) {
+                XFREE(sig, NULL, DYNAMIC_TYPE_ECC);
+                return MEMORY_E;
+            }
+        }
+
+        err = wc_RNG_GenerateBlock(rng, digest, digestLen);
+
+        if (!err)
+            err = wc_ecc_sign_hash(digest, WC_SHA256_DIGEST_SIZE, sig, &sigLen,
+                    rng, key);
+        if (!err)
+            err = wc_ecc_verify_hash(sig, sigLen,
+                    digest, WC_SHA256_DIGEST_SIZE, &res, key);
+
+        if (dynRng) {
+            wc_rng_free(rng);
+        }
+        ForceZero(sig, sigLen + digestLen);
+        XFREE(sig, NULL, DYNAMIC_TYPE_ECC);
+    }
+
+    if (err != 0)
         err = ECC_PCT_E;
 
     return err;
@@ -9050,7 +9105,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if ((pub != NULL) && (ret == MP_OKAY))
         /* public key needed to perform key validation */
-        ret = _ecc_pairwise_consistency_test(key);
+        ret = _ecc_validate_public_key(key, 1, 1);
 #endif
 
     return ret;
