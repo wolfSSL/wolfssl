@@ -55466,9 +55466,9 @@ void wolfSSL_CONF_CTX_free(WOLFSSL_CONF_CTX* cctx)
     }
 }
 /**
- * Release WOLFSSL_CONF_CTX instance
- * @param cctx a pointer to WOLFSSL_CONF_CTX structure to set a pointer
- *             to WOLFSSL_CTX
+ * Set WOLFSSL_CTX instance to WOLFSSL_CONF_CTX
+ * @param cctx a pointer to WOLFSSL_CONF_CTX structure to set a WOLFSSL_CTX 
+ *             pointer to its ctx 
  * @param ctx  a pointer to WOLFSSL_CTX structure to be set
  * @return none
  */
@@ -55476,37 +55476,37 @@ void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CTX *ctx)
 {
     WOLFSSL_ENTER("wolfSSL_CONF_CTX_set_ssl_ctx");
     
-    //sanity check
+    /* sanity check */
     if (cctx == NULL) {
         WOLFSSL_MSG("cctx is null");
         return;
     }
     
-    if (ctx != NULL) {
-        cctx->ctx = ctx;
-    } else {
-        cctx->ctx = NULL;
-    }
+    cctx->ctx = ctx;
 }
 /**
  * set flag value into WOLFSSL_CONF_CTX
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure to be set
- * @param flags falg value to be OR'sd
+ * @param flags falg value to be OR'd
  * @return OR'd flag value, otherwise 0
  */
-unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx, unsigned int flags)
+unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx, 
+                                                            unsigned int flags)
 {
-    //sanity check
-    if (cctx == NULL) return 0;
+    /* sanity check */
+    if (cctx == NULL)
+        return 0;
     
     cctx->flags |= flags;
     return cctx->flags;
 }
+
 #ifndef NO_WOLFSSL_STUB
 /**
  * finish configuration command operation
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure to be set
- * @return WOLFSSL_FAILURE for now
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
  */
 int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
 {
@@ -55519,7 +55519,8 @@ int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
  * @param cmd   configuration command
  * @param value arguments for cmd
- * @return WOLFSSL_FAILURE for now
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
  */
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
@@ -55531,14 +55532,15 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 }
 
 /**
- * returns a new idex or -1 on failure
+ * returns a new index or -1 on failure
  * @param class index one of CRYPTO_EX_INDEX_xxx
  * @param argp  parameters to be saved
  * @param argl  parameters to be saved
  * @param new_func a pointer to WOLFSSL_CRYPTO_EX_new
  * @param dup_func a pointer to WOLFSSL_CRYPTO_EX_dup
  * @param free_func a pointer to WOLFSSL_CRYPTO_EX_free
- * @return WOLFSSL_FAILURE for now
+ * @return WOLFSSL_SUCCESS on success, 
+ *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
  */
 #ifdef HAVE_EX_DATA
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
@@ -55558,11 +55560,11 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
 #endif
 
 /**
- * retrive p, q and g parameter
+ * Return DH p, q and g parameters
  * @param dh a pointer to WOLFSSL_DH
- * @param p  a pointer to WOLFSSL_BIGNUM to be obtained dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained dh
+ * @param p  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
+ * @param q  a pointer to WOLFSSL_BIGNUM to be obtained from dh
  */
 void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
                     const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
