@@ -36721,7 +36721,7 @@ static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
     AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
 
-    #if defined(WOLFSSL_QT)
+    #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
         /* void */
         EVP_PKEY_CTX_free(ctx);
         AssertTrue(1);
