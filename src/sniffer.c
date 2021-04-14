@@ -4828,7 +4828,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
     word32 length;
     WOLFSSL* ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                                   (*session)->sslServer : (*session)->sslClient;
-    byte  skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
+    byte skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                         (*session)->flags.srvSkipPartial :
                         (*session)->flags.cliSkipPartial;
     /* remove SnifferSession on 2nd FIN or RST */
@@ -4865,7 +4865,8 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* if current partial data, add to end of partial */
     /* if skipping, the data is already at the end of partial */
-    if ( !skipPartial && (length = ssl->buffers.inputBuffer.length) ) {
+    length = ssl->buffers.inputBuffer.length;
+    if ( !skipPartial && length ) {
         Trace(PARTIAL_ADD_STR);
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
