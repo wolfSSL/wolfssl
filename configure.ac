@@ -3348,7 +3348,7 @@ fi
 AS_CASE([$FIPS_VERSION],
     ["v5"], [ # FIPS 140-3
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=5 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING"
-        ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"; ENABLED=WOLFSSH="yes"
+        ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
@@ -6864,6 +6864,9 @@ AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
         test "x$ENABLED_MCAST" = "xyes"],
       [AM_CFLAGS="-DHAVE_NULL_CIPHER $AM_CFLAGS"
        ENABLED_NULL_CIPHER=yes])
+
+# FIPSv5 requires the wolfSSH option.
+AS_IF([test "x$FIPS_VERSION" = "xv5"],[ENABLED_WOLFSSH="yes"])
 
 # wolfSSH and WPA Supplicant both need Public MP, only enable once.
 # This will let you know if you enabled wolfSSH but have any of the prereqs

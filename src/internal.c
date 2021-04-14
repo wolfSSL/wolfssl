@@ -23595,8 +23595,8 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
 
     if (!wc_DhCmpNamedKey(group, 1,
             ssl->buffers.serverDH_P.buffer, ssl->buffers.serverDH_P.length,
-            NULL, 0,
-            ssl->buffers.serverDH_G.buffer, ssl->buffers.serverDH_G.length)) {
+            ssl->buffers.serverDH_G.buffer, ssl->buffers.serverDH_G.length,
+            NULL, 0)) {
         WOLFSSL_MSG("Server not using FFDHE parameters");
     #ifdef WOLFSSL_REQUIRE_FFDHE
         SendAlert(ssl, alert_fatal, handshake_failure);
@@ -24970,6 +24970,18 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
+#ifdef HAVE_FFDHE
+                    if (ssl->namedGroup) {
+                        ret = wc_DhSetNamedKey(ssl->buffers.serverDH_Key,
+                                ssl->namedGroup);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
+                        ssl->buffers.sig.length =
+                            wc_DhGetNamedKeyMinSize(ssl->namedGroup);
+                    }
+                    else
+#endif
                     #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
                         !defined(WOLFSSL_OLD_PRIME_CHECK)
                     if (ssl->options.dhDoKeyTest &&
@@ -25115,8 +25127,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
-                        args->output + OPAQUE16_LEN, &args->length);
+                            ssl->buffers.sig.buffer,
+                            (word32*)&ssl->buffers.sig.length,
+                            args->output + OPAQUE16_LEN, &args->length);
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
@@ -26874,28 +26887,26 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             /* Free'd in SSL_ResourceFree and
                              * FreeHandshakeResources */
                             ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
-                                    pSz + OPAQUE16_LEN,
-                                    ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                    pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
-                            ssl->buffers.serverDH_Pub.length =
-                                pSz + OPAQUE16_LEN;
+                            ssl->buffers.serverDH_Pub.length = pSz;
                         }
+                        ssl->options.dhKeySz =(word16)pSz;
+
+                        pSz = wc_DhGetNamedKeyMinSize(ssl->namedGroup);
+
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and
                              * FreeHandshakeResources */
                             ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
-                                    pSz + OPAQUE16_LEN,
-                                    ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+                                    pSz, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
                             if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
-                            ssl->buffers.serverDH_Priv.length =
-                                pSz + OPAQUE16_LEN;
+                            ssl->buffers.serverDH_Priv.length = pSz;
                         }
-
-                        ssl->options.dhKeySz =(word16)pSz;
 
                         ret = AllocKey(ssl, DYNAMIC_TYPE_DH,
                                             (void**)&ssl->buffers.serverDH_Key);
@@ -26932,25 +26943,25 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and FreeHandshakeResources */
                             ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(
-                                    ssl->buffers.serverDH_P.length + OPAQUE16_LEN,
+                                    ssl->buffers.serverDH_P.length,
                                     ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             if (ssl->buffers.serverDH_Pub.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
                             ssl->buffers.serverDH_Pub.length =
-                                ssl->buffers.serverDH_P.length + OPAQUE16_LEN;
+                                ssl->buffers.serverDH_P.length;
                         }
 
                         if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                             /* Free'd in SSL_ResourceFree and FreeHandshakeResources */
                             ssl->buffers.serverDH_Priv.buffer = (byte*)XMALLOC(
-                                    ssl->buffers.serverDH_P.length + OPAQUE16_LEN,
+                                    ssl->buffers.serverDH_P.length,
                                     ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
                             if (ssl->buffers.serverDH_Priv.buffer == NULL) {
                                 ERROR_OUT(MEMORY_E, exit_sske);
                             }
                             ssl->buffers.serverDH_Priv.length =
-                                ssl->buffers.serverDH_P.length + OPAQUE16_LEN;
+                                ssl->buffers.serverDH_P.length;
                         }
 
                         ssl->options.dhKeySz =

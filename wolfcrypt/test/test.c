@@ -16026,8 +16026,8 @@ static int dh_fips_generate_test(WC_RNG *rng)
         0xec, 0x24, 0x5d, 0x78, 0x59, 0xe7, 0x8d, 0xb5,
         0x40, 0x52, 0xed, 0x41
     };
-    byte   priv[256];
-    byte   pub[256];
+    byte   priv[sizeof q];
+    byte   pub[sizeof p];
     word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 
@@ -16364,10 +16364,10 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(-8050, done);
 #endif
 
-    pubSz = MAX_DH_KEY_SZ;
-    pubSz2 = MAX_DH_KEY_SZ;
-    privSz = MAX_DH_PRIV_SZ;
-    privSz2 = MAX_DH_PRIV_SZ;
+    pubSz = FFDHE_KEY_SIZE;
+    pubSz2 = FFDHE_KEY_SIZE;
+    privSz = wc_DhGetNamedKeyMinSize(name);
+    privSz2 = privSz;
 
     XMEMSET(key, 0, sizeof(*key));
     XMEMSET(key2, 0, sizeof(*key2));
