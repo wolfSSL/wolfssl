@@ -42352,7 +42352,7 @@ static void test_wolfSSL_OpenSSL_version()
     printf(testingFmt, "test_wolfSSL_OpenSSL_version()");
     const char* ver;
     
-    #if defined(WOLFSSL_QT)
+    #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
     AssertNotNull(ver = OpenSSL_version(0));
     #else
     AssertNotNull(ver = OpenSSL_version());

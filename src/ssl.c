@@ -16179,7 +16179,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
-#if defined(WOLFSSL_QT)
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
     WOLFSSL_BIO* wolfSSL_BIO_new(const WOLFSSL_BIO_METHOD* method)
 #else
     WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD* method)
@@ -16198,7 +16198,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (bio) {
             XMEMSET(bio, 0, sizeof(WOLFSSL_BIO));
             bio->type = (byte)method->type;
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
             bio->method = (WOLFSSL_BIO_METHOD*)method;
+#else
+            bio->method = method;
+#endif
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->num = -1; /* Default to invalid socket */
             bio->init = 1;
@@ -22032,7 +22036,7 @@ const char* wolfSSL_lib_version(void)
 }
 
 #ifdef OPENSSL_EXTRA
-#ifdef WOLFSSL_QT
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const char* wolfSSL_OpenSSL_version(int a)
 {
     (void)a;
@@ -23350,7 +23354,6 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #ifndef NO_CERTS
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-#if defined(WOLFSSL_QT)
     const unsigned char* wolfSSL_ASN1_STRING_get0_data(
                                             const WOLFSSL_ASN1_STRING* asn)
     {
@@ -23362,7 +23365,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return NULL;
         }
     }
-#endif
+
     unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
         WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
@@ -36336,7 +36339,7 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
 /**
  * return nist curve id
  * @param name nist curve name
- * @return nist curve id when find, 0 when not find
+ * @return nist curve id when found, 0 when not found
  */
 int wolfSSL_EC_curve_nist2nid(const char* name)
 {
@@ -48897,7 +48900,7 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
 #endif
 }
 
-#if defined(WOLFSSL_QT)
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 int wolfSSL_SSL_in_init(const WOLFSSL *ssl)
 #else
 int wolfSSL_SSL_in_init(WOLFSSL *ssl)
@@ -55329,7 +55332,7 @@ int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff)
 }
 
 /**
- * set security level(wolfSSL doesn't suppor security level)
+ * set security level (wolfSSL doesn't support security level)
  * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
  * @param level security level
  */
@@ -55340,7 +55343,7 @@ void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level)
     (void)level;
 }
 /**
- * get security level(wolfSSL doesn't suppor security level)
+ * get security level (wolfSSL doesn't support security level)
  * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
  * @return always 0(level 0)
  */
@@ -55366,21 +55369,22 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
 }
 
 /**
- * get call back function for psk session use
+ * set call back function for psk session use
  * @param ssl  a pointer to WOLFSSL structure
  * @return none
  */
 void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
-                                               wolfSSL_psk_use_session_cb_func cb)
+                                            wolfSSL_psk_use_session_cb_func cb)
 {
     WOLFSSL_STUB("wolfSSL_set_psk_use_session_callback");
     (void)ssl;
     (void)cb;
 }
 /**
- * Determine whether an WOLFSSL_SESSION object can be used for resumption
+ * Determine whether a WOLFSSL_SESSION object can be used for resumption
  * @param s  a pointer to WOLFSSL_SESSION structure
- * @return always 0 cannot
+ * @return return 1 if session is resumable, 
+ *              otherwise 0 (currently always 0 with stub)
  */
 int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s)
 {
@@ -55391,21 +55395,31 @@ int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s)
 
 #endif /* NO_WOLFSSL_STUB */
 
-#ifdef WOLFSSL_QT
+/**
+ * free allocated memory resouce
+ * @param str  a pointer to resource to be freed
+ * @param file dummy argument
+ * @param line dummy argument
+ */
 void wolfSSL_CRYPTO_free(void *str, const char *file, int line)
 {
     (void)file;
     (void)line;
     XFREE(str, 0, DYNAMIC_TYPE_TMP_BUFFER);
 }
-
+/**
+ * allocate memory with size of num
+ * @param num  size of memory allocation to be malloced
+ * @param file dummy argument
+ * @param line dummy argument
+ * @return a pointer to allocated memory on succssesful, otherwise NULL
+ */
 void *wolfSSL_CRYPTO_malloc(size_t num, const char *file, int line)
 {
     (void)file;
     (void)line;
     return XMALLOC(num, 0, DYNAMIC_TYPE_TMP_BUFFER);
 }
-#endif /* WOLFSSL_QT */
 #endif /* OPENSSL_EXTRA */
 
 #endif /* !WOLFCRYPT_ONLY */

@@ -137,13 +137,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
-#ifdef WOLFSSL_QT
 #define CRYPTO_free                     wolfSSL_CRYPTO_free
 #define CRYPTO_malloc                   wolfSSL_CRYPTO_malloc
-#else
-#define CRYPTO_free(xp)                 XFREE(xp, NULL, DYNAMIC_TYPE_TMP_BUFFER)
-#define CRYPTO_malloc(sz)               XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER)
-#endif
 #define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
 #define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup
 #define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
@@ -772,11 +767,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_STRING_free                wolfSSL_ASN1_STRING_free
 #define ASN1_STRING_cmp                 wolfSSL_ASN1_STRING_cmp
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
-#if defined(WOLFSSL_QT)
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_get0_data
-#else
-#define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_data
-#endif
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_UNIVERSALSTRING_to_string  wolfSSL_ASN1_UNIVERSALSTRING_to_string
@@ -1391,7 +1382,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define sk_X509_OBJECT_delete           wolfSSL_sk_X509_OBJECT_delete
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type(x)         0
-#ifdef WOLFSSL_QT
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version(x)
 #else
 #define OpenSSL_version(x)              wolfSSL_OpenSSL_version()

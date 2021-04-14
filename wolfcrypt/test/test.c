@@ -18013,20 +18013,14 @@ WOLFSSL_TEST_SUBROUTINE int openssl_test(void)
     /* test malloc / free , 10 is an arbitrary amount of memory chosen */
     {
         byte* p;
-#ifdef WOLFSSL_QT
+
         p = (byte*)CRYPTO_malloc(10, "", 0);
-#else
-        p = (byte*)CRYPTO_malloc(10);
-#endif
+
         if (p == NULL) {
             return -8600;
         }
         XMEMSET(p, 0, 10);
-#ifdef WOLFSSL_QT
         CRYPTO_free(p, "", 0);
-#else
-        CRYPTO_free(p);
-#endif
     }
 
 #ifndef NO_MD5
