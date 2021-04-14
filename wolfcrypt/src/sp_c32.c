@@ -1754,14 +1754,14 @@ static WC_INLINE sp_digit sp_2048_div_word_45(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 23 bits from d1 and top 8 bits from d0. */
-    d = (d1 << 8) | (d0 >> 15);
+    d = (d1 << 8) + (d0 >> 15);
     r = d / dv;
     d -= r * dv;
     /* Up to 9 bits in r */
     /* Next 8 bits from d0. */
     r <<= 8;
     d <<= 8;
-    d |= (d0 >> 7) & ((1 << 8) - 1);
+    d += (d0 >> 7) & ((1 << 8) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -1769,10 +1769,11 @@ static WC_INLINE sp_digit sp_2048_div_word_45(sp_digit d1, sp_digit d0,
     /* Remaining 7 bits from d0. */
     r <<= 7;
     d <<= 7;
-    d |= d0 & ((1 << 7) - 1);
+    d += d0 & ((1 << 7) - 1);
     t = d / dv;
     r += t;
 
+    /* All 23 bits from d1 and top 8 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -2642,14 +2643,14 @@ static WC_INLINE sp_digit sp_2048_div_word_90(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 23 bits from d1 and top 8 bits from d0. */
-    d = (d1 << 8) | (d0 >> 15);
+    d = (d1 << 8) + (d0 >> 15);
     r = d / dv;
     d -= r * dv;
     /* Up to 9 bits in r */
     /* Next 8 bits from d0. */
     r <<= 8;
     d <<= 8;
-    d |= (d0 >> 7) & ((1 << 8) - 1);
+    d += (d0 >> 7) & ((1 << 8) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -2657,10 +2658,11 @@ static WC_INLINE sp_digit sp_2048_div_word_90(sp_digit d1, sp_digit d0,
     /* Remaining 7 bits from d0. */
     r <<= 7;
     d <<= 7;
-    d |= d0 & ((1 << 7) - 1);
+    d += d0 & ((1 << 7) - 1);
     t = d / dv;
     r += t;
 
+    /* All 23 bits from d1 and top 8 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -5629,14 +5631,14 @@ static WC_INLINE sp_digit sp_3072_div_word_67(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 23 bits from d1 and top 8 bits from d0. */
-    d = (d1 << 8) | (d0 >> 15);
+    d = (d1 << 8) + (d0 >> 15);
     r = d / dv;
     d -= r * dv;
     /* Up to 9 bits in r */
     /* Next 8 bits from d0. */
     r <<= 8;
     d <<= 8;
-    d |= (d0 >> 7) & ((1 << 8) - 1);
+    d += (d0 >> 7) & ((1 << 8) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -5644,10 +5646,11 @@ static WC_INLINE sp_digit sp_3072_div_word_67(sp_digit d1, sp_digit d0,
     /* Remaining 7 bits from d0. */
     r <<= 7;
     d <<= 7;
-    d |= d0 & ((1 << 7) - 1);
+    d += d0 & ((1 << 7) - 1);
     t = d / dv;
     r += t;
 
+    /* All 23 bits from d1 and top 8 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -6541,14 +6544,14 @@ static WC_INLINE sp_digit sp_3072_div_word_134(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 23 bits from d1 and top 8 bits from d0. */
-    d = (d1 << 8) | (d0 >> 15);
+    d = (d1 << 8) + (d0 >> 15);
     r = d / dv;
     d -= r * dv;
     /* Up to 9 bits in r */
     /* Next 8 bits from d0. */
     r <<= 8;
     d <<= 8;
-    d |= (d0 >> 7) & ((1 << 8) - 1);
+    d += (d0 >> 7) & ((1 << 8) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -6556,10 +6559,11 @@ static WC_INLINE sp_digit sp_3072_div_word_134(sp_digit d1, sp_digit d0,
     /* Remaining 7 bits from d0. */
     r <<= 7;
     d <<= 7;
-    d |= d0 & ((1 << 7) - 1);
+    d += d0 & ((1 << 7) - 1);
     t = d / dv;
     r += t;
 
+    /* All 23 bits from d1 and top 8 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -9683,14 +9687,14 @@ static WC_INLINE sp_digit sp_4096_div_word_98(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 21 bits from d1 and top 10 bits from d0. */
-    d = (d1 << 10) | (d0 >> 11);
+    d = (d1 << 10) + (d0 >> 11);
     r = d / dv;
     d -= r * dv;
     /* Up to 11 bits in r */
     /* Next 10 bits from d0. */
     r <<= 10;
     d <<= 10;
-    d |= (d0 >> 1) & ((1 << 10) - 1);
+    d += (d0 >> 1) & ((1 << 10) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -9698,10 +9702,11 @@ static WC_INLINE sp_digit sp_4096_div_word_98(sp_digit d1, sp_digit d0,
     /* Remaining 1 bits from d0. */
     r <<= 1;
     d <<= 1;
-    d |= d0 & ((1 << 1) - 1);
+    d += d0 & ((1 << 1) - 1);
     t = d / dv;
     r += t;
 
+    /* All 21 bits from d1 and top 10 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -10588,14 +10593,14 @@ static WC_INLINE sp_digit sp_4096_div_word_196(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 21 bits from d1 and top 10 bits from d0. */
-    d = (d1 << 10) | (d0 >> 11);
+    d = (d1 << 10) + (d0 >> 11);
     r = d / dv;
     d -= r * dv;
     /* Up to 11 bits in r */
     /* Next 10 bits from d0. */
     r <<= 10;
     d <<= 10;
-    d |= (d0 >> 1) & ((1 << 10) - 1);
+    d += (d0 >> 1) & ((1 << 10) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -10603,10 +10608,11 @@ static WC_INLINE sp_digit sp_4096_div_word_196(sp_digit d1, sp_digit d0,
     /* Remaining 1 bits from d0. */
     r <<= 1;
     d <<= 1;
-    d |= d0 & ((1 << 1) - 1);
+    d += d0 & ((1 << 1) - 1);
     t = d / dv;
     r += t;
 
+    /* All 21 bits from d1 and top 10 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -17637,14 +17643,14 @@ static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 26 bits from d1 and top 5 bits from d0. */
-    d = (d1 << 5) | (d0 >> 21);
+    d = (d1 << 5) + (d0 >> 21);
     r = d / dv;
     d -= r * dv;
     /* Up to 6 bits in r */
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 16) & ((1 << 5) - 1);
+    d += (d0 >> 16) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -17652,7 +17658,7 @@ static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 11) & ((1 << 5) - 1);
+    d += (d0 >> 11) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -17660,7 +17666,7 @@ static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 6) & ((1 << 5) - 1);
+    d += (d0 >> 6) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -17668,7 +17674,7 @@ static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 1) & ((1 << 5) - 1);
+    d += (d0 >> 1) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -17676,10 +17682,11 @@ static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     /* Remaining 1 bits from d0. */
     r <<= 1;
     d <<= 1;
-    d |= d0 & ((1 << 1) - 1);
+    d += d0 & ((1 << 1) - 1);
     t = d / dv;
     r += t;
 
+    /* All 26 bits from d1 and top 5 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -25374,14 +25381,14 @@ static WC_INLINE sp_digit sp_384_div_word_15(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 26 bits from d1 and top 5 bits from d0. */
-    d = (d1 << 5) | (d0 >> 21);
+    d = (d1 << 5) + (d0 >> 21);
     r = d / dv;
     d -= r * dv;
     /* Up to 6 bits in r */
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 16) & ((1 << 5) - 1);
+    d += (d0 >> 16) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -25389,7 +25396,7 @@ static WC_INLINE sp_digit sp_384_div_word_15(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 11) & ((1 << 5) - 1);
+    d += (d0 >> 11) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -25397,7 +25404,7 @@ static WC_INLINE sp_digit sp_384_div_word_15(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 6) & ((1 << 5) - 1);
+    d += (d0 >> 6) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -25405,7 +25412,7 @@ static WC_INLINE sp_digit sp_384_div_word_15(sp_digit d1, sp_digit d0,
     /* Next 5 bits from d0. */
     r <<= 5;
     d <<= 5;
-    d |= (d0 >> 1) & ((1 << 5) - 1);
+    d += (d0 >> 1) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -25413,10 +25420,11 @@ static WC_INLINE sp_digit sp_384_div_word_15(sp_digit d1, sp_digit d0,
     /* Remaining 1 bits from d0. */
     r <<= 1;
     d <<= 1;
-    d |= d0 & ((1 << 1) - 1);
+    d += d0 & ((1 << 1) - 1);
     t = d / dv;
     r += t;
 
+    /* All 26 bits from d1 and top 5 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
@@ -27860,14 +27868,14 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     sp_digit t;
 
     /* All 25 bits from d1 and top 6 bits from d0. */
-    d = (d1 << 6) | (d0 >> 19);
+    d = (d1 << 6) + (d0 >> 19);
     r = d / dv;
     d -= r * dv;
     /* Up to 7 bits in r */
     /* Next 6 bits from d0. */
     r <<= 6;
     d <<= 6;
-    d |= (d0 >> 13) & ((1 << 6) - 1);
+    d += (d0 >> 13) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -27875,7 +27883,7 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     /* Next 6 bits from d0. */
     r <<= 6;
     d <<= 6;
-    d |= (d0 >> 7) & ((1 << 6) - 1);
+    d += (d0 >> 7) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -27883,7 +27891,7 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     /* Next 6 bits from d0. */
     r <<= 6;
     d <<= 6;
-    d |= (d0 >> 1) & ((1 << 6) - 1);
+    d += (d0 >> 1) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
@@ -27891,10 +27899,11 @@ static WC_INLINE sp_digit sp_1024_div_word_42(sp_digit d1, sp_digit d0,
     /* Remaining 1 bits from d0. */
     r <<= 1;
     d <<= 1;
-    d |= d0 & ((1 << 1) - 1);
+    d += d0 & ((1 << 1) - 1);
     t = d / dv;
     r += t;
 
+    /* All 25 bits from d1 and top 6 bits from d0. */
     return r;
 }
 #endif /* WOLFSSL_SP_DIV_32 */
