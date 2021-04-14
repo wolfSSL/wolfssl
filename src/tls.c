@@ -6695,6 +6695,11 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
     }
     /* Allocate space for the private key */
+    keySz = wc_DhGetNamedKeyMinSize(kse->group);
+    if (keySz == 0) {
+        ret = WC_KEY_SIZE_E;
+        goto end;
+    }
     key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     if (key == NULL) {
         ret = MEMORY_E;

@@ -939,6 +939,7 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     key->heap = heap; /* for XMALLOC/XFREE in future */
+    key->trustedGroup = 0;
 
 #ifdef WOLFSSL_DH_EXTRA
     if (mp_init_multi(&key->p, &key->g, &key->q, &key->pub, &key->priv, NULL) != MP_OKAY)
@@ -1051,8 +1052,8 @@ static int CheckDhLN(int modLen, int divLen)
 
 /* Create DH private key
  *
- * Based on NIST FIPS 186-4,
- * "B.1.1 Key Pair Generation Using Extra Random Bits"
+ * Based on NIST SP 800-56Ar3
+ * "5.6.1.1.3 Key Pair Generation Using Extra Random Bits"
  *
  * dh     - pointer to initialized DhKey structure, needs to have dh->q
  * rng    - pointer to initialized WC_RNG structure
@@ -1091,7 +1092,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     }
 
     /* generate extra 64 bits so that bias from mod function is negligible */
-    cSz = qSz + (64 / WOLFSSL_BIT_SIZE);
+    cSz = *privSz + (64 / WOLFSSL_BIT_SIZE);
     cBuf = (byte*)XMALLOC(cSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cBuf == NULL) {
         return MEMORY_E;
@@ -1143,18 +1144,18 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     ForceZero(cBuf, cSz);
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* tmpQ = q - 1 */
+    /* tmpQ: M = 2^N - 1 */
     if (err == MP_OKAY)
-        err = mp_copy(&key->q, tmpQ);
+        err = mp_2expt(tmpQ, *privSz * 8);
 
     if (err == MP_OKAY)
         err = mp_sub_d(tmpQ, 1, tmpQ);
 
-    /* x = c mod (q-1), tmpX holds c */
+    /* x = c mod (M), tmpX holds c */
     if (err == MP_OKAY)
         err = mp_mod(tmpX, tmpQ, tmpX);
 
-    /* x = c mod (q-1) + 1 */
+    /* x = c mod (M) + 1 */
     if (err == MP_OKAY)
         err = mp_add_d(tmpX, 1, tmpX);
 
@@ -1192,7 +1193,7 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
 #ifndef WOLFSSL_NO_DH186
     if (mp_iszero(&key->q) == MP_NO) {
 
-        /* q param available, use NIST FIPS 186-4, "B.1.1 Key Pair
+        /* q param available, use NIST SP 800-56Ar3, "5.6.1.1.3 Key Pair
          * Generation Using Extra Random Bits" */
         ret = GeneratePrivateDh186(key, rng, priv, privSz);
 
@@ -1894,10 +1895,6 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
         ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
     }
 
-    if (ret == 0) {
-        ret = wc_DhCheckKeyPair(key, pub, *pubSz, priv, *privSz);
-    }
-
     return ret;
 }
 
@@ -2368,7 +2365,7 @@ int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
                    word32 gSz, const byte* q, word32 qSz)
 {
-    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 0, NULL);
 }
 
 
@@ -2376,6 +2373,7 @@ int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
 int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                 word32 gSz)
 {
+    /* This should not have trusted set. */
     return _DhSetKey(key, p, pSz, g, gSz, NULL, 0, 1, NULL);
 }
 
@@ -2454,9 +2452,6 @@ int wc_DhSetNamedKey(DhKey* key, int name)
     return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
 }
 
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
-    #define HAVE_FIPS_V5
-#endif
 
 word32 wc_DhGetNamedKeyMinSize(int name)
 {
@@ -2465,47 +2460,27 @@ word32 wc_DhGetNamedKeyMinSize(int name)
     switch (name) {
         #ifdef HAVE_FFDHE_2048
         case WC_FFDHE_2048:
-            #ifndef HAVE_FIPS_V5
             size = 29;
-            #else
-            size = 256;
-            #endif
             break;
         #endif /* HAVE_FFDHE_2048 */
         #ifdef HAVE_FFDHE_3072
         case WC_FFDHE_3072:
-            #ifndef HAVE_FIPS_V5
             size = 34;
-            #else
-            size = 384;
-            #endif
             break;
         #endif /* HAVE_FFDHE_3072 */
         #ifdef HAVE_FFDHE_4096
         case WC_FFDHE_4096:
-            #ifndef HAVE_FIPS_V5
             size = 39;
-            #else
-            size = 512;
-            #endif
             break;
         #endif /* HAVE_FFDHE_4096 */
         #ifdef HAVE_FFDHE_6144
         case WC_FFDHE_6144:
-            #ifndef HAVE_FIPS_V5
-            size = 768;
-            #else
-            size = 256;
-            #endif
+            size = 46;
             break;
         #endif /* HAVE_FFDHE_6144 */
         #ifdef HAVE_FFDHE_8192
         case WC_FFDHE_8192:
-            #ifndef HAVE_FIPS_V5
             size = 52;
-            #else
-            size = 1024;
-            #endif
             break;
         #endif /* HAVE_FFDHE_8192 */
         default:
@@ -2514,10 +2489,6 @@ word32 wc_DhGetNamedKeyMinSize(int name)
 
     return size;
 }
-
-#ifdef HAVE_FIPS_V5
-    #undef HAVE_FIPS_V5
-#endif
 
 
 /* Returns 1: params match
