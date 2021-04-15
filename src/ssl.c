@@ -55374,7 +55374,7 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
  * @return none
  */
 void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
-                                            wolfSSL_psk_use_session_cb_func cb)
+                                            wc_psk_use_session_cb_func cb)
 {
     WOLFSSL_STUB("wolfSSL_set_psk_use_session_callback");
     (void)ssl;

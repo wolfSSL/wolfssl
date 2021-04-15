@@ -4259,12 +4259,12 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
 WOLFSSL_API void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
 WOLFSSL_API int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
 
-typedef int (*wolfSSL_psk_use_session_cb_func)(WOLFSSL* ssl, const WOLFSSL_EVP_MD* md,
+typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, const WOLFSSL_EVP_MD* md,
                                                const unsigned char **id,
                                                size_t* idlen,
                                                WOLFSSL_SESSION **sess);
 WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
-                                               wolfSSL_psk_use_session_cb_func cb);
+                                               wc_psk_use_session_cb_func cb);
 
 WOLFSSL_API int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s);
 
