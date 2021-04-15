@@ -289,7 +289,7 @@
 
     /* MD5 */
     #undef  NO_MD5
-    #if 1
+    #if 0
 
     #else
         #define NO_MD5
@@ -330,4 +330,12 @@
 
 //#define DEBUG_WOLFSSL
 #define NO_MAIN_DRIVER
+
+/* wolfEngine settings */
+#define WOLFSSL_PUBLIC_MP
+#define NO_WOLFSSL_DIR
+
+//#define WOLFENGINE_DEBUG
+/* TODO: Add WE_HAVE_* settings here */
+
 #endif /* _WIN_USER_SETTINGS_H_ */
