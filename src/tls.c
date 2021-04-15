@@ -10329,20 +10329,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     int set = 0;
                     int i, j;
 
-                    /* Default to first group in supported list. */
-                    namedGroup = ssl->group[0];
-                    /* Try to find preferred in supported list. */
-                    for (i = 0; i < (int)PREFERRED_GROUP_SZ && !set; i++) {
-                        for (j = 0; j < ssl->numGroups; j++) {
-                            if (preferredGroup[i] == ssl->group[j]) {
-                                /* Most preferred that is supported. */
-                                namedGroup = ssl->group[j];
+                    /* try to find the highest element in ssl->group[]
+                     * that is contained in preferredGroup[].
+                     */
+                    namedGroup = preferredGroup[0];
+                    for (i = 0; i < ssl->numGroups && !set; i++) {
+                        for (j = 0; j < (int)PREFERRED_GROUP_SZ; j++) {
+                            if (preferredGroup[j] == ssl->group[i]) {
+                                namedGroup = ssl->group[i];
                                 set = 1;
                                 break;
                             }
                         }
                     }
                 }
+
                 else {
                     /* Choose the most preferred group. */
                     namedGroup = preferredGroup[0];
