@@ -14687,7 +14687,38 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveStaticECC, ssl->options.haveAnon,
                    ssl->options.side);
     }
+    #ifdef OPENSSL_EXTRA
+    /**
+     * set call back function for psk session use
+     * @param ssl  a pointer to WOLFSSL structure
+     * @param cb   a function pointer to wc_psk_use_session_cb
+     * @return none
+     */
+    void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
+                                                wc_psk_use_session_cb_func cb)
+    {
+        byte haveRSA = 1;
+        int  keySz   = 0;
+        
+        WOLFSSL_ENTER("wolfSSL_set_psk_use_session_callback");
+        
+        ssl->options.havePSK = 1;
+        ssl->options.session_psk_cb = cb;
 
+        #ifdef NO_RSA
+            haveRSA = 0;
+        #endif
+        #ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+        #endif
+        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
+                   ssl->options.haveDH, ssl->options.haveNTRU,
+                   ssl->options.haveECDSAsig, ssl->options.haveECC,
+                   ssl->options.haveStaticECC, ssl->options.haveAnon,
+                   ssl->options.side);
+    }
+    #endif
+    
     void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX* ctx,
                                          wc_psk_server_callback cb)
     {
@@ -22095,6 +22126,28 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
     FreeSession(session, 0);
 #endif
 }
+/**
+* set cipher to WOLFSSL_SESSION from WOLFSSL_CIPHER
+* @param session  a pointer to WOLFSSL_SESSION structure
+* @param cipher   a function pointer to WOLFSSL_CIPHER
+* @return WOLFSSL_SUCCESS on success, otherwise WOLFSSL_FAILURE
+*/
+int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session, 
+                                            const WOLFSSL_CIPHER* cipher)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_set_cipher");
+    
+    /* sanity check */
+    if (session == NULL || cipher == NULL) {
+        WOLFSSL_MSG("bad argument");
+        return WOLFSSL_FAILURE;
+    }
+    session->cipherSuite0 = cipher->cipherSuite0;
+    session->cipherSuite  = cipher->cipherSuite;
+    
+    WOLFSSL_LEAVE("wolfSSL_SESSION_set_cipher", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
 #endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
 
@@ -22330,19 +22383,18 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 
 const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
 {
-    const WOLFSSL_CIPHER* cipher = NULL;
-    byte cipherSuite0, cipherSuite;
+    WOLFSSL_CIPHER* cipher = NULL;
     WOLFSSL_ENTER("SSL_get_cipher_by_value");
 
-    /* extract cipher id information */
-    cipherSuite =   (value       & 0xFF);
-    cipherSuite0 = ((value >> 8) & 0xFF);
+    cipher = (WOLFSSL_CIPHER*)XMALLOC(sizeof(WOLFSSL_CIPHER), NULL,
+                        DYNAMIC_TYPE_OPENSSL);
+    if (cipher != NULL) {
+        /* extract cipher id information */
+        cipher->cipherSuite  = (value        & 0xFF);
+        cipher->cipherSuite0 = ((value >> 8) & 0xFF);
+    }
 
-    /* TODO: lookup by cipherSuite0 / cipherSuite */
-    (void)cipherSuite0;
-    (void)cipherSuite;
-
-    return cipher;
+    return (const WOLFSSL_CIPHER*)cipher;
 }
 
 
@@ -55860,21 +55912,7 @@ int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx)
     return 0;
 }
 
-#ifndef NO_WOLFSSL_STUB
 
-/**
- * set call back function for psk session use
- * @param ssl  a pointer to WOLFSSL structure
- * @return none
- */
-void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
-                                            wc_psk_use_session_cb_func cb)
-{
-    WOLFSSL_STUB("wolfSSL_set_psk_use_session_callback");
-    (void)ssl;
-    (void)cb;
-}
-#endif /* NO_WOLFSSL_STUB */
 /**
  * Determine whether a WOLFSSL_SESSION object can be used for resumption
  * @param s  a pointer to WOLFSSL_SESSION structure

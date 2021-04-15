@@ -1515,19 +1515,45 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     return 32;   /* length of key in octets or 0 for error */
 }
 
+#if defined(OPENSSL_EXTRA)
+static unsigned char local_psk[32];
 static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl, 
             const WOLFSSL_EVP_MD* md, const unsigned char **id,
             size_t* idlen,  WOLFSSL_SESSION **sess)
 {
+    int i;
+    int b = 0x01;
+    WOLFSSL_SESSION* lsess;
+    /* TLS13_BYTE 0x13 */
+    /* TLS_AES_128_GCM_SHA256 0x01 */
+    word16 cipher_id = (0x13<<8) | 0x01;
+    const SSL_CIPHER* cipher = NULL;
     (void)ssl;
     (void)md;
-    (void)id;
-    (void)idlen;
-    (void)sess;
-   
-    return 0;
+    
+    printf("use psk session callback \n");
+    
+    lsess = wolfSSL_SESSION_new();
+    if (lsess == NULL) {
+        return 0;
+    }
+    cipher = SSL_get_cipher_by_value(cipher_id);
+    
+    SSL_SESSION_set_cipher(lsess, cipher);
+    
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        local_psk[i] = b;
+    }
+    
+    *id = local_psk;
+    *idlen = 32;
+    *sess = lsess;
+    
+    return 1;
 }
-
+#endif
 #endif /* !NO_PSK */
 
 
