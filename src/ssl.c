@@ -55369,18 +55369,6 @@ int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx)
 #ifndef NO_WOLFSSL_STUB
 
 /**
- * validate the algorithm parameters of the key-pair
- * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
- * @return WOLFSSL_FAILURE for now
- */
-int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
-{
-    WOLFSSL_STUB("wolfSSL_EVP_PKEY_param_check");
-    (void)ctx;
-    return WOLFSSL_FAILURE;
-}
-
-/**
  * set call back function for psk session use
  * @param ssl  a pointer to WOLFSSL structure
  * @return none
