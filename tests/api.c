@@ -27659,7 +27659,12 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         EVP_PKEY_free(pkey);
         pkey  = NULL;
         
+    #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
         {
+            /* This test is available when no FIPS and no selftest  */
+            /* because new attribute in ecc_key is not available on */
+            /* those mode.                                          */
             /* Qt unit test case 2*/
             file = XFOPEN(fname_p8, "rb");
             AssertTrue((file != XBADFILE));
@@ -27690,6 +27695,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
             EVP_PKEY_free(pkey);
             pkey  = NULL;
         }
+    #endif
     }
 #endif
 

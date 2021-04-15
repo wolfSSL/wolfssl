@@ -6498,7 +6498,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 /* try and populate public pkey_sz and pkey.ptr */
 static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 {
-    word32 derSz = 0;
+    int derSz = 0;
     
     if (!pkey || !ecc)
         return WOLFSSL_FAILURE;
@@ -6509,10 +6509,10 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
     /* when ecc key has pkcs 8 header   */
     /* pkey will have the pkcs 8 header */
     if (ecc->haspkcs8header) {
-        if (wc_EccKeyToPKCS8(ecc, NULL, &derSz) == LENGTH_ONLY_E) {
+        if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
             byte* derBuf = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
             if (derBuf) {
-                if (wc_EccKeyToPKCS8(ecc, derBuf, &derSz) >= 0) {
+                if (wc_EccKeyToPKCS8(ecc, derBuf, (word32*)&derSz) >= 0) {
                     if (pkey->pkey.ptr) {
                         XFREE(pkey->pkey.ptr, NULL, DYNAMIC_TYPE_OPENSSL);
                     }
