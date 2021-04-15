@@ -352,7 +352,7 @@ static int wolfsentry_store_endpoints(
 static int wolfSentry_NetworkFilterCallback(WOLFSSL *ssl, struct wolfsentry_context *wolfsentry, wolfSSL_netfilter_decision_t *decision) {
     struct wolfsentry_data *data;
     char inet_ntop_buf[INET6_ADDRSTRLEN], inet_ntop_buf2[INET6_ADDRSTRLEN];
-    int ret;
+    wolfsentry_errcode_t ret;
     wolfsentry_action_res_t action_results;
 
     if ((data = wolfSSL_get_ex_data(ssl, wolfsentry_data_index)) == NULL)
@@ -360,7 +360,7 @@ static int wolfSentry_NetworkFilterCallback(WOLFSSL *ssl, struct wolfsentry_cont
 
     ret = wolfsentry_route_event_dispatch(wolfsentry, &data->remote, &data->local, data->flags, NULL /* event_label */, 0 /* event_label_len */, NULL /* caller_context */, NULL /* id */, NULL /* inexact_matches */, &action_results);
 
-    if (ret == 0) {
+    if (ret >= 0) {
         if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_REJECT))
             *decision = WOLFSSL_NETFILTER_REJECT;
         else if (WOLFSENTRY_CHECK_BITS(action_results, WOLFSENTRY_ACTION_RES_ACCEPT))
@@ -1119,6 +1119,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     SSL*        ssl    = 0;
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     struct wolfsentry_context *wolfsentry = NULL;
+    wolfsentry_errcode_t wolfsentry_ret;
 #endif
 
     int    useWebServerMsg = 0;
@@ -1956,9 +1957,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         err_sys_ex(catastrophic, "unable to get ctx");
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */, &wolfsentry);
-    if (ret != 0) {
-        fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
+    wolfsentry_ret =  wolfsentry_init(NULL /* hpi */, NULL /* default config */, &wolfsentry);
+    if (wolfsentry_ret < 0) {
+        fprintf(stderr, "wolfsentry_init() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
         err_sys_ex(catastrophic, "unable to initialize wolfSentry");
     }
 
@@ -1968,14 +1969,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     {
         struct wolfsentry_route_table *table;
 
-        if ((ret = wolfsentry_route_get_table_static(wolfsentry, &table)) != 0)
-            fprintf(stderr, "wolfsentry_route_get_table_static() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
-        if (ret == 0) {
-            if ((ret = wolfsentry_route_table_default_policy_set(wolfsentry, table, WOLFSENTRY_ACTION_RES_REJECT|WOLFSENTRY_ACTION_RES_STOP)) != 0)
-                fprintf(stderr, "wolfsentry_route_table_default_policy_set(WOLFSENTRY_ACTION_RES_REJECT) returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
+        if ((wolfsentry_ret = wolfsentry_route_get_table_static(wolfsentry, &table)) < 0)
+            fprintf(stderr, "wolfsentry_route_get_table_static() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
+        if (wolfsentry_ret >= 0) {
+            if ((wolfsentry_ret = wolfsentry_route_table_default_policy_set(wolfsentry, table, WOLFSENTRY_ACTION_RES_REJECT|WOLFSENTRY_ACTION_RES_STOP)) < 0)
+                fprintf(stderr, "wolfsentry_route_table_default_policy_set(WOLFSENTRY_ACTION_RES_REJECT) returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
         }
 
-        if (ret == 0) {
+        if (wolfsentry_ret >= 0) {
             struct {
                 struct wolfsentry_sockaddr sa;
                 byte buf[16];
@@ -1995,7 +1996,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 //            remote.sa.sa_proto = local.sa.sa_proto = IPPROTO_TCP;
 
-            if ((ret = wolfsentry_route_insert_static
+            if ((wolfsentry_ret = wolfsentry_route_insert_static
                  (wolfsentry, NULL /* caller_context */, &remote.sa, &local.sa,
                   WOLFSENTRY_ROUTE_FLAG_GREENLISTED              |
                   WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN             |
@@ -2007,12 +2008,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                   WOLFSENTRY_ROUTE_FLAG_SA_REMOTE_PORT_WILDCARD  |
                   WOLFSENTRY_ROUTE_FLAG_SA_LOCAL_PORT_WILDCARD,
                   0 /* event_label_len */, 0 /* event_label */, &id, &action_results)) < 0)
-                fprintf(stderr, "wolfsentry_route_insert_static() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(ret));
+                fprintf(stderr, "wolfsentry_route_insert_static() returned " WOLFSENTRY_ERROR_FMT "\n", WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
 //            else
 //                fprintf(stderr, "wolfsentry static greenlist rule for localhost has ID %u.\n",id);
         }
 
-        if (ret != 0)
+        if (wolfsentry_ret < 0)
             err_sys_ex(catastrophic, "unable to configure route table");
     }
 
@@ -2719,10 +2720,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             if (((struct sockaddr *)&client_addr)->sa_family != ((struct sockaddr *)&local_addr)->sa_family)
                 err_sys_ex(catastrophic, "client_addr.sa_family != local_addr.sa_family");
 
-            if (wolfsentry_store_endpoints(ssl, &client_addr, &local_addr, dtlsUDP ? IPPROTO_UDP : IPPROTO_TCP, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) != WOLFSSL_SUCCESS) {
-                printf("wolfsentry_store_endpoints(): %s\n", wolfSSL_ERR_error_string(ret, NULL));
+            if (wolfsentry_store_endpoints(ssl, &client_addr, &local_addr, dtlsUDP ? IPPROTO_UDP : IPPROTO_TCP, WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) != WOLFSSL_SUCCESS)
                 err_sys_ex(catastrophic, "error in wolfsentry_store_endpoints()");
-            }
         }
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
@@ -3108,9 +3107,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 exit:
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
-    ret = wolfsentry_shutdown(&wolfsentry);
-    if (ret != 0) {
-        fprintf(stderr, "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT, WOLFSENTRY_ERROR_FMT_ARGS(ret));
+    wolfsentry_ret = wolfsentry_shutdown(&wolfsentry);
+    if (wolfsentry_ret < 0) {
+        fprintf(stderr, "wolfsentry_shutdown() returned " WOLFSENTRY_ERROR_FMT, WOLFSENTRY_ERROR_FMT_ARGS(wolfsentry_ret));
     }
 #endif
 
