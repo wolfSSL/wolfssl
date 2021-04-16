@@ -107,7 +107,7 @@ WOLFSSL_LOCAL int sp_RsaPrivate_4096(const byte* in, word32 inLen,
     const mp_int* dqm, const mp_int* qim, const mp_int* mm, byte* out,
     word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
@@ -141,7 +141,7 @@ WOLFSSL_LOCAL int sp_ModExp_3072(const mp_int* base, const mp_int* exp,
 WOLFSSL_LOCAL int sp_ModExp_4096(const mp_int* base, const mp_int* exp,
     const mp_int* mod, mp_int* res);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif
 
@@ -167,7 +167,7 @@ WOLFSSL_LOCAL int sp_DhExp_3072(const mp_int* base, const byte* exp,
 WOLFSSL_LOCAL int sp_DhExp_4096(const mp_int* base, const byte* exp,
     word32 expLen, const mp_int* mod, byte* out, word32* outLen);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !gcc 4.x */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2 && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #endif /* WOLFSSL_HAVE_SP_DH */
 
@@ -295,7 +295,7 @@ int sp_ecc_is_point_1024(const mp_int* pX, const mp_int* pY);
 int sp_ecc_check_key_1024(const mp_int* pX, const mp_int* pY,
     const mp_int* privm, void* heap);
 
-#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !gcc 4.x */
+#endif /* HAVE_FIPS_VERSION && HAVE_FIPS_VERSION == 2  && !WOLFSSL_SP_ARM[32|64]_ASM */
 
 #ifdef WOLFSSL_SP_NONBLOCK
 int sp_ecc_sign_256_nb(sp_ecc_ctx_t* ctx, const byte* hash, word32 hashLen,
