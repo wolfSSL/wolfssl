@@ -2607,7 +2607,8 @@ static byte helloRetryRequestRandom[] = {
 
 #ifndef NO_WOLFSSL_CLIENT
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_PSK_ONE_ID) && \
+    !defined(NO_PSK)
 /**
 * convert mac algorithm to WOLFSSL_EVP_MD
 * @param mac_alg mac algorithm
@@ -2737,7 +2738,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
                     return PSK_KEY_ERROR;
                 }
                 
-                ssl->arrays->psk_keySz = idlen;
+                ssl->arrays->psk_keySz = (word32)idlen;
                 XMEMCPY(ssl->arrays->psk_key, id, idlen);
                 cipherSuite0 = psksession->cipherSuite0;
                 cipherSuite  = psksession->cipherSuite;

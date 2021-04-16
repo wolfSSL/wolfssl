@@ -3506,7 +3506,9 @@ typedef struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
     wc_psk_server_callback server_psk_cb;
+#ifdef OPENSSL_EXTRA
     wc_psk_use_session_cb_func session_psk_cb;
+#endif
 #ifdef WOLFSSL_TLS13
     wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
