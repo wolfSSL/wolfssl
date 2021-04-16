@@ -13546,7 +13546,7 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
         WOLFSSL_MSG("Current record sequence number from the past.");
         return 0;
     }
-#ifndef WOLFSSL_DTLS_ALLOW_FUTURE
+#ifdef WOLFSSL_DTLS_DISALLOW_FUTURE
     else if (!curLT && (diff > DTLS_SEQ_BITS)) {
         WOLFSSL_MSG("Rejecting message too far into the future.");
         return 0;
