@@ -277,6 +277,7 @@
     <ClCompile Include="..\..\wolfcrypt\src\signature.c" />
     <ClCompile Include="..\..\src\ssl.c" />
     <ClCompile Include="..\..\src\tls.c" />
+    <ClCompile Include="..\..\src\tls13.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_first.c" />
     <ClCompile Include="..\..\wolfcrypt\src\wolfcrypt_last.c" />

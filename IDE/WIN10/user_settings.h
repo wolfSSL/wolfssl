@@ -67,11 +67,15 @@
         #define NO_MD5
         #define NO_OLD_TLS
 
+        #define WOLFSSL_TLS13
+        #define HAVE_TLS_EXTENSIONS
+        #define HAVE_SUPPORTED_CURVES
         #define GCM_TABLE_4BIT
         #define WOLFSSL_NO_SHAKE256
         #define WOLFSSL_VALIDATE_ECC_KEYGEN
         #define WOLFSSL_ECDSA_SET_K
         #define WOLFSSL_WOLFSSH
+        #define WOLFSSL_PUBLIC_MP
         #define WC_RNG_SEED_CB
         #define TFM_ECC256
         #define ECC_USER_CURVES
