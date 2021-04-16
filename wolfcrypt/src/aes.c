@@ -7021,13 +7021,33 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     #ifdef STM32_AESGCM_PARTIAL
     hcryp.Init.HeaderPadSize = authPadSz - authInSz;
     #endif
-    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
-    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
+    #ifdef CRYP_KEYIVCONFIG_ONCE
+    /* allows repeated calls to HAL_CRYP_Encrypt */
+    hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
+    #endif
+    ByteReverseWords(ctr, ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     HAL_CRYP_Init(&hcryp);
 
+    #ifndef CRYP_KEYIVCONFIG_ONCE
     /* GCM payload phase - can handle partial blocks */
     status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in,
         (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
+    #else
+    /* GCM payload phase - blocks */
+    if (blocks) {
+        status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in,
+            (blocks * AES_BLOCK_SIZE), (uint32_t*)out, STM32_HAL_TIMEOUT);
+    }
+    /* GCM payload phase - partial remainder */
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)partialBlock, partial,
+            (uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
+    #endif
     if (status == HAL_OK && !useSwGhash) {
         /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
@@ -7466,10 +7486,10 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         || authPadSz != authInSz
     #endif
     ) {
-		GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
-		wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
-		xorbuf(tag, partialBlock, sizeof(tag));
-		tagComputed = 1;
+        GHASH(aes, authIn, authInSz, in, sz, (byte*)tag, sizeof(tag));
+        wc_AesEncrypt(aes, (byte*)ctr, (byte*)partialBlock);
+        xorbuf(tag, partialBlock, sizeof(tag));
+        tagComputed = 1;
     }
 
     /* if using hardware for authentication tag make sure its aligned and zero padded */
@@ -7514,25 +7534,32 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     #ifdef STM32_AESGCM_PARTIAL
     hcryp.Init.HeaderPadSize = authPadSz - authInSz;
     #endif
-    ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
-    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
+    #ifdef CRYP_KEYIVCONFIG_ONCE
+    /* allows repeated calls to HAL_CRYP_Decrypt */
+    hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE;
+    #endif
+    ByteReverseWords(ctr, ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     HAL_CRYP_Init(&hcryp);
 
-    /* GCM payload phase - can handle partial blocks */
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    {
-        /* clear remainder of partial input (for 32-bit uint) */
-        word32 remain = (partial & 3);
-        if (remain > 0)
-            remain = 4 - remain;
-        while (sz > 0 && remain > 0) {
-            ((byte*)in)[sz + remain - 1] = 0;
-            remain--;
-        }
-    }
-    #endif
+    #ifndef CRYP_KEYIVCONFIG_ONCE
     status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
         (blocks * AES_BLOCK_SIZE) + partial, (uint32_t*)out, STM32_HAL_TIMEOUT);
+    #else
+    /* GCM payload phase - blocks */
+    if (blocks) {
+        status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)in,
+            (blocks * AES_BLOCK_SIZE), (uint32_t*)out, STM32_HAL_TIMEOUT);
+    }
+    /* GCM payload phase - partial remainder */
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYP_Decrypt(&hcryp, (uint32_t*)partialBlock, partial,
+(           uint32_t*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
+    #endif
     if (status == HAL_OK && !tagComputed) {
         /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag,
@@ -7618,7 +7645,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     if (status != SUCCESS)
         ret = AES_GCM_AUTH_E;
     if (tagComputed == 0)
-    	XMEMCPY(tag, partialBlock, authTagSz);
+        XMEMCPY(tag, partialBlock, authTagSz);
 #endif /* WOLFSSL_STM32_CUBEMX */
     wolfSSL_CryptHwMutexUnLock();
 
