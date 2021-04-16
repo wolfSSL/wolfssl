@@ -9895,7 +9895,7 @@ WOLFSSL_TEST_SUBROUTINE int aesgcm_test(void)
     /* Variable plain text length test */
     for (plen=1; plen<(int)sizeof(p); plen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-        result = wc_AesGcmEncrypt(enc, resultC, resultP, (word32)plen, iv1,
+         result = wc_AesGcmEncrypt(enc, resultC, p, (word32)plen, iv1,
                            sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
         result = wc_AsyncWait(result, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
