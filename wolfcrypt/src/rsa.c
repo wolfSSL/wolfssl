@@ -618,6 +618,7 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
         return MEMORY_E;
     }
     XMEMSET(sig, 0, sigLen);
+    plain = sig;
 
     ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
     if (ret > 0) {
