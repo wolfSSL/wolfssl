@@ -4275,7 +4275,11 @@ int mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P, mp_int * Y)
   return fp_exptmod_ex(G, X, digits, P, Y);
 }
 
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_exptmod_nct (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#else
 int mp_exptmod_nct (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+#endif
 {
   return fp_exptmod_nct(G, X, P, Y);
 }
@@ -4724,8 +4728,11 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 
 static int  fp_isprime_ex(fp_int *a, int t, int* result);
 
-
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_prime_is_prime(mp_int* a, int t, int* result)
+#else
 int mp_prime_is_prime(mp_int* a, int t, int* result)
+#endif
 {
     return fp_isprime_ex(a, t, result);
 }
@@ -4960,7 +4967,11 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
 }
 
 
+#if defined(FREESCALE_LTC_TFM)
+int wolfcrypt_mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
+#else
 int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
+#endif
 {
     int ret = FP_YES;
     fp_digit d;
@@ -5370,7 +5381,7 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 
 /* chars used in radix conversions */
 static wcchar fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                     "abcdefghijklmnopqrstuvwxyz+/";
+                                    "abcdefghijklmnopqrstuvwxyz+/";
 #endif
 
 #if !defined(NO_DSA) || defined(HAVE_ECC)

@@ -1450,7 +1450,7 @@ int mp_is_bit_set (mp_int *a, mp_digit b)
     mp_digit s = b % DIGIT_BIT;  /* bit index */
 
     if ((mp_digit)a->used <= i) {
-        /* no words avaialable at that bit count */
+        /* no words available at that bit count */
         return 0;
     }
 

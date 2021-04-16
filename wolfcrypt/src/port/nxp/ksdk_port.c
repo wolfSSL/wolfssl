@@ -129,9 +129,9 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
 #endif
 
         /* unsigned multiply */
-        uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB;
@@ -142,9 +142,10 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
             if (res == MP_OKAY) {
                 XMEMSET(ptrC, 0xFF, LTC_MAX_INT_BYTES);
 
-                LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, LTC_MAX_INT_BYTES, ptrB, &sizeB,
-                                kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
-                                kLTC_PKHA_TimingEqualized);
+                LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC,
+                    LTC_MAX_INT_BYTES, ptrB, &sizeB, kLTC_PKHA_IntegerArith,
+                    kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
+                    kLTC_PKHA_TimingEqualized);
 
                 ltc_reverse_array(ptrB, sizeB);
                 res = mp_read_unsigned_bin(C, ptrB, sizeB);
@@ -185,9 +186,9 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES))
     {
         int neg = 0;
-        uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
 #ifndef WOLFSSL_SP_MATH
         /* get sign for the result */
@@ -203,7 +204,8 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
             if (res == MP_OKAY) {
                 if (kStatus_Success ==
-                    LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
+                    LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC,
+                        &sizeC, kLTC_PKHA_IntegerArith))
                 {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
@@ -251,9 +253,9 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
-        uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         if (ptrA && ptrB && ptrC) {
             uint16_t sizeA, sizeB, sizeC;
@@ -261,10 +263,18 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
             res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
+            
+            /* if a >= b then reduce */
+            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrB, 
+                                                                  sizeB) >= 0) {
+                if (LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB,
+                    ptrA, &sizeA, kLTC_PKHA_IntegerArith) != kStatus_Success) {
+                    res = MP_VAL;
+                }
+            }
             if (res == MP_OKAY) {
-                if (kStatus_Success ==
-                    LTC_PKHA_ModInv(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC, &sizeC, kLTC_PKHA_IntegerArith))
-                {
+                if (LTC_PKHA_ModInv(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC,
+                        &sizeC, kLTC_PKHA_IntegerArith) == kStatus_Success) {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
                 }
@@ -308,13 +318,15 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     szC = mp_unsigned_bin_size(c);
-    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && (szC <= LTC_MAX_INT_BYTES)) {
+    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
+        (szC <= LTC_MAX_INT_BYTES))
+    {
         mp_int t;
 
-        uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrD = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         /* if A or B is negative, subtract abs(A) or abs(B) from modulus to get 
          * positive integer representation of the same number */
@@ -344,7 +356,8 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
                 res = ltc_get_lsb_bin_from_mp_int(ptrC, c, &sizeC);
 
             /* (A*B)mod C = ((A mod C) * (B mod C)) mod C  */
-            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrC, sizeC) >= 0) {
+            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrC,
+                                                                  sizeC) >= 0) {
                 if (kStatus_Success !=
                     LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrC, sizeC, ptrA,
                         &sizeA, kLTC_PKHA_IntegerArith))
@@ -352,8 +365,8 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
                     res = MP_VAL;
                 }
             }
-            if (res == MP_OKAY && (LTC_PKHA_CompareBigNum(ptrB, sizeB, ptrC, sizeC) >= 0))
-            {
+            if (res == MP_OKAY && (LTC_PKHA_CompareBigNum(ptrB, sizeB, ptrC,
+                                                                 sizeC) >= 0)) {
                 if (kStatus_Success !=
                     LTC_PKHA_ModRed(LTC_BASE, ptrB, sizeB, ptrC, sizeC, ptrB,
                         &sizeB, kLTC_PKHA_IntegerArith))
@@ -413,7 +426,9 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 {
     int res = MP_OKAY;
     int szA, szB, szC;
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
     mp_int tmp;
+#endif
 
     /* if G cannot fit into LTC_PKHA, reduce it */
     szA = mp_unsigned_bin_size(G);
@@ -432,15 +447,16 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
     szB = mp_unsigned_bin_size(X);
     szC = mp_unsigned_bin_size(P);
 
-    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
+    if ((szA <= LTC_MAX_INT_BYTES) && 
+        (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
         mp_int t;
 
         uint16_t sizeG, sizeX, sizeP;
-        uint8_t *ptrG = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrX = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrP = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrG = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrX = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrP = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         /* if G is negative, add modulus to convert to positive number for LTC */
         res = mp_init(&t);
@@ -460,29 +476,27 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrP, P, &sizeP);
 
-            /* if number if greater that modulo, we must first reduce due to 
-               LTC requirement on modular exponentiation */
+            /* if number if greater that modulo, we must first reduce due to LTC 
+               requirement on modular exponentiation */
             /* it needs number less than modulus.  */
-            /* we can take advantage of modular arithmetic rule that: A^B mod C = ( (A mod C)^B ) mod C
-               and so we do first (A mod N) : LTC does not give size requirement on A versus N,
-               and then the modular exponentiation.
+            /* we can take advantage of modular arithmetic rule that: 
+                A^B mod C = ( (A mod C)^B ) mod C
+               and so we do first (A mod N) : LTC does not give size requirement 
+               on A versus N, and then the modular exponentiation.
              */
-            /* if G >= P then */
-            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, sizeP) >= 0) {
-                res = (int)LTC_PKHA_ModRed(LTC_BASE, ptrG, sizeG, ptrP, sizeP,
-                    ptrG, &sizeG, kLTC_PKHA_IntegerArith);
-
-                if (res != kStatus_Success) {
+            /* if G >= P then reduce */
+            if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, 
+                                                                  sizeP) >= 0) {
+                if (LTC_PKHA_ModRed(LTC_BASE, ptrG, sizeG, ptrP, sizeP,
+                    ptrG, &sizeG, kLTC_PKHA_IntegerArith) != kStatus_Success) {
                     res = MP_VAL;
                 }
             }
 
             if (res == MP_OKAY) {
-                res = (int)LTC_PKHA_ModExp(LTC_BASE, ptrG, sizeG, ptrP, sizeP,
-                    ptrX, sizeX, ptrP, &sizeP, kLTC_PKHA_IntegerArith,
-                    kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized);
-
-                if (res != kStatus_Success) {
+                if (LTC_PKHA_ModExp(LTC_BASE, ptrG, sizeG, ptrP, sizeP, ptrX, sizeX, 
+                    ptrP, &sizeP, kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue, 
+                    kLTC_PKHA_TimingEqualized) != kStatus_Success) {
                     res = MP_VAL;
                 }
                 else {
@@ -523,6 +537,79 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 
     return res;
 }
+
+int mp_exptmod_nct (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+{
+    /* use hardware implementation even for non-constant time operations */
+    return mp_exptmod(G, X, P, Y);
+}
+
+#if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || \
+    defined(WOLFSSL_KEY_GEN)
+int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
+{
+    int res = MP_OKAY;
+    int szA;
+
+    szA = mp_unsigned_bin_size(a);
+    if (szA <= LTC_MAX_INT_BYTES) {
+        uint16_t sizeA, sizeB;
+        uint8_t *ptrA, *ptrB;
+
+        sizeB = mp_count_bits(a);
+        /* The base size is the number of bits / 8. One is added if the number
+         * of bits isn't an even 8. */
+        sizeB = (sizeB / 8) + ((sizeB % 8) ? 1 : 0);
+        
+        ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrB = (uint8_t*)XMALLOC(sizeB, NULL, DYNAMIC_TYPE_BIGINT);
+        if (ptrA == NULL || ptrB == NULL) {
+            res = MEMORY_E;
+        }
+
+    #ifndef WC_NO_RNG
+        if (res == MP_OKAY && rng != NULL) {
+            res = wc_RNG_GenerateBlock(rng, ptrB, sizeB);
+        }
+    #else
+        res = NOT_COMPILED_IN;
+    #endif
+
+        if (res == MP_OKAY) {
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
+        }
+        if (res == MP_OKAY) {
+            if (LTC_PKHA_PrimalityTest(LTC_BASE, 
+                ptrB, sizeB,             /* seed */
+                (uint8_t*)&t, sizeof(t), /* trials */
+                ptrA, sizeA,             /* candidate */
+                (bool*)result) != kStatus_Success) {
+                res = MP_MEM;
+            }
+        }
+
+        if (ptrB) {
+            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+        if (ptrA) {
+            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+    }
+    else {
+#if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
+        res = mp_prime_is_prime_ex(a, t, result, rng);
+#else
+        res = NOT_COMPILED_IN;
+#endif
+    }
+    return res;
+}
+
+int mp_prime_is_prime(mp_int* a, int t, int* result)
+{
+    return mp_prime_is_prime_ex(a, t, result, NULL);
+}
+#endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
 #endif /* FREESCALE_LTC_TFM */
 
@@ -567,7 +654,8 @@ static int ltc_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
     return res;
 }
 
-/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA driver functions */
+/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA 
+ * driver functions */
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
 #define ECC192
 #endif
