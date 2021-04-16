@@ -19,9 +19,9 @@
   <gccCCompileDirectories targetArch="ppc">$(DESK_DIR)/ppc/include</gccCCompileDirectories>
   <gccCCompileDirectories targetArch="x86">$(DESK_DIR)/x86/include</gccCCompileDirectories>
   <gccCCompileDirectories>$(DESK_DIR)/include</gccCCompileDirectories>
-  <gccCCompileDirectories>$(PROJECT_DIR.wolfssl)/../../../..</gccCCompileDirectories>
-  <gccCCompileDirectories>$(PROJECT_DIR.wolfssl)/../../../../fips</gccCCompileDirectories>
-  <gccCCompileDirectories>$(PROJECT_DIR.wolfssl)/..</gccCCompileDirectories>
+  <gccCCompileDirectories>$(PROJECT_DIR)/../../../..</gccCCompileDirectories>
+  <gccCCompileDirectories>$(PROJECT_DIR)/../../../../fips</gccCCompileDirectories>
+  <gccCCompileDirectories>$(PROJECT_DIR)/..</gccCCompileDirectories>
   <gccCCompileDirectories>$(PROJECT_DIR.printx)/code</gccCCompileDirectories>
   <gccCCompileDefinedMacros>WOLFSSL_USER_SETTINGS</gccCCompileDefinedMacros>
   <gccCppLinkDirectories targetArch="arm">$(DESK_DIR)/arm/appbin</gccCppLinkDirectories>
@@ -30,4 +30,7 @@
   <gccCppLinkUseIntermediateArchive>true</gccCppLinkUseIntermediateArchive>
   <gccCppLinkAdditionalOptions>-L $(PROJECT_DIR.printx)/output/powerpc-motorola-elf/diagnostic</gccCppLinkAdditionalOptions>
   <fpuType>none</fpuType>
+  <ignore>fips.c</ignore>
+  <ignore>fips_test.c</ignore>
+  <ignore>selftest.c</ignore>
 </project>
