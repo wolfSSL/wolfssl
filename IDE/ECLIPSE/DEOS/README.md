@@ -19,6 +19,8 @@ wolfSSL supports a compile-time user configurable options in the
 
 In this section you will import a pre-configured example project.
 
+Note: To work wolfssl directory must not be under the workspace directory.
+
 1. Launch the OpenArbor IDE as an administrator
 2. In the Workspace Launcher dialog, in the Workspace field, enter
    your workspace
