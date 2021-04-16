@@ -34799,7 +34799,7 @@ static int mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return -12766;
 #endif
 
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) || !defined(NO_DH)
     ret = sp_2expt(NULL, 1);
     if (ret != MP_VAL)
         return -12767;

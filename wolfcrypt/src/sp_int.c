@@ -2855,7 +2855,7 @@ int sp_set_bit(sp_int* a, int i)
         * WOLFSSL_KEY_GEN || OPENSSL_EXTRA || !NO_RSA */
 
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(WOLFSSL_KEY_GEN)
+    defined(WOLFSSL_KEY_GEN) || !defined(NO_DH)
 /* Exponentiate 2 to the power of e: a = 2^e
  * This is done by setting the 'e'th bit.
  *
@@ -2880,7 +2880,7 @@ int sp_2expt(sp_int* a, int e)
     return err;
 }
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * WOLFSSL_KEY_GEN */
+        * WOLFSSL_KEY_GEN || !NO_DH */
 
 /**********************
  * Digit/Long functions
