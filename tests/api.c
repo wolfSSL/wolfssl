@@ -23879,9 +23879,9 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     PKCS7*      pkcs7;
     WC_RNG      rng;
     byte        output[FOURK_BUF];
-    byte        badOut[0];
+    byte        badOut[1];
     word32      outputSz = (word32)sizeof(output);
-    word32      badOutSz = (word32)sizeof(badOut);
+    word32      badOutSz = 0;
     byte        data[] = "Test data to encode.";
 
 #ifndef NO_RSA
@@ -24360,8 +24360,8 @@ static void test_wc_PKCS7_VerifySignedData(void)
     byte   output[FOURK_BUF];
     word32 outputSz = sizeof(output);
     byte   data[] = "Test data to encode.";
-    byte   badOut[0];
-    word32 badOutSz = (word32)sizeof(badOut);
+    byte   badOut[1];
+    word32 badOutSz = 0;
     byte   badContent[] = "This is different content than was signed";
 
     AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
@@ -41391,7 +41391,7 @@ static void test_wolfssl_EVP_aes_gcm_zeroLen(void)
     byte iv[]  = {
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
     }; /* align */
-    byte plaintxt[0];
+    byte plaintxt[1];
     int ivSz  = 12;
     int plaintxtSz = 0;
     unsigned char tag[16];

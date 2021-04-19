@@ -1007,6 +1007,14 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
 
+    #if !defined(PEDANTIC_EXTENSION)
+        #if defined(__GNUC__)
+            #define PEDANTIC_EXTENSION __extension__
+        #else
+            #define PEDANTIC_EXTENSION
+        #endif
+    #endif /* !PEDANTIC_EXTENSION */
+
 
     #ifndef TRUE
         #define TRUE  1
