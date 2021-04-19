@@ -340,7 +340,7 @@ static void pkcs11_dump_template(CK_ATTRIBUTE* templ, CK_ULONG cnt)
 /*
  * Log a PKCS #11 return value with the name of function called.
  *
- * This is only for debugging purposes. Only the values needed are recognised.
+ * This is only for debugging purposes. Only the values needed are recognized.
  *
  * @param  [in]  op  PKCS #11 operation that was attempted.
  * @param  [in]  rv  PKCS #11 return value.
@@ -415,19 +415,31 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
     if (ret == 0) {
         dev->func = NULL;
         func = dlsym(dev->dlHandle, "C_GetFunctionList");
-        if (func == NULL)
+        if (func == NULL) {
+            WOLFSSL_MSG(dlerror());
             ret = WC_HW_E;
+        }
     }
     if (ret == 0) {
-        if (((CK_C_GetFunctionList)func)(&dev->func) != CKR_OK)
+        ret = ((CK_C_GetFunctionList)func)(&dev->func);
+        if (ret != CKR_OK) {
+#ifdef WOLFSSL_DEBUG_PKCS11
+            pkcs11_rv("CK_C_GetFunctionList", ret);
+#endif
             ret = WC_HW_E;
+        }
     }
 
     if (ret == 0) {
         XMEMSET(&args, 0x00, sizeof(args));
         args.flags = CKF_OS_LOCKING_OK;
-        if (dev->func->C_Initialize(&args) != CKR_OK)
+        ret = dev->func->C_Initialize(&args);
+        if (ret != CKR_OK) {
+#ifdef WOLFSSL_DEBUG_PKCS11
+            pkcs11_rv("C_Initialize", ret);
+#endif
             ret = WC_INIT_E;
+        }
     }
 
     if (ret != 0)
