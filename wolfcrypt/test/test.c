@@ -36345,7 +36345,7 @@ WOLFSSL_TEST_SUBROUTINE int mutex_test(void)
 
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 
-#ifndef WOLFSSL_NO_MALLOC
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
 static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;
@@ -36388,7 +36388,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
 WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
 {
     int ret = 0;
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
     byte* b = NULL;
 #endif
     wolfSSL_Malloc_cb  mc;
@@ -36399,7 +36399,8 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
     if (wolfSSL_GetAllocators(&mc, &fc, &rc) != 0)
         return -13800;
 
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
+
     /* test realloc */
     b = (byte*)XREALLOC(b, 1024, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (b == NULL) {
@@ -36427,7 +36428,7 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
         ret = -13803;
 #endif /* !WOLFSSL_NO_MALLOC */
 
-#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM)
+#if !defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_STATIC_MEMORY)
 exit_memcb:
 #endif
 
