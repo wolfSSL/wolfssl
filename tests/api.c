@@ -3343,7 +3343,7 @@ done:
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
-static void test_client_nofail(void* args, void *cb)
+static void test_client_nofail(void* args, cbType cb)
 {
     SOCKET_T sockfd = 0;
     callback_functions* cbf;
@@ -3510,7 +3510,7 @@ static void test_client_nofail(void* args, void *cb)
 #endif
 
     if (cb != NULL)
-        ((cbType)cb)(ctx, ssl);
+        (cb)(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
         /*err_sys("SSL_write failed");*/
@@ -29826,7 +29826,7 @@ static void test_wolfSSL_msgCb(void)
 #ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, (void *)msgCb);
+    test_client_nofail(&client_args, msgCb);
     join_thread(serverThread);
 #endif
 
@@ -40261,7 +40261,7 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
     (void)ssl;
     /* return 0 on success */
     return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
-};
+}
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
     wolfSSL_CTX_SetDhAgreeCb(ctx, my_DhCallback);
@@ -41764,9 +41764,9 @@ typedef struct {
 ASN1_SEQUENCE(DPP_BOOTSTRAPPING_KEY) = {
     ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, alg, X509_ALGOR),
     ASN1_SIMPLE(DPP_BOOTSTRAPPING_KEY, pub_key, ASN1_BIT_STRING)
-} ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY);
+} ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY)
 
-IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
+IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY)
 #endif
 
 static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
@@ -42869,7 +42869,7 @@ static void test_export_keying_material(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args, (void*)test_export_keying_material_cb);
+    test_client_nofail(&client_args, test_export_keying_material_cb);
     join_thread(serverThread);
 
     AssertTrue(client_args.return_code);

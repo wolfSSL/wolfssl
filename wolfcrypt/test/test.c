@@ -89,7 +89,7 @@
 #endif
 
 #ifdef __GNUC__
-_Pragma("GCC diagnostic ignored \"-Wunused-function\"");
+_Pragma("GCC diagnostic ignored \"-Wunused-function\"")
 #endif
 
 #ifdef USE_FLAT_TEST_H
@@ -36409,9 +36409,9 @@ WOLFSSL_TEST_SUBROUTINE int memcb_test(void)
     b = NULL;
 
     /* Use API. */
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)(void*)&my_Malloc_cb,
-                              (wolfSSL_Free_cb)(void*)&my_Free_cb,
-                              (wolfSSL_Realloc_cb)(void*)&my_Realloc_cb) != 0) {
+    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)my_Malloc_cb,
+                              (wolfSSL_Free_cb)my_Free_cb,
+                              (wolfSSL_Realloc_cb)my_Realloc_cb) != 0) {
         ERROR_OUT(-13802, exit_memcb);
     }
 
