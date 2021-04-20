@@ -1897,42 +1897,42 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 }
 
 
-int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
 {
-    if (ctx == NULL || keySz > 16000 || keySz % 8 != 0)
+    if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
-    ctx->minDhKeySz = keySz / 8;
+    ctx->minDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
 
 
-int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz)
+int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
-    if (ssl == NULL || keySz > 16000 || keySz % 8 != 0)
+    if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
-    ssl->options.minDhKeySz = keySz / 8;
+    ssl->options.minDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
 
 
-int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
 {
-    if (ctx == NULL || keySz > 16000 || keySz % 8 != 0)
+    if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
-    ctx->maxDhKeySz = keySz / 8;
+    ctx->maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
 
 
-int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz)
+int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
-    if (ssl == NULL || keySz > 16000 || keySz % 8 != 0)
+    if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
-    ssl->options.maxDhKeySz = keySz / 8;
+    ssl->options.maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
 

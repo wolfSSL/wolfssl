@@ -6719,22 +6719,22 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX*, const char* f,
 /*!
     \ingroup CertsKeys
 
-    \brief This function sets the minimum size of the Diffie Hellman key size
-    by accessing the minDhKeySz member in the WOLFSSL_CTX structure.
+    \brief This function sets the minimum size (in bits) of the Diffie Hellman
+    key size by accessing the minDhKeySz member in the WOLFSSL_CTX structure.
 
     \return SSL_SUCCESS returned if the function completes successfully.
     \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or if
-    the keySz is greater than 16,000 or not divisible by 8.
+    the keySz_bits is greater than 16,000 or not divisible by 8.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param keySz a word16 type used to set the minimum DH key size. The
-    WOLFSSL_CTX struct holds this information in the minDhKeySz member.
+    \param keySz_bits a word16 type used to set the minimum DH key size in bits.
+    The WOLFSSL_CTX struct holds this information in the minDhKeySz member.
 
     _Example_
     \code
     public static int CTX_SetMinDhKey_Sz(IntPtr ctx, short minDhKey){
     …
-    return wolfSSL_CTX_SetMinDhKey_Sz(local_ctx, minDhKey);
+    return wolfSSL_CTX_SetMinDhKey_Sz(local_ctx, minDhKeyBits);
     \endcode
 
     \sa wolfSSL_SetMinDhKey_Sz
@@ -6743,27 +6743,28 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX*, const char* f,
     \sa wolfSSL_GetDhKey_Sz
     \sa wolfSSL_CTX_SetTMpDH_file
 */
-WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, word16);
+WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16);
 
 /*!
     \ingroup CertsKeys
 
-    \brief Sets the minimum size for a Diffie-Hellman key in the WOLFSSL
-    structure in bytes.
+    \brief Sets the minimum size (in bits) for a Diffie-Hellman key in the
+    WOLFSSL structure.
 
     \return SSL_SUCCESS the minimum size was successfully set.
-    \return BAD_FUNC_ARG the WOLFSSL structure was NULL or the keySz parameter
-    was greater than the allowable size or not divisible by 8.
+    \return BAD_FUNC_ARG the WOLFSSL structure was NULL or if the keySz_bits is
+    greater than 16,000 or not divisible by 8.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param keySz a word16 type representing the bit size of the minimum DH key.
+    \param keySz_bits a word16 type used to set the minimum DH key size in bits.
+    The WOLFSSL_CTX struct holds this information in the minDhKeySz member.
 
     _Example_
     \code
     WOLFSSL* ssl = wolfSSL_new(ctx);
-    word16 keySz;
+    word16 keySz_bits;
     ...
-    if(wolfSSL_SetMinDhKey(ssl, keySz) != SSL_SUCCESS){
+    if(wolfSSL_SetMinDhKey_Sz(ssl, keySz_bits) != SSL_SUCCESS){
 	    // Failed to set.
     }
     \endcode
@@ -6776,22 +6777,22 @@ WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, word16);
 /*!
     \ingroup CertsKeys
 
-    \brief This function sets the maximum size of the Diffie Hellman key size
-    by accessing the maxDhKeySz member in the WOLFSSL_CTX structure.
+    \brief This function sets the maximum size (in bits) of the Diffie Hellman
+    key size by accessing the maxDhKeySz member in the WOLFSSL_CTX structure.
 
     \return SSL_SUCCESS returned if the function completes successfully.
     \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or if
-    the keySz is greater than 16,000 or not divisible by 8.
+    the keySz_bits is greater than 16,000 or not divisible by 8.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param keySz a word16 type used to set the maximum DH key size. The
-    WOLFSSL_CTX struct holds this information in the maxDhKeySz member.
+    \param keySz_bits a word16 type used to set the maximum DH key size in bits.
+    The WOLFSSL_CTX struct holds this information in the maxDhKeySz member.
 
     _Example_
     \code
     public static int CTX_SetMaxDhKey_Sz(IntPtr ctx, short maxDhKey){
     …
-    return wolfSSL_CTX_SetMaxDhKey_Sz(local_ctx, maxDhKey);
+    return wolfSSL_CTX_SetMaxDhKey_Sz(local_ctx, keySz_bits);
     \endcode
 
     \sa wolfSSL_SetMinDhKey_Sz
@@ -6805,8 +6806,8 @@ WOLFSSL_API int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX*, word16);
 /*!
     \ingroup CertsKeys
 
-    \brief Sets the maximum size for a Diffie-Hellman key in the WOLFSSL
-    structure in bytes.
+    \brief Sets the maximum size (in bits) for a Diffie-Hellman key in the
+    WOLFSSL structure.
 
     \return SSL_SUCCESS the maximum size was successfully set.
     \return BAD_FUNC_ARG the WOLFSSL structure was NULL or the keySz parameter
@@ -6833,11 +6834,12 @@ WOLFSSL_API int wolfSSL_SetMaxDhKey_Sz(WOLFSSL*, word16);
 /*!
     \ingroup CertsKeys
 
-    \brief Returns the value of dhKeySz that is a member of the options
-    structure. This value represents the Diffie-Hellman key size in bytes.
+    \brief Returns the value of dhKeySz (in bits) that is a member of the
+    options structure. This value represents the Diffie-Hellman key size in
+    bytes.
 
     \return dhKeySz returns the value held in ssl->options.dhKeySz which is an
-    integer value.
+    integer value representing a size in bits.
     \return BAD_FUNC_ARG returns if the WOLFSSL struct is NULL.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
@@ -6899,7 +6901,7 @@ WOLFSSL_API int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX*, short);
 /*!
     \ingroup CertsKeys
 
-    \brief Sets the minimum allowable key size in bytes for RSA located in the
+    \brief Sets the minimum allowable key size in bits for RSA located in the
     WOLFSSL structure.
 
     \return SSL_SUCCESS the minimum was set successfully.
@@ -6928,7 +6930,7 @@ WOLFSSL_API int wolfSSL_SetMinRsaKey_Sz(WOLFSSL*, short);
 /*!
     \ingroup CertsKeys
 
-    \brief Sets the minimum size in bytes for the ECC key in the WOLF_CTX
+    \brief Sets the minimum size in bits for the ECC key in the WOLF_CTX
     structure and the WOLFSSL_CERT_MANAGER structure.
 
     \return SSL_SUCCESS returned for a successful execution and the minEccKeySz
