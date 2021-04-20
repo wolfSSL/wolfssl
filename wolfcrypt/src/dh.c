@@ -1144,9 +1144,15 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     ForceZero(cBuf, cSz);
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    /* tmpQ: M = 2^N - 1 */
+    /* tmpQ: M = min(2^N,q) - 1 */
     if (err == MP_OKAY)
         err = mp_2expt(tmpQ, *privSz * 8);
+
+    if (err == MP_OKAY) {
+        if (mp_cmp(tmpQ, &key->q) == MP_GT) {
+            err = mp_copy(&key->q, tmpQ);
+        }
+    }
 
     if (err == MP_OKAY)
         err = mp_sub_d(tmpQ, 1, tmpQ);
