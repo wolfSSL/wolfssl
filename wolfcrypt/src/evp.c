@@ -1366,16 +1366,27 @@ int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
  *
  * return WOLFSSL_SUCCESS on success
  */
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+void wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
+#else
 int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
+#endif
 {
-    if (ctx == NULL) return 0;
+    if (ctx == NULL)
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+     return;
+#else
+     return 0;
+#endif
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
     if (ctx->pkey != NULL)
         wolfSSL_EVP_PKEY_free(ctx->pkey);
     if (ctx->peerKey != NULL)
         wolfSSL_EVP_PKEY_free(ctx->peerKey);
     XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
     return WOLFSSL_SUCCESS;
+#endif
 }
 
 
