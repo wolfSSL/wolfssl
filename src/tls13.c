@@ -4626,11 +4626,19 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (!ssl->options.downgrade) {
             WOLFSSL_MSG("Client trying to connect with lesser version than "
                         "TLS v1.3");
+#ifdef OPENSSL_EXTRA
+            SendAlert(ssl, alert_fatal, handshake_failure);
+#endif
             ERROR_OUT(VERSION_ERROR, exit_dch);
         }
 
-        if (args->pv.minor < ssl->options.minDowngrade)
+        if (args->pv.minor < ssl->options.minDowngrade) {
+            WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+#ifdef OPENSSL_EXTRA
+            SendAlert(ssl, alert_fatal, handshake_failure);
+#endif
             ERROR_OUT(VERSION_ERROR, exit_dch);
+        }
 
         ret = HashInput(ssl, input + args->begin, helloSz);
         if (ret == 0) {

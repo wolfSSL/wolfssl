@@ -2008,6 +2008,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         wolfSSL_CTX_SetMinVersion(ctx, minVersion);
     }
 
+#ifdef OPENSSL_COMPATIBLE_DEFAULTS
+    /* Restore wolfSSL verify defaults */
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_DEFAULT, NULL);
+#endif
+
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
     if (wolfsentry_setup(&wolfsentry, wolfsentry_config_path,
                                       WOLFSENTRY_ROUTE_FLAG_DIRECTION_IN) < 0) {

@@ -75,6 +75,11 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
 WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
         const char *section);
 
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf_nid(WOLFSSL_CONF* conf,
+        WOLFSSL_X509V3_CTX *ctx, int nid, const char *value);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_nconf(WOLFSSL_CONF *conf,
+        WOLFSSL_X509V3_CTX *ctx, const char *sName, const char *value);
+
 #define sk_CONF_VALUE_new               wolfSSL_sk_CONF_VALUE_new
 #define sk_CONF_VALUE_free              wolfSSL_sk_CONF_VALUE_free
 #define sk_CONF_VALUE_pop_free(a,b)     wolfSSL_sk_CONF_VALUE_free(a)
@@ -95,6 +100,8 @@ WOLFSSL_API WOLFSSL_CONF_VALUE *wolfSSL_CONF_get_section(WOLFSSL_CONF *conf,
 #define _CONF_new_section               wolfSSL_CONF_new_section
 #define _CONF_get_section               wolfSSL_CONF_get_section
 
+#define X509V3_EXT_nconf_nid            wolfSSL_X509V3_EXT_nconf_nid
+#define X509V3_EXT_nconf                wolfSSL_X509V3_EXT_nconf
 #define X509V3_conf_free                wolfSSL_X509V3_conf_free
 
 #endif /* OPENSSL_EXTRA */

@@ -35,9 +35,10 @@
      #define OPENSSL_VERSION_NUMBER 0x10100000L
 #elif  defined(WOLFSSL_QT)
      #define OPENSSL_VERSION_NUMBER 0x10101000L
+#elif defined(WOLFSSL_HAPROXY)
+     #define OPENSSL_VERSION_NUMBER 0x1010000fL
 #elif defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_OPENVPN)
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_OPENVPN)
      /* version number can be increased for Lighty after compatibility for ECDH
         is added */
      #define OPENSSL_VERSION_NUMBER 0x10001040L

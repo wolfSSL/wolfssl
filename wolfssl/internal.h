@@ -1496,7 +1496,11 @@ enum Misc {
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 #endif
 
+#ifdef WOLFSSL_HAPROXY
+    MAX_X509_SIZE      = 3072, /* max static x509 buffer size */
+#else
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
+#endif
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 
     MAX_NTRU_PUB_KEY_SZ = 1027, /* NTRU max for now */
@@ -2799,6 +2803,9 @@ struct WOLFSSL_CTX {
     byte        privateKeyLabel:1;
     int         privateKeySz;
     int         privateKeyDevId;
+#ifdef OPENSSL_ALL
+    WOLFSSL_EVP_PKEY* privateKeyPKey;
+#endif
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -3058,7 +3065,7 @@ struct WOLFSSL_CTX {
     WOLF_EVENT_QUEUE event_queue;
 #endif /* HAVE_WOLF_EVENT */
 #ifdef HAVE_EXT_CACHE
-    WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
+    WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, const unsigned char*, int, int*);
     int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
     void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
 #endif
@@ -3347,6 +3354,9 @@ struct WOLFSSL_SESSION {
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
     wolfSSL_Mutex      refMutex;                  /* ref count mutex */
     int                refCount;                  /* reference count */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    byte               peerVerifyRet;             /* cert verify error */
 #endif
 #ifdef WOLFSSL_TLS13
     word16             namedGroup;
@@ -3761,6 +3771,7 @@ typedef struct Arrays {
 #define STACK_TYPE_X509_INFO          11
 #define STACK_TYPE_BY_DIR_entry       12
 #define STACK_TYPE_BY_DIR_hash        13
+#define STACK_TYPE_X509_OBJ           14
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3788,6 +3799,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_GENERAL_NAME*  gn;
         WOLFSSL_BY_DIR_entry*  dir_entry;
         WOLFSSL_BY_DIR_HASH*   dir_hash;
+        WOLFSSL_X509_OBJECT*   x509_obj;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
@@ -3865,7 +3877,7 @@ struct WOLFSSL_X509 {
     char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA)
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
     int              refCount;                       /* reference count */
 #endif

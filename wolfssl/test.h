@@ -2572,8 +2572,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
 #ifdef HAVE_EXT_CACHE
 
-static WC_INLINE WOLFSSL_SESSION* mySessGetCb(WOLFSSL* ssl, unsigned char* id,
-    int id_len, int* copy)
+static WC_INLINE WOLFSSL_SESSION* mySessGetCb(WOLFSSL* ssl,
+        const unsigned char* id, int id_len, int* copy)
 {
     (void)ssl;
     (void)id;
