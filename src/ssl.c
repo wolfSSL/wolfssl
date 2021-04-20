@@ -31578,8 +31578,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                       "certificatePolicies", "X509v3 Certificate Policies"},
 
     /* oidCertAuthInfoType */
-    { AIA_OCSP_OID, AIA_OCSP_OID, oidCertAuthInfoType, "authorityInfoAccess",
-                                            "Authority Information Access"},
+    { AIA_OCSP_OID, AIA_OCSP_OID, oidCertAuthInfoType, "OCSP",
+                                            "OCSP"},
     { AIA_CA_ISSUER_OID, AIA_CA_ISSUER_OID, oidCertAuthInfoType,
                                                  "caIssuers", "CA Issuers"},
 
@@ -31617,6 +31617,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
                                                             "emailAddress"},
     { NID_domainComponent, NID_domainComponent, oidCertNameType, "DC",
                                                             "domainComponent"},
+    { NID_favouriteDrink, NID_favouriteDrink, oidCertNameType, "favouriteDrink",
+                                                            "favouriteDrink"},
     { NID_businessCategory, NID_businessCategory, oidCertNameType, "businessCategory",
                                                             "businessCategory"},
     { NID_jurisdictionCountryName, NID_jurisdictionCountryName, oidCertNameType, "jurisdictionC",
