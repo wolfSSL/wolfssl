@@ -776,22 +776,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         struct M2MB_STAT s;
     #elif defined(INTIME_RTOS)
         struct stat64 s;
-        #if defined(INTIMEVER) && INTIMEVER > 0x0600
-            FIND_FILE_DATA FindFileData;
-            #define IntimeFindFirst(name, data) FindFirstRtFile(name, data, 0)
-            #define IntimeFindNext(data)  FindNextRtFile(data)
-            #define IntimeFindClose(data) FindRtFileClose(data)
-            #define IntimeFilename(ctx)   ctx->FindFileData.cFileName
-            #define IntimeNormalFile(ctx) (ctx->FindFileData.dwFileAttributes \
-                                           & FILE_ATTR_NORMAL)
-        #else
-            struct _find64 FindFileData;
-            #define IntimeFindFirst(name, data) (0 == _findfirst64(name, data))
-            #define IntimeFindNext(data)  (0 == _findnext64(data))
-            #define IntimeFindClose(data) (0 == _findclose64(data))
-            #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
-            #define IntimeNormalFile(ctx) (0 == wc_FileExists(IntimeFilename(ctx)))
-        #endif
+        struct _find64 FindFileData;
+        #define IntimeFindFirst(name, data) (0 == _findfirst64(name, data))
+        #define IntimeFindNext(data)  (0 == _findnext64(data))
+        #define IntimeFindClose(data) (0 == _findclose64(data))
+        #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
     #else
         struct dirent* entry;
         DIR*   dir;

@@ -514,17 +514,17 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     do {
-        if (IntimeNormalFile(ctx)) {
-            dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     IntimeFilename(ctx),
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -657,17 +657,17 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 
 #elif defined(INTIME_RTOS)
     while (IntimeFindNext(&ctx->FindFileData)) {
-        if (IntimeNormalFile(ctx)) {
-            dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     IntimeFilename(ctx),
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
