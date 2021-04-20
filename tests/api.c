@@ -1617,7 +1617,64 @@ static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
     wolfSSL_CTX_free(ctx);
 #endif
 }
+static void test_wolfSSL_DH_get0_pqg(void)
+{
+#if defined(OPENSSL_EXTRA)
+    DH *dh = NULL;
+    BIGNUM* p;
+    BIGNUM* q;
+    BIGNUM* g;
 
+#if defined(OPENSSL_ALL)
+    FILE* f = NULL;
+    unsigned char buf[4096];
+    const unsigned char* pt = buf;
+    long len = 0;
+#endif
+    printf(testingFmt, "test_wolfSSL_DH_get0_pqg");
+
+    /* invalid parameters test */
+    DH_get0_pqg(NULL, &p, &q, &g);
+    DH_get0_pqg(dh, NULL, &q, &g);
+    DH_get0_pqg(dh, NULL, NULL, &g);
+    DH_get0_pqg(dh, NULL, NULL, NULL);
+    AssertTrue(1);
+
+    dh =  wolfSSL_DH_new();
+    AssertNotNull(dh);
+
+    DH_get0_pqg(dh, &p, &q, &g);
+    AssertPtrEq(p, NULL);
+    AssertPtrEq(q, NULL);
+    AssertPtrEq(g, NULL);
+    DH_free(dh);
+
+#if defined(OPENSSL_ALL)
+    dh = NULL;
+    XMEMSET(buf, 0, sizeof(buf));
+    /* Test 2048 bit parameters */
+    f = XFOPEN("./certs/dh2048.der", "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    AssertNotNull(dh = d2i_DHparams(NULL, &pt, len));
+    AssertNotNull(dh->p);
+    AssertNotNull(dh->p);
+    AssertTrue(pt != buf);
+    AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
+
+    DH_get0_pqg(dh, &p, &q, &g);
+
+    AssertPtrEq(p, dh->p);
+    AssertPtrEq(q, dh->q);
+    AssertPtrEq(g, dh->g);
+    DH_free(dh);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
 static void test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_DH)
@@ -42637,6 +42694,7 @@ void ApiTest(void)
     test_wolfSSL_SetMinMaxDhKey_Sz();
     test_SetTmpEC_DHE_Sz();
     test_wolfSSL_dtls_set_mtu();
+    test_wolfSSL_DH_get0_pqg();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
     test_wolfSSL_read_write();
