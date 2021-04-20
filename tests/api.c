@@ -1619,37 +1619,19 @@ static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
 }
 static void test_wolfSSL_DH_get0_pqg(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_DH)
     DH *dh = NULL;
     BIGNUM* p;
     BIGNUM* q;
     BIGNUM* g;
 
 #if defined(OPENSSL_ALL)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     FILE* f = NULL;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
     long len = 0;
-#endif
-    printf(testingFmt, "test_wolfSSL_DH_get0_pqg");
 
-    /* invalid parameters test */
-    DH_get0_pqg(NULL, &p, &q, &g);
-    DH_get0_pqg(dh, NULL, &q, &g);
-    DH_get0_pqg(dh, NULL, NULL, &g);
-    DH_get0_pqg(dh, NULL, NULL, NULL);
-    AssertTrue(1);
-
-    dh =  wolfSSL_DH_new();
-    AssertNotNull(dh);
-
-    DH_get0_pqg(dh, &p, &q, &g);
-    AssertPtrEq(p, NULL);
-    AssertPtrEq(q, NULL);
-    AssertPtrEq(g, NULL);
-    DH_free(dh);
-
-#if defined(OPENSSL_ALL)
     dh = NULL;
     XMEMSET(buf, 0, sizeof(buf));
     /* Test 2048 bit parameters */
@@ -1671,9 +1653,26 @@ static void test_wolfSSL_DH_get0_pqg(void)
     AssertPtrEq(g, dh->g);
     DH_free(dh);
 #endif
-
-    printf(resultFmt, passed);
 #endif
+    printf(testingFmt, "test_wolfSSL_DH_get0_pqg");
+
+    /* invalid parameters test */
+    DH_get0_pqg(NULL, &p, &q, &g);
+    DH_get0_pqg(dh, NULL, &q, &g);
+    DH_get0_pqg(dh, NULL, NULL, &g);
+    DH_get0_pqg(dh, NULL, NULL, NULL);
+    AssertTrue(1);
+
+    dh =  wolfSSL_DH_new();
+    AssertNotNull(dh);
+
+    DH_get0_pqg(dh, &p, &q, &g);
+    AssertPtrEq(p, NULL);
+    AssertPtrEq(q, NULL);
+    AssertPtrEq(g, NULL);
+    DH_free(dh);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && !NO_DH */
 }
 static void test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 {
