@@ -26636,9 +26636,15 @@ WOLFSSL_API int wolfSSL_X509_load_crl_file(WOLFSSL_X509_LOOKUP *ctx,
     WOLFSSL_X509_CRL *crl = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_load_crl_file");
+    
+    if (ctx == NULL || file == NULL)
+        return ret;
 
-    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
-    if (bio == NULL) {
+    if ((bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file())) == NULL)
+        return ret;
+    
+    if (wolfSSL_BIO_read_filename(bio, file) <= 0) {
+        wolfSSL_BIO_free(bio);
         return ret;
     }
 
@@ -27007,9 +27013,14 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
 *
 * RETURNS:
 *   WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE
+*   Note: Returns WOLFSSL_SUCCESS, in case either parameter is NULL,
+*   same as openssl.
 */
 int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx, WOLFSSL_X509_VERIFY_PARAM *vpm)
 {
+    if (ctx == NULL || vpm == NULL)
+        return WOLFSSL_SUCCESS;
+
     return wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, vpm);
 }
 
