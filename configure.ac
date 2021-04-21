@@ -413,7 +413,6 @@ then
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_mcast" = "" && enable_mcast=yes
-    test "$enable_network_introspection" = "" && enable_network_introspection=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
@@ -2514,20 +2513,42 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
 fi
 
+AC_ARG_WITH([wolfsentry],
+    [AS_HELP_STRING([--with-wolfsentry=PATH],[PATH to directory with wolfSentry installation])],
+    [WOLFSENTRY_INSTALLDIR=$withval],
+    [WOLFSENTRY_INSTALLDIR=""])
+
 AC_ARG_WITH([wolfsentry-lib],
     [AS_HELP_STRING([--with-wolfsentry-lib=PATH],[PATH to directory with wolfSentry library])],
     [WOLFSENTRY_LIB=-L$withval],
     [WOLFSENTRY_LIB=""])
 
+if test "$WOLFSENTRY_LIB" = "" && test "$WOLFSENTRY_INSTALLDIR" != ""
+then
+    WOLFSENTRY_LIB="-L${WOLFSENTRY_INSTALLDIR}/lib"
+fi
+
 if test "$ENABLED_WOLFSENTRY" = "yes"
 then
     WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
+else
+    WOLFSENTRY_LIB=""
 fi
 
 AC_ARG_WITH([wolfsentry-include],
     [AS_HELP_STRING([--with-wolfsentry-include=PATH],[PATH to directory with wolfSentry header files])],
     [WOLFSENTRY_INCLUDE=-I$withval],
     [WOLFSENTRY_INCLUDE=""])
+
+if test "$WOLFSENTRY_INCLUDE" = "" && test "$WOLFSENTRY_INSTALLDIR" != ""
+then
+    WOLFSENTRY_INCLUDE="-I${WOLFSENTRY_INSTALLDIR}/include"
+fi
+
+if test "$ENABLED_WOLFSENTRY" != "yes"
+then
+    WOLFSENTRY_INCLUDE=""
+fi
 
 AC_SUBST([WOLFSENTRY_LIB])
 AC_SUBST([WOLFSENTRY_INCLUDE])
