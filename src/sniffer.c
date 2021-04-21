@@ -4828,7 +4828,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
     word32 length;
     WOLFSSL* ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                                   (*session)->sslServer : (*session)->sslClient;
-    byte  skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
+    byte skipPartial = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
                         (*session)->flags.srvSkipPartial :
                         (*session)->flags.cliSkipPartial;
     /* remove SnifferSession on 2nd FIN or RST */
@@ -4865,7 +4865,8 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* if current partial data, add to end of partial */
     /* if skipping, the data is already at the end of partial */
-    if ( !skipPartial && (length = ssl->buffers.inputBuffer.length) ) {
+    length = ssl->buffers.inputBuffer.length;
+    if ( !skipPartial && length ) {
         Trace(PARTIAL_ADD_STR);
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
@@ -4882,46 +4883,46 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
             *sslFrame = ssl->buffers.inputBuffer.buffer;
             *end = *sslFrame + *sslBytes;
         }
-    }
 
-    if (vChain != NULL) {
-#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
-        struct iovec* chain = (struct iovec*)vChain;
-        word32 i, offset, headerSz, qty, remainder;
+        if (vChain != NULL) {
+    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+            struct iovec* chain = (struct iovec*)vChain;
+            word32 i, offset, headerSz, qty, remainder;
 
-        Trace(CHAIN_INPUT_STR);
-        headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
-        remainder = *sslBytes;
+            Trace(CHAIN_INPUT_STR);
+            headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
+            remainder = *sslBytes;
 
-        if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
-            if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
-                SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
-                return -1;
+            if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
+                if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
+                    SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                    return -1;
+                }
             }
+
+            qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
+            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
+                (byte*)chain[0].iov_base + headerSz, qty);
+            offset = length;
+            for (i = 1; i < chainSz; i++) {
+                offset += qty;
+                remainder -= qty;
+
+                if (chain[i].iov_len > remainder)
+                    qty = remainder;
+                else
+                    qty = (word32)chain[i].iov_len;
+                XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
+                        chain[i].iov_base, qty);
+            }
+
+            *sslBytes += length;
+            ssl->buffers.inputBuffer.length = *sslBytes;
+            *sslFrame = ssl->buffers.inputBuffer.buffer;
+            *end = *sslFrame + *sslBytes;
+    #endif
+            (void)chainSz;
         }
-
-        qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
-        XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
-               (byte*)chain[0].iov_base + headerSz, qty);
-        offset = length;
-        for (i = 1; i < chainSz; i++) {
-            offset += qty;
-            remainder -= qty;
-
-            if (chain[i].iov_len > remainder)
-                qty = remainder;
-            else
-                qty = (word32)chain[i].iov_len;
-            XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
-                    chain[i].iov_base, qty);
-        }
-
-        *sslBytes += length;
-        ssl->buffers.inputBuffer.length = *sslBytes;
-        *sslFrame = ssl->buffers.inputBuffer.buffer;
-        *end = *sslFrame + *sslBytes;
-#endif
-        (void)chainSz;
     }
 
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
