@@ -699,6 +699,16 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XSTAT       _stat
         #define XS_ISREG(s) (s & _S_IFREG)
         #define SEPARATOR_CHAR ';'
+
+    #elif defined(INTIME_RTOS)
+        #include <sys/stat.h>
+        #define XSTAT _stat64
+        #define XS_ISREG(s) S_ISREG(s)
+        #define SEPARATOR_CHAR ';'
+        #define XWRITE      write
+        #define XREAD       read
+        #define XCLOSE      close
+
     #elif defined(WOLFSSL_ZEPHYR)
         #define XSTAT       fs_stat
         #define XS_ISREG(s) (s == FS_DIR_ENTRY_FILE)
@@ -765,7 +775,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         struct M2MB_DIRENT* entry;
         struct M2MB_STAT s;
     #elif defined(INTIME_RTOS)
-        FIND_FILE_DATA FindFileData;
+        struct stat64 s;
+        struct _find64 FindFileData;
+        #define IntimeFindFirst(name, data) (0 == _findfirst64(name, data))
+        #define IntimeFindNext(data)  (0 == _findnext64(data))
+        #define IntimeFindClose(data) (0 == _findclose64(data))
+        #define IntimeFilename(ctx)   ctx->FindFileData.f_filename
     #else
         struct dirent* entry;
         DIR*   dir;

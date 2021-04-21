@@ -508,28 +508,28 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
     XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
 
-    if (!FindFirstRtFile(ctx->name, &ctx->FindFileData, 0)) {
+    if (!IntimeFindFirst(ctx->name, &ctx->FindFileData)) {
         WOLFSSL_MSG("FindFirstFile for path verify locations failed");
         return BAD_PATH_ERROR;
     }
 
     do {
-        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     ctx->FindFileData.cFileName,
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
         }
-    } while (FindNextRtFile(&ctx->FindFileData));
+    } while (IntimeFindNext(&ctx->FindFileData));
 
 #elif defined(WOLFSSL_ZEPHYR)
     if (fs_opendir(&ctx->dir, path) != 0) {
@@ -656,18 +656,18 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 
 #elif defined(INTIME_RTOS)
-    while (FindNextRtFile(&ctx->FindFileData)) {
-        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTR_DIRECTORY)) {
-            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+    while (IntimeFindNext(&ctx->FindFileData)) {
+        dnameLen = (int)XSTRLEN(IntimeFilename(ctx));
 
-            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
-                return BAD_PATH_ERROR;
-            }
-            XSTRNCPY(ctx->name, path, pathLen + 1);
-            ctx->name[pathLen] = '\\';
-            XSTRNCPY(ctx->name + pathLen + 1,
-                     ctx->FindFileData.cFileName,
-                     MAX_FILENAME_SZ - pathLen - 1);
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            return BAD_PATH_ERROR;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '\\';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 IntimeFilename(ctx),
+                 MAX_FILENAME_SZ - pathLen - 1);
+        if (0 == wc_FileExists(ctx->name)) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -758,7 +758,7 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
     }
 
 #elif defined(INTIME_RTOS)
-    FindRtFileClose(&ctx->FindFileData);
+    IntimeFindClose(&ctx->FindFileData);
 
 #elif defined(WOLFSSL_ZEPHYR)
     if (ctx->dirp) {
