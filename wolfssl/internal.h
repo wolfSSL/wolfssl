@@ -3044,7 +3044,7 @@ WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX*);
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int n_ex_data);
+void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data);
 #endif
 
 WOLFSSL_LOCAL

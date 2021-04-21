@@ -1884,11 +1884,13 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 }
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int n_ex_data)
+void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
 {
+    int n_ex_data = (int)(sizeof ex_data->ex_data / sizeof ex_data->ex_data[0]);
     for (--n_ex_data; n_ex_data >= 0; --n_ex_data) {
         if (ex_data->ex_data[n_ex_data] != NULL)
-            (void)wolfSSL_CRYPTO_set_ex_data_with_cleanup(ex_data, n_ex_data, NULL, NULL);
+            (void)wolfSSL_CRYPTO_set_ex_data_with_cleanup(ex_data, n_ex_data,
+                                                          NULL, NULL);
     }
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
@@ -1902,7 +1904,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-    wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data, MAX_EX_DATA);
+    wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data);
 #endif
 
 #ifdef HAVE_WOLF_EVENT
@@ -6437,7 +6439,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
      * using stream ciphers where it is retained. */
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-    wolfSSL_CRYPTO_cleanup_ex_data(&ssl->ex_data, MAX_EX_DATA);
+    wolfSSL_CRYPTO_cleanup_ex_data(&ssl->ex_data);
 #endif
 
     FreeCiphers(ssl);

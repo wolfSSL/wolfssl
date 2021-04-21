@@ -1015,7 +1015,11 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
 
-int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {
+int wolfSSL_CTX_set_AcceptFilter(
+    WOLFSSL_CTX *ctx,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg)
+{
     if (ctx == NULL)
         return BAD_FUNC_ARG;
     ctx->AcceptFilter = AcceptFilter;
@@ -1023,7 +1027,11 @@ int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t Accep
     return WOLFSSL_SUCCESS;
 }
 
-int wolfSSL_set_AcceptFilter(WOLFSSL *ssl, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg) {
+int wolfSSL_set_AcceptFilter(
+    WOLFSSL *ssl,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg)
+{
     if (ssl == NULL)
         return BAD_FUNC_ARG;
     ssl->AcceptFilter = AcceptFilter;
@@ -12921,7 +12929,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
         if (ssl->AcceptFilter) {
             wolfSSL_netfilter_decision_t res;
-            if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) == WOLFSSL_SUCCESS) &&
+            if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) ==
+                 WOLFSSL_SUCCESS) &&
                 (res == WOLFSSL_NETFILTER_REJECT)) {
                 WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
                 return WOLFSSL_FATAL_ERROR;
@@ -16308,7 +16317,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_BIO_free");
         if (bio) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-            wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data, MAX_EX_DATA);
+            wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
 #endif
             if (bio->infoCb) {
                 /* info callback is called before free */
@@ -18755,7 +18764,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     WOLFSSL_ENTER("ExternalFreeX509");
     if (x509) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_CRYPTO_cleanup_ex_data(&x509->ex_data, MAX_EX_DATA);
+        wolfSSL_CRYPTO_cleanup_ex_data(&x509->ex_data);
 #endif
         if (x509->dynamicMemory) {
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -21958,7 +21967,7 @@ void FreeSession(WOLFSSL_SESSION* session, int isAlloced)
         return;
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-    wolfSSL_CRYPTO_cleanup_ex_data(&session->ex_data, MAX_EX_DATA);
+    wolfSSL_CRYPTO_cleanup_ex_data(&session->ex_data);
 #endif
 
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -26086,7 +26095,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         return;
 
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-    wolfSSL_CRYPTO_cleanup_ex_data(&store->ex_data, MAX_EX_DATA);
+    wolfSSL_CRYPTO_cleanup_ex_data(&store->ex_data);
 #endif
 
     if (store->isDynamic) {
@@ -26304,7 +26313,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
     WOLFSSL_ENTER("X509_STORE_CTX_free");
     if (ctx != NULL) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data, MAX_EX_DATA);
+        wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data);
 #endif
     #ifdef OPENSSL_EXTRA
         if (ctx->param != NULL){
@@ -44923,8 +44932,8 @@ int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(HAVE_EX_DATA) || defined(OPENSSL_EXTRA) ||
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
 
 int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 {
@@ -48808,8 +48817,8 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif /* !NO_WOLFSSL_STUB */
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
-#if defined(HAVE_EX_DATA) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
@@ -53442,7 +53451,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 
     if (rsa) {
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
-        wolfSSL_CRYPTO_cleanup_ex_data(&rsa->ex_data, MAX_EX_DATA);
+        wolfSSL_CRYPTO_cleanup_ex_data(&rsa->ex_data);
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         int doFree = 0;

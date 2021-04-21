@@ -1149,9 +1149,18 @@ typedef enum {
     WOLFSSL_NETFILTER_REJECT = 2
 } wolfSSL_netfilter_decision_t;
 
-typedef int (*NetworkFilterCallback_t)(WOLFSSL *ssl, void *AcceptFilter_arg, wolfSSL_netfilter_decision_t *decision);
-WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(WOLFSSL_CTX *ctx, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg);
-WOLFSSL_API int wolfSSL_set_AcceptFilter(WOLFSSL *ssl, NetworkFilterCallback_t AcceptFilter, void *AcceptFilter_arg);
+typedef int (*NetworkFilterCallback_t)(
+    WOLFSSL *ssl,
+    void *AcceptFilter_arg,
+    wolfSSL_netfilter_decision_t *decision);
+WOLFSSL_API int wolfSSL_CTX_set_AcceptFilter(
+    WOLFSSL_CTX *ctx,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg);
+WOLFSSL_API int wolfSSL_set_AcceptFilter(
+    WOLFSSL *ssl,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg);
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
 
