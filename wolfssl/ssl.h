@@ -2162,10 +2162,9 @@ enum { /* ssl Constants */
     WOLFSSL_API void wolfSSL_set_psk_client_callback(WOLFSSL*,
                                                     wc_psk_client_callback);
     #ifdef OPENSSL_EXTRA
-    typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, const WOLFSSL_EVP_MD* md,
-                                               const unsigned char **id,
-                                               size_t* idlen,
-                                               WOLFSSL_SESSION **sess);
+    typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, 
+                            const WOLFSSL_EVP_MD* md, const unsigned char **id,
+                                        size_t* idlen,  WOLFSSL_SESSION **sess);
     WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
                                                wc_psk_use_session_cb_func cb);
     #endif

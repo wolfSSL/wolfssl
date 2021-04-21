@@ -1515,19 +1515,24 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     return 32;   /* length of key in octets or 0 for error */
 }
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
 static unsigned char local_psk[32];
+#endif
 static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl, 
             const WOLFSSL_EVP_MD* md, const unsigned char **id,
             size_t* idlen,  WOLFSSL_SESSION **sess)
 {
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM)
     int i;
     int b = 0x01;
     WOLFSSL_SESSION* lsess;
-    /* TLS13_BYTE 0x13 */
-    /* TLS_AES_128_GCM_SHA256 0x01 */
-    word16 cipher_id = (0x13<<8) | 0x01;
+    char buf[256];
+    const char* cipher_id = "TLS13-AES128-GCM-SHA256";
     const SSL_CIPHER* cipher = NULL;
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    int numCiphers = 0;
     (void)ssl;
     (void)md;
     
@@ -1537,23 +1542,50 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     if (lsess == NULL) {
         return 0;
     }
-    cipher = SSL_get_cipher_by_value(cipher_id);
-    
-    SSL_SESSION_set_cipher(lsess, cipher);
-    
-    for (i = 0; i < 32; i++, b += 0x22) {
-        if (b >= 0x100)
-            b = 0x01;
-        local_psk[i] = b;
+    supportedCiphers = SSL_get_ciphers(ssl);
+    numCiphers = sk_num(supportedCiphers);
+
+    for (i = 0; i < numCiphers; ++i) {
+        
+        if ((cipher = (const WOLFSSL_CIPHER*)sk_value(supportedCiphers, i))) {
+            SSL_CIPHER_description(cipher, buf, sizeof(buf));
+        }
+        
+        if (XMEMCMP(cipher_id, buf, XSTRLEN(cipher_id)) == 0) {
+            break;
+        }
     }
     
-    *id = local_psk;
-    *idlen = 32;
-    *sess = lsess;
+    if (i != numCiphers) {
+        SSL_SESSION_set_cipher(lsess, cipher);
+            for (i = 0; i < 32; i++, b += 0x22) {
+            if (b >= 0x100)
+                b = 0x01;
+            local_psk[i] = b;
+        }
+        
+        *id = local_psk;
+        *idlen = 32;
+        *sess = lsess;
+        
+        return 1;
+    }
+    else {
+        *id = NULL;
+        *idlen = 0;
+        *sess = NULL;
+        return 0;
+    }
+#else
+    (void)ssl;
+    (void)md;
+    (void)id;
+    (void)idlen;
+    (void)sess;
     
-    return 1;
-}
+    return 0;
 #endif
+}
 #endif /* !NO_PSK */
 
 

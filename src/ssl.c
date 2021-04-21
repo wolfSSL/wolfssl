@@ -14697,25 +14697,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
                                                 wc_psk_use_session_cb_func cb)
     {
-        byte haveRSA = 1;
-        int  keySz   = 0;
-        
         WOLFSSL_ENTER("wolfSSL_set_psk_use_session_callback");
         
         ssl->options.havePSK = 1;
         ssl->options.session_psk_cb = cb;
-
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_CERTS
-            keySz = ssl->buffers.keySz;
-        #endif
-        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.haveAnon,
-                   ssl->options.side);
+        
+        WOLFSSL_LEAVE("wolfSSL_set_psk_use_session_callback", WOLFSSL_SUCCESS);
     }
     #endif
     
@@ -22383,18 +22370,19 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 
 const WOLFSSL_CIPHER* wolfSSL_get_cipher_by_value(word16 value)
 {
-    WOLFSSL_CIPHER* cipher = NULL;
+    const WOLFSSL_CIPHER* cipher = NULL;
+    byte cipherSuite0, cipherSuite;
     WOLFSSL_ENTER("SSL_get_cipher_by_value");
 
-    cipher = (WOLFSSL_CIPHER*)XMALLOC(sizeof(WOLFSSL_CIPHER), NULL,
-                        DYNAMIC_TYPE_OPENSSL);
-    if (cipher != NULL) {
-        /* extract cipher id information */
-        cipher->cipherSuite  = (value        & 0xFF);
-        cipher->cipherSuite0 = ((value >> 8) & 0xFF);
-    }
+    /* extract cipher id information */
+    cipherSuite =   (value       & 0xFF);
+    cipherSuite0 = ((value >> 8) & 0xFF);
 
-    return (const WOLFSSL_CIPHER*)cipher;
+    /* TODO: lookup by cipherSuite0 / cipherSuite */
+    (void)cipherSuite0;
+    (void)cipherSuite;
+
+    return cipher;
 }
 
 
