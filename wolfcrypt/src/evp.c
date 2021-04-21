@@ -2145,7 +2145,7 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
         wolfSSL_BN_is_odd(dh_key->p) == 0){
         WOLFSSL_MSG("dh_key->p is not prime");
         ret = WOLFSSL_FAILURE;
-    } /* TO DO safe prime check. need BN_rshift1 */
+    } /* TODO safe prime check. need BN_rshift1 */
     
     /* generator check */
     if (ret == WOLFSSL_SUCCESS &&
@@ -2183,7 +2183,7 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
             (wolfSSL_BN_is_prime_ex(dh_key->q, 64, ctx, NULL) <= 0)) {
             WOLFSSL_MSG("dh_key->q is not prime or error during check.");
             ret = WOLFSSL_FAILURE;
-        } /* else TO DO check q div q - 1. need BN_div */
+        } /* else TODO check q div q - 1. need BN_div */
 #endif
     }
     
@@ -2217,38 +2217,38 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
     
     switch(type) {
         #if !defined(NO_RSA)
-        case EVP_PKEY_RSA:
-            WOLFSSL_MSG("not yet implemented");
-            return WOLFSSL_FAILURE;
+            case EVP_PKEY_RSA:
+                WOLFSSL_MSG("EVP_PKEY_RSA not yet implemented");
+                return WOLFSSL_FAILURE;
         #endif
         #if defined(HAVE_ECC)
-        case EVP_PKEY_EC:
-            WOLFSSL_MSG("not yet implemented");
-            return WOLFSSL_FAILURE;
+            case EVP_PKEY_EC:
+                WOLFSSL_MSG("EVP_PKEY_EC not yet implemented");
+                return WOLFSSL_FAILURE;
         #endif
         #if !defined(NO_DSA)
-        case EVP_PKEY_DSA:
-            WOLFSSL_MSG("not yet implemented");
-            return WOLFSSL_FAILURE;
+            case EVP_PKEY_DSA:
+                WOLFSSL_MSG("EVP_PKEY_DSA not yet implemented");
+                return WOLFSSL_FAILURE;
         #endif
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
         #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
                                         && (HAVE_FIPS_VERSION>2))
-        case EVP_PKEY_DH:
-            dh_key = wolfSSL_EVP_PKEY_get1_DH(ctx->pkey);
-            if (dh_key != NULL) {
-                ret = DH_param_check(dh_key);
-                wolfSSL_DH_free(dh_key);
-            }
-            else
-                ret = WOLFSSL_FAILURE;
+            case EVP_PKEY_DH:
+                dh_key = wolfSSL_EVP_PKEY_get1_DH(ctx->pkey);
+                if (dh_key != NULL) {
+                    ret = DH_param_check(dh_key);
+                    wolfSSL_DH_free(dh_key);
+                }
+                else
+                    ret = WOLFSSL_FAILURE;
             return ret;
         #endif
         #endif
         #endif
         default:
-            WOLFSSL_MSG("Unknown PEKY type");
+            WOLFSSL_MSG("Unknown PKEY type");
             return WOLFSSL_FAILURE;
     }
     (void)ret;

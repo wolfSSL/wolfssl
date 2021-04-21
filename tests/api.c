@@ -36746,26 +36746,6 @@ static void test_wolfSSL_EVP_PKEY_assign_DH(void)
 #endif
 }
 
-static void test_wolfSSL_EVP_PKEY_param_check(void)
-{
-#if defined(OPENSSL_EXTRA)
-    EVP_PKEY*       pkey;
-    EVP_PKEY_CTX*   ctx;
-    
-    printf(testingFmt, "test_wolfSSL_EVP_PKEY_param_check");
-    
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
-    
-    /* STUB */
-    AssertIntEQ(EVP_PKEY_param_check(ctx), WOLFSSL_FAILURE);
-    
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(pkey);
-    printf(resultFmt, passed);
-#endif
-}
-
 static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
 {
 #if defined(OPENSSL_EXTRA)
@@ -36802,7 +36782,7 @@ static void test_wolfSSL_EVP_PKEY_param_check(void)
     EVP_PKEY_CTX*   ctx = NULL;
     
     FILE* f = NULL;
-    unsigned char buf[4096];
+    unsigned char buf[512];
     const unsigned char* pt = buf;
     const char* dh2048 = "./certs/dh2048.der";
     long len = 0;
