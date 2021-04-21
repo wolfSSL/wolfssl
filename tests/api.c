@@ -42324,7 +42324,7 @@ static void test_wolfSSL_CTX_get_min_proto_version(void)
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
 }
 
-static void test_wolfSSL_security_level()
+static void test_wolfSSL_security_level(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_wolfSSL_security_level()");
@@ -42351,7 +42351,7 @@ static void test_wolfSSL_security_level()
 #endif
 }
 
-static void test_wolfSSL_SSL_in_init()
+static void test_wolfSSL_SSL_in_init(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
     printf(testingFmt, "test_wolfSSL_SSL_in_init()");
@@ -42398,7 +42398,7 @@ static void test_wolfSSL_SSL_in_init()
 #endif
 }
 
-static void test_wolfSSL_EC_curve()
+static void test_wolfSSL_EC_curve(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     printf(testingFmt, "test_wolfSSL_EC_curve()");
@@ -42414,7 +42414,7 @@ static void test_wolfSSL_EC_curve()
 #endif
 }
 
-static void test_wolfSSL_OpenSSL_version()
+static void test_wolfSSL_OpenSSL_version(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_wolfSSL_OpenSSL_version()");
@@ -42432,7 +42432,7 @@ static void test_wolfSSL_OpenSSL_version()
 #endif
 }
 
-static void test_wolfSSL_set_psk_use_session_callback()
+static void test_wolfSSL_set_psk_use_session_callback(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
     printf(testingFmt, "test_wolfSSL_set_psk_use_session_callback()");
