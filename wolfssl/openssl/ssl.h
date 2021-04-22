@@ -164,6 +164,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define set_ex_data                     wolfSSL_CRYPTO_set_ex_data
 #define get_ex_data                     wolfSSL_CRYPTO_get_ex_data
 #define CRYPTO_memcmp                   wolfSSL_CRYPTO_memcmp
+#define CRYPTO_get_ex_new_index         wolfSSL_CRYPTO_get_ex_new_index
 
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() 0 /* CRYPTO_malloc_init is not needed */
@@ -1394,6 +1395,15 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_set_psk_use_session_callback    wolfSSL_set_psk_use_session_callback
 #define SSL_SESSION_is_resumable    wolfSSL_SESSION_is_resumable
+typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
+
+#define SSL_CONF_CTX_new                wolfSSL_CONF_CTX_new
+#define SSL_CONF_CTX_free               wolfSSL_CONF_CTX_free
+#define SSL_CONF_CTX_set_ssl_ctx        wolfSSL_CONF_CTX_set_ssl_ctx
+#define SSL_CONF_CTX_set_flags          wolfSSL_CONF_CTX_set_flags
+#define SSL_CONF_CTX_finish             wolfSSL_CONF_CTX_finish
+#define SSL_CONF_cmd                    wolfSSL_CONF_cmd
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

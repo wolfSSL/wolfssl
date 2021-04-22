@@ -34,7 +34,7 @@
     /* For Apache httpd, Use 1.1.0 compatibility */
      #define OPENSSL_VERSION_NUMBER 0x10100000L
 #elif  defined(WOLFSSL_QT)
-     #define OPENSSL_VERSION_NUMBER 0x10100000L
+     #define OPENSSL_VERSION_NUMBER 0x10101000L
 #elif defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_OPENVPN)
