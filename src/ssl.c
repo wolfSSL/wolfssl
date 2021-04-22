@@ -56441,9 +56441,9 @@ static const size_t size_of_cmd_tbls = sizeof(conf_cmds_tbl)
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
     int ret = WOLFSSL_FAILURE;
-    size_t i;
-    size_t cmdlen;
-    const char* c;
+    size_t i = 0;
+    size_t cmdlen = 0;
+    const char* c = NULL;
     WOLFSSL_ENTER("wolfSSL_CONF_cmd");
     
     (void)cctx;
@@ -56456,36 +56456,41 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
         return ret;
     }
     
+    if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
+        cmdlen = XSTRLEN(cmd);
+        
+        if (cmdlen < 2) {
+            WOLFSSL_MSG("bad cmdline command");
+            return -2;
+        }
+        /* skip "-" prefix */
+        c = ++cmd;
+    }
+    
     for (i = 0; i < size_of_cmd_tbls; i++) {
         /* check if the cmd is valid */
         if (cctx->flags & WOLFSSL_CONF_FLAG_CMDLINE) {
-            cmdlen = XSTRLEN(cmd);
-            if (cmdlen < 2) {
-                WOLFSSL_MSG("bad cmdline command");
-                return ret;
-            }
-            /* skip "-" prefix */
-            c = ++cmd;
-            
-            if (XSTRCMP(c, conf_cmds_tbl[i].cmdline_cmd) == 0) {
+            if (c != NULL && conf_cmds_tbl[i].cmdline_cmd != NULL &&
+                XSTRCMP(c, conf_cmds_tbl[i].cmdline_cmd) == 0) {
                 if (conf_cmds_tbl[i].cmdfunc != NULL) {
                     ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
                     break;
                 } else {
                     WOLFSSL_MSG("cmd not yet implemented");
-                    return ret;
+                    return -2;
                 }
             }
         }
         
         if (cctx->flags & WOLFSSL_CONF_FLAG_FILE) {
-            if (XSTRCMP(cmd, conf_cmds_tbl[i].file_cmd) == 0) {
+            if (conf_cmds_tbl[i].file_cmd != NULL &&
+                XSTRCMP(cmd, conf_cmds_tbl[i].file_cmd) == 0) {
                 if (conf_cmds_tbl[i].cmdfunc != NULL) {
                     ret = conf_cmds_tbl[i].cmdfunc(cctx, value);
                     break;
                 } else {
                     WOLFSSL_MSG("cmd not yet implemented");
-                    return ret;
+                    return -2;
                 }
             }
         }
