@@ -55382,20 +55382,29 @@ void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl,
     (void)ssl;
     (void)cb;
 }
+#endif /* NO_WOLFSSL_STUB */
 /**
  * Determine whether a WOLFSSL_SESSION object can be used for resumption
  * @param s  a pointer to WOLFSSL_SESSION structure
- * @return return 1 if session is resumable, 
- *              otherwise 0 (currently always 0 with stub)
+ * @return return 1 if session is resumable, otherwise 0.
  */
 int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s)
 {
-    WOLFSSL_STUB("wolfSSL_SESSION_is_resumable");
-    (void)s;
+    if (s == NULL)
+        return 0;
+
+    #ifdef HAVE_SESSION_TICKET
+    if (s->ticketLen > 0)
+        return 1;
+    #endif
+
+    if (s->sessionIDSz > 0)
+        return 1;
+
     return 0;
 }
 
-#endif /* NO_WOLFSSL_STUB */
+
 
 /**
  * free allocated memory resouce
