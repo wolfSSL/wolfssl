@@ -1063,17 +1063,6 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
-        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
-typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-
-WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
-        WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
-        WOLFSSL_CRYPTO_EX_free* c);
 /* class index for wolfSSL_CRYPTO_get_ex_new_index */
 #define CRYPTO_EX_INDEX_SSL             0
 #define CRYPTO_EX_INDEX_SSL_CTX         1
@@ -1093,12 +1082,18 @@ WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
 #define CRYPTO_EX_INDEX_DRBG            15
 #define CRYPTO_EX_INDEX__COUNT          16
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
+typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
 
-WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index,
-                                                long argl, void* argp,
-                                        WOLFSSL_CRYPTO_EX_new* new_func,
-                                        WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                        WOLFSSL_CRYPTO_EX_free* free_func);
+WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
+        WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
+        WOLFSSL_CRYPTO_EX_free* c);
+
 #endif
 
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
@@ -4419,12 +4414,12 @@ WOLFSSL_API void wolfSSL_CONF_CTX_set_ssl_ctx(WOLFSSL_CONF_CTX* cctx, WOLFSSL_CT
 WOLFSSL_API unsigned int wolfSSL_CONF_CTX_set_flags(WOLFSSL_CONF_CTX* cctx, unsigned int flags);
 WOLFSSL_API int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx);
 WOLFSSL_API int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value);
-#ifdef HAVE_EX_DATA
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
 WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_new* new_func,
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
                                            WOLFSSL_CRYPTO_EX_free* free_func);
-#endif
+#endif /* HAVE_EX_DATA || FORTRESS */
 #endif /* OPENSSL_EXTRA */
 #ifdef __cplusplus
     }  /* extern "C" */
