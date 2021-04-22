@@ -3116,6 +3116,10 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->version.minor = pv.minor;
         }
 
+        if (foundVersion && ssl->options.downgrade && (pv.minor < ssl->options.minDowngrade)) {
+            return VERSION_ERROR;
+        }
+
         /* Parse and handle extensions. */
         ret = TLSX_Parse(ssl, input + i, totalExtSz, *extMsgType, NULL);
         if (ret != 0)

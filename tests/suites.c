@@ -82,6 +82,8 @@ static int GetTlsVersion(const char* line)
 
     if (begin) {
         begin += 3;
+        if (*begin == 'd' || *begin == 'e')
+            begin += 2;
 
         version = atoi(begin);
     }
