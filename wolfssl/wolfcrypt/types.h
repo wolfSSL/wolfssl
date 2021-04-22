@@ -211,6 +211,8 @@ decouple library dependencies with standard string, memory and so on.
             #else
                 #define WC_INLINE inline
             #endif
+        #elif defined(__CCRX__)
+            #define WC_INLINE inline
         #else
             #define WC_INLINE
         #endif
@@ -235,6 +237,8 @@ decouple library dependencies with standard string, memory and so on.
         #define FAST_ROTATE
     #elif defined(__MWERKS__) && TARGET_CPU_PPC
         #define PPC_INTRINSICS
+        #define FAST_ROTATE
+    #elif defined(__CCRX__)
         #define FAST_ROTATE
     #elif defined(__GNUC__)  && (defined(__i386__) || defined(__x86_64__))
         /* GCC does peephole optimizations which should result in using rotate
