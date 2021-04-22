@@ -1656,15 +1656,15 @@ static void test_wolfSSL_DH_get0_pqg(void)
 #endif
     printf(testingFmt, "test_wolfSSL_DH_get0_pqg");
 
+    dh =  wolfSSL_DH_new();
+    AssertNotNull(dh);
+
     /* invalid parameters test */
     DH_get0_pqg(NULL, &p, &q, &g);
     DH_get0_pqg(dh, NULL, &q, &g);
     DH_get0_pqg(dh, NULL, NULL, &g);
     DH_get0_pqg(dh, NULL, NULL, NULL);
     AssertTrue(1);
-
-    dh =  wolfSSL_DH_new();
-    AssertNotNull(dh);
 
     DH_get0_pqg(dh, &p, &q, &g);
     AssertPtrEq(p, NULL);
