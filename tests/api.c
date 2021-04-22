@@ -43085,7 +43085,7 @@ static void test_wolfSSL_OpenSSL_version(void)
 #endif
 }
 
-static void test_CONF_CTX(void)
+static void test_CONF_CTX_FILE(void)
 {
 #if defined(OPENSSL_ALL)
     printf(testingFmt, "test_CONF_CTX");
@@ -43107,14 +43107,51 @@ static void test_CONF_CTX(void)
         #endif
     #endif
     
-    AssertIntEQ(SSL_CONF_CTX_set_flags(cctx, 0x1), 0x1);
-    
-    /* STUB */
-    #if !defined(NO_WOLFSSL_STUB)
-    AssertIntEQ(SSL_CONF_cmd(cctx, "TEST", "TEST1"), WOLFSSL_FAILURE);
-    AssertIntEQ(SSL_CONF_CTX_finish(cctx), WOLFSSL_FAILURE);
+    /* set flags */
+    AssertIntEQ(SSL_CONF_CTX_set_flags(cctx, WOLFSSL_CONF_FLAG_FILE), 
+                                            WOLFSSL_CONF_FLAG_FILE);
+    AssertIntEQ(SSL_CONF_CTX_set_flags(cctx, WOLFSSL_CONF_FLAG_CERTIFICATE), 
+                       WOLFSSL_CONF_FLAG_FILE | WOLFSSL_CONF_FLAG_CERTIFICATE);
+    /* cmd Certificate and Private Key*/
+    {
+    #ifndef NO_CERTS
+        const char*  ourCert = svrCertFile;
+        const char*  ourKey  = svrKeyFile;
+        AssertIntEQ(SSL_CONF_cmd(cctx, "Certificate", ourCert), 
+                                                            WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CONF_cmd(cctx, "PrivateKey", ourKey), WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CONF_CTX_finish(cctx), WOLFSSL_SUCCESS);
     #endif
+    }
     
+    /* cmd curves */
+    {
+    #if defined(HAVE_ECC)
+        const char* curve = "secp256r1";
+        
+        AssertIntEQ(SSL_CONF_cmd(cctx, "Curves", curve), WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CONF_CTX_finish(cctx), WOLFSSL_SUCCESS);
+    #endif
+    }
+    
+    /* cmd CipherString */
+    {
+        char* cipher = wolfSSL_get_cipher_list(0/*top priority*/);
+        AssertIntEQ(SSL_CONF_cmd(cctx, "CipherString", cipher), WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CONF_CTX_finish(cctx), WOLFSSL_SUCCESS);
+    }
+    
+    /* cmd DH parameter */
+    {
+    #if !defined(NO_DH) && !defined(NO_BIO)
+        const char* ourdhcert = "./certs/dh3072.pem";
+        
+        AssertIntEQ(SSL_CONF_cmd(cctx, "DHParameters", ourdhcert), 
+                                                        WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CONF_CTX_finish(cctx), WOLFSSL_SUCCESS);
+        
+    #endif
+    }
     SSL_CTX_free(ctx);
     SSL_CONF_CTX_free(cctx);
     
@@ -43768,7 +43805,7 @@ void ApiTest(void)
     test_wolfSSL_OpenSSL_version();
     test_wolfSSL_set_psk_use_session_callback();
     
-    test_CONF_CTX();
+    test_CONF_CTX_FILE();
     test_wolfSSL_CRYPTO_get_ex_new_index();
     test_wolfSSL_DH_get0_pqg();
     
