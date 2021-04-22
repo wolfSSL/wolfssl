@@ -2113,6 +2113,148 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
     return ret;
 }
 
+/**
+ * validate DH algorithm parameters
+ * @param dh_key  a pointer to WOLFSSL_EVP_PKEY_CTX structure
+ * @return WOLFSSL_SUCCESS on success, otherwise failure
+ */
+static int DH_param_check(WOLFSSL_DH* dh_key)
+{
+    int ret = WOLFSSL_SUCCESS;
+    WOLFSSL_BN_CTX* ctx = NULL;
+    WOLFSSL_BIGNUM *num1 = NULL;
+    WOLFSSL_BIGNUM *num2 = NULL;
+    
+    WOLFSSL_ENTER("DH_param_check");
+    
+    ctx = wolfSSL_BN_CTX_new();
+    if (ctx == NULL) {
+        WOLFSSL_MSG("failed to allocate memory");
+        return WOLFSSL_FAILURE;
+    }
+    
+    num1 = wolfSSL_BN_new();
+    num2 = wolfSSL_BN_new();
+    if (num1 == NULL || num2 == NULL) {
+        WOLFSSL_MSG("failed to assign big number");
+        ret = WOLFSSL_FAILURE;
+    }
+    
+    /* prime check */
+    if (ret == WOLFSSL_SUCCESS &&
+        wolfSSL_BN_is_odd(dh_key->p) == 0){
+        WOLFSSL_MSG("dh_key->p is not prime");
+        ret = WOLFSSL_FAILURE;
+    } /* TODO safe prime check. need BN_rshift1 */
+    
+    /* generator check */
+    if (ret == WOLFSSL_SUCCESS &&
+       (wolfSSL_BN_is_one(dh_key->g) ||
+        wolfSSL_BN_is_negative(dh_key->g) ||
+        wolfSSL_BN_is_zero(dh_key->g))) {
+        WOLFSSL_MSG("dh_key->g is not suitable generator");
+        ret = WOLFSSL_FAILURE;
+    }
+    
+    if (ret == WOLFSSL_SUCCESS &&
+        wolfSSL_BN_cmp(dh_key->p, dh_key->g) <= 0) {
+        WOLFSSL_MSG("dh_key->g is not suitable generator");
+        ret = WOLFSSL_FAILURE;
+    }
+    
+    if (ret == WOLFSSL_SUCCESS &&
+        dh_key->q != NULL)
+    {
+        if (ret == WOLFSSL_SUCCESS &&
+            wolfSSL_BN_mod_exp(num1, dh_key->g, dh_key->q, dh_key->p, ctx) ==
+            WOLFSSL_FAILURE) {
+            WOLFSSL_MSG("BN_mod_exp failed");
+            ret = WOLFSSL_FAILURE;
+        }
+        else
+            if (ret == WOLFSSL_SUCCESS &&
+                wolfSSL_BN_is_one(num1) == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("dh_key->g is not suitable generator");
+                ret = WOLFSSL_FAILURE;
+            }
+#ifdef WOLFSSL_KEY_GEN
+        /* test if the number q is prime. */
+        if (ret == WOLFSSL_SUCCESS &&
+            (wolfSSL_BN_is_prime_ex(dh_key->q, 64, ctx, NULL) <= 0)) {
+            WOLFSSL_MSG("dh_key->q is not prime or error during check.");
+            ret = WOLFSSL_FAILURE;
+        } /* else TODO check q div q - 1. need BN_div */
+#endif
+    }
+    
+    /* clean up */
+    wolfSSL_BN_CTX_free(ctx);
+    wolfSSL_BN_free(num1);
+    wolfSSL_BN_free(num2);
+    
+    WOLFSSL_LEAVE("DH_param_check", WOLFSSL_SUCCESS);
+    return ret;
+}
+/**
+ * validate the algorithm parameters
+ * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
+ * @return WOLFSSL_SUCCESS on success, otherwise failure
+ */
+int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
+{
+    int type;
+    int ret;
+    WOLFSSL_DH* dh_key = NULL;
+    
+    (void)dh_key;
+    
+    /* sanity check */
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    
+    type = wolfSSL_EVP_PKEY_type(wolfSSL_EVP_PKEY_base_id(ctx->pkey));
+    
+    switch(type) {
+        #if !defined(NO_RSA)
+            case EVP_PKEY_RSA:
+                WOLFSSL_MSG("EVP_PKEY_RSA not yet implemented");
+                return WOLFSSL_FAILURE;
+        #endif
+        #if defined(HAVE_ECC)
+            case EVP_PKEY_EC:
+                WOLFSSL_MSG("EVP_PKEY_EC not yet implemented");
+                return WOLFSSL_FAILURE;
+        #endif
+        #if !defined(NO_DSA)
+            case EVP_PKEY_DSA:
+                WOLFSSL_MSG("EVP_PKEY_DSA not yet implemented");
+                return WOLFSSL_FAILURE;
+        #endif
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+        #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
+                                        && (HAVE_FIPS_VERSION>2))
+            case EVP_PKEY_DH:
+                dh_key = wolfSSL_EVP_PKEY_get1_DH(ctx->pkey);
+                if (dh_key != NULL) {
+                    ret = DH_param_check(dh_key);
+                    wolfSSL_DH_free(dh_key);
+                }
+                else
+                    ret = WOLFSSL_FAILURE;
+            return ret;
+        #endif
+        #endif
+        #endif
+        default:
+            WOLFSSL_MSG("Unknown PKEY type");
+            return WOLFSSL_FAILURE;
+    }
+    (void)ret;
+    (void)DH_param_check;
+}
+
 /* Initialize structure for signing
  *
  * ctx  WOLFSSL_EVP_MD_CTX structure to initialize

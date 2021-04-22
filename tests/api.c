@@ -36746,26 +36746,6 @@ static void test_wolfSSL_EVP_PKEY_assign_DH(void)
 #endif
 }
 
-static void test_wolfSSL_EVP_PKEY_param_check(void)
-{
-#if defined(OPENSSL_EXTRA)
-    EVP_PKEY*       pkey;
-    EVP_PKEY_CTX*   ctx;
-    
-    printf(testingFmt, "test_wolfSSL_EVP_PKEY_param_check");
-    
-    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
-    AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
-    
-    /* STUB */
-    AssertIntEQ(EVP_PKEY_param_check(ctx), WOLFSSL_FAILURE);
-    
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(pkey);
-    printf(resultFmt, passed);
-#endif
-}
-
 static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
 {
 #if defined(OPENSSL_EXTRA)
@@ -36788,6 +36768,60 @@ static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
     
     EVP_PKEY_free(pkey);
     printf(resultFmt, passed);
+#endif
+}
+static void test_wolfSSL_EVP_PKEY_param_check(void)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
+                                     && (HAVE_FIPS_VERSION>2))
+    DH       *dh    = NULL;
+    DH       *setDh = NULL;
+    EVP_PKEY *pkey  = NULL;
+    EVP_PKEY_CTX*   ctx = NULL;
+    
+    FILE* f = NULL;
+    unsigned char buf[512];
+    const unsigned char* pt = buf;
+    const char* dh2048 = "./certs/dh2048.der";
+    long len = 0;
+    int code = -1;
+
+    printf(testingFmt, "test_wolfSSL_EVP_PKEY_param_check");
+
+    XMEMSET(buf, 0, sizeof(buf));
+
+    f = XFOPEN(dh2048, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    /* Load dh2048.der into DH with internal format */
+    AssertNotNull(setDh = d2i_DHparams(NULL, &pt, len));
+    AssertIntEQ(DH_check(setDh, &code), WOLFSSL_SUCCESS);
+    AssertIntEQ(code, 0);
+    code = -1;
+    
+    pkey = wolfSSL_EVP_PKEY_new();
+    /* Set DH into PKEY */
+    AssertIntEQ(EVP_PKEY_set1_DH(pkey, setDh), WOLFSSL_SUCCESS);
+    /* create ctx from pkey */
+    AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
+    AssertIntEQ(EVP_PKEY_param_check(ctx), 1/* valid */);
+    
+    /*                    */
+    /* TO DO invlaid case */
+    /*                    */
+    
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    DH_free(setDh);
+    DH_free(dh);
+    
+    printf(resultFmt, passed);
+#endif
+#endif
 #endif
 }
 static void test_wolfSSL_EVP_BytesToKey(void)
