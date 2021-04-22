@@ -37873,6 +37873,71 @@ static void test_wolfSSL_i2d_PrivateKey(void)
 #endif
 }
 
+static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
+{
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    int idx1,idx2;
+
+    printf(testingFmt, "test_wolfSSL_CRYPTO_get_ex_new_index()");
+
+    /* test for unsupported flass index */
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509_STORE_CTX,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DH,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DSA,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_EC_KEY,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_RSA,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_ENGINE,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_BIO,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_APP,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_UI_METHOD,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_DRBG,
+                                         0,NULL, NULL, NULL, NULL ), -1);
+    AssertIntEQ(CRYPTO_get_ex_new_index(20, 0,NULL, NULL, NULL, NULL ), -1);
+
+    /* test for supported class index */
+    idx1 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL,
+                                         0,NULL, NULL, NULL, NULL );
+    idx2 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL,
+                                         0,NULL, NULL, NULL, NULL );
+    AssertIntNE(idx1, -1);
+    AssertIntNE(idx2, -1);
+    AssertIntNE(idx1, idx2);
+
+    idx1 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX,
+                                         0,NULL, NULL, NULL, NULL );
+    idx2 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX,
+                                         0,NULL, NULL, NULL, NULL );
+    AssertIntNE(idx1, -1);
+    AssertIntNE(idx2, -1);
+    AssertIntNE(idx1, idx2);
+
+    idx1 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
+                                         0,NULL, NULL, NULL, NULL );
+    idx2 = CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_X509,
+                                         0,NULL, NULL, NULL, NULL );
+    AssertIntNE(idx1, -1);
+    AssertIntNE(idx2, -1);
+    AssertIntNE(idx1, idx2);
+
+    printf(resultFmt, "passed");
+#endif /* HAVE_EX_DATA || FORTRESS */
+}
+
 static void test_wolfSSL_OCSP_id_get0_info(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && !defined(NO_FILESYSTEM)
@@ -43259,7 +43324,7 @@ void ApiTest(void)
     test_CRYPTO_set_dynlock_xxx();
     test_CRYPTO_THREADID_xxx();
     test_ENGINE_cleanup();
-
+    test_wolfSSL_CRYPTO_get_ex_new_index();
     test_wolfSSL_EC_KEY_set_group();
 #if defined(OPENSSL_ALL)
     test_wolfSSL_X509_PUBKEY_get();
