@@ -5335,7 +5335,10 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, and
+ * WOLFSSL_SNIFFER_ERROR on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state
+ * error
+ */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
                                     void* vChain, word32 chainSz,
                                     byte** data, SSLInfo* sslInfo,
@@ -5363,13 +5366,14 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
-        return -1;
+        return WOLFSSL_SNIFFER_ERROR;
 
     end = sslFrame + sslBytes;
 
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         if (sslBytes > 0) {
@@ -5385,8 +5389,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     }
 
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
@@ -5396,8 +5401,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, vChain, chainSz, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    else if (ret == -1) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
@@ -5417,7 +5423,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 #endif
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, ctx, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
+        return WOLFSSL_SNIFFER_FATAL_ERROR;
     if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
         CopySessionInfo(session, sslInfo);
     }
@@ -5427,7 +5434,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 /* Also returns Session Info if available */
 int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
     unsigned char** data, SSLInfo* sslInfo, char* error)
@@ -5438,7 +5446,8 @@ int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
 
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
-/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 {
     return ssl_DecodePacketInternal(packet, length, NULL, 0, data, NULL, NULL,
@@ -5448,6 +5457,8 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
 
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
         int length, void* ctx, SSLInfo* sslInfo, char* error)
 {
@@ -5460,6 +5471,8 @@ int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
 
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
 
+/* returns Number of bytes on success, 0 for no data yet, WOLFSSL_SNIFFER_ERROR.
+ * on error and WOLFSSL_SNIFFER_FATAL_ERROR on fatal state error */
 int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
         char* error)
 {
@@ -5473,6 +5486,10 @@ int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
 #if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
      defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
 
+/*
+ * returns WOLFSSL_SNIFFER_ERROR on error and WOLFSSL_SNIFFER_FATAL_ERROR on
+ * fatal state error
+ */
 int ssl_DecodePacketWithChainSessionInfoStoreData(void* vChain, word32 chainSz,
         void* ctx, SSLInfo* sslInfo, char* error)
 {
