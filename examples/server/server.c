@@ -2025,6 +2025,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef TEST_IPV6
             remote.sa.sa_family = local.sa.sa_family = AF_INET6;
             remote.sa.addr_len = 128;
+            memcpy(remote.sa.addr, "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001", 16);
 #else
             remote.sa.sa_family = local.sa.sa_family = AF_INET;
             remote.sa.addr_len = 32;
