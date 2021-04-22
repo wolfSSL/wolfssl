@@ -5036,7 +5036,17 @@ WOLFSSL_API void  wolfSSL_ERR_print_errors_cb (
     \param ctx a pointer to a WOLFSSL_CTX structure, created using
     wolfSSL_CTX_new().
     \param cb wc_psk_client_callback is a function pointer that will be
-    stored in the WOLFSSL_CTX structure.
+    stored in the WOLFSSL_CTX structure. Return value is the key length on
+    success or zero on error.
+    unsigned int (*wc_psk_client_callback)
+    PSK client callback parameters:
+    WOLFSSL* ssl - Pointer to the wolfSSL structure
+    const char* hint - A stored string that could be displayed to provide a
+                        hint to the user.
+    char* identity - The ID will be stored here.
+    unsigned int id_max_len - Size of the ID buffer.
+    unsigned char* key - The key will be stored here.
+    unsigned int key_max_len - The max size of the key.
 
     _Example_
     \code
@@ -5063,19 +5073,27 @@ WOLFSSL_API void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX*,
     \return none No returns.
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
-    \param cb a function pointer to type wc_psk_client_callback.
+    \param cb a function pointer to type wc_psk_client_callback. Return value
+    is the key length on success or zero on error.
+    unsigned int (*wc_psk_client_callback)
+    PSK client callback parameters:
+    WOLFSSL* ssl - Pointer to the wolfSSL structure
+    const char* hint - A stored string that could be displayed to provide a
+                        hint to the user.
+    char* identity - The ID will be stored here.
+    unsigned int id_max_len - Size of the ID buffer.
+    unsigned char* key - The key will be stored here.
+    unsigned int key_max_len - The max size of the key.
 
     _Example_
     \code
     WOLFSSL* ssl;
-    unsigned int cb(WOLFSSL*, const char*, char*) // Header of function*
-    {
-    	// Function body
-    }
+    static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
+    char* identity, unsigned int id_max_len, unsigned char* key,
+    Unsigned int key_max_len){
     …
-    cb = wc_psk_client_callback;
     if(ssl){
-    wolfSSL_set_psk_client_callback(ssl, cb);
+    wolfSSL_set_psk_client_callback(ssl, my_psk_client_cb);
     } else {
     	// could not set callback
     }
@@ -5216,21 +5234,28 @@ WOLFSSL_API int wolfSSL_use_psk_identity_hint(WOLFSSL*, const char*);
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param cb a function pointer for the callback and will be stored in
-    the WOLFSSL_CTX structure.
+    the WOLFSSL_CTX structure. Return value is the key length on success or
+    zero on error.
+    unsigned int (*wc_psk_server_callback)
+    PSK server callback parameters
+    WOLFSSL* ssl - Pointer to the wolfSSL structure
+    char* identity - The ID will be stored here.
+    unsigned char* key - The key will be stored here.
+    unsigned int key_max_len - The max size of the key.
 
     _Example_
     \code
     WOLFSSL_CTX* ctx = wolfSSL_CTX_new( protocol method );
     WOLFSSL* ssl = wolfSSL_new(ctx);
     …
-    unsigned int cb(WOLFSSL*, const char*, unsigned char*, unsigned int)
-        // signature requirement
+    static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
+                           unsigned char* key, unsigned int key_max_len)
     {
-    	// Function body.
+        // Function body.
     }
     …
     if(ctx != NULL){
-    wolfSSL_CTX_set_psk_server_callback(ctx, cb);
+        wolfSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     } else {
     	// The CTX object was not properly initialized.
     }
@@ -5252,20 +5277,29 @@ WOLFSSL_API void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX*,
 
     \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
     \param cb a function pointer for the callback and will be stored in
-    the WOLFSSL structure.
+    the WOLFSSL structure. Return value is the key length on success or  zero
+    on error.
+    unsigned int (*wc_psk_server_callback)
+    PSK server callback parameters
+    WOLFSSL* ssl - Pointer to the wolfSSL structure
+    char* identity - The ID will be stored here.
+    unsigned char* key - The key will be stored here.
+    unsigned int key_max_len - The max size of the key.
+
 
     _Example_
     \code
     WOLFSSL_CTX* ctx;
     WOLFSSL* ssl;
     …
-    int cb(WOLFSSL*, const char*, unsigned char*, unsigned int) // Required sig.
+    static unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
+                           unsigned char* key, unsigned int key_max_len)
     {
-    	// Function body.
+        // Function body.
     }
     …
     if(ssl != NULL && cb != NULL){
-    	wolfSSL_set_psk_server_callback(ssl, cb);
+        wolfSSL_set_psk_server_callback(ssl, my_psk_server_cb);
     }
     \endcode
 
