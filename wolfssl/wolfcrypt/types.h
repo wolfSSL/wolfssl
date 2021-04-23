@@ -48,8 +48,14 @@ decouple library dependencies with standard string, memory and so on.
      * (with minimal depencencies).
      */
     #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        typedef void (*wolfSSL_ex_data_cleanup_routine_t)(void *data);
+        #endif
     typedef struct WOLFSSL_CRYPTO_EX_DATA {
         void* ex_data[MAX_EX_DATA];
+        #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        wolfSSL_ex_data_cleanup_routine_t ex_data_cleanup_routines[MAX_EX_DATA];
+        #endif
     } WOLFSSL_CRYPTO_EX_DATA;
     #endif
 

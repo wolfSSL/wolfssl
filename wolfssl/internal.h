@@ -2860,6 +2860,10 @@ struct WOLFSSL_CTX {
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    NetworkFilterCallback_t AcceptFilter;
+    void *AcceptFilter_arg;
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
@@ -3038,6 +3042,10 @@ WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX*);
 WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX*);
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data);
+#endif
 
 WOLFSSL_LOCAL
 int DeriveTlsKeys(WOLFSSL* ssl);
@@ -4075,6 +4083,10 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
 #endif
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    NetworkFilterCallback_t AcceptFilter;
+    void *AcceptFilter_arg;
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
     CallbackIORecv  CBIORecv;
     CallbackIOSend  CBIOSend;
 #ifdef WOLFSSL_STATIC_MEMORY

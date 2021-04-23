@@ -1013,6 +1013,34 @@ int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
 }
 #endif /* NO_CERTS */
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+
+int wolfSSL_CTX_set_AcceptFilter(
+    WOLFSSL_CTX *ctx,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    ctx->AcceptFilter = AcceptFilter;
+    ctx->AcceptFilter_arg = AcceptFilter_arg;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_set_AcceptFilter(
+    WOLFSSL *ssl,
+    NetworkFilterCallback_t AcceptFilter,
+    void *AcceptFilter_arg)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    ssl->AcceptFilter = AcceptFilter;
+    ssl->AcceptFilter_arg = AcceptFilter_arg;
+    return WOLFSSL_SUCCESS;
+}
+
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
 #ifndef WOLFSSL_LEANPSK
 int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
@@ -12898,6 +12926,18 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+        if (ssl->AcceptFilter) {
+            wolfSSL_netfilter_decision_t res;
+            if ((ssl->AcceptFilter(ssl, ssl->AcceptFilter_arg, &res) ==
+                 WOLFSSL_SUCCESS) &&
+                (res == WOLFSSL_NETFILTER_REJECT)) {
+                WOLFSSL_ERROR(ssl->error = SOCKET_FILTERED_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+        }
+#endif /* WOLFSSL_WOLFSENTRY_HOOKS */
+
 #if defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13)
         return wolfSSL_accept_TLSv13(ssl);
 #else
@@ -16276,7 +16316,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* unchain?, doesn't matter in goahead since from free all */
         WOLFSSL_ENTER("wolfSSL_BIO_free");
         if (bio) {
-
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+            wolfSSL_CRYPTO_cleanup_ex_data(&bio->ex_data);
+#endif
             if (bio->infoCb) {
                 /* info callback is called before free */
                 ret = (int)bio->infoCb(bio, WOLFSSL_BIO_CB_FREE, NULL, 0, 0, 1);
@@ -18721,6 +18763,9 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 
     WOLFSSL_ENTER("ExternalFreeX509");
     if (x509) {
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        wolfSSL_CRYPTO_cleanup_ex_data(&x509->ex_data);
+#endif
         if (x509->dynamicMemory) {
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
             if (wc_LockMutex(&x509->refMutex) != 0) {
@@ -21921,6 +21966,10 @@ void FreeSession(WOLFSSL_SESSION* session, int isAlloced)
     if (session == NULL)
         return;
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    wolfSSL_CRYPTO_cleanup_ex_data(&session->ex_data);
+#endif
+
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
     if (session->peer) {
         wolfSSL_X509_free(session->peer);
@@ -24698,6 +24747,31 @@ int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
     return WOLFSSL_FAILURE;
 }
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+/* Set ex_data for WOLFSSL_BIO
+ *
+ * bio  : BIO structure to set ex_data in
+ * idx  : Index of ex_data to set
+ * data : Data to set in ex_data
+ * cleanup_routine : Function pointer to clean up data
+ *
+ * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_BIO_set_ex_data_with_cleanup(
+    WOLFSSL_BIO *bio,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data_with_cleanup");
+    if (bio != NULL && idx < MAX_EX_DATA) {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&bio->ex_data, idx, data,
+                                                       cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 /* Get ex_data in WOLFSSL_BIO at given index
  *
  * bio  : BIO structure to get ex_data from
@@ -26017,7 +26091,14 @@ err_exit:
 
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
-    if (store != NULL && store->isDynamic) {
+    if (store == NULL)
+        return;
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    wolfSSL_CRYPTO_cleanup_ex_data(&store->ex_data);
+#endif
+
+    if (store->isDynamic) {
         if (store->cm != NULL) {
             wolfSSL_CertManagerFree(store->cm);
             store->cm = NULL;
@@ -26042,6 +26123,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
 }
+
 /**
  * Get ex_data in WOLFSSL_STORE at given index
  * @param store a pointer to WOLFSSL_X509_STORE structure
@@ -26061,6 +26143,7 @@ void* wolfSSL_X509_STORE_get_ex_data(WOLFSSL_X509_STORE* store, int idx)
 #endif
     return NULL;
 }
+
 /**
  * Set ex_data for WOLFSSL_STORE
  * @param store a pointer to WOLFSSL_X509_STORE structure
@@ -26083,6 +26166,31 @@ int wolfSSL_X509_STORE_set_ex_data(WOLFSSL_X509_STORE* store, int idx,
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+/**
+ * Set ex_data for WOLFSSL_STORE
+ * @param store a pointer to WOLFSSL_X509_STORE structure
+ * @param idx   Index of ex data to set
+ * @param data  Data to set in ex data
+ * @return WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE on failure
+ */
+int wolfSSL_X509_STORE_set_ex_data_with_cleanup(
+    WOLFSSL_X509_STORE* store,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_set_ex_data_with_cleanup");
+    if (store != NULL && idx < MAX_EX_DATA) {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&store->ex_data, idx,
+                                                       data, cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
@@ -26204,6 +26312,9 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
     WOLFSSL_ENTER("X509_STORE_CTX_free");
     if (ctx != NULL) {
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data);
+#endif
     #ifdef OPENSSL_EXTRA
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
@@ -27561,6 +27672,25 @@ int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+/* set X509_STORE_CTX ex_data, max idx is MAX_EX_DATA. Return WOLFSSL_SUCCESS
+ * on success, WOLFSSL_FAILURE on error. */
+int wolfSSL_X509_STORE_CTX_set_ex_data_with_cleanup(
+    WOLFSSL_X509_STORE_CTX* ctx,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_ex_data_with_cleanup");
+    if (ctx != NULL)
+    {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ctx->ex_data, idx, data,
+                                                       cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
 void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
@@ -40286,6 +40416,22 @@ int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data)
     return WOLFSSL_FAILURE;
 }
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_RSA_set_ex_data_with_cleanup(
+    WOLFSSL_RSA *rsa,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_set_ex_data_with_cleanup");
+    if (rsa) {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&rsa->ex_data, idx, data,
+                                                       cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                          WOLFSSL_BIGNUM *d)
 {
@@ -44669,9 +44815,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
-#if ((defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && defined(HAVE_EX_DATA)) || \
-    defined(FORTRESS) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
@@ -44739,7 +44883,24 @@ int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)
     return WOLFSSL_FAILURE;
 }
 
-#endif /* ((OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) && HAVE_EX_DATA) || FORTRESS || WOLFSSL_WPAS_SMALL */
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_CTX_set_ex_data_with_cleanup(
+    WOLFSSL_CTX* ctx,
+    int idx,
+    void* data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_ex_data_with_cleanup");
+    if (ctx != NULL)
+    {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ctx->ex_data, idx, data,
+                                                       cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
+#endif /* defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL) */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
@@ -44771,8 +44932,8 @@ int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(HAVE_EX_DATA) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
 
 int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 {
@@ -44790,6 +44951,23 @@ int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_set_ex_data_with_cleanup(
+    WOLFSSL* ssl,
+    int idx,
+    void* data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_set_ex_data_with_cleanup");
+    if (ssl != NULL)
+    {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ssl->ex_data, idx, data,
+                                                       cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
 void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 {
@@ -46416,6 +46594,22 @@ int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_SESSION_set_ex_data_with_cleanup(
+    WOLFSSL_SESSION* session,
+    int idx,
+    void* data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_set_ex_data_with_cleanup");
+    if(session != NULL) {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&session->ex_data, idx,
+                                                       data, cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
 void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 {
@@ -48641,8 +48835,6 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_WPAS_SMALL)
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
 {
@@ -48663,6 +48855,13 @@ int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *d
     WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
 #ifdef MAX_EX_DATA
     if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        if (ex_data->ex_data_cleanup_routines[idx]) {
+            if (ex_data->ex_data[idx])
+                ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
+            ex_data->ex_data_cleanup_routines[idx] = NULL;
+        }
+#endif
         ex_data->ex_data[idx] = data;
         return WOLFSSL_SUCCESS;
     }
@@ -48673,8 +48872,30 @@ int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *d
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_CRYPTO_set_ex_data_with_cleanup(
+    WOLFSSL_CRYPTO_EX_DATA* ex_data,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data_with_cleanup");
+    if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
+        if (ex_data->ex_data_cleanup_routines[idx] && ex_data->ex_data[idx])
+            ex_data->ex_data_cleanup_routines[idx](ex_data->ex_data[idx]);
+        ex_data->ex_data[idx] = data;
+        ex_data->ex_data_cleanup_routines[idx] = cleanup_routine;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 #endif /* HAVE_EX_DATA || FORTRESS */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_WPAS_SMALL)
 void *wolfSSL_X509_get_ex_data(X509 *x509, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_data");
@@ -48704,6 +48925,24 @@ int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
 #endif
     return WOLFSSL_FAILURE;
 }
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+int wolfSSL_X509_set_ex_data_with_cleanup(
+    X509 *x509,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_ex_data_with_cleanup");
+    if (x509 != NULL)
+    {
+        return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&x509->ex_data, idx,
+                                                       data, cleanup_routine);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
+
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || WOLFSSL_WPAS_SMALL */
 
 
@@ -53211,6 +53450,9 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
     WOLFSSL_ENTER("wolfSSL_RSA_free");
 
     if (rsa) {
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+        wolfSSL_CRYPTO_cleanup_ex_data(&rsa->ex_data);
+#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         int doFree = 0;
         if (wc_LockMutex(&rsa->refMutex) != 0) {

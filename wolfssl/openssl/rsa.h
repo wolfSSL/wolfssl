@@ -152,7 +152,13 @@ WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
 
 WOLFSSL_API void* wolfSSL_RSA_get_ex_data(const WOLFSSL_RSA *rsa, int idx);
 WOLFSSL_API int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
-
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
+    WOLFSSL_RSA *rsa,
+    int idx,
+    void *data,
+    wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
+#endif
 
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2

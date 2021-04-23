@@ -2777,7 +2777,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 #endif
 
     /* do it here to detect failure */
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
     CloseSocket(sockfd);
 
     wolfSSL_CTX_set_verify(ctx,
@@ -3072,7 +3072,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
             cbf->ssl_ready(ssl);
         }
         /* do it here to detect failure */
-        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
         CloseSocket(sockfd);
         if (wolfSSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
             /*err_sys("SSL_set_fd failed");*/
@@ -3641,14 +3641,14 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         socklen_t     cliLen;
 
         cliLen = sizeof(cliAddr);
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0, 0);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 1, 0, 0, 0, 0, 0);
         idx = (int)recvfrom(sfd, input, sizeof(input), MSG_PEEK,
                 (struct sockaddr*)&cliAddr, &cliLen);
         AssertIntGT(idx, 0);
         wolfSSL_dtls_set_peer(ssl, &cliAddr, cliLen);
     }
     else {
-        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+        tcp_accept(&sfd, &cfd, (func_args*)args, port, 0, 0, 0, 0, 1, 0, 0);
         CloseSocket(sfd);
     }
 
@@ -42358,7 +42358,7 @@ static void test_wolfSSL_CTX_get_min_proto_version(void)
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
 }
 
-static void test_wolfSSL_security_level()
+static void test_wolfSSL_security_level(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_wolfSSL_security_level()");
@@ -42385,7 +42385,7 @@ static void test_wolfSSL_security_level()
 #endif
 }
 
-static void test_wolfSSL_SSL_in_init()
+static void test_wolfSSL_SSL_in_init(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_BIO)
     printf(testingFmt, "test_wolfSSL_SSL_in_init()");
@@ -42432,7 +42432,7 @@ static void test_wolfSSL_SSL_in_init()
 #endif
 }
 
-static void test_wolfSSL_EC_curve()
+static void test_wolfSSL_EC_curve(void)
 {
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     printf(testingFmt, "test_wolfSSL_EC_curve()");
@@ -42448,7 +42448,7 @@ static void test_wolfSSL_EC_curve()
 #endif
 }
 
-static void test_wolfSSL_OpenSSL_version()
+static void test_wolfSSL_OpenSSL_version(void)
 {
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "test_wolfSSL_OpenSSL_version()");
@@ -42522,7 +42522,7 @@ static void test_wolfSSL_CRYPTO_get_ex_new_index(void)
 #endif
 }
 
-static void test_wolfSSL_set_psk_use_session_callback()
+static void test_wolfSSL_set_psk_use_session_callback(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_PSK)
     printf(testingFmt, "test_wolfSSL_set_psk_use_session_callback()");

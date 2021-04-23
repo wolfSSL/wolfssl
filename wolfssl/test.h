@@ -1297,10 +1297,9 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                               func_args* args, word16 port, int useAnyAddr,
-                              int udp, int sctp, int ready_file, int do_listen)
+                              int udp, int sctp, int ready_file, int do_listen,
+                              SOCKADDR_IN_T *client_addr, socklen_t *client_len)
 {
-    SOCKADDR_IN_T client_addr;
-    socklen_t client_len = sizeof(client_addr);
     tcp_ready* ready = NULL;
 
     (void) ready; /* Account for case when "ready" is not used */
@@ -1357,8 +1356,8 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     }
 
-    *clientfd = accept(*sockfd, (struct sockaddr*)&client_addr,
-                      (ACCEPT_THIRD_T)&client_len);
+    *clientfd = accept(*sockfd, (struct sockaddr*)client_addr,
+                      (ACCEPT_THIRD_T)client_len);
     if(WOLFSSL_SOCKET_IS_INVALID(*clientfd)) {
         err_sys_with_errno("tcp accept failed");
     }

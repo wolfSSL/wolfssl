@@ -2501,6 +2501,77 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
 
+
+ENABLED_WOLFSENTRY=no
+
+AC_ARG_WITH([wolfsentry],
+    [AS_HELP_STRING([--with-wolfsentry=PATH],[PATH to directory with wolfSentry installation])],
+    [WOLFSENTRY_INSTALLDIR=$withval],
+    [WOLFSENTRY_INSTALLDIR=""])
+
+AC_ARG_WITH([wolfsentry-lib],
+    [AS_HELP_STRING([--with-wolfsentry-lib=PATH],[PATH to directory with wolfSentry library])],
+    [WOLFSENTRY_LIB=$withval],
+    [WOLFSENTRY_LIB=""])
+
+AC_ARG_WITH([wolfsentry-include],
+    [AS_HELP_STRING([--with-wolfsentry-include=PATH],[PATH to directory with wolfSentry header files])],
+    [WOLFSENTRY_INCLUDE=$withval],
+    [WOLFSENTRY_INCLUDE=""])
+
+if test -n "$WOLFSENTRY_INSTALLDIR" || test -n "$WOLFSENTRY_LIB" || test -n "$WOLFSENTRY_INCLUDE"
+then
+    ENABLED_WOLFSENTRY=yes
+fi
+
+AC_ARG_ENABLE([wolfsentry],
+    [AS_HELP_STRING([--enable-wolfsentry],[Enable wolfSentry hooks and plugins (default: disabled)])],
+    [ ENABLED_WOLFSENTRY=$enableval ],
+    [ ]
+    )
+
+if test "$WOLFSENTRY_LIB" = "" && test -n "$WOLFSENTRY_INSTALLDIR"
+then
+    WOLFSENTRY_LIB="${WOLFSENTRY_INSTALLDIR}/lib"
+fi
+
+if test "$WOLFSENTRY_INCLUDE" = "" && test -n "$WOLFSENTRY_INSTALLDIR"
+then
+    WOLFSENTRY_INCLUDE="${WOLFSENTRY_INSTALLDIR}/include"
+fi
+
+if test -n "$WOLFSENTRY_LIB"
+then
+    AC_MSG_CHECKING([for $WOLFSENTRY_LIB])
+    if ! test -d "$WOLFSENTRY_LIB"
+    then
+        AC_MSG_ERROR([wolfSentry lib dir $WOLFSENTRY_LIB not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    WOLFSENTRY_LIB="-L$WOLFSENTRY_LIB"
+fi
+
+if test -n "$WOLFSENTRY_INCLUDE"
+then
+    AC_MSG_CHECKING([for $WOLFSENTRY_INCLUDE])
+    if ! test -d "$WOLFSENTRY_INCLUDE"
+    then
+        AC_MSG_ERROR([wolfSentry include dir $WOLFSENTRY_INCLUDE not found.])
+    fi
+    AC_MSG_RESULT([yes])
+    WOLFSENTRY_INCLUDE="-I$WOLFSENTRY_INCLUDE"
+fi
+
+if test "$ENABLED_WOLFSENTRY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WOLFSENTRY_HOOKS -DHAVE_EX_DATA -DHAVE_EX_DATA_CLEANUP_HOOKS"
+    WOLFSENTRY_LIB="$WOLFSENTRY_LIB -lwolfsentry"
+fi
+
+AC_SUBST([WOLFSENTRY_LIB])
+AC_SUBST([WOLFSENTRY_INCLUDE])
+
+
 if test "$ENABLED_QT" = "yes"
 then
     # Requires opensslextra and opensslall
@@ -6567,8 +6638,8 @@ echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
 echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
-echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
-echo "   * ECC Minimum Bits            $ENABLED_ECCMINSZ"
+echo "   * ECC Custom Curves:          $ENABLED_ECCCUSTCURVES"
+echo "   * ECC Minimum Bits:           $ENABLED_ECCMINSZ"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"
 echo "   * ED25519:                    $ENABLED_ED25519"
 echo "   * CURVE448:                   $ENABLED_CURVE448"
@@ -6582,6 +6653,7 @@ echo "   * Anonymous cipher:           $ENABLED_ANON"
 echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
+echo "   * wolfSentry:                 $ENABLED_WOLFSENTRY"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
@@ -6589,8 +6661,8 @@ echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
-echo "   * Qt                          $ENABLED_QT"
-echo "   * Qt Unit Testing             $ENABLED_QT_TEST"
+echo "   * Qt:                         $ENABLED_QT"
+echo "   * Qt Unit Testing:            $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
@@ -6631,12 +6703,12 @@ echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * Keying Material Exporter:   $ENABLED_KEYING_MATERIAL"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
-echo "   * PKCS#7                      $ENABLED_PKCS7"
-echo "   * S/MIME                      $ENABLED_SMIME"
-echo "   * wolfSSH                     $ENABLED_WOLFSSH"
-echo "   * wolfTPM                     $ENABLED_WOLFTPM"
-echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
-echo "   * Secure Remote Password      $ENABLED_SRP"
+echo "   * PKCS#7:                     $ENABLED_PKCS7"
+echo "   * S/MIME:                     $ENABLED_SMIME"
+echo "   * wolfSSH:                    $ENABLED_WOLFSSH"
+echo "   * wolfTPM:                    $ENABLED_WOLFTPM"
+echo "   * wolfSCEP:                   $ENABLED_WOLFSCEP"
+echo "   * Secure Remote Password:     $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"
 echo "   * Linux Kernel Module:        $ENABLED_LINUXKM"
 echo "   * valgrind unit tests:        $ENABLED_VALGRIND"

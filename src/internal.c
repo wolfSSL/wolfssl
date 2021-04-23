@@ -1883,6 +1883,17 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     return ret;
 }
 
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+void wolfSSL_CRYPTO_cleanup_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data)
+{
+    int n_ex_data = (int)(sizeof ex_data->ex_data / sizeof ex_data->ex_data[0]);
+    for (--n_ex_data; n_ex_data >= 0; --n_ex_data) {
+        if (ex_data->ex_data[n_ex_data] != NULL)
+            (void)wolfSSL_CRYPTO_set_ex_data_with_cleanup(ex_data, n_ex_data,
+                                                          NULL, NULL);
+    }
+}
+#endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
 
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
@@ -1890,6 +1901,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
                      defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
     int i;
+#endif
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    wolfSSL_CRYPTO_cleanup_ex_data(&ctx->ex_data);
 #endif
 
 #ifdef HAVE_WOLF_EVENT
@@ -5581,6 +5596,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     #endif
 #endif
 
+#ifdef WOLFSSL_WOLFSENTRY_HOOKS
+    ssl->AcceptFilter = ctx->AcceptFilter;
+    ssl->AcceptFilter_arg = ctx->AcceptFilter_arg;
+#endif
+
     ssl->CBIORecv = ctx->CBIORecv;
     ssl->CBIOSend = ctx->CBIOSend;
 #ifdef OPENSSL_EXTRA
@@ -6417,6 +6437,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
      * like the RNG which may optionally be kept for the whole session. (For
      * example with the RNG, it isn't used beyond the handshake except when
      * using stream ciphers where it is retained. */
+
+#ifdef HAVE_EX_DATA_CLEANUP_HOOKS
+    wolfSSL_CRYPTO_cleanup_ex_data(&ssl->ex_data);
+#endif
 
     FreeCiphers(ssl);
     FreeArrays(ssl, 0);
@@ -19438,7 +19462,10 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case TOO_MUCH_EARLY_DATA:
         return "Too much early data";
-        
+
+    case SOCKET_FILTERED_E:
+        return "Session stopped by network filter";
+
     default :
         return "unknown error number";
     }
