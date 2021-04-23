@@ -33621,27 +33621,6 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 #endif /* v1.1.0 or later */
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
-/**
- * retrive p, q and g parameter
- * @param dh a pointer to WOLFSSL_DH
- * @param p  a pointer to WOLFSSL_BIGNUM to be obtained dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained dh
- * @param q  a pointer to WOLFSSL_BIGNUM to be obtained dh
- */
-void wolfSSL_DH_get0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM **p,
-    WOLFSSL_BIGNUM **q, WOLFSSL_BIGNUM **g)
-{
-    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
-    if (dh == NULL)
-        return;
-
-    if (p != NULL)
-        *p = dh->p;
-    if (q != NULL)
-        *q = dh->q;
-    if (g != NULL)
-        *g = dh->g;
-}
 #endif /* NO_DH */
 #endif /* OPENSSL_EXTRA */
 
@@ -55570,7 +55549,7 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     return WOLFSSL_FAILURE;
 }
 #endif
-
+#endif /* NO_WOLFSSL_STUB */
 /**
  * Return DH p, q and g parameters
  * @param dh a pointer to WOLFSSL_DH
@@ -55581,13 +55560,18 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
 void wolfSSL_DH_get0_pqg(const WOLFSSL_DH *dh, const WOLFSSL_BIGNUM **p, 
                     const WOLFSSL_BIGNUM **q, const WOLFSSL_BIGNUM **g)
 {
-    WOLFSSL_STUB("wolfSSL_DH_get0_pqg");
-    (void)dh;
-    (void)p;
-    (void)q;
-    (void)g;
+    WOLFSSL_ENTER("wolfSSL_DH_get0_pqg");
+    if (dh == NULL)
+        return;
+
+    if (p != NULL)
+        *p = dh->p;
+    if (q != NULL)
+        *q = dh->q;
+    if (g != NULL)
+        *g = dh->g;
 }
-#endif /* NO_WOLFSSL_STUB */
+
 #endif /* OPENSSL_EXTRA */
 
 #endif /* !WOLFCRYPT_ONLY */
