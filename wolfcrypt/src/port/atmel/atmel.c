@@ -453,12 +453,15 @@ int atmel_ecc_sign(int slotId, const byte* message, byte* signature)
 }
 
 int atmel_ecc_verify(const byte* message, const byte* signature,
-    const byte* pubkey, int* verified)
+    const byte* pubkey, int* pVerified)
 {
     int ret;
+    bool verified = false;
 
-    ret = atcab_verify_extern(message, signature, pubkey, (bool*)verified);
+    ret = atcab_verify_extern(message, signature, pubkey, &verified);
     ret = atmel_ecc_translate_err(ret);
+    if (pVerified)
+        *pVerified = (int)verified;
     return ret;
 }
 
