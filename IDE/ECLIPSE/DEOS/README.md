@@ -57,7 +57,7 @@ options to run a test.
 2. Create a DDC-I Deos example project. In the main menu, go to File >
    DDC-I Deos example project > socket > udp-vs-tcp
 
-4. Customize your config/udp-vs-tcp.pd.xml with the following changes:
+3. Customize your config/udp-vs-tcp.pd.xml with the following changes:
 
 ```
 <processTemplate
@@ -88,13 +88,13 @@ Depending on your configuration, wolfSSL uses upto four mutexes. You
 also need to configure enough memory for the stack of each threads and
 the process logical memory pool.
 
-5. Right click on the `udp-vs-tcp` project, select properties and add
+4. Right click on the `udp-vs-tcp` project, select properties and add
    the following macros in the DDC-I Options > C Compile >
    Preprocessor
 
   * WOLFSSL_USER_SETTINGS
 
-6.  Add the following directory paths in the DDC-I Options > C Compile >
+5.  Add the following directory paths in the DDC-I Options > C Compile >
     Directories and in the DDC-I Options > C++ Compile > Directories
 
   * $(PROJECT_DIR.wolfssl)/../../../..
@@ -122,7 +122,7 @@ the process logical memory pool.
  * `#undef NO_WOLFSSL_CLIENT`
  * `#undef NO_WOLFSSL_SERVER`
 
-7.  Edit your application source file where main() thread is defined
+8.  Edit your application source file where main() thread is defined
 and add the following:
 
   * #include "printx.h"
@@ -150,7 +150,7 @@ int main(void)
 
 ```
 
-8.  Review `$(PROJECT_DIR)/udp-vs-tcp/mailbox-transport.config`
+9.  Review `$(PROJECT_DIR)/udp-vs-tcp/mailbox-transport.config`
     configuration.
 
 ```
