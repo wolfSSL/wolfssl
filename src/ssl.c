@@ -56226,6 +56226,8 @@ static int cmdfunc_curves(WOLFSSL_CONF_CTX* cctx, const char* value)
     return ret;
 }
 #endif
+
+#ifndef NO_FILESYSTEM
 /**
  * process cert command
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
@@ -56309,6 +56311,7 @@ static int cmdfunc_key(WOLFSSL_CONF_CTX* cctx, const char* value)
     WOLFSSL_LEAVE("cmdfunc_key", ret);
     return ret;
 }
+#endif /* NO_FILESYSTEM */
 /**
  * process DH parameter command
  * @param cctx  a pointer to WOLFSSL_CONF_CTX structure
@@ -56357,12 +56360,11 @@ static int cmdfunc_dhparam(WOLFSSL_CONF_CTX* cctx, const char* value)
         return 1;
     
     if (cctx->ctx) {
-        ret = wolfSSL_CTX_set_tmp_dh(cctx->ctx, dh);
+        ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ctx, dh);
     }
     
     if (cctx->ssl) {
-        /* wolfSSL_use_set_tmp_dh not yet implemented */
-        ret = WOLFSSL_FAILURE;
+        ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ssl->ctx, dh);
     }
     
     if (dh)
@@ -56385,15 +56387,19 @@ typedef struct conf_cmd_tbl {
 }conf_cmd_tbl;
 
 static const conf_cmd_tbl conf_cmds_tbl[] = {
+#if defined(HAVE_ECC)
     /* cmd Curves */
     {WOLFSSL_CONF_FILE_CMD1, WOLFSSL_CONF_CMDL_CMD1, 
                                     WOLFSSL_CONF_TYPE_STRING, cmdfunc_curves},
+#endif
+#if !defined(NO_FILESYSTEM)
     /* cmd Certificate */
     {WOLFSSL_CONF_FILE_CMD2, WOLFSSL_CONF_CMDL_CMD2, 
                                     WOLFSSL_CONF_TYPE_FILE, cmdfunc_cert},
     /* cmd PrivateKey */
     {WOLFSSL_CONF_FILE_CMD3, WOLFSSL_CONF_CMDL_CMD3, 
                                     WOLFSSL_CONF_TYPE_FILE, cmdfunc_key},
+#endif
     /* cmd Protocol */
     {WOLFSSL_CONF_FILE_CMD4, WOLFSSL_CONF_CMDL_CMD4, 
                                     WOLFSSL_CONF_TYPE_STRING, NULL},
@@ -56414,13 +56420,13 @@ static const conf_cmd_tbl conf_cmds_tbl[] = {
                               WOLFSSL_CONF_TYPE_STRING, cmdfunc_cipherstring},
 #if !defined(NO_DH) && !defined(NO_BIO)
     /* cmd DHParameters */
-    {WOLFSSL_CONF_FILE_CMD9, WOLFSSL_CONF_CMDL_CMD9, 
-                                    WOLFSSL_CONF_TYPE_FILE, NULL},
+    {WOLFSSL_CONF_FILE_CMD10, WOLFSSL_CONF_CMDL_CMD10, 
+                                    WOLFSSL_CONF_TYPE_FILE, cmdfunc_dhparam},
 #endif
 #ifdef HAVE_ECC
     /* cmd ECHDParameters */
-    {WOLFSSL_CONF_FILE_CMD10, WOLFSSL_CONF_CMDL_CMD10, 
-                                    WOLFSSL_CONF_TYPE_STRING, cmdfunc_dhparam},
+    {WOLFSSL_CONF_FILE_CMD11, WOLFSSL_CONF_CMDL_CMD11, 
+                                    WOLFSSL_CONF_TYPE_STRING, NULL},
 #endif
 };
 /* size of command table */

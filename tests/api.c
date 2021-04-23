@@ -43095,17 +43095,9 @@ static void test_CONF_CTX_CMDLINE(void)
     
     AssertNotNull(cctx = SSL_CONF_CTX_new());
     
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_SSLV3
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-            #endif
-            SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
-            AssertTrue(1);
-        #endif
-    #endif
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+    AssertTrue(1);
     
     /* set flags */
     AssertIntEQ(SSL_CONF_CTX_set_flags(cctx, WOLFSSL_CONF_FLAG_CMDLINE), 
@@ -43183,18 +43175,9 @@ static void test_CONF_CTX_FILE(void)
     SSL_CONF_CTX* cctx = NULL;
     
     AssertNotNull(cctx = SSL_CONF_CTX_new());
-    
-    #ifndef NO_OLD_TLS
-        #ifdef WOLFSSL_ALLOW_SSLV3
-            #ifdef NO_WOLFSSL_SERVER
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-            #else
-                AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-            #endif
-            SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
-            AssertTrue(1);
-        #endif
-    #endif
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+    AssertTrue(1);
     
     /* set flags */
     AssertIntEQ(SSL_CONF_CTX_set_flags(cctx, WOLFSSL_CONF_FLAG_FILE), 
