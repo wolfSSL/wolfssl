@@ -58,14 +58,6 @@
     #include <stdio.h>
 #endif
 
-#ifdef USE_WINDOWS_API
-    #pragma warning(disable:4127)
-    /* Disables the warning:
-     *   4127: conditional expression is constant
-     * in this file.
-     */
-#endif
-
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifdef __cplusplus
     extern "C" {
@@ -3783,8 +3775,13 @@ int fp_set_int(fp_int *a, unsigned long b)
 {
   int x;
 
-  /* use direct fp_set if b is less than fp_digit max */
-  if (b < FP_DIGIT_MAX) {
+  /* use direct fp_set if b is less than fp_digit max
+   * If input max value of b down shift by 1 less than full range
+   * fp_digit, then condition is always true. */
+#if ((ULONG_MAX >> (DIGIT_BIT-1)) > 0)
+  if (b < FP_DIGIT_MAX)
+#endif
+  {
     fp_set (a, (fp_digit)b);
     return FP_OKAY;
   }
