@@ -522,8 +522,6 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(WOLFSSL_DEOS)
     #define NO_FILESYSTEM
     #warning "TODO - DDC-I Certifiable Fast File System for Deos is not integrated"
-    /* #define XFILE      bfd * */
-
 #elif defined(MICRIUM)
     #include <fs_api.h>
     #define XFILE      FS_FILE*
@@ -863,10 +861,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(WOLFSSL_DEOS)
-    #define XTIME(t1)       deos_time((t1))
-    #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
+    #include <time.h>
 
 #elif defined(MICRIUM)
     #include <clk.h>

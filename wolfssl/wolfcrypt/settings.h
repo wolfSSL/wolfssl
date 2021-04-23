@@ -1382,7 +1382,6 @@ extern void uITRON4_free(void *p) ;
     #define WC_RSA_BLINDING
 
     #define HAVE_ECC
-    #define ALT_ECC_SIZE
     #define TFM_ECC192
     #define TFM_ECC224
     #define TFM_ECC256

@@ -176,6 +176,10 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
     #define fprintf(fp, ...)  \
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
+#elif defined(WOLFSSL_DEOS)
+    #include <printx.h>
+    #undef printf
+    #define printf printx
 #else
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */

@@ -61,6 +61,7 @@
     #define printf PRINTF
 #elif defined(WOLFSSL_DEOS)
     #include <deos.h>
+    #include <printx.h>
     #undef printf
     #define printf printx
 #elif defined(MICRIUM)
@@ -6681,7 +6682,7 @@ void bench_sakke(void)
     double current_time(int reset)
     {
         const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
-        uint32_t *systemTickPtr = systemTickPointer();
+        const volatile uint32_t *systemTickPtr = systemTickPointer();
 
         (void)reset;
 
