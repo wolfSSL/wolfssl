@@ -2085,6 +2085,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (ret != 0) {
         err_sys_ex(runWithErrors, "error loading static ECDH key");
     }
+    {
+        const byte* key = NULL;
+        word32 keySz = 0;
+        /* example for getting pointer to loaded static ephemeral key */
+        wolfSSL_CTX_get_ephemeral_key(ctx, WC_PK_TYPE_ECDH, &key, &keySz);
+        (void)key;
+        (void)keySz;
+    }
 #endif
 #ifndef NO_DH
     ret = wolfSSL_CTX_set_ephemeral_key(ctx, WC_PK_TYPE_DH,

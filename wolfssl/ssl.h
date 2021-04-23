@@ -4361,6 +4361,12 @@ WOLFSSL_API int wolfSSL_CTX_set_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo,
     const char* key, unsigned int keySz, int format);
 WOLFSSL_API int wolfSSL_set_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
     const char* key, unsigned int keySz, int format);
+
+/* returns pointer to loaded key as ASN.1/DER */
+WOLFSSL_API int wolfSSL_CTX_get_ephemeral_key(WOLFSSL_CTX* ctx, int keyAlgo, 
+    const unsigned char** key, unsigned int* keySz);
+WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo, 
+    const unsigned char** key, unsigned int* keySz);
 #endif
 
 #if defined(OPENSSL_EXTRA)
