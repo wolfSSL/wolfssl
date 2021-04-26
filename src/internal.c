@@ -8153,7 +8153,8 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 
 #ifndef WOLFSSL_NO_TLS12
 #if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_SERVER) || \
-                                               !defined(WOLFSSL_NO_CLIENT_AUTH))
+                           !defined(WOLFSSL_NO_CLIENT_AUTH)) || \
+                           defined(WOLFSSL_DTLS)
 static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
                            word32 length, byte type, WOLFSSL* ssl)
 {
