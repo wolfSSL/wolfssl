@@ -46249,7 +46249,20 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     case SSL_CTRL_MODE:
         wolfSSL_CTX_set_mode(ctx,opt);
         break;
-
+    case SSL_CTRL_SET_MIN_PROTO_VERSION:
+        WOLFSSL_MSG("set min proto version");
+        if (opt == 0) {
+            /* do nothing */
+            return WOLFSSL_SUCCESS;
+        }
+        return wolfSSL_CTX_set_min_proto_version(ctx, (int)opt);
+    case SSL_CTRL_SET_MAX_PROTO_VERSION:
+        WOLFSSL_MSG("set max proto version");
+        if (opt == 0) {
+            /* do nothing */
+            return WOLFSSL_SUCCESS;
+        }
+        return wolfSSL_CTX_set_max_proto_version(ctx, (int)opt);
     default:
         WOLFSSL_MSG("CTX_ctrl cmd not implemented");
         ret = WOLFSSL_FAILURE;
