@@ -263,7 +263,12 @@ int atmel_ecc_alloc(int slotType)
                 goto exit;
             case ATMEL_SLOT_ECDHE:
                 slotId = ATECC_SLOT_ECDHE_PRIV;
+            #ifdef WOLFSSL_ATECC_TNGTLS
+                /* not reserved in mSlotList, so return */
+                goto exit;
+            #else
                 break;
+            #endif
             case ATMEL_SLOT_ECDHE_ENC:
                 slotId = ATECC_SLOT_ENC_PARENT;
             #ifdef WOLFSSL_ATECC_TNGTLS
