@@ -32946,11 +32946,13 @@ static void test_wolfSSL_SESSION(void)
 
     sess = wolfSSL_get_session(ssl);
         
-    /* STUB */
+
     #if defined(OPENSSL_EXTRA)
-    AssertIntEQ(SSL_SESSION_is_resumable(sess), 0);
+    AssertIntEQ(SSL_SESSION_is_resumable(NULL), 0);
+    AssertIntEQ(SSL_SESSION_is_resumable(sess), 1);
     #else
-    AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 0);
+    AssertIntEQ(wolfSSL_SESSION_is_resumable(NULL), 0);
+    AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 1);
     #endif
     
     wolfSSL_shutdown(ssl);
