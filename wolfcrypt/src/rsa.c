@@ -3478,7 +3478,11 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
                            word32 sigSz, enum wc_HashType hashType)
 {
-    return wc_RsaPSS_CheckPadding_ex(in, inSz, sig, sigSz, hashType, inSz, 0);
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    return wc_RsaPSS_CheckPadding_ex(in, inSz, sig, sigSz, hashType, RSA_PSS_SALT_LEN_DEFAULT, 0);
+#else
+    return wc_RsaPSS_CheckPadding_ex(in, inSz, sig, sigSz, hashType, RSA_PSS_SALT_LEN_DISCOVER, 0);
+#endif
 }
 
 /* Checks the PSS data to ensure that the signature matches.
@@ -3524,7 +3528,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
             #endif
         }
 #ifndef WOLFSSL_PSS_LONG_SALT
-        else if ((word32)saltLen > inSz) {
+        else if (saltLen > (int)inSz) {
             ret = PSS_SALTLEN_E;
         }
 #endif
