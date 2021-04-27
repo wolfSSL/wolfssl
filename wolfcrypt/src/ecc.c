@@ -8341,6 +8341,9 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
             err = wc_ecc_verify_hash(sig, sigLen,
                     digest, WC_SHA256_DIGEST_SIZE, &res, key);
 
+        if (res == 0)
+            err = ECC_PCT_E;
+
         if (dynRng) {
             wc_rng_free(rng);
         }
