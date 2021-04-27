@@ -17933,9 +17933,10 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
     for (single = resp->single; single; single = next) {
         cmp = req->serialSz - single->status->serialSz;
         if (cmp == 0) {
-            if ((XMEMCMP(req->serial, single->status->serial, req->serialSz) == 0)
-             && (XMEMCMP(req->issuerHash, single->issuerHash, OCSP_DIGEST_SIZE) == 0)
-             && (XMEMCMP(req->issuerKeyHash, single->issuerKeyHash, OCSP_DIGEST_SIZE) == 0)) {
+            cmp = XMEMCMP(req->serial, single->status->serial, req->serialSz)
+               || XMEMCMP(req->issuerHash, single->issuerHash, OCSP_DIGEST_SIZE)
+               || XMEMCMP(req->issuerKeyHash, single->issuerKeyHash, OCSP_DIGEST_SIZE);
+            if (cmp == 0) {
                 /* match found */
                 if (resp->single != single && prev) {
                     /* move to top of list */

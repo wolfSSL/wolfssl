@@ -6652,7 +6652,7 @@ WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
 {
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSP_Staple");
+    WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSPResponse");
     if (cm == NULL || response == NULL)
         return BAD_FUNC_ARG;
     if (cm->ocspEnabled == 0)
