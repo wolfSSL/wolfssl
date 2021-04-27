@@ -4117,6 +4117,8 @@ WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
     size_t siz, const char* file, int line);
 WOLFSSL_API void wolfSSL_OPENSSL_cleanse(void *ptr, size_t len);
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
+WOLFSSL_API void wolfSSL_DH_get0_pqg(const WOLFSSL_DH* dh,
+const WOLFSSL_BIGNUM** p, const WOLFSSL_BIGNUM** q, const WOLFSSL_BIGNUM** g);
 #endif
 
 #if defined(HAVE_OCSP) && !defined(NO_ASN_TIME)
