@@ -664,7 +664,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define strncasecmp FCL_STRNCASECMP
 
     /* FUSION SPECIFIC ERROR CODE */
-    #define FUSION_IO_SEND_E 63
+    #define FUSION_IO_SEND_E FCL_EWOULDBLOCK
 
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
