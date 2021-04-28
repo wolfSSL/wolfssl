@@ -56106,7 +56106,7 @@ int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
     return get_ex_new_index(class_index);
 }
 #endif /* HAVE_EX_DATA || FORTRESS */
-#ifndef NO_WOLFSSL_STUB
+
 /**
  * Return DH p, q and g parameters
  * @param dh a pointer to WOLFSSL_DH
