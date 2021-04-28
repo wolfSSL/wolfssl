@@ -56122,7 +56122,24 @@ int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
     (void)cctx;
     return WOLFSSL_SUCCESS;
 }
-
+/* 
+ * This comment attempts to describe following definitions ans static functions
+ * that are used for wolfSSL_CONF_cmd() to handle command.
+ * 
+ * The following deinitions use for a part of conf_cmds_tbl[] contents.
+ *  WOLFSSL_CONF_FILE_CMDx  represents command name in configuration file 
+ *  WOLFSSL_CONF_CMDL_CMDx  represents command name on command line
+ * 
+ * The static functions after the definition section process 
+ *                 those FILE or CMDL which are defined in the conf_cmds_tbl.
+ * 
+ * To add a new command handling:
+ *  1. Add new #define to a section of WOLFSSL_CONF_FILE_CMD* and
+ *                                      WOLFSSL_CONF_CMDL_CMD*
+ *  2. Add new statci function after #define section, before 
+ *                      "typedef struct conf_cmd_tbl {" line
+ *  3. Add new entry to conf_cmds_tbl[] by following other command entries
+ */ 
 #define WOLFSSL_CONF_FILE_CMD1  "Curves"
 #define WOLFSSL_CONF_FILE_CMD2  "Certificate"
 #define WOLFSSL_CONF_FILE_CMD3  "PrivateKey"
@@ -56181,7 +56198,9 @@ static int cmdfunc_cipherstring(WOLFSSL_CONF_CTX* cctx, const char* value)
         ret = wolfSSL_CTX_set_cipher_list(cctx->ctx, value);
     }
     
-    if (cctx->ssl) {
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
         ret = wolfSSL_set_cipher_list(cctx->ssl, value);
     }
     
@@ -56218,7 +56237,9 @@ static int cmdfunc_curves(WOLFSSL_CONF_CTX* cctx, const char* value)
         ret = wolfSSL_CTX_set1_curves_list(cctx->ctx, value);
     }
     
-    if (cctx->ssl) {
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
         ret = wolfSSL_set1_curves_list(cctx->ssl, value);
     }
     
@@ -56261,7 +56282,9 @@ static int cmdfunc_cert(WOLFSSL_CONF_CTX* cctx, const char* value)
         ret = wolfSSL_CTX_use_certificate_chain_file(cctx->ctx, value);
     }
     
-    if (cctx->ssl) {
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
         ret = wolfSSL_use_certificate_file(cctx->ssl, value, 
                                                     WOLFSSL_FILETYPE_PEM);
     }
@@ -56303,7 +56326,9 @@ static int cmdfunc_key(WOLFSSL_CONF_CTX* cctx, const char* value)
                                                     WOLFSSL_FILETYPE_PEM);
     }
     
-    if (cctx->ssl) {
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
         ret = wolfSSL_use_PrivateKey_file(cctx->ssl, value, 
                                                     WOLFSSL_FILETYPE_PEM);
     }
@@ -56356,14 +56381,17 @@ static int cmdfunc_dhparam(WOLFSSL_CONF_CTX* cctx, const char* value)
             WOLFSSL_MSG("PEM read bio failed");
             return WOLFSSL_FAILURE;
         }
-    } else
+    } else {
         return 1;
-    
+    }
+
     if (cctx->ctx) {
         ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ctx, dh);
     }
     
-    if (cctx->ssl) {
+    if (((cctx->ctx  && ret == WOLFSSL_SUCCESS) ||
+         (!cctx->ctx && ret == -3)) &&
+        cctx->ssl) {
         ret = (int)wolfSSL_CTX_set_tmp_dh(cctx->ssl->ctx, dh);
     }
     
