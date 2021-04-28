@@ -45001,28 +45001,6 @@ static int get_ex_new_index(int class_index)
     }
     return index;
 }
-/*  wolfSSL_CRYPTO_get_ex_new_index issues unique index for the class
- *  specified by class_index. Other parameter except class_index are
- *  ignored. Currentry, following class_index are accepted:
- *  - CRYPTO_EX_INDEX_SSL
- *  - CRYPTO_EX_INDEX_SSL_CTX
- *  - CRYPTO_EX_INDEX_X509
- *  Returns index value grater or equal to zero on success, -1 on failure.
- */
-WOLFSSL_API int wolfSSL_CRYPTO_get_ex_new_index(int class_index,
-                                                long argl, void* argp,
-                                        WOLFSSL_CRYPTO_EX_new* new_func,
-                                        WOLFSSL_CRYPTO_EX_dup* dup_func,
-                                        WOLFSSL_CRYPTO_EX_free* free_func)
-{
-    (void)argl;
-    (void)argp;
-    (void)new_func;
-    (void)dup_func;
-    (void)free_func;
-
-    return get_ex_new_index(class_index);
-}
 #endif /* HAVE_EX_DATA || FORTRESS */
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
@@ -56101,7 +56079,7 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 /**
  * Issues unique index for the class specified by class_index.
  * Other parameter except class_index are ignored.
- * Currentry, following class_index are accepted:
+ * Currently, following class_index are accepted:
  *  - CRYPTO_EX_INDEX_SSL
  *  - CRYPTO_EX_INDEX_SSL_CTX
  *  - CRYPTO_EX_INDEX_X509
