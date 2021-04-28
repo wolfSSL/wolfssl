@@ -176,10 +176,6 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
     #define fprintf(fp, ...)  \
                       __android_log_print(ANDROID_LOG_DEBUG, "TAG", __VA_ARGS__)
-#elif defined(WOLFSSL_DEOS)
-    #include <printx.h>
-    #undef printf
-    #define printf printx
 #else
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */
@@ -1652,6 +1648,7 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
     int        ret;
     WOLFSSL_SMALL_STACK_STATIC const byte good[] = "A+Gd\0\0\0";
     WOLFSSL_SMALL_STACK_STATIC const byte goodEnd[] = "A+Gd \r\n";
+    WOLFSSL_SMALL_STACK_STATIC const byte good_spaces[] = " A + G d \0";
     byte       out[128];
     word32     outLen;
 #ifdef WOLFSSL_BASE64_ENCODE
@@ -1660,9 +1657,9 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
     byte       longData[79] = { 0 };
     WOLFSSL_SMALL_STACK_STATIC const byte symbols[] = "+/A=";
 #endif
-    WOLFSSL_SMALL_STACK_STATIC const byte badSmall[] = "AAA Gdj=";
+    WOLFSSL_SMALL_STACK_STATIC const byte badSmall[] = "AAA!Gdj=";
     WOLFSSL_SMALL_STACK_STATIC const byte badLarge[] = "AAA~Gdj=";
-    WOLFSSL_SMALL_STACK_STATIC const byte badEOL[] = "A+Gd AA";
+    WOLFSSL_SMALL_STACK_STATIC const byte badEOL[] = "A+Gd!AA";
     WOLFSSL_SMALL_STACK_STATIC const byte badPadding[] = "AA=A";
     WOLFSSL_SMALL_STACK_STATIC const byte badChar[] = ",-.:;<=>?@[\\]^_`";
     byte goodChar[] =
@@ -1687,6 +1684,10 @@ WOLFSSL_TEST_SUBROUTINE int base64_test(void)
         return -1235;
     if (outLen != 64 / 4 * 3)
         return -1236;
+    outLen = sizeof(out);
+    ret = Base64_Decode(good_spaces, sizeof(good_spaces), out, &outLen);
+    if (ret != 0)
+        return -1201;
 
     /* Bad parameters. */
     outLen = 1;

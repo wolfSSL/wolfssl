@@ -117,23 +117,31 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *o
 {
     word32 len = *inLen;
     word32 j = *outJ;
-    if (len && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
-        byte endLine = in[j++];
+    byte curChar = in[j];
+    while (len && curChar == ' ') {
+        /* skip whitespace in the middle or end of line */
+        curChar = in[++j];
         len--;
-        while (len && endLine == ' ') {   /* allow trailing whitespace */
-            endLine = in[j++];
-            len--;
-        }
-        if (endLine == '\r') {
+    }
+    if (len && (curChar == '\r' || curChar == '\n')) {
+        j++;
+        len--;
+        if (curChar == '\r') {
             if (len) {
-                endLine = in[j++];
+                curChar = in[j++];
                 len--;
             }
         }
-        if (endLine != '\n') {
+        if (curChar != '\n') {
             WOLFSSL_MSG("Bad end of line in Base64 Decode");
             return ASN_INPUT_E;
         }
+        curChar = in[j];
+    }
+    while (len && curChar == ' ') {
+        /* skip whitespace at beginning of line */
+        curChar = in[++j];
+        len--;
     }
     if (!len) {
         return BUFFER_E;
