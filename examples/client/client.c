@@ -284,7 +284,7 @@ static void ShowVersions(void)
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
 #define MAX_GROUP_NUMBER 4
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
-                        int useX448, int setGroups)
+                        int useX448, int useLibOqs, char* oqsAlg, int setGroups)
 {
     int ret;
     int groups[MAX_GROUP_NUMBER] = {0};
@@ -292,6 +292,8 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 
     (void)useX25519;
     (void)useX448;
+    (void)useLibOqs;
+    (void)oqsAlg;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     if (onlyKeyShare == 0 || onlyKeyShare == 2) {
@@ -358,6 +360,72 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         } while (ret == WC_PENDING_E);
     #endif
     }
+    #ifdef HAVE_LIBOQS
+    if (onlyKeyShare == 0 || onlyKeyShare == 3) {
+        if (useLibOqs) {
+            int group = 0;
+
+            if (XSTRNCMP(oqsAlg, "KYBER512", XSTRLEN("KYBER512")) == 0) {
+                group = WOLFSSL_KYBER512;
+            }
+            else if (XSTRNCMP(oqsAlg, "KYBER768",
+                                XSTRLEN("KYBER768")) == 0) {
+                group = WOLFSSL_KYBER768;
+            }
+            else if (XSTRNCMP(oqsAlg, "KYBER1024",
+                                XSTRLEN("KYBER1024")) == 0) {
+                group = WOLFSSL_KYBER1024;
+            }
+            else if (XSTRNCMP(oqsAlg, "NTRU_HPS2048509",
+                                XSTRLEN("NTRU_HPS2048509")) == 0) {
+                group = WOLFSSL_NTRU_HPS2048509;
+            }
+            else if (XSTRNCMP(oqsAlg, "NTRU_HPS2048677",
+                                XSTRLEN("NTRU_HPS2048677")) == 0) {
+                group = WOLFSSL_NTRU_HPS2048677;
+            }
+            else if (XSTRNCMP(oqsAlg, "NTRU_HPS4096821",
+                                XSTRLEN("NTRU_HPS4096821")) == 0) {
+                group = WOLFSSL_NTRU_HPS4096821;
+            }
+            else if (XSTRNCMP(oqsAlg, "NTRU_HRSS701",
+                                XSTRLEN("NTRU_HRSS701")) == 0) {
+                group = WOLFSSL_NTRU_HRSS701;
+            }
+            else if (XSTRNCMP(oqsAlg, "LIGHTSABER",
+                                XSTRLEN("LIGHTSABER")) == 0) {
+                group = WOLFSSL_LIGHTSABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "SABER",
+                                XSTRLEN("SABER")) == 0) {
+                group = WOLFSSL_SABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "FIRESABER",
+                                XSTRLEN("FIRESABER")) == 0) {
+                group = WOLFSSL_FIRESABER;
+            }
+            else if (XSTRNCMP(oqsAlg, "KYBER90S512",
+                                XSTRLEN("KYBER90S512")) == 0) {
+                group = WOLFSSL_KYBER90S512;
+            }
+            else if (XSTRNCMP(oqsAlg, "KYBER90S768",
+                                XSTRLEN("KYBER90S768")) == 0) {
+                group = WOLFSSL_KYBER90S768;
+            }
+            else if (XSTRNCMP(oqsAlg, "KYBER90S1024",
+                                XSTRLEN("KYBER90S1024")) == 0) {
+                group = WOLFSSL_KYBER90S1024;
+            } else {
+                err_sys("invalid OQS KEM specified");
+            }
+
+            printf("Using OQS KEM: %s\n", oqsAlg);
+            if (wolfSSL_UseKeyShare(ssl, group) != WOLFSSL_SUCCESS) {
+                err_sys("unable to use oqs KEM");
+            }
+        }
+    }
+    #endif
     if (count >= MAX_GROUP_NUMBER)
         err_sys("example group array size error");
     if (setGroups && count > 0) {
@@ -438,7 +506,8 @@ static const char* client_bench_conmsg[][5] = {
 
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
-    int useX448, int helloRetry, int onlyKeyShare, int version, int earlyData)
+    int useX448, int useLibOqs, char* oqsAlg, int helloRetry, int onlyKeyShare,
+    int version, int earlyData)
 {
     /* time passed in number of connects give average */
     int times = benchmark, skip = times * 0.1;
@@ -455,6 +524,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     (void)resumeSession;
     (void)useX25519;
     (void)useX448;
+    (void)useLibOqs;
+    (void)oqsAlg;
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)version;
@@ -484,7 +555,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
         #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
             else if (version >= 4) {
                 if (!helloRetry)
-                    SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 1);
+                    SetKeyShare(ssl, onlyKeyShare, useX25519, useX448,
+                                useLibOqs, oqsAlg, 1);
                 else
                     wolfSSL_NoKeyShares(ssl);
             }
@@ -568,7 +640,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 /* Measures throughput in mbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
-    int useX448, int exitWithRet, int version, int onlyKeyShare)
+    int useX448, int useLibOqs, char* oqsAlg, int exitWithRet, int version,
+    int onlyKeyShare)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -587,11 +660,14 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
     (void)useX25519;
     (void)useX448;
+    (void)useLibOqs;
+    (void)oqsAlg;
     (void)version;
     (void)onlyKeyShare;
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (version >= 4) {
-        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 1);
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, useLibOqs,
+                    oqsAlg, 1);
     }
 #endif
 
@@ -1171,10 +1247,16 @@ static const char* client_usage_msg[][70] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n\n",                  /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n",                  /* 69 */
+#endif
+#ifdef HAVE_LIBOQS
+        "--oqs <alg> Key Share with specified liboqs algorithm only\n",
+        "[KYBER512, KYBER768, KYBER1024, KYBER90S512, KYBER90S768, KYBER90S1024,\n",
+        " NTRU_HPS2048509, NTRU_HPS2048677, NTRU_HPS4096821, NTRU_HRSS701,\n",
+        " LIGHTSABER, SABER, FIRESABER]\n\n", /* 70 */
 #endif
         "For simpler wolfSSL TLS client examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 70 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1371,10 +1453,16 @@ static const char* client_usage_msg[][70] = {
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n\n",                            /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
+#endif
+#ifdef HAVE_LIBOQS
+        "--oqs <alg> liboqs 名前付きグループとの鍵共有のみ\n",
+        "[KYBER512, KYBER768, KYBER1024, KYBER90S512, KYBER90S768, KYBER90S1024,\n",
+        " NTRU_HPS2048509, NTRU_HPS2048677, NTRU_HPS4096821, NTRU_HRSS701,\n",
+        " LIGHTSABER, SABER, FIRESABER]\n\n", /* 70 */
 #endif
         "For simpler wolfSSL TLS client examples, visit\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 70 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 71 */
         NULL,
     },
 #endif
@@ -1559,6 +1647,12 @@ static void Usage(void)
 #endif
     printf("%s", msg[++msgid]); /* -7 */
     printf("%s", msg[++msgid]); /* Examples repo link */ 
+#ifdef HAVE_LIBOQS
+    printf("%s", msg[++msgid]);     /* --oqs */
+    printf("%s", msg[++msgid]);     /* --oqs options */
+    printf("%s", msg[++msgid]);     /* more --oqs options */
+    printf("%s", msg[++msgid]);     /* more --oqs options */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1597,6 +1691,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
         { "help", 0, 257 },
         { "ヘルプ", 0, 258 },
+#if defined(HAVE_LIBOQS)
+        { "oqs", 1, 259 },
+#endif
         { 0, 0, 0 }
     };
 #endif
@@ -1701,6 +1798,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
     int useX25519 = 0;
     int useX448 = 0;
+    int useLibOqs = 0;
+    char* oqsAlg = NULL;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
 
@@ -1789,7 +1888,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)onlyKeyShare;
     (void)useSupCurve;
     (void)loadCertKeyIntoSSLObj;
-
+    (void)useLibOqs;
+    (void)oqsAlg;
     StackTrap();
 
     /* Reinitialize the global myVerifyAction. */
@@ -2277,6 +2377,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 nonBlocking = 1;
                 simulateWantWrite = 1;
                 break;
+
             case '7' :
                 minVersion = atoi(myoptarg);
                 if (minVersion < 0 || minVersion > 4) {
@@ -2284,6 +2385,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     XEXIT_T(MY_EX_USAGE);
                 }
                 break;
+
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -2345,6 +2447,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 #endif
 
+#if defined(WOLFSSL_TLS13) &&  defined(HAVE_SUPPORTED_CURVES) && \
+    defined(HAVE_LIBOQS)
+            case 259:
+                useLibOqs = 1;
+                onlyKeyShare = 3;
+                oqsAlg = myoptarg;
+                break;
+#endif
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2464,6 +2574,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
         err_sys("can't load whitewood net random config file");
+#endif
+
+#ifdef HAVE_LIBOQS
+    if (useLibOqs) {
+        if (version == CLIENT_DOWNGRADE_VERSION ||
+            version == EITHER_DOWNGRADE_VERSION)
+            printf("WARNING: If a TLS 1.3 connection is not negotiated, you "
+                   "will not be using a liboqs group.\n");
+        else if (version != 4)
+            err_sys("can only use liboqs groups with TLS 1.3");
+    }
 #endif
 
     switch (version) {
@@ -2993,8 +3114,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
-                                       useX448, helloRetry, onlyKeyShare,
-                                       version, earlyData);
+                                       useX448, useLibOqs, oqsAlg, helloRetry,
+                                       onlyKeyShare, version, earlyData);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
     }
@@ -3003,7 +3124,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519, useX448,
-                                      exitWithRet, version, onlyKeyShare);
+                                      useLibOqs, oqsAlg, exitWithRet, version,
+                                      onlyKeyShare);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         if (!exitWithRet)
             XEXIT_T(EXIT_SUCCESS);
@@ -3127,7 +3249,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
     if (!helloRetry && version >= 4) {
-        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, 0);
+        SetKeyShare(ssl, onlyKeyShare, useX25519, useX448, useLibOqs,
+                    oqsAlg, 0);
     }
     else {
         wolfSSL_NoKeyShares(ssl);
