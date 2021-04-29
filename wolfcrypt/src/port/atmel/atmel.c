@@ -523,11 +523,10 @@ int atmel_init(void)
             cfg_ateccx08a_i2c_pi.iface_type             = ATCA_I2C_IFACE;
             cfg_ateccx08a_i2c_pi.devtype                = ATECC_DEV_TYPE;
 #ifdef ATCA_ENABLE_DEPRECATED
-            cfg_ateccx08a_i2c_pi.atcai2c.slave_address        = ATECC_I2C_ADDR;
+            cfg_ateccx08a_i2c_pi.atcai2c.slave_address  = ATECC_I2C_ADDR;
 #else
             cfg_ateccx08a_i2c_pi.atcai2c.address        = ATECC_I2C_ADDR;
 #endif
-	    cfg_ateccx08a_i2c_pi.atcai2c.address        = ATECC_I2C_ADDR;
             cfg_ateccx08a_i2c_pi.atcai2c.bus            = ATECC_I2C_BUS;
             cfg_ateccx08a_i2c_pi.atcai2c.baud           = 400000;
             cfg_ateccx08a_i2c_pi.wake_delay             = 1500;
@@ -973,7 +972,7 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     }
 
     /* Read device cert signed by the signer above */
-    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,\
+    status = tng_atcacert_read_device_cert(certBuffer, &deviceCertSize,
      	                                   &certBuffer[deviceCertSize]);
     if (ATCA_SUCCESS != status) {
         #ifdef WOLFSSL_ATECC_DEBUG
@@ -984,8 +983,8 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
         return ret;
     }
 
-    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,\
-          (const unsigned char*)certBuffer, signerCertSize+deviceCertSize,\
+    ret = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
+          (const unsigned char*)certBuffer, signerCertSize+deviceCertSize,
           WOLFSSL_FILETYPE_ASN1);
     if (ret != WOLFSSL_SUCCESS) {
         printf("Error registering certificate chain\r\n");
