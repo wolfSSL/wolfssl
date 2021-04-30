@@ -3540,7 +3540,10 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             now = TimeNowInMilliseconds();
             if (now == (word32)GETTIME_ERROR)
                 return now;
-            diff = now - ssl->session.ticketSeen;
+            if (now < ssl->session.ticketSeen)
+                diff = (0xFFFFFFFFU - ssl->session.ticketSeen) + now;
+            else
+                diff = now - ssl->session.ticketSeen;
             diff -= current->ticketAge - ssl->session.ticketAdd;
             /* Check session and ticket age timeout.
              * Allow +/- 1000 milliseconds on ticket age.
