@@ -44948,6 +44948,61 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
+#if ((defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && defined(HAVE_EX_DATA) || \
+      defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL) || defined(OPENSSL_EXTRA) || \
+      defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+      defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY))
+/**
+ * get_ex_new_index is a helper function for the following
+ * xx_get_ex_new_index functions:
+ *  - wolfSSL_CRYPTO_get_ex_new_index
+ *  - wolfSSL_CTX_get_ex_new_index
+ *  - wolfSSL_get_ex_new_index
+ * Issues a unique index number for the specified class-index.
+ * Returns an index number greater or equal to zero on success,
+ * -1 on failure.
+ */
+static int get_ex_new_index(int class_index)
+{
+    /* index counter for each class index*/
+    static int ctx_idx = 0;
+    static int ssl_idx = 0;
+    static int x509_idx = 0;
+
+    int index = -1;
+
+    switch(class_index) {
+        case CRYPTO_EX_INDEX_SSL:
+            index = ssl_idx++;
+            break;
+        case CRYPTO_EX_INDEX_SSL_CTX:
+            index = ctx_idx++;
+            break;
+        case CRYPTO_EX_INDEX_X509:
+            index = x509_idx++;
+            break;
+
+        /* following class indexes are not supoprted */
+        case CRYPTO_EX_INDEX_SSL_SESSION:
+        case CRYPTO_EX_INDEX_X509_STORE:
+        case CRYPTO_EX_INDEX_X509_STORE_CTX:
+        case CRYPTO_EX_INDEX_DH:
+        case CRYPTO_EX_INDEX_DSA:
+        case CRYPTO_EX_INDEX_EC_KEY:
+        case CRYPTO_EX_INDEX_RSA:
+        case CRYPTO_EX_INDEX_ENGINE:
+        case CRYPTO_EX_INDEX_UI:
+        case CRYPTO_EX_INDEX_BIO:
+        case CRYPTO_EX_INDEX_APP:
+        case CRYPTO_EX_INDEX_UI_METHOD:
+        case CRYPTO_EX_INDEX_DRBG:
+        default:
+            break;
+    }
+    return index;
+}
+#endif /* HAVE_EX_DATA || FORTRESS */
+
 #if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(WOLFSSL_WPAS_SMALL)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
@@ -44966,7 +45021,6 @@ void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
                                 void* c)
 {
-    static int ctx_idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_new_index");
     (void)idx;
@@ -44975,7 +45029,7 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
     (void)b;
     (void)c;
 
-    return ctx_idx++;
+    return get_ex_new_index(CRYPTO_EX_INDEX_SSL_CTX);
 }
 
 /* Return the index that can be used for the WOLFSSL structure to store
@@ -44986,7 +45040,6 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
         WOLFSSL_CRYPTO_EX_new* cb1, WOLFSSL_CRYPTO_EX_dup* cb2,
         WOLFSSL_CRYPTO_EX_free* cb3)
 {
-    static int ssl_idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_get_ex_new_index");
 
@@ -44996,7 +45049,7 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
     (void)cb2;
     (void)cb3;
 
-    return ssl_idx++;
+    return get_ex_new_index(CRYPTO_EX_INDEX_SSL);
 }
 
 
@@ -48960,7 +49013,6 @@ void wolfSSL_OPENSSL_config(char *config_name)
 
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
-    static int x509_idx = 0;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_new_index");
     (void)idx;
@@ -48969,7 +49021,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
     (void)b;
     (void)c;
 
-    return x509_idx++;
+    return get_ex_new_index(CRYPTO_EX_INDEX_X509);
 }
 #endif
 
@@ -56021,35 +56073,40 @@ int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
     (void)value;
     return WOLFSSL_FAILURE;
 }
+#endif /* !NO_WOLFSSL_STUB */
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
 /**
- * returns a new index or -1 on failure
+ * Issues unique index for the class specified by class_index.
+ * Other parameter except class_index are ignored.
+ * Currently, following class_index are accepted:
+ *  - CRYPTO_EX_INDEX_SSL
+ *  - CRYPTO_EX_INDEX_SSL_CTX
+ *  - CRYPTO_EX_INDEX_X509
  * @param class index one of CRYPTO_EX_INDEX_xxx
  * @param argp  parameters to be saved
  * @param argl  parameters to be saved
  * @param new_func a pointer to WOLFSSL_CRYPTO_EX_new
  * @param dup_func a pointer to WOLFSSL_CRYPTO_EX_dup
  * @param free_func a pointer to WOLFSSL_CRYPTO_EX_free
- * @return WOLFSSL_SUCCESS on success, 
- *     otherwise WOLFSSL_FAILURE (stub currently returns WOLFSSL_FAILURE always)
+ * @return index value grater or equal to zero on success, -1 on failure.
  */
-#ifdef HAVE_EX_DATA
 int wolfSSL_CRYPTO_get_ex_new_index(int class_index, long argl, void *argp,
                                            WOLFSSL_CRYPTO_EX_new* new_func,
                                            WOLFSSL_CRYPTO_EX_dup* dup_func,
                                            WOLFSSL_CRYPTO_EX_free* free_func)
 {
-    WOLFSSL_STUB("wolfSSL_CRYPTO_get_ex_new_index");
-    (void)class_index;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_new_index");
     (void)argl;
     (void)argp;
     (void)new_func;
     (void)dup_func;
     (void)free_func;
-    return WOLFSSL_FAILURE;
+
+    return get_ex_new_index(class_index);
 }
-#endif
-#endif /* NO_WOLFSSL_STUB */
+#endif /* HAVE_EX_DATA || FORTRESS */
+
 /**
  * Return DH p, q and g parameters
  * @param dh a pointer to WOLFSSL_DH
