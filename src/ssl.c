@@ -26459,7 +26459,9 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int ret = 0;
     int depth = 0;
     int error;
+#ifndef NO_ASN_TIME
     byte *afterDate, *beforeDate;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
@@ -26486,6 +26488,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         #endif
         }
 
+    #ifndef NO_ASN_TIME
         error = 0;
         /* wolfSSL_CertManagerVerifyBuffer only returns ASN_AFTER_DATE_E or
          ASN_BEFORE_DATE_E if there are no additional errors found in the
@@ -26511,6 +26514,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 ctx->store->verify_cb(0, ctx);
         #endif
         }
+    #endif
 
         /* OpenSSL returns 0 when a chain can't be built */
         if (ret == ASN_NO_SIGNER_E)
@@ -29092,10 +29096,14 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
                 wolfSSL_ASN1_OBJECT_free(at->value.object);
                 break;
             case V_ASN1_UTCTIME:
+            #ifndef NO_ASN_TIME
                 wolfSSL_ASN1_TIME_free(at->value.utctime);
+            #endif
                 break;
             case V_ASN1_GENERALIZEDTIME:
+            #ifndef NO_ASN_TIME
                 wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
+            #endif
                 break;
             case V_ASN1_UTF8STRING:
             case V_ASN1_PRINTABLESTRING:
@@ -30757,16 +30765,23 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
  * returns WOLFSSL_SUCCESS (1)  if correct otherwise WOLFSSL_FAILURE (0) */
 int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 {
+#ifndef NO_ASN_TIME
     char buf[MAX_TIME_STRING_SZ];
+#endif
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_check");
 
+#ifndef NO_ASN_TIME
     /* if can parse the WOLFSSL_ASN1_TIME passed in then consider syntax good */
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)a, buf,
                 MAX_TIME_STRING_SZ) == NULL) {
         return WOLFSSL_FAILURE;
     }
     return WOLFSSL_SUCCESS;
+#else
+    (void)a;
+    return WOLFSSL_FAILURE;
+#endif    
 }
 #endif /* !NO_ASN_TIME */
 

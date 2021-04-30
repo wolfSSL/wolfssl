@@ -1272,7 +1272,8 @@ end:
     return ret;
 }
 
-#ifdef HAVE_SESSION_TICKET
+#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK))
+#ifndef NO_ASN_TIME
 #if defined(USER_TICKS)
 #if 0
     word32 TimeNowInMilliseconds(void)
@@ -1528,6 +1529,12 @@ end:
         return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
     }
 #endif
+#else
+    /* user must supply time in milliseconds function:
+     *   word32 TimeNowInMilliseconds(void);
+     * The response is milliseconds elapsed
+     */    
+#endif /* !NO_ASN_TIME */
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 
 
