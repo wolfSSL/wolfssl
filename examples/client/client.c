@@ -2923,6 +2923,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to get SSL object");
     }
 
+#ifndef NO_PSK
+    if (usePsk) {
+    #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(TEST_PSK_USE_SESSION)
+        SSL_set_psk_use_session_callback(ssl, my_psk_use_session_cb);
+    #endif
+    }
+#endif
 
 #ifndef NO_CERTS
     if (useClientCert && loadCertKeyIntoSSLObj){

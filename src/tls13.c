@@ -2607,6 +2607,49 @@ static byte helloRetryRequestRandom[] = {
 
 #ifndef NO_WOLFSSL_CLIENT
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_PSK_ONE_ID) && \
+    !defined(NO_PSK)
+/**
+* convert mac algorithm to WOLFSSL_EVP_MD
+* @param mac_alg mac algorithm
+* @return const WOLFSSL_EVP_MD on sucessful, otherwise NULL
+*/
+static const WOLFSSL_EVP_MD* ssl_handshake_md(const byte mac_alg)
+{
+    switch(mac_alg) {
+        case no_mac:
+    #ifndef NO_MD5
+        case md5_mac:
+            return wolfSSL_EVP_md5();
+    #endif
+    #ifndef NO_SHA
+        case sha_mac:
+            return wolfSSL_EVP_sha1();
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case sha224_mac:
+            return wolfSSL_EVP_sha224();
+    #endif
+        case sha256_mac:
+            return wolfSSL_EVP_sha256();
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            return wolfSSL_EVP_sha384();
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            return wolfSSL_EVP_sha512();
+    #endif
+        case rmd_mac:
+        case blake2b_mac:
+            WOLFSSL_MSG("no suitable EVP_MD");
+            return NULL;
+        default:
+            WOLFSSL_MSG("Unknown mac algorithm");
+            return NULL;
+    }
+}
+#endif
 /* Setup pre-shared key based on the details in the extension data.
  *
  * ssl  SSL/TLS object.
@@ -2652,9 +2695,33 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
         const char* cipherName = NULL;
         byte cipherSuite0 = TLS13_BYTE, cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
         int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
+        
+    #ifdef OPENSSL_EXTRA
+        const unsigned char* id = NULL;
+        size_t idlen = 0;
+        WOLFSSL_SESSION* psksession = NULL;
+        const WOLFSSL_EVP_MD* handshake_md = NULL;
 
+        if (ssl->options.session_psk_cb != NULL) {
+
+            if (ssl->msgsReceived.got_hello_retry_request >= 1) {
+                handshake_md = ssl_handshake_md(ssl->specs.mac_algorithm);
+            }
+            /* Get the pre-shared key. */
+            if (!ssl->options.session_psk_cb(ssl, handshake_md, 
+                                                &id, &idlen, &psksession)) {
+                wolfSSL_SESSION_free(psksession);
+                WOLFSSL_MSG("psk session callback failed");
+                return PSK_KEY_ERROR;
+            }
+        }
+
+        if (psksession == NULL &&
+    #else
         /* Get the pre-shared key. */
-        if (ssl->options.client_psk_tls13_cb != NULL) {
+        if (
+    #endif
+            ssl->options.client_psk_tls13_cb != NULL) {
             ssl->arrays->psk_keySz = ssl->options.client_psk_tls13_cb(ssl,
                     (char *)psk->identity, ssl->arrays->client_identity,
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
@@ -2665,6 +2732,22 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
             }
         }
         else {
+    #ifdef OPENSSL_EXTRA
+            if (psksession != NULL) {
+                if (idlen > MAX_PSK_KEY_LEN) {
+                    WOLFSSL_MSG("psk key length is too long");
+                    return PSK_KEY_ERROR;
+                }
+                
+                ssl->arrays->psk_keySz = (word32)idlen;
+                XMEMCPY(ssl->arrays->psk_key, id, idlen);
+                cipherSuite0 = psksession->cipherSuite0;
+                cipherSuite  = psksession->cipherSuite;
+                /* no need anymore */
+                wolfSSL_SESSION_free(psksession);
+            } 
+            else 
+    #endif
             ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                     (char *)psk->identity, ssl->arrays->client_identity,
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);

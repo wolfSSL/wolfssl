@@ -1332,6 +1332,8 @@ WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
 WOLFSSL_API void wolfSSL_SESSION_free(WOLFSSL_SESSION* session);
+WOLFSSL_API int wolfSSL_SESSION_set_cipher(WOLFSSL_SESSION* session, 
+                                        const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API int  wolfSSL_is_init_finished(WOLFSSL*);
 
 WOLFSSL_API const char*  wolfSSL_get_version(const WOLFSSL*);
@@ -2179,6 +2181,13 @@ enum { /* ssl Constants */
                                                     wc_psk_client_callback);
     WOLFSSL_API void wolfSSL_set_psk_client_callback(WOLFSSL*,
                                                     wc_psk_client_callback);
+    #ifdef OPENSSL_EXTRA
+    typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, 
+                            const WOLFSSL_EVP_MD* md, const unsigned char **id,
+                                        size_t* idlen,  WOLFSSL_SESSION **sess);
+    WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
+                                               wc_psk_use_session_cb_func cb);
+    #endif
 #ifdef WOLFSSL_TLS13
     typedef unsigned int (*wc_psk_client_tls13_callback)(WOLFSSL*, const char*,
                char*, unsigned int, unsigned char*, unsigned int, const char**);
@@ -4395,13 +4404,6 @@ WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 WOLFSSL_API int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
 WOLFSSL_API void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
 WOLFSSL_API int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
-
-typedef int (*wc_psk_use_session_cb_func)(WOLFSSL* ssl, const WOLFSSL_EVP_MD* md,
-                                               const unsigned char **id,
-                                               size_t* idlen,
-                                               WOLFSSL_SESSION **sess);
-WOLFSSL_API void wolfSSL_set_psk_use_session_callback(WOLFSSL* ssl, 
-                                               wc_psk_use_session_cb_func cb);
 
 WOLFSSL_API int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s);
 

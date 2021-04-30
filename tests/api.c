@@ -42918,7 +42918,6 @@ static void test_wolfSSL_set_psk_use_session_callback(void)
         ssl = SSL_new(ctx);
         AssertNotNull(ssl);
         
-        /* STUB */
         SSL_set_psk_use_session_callback(ssl,
                             my_psk_use_session_cb);
         AssertTrue(1);

@@ -333,6 +333,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_up_ref              wolfSSL_SESSION_up_ref
 #define SSL_SESSION_dup                 wolfSSL_SESSION_dup
 #define SSL_SESSION_free                wolfSSL_SESSION_free
+#define SSL_SESSION_set_cipher          wolfSSL_SESSION_set_cipher
 #define SSL_is_init_finished            wolfSSL_is_init_finished
 
 #define SSL_get_version                 wolfSSL_get_version
