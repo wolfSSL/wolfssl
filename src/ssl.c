@@ -54354,11 +54354,14 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     int sectionLen = 0;
     int ret = -1;
     char* section = NULL;
+    char* canonLine = NULL;
+    char* canonSection = NULL;
     PKCS7* pkcs7 = NULL;
     word32 outLen = 0;
     byte* out = NULL;
     byte* outHead = NULL;
 
+    int canonPos = 0;
     int lineLen = 0;
     int remainLen = 0;
     byte isEnd = 0;
@@ -54461,38 +54464,60 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
             section[0] = '\0';
             sectionLen = 0;
+            canonSection = XMALLOC((remainLen+1)*sizeof(char), NULL,
+                                   DYNAMIC_TYPE_PKCS7);
+            if (canonSection == NULL) {
+                goto error;
+            }
+
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
             while(XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
                            remainLen > 0) {
+                canonLine = wc_MIME_canonicalize(&section[sectionLen]);
+                if (canonLine == NULL) {
+                    XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
+                    goto error;
+                }
+                XMEMCPY(&canonSection[canonPos], canonLine,
+                        (int)XSTRLEN(canonLine));
+                canonPos += XSTRLEN(canonLine);
+                XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
+
                 sectionLen += lineLen;
                 remainLen -= lineLen;
+
                 lineLen = wolfSSL_BIO_gets(in, &section[sectionLen],
                                            remainLen);
                 if (lineLen <= 0) {
+                    XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
                     goto error;
                 }
             }
-            sectionLen--;
+
+            canonPos--;
             /* Strip the final trailing newline.  Support \r, \n or \r\n. */
-            if (section[sectionLen] == '\n') {
-                sectionLen--;
-                if (section[sectionLen] == '\r') {
-                    sectionLen--;
+            if (canonSection[canonPos] == '\n') {
+                canonPos--;
+                if (canonSection[canonPos] == '\r') {
+                    canonPos--;
                 }
             }
-            else if (section[sectionLen] == '\r') {
-                sectionLen--;
+            else if (canonSection[canonPos] == '\r') {
+                canonPos--;
             }
-            section[sectionLen+1] = '\0';
+            canonSection[canonPos+1] = '\0';
 
             *bcont = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
-            ret = wolfSSL_BIO_write(*bcont, section, (int)XSTRLEN(section));
-            if (ret != (int)XSTRLEN(section)) {
+            ret = wolfSSL_BIO_write(*bcont, canonSection,
+                                    (int)XSTRLEN(canonSection));
+            if (ret != (int)XSTRLEN(canonSection)) {
+                XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
                 goto error;
             }
             if ((bcontMemSz = wolfSSL_BIO_get_mem_data(*bcont, &bcontMem)) < 0) {
                 goto error;
             }
+            XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
 
 
             wc_MIME_free_hdrs(allHdrs);
