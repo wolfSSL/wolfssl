@@ -560,20 +560,21 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         /* The base size is the number of bits / 8. One is added if the number
          * of bits isn't an even 8. */
         sizeB = (sizeB / 8) + ((sizeB % 8) ? 1 : 0);
-        
+
         ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         ptrB = (uint8_t*)XMALLOC(sizeB, NULL, DYNAMIC_TYPE_BIGINT);
         if (ptrA == NULL || ptrB == NULL) {
             res = MEMORY_E;
         }
 
-    #ifndef WC_NO_RNG
-        if (res == MP_OKAY && rng != NULL) {
+        if (res == MP_OKAY) {
+        #ifndef WC_NO_RNG
+            /* A NULL rng will return as bad function arg */
             res = wc_RNG_GenerateBlock(rng, ptrB, sizeB);
+        #else
+            res = NOT_COMPILED_IN;
+        #endif
         }
-    #else
-        res = NOT_COMPILED_IN;
-    #endif
 
         if (res == MP_OKAY) {
             res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
