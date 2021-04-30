@@ -3894,7 +3894,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
       err = NOT_COMPILED_IN;
    }
 #elif defined(WOLFSSL_CRYPTOCELL)
-
+    CC310_ENTER();
     /* generate a secret*/
     err = CRYS_ECDH_SVDP_DH(&public_key->ctx.pubKey,
                             &private_key->ctx.privKey,
@@ -3906,6 +3906,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
         WOLFSSL_MSG("CRYS_ECDH_SVDP_DH for secret failed");
         return err;
     }
+    CC310_EXIT();
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     err = silabs_ecc_shared_secret(private_key, public_key, out, outlen);
 #else
@@ -4631,12 +4632,12 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
       err = NOT_COMPILED_IN;
    }
 #elif defined(WOLFSSL_CRYPTOCELL)
-
+    CC310_ENTER();
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
     raw_size = (word32)(key->dp->size)*2 + 1;
 
     /* generate first key pair */
-    err = CRYS_ECPKI_GenKeyPair(&wc_rndState,
+    err = CRYS_ECPKI_GenKeyPair(&wc_rndCtx.crys_rnd_state,
                                 wc_rndGenVectFunc,
                                 pDomain,
                                 &key->ctx.privKey,
@@ -4646,6 +4647,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
 
     if (err != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_ECPKI_GenKeyPair for key pair failed");
+        CC310_EXIT();
         return err;
     }
     key->type = ECC_PRIVATEKEY;
@@ -4669,7 +4671,7 @@ int wc_ecc_make_key_ex2(WC_RNG* rng, int keysize, ecc_key* key, int curve_id,
                                        ucompressed_key,
                                        (uint32_t*)&raw_size);
     }
-
+    CC310_EXIT();
     if (err == SA_SILIB_RET_OK) {
         err = mp_read_unsigned_bin(&key->k, ucompressed_key, raw_size);
     }
@@ -5081,9 +5083,9 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
 
         }
-
+        CC310_ENTER();
         /* create signature from an input buffer using a private key*/
-        err = CRYS_ECDSA_Sign(&wc_rndState,
+        err = CRYS_ECDSA_Sign(&wc_rndCtx.crys_rnd_state,
                                wc_rndGenVectFunc,
                                &sigCtxTemp,
                                &key->ctx.privKey,
@@ -5092,7 +5094,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
                                msgLenInBytes,
                                out,
                                (uint32_t*)&raw_sig_size);
-
+        CC310_EXIT();
         if (err != SA_SILIB_RET_OK){
             WOLFSSL_MSG("CRYS_ECDSA_Sign failed");
             return err;
@@ -6609,7 +6611,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        /* hash_mode = */ cc310_hashModeECC(keySz);
        hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
    }
-
+   CC310_ENTER();
    /* verify the signature using the public key */
    err = CRYS_ECDSA_Verify(&sigCtxTemp,
                            &key->ctx.pubKey,
@@ -6618,7 +6620,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                            keySz*2,
                            (byte*)hash,
                            msgLenInBytes);
-
+   CC310_EXIT();
    if (err != SA_SILIB_RET_OK) {
        WOLFSSL_MSG("CRYS_ECDSA_Verify failed");
        return err;
@@ -8139,6 +8141,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     err = silabs_ecc_import(key, keysize);
 #endif
 #ifdef WOLFSSL_CRYPTOCELL
+    CC310_ENTER();
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
 
     /* create public key from external key buffer */
@@ -8147,7 +8150,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                                            inLen+1,     /* original input */
                                            &key->ctx.pubKey,
                                            &tempBuff);
-
+    CC310_EXIT();
     if (err != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_ECPKI_BuildPublKeyFullCheck failed");
     }
@@ -8340,6 +8343,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         return ret;
 
 #ifdef WOLFSSL_CRYPTOCELL
+    CC310_ENTER();
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
     /* import private key */
     if (priv != NULL && priv[0] != '\0') {
@@ -8352,11 +8356,13 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
         if (ret != SA_SILIB_RET_OK) {
             WOLFSSL_MSG("CRYS_ECPKI_BuildPrivKey failed");
+            CC310_EXIT();
             return ret;
         }
 
         ret = mp_read_unsigned_bin(&key->k, priv, privSz);
     }
+    CC310_EXIT();
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     if (ret == MP_OKAY)
         ret = mp_read_unsigned_bin(&key->k, priv, privSz);
@@ -8641,6 +8647,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         }
 
         if (err == MP_OKAY) {
+            CC310_ENTER();
             pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
 
             /* create public key from external key buffer */
@@ -8649,6 +8656,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
                                                    keySz*2 + 1,
                                                    &key->ctx.pubKey,
                                                    &tempBuff);
+            CC310_EXIT();
         }
 
         if (err != SA_SILIB_RET_OK){
@@ -8683,11 +8691,13 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             }
 
             if (err == MP_OKAY) {
+                CC310_ENTER();
                 /* Create private key from external key buffer*/
                 err = CRYS_ECPKI_BuildPrivKey(pDomain,
                                               key_raw,
                                               keySz,
                                               &key->ctx.privKey);
+                CC310_EXIT();
 
                 if (err != SA_SILIB_RET_OK){
                     WOLFSSL_MSG("CRYS_ECPKI_BuildPrivKey failed");

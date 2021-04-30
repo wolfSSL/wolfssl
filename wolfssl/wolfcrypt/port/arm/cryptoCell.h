@@ -28,7 +28,13 @@ extern "C" {
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>
-
+#include "sdk_common.h"
+#if NRF_MODULE_ENABLED(NRF_CRYPTO) && NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_CC310)
+    #include "nrf_crypto_error.h"
+    #include "cc310_backend_rng.h"
+    #include "cc310_backend_mutex.h"
+    #include "nrf_crypto_rng.h"
+#endif
 #include "sns_silib.h"
 
 #ifndef NO_SHA256
@@ -60,8 +66,17 @@ extern "C" {
         #include "nrf_assert.h"
     #endif
 
+    typedef struct {
+        uint32_t    init_value; /*  NRF_CRYPTO_RNG_CONTEXT_INIT_MAGIC_VALUE if initialized */
+    } rng_context_header_t;
+
+    typedef struct {
+        rng_context_header_t header;     /* Internal common context header */
+        CRYS_RND_State_t crys_rnd_state; /* CC310 RNG context */
+    } rng_context_t;
+
     /*RNG Global variables*/
-    extern CRYS_RND_State_t     wc_rndState;
+    extern rng_context_t wc_rndCtx;
     extern CRYS_RND_WorkBuff_t  wc_rndWorkBuff;
     extern SaSiRndGenerateVectWorkFunc_t wc_rndGenVectFunc;
     int    cc310_random_generate(byte* output, word32 size);
@@ -106,6 +121,28 @@ CRYS_ECPKI_HASH_OpMode_t cc310_hashModeECC(int hash_size);
     #include <stdint.h>
     #include <stdbool.h>
 #endif /* NO_CRYPT_BENCHMARK && WOLFSSL_nRF5x_SDK_15_2*/
+
+#if NRF_MODULE_ENABLED(NRF_CRYPTO) && NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_CC310)
+
+    #define CC310_ENTER()                     \
+    do {                                      \
+        if (!cc310_backend_mutex_trylock()) { \
+            return NRF_ERROR_CRYPTO_BUSY;     \
+        }                                     \
+        cc310_backend_enable();               \
+    } while (0)
+
+
+    #define CC310_EXIT()                      \
+    do {                                      \
+       cc310_backend_disable();               \
+       cc310_backend_mutex_unlock();          \
+    } while (0)
+
+#else
+    #define CC310_ENTER()
+    #define CC310_EXIT()
+#endif
 
 int  cc310_Init(void);
 void cc310_Free(void);

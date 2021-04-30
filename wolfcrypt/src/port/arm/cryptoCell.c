@@ -45,10 +45,13 @@
 #endif
 
 /* Global Variables (extern) */
-CRYS_RND_State_t     wc_rndState;
+rng_context_t wc_rndCtx;
 CRYS_RND_WorkBuff_t  wc_rndWorkBuff;
 SaSiRndGenerateVectWorkFunc_t wc_rndGenVectFunc = CRYS_RND_GenerateVector;
 
+#if NRF_MODULE_ENABLED(NRF_CRYPTO) && NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_CC310)
+/* Directly use cc310_backend_enable() and cc310_backend_disable()*/
+#else
 static word32 cc310_enableCount = 0;
 
 static void cc310_enable(void)
@@ -71,6 +74,7 @@ static void cc310_disable(void)
         NVIC_DisableIRQ(CRYPTOCELL_IRQn);
     }
 }
+#endif
 
 int cc310_Init(void)
 {
@@ -78,6 +82,21 @@ int cc310_Init(void)
     static int initialized = 0;
 
     if (!initialized) {
+
+#if NRF_MODULE_ENABLED(NRF_CRYPTO) && NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_CC310)
+        if( !nrf_crypto_is_initializing() )
+        {
+            nrf_crypto_init();
+    #if defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 1)
+            /* Do nothing. RNG is initialized with nrf_crypto_init call.*/
+    #elif defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 0)
+            /* Initialize the RNG.*/
+            nrf_crypto_rng_init(&wc_rndCtx, &wc_rndWorkBuff);
+    #endif /* defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 1) */
+            cc310_backend_enable();
+        }
+
+#else
         /* Enable the CC310 HW. */
         cc310_enable();
 
@@ -90,11 +109,12 @@ int cc310_Init(void)
         }
 
         /* RNG CryptoCell CC310 */
-        ret = CRYS_RndInit(&wc_rndState, &wc_rndWorkBuff);
+        ret = CRYS_RndInit(&wc_rndCtx.crys_rnd_state, &wc_rndWorkBuff);
         if (ret != CRYS_OK) {
             WOLFSSL_MSG("Error CRYS_RndInit");
             return ret;
         }
+#endif
         initialized = 1;
     }
     return ret;
@@ -102,23 +122,36 @@ int cc310_Init(void)
 
 void cc310_Free(void)
 {
+#if NRF_MODULE_ENABLED(NRF_CRYPTO) && NRF_MODULE_ENABLED(NRF_CRYPTO_BACKEND_CC310)
+    if (nrf_crypto_is_initialized())
+    {
+        cc310_backend_disable();
+    #if defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 1)
+        /*  Do nothing. RNG is initialized with nrf_crypto_init call. */
+    #elif defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 0)
+        nrf_crypto_rng_uninit();
+    #endif /*  defined(NRF_CRYPTO_RNG_AUTO_INIT_ENABLED) && (NRF_CRYPTO_RNG_AUTO_INIT_ENABLED == 1) */
+        nrf_crypto_uninit();
+    }
+#else
     CRYSError_t crys_result;
 
     SaSi_LibFini();
 
-    crys_result = CRYS_RND_UnInstantiation(&wc_rndState);
+    crys_result = CRYS_RND_UnInstantiation(&wc_rndCtx.crys_rnd_state);
 
     if (crys_result != CRYS_OK) {
         WOLFSSL_MSG("Error RYS_RND_UnInstantiation");
     }
     cc310_disable();
+#endif
 }
 
 int cc310_random_generate(byte* output, word32 size)
 {
     CRYSError_t crys_result;
 
-    crys_result = CRYS_RND_GenerateVector(&wc_rndState, size, output);
+    crys_result = CRYS_RND_GenerateVector(&wc_rndCtx.crys_rnd_state, size, output);
 
     return (crys_result == CRYS_OK) ? 0 : -1;
 }

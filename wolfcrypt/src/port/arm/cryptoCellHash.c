@@ -54,10 +54,11 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     XMEMSET(sha256->digest, 0, sizeof(sha256->digest));
-
+    CC310_ENTER();
     /* initializes the HASH context and machine to the supported mode.*/
     ret = CRYS_HASH_Init(&sha256->ctx, CRYS_HASH_SHA256_mode);
 
+    CC310_EXIT();
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("Error CRYS_HASH_Init failed");
     }
@@ -86,6 +87,7 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
         return 0;
     }
 
+    CC310_ENTER();
     /* If the input is larger than CC310_MAX_LENGTH_DMA, split into smaller */
     do {
         length = (remaining > CC310_MAX_LENGTH_DMA) ?
@@ -98,6 +100,7 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 
     } while (ret == CRYS_OK && remaining > 0);
 
+    CC310_EXIT();
     return ret;
 }
 
@@ -110,7 +113,9 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
         return BAD_FUNC_ARG;
     }
 
+    CC310_ENTER();
     ret = CRYS_HASH_Finish(&sha256->ctx, hashResult);
+    CC310_EXIT();
 
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("Error CRYS_HASH_Finish failed");
