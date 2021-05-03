@@ -18547,13 +18547,17 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
         }
         start = end = 0;
         lineLen = XSTRLEN(curLine);
+        if (lineLen == 0) {
+            ret = BAD_FUNC_ARG;
+            goto error;
+        }
 
         for (pos = 0; pos < lineLen; pos++) {
             char cur = curLine[pos];
 
             if (mimeStatus == MIME_NAMEATTR && ((cur == ':' &&
                 mimeType == MIME_HDR) || (cur == '=' &&
-                mimeType == MIME_PARAM))) {
+                mimeType == MIME_PARAM)) && pos >= 1) {
                 mimeStatus = MIME_BODYVAL;
                 end = pos-1;
                 ret = wc_MIME_header_strip(curLine, &nameAttr, start, end);
@@ -18562,7 +18566,7 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 }
                 start = pos+1;
             }
-            else if (mimeStatus == MIME_BODYVAL && cur == ';') {
+            else if (mimeStatus == MIME_BODYVAL && cur == ';' && pos >= 1) {
                 end = pos-1;
                 ret = wc_MIME_header_strip(curLine, &bodyVal, start, end);
                 if (ret) {
@@ -18570,7 +18574,9 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 }
                 if (mimeType == MIME_HDR) {
                     nextHdr->name = nameAttr;
+                    nameAttr = NULL;
                     nextHdr->body = bodyVal;
+                    bodyVal = NULL;
                     nextHdr->next = curHdr;
                     curHdr = nextHdr;
                     nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL,
@@ -18583,7 +18589,9 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 }
                 else {
                     nextParam->attribute = nameAttr;
+                    nameAttr = NULL;
                     nextParam->value = bodyVal;
+                    bodyVal = NULL;
                     nextParam->next = curHdr->params;
                     curHdr->params = nextParam;
                     nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
@@ -18612,7 +18620,9 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
             }
             if (mimeType == MIME_HDR) {
                 nextHdr->name = nameAttr;
+                nameAttr = NULL;
                 nextHdr->body = bodyVal;
+                bodyVal = NULL;
                 nextHdr->next = curHdr;
                 curHdr = nextHdr;
                 nextHdr = (MimeHdr*)XMALLOC(sizeof(MimeHdr), NULL,
@@ -18624,7 +18634,9 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 XMEMSET(nextHdr, 0, (word32)sizeof(MimeHdr));
             } else {
                 nextParam->attribute = nameAttr;
+                nameAttr = NULL;
                 nextParam->value = bodyVal;
+                bodyVal = NULL;
                 nextParam->next = curHdr->params;
                 curHdr->params = nextParam;
                 nextParam = (MimeParam*)XMALLOC(sizeof(MimeParam), NULL,
@@ -18650,8 +18662,10 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
 error:
     wc_MIME_free_hdrs(curHdr);
     wc_MIME_free_hdrs(nextHdr);
-    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
-    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+    if (nameAttr != NULL)
+        XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+    if (bodyVal != NULL)
+        XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
 
     return ret;
@@ -18740,6 +18754,41 @@ MimeParam* wc_MIME_find_param_attr(const char* attribute,
     }
 
     return param;
+}
+
+/*****************************************************************************
+* wc_MIME_canonicalize - Canonicalize a line by converting all line endings
+* to CRLF.
+*
+* RETURNS:
+* returns a pointer to a canonicalized line on success, NULL on error.
+*/
+char* wc_MIME_canonicalize(const char* line)
+{
+    size_t end = 0;
+    char* canonLine = NULL;
+
+    if (line == NULL || XSTRLEN(line) == 0) {
+        return NULL;
+    }
+
+    end = XSTRLEN(line);
+    while (end >= 1 && ((line[end-1] == '\r') || (line[end-1] == '\n'))) {
+        end--;
+    }
+
+    /* Need 2 chars for \r\n and 1 for EOL */
+    canonLine = (char*)XMALLOC((end+3)*sizeof(char), NULL, DYNAMIC_TYPE_PKCS7);
+    if (canonLine == NULL) {
+        return NULL;
+    }
+
+    XSTRNCPY(canonLine, line, end);
+    canonLine[end] = '\r';
+    canonLine[end+1] = '\n';
+    canonLine[end+2] = '\0';
+
+    return canonLine;
 }
 
 /*****************************************************************************

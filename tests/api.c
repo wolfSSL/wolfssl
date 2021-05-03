@@ -39333,6 +39333,15 @@ static void test_wolfSSL_SMIME_read_PKCS7(void)
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     AssertNull(pkcs7);
     AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_FAILURE);
+    XFCLOSE(smimeTestFile);
+    if (bcont) BIO_free(bcont);
+    wolfSSL_PKCS7_free(pkcs7);
+
+    smimeTestFile = XFOPEN("./certs/test/smime-test-canon.p7s", "r");
+    AssertIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
+    pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
+    AssertNotNull(pkcs7);
+    AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL, PKCS7_NOVERIFY), SSL_SUCCESS);
     BIO_free(bio);
     if (bcont) BIO_free(bcont);
     wolfSSL_PKCS7_free(pkcs7);

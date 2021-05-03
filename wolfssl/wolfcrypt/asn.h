@@ -1295,6 +1295,7 @@ WOLFSSL_LOCAL int wc_MIME_create_header(char* name, char* body, MimeHdr** hdr);
 WOLFSSL_LOCAL int wc_MIME_create_parameter(char* attribute, char* value, MimeParam** param);
 WOLFSSL_LOCAL MimeHdr* wc_MIME_find_header_name(const char* name, MimeHdr* hdr);
 WOLFSSL_LOCAL MimeParam* wc_MIME_find_param_attr(const char* attribute, MimeParam* param);
+WOLFSSL_LOCAL char* wc_MIME_canonicalize(const char* line);
 WOLFSSL_LOCAL int wc_MIME_free_hdrs(MimeHdr* head);
 #endif /* HAVE_SMIME */
 
