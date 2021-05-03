@@ -1608,7 +1608,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
         {
             /* If not aligned or there is odd/remainder */
             if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
-                ((wolfssl_word)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
+                ((wc_ptr_t)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
             ) {
                 /* Single byte at a time */
                 output[i++] = (byte)CUSTOM_RAND_GENERATE();
@@ -1961,7 +1961,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         while (i < sz) {
             /* If not aligned or there is odd/remainder */
             if( (i + sizeof(word32)) > sz ||
-                ((wolfssl_word)&output[i] % sizeof(word32)) != 0
+                ((wc_ptr_t)&output[i] % sizeof(word32)) != 0
             ) {
                 /* Single byte at a time */
                 uint32_t tmpRng = 0;

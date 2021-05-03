@@ -392,7 +392,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     }
 
     /* align pt */
-    while ((wolfssl_word)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+    while ((wc_ptr_t)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
         pt++;
         ava--;
@@ -475,7 +475,7 @@ int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag)
     }
 
     /* align pt */
-    while ((wolfssl_word)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
+    while ((wc_ptr_t)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         pt++;
         ava--;
     }
@@ -716,7 +716,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
-        if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
+        if ((wc_ptr_t)res % WOLFSSL_STATIC_ALIGN) {
             WOLFSSL_MSG("ERROR memory is not aligned");
             res = NULL;
         }
@@ -935,7 +935,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     }
 
     #ifdef WOLFSSL_MALLOC_CHECK
-        if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
+        if ((wc_ptr_t)res % WOLFSSL_STATIC_ALIGN) {
             WOLFSSL_MSG("ERROR memory is not aligned");
             res = NULL;
         }
@@ -1113,7 +1113,7 @@ void __attribute__((no_instrument_function))
      __cyg_profile_func_enter(void *func,  void *caller)
 {
     register void* sp asm("sp");
-    fprintf(stderr, "ENTER: %016lx %p\n", (unsigned long)(size_t)func, sp);
+    fprintf(stderr, "ENTER: %016lx %p\n", (unsigned long)(wc_ptr_t)func, sp);
     (void)caller;
 }
 
@@ -1121,7 +1121,7 @@ void __attribute__((no_instrument_function))
      __cyg_profile_func_exit(void *func, void *caller)
 {
     register void* sp asm("sp");
-    fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(size_t)func, sp);
+    fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(wc_ptr_t)func, sp);
     (void)caller;
 }
 #endif

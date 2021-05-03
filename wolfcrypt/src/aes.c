@@ -565,7 +565,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     {
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wolfssl_word)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
                 WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
                 return BAD_ALIGN_E;
             }
@@ -583,7 +583,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     {
         if (wolfSSL_CryptHwMutexLock() == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
-            if ((wolfssl_word)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            if ((wc_ptr_t)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
                 WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
                 return BAD_ALIGN_E;
             }
@@ -1728,14 +1728,14 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
 
         /* check alignment, decrypt doesn't need alignment */
-        if ((wolfssl_word)inBlock % AESNI_ALIGN) {
+        if ((wc_ptr_t)inBlock % AESNI_ALIGN) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE + AESNI_ALIGN, aes->heap,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
             byte* tmp_align;
             if (tmp == NULL) return;
 
-            tmp_align = tmp + (AESNI_ALIGN - ((size_t)tmp % AESNI_ALIGN));
+            tmp_align = tmp + (AESNI_ALIGN - ((wc_ptr_t)tmp % AESNI_ALIGN));
 
             XMEMCPY(tmp_align, inBlock, AES_BLOCK_SIZE);
             SAVE_VECTOR_REGISTERS();
@@ -2523,7 +2523,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->rounds = keylen/4 + 6;
 
     #ifdef FREESCALE_MMCAU_CLASSIC
-        if ((wolfssl_word)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
+        if ((wc_ptr_t)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
                                        aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2531,7 +2531,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 return MEMORY_E;
             }
             alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
-                          ((wolfssl_word)tmp % WOLFSSL_MMCAU_ALIGNMENT);
+                          ((wc_ptr_t)tmp % WOLFSSL_MMCAU_ALIGNMENT);
             tmpKey = tmp + alignOffset;
             XMEMCPY(tmpKey, userKey, keylen);
             tmpKeyDynamic = 1;
@@ -3825,14 +3825,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             #endif
 
             /* check alignment, decrypt doesn't need alignment */
-            if ((wolfssl_word)in % AESNI_ALIGN) {
+            if ((wc_ptr_t)in % AESNI_ALIGN) {
             #ifndef NO_WOLFSSL_ALLOC_ALIGN
                 byte* tmp = (byte*)XMALLOC(sz + AES_BLOCK_SIZE + AESNI_ALIGN,
                                             aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 byte* tmp_align;
                 if (tmp == NULL) return MEMORY_E;
 
-                tmp_align = tmp + (AESNI_ALIGN - ((size_t)tmp % AESNI_ALIGN));
+                tmp_align = tmp + (AESNI_ALIGN - ((wc_ptr_t)tmp % AESNI_ALIGN));
                 XMEMCPY(tmp_align, in, sz);
                 SAVE_VECTOR_REGISTERS();
                 AES_CBC_encrypt(tmp_align, tmp_align, (byte*)aes->reg, sz,

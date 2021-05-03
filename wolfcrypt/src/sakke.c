@@ -2535,11 +2535,11 @@ static int sakke_modexp_loop(SakkeKey* key, mp_int* b, mp_int* e, mp_proj* r,
 #else
             err = sakke_proj_mul_qx1(c[0], by, prime, mp, c[2], t1, t2);
             mp_copy(c[2]->x,
-            (mp_int*) ( ((wolfssl_word)c[0]->x & wc_off_on_addr[j]) +
-                        ((wolfssl_word)c[1]->x & wc_off_on_addr[j^1]) ) );
+            (mp_int*) ( ((wc_ptr_t)c[0]->x & wc_off_on_addr[j]) +
+                        ((wc_ptr_t)c[1]->x & wc_off_on_addr[j^1]) ) );
             mp_copy(c[2]->y,
-            (mp_int*) ( ((wolfssl_word)c[0]->y & wc_off_on_addr[j]) +
-                        ((wolfssl_word)c[1]->y & wc_off_on_addr[j^1]) ) );
+            (mp_int*) ( ((wc_ptr_t)c[0]->y & wc_off_on_addr[j]) +
+                        ((wc_ptr_t)c[1]->y & wc_off_on_addr[j^1]) ) );
 #endif
         }
     }

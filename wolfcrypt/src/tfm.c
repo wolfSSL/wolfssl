@@ -1840,8 +1840,8 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
   #ifdef WC_NO_CACHE_RESISTANT
     err = fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
   #else
-    fp_copy((fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
-                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ),
+    fp_copy((fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ),
             &nb->R[2]);
     err = fp_sqr(&nb->R[2], &nb->R[2]);
   #endif /* WC_NO_CACHE_RESISTANT */
@@ -1859,8 +1859,8 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
   #else
     fp_montgomery_reduce(&nb->R[2], P, nb->mp);
     fp_copy(&nb->R[2],
-            (fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
-                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
+            (fp_int*) ( ((wc_ptr_t)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wc_ptr_t)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
   #endif /* WC_NO_CACHE_RESISTANT */
 
     nb->state = TFM_EXPTMOD_NB_NEXT;
@@ -2033,14 +2033,14 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
      * use R[2] as temp, make sure address calc is constant, keep
      * &R[0] and &R[1] in cache */
     fp_copy(&R[2],
-            (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y]) +
-                        ((wolfssl_word)&R[1] & wc_off_on_addr[y^1]) ) );
+            (fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y]) +
+                        ((wc_ptr_t)&R[1] & wc_off_on_addr[y^1]) ) );
 
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
      * use R[2] as temp, make sure address calc is constant, keep
      * &R[0] and &R[1] in cache */
-    fp_copy((fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
-                        ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ),
+    fp_copy((fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
+                        ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ),
             &R[2]);
     err = fp_sqr(&R[2], &R[2]);
     if (err != FP_OKAY) {
@@ -2057,8 +2057,8 @@ static int _fp_exptmod_ct(fp_int * G, fp_int * X, int digits, fp_int * P,
       return err;
     }
     fp_copy(&R[2],
-            (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
-                        ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ) );
+            (fp_int*) ( ((wc_ptr_t)&R[0] & wc_off_on_addr[y^1]) +
+                        ((wc_ptr_t)&R[1] & wc_off_on_addr[y]) ) );
 #endif /* WC_NO_CACHE_RESISTANT */
   }
 
