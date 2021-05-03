@@ -41050,7 +41050,7 @@ int wolfSSL_set_sessionID(WOLFSSL* ssl, const byte* idBuff, word32 idSz)
     int ret = BAD_FUNC_ARG;
 
     if (ssl != NULL && idBuff != NULL && idSz > 0 &&
-        idSz <= SSL_MAX_SSL_SESSION_ID_LENGTH) {
+        idSz <= ID_LEN) {
         XMEMCPY(ssl->session.sessionID, idBuff, idSz);
         ssl->session.sessionIDSz = idSz;
         ssl->options.resuming = 1; /* Using an existing sessionID
@@ -41069,7 +41069,7 @@ int wolfSSL_copy_sessionID(WOLFSSL* sslA, WOLFSSL* sslB)
 {
     int ret = BAD_FUNC_ARG;
     if (sslA != NULL && sslB != NULL && sslA->session.sessionIDSz > 0 &&
-        sslA->session.sessionIDSz <= SSL_MAX_SSL_SESSION_ID_LENGTH) {
+        sslA->session.sessionIDSz <= ID_LEN) {
         XMEMCPY(sslB->session.sessionID, sslA->session.sessionID,
                 sslA->session.sessionIDSz);
         sslB->session.sessionIDSz = sslA->session.sessionIDSz;
