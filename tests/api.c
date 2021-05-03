@@ -33109,7 +33109,27 @@ static void test_wolfSSL_SESSION(void)
     AssertIntEQ(wolfSSL_read(ssl, msg, sizeof(msg)), 23);
 
     sess = wolfSSL_get_session(ssl);
-        
+
+#ifdef SESSION_CERTS
+    {
+        if (ssl != NULL) {
+            WOLFSSL* sslFresh = wolfSSL_new(ctx);
+            int sessIdSz = wolfSSL_get_sessionIDSz(sess);
+            byte sessBuff[SSL_MAX_SSL_SESSION_ID_LENGTH] = {0};
+            const byte* sessId = wolfSSL_get_sessionID(sess);
+
+            AssertNotNull(sslFresh);
+            XMEMCPY(sessBuff, sessId, sessIdSz);
+            AssertIntEQ((ret = wolfSSL_set_sessionID(sslFresh, sessBuff,
+                                                    sessIdSz)), WOLFSSL_SUCCESS);
+            wolfSSL_free(sslFresh);
+            AssertNotNull(sslFresh = wolfSSL_new(ctx));
+            AssertIntEQ((ret = wolfSSL_copy_sessionID(ssl, sslFresh)),
+                        WOLFSSL_SUCCESS);
+            wolfSSL_free(sslFresh);
+        }
+    }
+#endif
 
     #if defined(OPENSSL_EXTRA)
     AssertIntEQ(SSL_SESSION_is_resumable(NULL), 0);
@@ -33118,7 +33138,7 @@ static void test_wolfSSL_SESSION(void)
     AssertIntEQ(wolfSSL_SESSION_is_resumable(NULL), 0);
     AssertIntEQ(wolfSSL_SESSION_is_resumable(sess), 1);
     #endif
-    
+
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
 

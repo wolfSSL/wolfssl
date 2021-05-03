@@ -41022,6 +41022,16 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
 }
 
+/* get session IDSz */
+int wolfSSL_get_sessionIDSz(const WOLFSSL_SESSION* session)
+{
+    int ret = BAD_FUNC_ARG;
+
+    if (session != NULL)
+        ret = session->sessionIDSz;
+
+    return ret;
+}
 
 /* get session ID */
 WOLFSSL_ABI
@@ -41034,6 +41044,45 @@ const byte* wolfSSL_get_sessionID(const WOLFSSL_SESSION* session)
     return NULL;
 }
 
+/* User manually set session ID */
+int wolfSSL_set_sessionID(WOLFSSL* ssl, const byte* idBuff, word32 idSz)
+{
+    int ret = BAD_FUNC_ARG;
+
+    if (ssl != NULL && idBuff != NULL && idSz > 0 &&
+        idSz <= SSL_MAX_SSL_SESSION_ID_LENGTH) {
+        XMEMCPY(ssl->session.sessionID, idBuff, idSz);
+        ssl->session.sessionIDSz = idSz;
+        ssl->options.resuming = 1; /* Using an existing sessionID
+                                    * need to let the peer know by doing resume
+                                    */
+        ssl->options.haveEMS = 0; /* reset the extended master secret flag so
+                                   * it can be negotiated in the resumption */
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
+/* Copy session ID from sslA to sslB */
+int wolfSSL_copy_sessionID(WOLFSSL* sslA, WOLFSSL* sslB)
+{
+    int ret = BAD_FUNC_ARG;
+    if (sslA != NULL && sslB != NULL && sslA->session.sessionIDSz > 0 &&
+        sslA->session.sessionIDSz <= SSL_MAX_SSL_SESSION_ID_LENGTH) {
+        XMEMCPY(sslB->session.sessionID, sslA->session.sessionID,
+                sslA->session.sessionIDSz);
+        sslB->session.sessionIDSz = sslA->session.sessionIDSz;
+        sslB->options.resuming = 1; /* Using an existing sessionID
+                                     * need to let the peer know by doing resume
+                                     */
+        sslB->options.haveEMS = 0; /* reset the extended master secret flag so
+                                    * it can be negotiated in the resumption */
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
 
 #endif /* SESSION_CERTS */
 
