@@ -56123,10 +56123,10 @@ int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
     return WOLFSSL_SUCCESS;
 }
 /* 
- * This comment attempts to describe following definitions ans static functions
- * that are used for wolfSSL_CONF_cmd() to handle command.
+ * The following definitions and static functions are used for 
+ * wolfSSL_CONF_cmd() to handle command.
  * 
- * The following deinitions use for a part of conf_cmds_tbl[] contents.
+ * Definitions below are a part of conf_cmds_tbl[] contents.
  *  WOLFSSL_CONF_FILE_CMDx  represents command name in configuration file 
  *  WOLFSSL_CONF_CMDL_CMDx  represents command name on command line
  * 
@@ -56136,7 +56136,7 @@ int wolfSSL_CONF_CTX_finish(WOLFSSL_CONF_CTX* cctx)
  * To add a new command handling:
  *  1. Add new #define to a section of WOLFSSL_CONF_FILE_CMD* and
  *                                      WOLFSSL_CONF_CMDL_CMD*
- *  2. Add new statci function after #define section, before 
+ *  2. Add new static function after #define section, before 
  *                      "typedef struct conf_cmd_tbl {" line
  *  3. Add new entry to conf_cmds_tbl[] by following other command entries
  */ 
