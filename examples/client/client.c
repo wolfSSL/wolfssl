@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
         #include <config.h>
 #endif
@@ -1521,6 +1520,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    ch;
 #endif
     int    version = CLIENT_INVALID_VERSION;
+    int    minVersion = CLIENT_INVALID_VERSION;
+    int    setMinVersion = 0;
     int    usePsk   = 0;
     int    useAnon  = 0;
     int    sendGET  = 0;
@@ -1719,7 +1720,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:i;jk:l:mnop:q:rstu;v:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:45689"
+            "01:23:4567:89"
             "@#")) != -1) {
         switch (ch) {
             case '?' :
@@ -2186,7 +2187,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 nonBlocking = 1;
                 simulateWantWrite = 1;
                 break;
-
+            case '7' :
+                setMinVersion = 1;
+                minVersion = atoi(myoptarg);
+                if (minVersion < 0 || minVersion > 4) {
+                    Usage();
+                    XEXIT_T(MY_EX_USAGE);
+                }
+                break;
             case '8' :
                 #ifdef HAVE_CURVE448
                     useX448 = 1;
@@ -2466,9 +2474,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("unable to get ctx");
     }
 #endif
-
-    if (simulateWantWrite)
-    {
+    if (setMinVersion) {
+        wolfSSL_CTX_SetMinVersion(ctx, minVersion);
+    }
+    if (simulateWantWrite) {
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
     }
 
