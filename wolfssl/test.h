@@ -12,10 +12,14 @@
 #endif
 #include <assert.h>
 #include <ctype.h>
+#ifdef HAVE_ERRNO_H
+    #include <errno.h>
+#endif
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
+#include <wolfssl/wolfio.h>
 #if defined(SHOW_CERTS) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
@@ -3895,6 +3899,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
+#ifdef USE_WOLFSSL_IO
 static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     static int wantWriteFlag = 1;
@@ -3937,6 +3942,7 @@ static WC_INLINE int SimulateWantWriteIOSendCb(WOLFSSL *ssl, char *buf, int sz, 
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
     }
 }
+#endif /* USE_WOLFSSL_IO */
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
                       || defined(_MSC_VER)

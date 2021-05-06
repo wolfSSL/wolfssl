@@ -6296,7 +6296,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
                 return WOLFSSL_FAILURE;
             }
 
-        #ifdef HAVE_CRL_IO
+        #if defined(HAVE_CRL_IO) && defined(USE_WOLFSSL_IO)
             cm->crl->crlIOCb = EmbedCrlLookup;
         #endif
         }

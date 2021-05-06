@@ -152,7 +152,7 @@ static void err_sys_ex(int out, const char* msg)
 }
 
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
 
 /* Translates return codes returned from
  * send() and recv() if need be.
@@ -277,8 +277,7 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     return sent;
 }
-
-#endif /* WOLFSSL_DTLS */
+#endif /* WOLFSSL_DTLS && USE_WOLFSSL_IO */
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
 
@@ -1173,7 +1172,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     int    dtlsSCTP = 0;
     int    doMcast = 0;
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
     int    doBlockSeq = 0;
     WOLFSSL_TEST_DTLS_CTX dtlsCtx;
 #endif
@@ -1773,7 +1772,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case '4' :
-                #ifdef WOLFSSL_DTLS
+                #if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
                     XMEMSET(&dtlsCtx, 0, sizeof(dtlsCtx));
                     doBlockSeq = 1;
                     dtlsCtx.blockSeq = atoi(myoptarg);
@@ -2065,7 +2064,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (simulateWantWrite)
     {
+    #ifdef USE_WOLFSSL_IO
         wolfSSL_CTX_SetIOSend(ctx, SimulateWantWriteIOSendCb);
+    #endif
     }
 
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
@@ -2418,7 +2419,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 
     if (doDTLS && dtlsUDP) {
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
         if (doBlockSeq) {
             wolfSSL_CTX_SetIOSend(ctx, TestEmbedSendTo);
         }
@@ -2730,7 +2731,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #endif
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && defined(USE_WOLFSSL_IO)
         if (doDTLS && dtlsUDP) {
             byte          b[1500];
             int           n;

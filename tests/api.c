@@ -29715,7 +29715,7 @@ static void test_wolfSSL_DTLS_either_side(void)
 
 static void test_generate_cookie(void)
 {
-#if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA) && defined(USE_WOLFSSL_IO)
     SSL_CTX* ctx;
     SSL* ssl;
     byte    buf[FOURK_BUF] = {0};
@@ -32680,7 +32680,7 @@ static void test_wolfSSL_BIO_puts(void)
 
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(USE_WOLFSSL_IO)
 static int forceWantRead(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     (void)ssl;
@@ -32695,7 +32695,7 @@ static void test_wolfSSL_BIO_should_retry(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(USE_WOLFSSL_IO)
     tcp_ready ready;
     func_args server_args;
     THREAD_TYPE serverThread;
@@ -32779,7 +32779,7 @@ static void test_wolfSSL_BIO_should_retry(void)
 
 static void test_wolfSSL_BIO_connect(void)
 {
-#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(HAVE_HTTP_CLIENT)
     tcp_ready ready;
     func_args server_args;
     THREAD_TYPE serverThread;
@@ -35823,7 +35823,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
 static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 {
-#if !defined(NO_DSA)
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
     DSA       *dsa  = NULL;
     DSA       *setDsa  = NULL;
     EVP_PKEY  *pkey = NULL;
@@ -35909,7 +35909,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     DSA_free(setDsa);
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(set1Pkey);
-#endif /* NO_DSA */
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
 static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
