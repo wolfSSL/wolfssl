@@ -54610,6 +54610,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
 
             wc_MIME_free_hdrs(allHdrs);
+            allHdrs = NULL;
             section[0] = '\0';
             sectionLen = 0;
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
@@ -54721,6 +54722,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
 
     wc_MIME_free_hdrs(allHdrs);
+    allHdrs = NULL;
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
 
@@ -54729,6 +54731,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
 error:
     wc_MIME_free_hdrs(allHdrs);
+    allHdrs = NULL;
     XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
