@@ -21312,8 +21312,10 @@ static int ecc_test_cdh_vectors(WC_RNG* rng)
     ret = wc_ecc_init_ex(priv_key, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
+#ifdef HAVE_ECC_CDH
     wc_ecc_set_flags(pub_key, WC_ECC_FLAG_COFACTOR);
     wc_ecc_set_flags(priv_key, WC_ECC_FLAG_COFACTOR);
+#endif
     ret = wc_ecc_import_raw(pub_key, QCAVSx, QCAVSy, NULL, "SECP256R1");
     if (ret != 0)
         goto done;
@@ -21593,7 +21595,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
     /* make public key for shared secret */
     wc_ecc_init_ex(pub, HEAP_HINT, devId);
     ret = wc_ecc_make_key(rng, ECC_KEYGEN_SIZE, pub);
+#ifdef HAVE_ECC_CDH
     wc_ecc_set_flags(key, WC_ECC_FLAG_COFACTOR);
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &pub->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
