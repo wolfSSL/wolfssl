@@ -2221,23 +2221,74 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
     /* Static DH Key */
     if (ksInfo && ksInfo->dh_key_bits != 0 && keys->dhKey) {
         DhKey dhKey;
+#ifdef HAVE_PUBLIC_FFDHE
+        const DhParams* params;
+        word32 privKeySz;
+#else
         word32 privKeySz = 0, p_len = 0;
+#endif
         byte privKey[52]; /* max for TLS */
         
         keyBuf = keys->dhKey;
 
+#ifdef HAVE_PUBLIC_FFDHE
+        /* get DH params */
+        switch (ksInfo->named_group) {
+        #ifdef HAVE_FFDHE_2048
+            case WOLFSSL_FFDHE_2048:
+                params = wc_Dh_ffdhe2048_Get();
+                privKeySz = 29;
+                break;
+        #endif
+        #ifdef HAVE_FFDHE_3072
+            case WOLFSSL_FFDHE_3072:
+                params = wc_Dh_ffdhe3072_Get();
+                privKeySz = 34;
+                break;
+        #endif
+        #ifdef HAVE_FFDHE_4096
+            case WOLFSSL_FFDHE_4096:
+                params = wc_Dh_ffdhe4096_Get();
+                privKeySz = 39;
+                break;
+        #endif
+        #ifdef HAVE_FFDHE_6144
+            case WOLFSSL_FFDHE_6144:
+                params = wc_Dh_ffdhe6144_Get();
+                privKeySz = 46;
+                break;
+        #endif
+        #ifdef HAVE_FFDHE_8192
+            case WOLFSSL_FFDHE_8192:
+                params = wc_Dh_ffdhe8192_Get();
+                privKeySz = 52;
+                break;
+        #endif
+            default:
+                return BAD_FUNC_ARG;
+        }
+#endif
+
         ret = wc_InitDhKey(&dhKey);
         if (ret == 0) {
+#ifdef HAVE_PUBLIC_FFDHE
+            ret = wc_DhSetKey(&dhKey,
+                (byte*)params->p, params->p_len,
+                (byte*)params->g, params->g_len);
+#else
             ret = wc_DhSetNamedKey(&dhKey, ksInfo->named_group);
+#endif
             if (ret == 0) {
                 ret = wc_DhKeyDecode(keyBuf->buffer, &idx, &dhKey, 
                     keyBuf->length);
             }
+#ifndef HAVE_PUBLIC_FFDHE
             if (ret == 0) {
                 privKeySz = wc_DhGetNamedKeyMinSize(ksInfo->named_group);
                 ret = wc_DhGetNamedKeyParamSize(ksInfo->named_group,
                         &p_len, NULL, NULL);
             }
+#endif
             if (ret == 0) {
                 ret = wc_DhExportKeyPair(&dhKey, privKey, &privKeySz, NULL, 
                     NULL);
@@ -2261,6 +2312,16 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
             wc_FreeDhKey(&dhKey);
         
             /* left-padded with zeros up to the size of the prime */
+#ifdef HAVE_PUBLIC_FFDHE
+            if (params->p_len > session->sslServer->arrays->preMasterSz) {
+                word32 diff = params->p_len - session->sslServer->arrays->preMasterSz;
+                XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
+                        session->sslServer->arrays->preMasterSecret,
+                        session->sslServer->arrays->preMasterSz);
+                XMEMSET(session->sslServer->arrays->preMasterSecret, 0, diff);
+                session->sslServer->arrays->preMasterSz = params->p_len;
+            }
+#else /* HAVE_PUBLIC_FFDHE */
             if (p_len > session->sslServer->arrays->preMasterSz) {
                 word32 diff = p_len - session->sslServer->arrays->preMasterSz;
                 XMEMMOVE(session->sslServer->arrays->preMasterSecret + diff,
@@ -2269,6 +2330,7 @@ static int SetupKeys(const byte* input, int* sslBytes, SnifferSession* session,
                 XMEMSET(session->sslServer->arrays->preMasterSecret, 0, diff);
                 session->sslServer->arrays->preMasterSz = p_len;
             }
+#endif /* HAVE_PUBLIC_FFDHE */
         }
     }
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA */
