@@ -3791,13 +3791,11 @@ static void test_client_verifyDepth(void* args)
             method = cbf->method();
         }
         else {
-            method = wolfSSLv23_server_method();
+            method = wolfSSLv23_client_method();
         }
         ctx = wolfSSL_CTX_new(method);
     }
     
-    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-
     /* Do connect here so server detects failures */
     tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
                 0, 0, NULL);
