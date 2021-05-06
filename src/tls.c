@@ -10375,7 +10375,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
                 now = TimeNowInMilliseconds();
                 if (now < sess->ticketSeen)
-                    milli = (0xFFFFFFFFU - sess->ticketSeen) + now;
+                    milli = (0xFFFFFFFFU - sess->ticketSeen) + 1 + now;
                 else
                     milli = now - sess->ticketSeen;
                 milli += sess->ticketAdd;
