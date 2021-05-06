@@ -53,6 +53,7 @@
         #define WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_FFC_IMPORT
         #define HAVE_FFDHE_Q
+        #define HAVE_PUBLIC_FFDHE
         #define WOLFSSL_AESNI
         #define HAVE_INTEL_RDSEED
         #define FORCE_FAILURE_RDSEED
@@ -61,6 +62,7 @@
         #undef WOLFSSL_AESNI /* Comment out if using PAA */
         #undef HAVE_INTEL_RDSEED
         #undef FORCE_FAILURE_RDSEED
+        #undef HAVE_PUBLIC_FFDHE
 
         #define NO_DES
         #define NO_DES3

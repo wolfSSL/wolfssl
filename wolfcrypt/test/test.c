@@ -16026,8 +16026,8 @@ static int dh_fips_generate_test(WC_RNG *rng)
         0xec, 0x24, 0x5d, 0x78, 0x59, 0xe7, 0x8d, 0xb5,
         0x40, 0x52, 0xed, 0x41
     };
-    byte   priv[sizeof q];
-    byte   pub[sizeof p];
+    byte   priv[256];
+    byte   pub[256];
     word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
 
@@ -16326,7 +16326,11 @@ static int dh_test_check_pubvalue(void)
 #endif
 
 #ifndef WC_NO_RNG
+#ifdef HAVE_PUBLIC_FFDHE
+static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
+#else
 static int dh_ffdhe_test(WC_RNG *rng, int name)
+#endif
 {
     int    ret;
     word32 privSz, pubSz, privSz2, pubSz2;
@@ -16366,8 +16370,13 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
 
     pubSz = FFDHE_KEY_SIZE;
     pubSz2 = FFDHE_KEY_SIZE;
+    #ifdef HAVE_PUBLIC_FFDHE
+    privSz = FFDHE_KEY_SIZE;
+    privSz2 = FFDHE_KEY_SIZE;
+    #else
     privSz = wc_DhGetNamedKeyMinSize(name);
     privSz2 = privSz;
+    #endif
 
     XMEMSET(key, 0, sizeof(*key));
     XMEMSET(key2, 0, sizeof(*key2));
@@ -16381,12 +16390,21 @@ static int dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(-8052, done);
     }
 
+#ifdef HAVE_PUBLIC_FFDHE
+    ret = wc_DhSetKey(key, params->p, params->p_len, params->g, params->g_len);
+#else
     ret = wc_DhSetNamedKey(key, name);
+#endif
     if (ret != 0) {
         ERROR_OUT(-8053, done);
     }
 
+#ifdef HAVE_PUBLIC_FFDHE
+    ret = wc_DhSetKey(key2, params->p, params->p_len, params->g,
+                                                                 params->g_len);
+#else
     ret = wc_DhSetNamedKey(key2, name);
+#endif
     if (ret != 0) {
         ERROR_OUT(-8054, done);
     }
@@ -16808,12 +16826,20 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #ifndef WC_NO_RNG
     /* Specialized code for key gen when using FFDHE-2048, FFDHE-3072 and FFDHE-4096 */
     #ifdef HAVE_FFDHE_2048
+    #ifdef HAVE_PUBLIC_FFDHE
+    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe2048_Get());
+    #else
     ret = dh_ffdhe_test(&rng, WC_FFDHE_2048);
+    #endif
     if (ret != 0)
         ERROR_OUT(-8126, done);
     #endif
     #ifdef HAVE_FFDHE_3072
+    #ifdef HAVE_PUBLIC_FFDHE
+    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe3072_Get());
+    #else
     ret = dh_ffdhe_test(&rng, WC_FFDHE_3072);
+    #endif
     if (ret != 0)
         ERROR_OUT(-8127, done);
     #endif
