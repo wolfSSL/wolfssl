@@ -1,8 +1,11 @@
 #ifndef _WIN_USER_SETTINGS_H_
 #define _WIN_USER_SETTINGS_H_
 
+/* Set the following to 1 for WCv5.0 build. */
+#if 0
 #undef HAVE_FIPS_VERSION
 #define HAVE_FIPS_VERSION 5
+#endif
 
 /* For FIPS Ready, uncomment the following: */
 /* #define WOLFSSL_FIPS_READY */
