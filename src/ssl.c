@@ -54735,6 +54735,7 @@ error:
     if (canonSection != NULL)
         XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
     wolfSSL_BIO_free(*bcont);
+    *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
 
     return NULL;
 }
