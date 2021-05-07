@@ -54457,6 +54457,7 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     int lineLen = 0;
     int remainLen = 0;
     byte isEnd = 0;
+    size_t canonSize = 0;
     size_t boundLen = 0;
     char* boundary = NULL;
 
@@ -54554,7 +54555,8 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
             section[0] = '\0';
             sectionLen = 0;
-            canonSection = (char*)XMALLOC(remainLen+1, NULL,
+            canonSize = remainLen + 1;
+            canonSection = (char*)XMALLOC(canonSize, NULL,
                                           DYNAMIC_TYPE_PKCS7);
             if (canonSection == NULL) {
                 goto error;
@@ -54566,6 +54568,16 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
                 canonLine = wc_MIME_canonicalize(&section[sectionLen]);
                 if (canonLine == NULL) {
                     goto error;
+                }
+                /* If line endings were added, the initial length may be
+                 * exceeded. */
+                if ((canonPos + XSTRLEN(canonLine) + 1) >= canonSize) {
+                    canonSize = canonPos + XSTRLEN(canonLine) + 1;
+                    canonSection = XREALLOC(canonSection, canonSize, NULL,
+                                            DYNAMIC_TYPE_PKCS7);
+                    if (canonSection == NULL) {
+                        goto error;
+                    }
                 }
                 XMEMCPY(&canonSection[canonPos], canonLine,
                         (int)XSTRLEN(canonLine));
