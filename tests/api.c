@@ -13367,7 +13367,9 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         cbcE = wc_AesCbcEncrypt(&aes, enc, vector, 0);
         if (cbcE == 0) {
             /* Check enc was not modified */
-            cbcE |= enc[0];
+            int i;
+            for (i = 0; i < (int)sizeof(enc); i++)
+                cbcE |= enc[i];
         }
     }
     printf(resultFmt, cbcE == 0 ? passed : failed);
@@ -13408,7 +13410,9 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         cbcD = wc_AesCbcDecrypt(&aes, dec, enc, 0);
         if (cbcD == 0) {
             /* Check dec was not modified */
-            cbcD |= dec[0];
+            int i;
+            for (i = 0; i < (int)sizeof(dec); i++)
+                cbcD |= dec[i];
         }
     }
     printf(resultFmt, cbcD == 0 ? passed : failed);
