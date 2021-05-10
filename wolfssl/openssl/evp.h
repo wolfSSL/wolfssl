@@ -938,7 +938,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
 #define EVP_PKEY_NONE                   NID_undef
 #define EVP_PKEY_DH                     28
-#define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
+#define EVP_CIPHER_mode                 WOLFSSL_EVP_CIPHER_mode
 /* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
 #define EVP_CIPHER_name(x)              x
 #define EVP_MD_CTX_reset                wolfSSL_EVP_MD_CTX_cleanup

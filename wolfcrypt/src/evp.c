@@ -1262,7 +1262,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            return WOLFSSL_EVP_CIPH_GCM_MODE &
+            return WOLFSSL_EVP_CIPH_GCM_MODE |
                     WOLFSSL_EVP_CIPH_FLAG_AEAD_CIPHER;
     #endif
     #if defined(WOLFSSL_AES_COUNTER)
@@ -1319,7 +1319,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
   if (cipher == NULL) return 0;
-  return WOLFSSL_CIPHER_mode(cipher);
+  return WOLFSSL_CIPHER_mode(cipher) & WOLFSSL_EVP_CIPH_MODE;
 }
 
 void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)

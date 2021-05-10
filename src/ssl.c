@@ -16754,45 +16754,52 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 
 #endif /* !NO_WOLFSSL_SERVER */
 
-static int sanityCheckProtoVersion(WOLFSSL_CTX* ctx)
+/**
+ * This function checks if any compiled in protocol versions are
+ * left enabled after calls to set_min or set_max API.
+ * @param ctx The WOLFSSL_CTX to check
+ * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
+ *         protocol versions are left enabled.
+ */
+static int CheckSslMethodVersion(byte major, unsigned long options)
 {
     int sanityConfirmed = 0;
 
-#ifndef NO_TLS
-    if (ctx->method->version.major == SSLv3_MAJOR) {
-    #ifdef WOLFSSL_ALLOW_SSLV3
-        if (!(ctx->mask & WOLFSSL_OP_NO_SSLv3)) {
-            sanityConfirmed = 1;
-        }
+    (void)options;
+
+    switch (major) {
+    #ifndef NO_TLS
+        case SSLv3_MAJOR:
+            #ifdef WOLFSSL_ALLOW_SSLV3
+                if (!(options & WOLFSSL_OP_NO_SSLv3)) {
+                    sanityConfirmed = 1;
+                }
+            #endif
+            #ifndef NO_OLD_TLS
+                if (!(options & WOLFSSL_OP_NO_TLSv1))
+                    sanityConfirmed = 1;
+                if (!(options & WOLFSSL_OP_NO_TLSv1_1))
+                    sanityConfirmed = 1;
+            #endif
+            #ifndef WOLFSSL_NO_TLS12
+                if (!(options & WOLFSSL_OP_NO_TLSv1_2))
+                    sanityConfirmed = 1;
+            #endif
+            #ifdef WOLFSSL_TLS13
+                if (!(options & WOLFSSL_OP_NO_TLSv1_3))
+                    sanityConfirmed = 1;
+            #endif
+            break;
     #endif
-    #ifndef NO_OLD_TLS
-        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1)) {
+    #ifdef WOLFSSL_DTLS
+        case DTLS_MAJOR:
             sanityConfirmed = 1;
-        }
-        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_1)) {
-            sanityConfirmed = 1;
-        }
+            break;
     #endif
-    #ifndef WOLFSSL_NO_TLS12
-        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_2)) {
-            sanityConfirmed = 1;
-        }
-    #endif
-    #ifdef WOLFSSL_TLS13
-        if (!(ctx->mask & WOLFSSL_OP_NO_TLSv1_3)) {
-            sanityConfirmed = 1;
-        }
-    #endif
+        default:
+            WOLFSSL_MSG("Invalid major version");
+            return WOLFSSL_FAILURE;
     }
-#endif
-#ifdef WOLFSSL_DTLS
-    if (ctx->method->version.major == DTLS_MAJOR) {
-        if (!sanityConfirmed) {
-            WOLFSSL_MSG("Only DTLS enabled");
-            sanityConfirmed = 1;
-        }
-    }
-#endif
     if (!sanityConfirmed) {
         WOLFSSL_MSG("All compiled in TLS versions disabled");
         return WOLFSSL_FAILURE;
@@ -16800,6 +16807,25 @@ static int sanityCheckProtoVersion(WOLFSSL_CTX* ctx)
     return WOLFSSL_SUCCESS;
 }
 
+/**
+ * This function attempts to set the minimum protocol version to use by SSL
+ * objects created from this WOLFSSL_CTX. This API guarantees that a version
+ * of SSL/TLS lower than specified here will not be allowed. If the version
+ * specified is not compiled in then this API sets the lowest compiled in
+ * protocol version. CheckSslMethodVersion() is called to check if any
+ * remaining protocol versions are enabled.
+ * @param ctx
+ * @param version Any of the following
+ *          * SSL3_VERSION
+ *          * TLS1_VERSION
+ *          * TLS1_1_VERSION
+ *          * TLS1_2_VERSION
+ *          * TLS1_3_VERSION
+ *          * DTLS1_VERSION
+ *          * DTLS1_2_VERSION
+ * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
+ *         protocol versions are left enabled.
+ */
 int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
@@ -16809,12 +16835,12 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     }
 
     switch (version) {
+#ifndef NO_TLS
         case SSL3_VERSION:
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             ctx->minDowngrade = SSLv3_MINOR;
             break;
 #endif
-#ifndef NO_TLS
         case TLS1_VERSION:
         #ifdef WOLFSSL_ALLOW_TLSV10
             ctx->minDowngrade = TLSv1_MINOR;
@@ -16880,9 +16906,28 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
         return WOLFSSL_FAILURE;
     }
 
-    return sanityCheckProtoVersion(ctx);
+    return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
+/**
+ * This function attempts to set the maximum protocol version to use by SSL
+ * objects created from this WOLFSSL_CTX. This API guarantees that a version
+ * of SSL/TLS higher than specified here will not be allowed. If the version
+ * specified is not compiled in then this API sets the highest compiled in
+ * protocol version. CheckSslMethodVersion() is called to check if any
+ * remaining protocol versions are enabled.
+ * @param ctx
+ * @param version Any of the following
+ *          * SSL3_VERSION
+ *          * TLS1_VERSION
+ *          * TLS1_1_VERSION
+ *          * TLS1_2_VERSION
+ *          * TLS1_3_VERSION
+ *          * DTLS1_VERSION
+ *          * DTLS1_2_VERSION
+ * @return WOLFSSL_SUCCESS on valid settings and WOLFSSL_FAILURE when no
+ *         protocol versions are left enabled.
+ */
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
@@ -16923,7 +16968,7 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
         return WOLFSSL_FAILURE;
     }
 
-    return sanityCheckProtoVersion(ctx);
+    return CheckSslMethodVersion(ctx->method->version.major, ctx->mask);
 }
 
 static int GetMinProtoVersion(int minDowngrade)
