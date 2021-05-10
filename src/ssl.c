@@ -54583,17 +54583,23 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
                 }
             }
 
-            canonPos--;
+            if (canonPos > 0) {
+                canonPos--;
+            }
+
             /* Strip the final trailing newline.  Support \r, \n or \r\n. */
             if (canonSection[canonPos] == '\n') {
-                canonPos--;
-                if (canonSection[canonPos] == '\r') {
+                if (canonPos > 0) {
                     canonPos--;
                 }
             }
-            else if (canonSection[canonPos] == '\r') {
-                canonPos--;
+
+            if (canonSection[canonPos] == '\r') {
+                if (canonPos > 0) {
+                    canonPos--;
+                }
             }
+
             canonSection[canonPos+1] = '\0';
 
             *bcont = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
@@ -54706,8 +54712,8 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
         goto error;
     }
     /* Strip trailing newlines. */
-    while ((section[sectionLen-1] == '\r' || section[sectionLen-1] == '\n') &&
-           sectionLen > 0) {
+    while ((sectionLen > 0) &&
+           (section[sectionLen-1] == '\r' || section[sectionLen-1] == '\n')) {
         sectionLen--;
     }
     section[sectionLen] = '\0';
