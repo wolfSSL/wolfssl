@@ -979,11 +979,7 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_lcm                              sp_lcm
 
 #ifdef WOLFSSL_DEBUG_MATH
-static inline void mp_dump(const char* desc, mp_int* a, byte verbose)
-{
-    sp_print(a, desc);
-    (void)verbose;
-}
+#define mp_dump(d, a, v)                    sp_print(a, d)
 #endif
 
 #endif /* WOLFSSL_SP_MATH || WOLFSSL_SP_MATH_ALL */
