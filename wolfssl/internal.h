@@ -1343,7 +1343,7 @@ enum Misc {
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 60, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 61, /* amount of bytes used from Options */
     DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
     DTLS_EXPORT_OPT_SZ_3     = 59, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
