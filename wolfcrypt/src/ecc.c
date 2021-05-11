@@ -3222,13 +3222,13 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    if (err == MP_OKAY) {
       int kIsMinusOne = (mp_cmp((mp_int*)k, &t) == MP_EQ);
       err = mp_cond_copy(tG->x, kIsMinusOne, R->x);
-      if (err == 0) {
+      if (err == MP_OKAY) {
           err = mp_sub(modulus, tG->y, &t);
       }
-      if (err == 0) {
+      if (err == MP_OKAY) {
           err = mp_cond_copy(&t, kIsMinusOne, R->y);
       }
-      if (err == 0) {
+      if (err == MP_OKAY) {
           err = mp_cond_copy(tG->z, kIsMinusOne, R->z);
       }
    }
@@ -4291,8 +4291,12 @@ int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     int err;
     byte buf[ECC_MAXSIZE_GEN];
 
-    /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
-    /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
+    if (rng == NULL || size > ECC_MAXSIZE_GEN || k == NULL || order == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* generate 8 extra bytes to mitigate bias from the modulo operation below */
+    /* see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)' */
     size += 8;
 
     /* make up random string */

@@ -156,7 +156,7 @@ extern "C" {
 #endif
 
 
-/* Detemine the number of bits to use in each word. */
+/* Determine the number of bits to use in each word. */
 #ifdef SP_WORD_SIZE
 #elif defined(WOLFSSL_DSP_BUILD)
     #define SP_WORD_SIZE 32
@@ -510,7 +510,7 @@ typedef struct sp_ecc_ctx {
     #define sp_print_digit(a, s)
     #define sp_print_int(a, s)
 
-#endif
+#endif /* !NO_FILESYSTEM */
 
 /* Returns whether multi-precision number is odd
  *
@@ -978,7 +978,11 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #define mp_gcd                              sp_gcd
 #define mp_lcm                              sp_lcm
 
+#ifdef WOLFSSL_DEBUG_MATH
+#define mp_dump(d, a, v)                    sp_print(a, d)
 #endif
+
+#endif /* WOLFSSL_SP_MATH || WOLFSSL_SP_MATH_ALL */
 
 #ifdef __cplusplus
 } /* extern "C" */
