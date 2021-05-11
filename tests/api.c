@@ -3765,6 +3765,127 @@ done:
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
 
+
+static void test_client_verifyDepth(void* args)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TIRTOS) && !defined(NO_WOLFSSL_CLIENT)
+    SOCKET_T sockfd = 0;
+    callback_functions* cbf;
+    
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
+
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  input;
+    int  msgSz = (int)XSTRLEN(msg);
+    int  ret, err = 0;
+    int  verify_depth = ((func_args*)args)->argc;
+    
+    ((func_args*)args)->return_code = TEST_FAIL;
+    cbf = ((func_args*)args)->callbacks;
+    
+    {
+        WOLFSSL_METHOD* method = NULL;
+        if (cbf != NULL && cbf->method != NULL) {
+            method = cbf->method();
+        }
+        else {
+            method = wolfSSLv23_client_method();
+        }
+        ctx = wolfSSL_CTX_new(method);
+    }
+    
+    /* Do connect here so server detects failures */
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, NULL);
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) 
+                                                        != WOLFSSL_SUCCESS)
+    {
+        /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client cert file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
+    
+    /* set verify depth */
+    if (verify_depth == 0) {
+        myVerifyAction = VERIFY_OVERRIDE_ERROR;
+        SSL_CTX_set_verify_depth(ctx, verify_depth);
+    } else if (verify_depth == -1) {
+        myVerifyAction = VERIFY_USE_PREVERFIY;
+        SSL_CTX_set_verify_depth(ctx, 0);
+    } else if (verify_depth > 0) {
+        myVerifyAction = VERIFY_USE_PREVERFIY;
+        SSL_CTX_set_verify_depth(ctx, verify_depth);
+    }
+    
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        goto done;
+    }
+
+    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+        /*err_sys("SSL_set_fd failed");*/
+        goto done;
+    }
+
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        goto done;
+    }
+
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
+        goto done;
+    }
+
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
+    if (input > 0) {
+        reply[input] = '\0';
+        printf("Server response: %s\n", reply);
+    }
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+done:
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    CloseSocket(sockfd);
+#else
+    (void)args;
+#endif /* defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TIRTOS) && !defined(NO_WOLFSSL_CLIENT) */
+}
+
+
 /* SNI / ALPN / session export helper functions */
 #if defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLFSSL_SESSION_EXPORT)
 
@@ -4122,6 +4243,98 @@ static void test_wolfSSL_reuse_WOLFSSLobj(void)
 #endif
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
+
+static void test_wolfSSL_CTX_verifyDepth_ServerClient(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TIRTOS) && !defined(NO_WOLFSSL_CLIENT)
+
+    /* This unit test is to check set verify Depth */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+    callback_functions client_cbf;
+    
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&client_cbf, 0, sizeof(callback_functions));
+    
+    printf(testingFmt, "test_wolfSSL_CTX_verifyDepth_ServerClient()\n");
+    
+#ifdef WOLFSSL_TLS13
+    client_cbf.method = wolfTLSv1_3_client_method;
+#endif /* WOLFSSL_TLS13 */
+    
+    client_args.callbacks = &client_cbf;
+    
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    /* the var is used for loop number */
+    server_args.argc = 1;
+    
+    /* test case 1 verify depth is equal to peer chain */
+    {
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+        
+        /* the var is used for verify depth */
+        client_args.argc = 2;
+        
+        test_client_verifyDepth(&client_args);
+        join_thread(serverThread);
+        AssertIntEQ(client_args.return_code, TEST_SUCCESS);
+        AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+    }
+    
+    /* test case 2 
+     * verify depth is zero, number of peer's chain is 2.
+     * verify result becomes MAX_CHAIN_ERROR, but it is overridden in
+     * callback.
+     */
+     
+    /* the var is used for verify depth 0 and VERIFY_OVERRIDE_ERROR   */
+    {
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+        
+        client_args.argc = 0;
+        test_client_verifyDepth(&client_args);
+        join_thread(serverThread);
+        AssertIntEQ(client_args.return_code, TEST_SUCCESS);
+        AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+    }
+    /* test case 3
+     * verify depth is zero, number of peer's chain is 2
+     * verify result becomes MAX_CHAIN_ERRO. call-back returns failure.
+     * therefore, handshake becomes failure.
+     */
+    /* the var is used for verify depth 0 and VERIFY_USE_PREVERFIY   */
+    {
+        start_thread(test_server_nofail, &server_args, &serverThread);
+        wait_tcp_ready(&server_args);
+        
+        client_args.argc = -1;
+        test_client_verifyDepth(&client_args);
+        join_thread(serverThread);
+        AssertIntEQ(client_args.return_code, TEST_FAIL);
+        AssertIntEQ(server_args.return_code, TEST_FAIL);
+    }
+    
+    FreeTcpReady(&ready);
+    printf(resultFmt, passed);
+#else
+    (void)test_client_verifyDepth;
+#endif /* (OPENSSL_EXTRA) && !(WOLFSSL_TIRTOS) && (NO_WOLFSSL_CLIENT) */
+}
+
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT)
 /* canned export of a session using older version 3 */
@@ -43103,6 +43316,7 @@ void ApiTest(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
     test_wolfSSL_reuse_WOLFSSLobj();
 #endif
+    test_wolfSSL_CTX_verifyDepth_ServerClient();
     test_wolfSSL_dtls_export();
 #endif
     AssertIntEQ(test_wolfSSL_SetMinVersion(), WOLFSSL_SUCCESS);
