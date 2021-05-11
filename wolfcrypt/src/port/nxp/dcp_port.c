@@ -50,9 +50,11 @@
 #include "fsl_dcp.h"
 
 #ifndef SINGLE_THREADED
+#define dcp_lock_init() wolfSSL_CryptHwMutexInit()
 #define dcp_lock() wolfSSL_CryptHwMutexLock()
-#define dcp_unlock() wolfSSL_CryptHwMutexLock()
+#define dcp_unlock() wolfSSL_CryptHwMutexUnLock()
 #else
+#define dcp_lock_init() do{}while(0)
 #define dcp_lock() do{}while(0)
 #define dcp_unlock() do{}while(0)
 #endif
@@ -126,6 +128,7 @@ static int dcp_get_channel(void)
         if (dcp_status[i] == 0) {
             dcp_status[i]++;
             ret = dcp_channels[i];
+            break;
         }
     }
     dcp_unlock();
@@ -161,6 +164,7 @@ static int dcp_key_slot(int ch)
 int wc_dcp_init(void)
 {
     dcp_config_t dcpConfig;
+    dcp_lock_init();
     dcp_lock();
     DCP_GetDefaultConfig(&dcpConfig);
 
@@ -211,8 +215,11 @@ int DCPAesInit(Aes *aes)
 void DCPAesFree(Aes *aes)
 {
     dcp_free(aes->handle.channel);
+    aes->handle.channel = 0;
 }
 
+
+static unsigned char  aes_key_aligned[16] __attribute__((aligned(0x10)));
 int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                           int dir)
 {
@@ -227,10 +234,12 @@ int  DCPAesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
     if (len != 16)
         return BAD_FUNC_ARG;
     if (aes->handle.channel == 0) {
-        return BAD_FUNC_ARG;
+        if (DCPAesInit(aes) != 0)
+            return WC_HW_E;
     }
     dcp_lock();
-    status = DCP_AES_SetKey(DCP, &aes->handle, key, 16);
+    memcpy(aes_key_aligned, key, 16);
+    status = DCP_AES_SetKey(DCP, &aes->handle, aes_key_aligned, 16);
     if (status != kStatus_Success)
         status = WC_HW_E;
     else {
@@ -326,11 +335,6 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     dcp_unlock();
 
     return ret;
-}
-
-int wc_InitSha256(wc_Sha256* sha256)
-{
-    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
 
 void DCPSha256Free(wc_Sha256* sha256)
