@@ -49998,7 +49998,10 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 #else
     DecodedCert  cert[1];
 #endif
-
+    /* sanity check */
+    if (cm == NULL || x == NULL || x->derCert == NULL)
+        return WOLFSSL_FAILURE;
+        
 #ifdef WOLFSSL_SMALL_STACK
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
     if (cert == NULL)
@@ -50178,7 +50181,7 @@ WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 {
     WOLFSSL_ENTER("wolfSSL_X509_dup");
 
-    if (x == NULL) {
+    if (x == NULL || x->derCert == NULL) {
         WOLFSSL_MSG("Error: NULL certificate passed in");
         return NULL;
     }
