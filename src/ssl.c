@@ -42474,7 +42474,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
             return MEMORY_E;
         }
     }
-    output = *out;
+
     /* header */
     idx = SetSequence(totalBytes, temp);
     if (totalBytes + idx > ASN_NAME_MAX) {
@@ -54573,8 +54573,8 @@ WOLFSSL_API PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
                  * exceeded. */
                 if ((canonPos + XSTRLEN(canonLine) + 1) >= canonSize) {
                     canonSize = canonPos + XSTRLEN(canonLine) + 1;
-                    canonSection = XREALLOC(canonSection, canonSize, NULL,
-                                            DYNAMIC_TYPE_PKCS7);
+                    canonSection = (char*)XREALLOC(canonSection, canonSize,
+                                                   NULL, DYNAMIC_TYPE_PKCS7);
                     if (canonSection == NULL) {
                         goto error;
                     }
