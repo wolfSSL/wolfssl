@@ -30741,6 +30741,24 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { CTC_SHA512wRSA, CTC_SHA512wRSA, oidSigType, "RSA-SHA512",
                                                      "sha512WithRSAEncryption"},
         #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+        { CTC_SHA3_224wRSA, CTC_SHA3_224wRSA, oidSigType, "RSA-SHA3-224",
+                                                     "sha3-224WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+        { CTC_SHA3_256wRSA, CTC_SHA3_256wRSA, oidSigType, "RSA-SHA3-256",
+                                                     "sha3-256WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { CTC_SHA3_384wRSA, CTC_SHA3_384wRSA, oidSigType, "RSA-SHA3-384",
+                                                     "sha3-384WithRSAEncryption"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { CTC_SHA3_512wRSA, CTC_SHA3_512wRSA, oidSigType, "RSA-SHA3-512",
+                                                     "sha3-512WithRSAEncryption"},
+        #endif
+        #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         #ifndef NO_SHA
@@ -30757,6 +30775,24 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         #endif
         #ifdef WOLFSSL_SHA512
         { CTC_SHA512wECDSA, CTC_SHA512wECDSA, oidSigType, "ecdsa-with-SHA512","sha512WithECDSA"},
+        #endif
+        #ifdef WOLFSSL_SHA3
+        #ifndef WOLFSSL_NOSHA3_224
+        { CTC_SHA3_224wECDSA, CTC_SHA3_224wECDSA, oidSigType, "ecdsa-with-SHA3-224",
+                "sha3-224WithECDSA"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_256
+        { CTC_SHA3_256wECDSA, CTC_SHA3_256wECDSA, oidSigType, "ecdsa-with-SHA3-256",
+                "sha3-256WithECDSA"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_384
+        { CTC_SHA3_384wECDSA, CTC_SHA3_384wECDSA, oidSigType, "ecdsa-with-SHA3-384",
+                "sha3-384WithECDSA"},
+        #endif
+        #ifndef WOLFSSL_NOSHA3_512
+        { CTC_SHA3_512wECDSA, CTC_SHA3_512wECDSA, oidSigType, "ecdsa-with-SHA3-512",
+                "sha3-512WithECDSA"},
+        #endif
         #endif
     #endif /* HAVE_ECC */
 
@@ -40711,6 +40747,20 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 case WC_HASH_TYPE_SHA512:
                     sigType = CTC_SHA512wRSA;
                     break;
+            #ifdef WOLFSSL_SHA3
+                case WC_HASH_TYPE_SHA3_224:
+                    sigType = CTC_SHA3_224wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_256:
+                    sigType = CTC_SHA3_256wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_384:
+                    sigType = CTC_SHA3_384wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_512:
+                    sigType = CTC_SHA3_512wRSA;
+                    break;
+            #endif
                 default:
                     return WOLFSSL_FAILURE;
             }
@@ -40732,6 +40782,20 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 case WC_HASH_TYPE_SHA512:
                     sigType = CTC_SHA512wECDSA;
                     break;
+            #ifdef WOLFSSL_SHA3
+                case WC_HASH_TYPE_SHA3_224:
+                    sigType = CTC_SHA3_224wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_256:
+                    sigType = CTC_SHA3_256wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_384:
+                    sigType = CTC_SHA3_384wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA3_512:
+                    sigType = CTC_SHA3_512wECDSA;
+                    break;
+            #endif
                 default:
                     return WOLFSSL_FAILURE;
             }
@@ -48824,6 +48888,16 @@ word32 nid2oid(int nid, int grp)
                     return CTC_SHA384wRSA;
                 case CTC_SHA512wRSA:
                     return CTC_SHA512wRSA;
+                #ifdef WOLFSSL_SHA3
+                case CTC_SHA3_224wRSA:
+                    return CTC_SHA3_224wRSA;
+                case CTC_SHA3_256wRSA:
+                    return CTC_SHA3_256wRSA;
+                case CTC_SHA3_384wRSA:
+                    return CTC_SHA3_384wRSA;
+                case CTC_SHA3_512wRSA:
+                    return CTC_SHA3_512wRSA;
+                #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case CTC_SHAwECDSA:
@@ -48836,6 +48910,16 @@ word32 nid2oid(int nid, int grp)
                     return CTC_SHA384wECDSA;
                 case CTC_SHA512wECDSA:
                     return CTC_SHA512wECDSA;
+                #ifdef WOLFSSL_SHA3
+                case CTC_SHA3_224wECDSA:
+                    return CTC_SHA3_224wECDSA;
+                case CTC_SHA3_256wECDSA:
+                    return CTC_SHA3_256wECDSA;
+                case CTC_SHA3_384wECDSA:
+                    return CTC_SHA3_384wECDSA;
+                case CTC_SHA3_512wECDSA:
+                    return CTC_SHA3_512wECDSA;
+                #endif
             #endif /* HAVE_ECC */
             }
             break;
@@ -49160,6 +49244,16 @@ int oid2nid(word32 oid, int grp)
                     return CTC_SHA384wRSA;
                 case CTC_SHA512wRSA:
                     return CTC_SHA512wRSA;
+                #ifdef WOLFSSL_SHA3
+                case CTC_SHA3_224wRSA:
+                    return CTC_SHA3_224wRSA;
+                case CTC_SHA3_256wRSA:
+                    return CTC_SHA3_256wRSA;
+                case CTC_SHA3_384wRSA:
+                    return CTC_SHA3_384wRSA;
+                case CTC_SHA3_512wRSA:
+                    return CTC_SHA3_512wRSA;
+                #endif
             #endif /* NO_RSA */
             #ifdef HAVE_ECC
                 case CTC_SHAwECDSA:
@@ -49172,6 +49266,16 @@ int oid2nid(word32 oid, int grp)
                     return CTC_SHA384wECDSA;
                 case CTC_SHA512wECDSA:
                     return CTC_SHA512wECDSA;
+                #ifdef WOLFSSL_SHA3
+                case CTC_SHA3_224wECDSA:
+                    return CTC_SHA3_224wECDSA;
+                case CTC_SHA3_256wECDSA:
+                    return CTC_SHA3_256wECDSA;
+                case CTC_SHA3_384wECDSA:
+                    return CTC_SHA3_384wECDSA;
+                case CTC_SHA3_512wECDSA:
+                    return CTC_SHA3_512wECDSA;
+                #endif
             #endif /* HAVE_ECC */
             }
             break;

@@ -1566,14 +1566,22 @@ static void test_wolfSSL_CertManagerNameConstraint2(void)
                 WOLFSSL_FILETYPE_PEM));
     AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
     AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
     /* add in matching DIR alt name and resign */
     wolfSSL_X509_add_altname_ex(x509, altName, sizeof(altName), ASN_DIR_TYPE);
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
 
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
@@ -1590,7 +1598,11 @@ static void test_wolfSSL_CertManagerNameConstraint2(void)
     wolfSSL_X509_add_altname_ex(x509, altNameFail, sizeof(altNameFail),
             ASN_DIR_TYPE);
 
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
@@ -1614,7 +1626,11 @@ static void test_wolfSSL_CertManagerNameConstraint2(void)
     AssertNotNull(name = wolfSSL_X509_get_subject_name(ca));
     AssertIntEQ(wolfSSL_X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
 
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    wolfSSL_X509_sign(x509, priv, EVP_sha3_256());
+#else
     wolfSSL_X509_sign(x509, priv, EVP_sha256());
+#endif
     AssertNotNull((der = wolfSSL_X509_get_der(x509, &derSz)));
     AssertIntEQ(wolfSSL_CertManagerVerifyBuffer(cm, der, derSz,
                 WOLFSSL_FILETYPE_ASN1), ASN_NAME_INVALID_E);
@@ -28787,6 +28803,60 @@ static void test_wolfSSL_EVP_Digest(void)
 #endif /* OPEN_EXTRA && ! NO_SHA256 */
 }
 
+static void test_wolfSSL_EVP_Digest_all(void)
+{
+#ifdef OPENSSL_EXTRA
+    const char* digests[] = {
+#ifndef NO_MD5
+        "MD5",
+#endif
+#ifndef NO_SHA
+        "SHA",
+#endif
+#ifdef WOLFSSL_SHA224
+        "SHA224",
+#endif
+#ifndef NO_SHA256
+        "SHA256",
+#endif
+#ifdef WOLFSSL_SHA384
+        "SHA384",
+#endif
+#ifdef WOLFSSL_SHA512
+        "SHA512",
+#endif
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
+        "SHA3_224",
+#endif
+#ifndef WOLFSSL_NOSHA3_256
+        "SHA3_256",
+#endif
+        "SHA3_384",
+#ifndef WOLFSSL_NOSHA3_512
+        "SHA3_512",
+#endif
+#endif /* WOLFSSL_SHA3 */
+        NULL
+    };
+    const char** d;
+    const unsigned char in[] = "abc";
+    int   inLen = XSTR_SIZEOF(in);
+    byte  out[WC_MAX_DIGEST_SIZE];
+    unsigned int outLen;
+
+    printf(testingFmt, "wolfSSL_EVP_Digest_all");
+
+    for (d = digests; *d != NULL; d++) {
+        AssertIntEQ(EVP_Digest(in, inLen, out, &outLen, *d, NULL), 1);
+        AssertIntGT(outLen, 0);
+        AssertIntEQ(EVP_MD_size(*d), outLen);
+    }
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_EVP_MD_size(void)
 {
 #ifdef OPENSSL_EXTRA
@@ -28794,6 +28864,39 @@ static void test_wolfSSL_EVP_MD_size(void)
     WOLFSSL_EVP_MD_CTX mdCtx;
 
     printf(testingFmt, "wolfSSL_EVP_MD_size()");
+
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_224"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_224_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_224_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+#endif
+#ifndef WOLFSSL_NOSHA3_256
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_256"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_256_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_256_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+#endif
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_384"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_384_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_384_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+#ifndef WOLFSSL_NOSHA3_512
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_512"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_512_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_512_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+#endif
+#endif /* WOLFSSL_SHA3 */
 
 #ifndef NO_SHA256
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
@@ -39578,6 +39681,34 @@ static void test_wolfSSL_RSA_padding_add_PKCS1_PSS(void)
 }
 #endif
 
+static void test_wolfSSL_RSA_sign_sha3(void)
+{
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+#if defined(OPENSSL_ALL) && defined(WC_RSA_PSS) && !defined(WC_NO_RNG)
+    RSA *rsa;
+    const unsigned char *derBuf = client_key_der_2048;
+    unsigned char sigRet[256] = {0};
+    unsigned int sigLen = sizeof(sigRet);
+    /* Random data simulating a hash */
+    const unsigned char mHash[WC_SHA3_256_DIGEST_SIZE] = {
+        0x28, 0x6e, 0xfd, 0xf8, 0x76, 0xc7, 0x00, 0x3d, 0x91, 0x4e, 0x59, 0xe4,
+        0x8e, 0xb7, 0x40, 0x7b, 0xd1, 0x0c, 0x98, 0x4b, 0xe3, 0x3d, 0xb3, 0xeb,
+        0x6f, 0x8a, 0x3c, 0x42, 0xab, 0x21, 0xad, 0x28
+    };
+
+    printf(testingFmt, "wolfSSL_RSA_sign_sha3");
+
+    AssertNotNull(d2i_RSAPrivateKey(&rsa, &derBuf, sizeof_client_key_der_2048));
+    AssertIntEQ(RSA_sign(NID_sha3_256, mHash, sizeof(mHash), sigRet,
+                            &sigLen, rsa), 1);
+
+    RSA_free(rsa);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_ALL && WC_RSA_PSS && !WC_NO_RNG*/
+#endif /* WOLFSSL_NOSHA3_256*/
+}
+
 static void test_wolfSSL_EC_get_builtin_curves(void)
 {
 #if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))
@@ -44944,6 +45075,7 @@ void ApiTest(void)
     test_wolfSSL_ctrl();
     test_wolfSSL_EVP_MD_size();
     test_wolfSSL_EVP_Digest();
+    test_wolfSSL_EVP_Digest_all();
     test_wolfSSL_EVP_PKEY_new_mac_key();
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
@@ -45114,6 +45246,7 @@ void ApiTest(void)
 #ifndef NO_RSA
     test_wolfSSL_RSA_padding_add_PKCS1_PSS();
 #endif
+    test_wolfSSL_RSA_sign_sha3();
 
     test_CONF_modules_xxx();
     test_CRYPTO_set_dynlock_xxx();
