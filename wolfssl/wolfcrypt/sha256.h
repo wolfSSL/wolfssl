@@ -61,6 +61,9 @@
     #include "fsl_ltc.h"
 #endif
 
+#ifdef WOLFSSL_IMXRT_DCP
+	#include "fsl_dcp.h"
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -131,8 +134,6 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
     #include "wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h"
-#elif defined(WOLFSSL_IMXRT_DCP)
-    #include <wolfssl/wolfcrypt/port/nxp/dcp_port.h>
 #else
 
 /* wc_Sha256 digest */
@@ -143,6 +144,9 @@ struct wc_Sha256 {
     STM32_HASH_Context stmCtx;
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
   wc_silabs_sha_t silabsCtx;
+#elif defined(WOLFSSL_IMXRT_DCP)
+    dcp_handle_t handle;
+    dcp_hash_ctx_t ctx;
 #else
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];

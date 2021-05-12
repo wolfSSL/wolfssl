@@ -35,6 +35,8 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include "fsl_device_registers.h"
+#include "fsl_debug_console.h"
 
 #ifdef WOLFSSL_IMXRT_DCP
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
@@ -48,6 +50,15 @@
 #include "fsl_device_registers.h"
 #include "fsl_debug_console.h"
 #include "fsl_dcp.h"
+
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#elif defined WOLFSSL_SP_MATH
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
+
 
 #ifndef SINGLE_THREADED
 #define dcp_lock_init() wolfSSL_CryptHwMutexInit()
@@ -446,11 +457,6 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         ret = WC_HW_E;
     dcp_unlock();
     return ret;
-}
-
-int wc_InitSha(wc_Sha* sha)
-{
-    return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 
 void DCPShaFree(wc_Sha* sha)
