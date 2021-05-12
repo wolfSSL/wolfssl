@@ -2579,6 +2579,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             return 0;
         }
 
+#elif defined(WOLFSSL_MCUXPRESSO_TRNG)
+    #include <fsl_trng.h>
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
+        if (TRNG_GetRandomData(TRNG, output, sz) != kStatus_Success) {
+            return WC_HW_E;
+        }
+        return 0;
+    }
 #elif defined(NO_DEV_RANDOM)
 
     #error "you need to write an os specific wc_GenerateSeed() here"
