@@ -178,10 +178,9 @@ pcap_if_t* alldevs = NULL;
         }
     }
 
-    static int etsi_client_get(char* urlStr, byte* key, word32* keySz)
+    static int etsi_client_get(char* urlStr, EtsiKey* key)
     {
         int ret = -1;
-        EtsiClientType type = ETSI_CLIENT_GET;
         
         /* setup key manager connection */
         if (gEtsiClient == NULL) {
@@ -211,11 +210,11 @@ pcap_if_t* alldevs = NULL;
                 ret = MEMORY_E;
             }
         }
-        if (gEtsiClient && key && keySz) {
-            ret = wolfEtsiClientGet(gEtsiClient, type, NULL, ETSI_TIMEOUT_MS,
-                key, keySz);
+        if (gEtsiClient && key) {
+            ret = wolfEtsiClientGet(gEtsiClient, key, ETSI_KEY_TYPE_SECP256R1, 
+                NULL, NULL, ETSI_TIMEOUT_MS);
             if (ret != 0) {
-                printf("Error loading ETSI static ephemeral key! %d\n", ret);
+                printf("Error getting ETSI static ephemeral key! %d\n", ret);
 
                 /* cleanup */
                 etsi_client_cleanup();
@@ -358,11 +357,14 @@ static int myWatchCb(void* vSniffer,
 #ifdef USE_ETSI_CLIENT
     else {
         int ret;
-        byte key[ETSI_MAX_RESPONSE_SZ];
-        word32 keySz = sizeof(key);
-        ret = etsi_client_get(NULL, key, &keySz);
+        EtsiKey key;
+        memset(&key, 0, sizeof(key));
+        ret = etsi_client_get(NULL, &key);
         if (ret == 0) {
-            ret = ssl_SetWatchKey_buffer(vSniffer, key, keySz, FILETYPE_DER, error);
+            byte* keyBuf = NULL;
+            word32 keySz = 0;
+            wolfEtsiKeyGet(&key, &keyBuf, &keySz);
+            ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keySz, FILETYPE_DER, error);
         }
         return ret;
     }
@@ -427,25 +429,27 @@ static int load_key(const char* name, const char* server, int port,
     #ifdef USE_ETSI_CLIENT
         /* is URL? */
         if (XSTRNCMP(keyFile, "https://", 8) == 0) {
-            byte key[ETSI_MAX_RESPONSE_SZ];
-            word32 keySz = sizeof(key);
+            EtsiKey key;
+            memset(&key, 0, sizeof(key));
             /* setup connection */
-            ret = etsi_client_get(keyFile, key, &keySz);
+            ret = etsi_client_get(keyFile, &key);
             if (ret != 0) {
                 printf("Error connecting to ETSI server: %s\n", keyFile);
             }
             else {
         #ifdef WOLFSSL_STATIC_EPHEMERAL
+            byte* keyBuf = NULL;
+            word32 keySz = 0;
+            wolfEtsiKeyGet(&key, &keyBuf, &keySz);
             #ifdef HAVE_SNI
                 ret = ssl_SetNamedEphemeralKeyBuffer(name, server, port,
-                    (char*)key, keySz, FILETYPE_DER, passwd, err);
+                    (char*)keyBuf, keySz, FILETYPE_DER, passwd, err);
             #else
                 ret = ssl_SetEphemeralKeyBuffer(server, port,
-                    (char*)key, keySz, FILETYPE_DER, passwd, err);
+                    (char*)keyBuf, keySz, FILETYPE_DER, passwd, err);
             #endif
         #else
             (void)key;
-            (void)keySz;
         #endif
             }
             return ret;
