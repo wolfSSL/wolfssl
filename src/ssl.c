@@ -13663,18 +13663,65 @@ int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to)
 }
 
 
-/* set ctx session timeout in seconds */
+/**
+ * Sets ctx session timeout in seconds.
+ * The timeout value set here should be reflected in the
+ * "session ticket lifetime hint" if this API works in the openssl compat-layer.
+ * Therefore wolfSSL_CTX_set_TicketHint is called internally.
+ * Arguments:
+ *  - ctx  WOLFSSL_CTX object which the timeout is set to
+ *  - to   timeout value in second
+ * Returns:
+ *  WOLFSSL_SUCCESS on success, BAD_FUNC_ARG on failure.
+ *  When WOLFSSL_ERROR_CODE_OPENSSL is defined, returns previous timeout value
+ *  on success, BAD_FUNC_ARG on failure.
+ */
 WOLFSSL_ABI
 int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
 {
+    #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    word32 prev_timeout;
+    #endif
+
+    int ret = WOLFSSL_SUCCESS;
+    (void)ret;
+
     if (ctx == NULL)
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
 
-    if (to == 0)
-        to = WOLFSSL_SESSION_TIMEOUT;
-    ctx->timeout = to;
+    if (ret == WOLFSSL_SUCCESS) {
+    #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        prev_timeout = ctx->timeout;
+    #endif
+        if (to == 0) {
+            ctx->timeout = WOLFSSL_SESSION_TIMEOUT;
+        }
+        else {
+            ctx->timeout = to;
+        }
+    }
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SESSION_TICKET) && \
+   !defined(NO_WOLFSSL_SERVER)
+    if (ret == WOLFSSL_SUCCESS) {
+        if (to == 0) {
+            ret = wolfSSL_CTX_set_TicketHint(ctx, SESSION_TICKET_HINT_DEFAULT);
+        }
+        else {
+            ret = wolfSSL_CTX_set_TicketHint(ctx, to);
+        }
+    }
+#endif /* OPENSSL_EXTRA && HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER */
 
-    return WOLFSSL_SUCCESS;
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    if (ret == WOLFSSL_SUCCESS) {
+        return prev_timeout;
+    }
+    else {
+        return ret;
+    }
+#else
+    return ret;
+#endif /* WOLFSSL_ERROR_CODE_OPENSSL */
 }
 
 

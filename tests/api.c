@@ -44671,6 +44671,37 @@ static void test_wolfSSL_EC_curve(void)
 #endif
 }
 
+static void test_wolfSSL_CTX_set_timeout(void)
+{
+    int timeout;
+    (void)timeout;
+    printf(testingFmt, "test_wolfSSL_CTX_set_timeout()");
+
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+    AssertNotNull(ctx);
+
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    /* in WOLFSSL_ERROR_CODE_OPENSSL macro guard,
+     * wolfSSL_CTX_set_timeout returns previous timeout value on success.
+     */
+    AssertIntEQ(wolfSSL_CTX_set_timeout(NULL, 0), BAD_FUNC_ARG);
+    /* giving 0 as timeout value sets default timeout */
+    timeout = wolfSSL_CTX_set_timeout(ctx, 0);
+    AssertIntEQ(wolfSSL_CTX_set_timeout(ctx, 20), timeout);
+    AssertIntEQ(wolfSSL_CTX_set_timeout(ctx, 30), 20);
+
+#else
+
+    AssertIntEQ(wolfSSL_CTX_set_timeout(NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_timeout(ctx, 100), 1);
+    AssertIntEQ(wolfSSL_CTX_set_timeout(ctx, 0), 1);
+
+#endif
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+}
+
 static void test_wolfSSL_OpenSSL_version(void)
 {
 #if defined(OPENSSL_EXTRA)
@@ -45509,6 +45540,7 @@ void ApiTest(void)
     test_wolfSSL_security_level();
     test_wolfSSL_SSL_in_init();
     test_wolfSSL_EC_curve();
+    test_wolfSSL_CTX_set_timeout();
     test_wolfSSL_OpenSSL_version();
     test_wolfSSL_set_psk_use_session_callback();
     
