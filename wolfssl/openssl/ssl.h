@@ -1157,9 +1157,15 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLS1_2_VERSION                  0xFEFD
 #define DTLS_MAX_VERSION                 DTLS1_2_VERSION
 
+#ifndef WOLFSSL_APACHE_HTTPD /* apache uses SSL_CONF_FLAG_FILE to enable conf support */
 #define SSL_CONF_FLAG_FILE               0x02
 #define SSL_CONF_FLAG_SERVER             0x04
 #define SSL_CONF_FLAG_CERTIFICATE        0x20
+
+#define SSL_CONF_TYPE_UNKNOWN            0x00
+#define SSL_CONF_TYPE_FILE               0x02
+#define SSL_CONF_TYPE_DIR                0x03
+#endif
 
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
                                                          || defined(OPENSSL_ALL)
