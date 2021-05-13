@@ -27,41 +27,20 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_IMXRT_DCP
-
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
-
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include "fsl_device_registers.h"
-#include "fsl_debug_console.h"
 
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
 #error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
 #endif
 
-
 #ifndef DCP_USE_OTP_KEY
 #define DCP_USE_OTP_KEY 0 /* Set to 1 to select OTP key for AES encryption/decryption. */
 #endif
 
-#include "fsl_device_registers.h"
-#include "fsl_debug_console.h"
 #include "fsl_dcp.h"
-
-#ifdef USE_FAST_MATH
-    #include <wolfssl/wolfcrypt/tfm.h>
-#elif defined WOLFSSL_SP_MATH
-    #include <wolfssl/wolfcrypt/sp_int.h>
-#else
-    #include <wolfssl/wolfcrypt/integer.h>
-#endif
 
 #ifndef SINGLE_THREADED
 #define dcp_lock_init() wolfSSL_CryptHwMutexInit()
