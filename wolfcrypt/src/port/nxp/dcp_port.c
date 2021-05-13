@@ -19,11 +19,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_IMXRT_DCP
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -38,10 +42,10 @@
 #include "fsl_device_registers.h"
 #include "fsl_debug_console.h"
 
-#ifdef WOLFSSL_IMXRT_DCP
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
 #error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
 #endif
+
 
 #ifndef DCP_USE_OTP_KEY
 #define DCP_USE_OTP_KEY 0 /* Set to 1 to select OTP key for AES encryption/decryption. */
@@ -58,7 +62,6 @@
 #else
     #include <wolfssl/wolfcrypt/integer.h>
 #endif
-
 
 #ifndef SINGLE_THREADED
 #define dcp_lock_init() wolfSSL_CryptHwMutexInit()
