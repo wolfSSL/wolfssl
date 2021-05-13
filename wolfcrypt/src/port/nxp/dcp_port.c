@@ -19,24 +19,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
 
+#ifdef WOLFSSL_IMXRT_DCP
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef WOLFSSL_IMXRT_DCP
 #if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) && defined(DCP_USE_DCACHE) && (DCP_USE_DCACHE == 1U)
 #error "DCACHE not supported by this driver. Please undefine DCP_USE_DCACHE."
 #endif
@@ -45,8 +40,6 @@
 #define DCP_USE_OTP_KEY 0 /* Set to 1 to select OTP key for AES encryption/decryption. */
 #endif
 
-#include "fsl_device_registers.h"
-#include "fsl_debug_console.h"
 #include "fsl_dcp.h"
 
 #ifndef SINGLE_THREADED
@@ -446,11 +439,6 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         ret = WC_HW_E;
     dcp_unlock();
     return ret;
-}
-
-int wc_InitSha(wc_Sha* sha)
-{
-    return wc_InitSha_ex(sha, NULL, INVALID_DEVID);
 }
 
 void DCPShaFree(wc_Sha* sha)
