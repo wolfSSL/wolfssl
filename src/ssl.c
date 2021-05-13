@@ -51680,7 +51680,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
  * rsa     Key to use for encryption
  * padding Type of RSA padding to use.
  */
-int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
+int wolfSSL_RSA_private_encrypt(int len, const unsigned char* in,
                             unsigned char* out, WOLFSSL_RSA* rsa, int padding)
 {
     int sz = 0;
