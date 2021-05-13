@@ -1160,7 +1160,9 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
     for (i = 0; i < MAX_PART; i++) {
         if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
             sm_ownerId[i] = 0;
+        #if defined(WOLFSSL_CAAM_DEBUG) || defined(WOLFSSL_CAAM_PRINT)
             printf("found dangiling partition at index %d\n", i);
+        #endif
             caamFreePart(i);
         }
     }
