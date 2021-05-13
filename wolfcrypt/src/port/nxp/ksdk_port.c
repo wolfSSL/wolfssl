@@ -116,6 +116,7 @@ static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
 int mp_mul(mp_int *A, mp_int *B, mp_int *C)
 {
     int res = MP_OKAY;
+    status_t status;
     int szA, szB;
     szA = mp_unsigned_bin_size(A);
     szB = mp_unsigned_bin_size(B);
@@ -131,24 +132,29 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
         /* unsigned multiply */
         uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrN = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
-        if (ptrA && ptrB && ptrC) {
-            uint16_t sizeA, sizeB;
+        if (ptrA && ptrB && ptrN && ptrC) {
+            uint16_t sizeA, sizeB, sizeC = 0;
 
             res = ltc_get_lsb_bin_from_mp_int(ptrA, A, &sizeA);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, B, &sizeB);
             if (res == MP_OKAY) {
-                XMEMSET(ptrC, 0xFF, LTC_MAX_INT_BYTES);
+                XMEMSET(ptrN, 0xFF, LTC_MAX_INT_BYTES);
 
-                LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrC,
-                    LTC_MAX_INT_BYTES, ptrB, &sizeB, kLTC_PKHA_IntegerArith,
+                status = LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrN,
+                    LTC_MAX_INT_BYTES, ptrC, &sizeC, kLTC_PKHA_IntegerArith,
                     kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
                     kLTC_PKHA_TimingEqualized);
-
-                ltc_reverse_array(ptrB, sizeB);
-                res = mp_read_unsigned_bin(C, ptrB, sizeB);
+                if (status == kStatus_Success) {
+                    ltc_reverse_array(ptrC, sizeC);
+                    res = mp_read_unsigned_bin(C, ptrC, sizeC);
+                }
+                else {
+                    res = MP_VAL;
+                }
             }
         }
 
@@ -161,6 +167,9 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
         }
         if (ptrB) {
             XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        }
+        if (ptrN) {
+            XFREE(ptrN, NULL, DYNAMIC_TYPE_BIGINT);
         }
         if (ptrC) {
             XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
@@ -314,6 +323,7 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
 {
     int res = MP_OKAY;
+    status_t status;
     int szA, szB, szC;
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
@@ -358,29 +368,27 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
             /* (A*B)mod C = ((A mod C) * (B mod C)) mod C  */
             if (res == MP_OKAY && LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrC,
                                                                   sizeC) >= 0) {
-                if (kStatus_Success !=
-                    LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrC, sizeC, ptrA,
-                        &sizeA, kLTC_PKHA_IntegerArith))
-                {
+                status = LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrC, sizeC,
+                    ptrA, &sizeA, kLTC_PKHA_IntegerArith);
+                if (status != kStatus_Success) {
                     res = MP_VAL;
                 }
             }
             if (res == MP_OKAY && (LTC_PKHA_CompareBigNum(ptrB, sizeB, ptrC,
                                                                  sizeC) >= 0)) {
-                if (kStatus_Success !=
-                    LTC_PKHA_ModRed(LTC_BASE, ptrB, sizeB, ptrC, sizeC, ptrB,
-                        &sizeB, kLTC_PKHA_IntegerArith))
-                {
+                status = LTC_PKHA_ModRed(LTC_BASE, ptrB, sizeB, ptrC, sizeC,
+                    ptrB, &sizeB, kLTC_PKHA_IntegerArith);
+                if (status != kStatus_Success) {
                     res = MP_VAL;
                 }
             }
 
             if (res == MP_OKAY) {
-                if (kStatus_Success != LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA,
+                status = LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA,
                     ptrB, sizeB, ptrC, sizeC, ptrD, &sizeD,
                     kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue,
-                    kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized))
-                {
+                    kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized);
+                if (status != kStatus_Success) {
                     res = MP_VAL;
                 }
             }
