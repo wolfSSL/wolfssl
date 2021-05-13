@@ -11108,7 +11108,24 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
     return NULL;
 }
 
-
+/*
+ * Sets the session object to use when establishing a TLS/SSL session using
+ * the ssl object. Therefore, this function must be called before
+ * wolfSSL_connect. The session object to use can be obtained in a previous
+ * TLS/SSL connection using wolfSSL_get_session.
+ *
+ * This function rejects the session if it has been expired when this function
+ * is called. Note that this expiration check is wolfSSL specific and differs
+ * from OpenSSL return code behavior.
+ *
+ * By default, wolfSSL_set_session returns WOLFSSL_SUCCESS on successfully
+ * setting the session, WOLFSSL_FAILURE on failure due to the session cache
+ * being disabled, or the session has expired.
+ *
+ * To match OpenSSL return code behavior when session is expired, define
+ * OPENSSL_EXTRA and WOLFSSL_ERROR_CODE_OPENSSL. This behavior will return
+ * WOLFSSL_SUCCESS even when the session is expired and rejected.
+ */
 WOLFSSL_ABI
 int wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
@@ -14095,7 +14112,14 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 
         return ret;
     }
-    return WOLFSSL_FAILURE;  /* session timed out */
+    else {
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_ERROR_CODE_OPENSSL)
+        WOLFSSL_MSG("Session is expired but return success for \
+                              OpenSSL compatibility");
+        return WOLFSSL_SUCCESS;
+#endif /* OPENSSL_EXTRA && WOLFSSL_ERROR_CODE_OPENSSL */
+        return WOLFSSL_FAILURE;  /* session timed out */
+    }
 }
 
 

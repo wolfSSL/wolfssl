@@ -34690,6 +34690,22 @@ static void test_wolfSSL_SESSION(void)
 #endif
 
 #ifdef OPENSSL_EXTRA
+
+    /* session timeout case */
+    /* make the session to be expired */
+    AssertIntEQ(SSL_SESSION_set_timeout(sess,1), SSL_SUCCESS);
+    XSLEEP_MS(1200);
+
+    /* SSL_set_session should reject specified session but return success
+     * if WOLFSSL_ERROR_CODE_OPENSSL macro is defined for OpenSSL compatibility.
+     */
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    AssertIntEQ(wolfSSL_set_session(ssl,sess), SSL_SUCCESS);
+#else
+    AssertIntEQ(wolfSSL_set_session(ssl,sess), SSL_FAILURE);
+#endif
+    AssertIntEQ(wolfSSL_SSL_SESSION_set_timeout(sess, 500), SSL_SUCCESS);
+
     /* fail case with miss match session context IDs (use compatibility API) */
     AssertIntEQ(SSL_set_session_id_context(ssl, context, contextSz),
             SSL_SUCCESS);
@@ -44673,6 +44689,7 @@ static void test_wolfSSL_EC_curve(void)
 
 static void test_wolfSSL_CTX_set_timeout(void)
 {
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_SESSION_CACHE)
     int timeout;
     (void)timeout;
     printf(testingFmt, "test_wolfSSL_CTX_set_timeout()");
@@ -44700,6 +44717,7 @@ static void test_wolfSSL_CTX_set_timeout(void)
     wolfSSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
+#endif /* !NO_WOLFSSL_SERVER && !NO_SESSION_CACHE*/
 }
 
 static void test_wolfSSL_OpenSSL_version(void)
