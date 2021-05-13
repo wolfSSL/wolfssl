@@ -8381,10 +8381,11 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                 WOLFSSL_MSG("Unable to get partition");
                 return MEMORY_E;
             }
+
+            key->partNum  = part;
+            key->blackKey = (word32)vaddr;
             if (caamWriteToPartition(vaddr, priv, privSz) != 0)
                 return WC_HW_E;
-
-            key->blackKey = (word32)vaddr;
 
             if (pub != NULL) {
                 /* +1 to account for x963 compressed bit */

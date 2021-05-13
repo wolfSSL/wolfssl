@@ -39,7 +39,7 @@ uintptr_t virtual_base = 0;
 /* keep track of which ID memory belongs to so it can be free'd up */
 #define MAX_PART 7
 pthread_mutex_t sm_mutex;
-int sm_ownerId[MAX_PART];
+CAAM_ADDRESS sm_ownerId[MAX_PART];
 
 /* variables for I/O of resource manager */
 resmgr_connect_funcs_t connect_funcs;
@@ -501,7 +501,7 @@ static int doBLOB(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
  * returns EOK on success
  */
 static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int args[4],
-        unsigned int idx)
+        unsigned int idx, iofunc_ocb_t *ocb)
 {
     int ret;
     DESCSTRUCT desc;
@@ -528,7 +528,7 @@ static int doECDSA_KEYPAIR(resmgr_context_t *ctp, io_devctl_t *msg, unsigned int
 
     /* claim ownership of a secure memory location */
     pthread_mutex_lock(&sm_mutex);
-    sm_ownerId[args[2]] = ctp->rcvid;
+    sm_ownerId[args[2]] = (CAAM_ADDRESS)ocb;
     pthread_mutex_unlock(&sm_mutex);
 
     return EOK;
@@ -917,7 +917,7 @@ static int doFIFO_S(resmgr_context_t *ctp, io_devctl_t *msg,
  * returns EOK on success
  */
 static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
-        unsigned int args[4], unsigned int idx)
+        unsigned int args[4], unsigned int idx, iofunc_ocb_t *ocb)
 {
     int partNumber;
     int partSz;
@@ -936,7 +936,7 @@ static int doGET_PART(resmgr_context_t *ctp, io_devctl_t *msg,
     resmgr_msgwritev(ctp, &out_iov, 1, sizeof(msg->o));
 
     pthread_mutex_lock(&sm_mutex);
-    sm_ownerId[partNumber] = ctp->rcvid;
+    sm_ownerId[partNumber] = (CAAM_ADDRESS)ocb;
     pthread_mutex_unlock(&sm_mutex);
     return EOK;
 }
@@ -1081,7 +1081,7 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_ECDSA_KEYPAIR:
-            ret = doECDSA_KEYPAIR(ctp, msg, args, idx);
+            ret = doECDSA_KEYPAIR(ctp, msg, args, idx, ocb);
             break;
 
         case WC_CAAM_ECDSA_VERIFY:
@@ -1101,14 +1101,14 @@ int io_devctl (resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
             break;
 
         case WC_CAAM_GET_PART:
-            ret = doGET_PART(ctp, msg, args, idx);
+            ret = doGET_PART(ctp, msg, args, idx, ocb);
             break;
 
         case WC_CAAM_FREE_PART:
             caamFreePart(args[0]);
 
             pthread_mutex_lock(&sm_mutex);
-            sm_ownerId[args[0]] = -1;
+            sm_ownerId[args[0]] = 0;
             pthread_mutex_unlock(&sm_mutex);
             ret = EOK;
             break;
@@ -1158,8 +1158,9 @@ int io_close_ocb(resmgr_context_t *ctp, void *reserved, RESMGR_OCB_T *ocb)
     /* free up any dangling owned memory */
     pthread_mutex_lock(&sm_mutex);
     for (i = 0; i < MAX_PART; i++) {
-        if (sm_ownerId[i] == ctp->rcvid) {
-            sm_ownerId[i] = -1;
+        if (sm_ownerId[i] == (CAAM_ADDRESS)ocb) {
+            sm_ownerId[i] = 0;
+            printf("found dangiling partition at index %d\n", i);
             caamFreePart(i);
         }
     }
@@ -1240,7 +1241,7 @@ int main(int argc, char *argv[])
 
     pthread_mutex_init(&sm_mutex, NULL);
     for (i = 0; i < MAX_PART; i++) {
-        sm_ownerId[i] = -1;
+        sm_ownerId[i] = 0;
     }
 
     if (InitCAAM() != 0) {
