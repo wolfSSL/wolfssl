@@ -974,7 +974,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][68] = {
+static const char* client_usage_msg[][69] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1160,6 +1160,13 @@ static const char* client_usage_msg[][68] = {
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
                                                                        /* 68 */
+#endif
+#ifndef WOLFSSL_TLS13
+        "-7          Set minimum downgrade protocol version [0-3] "
+        " SSLv3(0) - TLS1.2(3)\n",
+#else
+        "-7          Set minimum downgrade protocol version [0-4] "
+        " SSLv3(0) - TLS1.3(4)\n",                           /* 69 */
 #endif
         NULL,
     },
@@ -1350,7 +1357,14 @@ static const char* client_usage_msg[][68] = {
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
-                                                                       /* 68 */
+                                                                      /* 68 */
+#endif
+#ifndef WOLFSSL_TLS13
+        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
+        " SSLv3(0) - TLS1.2(3)\n",
+#else
+        "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
+        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
 #endif
         NULL,
     },
@@ -1534,6 +1548,7 @@ static void Usage(void)
     !defined(WOLFSENTRY_NO_JSON)
     printf("%s", msg[++msgid]); /* --wolfsentry-config */
 #endif
+    printf("%s", msg[++msgid]); /* -7 */
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)

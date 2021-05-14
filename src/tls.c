@@ -5969,26 +5969,30 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
         int cnt = 0;
 
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_3_MINOR))
         #endif
                 cnt++;
 
         if (ssl->options.downgrade) {
 #ifndef WOLFSSL_NO_TLS12
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_2_MINOR))
         #endif
                 cnt++;
 #endif
 
 #ifndef NO_OLD_TLS
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_1_MINOR))
         #endif
                 cnt++;
     #ifdef WOLFSSL_ALLOW_TLSV10
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_MINOR))
         #endif
                 cnt++;
     #endif
@@ -6026,7 +6030,8 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
         cnt = output++;
         *cnt = 0;
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_3_MINOR))
         #endif
             {
                 *cnt += OPAQUE16_LEN;
@@ -6043,7 +6048,8 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
         if (ssl->options.downgrade) {
 #ifndef WOLFSSL_NO_TLS12
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_2_MINOR))
         #endif
             {
                 *cnt += OPAQUE16_LEN;
@@ -6054,7 +6060,8 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
 
 #ifndef NO_OLD_TLS
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0 &&
+                (ssl->options.minDowngrade <= TLSv1_1_MINOR))
         #endif
             {
                 *cnt += OPAQUE16_LEN;
@@ -6063,7 +6070,8 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
             }
     #ifdef WOLFSSL_ALLOW_TLSV10
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0 && 
+                (ssl->options.minDowngrade <= TLSv1_MINOR))
         #endif
             {
                 *cnt += OPAQUE16_LEN;
