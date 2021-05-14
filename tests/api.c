@@ -7094,6 +7094,16 @@ static int test_wc_ShaUpdate (void)
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
 
+        ret = wc_ShaUpdate(&sha, NULL, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
+        ret = wc_ShaUpdate(&sha, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
         ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -7301,6 +7311,16 @@ static int test_wc_Sha256Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
+
+        ret = wc_Sha256Update(&sha256, NULL, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
+        ret = wc_Sha256Update(&sha256, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
 
         ret = wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
@@ -7722,6 +7742,16 @@ static int test_wc_Sha512Update (void)
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
 
+        ret = wc_Sha512Update(&sha512, NULL, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
+        ret = wc_Sha512Update(&sha512,(byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
         ret = wc_Sha512Update(&sha512, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -8138,6 +8168,16 @@ static int test_wc_Sha384Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
+
+        ret = wc_Sha384Update(&sha384, NULL, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
+        ret = wc_Sha384Update(&sha384, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
 
         ret = wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
@@ -8557,6 +8597,16 @@ static int test_wc_Sha224Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
+
+        ret = wc_Sha224Update(&sha224, NULL, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+
+        ret = wc_Sha224Update(&sha224, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
 
         ret = wc_Sha224Update(&sha224, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
