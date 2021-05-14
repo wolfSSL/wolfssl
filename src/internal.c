@@ -25326,8 +25326,18 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #ifndef NO_OLD_TLS
             else {
                 /* if old TLS load MD5 and SHA hash as value to sign */
+            #ifndef NO_MD5
                 XMEMCPY(ssl->buffers.sig.buffer,
-                    (byte*)ssl->hsHashes->certHashes.md5, FINISHED_SZ);
+                    (byte*)ssl->hsHashes->certHashes.md5, WC_MD5_DIGEST_SIZE);
+            #else
+                #error "old TLS requires MD5 and SHA"
+            #endif
+            #ifndef NO_SHA
+                XMEMCPY(ssl->buffers.sig.buffer + WC_MD5_DIGEST_SIZE,
+                    (byte*)ssl->hsHashes->certHashes.sha, WC_SHA_DIGEST_SIZE);
+            #else
+                #error "old TLS requires MD5 and SHA"
+            #endif
             }
         #endif
 
@@ -29087,9 +29097,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                     }
                     else {
-                        if (args->sendSz != FINISHED_SZ || !args->output ||
-                            XMEMCMP(args->output,
-                                &ssl->hsHashes->certHashes, FINISHED_SZ) != 0) {
+                        if (args->sendSz != FINISHED_SZ || !args->output
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS) && \
+                            !defined(NO_SHA)
+                                ||
+                        #endif
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+                                (
+                                XMEMCMP(args->output,
+                                        &ssl->hsHashes->certHashes.md5,
+                                        WC_MD5_DIGEST_SIZE) != 0
+                                &&
+                        #endif
+                        #ifndef NO_SHA
+                                XMEMCMP(args->output + WC_MD5_DIGEST_SIZE,
+                                        &ssl->hsHashes->certHashes.sha,
+                                        WC_SHA_DIGEST_SIZE) != 0
+                        #endif
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+                                )
+                        #endif
+                            ) {
                             ret = VERIFY_CERT_ERROR;
                         }
                     }
