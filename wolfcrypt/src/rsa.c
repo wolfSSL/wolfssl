@@ -483,14 +483,16 @@ int wc_InitRsaHw(RsaKey* key)
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != 0)
         return MP_READ_E;
-
+    CC310_ENTER();
     ret = CRYS_RSA_Build_PubKey(&key->ctx.pubKey, e, eSz, n, nSz);
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_Build_PubKey failed");
+        CC310_EXIT();
         return ret;
     }
 
     ret =  CRYS_RSA_Build_PrivKey(&key->ctx.privKey, d, dSz, e, eSz, n, nSz);
+    CC310_EXIT();
 
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_Build_PrivKey failed");
@@ -509,7 +511,8 @@ static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
     byte n[256];
     word16 nSz = sizeof(n);
 
-    ret = CRYS_RSA_KG_GenerateKeyPair(&wc_rndState,
+    CC310_ENTER();
+    ret = CRYS_RSA_KG_GenerateKeyPair(&wc_rndCtx.crys_rnd_state,
                         wc_rndGenVectFunc,
                         (byte*)&e,
                         3*sizeof(byte),
@@ -521,14 +524,17 @@ static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
 
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_KG_GenerateKeyPair failed");
+        CC310_EXIT();
         return ret;
     }
 
     ret = CRYS_RSA_Get_PubKey(&key->ctx.pubKey, ex, &eSz, n, &nSz);
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_Get_PubKey failed");
+        CC310_EXIT();
         return ret;
     }
+    CC310_EXIT();
     ret = wc_RsaPublicKeyDecodeRaw(n, nSz, ex, eSz, key);
 
     key->type = RSA_PRIVATE;
@@ -2674,14 +2680,15 @@ static int cc310_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
     if (outLen < modulusSize)
         return BAD_FUNC_ARG;
 
-    ret = CRYS_RSA_PKCS1v15_Encrypt(&wc_rndState,
+    CC310_ENTER();
+    ret = CRYS_RSA_PKCS1v15_Encrypt(&wc_rndCtx.crys_rnd_state,
                                     wc_rndGenVectFunc,
                                     &key->ctx.pubKey,
                                     &primeData,
                                     (byte*)in,
                                     inLen,
                                     out);
-
+    CC310_EXIT();
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_PKCS1v15_Encrypt failed");
         return -1;
@@ -2696,12 +2703,14 @@ static int cc310_RsaPublicDecrypt(const byte* in, word32 inLen, byte* out,
     CRYS_RSAPrimeData_t primeData;
     word16 actualOutLen = outLen;
 
+    CC310_ENTER();
     ret = CRYS_RSA_PKCS1v15_Decrypt(&key->ctx.privKey,
                                     &primeData,
                                     (byte*)in,
                                     inLen,
                                     out,
                                     &actualOutLen);
+    CC310_EXIT();
 
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_PKCS1v15_Decrypt failed");
@@ -2717,7 +2726,8 @@ int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
     word16 actualOutLen = outLen*sizeof(byte);
     CRYS_RSAPrivUserContext_t  contextPrivate;
 
-    ret =  CRYS_RSA_PKCS1v15_Sign(&wc_rndState,
+    CC310_ENTER();
+    ret =  CRYS_RSA_PKCS1v15_Sign(&wc_rndCtx.crys_rnd_state,
                 wc_rndGenVectFunc,
                 &contextPrivate,
                 &key->ctx.privKey,
@@ -2726,6 +2736,7 @@ int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                 inLen,
                 out,
                 &actualOutLen);
+    CC310_EXIT();
 
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_PKCS1v15_Sign failed");
@@ -2740,6 +2751,8 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
     CRYSError_t ret = 0;
     CRYS_RSAPubUserContext_t contextPub;
 
+    CC310_ENTER();
+
     /* verify the signature in the sig pointer */
     ret =  CRYS_RSA_PKCS1v15_Verify(&contextPub,
                 &key->ctx.pubKey,
@@ -2748,6 +2761,7 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
                 inLen,
                 sig);
 
+    CC310_EXIT();
     if (ret != SA_SILIB_RET_OK){
         WOLFSSL_MSG("CRYS_RSA_PKCS1v15_Verify failed");
         return -1;
