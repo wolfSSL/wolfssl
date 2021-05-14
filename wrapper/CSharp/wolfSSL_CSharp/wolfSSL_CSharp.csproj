@@ -59,6 +59,7 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="wolfSSL.cs" />
+    <Compile Include="wolfCrypt.cs" />
     <Compile Include="X509.cs" />
   </ItemGroup>
   <ItemGroup>
