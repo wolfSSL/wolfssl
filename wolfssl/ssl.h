@@ -2413,8 +2413,12 @@ WOLFSSL_ABI WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN*, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
+WOLFSSL_API int wolfSSL_get_sessionIDSz(const WOLFSSL_SESSION* session);
 WOLFSSL_ABI WOLFSSL_API const unsigned char* wolfSSL_get_sessionID(
                                                       const WOLFSSL_SESSION* s);
+WOLFSSL_API int wolfSSL_set_sessionID(WOLFSSL* ssl, const unsigned char* idBuff,
+                                      word32 idSz);
+WOLFSSL_API int wolfSSL_copy_sessionID(WOLFSSL* sslA, WOLFSSL* sslB);
 WOLFSSL_API int  wolfSSL_X509_get_serial_number(WOLFSSL_X509*,unsigned char*,int*);
 WOLFSSL_API char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509*, int*);
