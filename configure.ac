@@ -157,6 +157,7 @@ OPTIMIZE_CFLAGS="-Os"
 OPTIMIZE_FAST_CFLAGS="-O2"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
+COVERAGE_CFLAGS="--coverage"
 LIB_ADD=
 LIB_STATIC_ADD=
 
@@ -172,6 +173,11 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
+
+# COVERAGE
+AX_COVERAGE
+AS_IF([test "$ax_enable_coverage" = "yes"],
+      [AM_CFLAGS="$COVERAGE_CFLAGS $AM_CFLAGS"])
 
 
 # Start without certificates enabled and enable if a certificate algorithm is
