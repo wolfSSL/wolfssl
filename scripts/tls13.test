@@ -279,8 +279,19 @@ if [ "$early_data" = "yes" -a "$psk" = "yes" ]; then
     ./examples/client/client -v 4 -s -0 -p $port
     RESULT=$?
     remove_ready_file
+
+    # wait for the server to quit and write output
+    wait $server_pid
+
     early_data_cnt=`grep 'Early Data' $server_out_file | wc -l`
-    if [ $early_data_cnt -ne 3 -a $early_data_cnt -ne 4 ]; then
+    if [ $early_data_cnt -ne 3 -a $early_data_cnt -ne 5 ]; then
+        echo
+        echo "Server out file"
+        cat $server_out_file
+        echo
+        echo "Found lines"
+        grep 'Early Data' $server_out_file
+        echo -e "\n\nToo few 'Early Data' lines - $early_data_cnt"
         RESULT=1
     fi
     if [ $RESULT -ne 0 ]; then
