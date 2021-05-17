@@ -27234,7 +27234,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
     if (nameSz > 0)
         XMEMCPY(pParam->hostName, name, nameSz);
 
-        pParam->hostName[nameSz] = '\0';
+    pParam->hostName[nameSz] = '\0';
 
     return WOLFSSL_SUCCESS;
 }
@@ -34093,7 +34093,7 @@ static int wolfSSL_RSA_generate_key_native(WOLFSSL_RSA* rsa, int bits, WOLFSSL_B
             WOLFSSL_MSG("SetRsaExternal failed");
         else {
             rsa->inSet = 1;
-	    ret = WOLFSSL_ERROR_NONE;
+            ret = WOLFSSL_ERROR_NONE;
         }
 
         wc_FreeRng(rng);
@@ -42140,7 +42140,7 @@ cleanup:
         }
 
     out:
-	if (der)
+        if (der)
             XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
@@ -42841,7 +42841,7 @@ err:
         /* unused */
         (void)cb;
         (void)u;
-	    (void)derSz;
+        (void)derSz;
 
         return NULL;
     }
