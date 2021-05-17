@@ -14429,7 +14429,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifdef WOLFSSL_SMALL_STACK
             byte   staticBuffer[1]; /* force heap usage */
         #else
-            byte   staticBuffer[FILE_BUFFER_SIZE];
+            byte   staticBuffer[FILE_BUFFER_SIZE] = {0};
         #endif
             byte* myBuffer  = staticBuffer;
             int   dynamic   = 0;
