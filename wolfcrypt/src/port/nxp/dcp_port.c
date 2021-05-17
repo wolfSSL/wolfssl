@@ -199,8 +199,8 @@ int DCPAesInit(Aes *aes)
     if (ch == 0)
         return WC_PENDING_E;
     XMEMSET(&aes->handle, 0, sizeof(aes->handle));
-    aes->handle.channel = ch;
-    aes->handle.keySlot = dcp_key_slot(aes->handle.channel);
+    aes->handle.channel = (dcp_channel_t)ch;
+    aes->handle.keySlot = (dcp_key_slot_t)dcp_key_slot(aes->handle.channel);
     aes->handle.swapConfig = kDCP_NoSwap;
     return 0;
 }
@@ -319,8 +319,8 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     dcp_lock();
     (void)devId;
     XMEMSET(sha256, 0, sizeof(wc_Sha256));
-    sha256->handle.channel    = ch;
-    sha256->handle.keySlot    = keyslot;
+    sha256->handle.channel    = (dcp_channel_t)ch;
+    sha256->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha256->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha256->handle, &sha256->ctx, kDCP_Sha256);
     if (ret != kStatus_Success)
@@ -431,8 +431,8 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     dcp_lock();
     (void)devId;
     XMEMSET(sha, 0, sizeof(wc_Sha));
-    sha->handle.channel    = ch;
-    sha->handle.keySlot    = keyslot;
+    sha->handle.channel    = (dcp_channel_t)ch;
+    sha->handle.keySlot    = (dcp_key_slot_t)keyslot;
     sha->handle.swapConfig = kDCP_NoSwap;
     ret = DCP_HASH_Init(DCP, &sha->handle, &sha->ctx, kDCP_Sha1);
     if (ret != kStatus_Success)
