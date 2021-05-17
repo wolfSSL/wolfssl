@@ -230,15 +230,15 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                 if (bio->ptr) {
                     ret = (int)XFREAD(buf, 1, len, (XFILE)bio->ptr);
                 }
+                else {
                 #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                else {
                     ret = (int)XREAD(bio->num, buf, len);
-                }
                 #else
-                WOLFSSL_MSG("No file pointer and XREAD not enabled");
-                ret = NOT_COMPILED_IN;
+                    WOLFSSL_MSG("No file pointer and XREAD not enabled");
+                    ret = NOT_COMPILED_IN;
                 #endif
+                }
             #else
                 WOLFSSL_MSG("WOLFSSL_BIO_FILE used with NO_FILESYSTEM");
                 ret = NOT_COMPILED_IN;
