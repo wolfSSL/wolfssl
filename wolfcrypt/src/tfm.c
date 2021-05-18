@@ -1391,7 +1391,7 @@ top:
   /* b is now the inverse */
   neg = a->sign;
   while (D->sign == FP_NEG) {
-    fp_add (D, b, D);
+    err = fp_add (D, b, D);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
       XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
