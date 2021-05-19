@@ -58,6 +58,10 @@ This library defines the interface APIs for X509 certificates.
     typedef struct WC_RNG WC_RNG;
     #define WC_RNG_TYPE_DEFINED
 #endif
+#ifndef WC_DH_TYPE_DEFINED
+    typedef struct DhKey DhKey;
+    #define WC_DH_TYPE_DEFINED
+#endif
 
 enum Ecc_Sum {
     ECC_SECP112R1_OID = 182,
@@ -507,6 +511,13 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
         word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
     #endif
     WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
+#endif
+
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
+WOLFSSL_LOCAL int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv);
+WOLFSSL_API int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
+WOLFSSL_API int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
+WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
 #endif
 
 #ifdef HAVE_ECC

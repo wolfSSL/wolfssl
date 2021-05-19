@@ -2445,6 +2445,12 @@ extern void uITRON4_free(void *p) ;
     #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
 #endif
 
+/* Make sure DH Extra is enabled for QT, openssl all and openssh */
+#if !defined(WOLFSSL_DH_EXTRA) && \
+    (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+    #define WOLFSSL_DH_EXTRA
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */
