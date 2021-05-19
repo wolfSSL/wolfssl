@@ -5081,7 +5081,8 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
         hash_mode = cc310_hashModeECC(msgLenInBytes);
         if (hash_mode == CRYS_ECPKI_HASH_OpModeLast) {
-            hash_mode = cc310_hashModeECC(keysize);
+            (void)cc310_hashModeECC(keysize);
+            /* Ignoring returned value */
             hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
 
         }
@@ -8139,22 +8140,24 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
 
-#ifdef WOLFSSL_SILABS_SE_ACCEL
-    err = silabs_ecc_import(key, keysize);
-#endif
 #ifdef WOLFSSL_CRYPTOCELL
-    pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
+    if (err == MP_OKAY) {
+        pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
 
-    /* create public key from external key buffer */
-    err = CRYS_ECPKI_BuildPublKeyFullCheck(pDomain,
-                                           (byte*)in-1, /* re-adjust */
-                                           inLen+1,     /* original input */
-                                           &key->ctx.pubKey,
-                                           &tempBuff);
+        /* create public key from external key buffer */
+        err = CRYS_ECPKI_BuildPublKeyFullCheck(pDomain,
+                                               (byte*)in-1, /* re-adjust */
+                                               inLen+1,     /* original input */
+                                               &key->ctx.pubKey,
+                                               &tempBuff);
 
-    if (err != SA_SILIB_RET_OK){
-        WOLFSSL_MSG("CRYS_ECPKI_BuildPublKeyFullCheck failed");
+        if (err != SA_SILIB_RET_OK){
+            WOLFSSL_MSG("CRYS_ECPKI_BuildPublKeyFullCheck failed");
+        }
     }
+#elif defined(WOLFSSL_SILABS_SE_ACCEL)
+    if (err == MP_OKAY)
+        err = silabs_ecc_import(key, keysize);
 #endif
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (err == MP_OKAY)
@@ -8345,8 +8348,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
 #ifdef WOLFSSL_CRYPTOCELL
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(key->dp->id));
-    /* import private key */
-    if (priv != NULL && priv[0] != '\0') {
+    /* import private key - priv checked for NULL at top */
+    if (priv[0] != '\0') {
 
         /* Create private key from external key buffer*/
         ret = CRYS_ECPKI_BuildPrivKey(pDomain,
@@ -8368,10 +8371,11 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     if (ret == MP_OKAY) {
         if (pub) {
             ret = silabs_ecc_import(key, key->dp->size);
-        } else
-        {
+        }
+        else {
             ret = silabs_ecc_import_private(key, key->dp->size);
         }
+    }
 #elif defined(WOLFSSL_QNX_CAAM)
     if ((wc_ecc_size(key) + WC_CAAM_MAC_SZ) == (int)privSz) {
         int part = caamFindUnusuedPartition();

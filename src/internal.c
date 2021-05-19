@@ -1715,9 +1715,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
-#endif
 #ifdef OPENSSL_EXTRA
     ctx->cbioFlag = WOLFSSL_CBIO_NONE;
 #endif
@@ -1866,11 +1864,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->ticketHint = SESSION_TICKET_HINT_DEFAULT;
 #endif
 
-#ifdef HAVE_WOLF_EVENT
-    if (ret == 0)
-        ret = wolfEventQueue_Init(&ctx->event_queue);
-#endif /* HAVE_WOLF_EVENT */
-
 #ifdef WOLFSSL_EARLY_DATA
     ctx->maxEarlyDataSz = MAX_EARLY_DATA_SZ;
 #endif
@@ -1880,7 +1873,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
-    ctx->verifyDepth = MAX_CHAIN_DEPTH;
+
+#ifdef HAVE_WOLF_EVENT
+    ret = wolfEventQueue_Init(&ctx->event_queue);
+#endif /* HAVE_WOLF_EVENT */
 
     return ret;
 }
@@ -5832,9 +5828,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->wfd = -1;
     ssl->devId = ctx->devId; /* device for async HW (from wolfAsync_DevOpen) */
 
-    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
-    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
-
 #ifdef HAVE_NETX
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
@@ -5848,7 +5841,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #elif defined (WOLFSSL_GNRC)
     ssl->IOCB_ReadCtx = ssl->gnrcCtx;
     ssl->IOCB_WriteCtx = ssl->gnrcCtx;
+#else
+    ssl->IOCB_ReadCtx  = &ssl->rfd;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->wfd;  /* correctly set */
 #endif
+
     /* initialize states */
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
@@ -6254,10 +6251,6 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     #endif /* !NO_DH */
         default:
             return BAD_FUNC_ARG;
-    }
-
-    if (sz == 0) {
-        return NOT_COMPILED_IN;
     }
 
     /* Allocate memory for key */
@@ -8557,10 +8550,8 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
        the header, if the user wants encrypted alignment they need
        to define their alignment requirement */
 
-    if (align) {
-       while (align < hdrSz)
-           align *= 2;
-    }
+    while (align < hdrSz)
+        align *= 2;
 #endif
 
     tmp = (byte*)XMALLOC(size + ssl->buffers.outputBuffer.length + align,
@@ -11771,8 +11762,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* Check peer's certificate version number. TLS 1.2 / 1.3
                      * requires the clients certificate be version 3 unless a
                      * different version has been negotiated using RFC 7250 */
-                    if ((ret == 0) &&
-                            (ssl->options.side == WOLFSSL_SERVER_END)) {
+                    if (ssl->options.side == WOLFSSL_SERVER_END) {
                         if (args->dCert->version != WOLFSSL_X509_V3) {
                             WOLFSSL_MSG("Peers certificate was not version 3!");
                             args->lastErr = ASN_VERSION_E;
@@ -17048,7 +17038,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
              int epochOrder)
 {
 #ifndef WOLFSSL_NO_TLS12
-    int ret = 0;
+    int ret;
     BuildMsgArgs* args;
     BuildMsgArgs  lcl_args;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -17075,8 +17065,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     }
 #endif
 
-    ret = WC_NOT_PENDING_E;
 #ifdef WOLFSSL_ASYNC_CRYPT
+    ret = WC_NOT_PENDING_E;
     if (asyncOkay) {
         ret = wolfSSL_AsyncPop(ssl, &ssl->options.buildMsgState);
         if (ret != WC_NOT_PENDING_E) {
@@ -17092,7 +17082,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     }
 
     /* Reset state */
-    if (ret == WC_NOT_PENDING_E) {
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_NOT_PENDING_E)
+#endif
+    {
         ret = 0;
         ssl->options.buildMsgState = BUILD_MSG_BEGIN;
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
@@ -18584,7 +18577,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     int sent = 0,  /* plainText size */
         sendSz,
         ret;
+#if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_EARLY_DATA_GROUP)
     int groupMsgs = 0;
+#endif
 
     if (ssl->error == WANT_WRITE
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -18635,7 +18630,11 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
 
     /* last time system socket output buffer was full, try again to send */
-    if (!groupMsgs && ssl->buffers.outputBuffer.length > 0) {
+    if (ssl->buffers.outputBuffer.length > 0
+    #if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_EARLY_DATA_GROUP)
+        && !groupMsgs
+    #endif
+        ) {
         WOLFSSL_MSG("output buffer was full, trying to send again");
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ssl->error);
@@ -21972,19 +21971,20 @@ exit_dpk:
     /* Make sure client setup is valid for this suite, true on success */
     int VerifyClientSuite(WOLFSSL* ssl)
     {
-        int  havePSK = 0;
+    #ifndef NO_PSK
+        int  havePSK = ssl->options.havePSK;
+    #endif
         byte first   = ssl->options.cipherSuite0;
         byte second  = ssl->options.cipherSuite;
 
         WOLFSSL_ENTER("VerifyClientSuite");
 
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-
         if (CipherRequires(first, second, REQUIRES_PSK)) {
             WOLFSSL_MSG("Requires PSK");
-            if (havePSK == 0) {
+        #ifndef NO_PSK
+            if (havePSK == 0)
+        #endif
+            {
                 WOLFSSL_MSG("Don't have PSK");
                 return 0;
             }
@@ -24191,7 +24191,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         case TLS_ASYNC_BUILD:
         {
             args->encSz = MAX_ENCRYPT_SZ;
-            args->encSecret = (byte*)XMALLOC(args->encSz, ssl->heap,
+            args->encSecret = (byte*)XMALLOC(MAX_ENCRYPT_SZ, ssl->heap,
                                                     DYNAMIC_TYPE_SECRET);
             if (args->encSecret == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scke);
@@ -25275,7 +25275,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
             /* build encoded signature buffer */
             ssl->buffers.sig.length = MAX_ENCODED_SIG_SZ;
-            ssl->buffers.sig.buffer = (byte*)XMALLOC(ssl->buffers.sig.length,
+            ssl->buffers.sig.buffer = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
                                         ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             if (ssl->buffers.sig.buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -25325,9 +25325,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
         #ifndef NO_OLD_TLS
             else {
-                /* if old TLS load MD5 and SHA hash as value to sign */
+                /* if old TLS load MD5 and SHA hash as value to sign
+                 * MD5 and SHA must be first two buffers in stucture */
                 XMEMCPY(ssl->buffers.sig.buffer,
-                    (byte*)ssl->hsHashes->certHashes.md5, FINISHED_SZ);
+                                (byte*)&ssl->hsHashes->certHashes, FINISHED_SZ);
             }
         #endif
 
@@ -25817,7 +25818,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int    sendSz;
         byte   sessIdSz = ID_LEN;
+    #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SESSION_TICKET)
         byte   echoId   = 0;  /* ticket echo id flag */
+    #endif
         byte   cacheOff = 0;  /* session cache off flag */
 
         WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
@@ -25862,7 +25865,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* if no session cache don't send a session ID unless we're echoing
          * an ID as part of session tickets */
-        if (echoId == 0 && cacheOff == 1) {
+        if (cacheOff == 1
+        #if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SESSION_TICKET)
+            && echoId == 0
+        #endif
+            ) {
             length -= ID_LEN;    /* adjust ID_LEN assumption */
             sessIdSz = 0;
         }
@@ -26547,7 +26554,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         args->length = ENUM_LEN + CURVE_LEN + ENUM_LEN;
 
                         args->exportSz = MAX_EXPORT_ECC_SZ;
-                        args->exportBuf = (byte*)XMALLOC(args->exportSz,
+                        args->exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ,
                                             ssl->heap, DYNAMIC_TYPE_DER);
                         if (args->exportBuf == NULL) {
                             ERROR_OUT(MEMORY_E, exit_sske);
@@ -26656,7 +26663,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         /* Export temp ECC key and add to length */
                         args->exportSz = MAX_EXPORT_ECC_SZ;
-                        args->exportBuf = (byte*)XMALLOC(args->exportSz,
+                        args->exportBuf = (byte*)XMALLOC(MAX_EXPORT_ECC_SZ,
                                             ssl->heap, DYNAMIC_TYPE_DER);
                         if (args->exportBuf == NULL) {
                             ERROR_OUT(MEMORY_E, exit_sske);
@@ -27635,7 +27642,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     static int VerifyServerSuite(WOLFSSL* ssl, word16 idx)
     {
         int  haveRSA = !ssl->options.haveStaticECC;
-        int  havePSK = 0;
+    #ifndef NO_PSK
+        int  havePSK = ssl->options.havePSK;
+    #endif
         byte first;
         byte second;
 
@@ -27648,10 +27657,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         first   = ssl->suites->suites[idx];
         second  = ssl->suites->suites[idx+1];
-
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
 
         if (ssl->options.haveNTRU)
             haveRSA = 0;
@@ -27690,7 +27695,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (CipherRequires(first, second, REQUIRES_PSK)) {
             WOLFSSL_MSG("Requires PSK");
-            if (havePSK == 0) {
+        #ifndef NO_PSK
+            if (havePSK == 0)
+        #endif
+            {
                 WOLFSSL_MSG("Don't have PSK");
                 return 0;
             }

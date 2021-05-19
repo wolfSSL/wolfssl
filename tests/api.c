@@ -19110,7 +19110,7 @@ static int test_wc_curve25519_make_key (void)
 /*
  * Testing wc_curve25519_shared_secret_ex
  */
-static int test_wc_curve25519_shared_secret_ex (void)
+static int test_wc_curve25519_shared_secret_ex(void)
 {
     int ret = 0;
 #if defined(HAVE_CURVE25519)
@@ -19126,9 +19126,9 @@ static int test_wc_curve25519_shared_secret_ex (void)
     ret = wc_curve25519_init(&private_key);
     if (ret == 0) {
         ret = wc_InitRng(&rng);
-        if (ret == 0) {
-            ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
-        }
+    }
+    if (ret == 0) {
+        ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &private_key);
     }
     if (ret == 0) {
         ret = wc_curve25519_make_key(&rng, CURVE25519_KEYSIZE, &public_key);
@@ -19142,6 +19142,9 @@ static int test_wc_curve25519_shared_secret_ex (void)
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(NULL, NULL, NULL,
                                               0, endian);
+        if (ret == 0) {
+            ret = -1;
+        }
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
@@ -19149,28 +19152,40 @@ static int test_wc_curve25519_shared_secret_ex (void)
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(NULL, &public_key, out,
                                              &outLen, endian);
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, NULL, out,
                                               &outLen, endian);
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, NULL,
                                               &outLen, endian);
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               NULL, endian);
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
@@ -19181,7 +19196,10 @@ static int test_wc_curve25519_shared_secret_ex (void)
         public_key.p.point[CURVE25519_KEYSIZE-1] = 0x8F;
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               &outLen, endian);
-        if (ret == ECC_BAD_ARG_E) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == ECC_BAD_ARG_E) {
            ret = 0;
         }
     }
@@ -19190,7 +19208,10 @@ static int test_wc_curve25519_shared_secret_ex (void)
     if (ret == 0) {
         ret = wc_curve25519_shared_secret_ex(&private_key, &public_key, out,
                                               &outLen, endian);
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == 0) {
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG) {
             ret = 0;
         }
     }
@@ -23293,6 +23314,9 @@ static int test_wc_SetSubjectBuffer (void)
             derSz = (word32)XFREAD(der, 1, FOURK_BUF, file);
             XFCLOSE(file);
         }
+        else {
+            ret = -1;
+        }
     }
     if (ret == 0) {
         ret = wc_InitCert(&cert);
@@ -23350,7 +23374,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
@@ -23375,7 +23399,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
-            wc_ecc_make_key(&rng, KEY14, &eccKey);
+            ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
@@ -23389,7 +23413,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
+            ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
         }
         if (ret == 0) {
             ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
@@ -23441,7 +23465,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ED25519*/
         ret = wc_ed25519_init(&ed25519Key);
         if (ret == 0) {
-            wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &ed25519Key);
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE,
@@ -23466,7 +23490,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ECC*/
         ret = wc_ecc_init(&eccKey);
         if (ret == 0) {
-            wc_ecc_make_key(&rng, KEY14, &eccKey);
+            ret = wc_ecc_make_key(&rng, KEY14, &eccKey);
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ECC_TYPE, &eccKey);
@@ -23480,7 +23504,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex (void)
     if (ret == 0) { /*ED448*/
         ret = wc_ed448_init(&ed448Key);
         if (ret == 0) {
-            wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
+            ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, &ed448Key);
         }
         if (ret == 0) {
             ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED448_TYPE,
@@ -25971,22 +25995,26 @@ static int test_wc_HashSetFlags(void)
     }
     /* For loop to test not supported cases */
     int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
-    for (j = 0; j < notSupportedLen; j++){
+    for (j = 0; ret == 0 && j < notSupportedLen; j++){
+        ret = wc_HashInit(&hash, notSupported[j]);
         if (ret == 0) {
-            ret = wc_HashInit(&hash, notSupported[j]);
-            if (ret == BAD_FUNC_ARG){
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG){
+            ret = wc_HashSetFlags(&hash, notSupported[j], flags);
+            if (ret == 0) {
+                ret = -1;
+            }
+            else if (ret == BAD_FUNC_ARG) {
                 ret = 0;
-                if (ret == 0){
-                    ret = wc_HashSetFlags(&hash, notSupported[j], flags);
-                    if (ret == BAD_FUNC_ARG) {
-                        ret = 0;
-                    }
-                }
             }
         }
         if (ret == 0) {
             ret = wc_HashFree(&hash, notSupported[j]);
-            if (ret ==  BAD_FUNC_ARG) {
+            if (ret == 0) {
+                ret = -1;
+            }
+            else if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
@@ -26068,22 +26096,26 @@ static int test_wc_HashGetFlags(void)
     }
     /* For loop to test not supported cases */
     int notSupportedLen = (sizeof(notSupported)/sizeof(enum wc_HashType));
-    for (j = 0; j < notSupportedLen; j++){
+    for (j = 0; ret == 0 && j < notSupportedLen; j++){
+        ret = wc_HashInit(&hash, notSupported[j]);
         if (ret == 0) {
-            ret = wc_HashInit(&hash, notSupported[j]);
-            if (ret == BAD_FUNC_ARG){
+            ret = -1;
+        }
+        else if (ret == BAD_FUNC_ARG){
+            ret = wc_HashGetFlags(&hash, notSupported[j], &flags);
+            if (ret == 0) {
+                ret = -1;
+            }
+            else if (ret == BAD_FUNC_ARG) {
                 ret = 0;
-                if (ret == 0){
-                    ret = wc_HashGetFlags(&hash, notSupported[j], &flags);
-                    if (ret == BAD_FUNC_ARG) {
-                        ret = 0;
-                    }
-                }
             }
         }
         if (ret == 0) {
             ret = wc_HashFree(&hash, notSupported[j]);
-            if (ret ==  BAD_FUNC_ARG) {
+            if (ret == 0) {
+                ret = -1;
+            }
+            if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             }
         }
@@ -36550,6 +36582,9 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 #endif /* HAVE_ECC */
+
+    (void)type;
+
     printf(resultFmt, passed);
 #endif /* OPENSSL_ALL */
 }
@@ -42890,6 +42925,7 @@ static int test_wolfSSL_THREADID_hash(void)
     AssertTrue(1);
     res = CRYPTO_THREADID_hash(NULL);
     AssertTrue( res == 0UL);
+    XMEMSET(&id, 0, sizeof(id));
     res = CRYPTO_THREADID_hash(&id);
     AssertTrue( res == 0UL);
     printf(resultFmt, passed);
@@ -42917,6 +42953,8 @@ static void test_wolfSSL_CTX_get_min_proto_version(void)
 {
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     WOLFSSL_CTX *ctx;
+
+    (void)ctx;
 
     printf(testingFmt, "wolfSSL_CTX_get_min_proto_version()");
 
@@ -43027,6 +43065,9 @@ static void test_wolfSSL_SSL_in_init(void)
 #elif defined(HAVE_ECC)
         testCertFile = eccCertFile;
         testKeyFile = eccKeyFile;
+#else
+        testCertFile = NULL;
+        testKeyFile = NULL;
 #endif
         if  (testCertFile != NULL && testKeyFile != NULL) {
             AssertTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,
@@ -43208,6 +43249,9 @@ static void test_wolfSSL_set_psk_use_session_callback(void)
 #elif defined(HAVE_ECC)
         testCertFile = eccCertFile;
         testKeyFile = eccKeyFile;
+#else
+        testCertFile = NULL;
+        testKeyFile = NULL;
 #endif
         if  (testCertFile != NULL && testKeyFile != NULL) {
             AssertTrue(SSL_CTX_use_certificate_file(ctx, testCertFile,

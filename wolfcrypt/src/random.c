@@ -363,10 +363,8 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
     #endif
         if (ret != 0)
             break;
-
-        if (ret == 0)
 #endif
-            ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
+        ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
         if (ret == 0) {
             ctr++;
             ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));

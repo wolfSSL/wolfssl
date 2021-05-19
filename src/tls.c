@@ -5135,8 +5135,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                 WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
-            } else if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) {
+            } else if (ret == WOLFSSL_TICKET_RET_FATAL) {
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
+            } else if (ret < 0) {
+                WOLFSSL_MSG("Process client ticket unknown error, not using");
             }
         }
     }
@@ -10241,6 +10243,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     qsh = next;
                 }
             }
+        }
+        if (ret != 0) {
+            return ret;
         }
 #endif
 
