@@ -421,6 +421,7 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     #endif
 
         default:
+            ret = HASH_TYPE_E;
             break;
     }
     if (ret != 0)
@@ -435,9 +436,16 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     if (includeMsgs)
         hashOutSz = hashSz;
 
+    /* myBuffer may not initialized fully, but the sending length will be */
+#if defined(__GNUC__) && __GNUC__ > 5
+    _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
+#endif
     return HKDF_Expand_Label(output, outputLen, secret, hashSz,
                              protocol, protocolLen, label, labelLen,
                              hash, hashOutSz, digestAlg);
+#if defined(__GNUC__) && __GNUC__ > 5
+    _Pragma("GCC diagnostic pop");
+#endif
 }
 
 #ifndef NO_PSK
