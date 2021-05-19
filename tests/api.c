@@ -4595,8 +4595,8 @@ static void test_wolfSSL_CTX_verifyDepth_ServerClient(void)
         client_args.argc = -1;
         test_client_verifyDepth(&client_args);
         join_thread(serverThread);
-        AssertIntEQ(client_args.return_code, TEST_FAIL);
-        AssertIntEQ(server_args.return_code, TEST_FAIL);
+        AssertIntEQ(client_args.return_code, TEST_SUCCESS);
+        AssertIntEQ(server_args.return_code, TEST_SUCCESS);
     }
     
     FreeTcpReady(&ready);
