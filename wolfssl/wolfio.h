@@ -287,8 +287,7 @@
 
 #ifdef DEVKITPRO
     /* from network.h */
-    int net_send(int, const void*, int, unsigned int);
-    int net_recv(int, void*, int, unsigned int);
+    #include <network.h>
     #define SEND_FUNCTION net_send
     #define RECV_FUNCTION net_recv
 #elif defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)

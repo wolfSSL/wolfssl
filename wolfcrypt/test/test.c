@@ -332,6 +332,10 @@ _Pragma("GCC diagnostic ignored \"-Wunused-function\"");
     #include "libntruencrypt/ntru_crypto.h"
 #endif
 
+#ifdef DEVKITPRO
+    #include <wiiuse/wpad.h>
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
 #else
@@ -1463,6 +1467,26 @@ initDefaultName();
         tz.tz_dsttime = 0;
         os_settimeofday(&utctime, &tz);
 #endif
+#ifdef DEVKITPRO
+        void *framebuffer;
+        GXRModeObj *rmode = NULL;
+
+        VIDEO_Init();
+        WPAD_Init();
+
+        rmode = VIDEO_GetPreferredMode(NULL);
+#pragma GCC diagnostic ignored "-Wbad-function-cast"
+        framebuffer = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+#pragma GCC diagnostic pop
+        console_init(framebuffer,20,20,rmode->fbWidth,rmode->xfbHeight,rmode->fbWidth*VI_DISPLAY_PIX_SZ);
+
+        VIDEO_Configure(rmode);
+        VIDEO_SetNextFramebuffer(framebuffer);
+        VIDEO_SetBlack(FALSE);
+        VIDEO_Flush();
+        VIDEO_WaitVSync();
+        if(rmode->viTVMode&VI_NON_INTERLACE) VIDEO_WaitVSync();
+#endif
 
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
@@ -1494,7 +1518,15 @@ initDefaultName();
         if (wc_FreeNetRandom() < 0)
             err_sys("Failed to free netRandom context", -1005);
 #endif /* HAVE_WNR */
+#ifdef DOLPHIN_EMULATOR
+        /* Returning from main panics the emulator. Just hang
+         * and let the user force quit the emulator window. */
+        printf("args.return_code: %d\n", args.return_code);
+        printf("Testing complete. You may close the window now\n");
+        while (1);
+#endif
 #ifndef WOLFSSL_ESPIDF
+        printf("Exiting main with return code: %d\n", args.return_code);
         return args.return_code;
 #endif
     }

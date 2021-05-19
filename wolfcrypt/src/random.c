@@ -814,7 +814,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
             }
 
             if (ret == DRBG_SUCCESS)
-	      ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
+                ret = Hash_DRBG_Instantiate((DRBG_internal *)rng->drbg,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
 
@@ -2580,6 +2580,18 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     srand(get_timestamp());
                 }
             }
+            return 0;
+        }
+
+#elif defined(DOLPHIN_EMULATOR)
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            word32 i;
+            (void)os;
+            srand(time(NULL));
+            for (i = 0; i < sz; i++)
+                output[i] = (byte)rand();
             return 0;
         }
 
