@@ -11398,6 +11398,10 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
+            if (ret == 0) {
+                pkcs7->contentOID = contentType;
+            }
+
             if (ret == 0 && GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType,
                         pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
