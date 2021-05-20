@@ -878,6 +878,9 @@ WOLFSSL_ABI WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
+int wolfSSL_tls_import(WOLFSSL* ssl, const unsigned char* buf, unsigned int sz);
+int wolfSSL_tls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz);
+
 #ifdef WOLFSSL_DTLS
 
 #ifndef WOLFSSL_DTLS_EXPORT_TYPES

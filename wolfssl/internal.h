@@ -1323,23 +1323,29 @@ enum Misc {
     DTLS_POOL_SZ             = 255,/* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
-    DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
+    TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
     DTLS_EXPORT_OPT_SZ       = 61, /* amount of bytes used from Options */
-    DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 85 + (DTLS_SEQ_SZ * 2),
                                    /* min amount of bytes used from Keys */
-    DTLS_EXPORT_SPC_SZ       = 16, /* amount of bytes used from CipherSpecs */
-    DTLS_EXPORT_LEN          = 2,  /* 2 bytes for length and protocol */
+    WOLFSSL_EXPORT_TLS       = 1,
+    WOLFSSL_EXPORT_DTLS      = 0,
+    WOLFSSL_EXPORT_SPC_SZ    = 16, /* amount of bytes used from CipherSpecs */
+    WOLFSSL_EXPORT_LEN       = 2,  /* 2 bytes for length and protocol */
+    WOLFSSL_EXPORT_VERSION   = 4,  /* wolfSSL version for serialized session */
+
+    /* older export versions supported */
+    WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
+
     DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
     DTLS_MTU_ADDITIONAL_READ_BUFFER = WOLFSSL_DTLS_MTU_ADDITIONAL_READ_BUFFER,
                                    /* Additional bytes to read so that
                                     * we can work with a peer that has
                                     * a slightly different MTU than us. */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
-    MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * DTLS_EXPORT_LEN),
+    MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * WOLFSSL_EXPORT_LEN),
                                     /* max size of buffer for exporting state */
     FINISHED_LABEL_SZ   = 15,  /* TLS finished label size */
     TLS_FINISHED_SZ     = 12,  /* TLS has a shorter size  */
@@ -1654,17 +1660,19 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1(void);
     WOLFSSL_LOCAL ProtocolVersion MakeDTLSv1_2(void);
 
-    #ifdef WOLFSSL_SESSION_EXPORT
-    WOLFSSL_LOCAL int wolfSSL_dtls_import_internal(WOLFSSL* ssl, const byte* buf,
-                                                                     word32 sz);
-    WOLFSSL_LOCAL int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf,
-                                                                     word32 sz);
+#endif
+#ifdef WOLFSSL_SESSION_EXPORT
+WOLFSSL_LOCAL int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf,
+        word32* sz, int isTLS);
+WOLFSSL_LOCAL int wolfSSL_session_import_internal(WOLFSSL* ssl, const byte* buf,
+        word32 sz, int isTLS);
+#ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl,
                                                           byte* buf, word32 sz);
     WOLFSSL_LOCAL int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl,
                                                     const byte* buf, word32 sz);
     WOLFSSL_LOCAL int wolfSSL_send_session(WOLFSSL* ssl);
-    #endif
+#endif
 #endif
 
 struct WOLFSSL_BY_DIR_HASH {
