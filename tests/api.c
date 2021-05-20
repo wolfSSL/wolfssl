@@ -2737,11 +2737,12 @@ static void test_wolfSSL_EVP_CIPHER_CTX(void)
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
 
 #ifdef WOLFSSL_SESSION_EXPORT
+#ifdef WOLFSSL_DTLS
 /* set up function for sending session information */
 static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
 {
-    WOLFSSL_CTX* ctx;
-    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL*     ssl = NULL;
 
     AssertNotNull(inSsl);
     AssertNotNull(buf);
@@ -2761,6 +2762,7 @@ static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
     (void)userCtx;
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 /* returns negative value on fail and positive (including 0) on success */
 static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
@@ -3887,7 +3889,8 @@ done:
 
 
 /* SNI / ALPN / session export helper functions */
-#if defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLFSSL_SESSION_EXPORT)
+#if defined(HAVE_SNI) || defined(HAVE_ALPN) ||\
+    (defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS))
 
 static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 {
@@ -3927,7 +3930,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
-#ifdef WOLFSSL_SESSION_EXPORT
+#if defined(WOLFSSL_SESSION_EXPORT) && defined(WOLFSSL_DTLS)
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_dtls_set_export(ctx, test_export));
 #endif
 
@@ -4002,7 +4005,8 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
         }
 
         AssertIntEQ(len, wolfSSL_write(ssl, msg, len));
-#if defined(WOLFSSL_SESSION_EXPORT) && !defined(HAVE_IO_POOL)
+#if defined(WOLFSSL_SESSION_EXPORT) && !defined(HAVE_IO_POOL) && \
+        defined(WOLFSSL_DTLS)
         if (wolfSSL_dtls(ssl)) {
             byte*  import;
             word32 sz;
