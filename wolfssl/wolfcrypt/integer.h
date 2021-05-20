@@ -256,9 +256,6 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 #define mp_prime_random(a, t, size, bbs, cb, dat) \
    mp_prime_random_ex(a, t, ((size) * 8) + 1, (bbs==1)?LTM_PRIME_BBS:0, cb, dat)
 
-#define mp_read_raw(mp, str, len) mp_read_signed_bin((mp), (str), (len))
-#define mp_raw_size(mp)           mp_signed_bin_size(mp)
-#define mp_toraw(mp, str)         mp_to_signed_bin((mp), (str))
 #define mp_read_mag(mp, str, len) mp_read_unsigned_bin((mp), (str), (len))
 #define mp_mag_size(mp)           mp_unsigned_bin_size(mp)
 #define mp_tomag(mp, str)         mp_to_unsigned_bin((mp), (str))
