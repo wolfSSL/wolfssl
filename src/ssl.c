@@ -12005,6 +12005,15 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
         
         head = locallist;
         
+        if (!onlytlsv13suites)
+        {
+            /* always tls13 suites in the head position */
+            XSTRNCPY(locallist, list, len);
+            locallist += listsz;
+            *locallist = 0;
+            len -= listsz;
+        }
+        
         for(idx = 0; idx < suites->suiteSz; idx++) {
             cipherSuite0 = suites->suites[idx];
             cipherSuite  = suites->suites[++idx];
@@ -12030,9 +12039,12 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
                 return NULL;
             }
         }
-        XSTRNCPY(locallist, list, len);
-        locallist += listsz;
-        *locallist = 0;
+        
+        if (onlytlsv13suites) {
+            XSTRNCPY(locallist, list, len);
+            locallist += listsz;
+            *locallist = 0;
+        }
         
         return head;
     } else 
@@ -12079,8 +12091,8 @@ static int CheckcipherList(const char* list)
         }
         
         if (findTLSv13Suites == 1 && findbeforeSuites == 1)
-         /* list has mixed suites */
-         return 0;
+            /* list has mixed suites */
+            return 0;
     }  while (next++); /* ++ needed to skip ':' */
     
     if (findTLSv13Suites == 0 && findbeforeSuites == 1)
