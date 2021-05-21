@@ -2228,6 +2228,7 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
                 WOLFSSL_MSG("EVP_PKEY_DSA not yet implemented");
                 return WOLFSSL_FAILURE;
         #endif
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(WOLFSSL_OPENSSH)
         #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
             case EVP_PKEY_DH:
                 dh_key = wolfSSL_EVP_PKEY_get1_DH(ctx->pkey);
@@ -2238,6 +2239,7 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
                 else
                     ret = WOLFSSL_FAILURE;
             return ret;
+        #endif
         #endif
         default:
             WOLFSSL_MSG("Unknown PKEY type");
