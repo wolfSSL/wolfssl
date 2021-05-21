@@ -756,11 +756,14 @@ static void test_for_double_Free(void)
         AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
         AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
         AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, optionsCiphers));
-#ifdef WOLFSSL_TLS13
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(HAVE_AESGCM) && \
+        defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
         /* only update TLSv13 suites */
         AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, "TLS13-AES256-GCM-SHA384"));
 #endif
-#ifndef WOLFSSL_NO_TLS12
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_AES_128) && !defined(NO_RSA)
         /* only update pre-TLSv13 suites */
         AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-GCM-SHA256"));
 #endif
@@ -781,11 +784,14 @@ static void test_for_double_Free(void)
         AssertNotNull(ssl);
         /* test setting ciphers at SSL level */
         AssertTrue(wolfSSL_set_cipher_list(ssl, optionsCiphers));
-#ifdef WOLFSSL_TLS13
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13) && defined(HAVE_AESGCM) && \
+        defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
         /* only update TLSv13 suites */
         AssertTrue(wolfSSL_set_cipher_list(ssl, "TLS13-AES256-GCM-SHA384"));
 #endif
-#ifndef WOLFSSL_NO_TLS12
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(HAVE_AESGCM) && \
+    !defined(NO_SHA256) && !defined(WOLFSSL_NO_TLS12) && \
+    defined(WOLFSSL_AES_128) && !defined(NO_RSA)
         /* only update pre-TLSv13 suites */
         AssertTrue(wolfSSL_set_cipher_list(ssl, "ECDHE-RSA-AES128-GCM-SHA256"));
 #endif

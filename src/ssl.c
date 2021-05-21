@@ -11954,10 +11954,10 @@ static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
 static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
            int onlytlsv13suites, const char* list)
 {
-    int idx = 0;
-    int listsz = 0;
-    int len = 0;
-    int ianasz = 0;
+    word32 idx = 0;
+    word32 listsz = 0;
+    word32 len = 0;
+    word32 ianasz = 0;
     const char* enabledcs = NULL;
     char* locallist = NULL;
     char* head = NULL;
@@ -11971,7 +11971,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
     if (!suites->setSuites)
         return NULL;
     
-    listsz = XSTRLEN(list);
+    listsz = (word32)XSTRLEN(list);
     
     /* calculate necessary buffer length */
     for(idx = 0; idx < suites->suiteSz; idx++) {
@@ -11987,7 +11987,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
             continue;
         
         if (XSTRNCMP(enabledcs, "None", XSTRLEN(enabledcs)) != 0) {
-            len += XSTRLEN(enabledcs) + 2;
+            len += (word32)XSTRLEN(enabledcs) + 2;
         }
     }
     
@@ -12035,7 +12035,7 @@ static char* buildEnabledCipherList(WOLFSSL_CTX* ctx, Suites* suites,
                 len -= ianasz + 1;
             }
             else{
-                XFREE(locallist, ctx-heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(locallist, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }
         }
