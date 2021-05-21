@@ -2570,8 +2570,13 @@ static void test_EC_i2d(void)
 
     tmp = buf;
     AssertNotNull(d2i_ECPrivateKey(&copy, &tmp, len));
-
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    AssertIntGT((len = i2o_ECPublicKey(key, &buf)), 0);
+    AssertNotNull(o2i_ECPublicKey(&copy, (const unsigned char **)&buf, len));
+    AssertIntEQ(EC_KEY_check_key(key), 1);
+
     EC_KEY_free(key);
     EC_KEY_free(copy);
 #endif /* HAVE_ECC */
@@ -29123,6 +29128,8 @@ static void test_wolfSSL_EVP_MD_size(void)
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA256"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA256_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA256_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA256_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA256_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
@@ -29132,6 +29139,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_MD5_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_MD5_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_MD5_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_MD5_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29142,6 +29151,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA224"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA224_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA224_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA224_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA224_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29152,6 +29163,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA384"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA384_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA384_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA384_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA384_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29162,6 +29175,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA512"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA512_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA512_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA512_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA512_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29172,6 +29187,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29179,6 +29196,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA1"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -29189,7 +29208,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), BAD_FUNC_ARG);
-    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
+    /* Cleanup is valid on uninit'ed struct */
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
     printf(resultFmt, passed);
 
@@ -34079,6 +34099,7 @@ static void test_openssl_hmac(const WOLFSSL_EVP_MD* md, int md_len)
     AssertIntEQ(HMAC_Final(hmac, hash, &len), SSL_SUCCESS);
     AssertIntEQ(len, md_len);
     AssertIntEQ(HMAC_size(hmac), md_len);
+    AssertStrEQ(HMAC_CTX_get_md(hmac), md);
 
     HMAC_cleanup(hmac);
     HMAC_CTX_free(hmac);
@@ -35676,6 +35697,11 @@ static void test_wolfSSL_RSA(void)
     const BIGNUM *n;
     const BIGNUM *e;
     const BIGNUM *d;
+    const BIGNUM *p;
+    const BIGNUM *q;
+    const BIGNUM *dmp1;
+    const BIGNUM *dmq1;
+    const BIGNUM *iqmp;
 
     printf(testingFmt, "wolfSSL_RSA()");
 
@@ -35685,6 +35711,7 @@ static void test_wolfSSL_RSA(void)
     /* sanity check */
     AssertIntEQ(RSA_bits(NULL), 0);
     
+    /* key */
     AssertIntEQ(RSA_bits(rsa), 2048);
     RSA_get0_key(rsa, &n, &e, &d);
     AssertPtrEq(rsa->n, n);
@@ -35698,6 +35725,29 @@ static void test_wolfSSL_RSA(void)
     AssertPtrEq(rsa->e, e);
     AssertPtrEq(rsa->d, d);
     
+    /* crt_params */
+    RSA_get0_crt_params(rsa, &dmp1, &dmq1, &iqmp);
+    AssertPtrEq(rsa->dmp1, dmp1);
+    AssertPtrEq(rsa->dmq1, dmq1);
+    AssertPtrEq(rsa->iqmp, iqmp);
+    AssertNotNull(dmp1 = BN_new());
+    AssertNotNull(dmq1 = BN_new());
+    AssertNotNull(iqmp = BN_new());
+    AssertIntEQ(RSA_set0_crt_params(rsa, (BIGNUM*)dmp1, (BIGNUM*)dmq1, (BIGNUM*)iqmp), 1);
+    AssertPtrEq(rsa->dmp1, dmp1);
+    AssertPtrEq(rsa->dmq1, dmq1);
+    AssertPtrEq(rsa->iqmp, iqmp);
+
+    /* factors */
+    RSA_get0_factors(rsa, &p, &q);
+    AssertPtrEq(rsa->p, p);
+    AssertPtrEq(rsa->q, q);
+    AssertNotNull(p = BN_new());
+    AssertNotNull(q = BN_new());
+    AssertIntEQ(RSA_set0_factors(rsa, (BIGNUM*)p, (BIGNUM*)q), 1);
+    AssertPtrEq(rsa->p, p);
+    AssertPtrEq(rsa->q, q);
+
     AssertIntEQ(BN_hex2bn(&rsa->n, "1FFFFF"), 1);
     AssertIntEQ(RSA_bits(rsa), 21);
     RSA_free(rsa);
@@ -35901,6 +35951,7 @@ static void test_wolfSSL_RSA_meth(void)
     AssertPtrEq(RSA_get_method(rsa), rsa_meth);
     AssertIntEQ(RSA_flags(rsa), RSA_METHOD_FLAG_NO_CHECK);
     RSA_set_flags(rsa, RSA_FLAG_CACHE_PUBLIC);
+    AssertIntNE(RSA_test_flags(rsa, RSA_FLAG_CACHE_PUBLIC), 0);
     AssertIntEQ(RSA_flags(rsa), RSA_FLAG_CACHE_PUBLIC);
 
     /* rsa_meth is freed here */
@@ -37990,7 +38041,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
     /* Valid cases */
     AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    AssertIntEQ(wc_ecc_check_key((ecc_key*)dupKey->internal), 0);
+    AssertIntEQ(EC_KEY_check_key(dupKey), 1);
 
     /* Compare pubkey */
     srcKey = (ecc_key*)ecKey->internal;
@@ -39218,7 +39269,7 @@ static void test_wolfSSL_EVP_DigestFinal_ex(void)
 
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     AssertIntEQ(wolfSSL_EVP_DigestFinal_ex(&mdCtx, md, &s), 0);
-    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
 #else
 
@@ -45815,17 +45866,21 @@ static void test_wolfSSL_set_psk_use_session_callback(void)
 #endif
 }
 
-static void test_wolfSSL_DH_get0_pqg(void)
+static void test_wolfSSL_DH(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_DH)
     DH *dh = NULL;
     BIGNUM* p;
     BIGNUM* q;
     BIGNUM* g;
+    BIGNUM* pub;
+    BIGNUM* priv;
     (void)dh;
     (void)p;
     (void)q;
     (void)g;
+    (void)pub;
+    (void)priv;
 
 #if defined(OPENSSL_ALL)
 #if !defined(HAVE_FIPS) || \
@@ -45852,14 +45907,22 @@ static void test_wolfSSL_DH_get0_pqg(void)
     DH_get0_pqg(dh, (const BIGNUM**)&p,
                     (const BIGNUM**)&q,
                     (const BIGNUM**) &g);
-
     AssertPtrEq(p, dh->p);
     AssertPtrEq(q, dh->q);
     AssertPtrEq(g, dh->g);
+    DH_get0_key(dh, (const BIGNUM**)&pub, (const BIGNUM**)&priv);
+    AssertPtrEq(pub, dh->pub_key);
+    AssertPtrEq(priv, dh->priv_key);
+    AssertNotNull(pub = BN_new());
+    AssertNotNull(priv = BN_new());
+    AssertIntEQ(DH_set0_key(dh, pub, priv), 1);
+    AssertPtrEq(pub, dh->pub_key);
+    AssertPtrEq(priv, dh->priv_key);
+
     DH_free(dh);
 #endif
 #endif
-    printf(testingFmt, "test_wolfSSL_DH_get0_pqg");
+    printf(testingFmt, "test_wolfSSL_DH");
 
     dh =  wolfSSL_DH_new();
     AssertNotNull(dh);
@@ -45982,7 +46045,6 @@ void ApiTest(void)
     test_SetTmpEC_DHE_Sz();
     test_wolfSSL_CTX_get0_privatekey();
     test_wolfSSL_dtls_set_mtu();
-    test_wolfSSL_DH_get0_pqg();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
     test_wolfSSL_read_write();
@@ -46417,7 +46479,7 @@ void ApiTest(void)
     test_CONF_CTX_FILE();
     test_CONF_CTX_CMDLINE();
     test_wolfSSL_CRYPTO_get_ex_new_index();
-    test_wolfSSL_DH_get0_pqg();
+    test_wolfSSL_DH();
     
     /*wolfcrypt */
     printf("\n-----------------wolfcrypt unit tests------------------\n");

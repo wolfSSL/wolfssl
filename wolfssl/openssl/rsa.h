@@ -144,12 +144,22 @@ WOLFSSL_API int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *met
 WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa);
 WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_default_method(void);
 
+WOLFSSL_API void wolfSSL_RSA_get0_crt_params(const WOLFSSL_RSA *r,
+                                             const WOLFSSL_BIGNUM **dmp1,
+                                             const WOLFSSL_BIGNUM **dmq1,
+                                             const WOLFSSL_BIGNUM **iqmp);
+WOLFSSL_API int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *dmp1,
+                                            WOLFSSL_BIGNUM *dmq1, WOLFSSL_BIGNUM *iqmp);
+WOLFSSL_API void wolfSSL_RSA_get0_factors(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **p,
+                                          const WOLFSSL_BIGNUM **q);
+WOLFSSL_API int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *p, WOLFSSL_BIGNUM *q);
 WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
                                       const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
 WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
+WOLFSSL_API int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *r, int flags);
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
 
@@ -194,10 +204,15 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #define RSA_get_default_method  wolfSSL_RSA_get_default_method
 #define RSA_get_method          wolfSSL_RSA_get_method
 #define RSA_set_method          wolfSSL_RSA_set_method
+#define RSA_get0_crt_params     wolfSSL_RSA_get0_crt_params
+#define RSA_set0_crt_params     wolfSSL_RSA_set0_crt_params
+#define RSA_get0_factors        wolfSSL_RSA_get0_factors
+#define RSA_set0_factors        wolfSSL_RSA_set0_factors
 #define RSA_get0_key            wolfSSL_RSA_get0_key
 #define RSA_set0_key            wolfSSL_RSA_set0_key
 #define RSA_flags               wolfSSL_RSA_flags
 #define RSA_set_flags           wolfSSL_RSA_set_flags
+#define RSA_test_flags          wolfSSL_RSA_test_flags
 
 #define RSAPublicKey_dup        wolfSSL_RSAPublicKey_dup
 #define RSA_get_ex_data        wolfSSL_RSA_get_ex_data

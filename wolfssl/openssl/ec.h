@@ -157,6 +157,9 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_EC_POINT *p, const unsigned char *buf,
                                size_t len, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_o2i_ECPublicKey(WOLFSSL_EC_KEY **a, const unsigned char **in,
+                                        long len);
+WOLFSSL_API
 int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned char **in,
@@ -207,6 +210,7 @@ void wolfSSL_EC_KEY_set_asn1_flag(WOLFSSL_EC_KEY *key, int asn1_flag);
 WOLFSSL_API
 int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
                                   const WOLFSSL_EC_POINT *pub);
+WOLFSSL_API int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
                                    int digestSz, unsigned char *sig,
@@ -299,6 +303,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_KEY_generate_key             wolfSSL_EC_KEY_generate_key
 #define EC_KEY_set_asn1_flag            wolfSSL_EC_KEY_set_asn1_flag
 #define EC_KEY_set_public_key           wolfSSL_EC_KEY_set_public_key
+#define EC_KEY_check_key                wolfSSL_EC_KEY_check_key
 
 #define ECDSA_size                      wolfSSL_ECDSA_size
 #define ECDSA_sign                      wolfSSL_ECDSA_sign
@@ -341,6 +346,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_POINT_oct2point              wolfSSL_EC_POINT_oct2point
 #define EC_POINT_point2bn               wolfSSL_EC_POINT_point2bn
 #define EC_POINT_is_on_curve            wolfSSL_EC_POINT_is_on_curve
+#define o2i_ECPublicKey                 wolfSSL_o2i_ECPublicKey
 #define i2o_ECPublicKey                 wolfSSL_i2o_ECPublicKey
 #define i2d_EC_PUBKEY                   wolfSSL_i2o_ECPublicKey
 #define d2i_ECPrivateKey                wolfSSL_d2i_ECPrivateKey
