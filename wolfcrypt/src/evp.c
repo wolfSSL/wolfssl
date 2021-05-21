@@ -2354,6 +2354,18 @@ static enum wc_HashType wolfSSL_EVP_md2macType(const WOLFSSL_EVP_MD *md)
     return WC_HASH_TYPE_NONE;
 }
 
+static const WOLFSSL_EVP_MD* wolfSSL_macType2EVP_md(enum wc_HashType type)
+{
+    const struct s_ent *ent ;
+
+    for( ent = md_tbl; ent->name != NULL; ent++) {
+        if(ent->macType == type) {
+            return ent->name;
+        }
+    }
+    return NULL;
+}
+
 /* Finalize structure for signing
  *
  * ctx    WOLFSSL_EVP_MD_CTX structure to finalize
@@ -4212,6 +4224,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             #endif
                     break;
                 case WC_HASH_TYPE_NONE:
+                    /* Not an error since an unused struct could be free'd or
+                     * reset. */
+                    break;
                 case WC_HASH_TYPE_MD2:
                 case WC_HASH_TYPE_MD4:
                 case WC_HASH_TYPE_MD5_SHA:

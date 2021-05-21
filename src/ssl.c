@@ -33002,7 +33002,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 /* return code compliant with OpenSSL :
  *   size of shared secret if success, -1 if error
  */
-int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
+int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
                           WOLFSSL_DH* dh)
 {
     int            ret    = WOLFSSL_FATAL_ERROR;
@@ -34196,6 +34196,101 @@ cleanup:
     return ret;
 }
 
+void wolfSSL_RSA_get0_crt_params(const WOLFSSL_RSA *r,
+        const WOLFSSL_BIGNUM **dmp1, const WOLFSSL_BIGNUM **dmq1,
+        const WOLFSSL_BIGNUM **iqmp)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_get0_crt_params");
+
+    if (r != NULL) {
+        if (dmp1 != NULL)
+            *dmp1 = r->dmp1;
+        if (dmq1 != NULL)
+            *dmq1 = r->dmq1;
+        if (iqmp != NULL)
+            *iqmp = r->iqmp;
+    } else {
+        if (dmp1 != NULL)
+            *dmp1 = NULL;
+        if (dmq1 != NULL)
+            *dmq1 = NULL;
+        if (iqmp != NULL)
+            *iqmp = NULL;
+    }
+}
+
+int wolfSSL_RSA_set0_crt_params(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *dmp1,
+                                WOLFSSL_BIGNUM *dmq1, WOLFSSL_BIGNUM *iqmp)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_set0_crt_params");
+
+    /* If a param is null in r then it must be non-null in the
+     * corresponding user input. */
+    if (r == NULL || (r->dmp1 == NULL && dmp1 == NULL) ||
+            (r->dmq1 == NULL && dmq1 == NULL) ||
+            (r->iqmp == NULL && iqmp == NULL)) {
+        WOLFSSL_MSG("Bad parameters");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (dmp1 != NULL) {
+        wolfSSL_BN_clear_free(r->dmp1);
+        r->dmp1 = dmp1;
+    }
+    if (dmq1 != NULL) {
+        wolfSSL_BN_clear_free(r->dmq1);
+        r->dmq1 = dmq1;
+    }
+    if (iqmp != NULL) {
+        wolfSSL_BN_clear_free(r->iqmp);
+        r->iqmp = iqmp;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_RSA_get0_factors(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **p,
+                              const WOLFSSL_BIGNUM **q)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_get0_factors");
+
+    if (r != NULL) {
+        if (p != NULL)
+            *p = r->p;
+        if (q != NULL)
+            *q = r->q;
+    } else {
+        if (p != NULL)
+            *p = NULL;
+        if (q != NULL)
+            *q = NULL;
+    }
+}
+
+int wolfSSL_RSA_set0_factors(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *p, WOLFSSL_BIGNUM *q)
+{
+    WOLFSSL_ENTER("wolfSSL_RSA_set0_factors");
+
+    /* If a param is null in r then it must be non-null in the
+     * corresponding user input. */
+    if (r == NULL || (r->p == NULL && p == NULL) ||
+            (r->q == NULL && q == NULL)) {
+        WOLFSSL_MSG("Bad parameters");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (p != NULL) {
+        wolfSSL_BN_clear_free(r->p);
+        r->p = p;
+    }
+    if (q != NULL) {
+        wolfSSL_BN_clear_free(r->q);
+        r->q = q;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
 void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
     const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d)
 {
@@ -34803,6 +34898,15 @@ size_t wolfSSL_HMAC_size(const WOLFSSL_HMAC_CTX *ctx)
     }
 
     return (size_t)wc_HashGetDigestSize((enum wc_HashType)ctx->hmac.macType);
+}
+
+const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX *ctx)
+{
+    if (!ctx) {
+        return NULL;
+    }
+
+    return wolfSSL_macType2EVP_md(ctx->type);
 }
 
 #ifndef NO_DES3
@@ -36409,6 +36513,26 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 
     return WOLFSSL_SUCCESS;
 }
+
+int wolfSSL_EC_KEY_check_key(const WOLFSSL_EC_KEY *key)
+{
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_check_key");
+
+    if (key == NULL || key->internal == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (key->inSet == 0) {
+        if (SetECKeyInternal((WOLFSSL_EC_KEY*)key) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("SetECKeyInternal failed");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    return wc_ecc_check_key((ecc_key*)key->internal) == 0 ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
 /* End EC_KEY */
 
 int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key)
@@ -37052,6 +37176,31 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
     (void)ctx;
 
     return wolfSSL_ECPoint_d2i((unsigned char*)buf, (unsigned int)len, group, p);
+}
+
+
+WOLFSSL_EC_KEY *wolfSSL_o2i_ECPublicKey(WOLFSSL_EC_KEY **a, const unsigned char **in,
+                                        long len)
+{
+    WOLFSSL_EC_KEY* ret;
+
+    WOLFSSL_ENTER("wolfSSL_o2i_ECPublicKey");
+
+    if (!a || !*a || !(*a)->group || !in || !*in || len <= 0) {
+        WOLFSSL_MSG("wolfSSL_o2i_ECPublicKey Bad arguments");
+        return NULL;
+    }
+
+    ret = *a;
+
+    if (wolfSSL_EC_POINT_oct2point(ret->group, ret->pub_key, *in, len, NULL)
+            != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_oct2point error");
+        return NULL;
+    }
+
+    *in += len;
+    return ret;
 }
 
 int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
@@ -39921,6 +40070,11 @@ void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags)
     if (r && r->meth) {
         r->meth->flags = flags;
     }
+}
+
+int wolfSSL_RSA_test_flags(const WOLFSSL_RSA *r, int flags)
+{
+    return r ? r->meth->flags & flags : 0;
 }
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
@@ -45718,35 +45872,83 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
 }
 
 
-#ifndef NO_WOLFSSL_STUB
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+
+void wolfSSL_CRYPTO_cleanup_all_ex_data(void){
+    WOLFSSL_ENTER("CRYPTO_cleanup_all_ex_data");
+}
+
+
 WOLFSSL_DH *wolfSSL_DH_generate_parameters(int prime_len, int generator,
                            void (*callback) (int, int, void *), void *cb_arg)
 {
-    (void)prime_len;
-    (void)generator;
+    WOLFSSL_DH* dh;
+
+    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters");
     (void)callback;
     (void)cb_arg;
-    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters");
-    WOLFSSL_STUB("DH_generate_parameters");
 
-    return NULL;
+    if ((dh = wolfSSL_DH_new()) == NULL) {
+        WOLFSSL_MSG("wolfSSL_DH_new error");
+        return NULL;
+    }
+
+    if (wolfSSL_DH_generate_parameters_ex(dh, prime_len, generator, NULL)
+            != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_DH_generate_parameters_ex error");
+        wolfSSL_DH_free(dh);
+        return NULL;
+    }
+
+    return dh;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_DH_generate_parameters_ex(WOLFSSL_DH* dh, int prime_len, int generator,
                            void (*callback) (int, int, void *))
 {
-    (void)prime_len;
-    (void)generator;
-    (void)callback;
-    (void)dh;
-    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters_ex");
-    WOLFSSL_STUB("DH_generate_parameters_ex");
+    DhKey* key;
 
-    return -1;
+    WOLFSSL_ENTER("wolfSSL_DH_generate_parameters_ex");
+    (void)callback;
+
+    if (dh == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (initGlobalRNG == 0 && wolfSSL_RAND_Init() != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("No RNG to use");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (dh->inSet == 0) {
+        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    key = (DhKey*)dh->internal;
+    if (mp_set_int(&key->g, generator) != MP_OKAY) {
+        WOLFSSL_MSG("Unable to set generator");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wc_DhGenerateParams(&globalRNG, prime_len, key) != 0) {
+        WOLFSSL_MSG("wc_DhGenerateParams error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (SetDhExternal(dh) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetDhExternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
 }
-#endif
 
 void wolfSSL_ERR_load_crypto_strings(void)
 {
@@ -55131,11 +55333,45 @@ WOLFSSL_STRING *wolfSSL_TXT_DB_get_by_index(WOLFSSL_TXT_DB *db, int idx,
     }
     return (WOLFSSL_STRING*) wolfSSL_lh_retrieve(db->data, value);
 }
-#endif
 
 /*******************************************************************************
  * END OF TXT_DB API
  ******************************************************************************/
+
+void wolfSSL_DH_get0_key(const WOLFSSL_DH *dh,
+        const WOLFSSL_BIGNUM **pub_key, const WOLFSSL_BIGNUM **priv_key)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_get0_key");
+
+    if (dh != NULL) {
+        if (pub_key != NULL)
+            *pub_key = dh->pub_key;
+        if (priv_key != NULL)
+            *priv_key = dh->priv_key;
+    }
+}
+
+int wolfSSL_DH_set0_key(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *pub_key,
+        WOLFSSL_BIGNUM *priv_key)
+{
+    WOLFSSL_ENTER("wolfSSL_DH_set0_key");
+
+    if (dh == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (pub_key != NULL) {
+        wolfSSL_BN_free(dh->pub_key);
+        dh->pub_key = pub_key;
+    }
+
+    if (priv_key != NULL) {
+        wolfSSL_BN_free(dh->priv_key);
+        dh->priv_key = priv_key;
+    }
+
+    return SetDhInternal(dh);
+}
+#endif
 
 #ifndef NO_CERTS
 
