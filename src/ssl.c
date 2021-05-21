@@ -45613,10 +45613,7 @@ end:
 }
 #endif /* !NO_BIO */
 
-#ifndef NO_FILESYSTEM
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
-
+#if defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
 /* Writes the DH parameters in PEM format from "dh" out to the file pointer
  * passed in.
  *
@@ -45699,9 +45696,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
     WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
     return WOLFSSL_SUCCESS;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif /* WOLFSSL_QT || OPENSSL_ALL */
-#endif /* !NO_FILESYSTEM */
+#endif /* WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
 #endif /* !NO_DH */
 
 #ifndef NO_BIO

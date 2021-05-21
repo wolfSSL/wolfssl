@@ -2206,16 +2206,13 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
     int ret;
     WOLFSSL_DH* dh_key = NULL;
     
-    (void)dh_key;
-    
     /* sanity check */
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
     }
     
     type = wolfSSL_EVP_PKEY_type(wolfSSL_EVP_PKEY_base_id(ctx->pkey));
-    
-    switch(type) {
+    switch (type) {
         #if !defined(NO_RSA)
             case EVP_PKEY_RSA:
                 WOLFSSL_MSG("EVP_PKEY_RSA not yet implemented");
@@ -2231,10 +2228,7 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
                 WOLFSSL_MSG("EVP_PKEY_DSA not yet implemented");
                 return WOLFSSL_FAILURE;
         #endif
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
-        #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
-                                        && (HAVE_FIPS_VERSION>2))
+        #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
             case EVP_PKEY_DH:
                 dh_key = wolfSSL_EVP_PKEY_get1_DH(ctx->pkey);
                 if (dh_key != NULL) {
@@ -2245,14 +2239,15 @@ int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx)
                     ret = WOLFSSL_FAILURE;
             return ret;
         #endif
-        #endif
-        #endif
         default:
             WOLFSSL_MSG("Unknown PKEY type");
-            return WOLFSSL_FAILURE;
+            break;
     }
+
     (void)ret;
     (void)DH_param_check;
+    (void)dh_key;
+    return WOLFSSL_FAILURE;
 }
 
 /* Initialize structure for signing
@@ -6325,8 +6320,7 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 #endif /* HAVE_ECC */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
 /* with set1 functions the pkey struct does not own the DH structure
  * Build the following DH Key format from the passed in WOLFSSL_DH
  * then store in WOLFSSL_EVP_PKEY in DER format.
@@ -6405,7 +6399,6 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
 {
@@ -6415,7 +6408,6 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get0_DH(WOLFSSL_EVP_PKEY* key)
     return key->dh;
 }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 {
     WOLFSSL_DH* local = NULL;
@@ -6449,8 +6441,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 
     return local;
 }
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif /* NO_DH && NO_FILESYSTEM */
+#endif /* NO_DH && WOLFSSL_DH_EXTRA && NO_FILESYSTEM */
 
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 {

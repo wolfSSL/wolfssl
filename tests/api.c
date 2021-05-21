@@ -27684,7 +27684,7 @@ static void test_wolfSSL_tmp_dh(void)
     int  bytes;
     DSA* dsa;
     DH*  dh;
-#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+#if defined(WOLFSSL_DH_EXTRA)
     DH*  dh2;
 #endif
     BIO*     bio;
@@ -27715,7 +27715,7 @@ static void test_wolfSSL_tmp_dh(void)
 
     dh = wolfSSL_DSA_dup_DH(dsa);
     AssertNotNull(dh);
-#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+#if defined(WOLFSSL_DH_EXTRA)
     AssertNotNull(dh2 = wolfSSL_DH_dup(dh));
 #endif
 
@@ -27729,7 +27729,7 @@ static void test_wolfSSL_tmp_dh(void)
     BIO_free(bio);
     DSA_free(dsa);
     DH_free(dh);
-#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH))
+#if defined(WOLFSSL_DH_EXTRA)
     DH_free(dh2);
 #endif
     SSL_free(ssl);
@@ -34460,10 +34460,8 @@ static void test_wolfSSL_DH_1536_prime(void)
 
 static void test_wolfSSL_PEM_write_DHparams(void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#if defined(OPENSSL_EXTRA) && !defined(NO_DH) && !defined(NO_FILESYSTEM)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
-#ifndef NO_BIO
+#if defined(OPENSSL_EXTRA) && !defined(NO_BIO) && \
+    !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
     DH* dh;
     BIO* bio;
     XFILE fp;
@@ -34503,9 +34501,6 @@ tgZl96bcAGdru8OpQYP7x/rI4h5+rwA/kwIBAg==\n\
     XFCLOSE(fp);
 
     printf(resultFmt, passed);
-#endif /* !NO_BIO */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif /* OPENSSL_ALL || OPENSSL_QT */
 #endif
 }
 
@@ -36214,8 +36209,8 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
 
 static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
 {
-#if !defined(NO_DH)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
     DH       *dh    = NULL;
     DH       *setDh = NULL;
     EVP_PKEY *pkey  = NULL;
@@ -36258,8 +36253,8 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
     DH_free(setDh);
     DH_free(dh);
     printf(resultFmt, passed);
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
-#endif /* NO_DH */
+#endif /* !NO_DH && WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
+#endif
 } /* END test_EVP_PKEY_set1_get1_DH */
 
 static void test_wolfSSL_CTX_ctrl(void)
@@ -37333,9 +37328,8 @@ static void test_wolfSSL_QT_EVP_PKEY_CTX_free(void)
 static void test_wolfSSL_EVP_PKEY_param_check(void)
 {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#if !defined(NO_DH) && !defined(NO_FILESYSTEM)
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) \
-                                     && (HAVE_FIPS_VERSION>2))
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
+
     DH       *dh    = NULL;
     DH       *setDh = NULL;
     EVP_PKEY *pkey  = NULL;
@@ -37380,7 +37374,6 @@ static void test_wolfSSL_EVP_PKEY_param_check(void)
     DH_free(dh);
     
     printf(resultFmt, passed);
-#endif
 #endif
 #endif
 }
@@ -38375,16 +38368,16 @@ static void test_wolfSSL_OCSP_resp_get0(void)
 
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_DH)
+#if defined(OPENSSL_ALL) && \
+    ((!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC))
     printf(testingFmt, "wolfSSL_EVP_PKEY_derive()");
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
     EVP_PKEY_CTX *ctx;
     unsigned char *skey;
     size_t skeylen;
     EVP_PKEY *pkey, *peerkey;
     const unsigned char* key;
 
-#ifndef NO_DH
+#if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)
     /* DH */
     key = dh_key_der_2048;
     AssertNotNull((pkey = d2i_PrivateKey(EVP_PKEY_DH, NULL, &key,
@@ -38427,7 +38420,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     EVP_PKEY_free(pkey);
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif /* HAVE_ECC */
-#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+
     printf(resultFmt, "passed");
 #endif /* OPENSSL_ALL */
 }
