@@ -36209,7 +36209,8 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
 
 static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(WOLFSSL_OPENSSH)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
 #if !defined(NO_DH) && defined(WOLFSSL_DH_EXTRA) && !defined(NO_FILESYSTEM)
     DH       *dh    = NULL;
     DH       *setDh = NULL;
@@ -36254,7 +36255,8 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
     DH_free(dh);
     printf(resultFmt, passed);
 #endif /* !NO_DH && WOLFSSL_DH_EXTRA && !NO_FILESYSTEM */
-#endif
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH */
 } /* END test_EVP_PKEY_set1_get1_DH */
 
 static void test_wolfSSL_CTX_ctrl(void)
@@ -38368,8 +38370,10 @@ static void test_wolfSSL_OCSP_resp_get0(void)
 
 static void test_wolfSSL_EVP_PKEY_derive(void)
 {
-#if defined(OPENSSL_ALL) && \
-    ((!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC))
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(WOLFSSL_OPENSSH)
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+#if (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA)) || defined(HAVE_ECC)
+
     printf(testingFmt, "wolfSSL_EVP_PKEY_derive()");
     EVP_PKEY_CTX *ctx;
     unsigned char *skey;
@@ -38422,7 +38426,9 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
 #endif /* HAVE_ECC */
 
     printf(resultFmt, "passed");
-#endif /* OPENSSL_ALL */
+#endif /* (!NO_DH && WOLFSSL_DH_EXTRA) || HAVE_ECC */
+#endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+#endif /* OPENSSL_ALL || WOLFSSL_QT || WOLFSSL_OPENSSH */
 }
 
 #ifndef NO_RSA
