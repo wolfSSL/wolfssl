@@ -18791,7 +18791,11 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         }
         ret = DecodeToX509(x509, ssl->session.chain.certs[i].buffer,
                              ssl->session.chain.certs[i].length);
-        if (ret == 0 && i == ssl->session.chain.count-1) {
+        if (ret == 0 && 
+#if defined(WOLFSSL_QT)
+            ssl->options.side == WOLFSSL_CLIENT_END &&
+#endif
+            i == ssl->session.chain.count-1) {
             /* On the last element in the chain try to add the CA chain
              * first if we have one for this cert */
             if (pushCAx509Chain(ssl->ctx->cm, x509, sk)
@@ -18811,6 +18815,13 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
+#if defined(WOLFSSL_QT)
+    else if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* to be compliant with openssl 
+           first element is kept as peer cert on server side.*/
+        wolfSSL_sk_X509_shift(sk);
+    }
+#endif
     /* This is Free'd when ssl is Free'd */
     ssl->peerCertChain = sk;
     return sk;
