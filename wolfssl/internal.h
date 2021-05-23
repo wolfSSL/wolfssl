@@ -1249,7 +1249,7 @@ enum Misc {
                                 /* pre RSA and all master */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
-#ifndef NO_PSK
+#if !defined(NO_PSK) && defined(USE_FAST_MATH)
     ENCRYPT_LEN     = (FP_MAX_BITS / 2 / 8) + MAX_PSK_ID_LEN + 2,
 #else
     ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
