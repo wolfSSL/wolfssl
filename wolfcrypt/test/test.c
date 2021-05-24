@@ -11997,6 +11997,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #if defined(WOLFSSL_DH_EXTRA) && (!defined(HAVE_FIPS) ||                \
             (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
             static const char* dhKeyFile = CERT_ROOT "statickeys/dh-ffdhe2048.der";
+            static const char* dhKeyPubFile = CERT_ROOT "statickeys/dh-ffdhe2048-pub.der";
         #endif
     #endif
     #ifndef NO_DSA
@@ -16657,8 +16658,9 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
         ERROR_OUT(-8120, done);
     }
 
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
+#ifndef NO_ASN
     {
+        /* DH Private - Key Export / Import */
     #ifdef WOLFSSL_SMALL_STACK
         byte *tmp2;
     #else
@@ -16666,19 +16668,19 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     #endif
         XFILE file = XFOPEN(dhKeyFile, "rb");
         if (!file)
-            ERROR_OUT(-8121, done);
+            ERROR_OUT(-8130, done);
         bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
         XFCLOSE(file);
 
     #ifdef WOLFSSL_SMALL_STACK
         tmp2 = (byte*)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp2 == NULL)
-            ERROR_OUT(-8122, done);
+            ERROR_OUT(-8131, done);
     #endif
         idx = 0;
         XMEMSET(tmp2, 0, DH_TEST_TMP_SIZE);
 
-        /* Import DH key as DER */
+        /* Import DH Private key as DER */
         ret = wc_DhKeyDecode(tmp, &idx, key, bytes);
         if (ret == 0) {
             /* Export as DER */
@@ -16688,7 +16690,31 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 
         /* Verify export matches original */
         if (ret <= 0 || bytes != idx || XMEMCMP(tmp, tmp2, bytes) != 0) {
-            ERROR_OUT(-8123, done);
+            ERROR_OUT(-8132, done);
+        }
+
+
+        /* DH Public Key - Export / Import */
+        file = XFOPEN(dhKeyPubFile, "rb");
+        if (!file)
+            ERROR_OUT(-8133, done);
+        bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
+        XFCLOSE(file);
+
+        idx = 0;
+        XMEMSET(tmp2, 0, DH_TEST_TMP_SIZE);
+
+        /* Import DH Public key as DER */
+        ret = wc_DhKeyDecode(tmp, &idx, key, bytes);
+        if (ret == 0) {
+            /* Export as DER */
+            idx = DH_TEST_TMP_SIZE;
+            ret = wc_DhPubKeyToDer(key, tmp2, &idx);
+        }
+
+        /* Verify export matches original */
+        if (ret <= 0 || bytes != idx || XMEMCMP(tmp, tmp2, bytes) != 0) {
+            ERROR_OUT(-8134, done);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -16698,37 +16724,36 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #else
     ret = wc_DhSetKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
     if (ret != 0) {
-        ERROR_OUT(-8123, done);
+        ERROR_OUT(-8121, done);
     }
-#endif
-
+#endif /* !NO_ASN */
 
     privSz = DH_TEST_BUF_SIZE;
     pubSz = DH_TEST_BUF_SIZE;
     ret = wc_DhExportKeyPair(key, priv, &privSz, pub, &pubSz);
     if (ret != 0) {
-        ERROR_OUT(-8124, done);
+        ERROR_OUT(-8122, done);
     }
     ret = wc_DhImportKeyPair(key2, priv, privSz, pub, pubSz);
     if (ret != 0) {
         ERROR_OUT(-8125, done);
     }
-#endif /* WOLFSSL_DH_EXTRA */
+#endif /* WOLFSSL_DH_EXTRA && !NO_FILESYSTEM && !FIPS <= 2 */
 
 #ifndef WC_NO_RNG
     ret = dh_generate_test(&rng);
     if (ret != 0)
-        ERROR_OUT(-8126, done);
+        ERROR_OUT(-8123, done);
 
     ret = dh_fips_generate_test(&rng);
     if (ret != 0)
-        ERROR_OUT(-8127, done);
+        ERROR_OUT(-8124, done);
 #endif /* !WC_NO_RNG */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     ret = dh_test_check_pubvalue();
     if (ret != 0)
-        ERROR_OUT(-8128, done);
+        ERROR_OUT(-8125, done);
 #endif
 
 #ifndef WC_NO_RNG
@@ -16736,17 +16761,17 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     #ifdef HAVE_FFDHE_2048
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe2048_Get());
     if (ret != 0)
-        ERROR_OUT(-8129, done);
+        ERROR_OUT(-8126, done);
     #endif
     #ifdef HAVE_FFDHE_3072
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe3072_Get());
     if (ret != 0)
-        ERROR_OUT(-8130, done);
+        ERROR_OUT(-8127, done);
     #endif
     #ifdef HAVE_FFDHE_4096
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe4096_Get());
     if (ret != 0)
-        ERROR_OUT(-8131, done);
+        ERROR_OUT(-8128, done);
     #endif
 #endif /* !WC_NO_RNG */
 
@@ -16759,7 +16784,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     ret = wc_DhSetCheckKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
                            NULL, 0, 0, &rng);
     if (ret != 0)
-        ERROR_OUT(-8132, done);
+        ERROR_OUT(-8129, done);
     keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
 #endif
 

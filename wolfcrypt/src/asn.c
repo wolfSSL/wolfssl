@@ -4731,11 +4731,10 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
     if (ret == ASN_DH_KEY_E) {
         *inOutIdx = temp;
 
-        /* the version (0) */
-        if (GetASNInt(input, inOutIdx, &length, inSz) < 0) {
-            return ASN_PARSE_E;
+        /* the version (0) - private only (for public skip) */
+        if (GetASNInt(input, inOutIdx, &length, inSz) == 0) {
+            *inOutIdx += length;
         }
-        *inOutIdx += length;
 
         /* Size of dhKeyAgreement section */
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -4796,7 +4795,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 /* Export DH Key (private or public) */
 int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
 {
-    int privSz = 0, pubSz = 0, keySz;
+    int ret, privSz = 0, pubSz = 0, keySz;
     word32 idx, total;
 
     if (key == NULL || outSz == NULL) {
@@ -4815,19 +4814,23 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
         idx = 1 + SetLength(pubSz, NULL) + pubSz; /* +1 for ASN_BIT_STRING */
     }
     keySz = idx;
-    /* integer - g */
-    idx += SetASNIntMP(&key->g, -1, NULL);
-    /* integer - p */
-    idx += SetASNIntMP(&key->p, -1, NULL);
-     /* sequence */
-    idx += SetSequence(idx, NULL);
+
+    /* DH Parameters sequence with P and G */
+    total = 0;
+    ret = wc_DhParamsToDer(key, NULL, &total);
+    if (ret != LENGTH_ONLY_E)
+        return ret;
+    idx += total;
+
     /* object dhKeyAgreement 1.2.840.113549.1.3.1 */
     idx += SetObjectId(sizeof(keyDhOid), NULL);
     idx += sizeof(keyDhOid);
     /* sequence */
     idx += SetSequence(idx, NULL);
-    /* version: 0  (ASN_INTEGER, 0x01, 0x00) */
-    idx += 3;
+    if (exportPriv) {
+        /* version: 0 (ASN_INTEGER, 0x01, 0x00) */
+        idx += 3;
+    }
     /* sequence */
     total = idx + SetSequence(idx, NULL);
 
@@ -4845,20 +4848,24 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
 
     /* sequence */
     idx = SetSequence(total, output);
-    /* version: 0 */
-    idx += SetMyVersion(0, output + idx, 0);
+    if (exportPriv) {
+        /* version: 0 */
+        idx += SetMyVersion(0, output + idx, 0);
+    }
     /* sequence - all but pub/priv */
     idx += SetSequence(total - keySz - idx, output + idx);
     /* object dhKeyAgreement 1.2.840.113549.1.3.1 */
     idx += SetObjectId(sizeof(keyDhOid), output + idx);
     XMEMCPY(output + idx, keyDhOid, sizeof(keyDhOid));
     idx += sizeof(keyDhOid);
-    /* sequence */
-    idx += SetSequence(total - keySz - idx, output + idx);
-    /* integer - p */
-    idx += SetASNIntMP(&key->p, -1, output + idx);
-    /* integer - g */
-    idx += SetASNIntMP(&key->g, -1, output + idx);
+
+    /* DH Parameters sequence with P and G */
+    total = *outSz - idx;
+    ret = wc_DhParamsToDer(key, output + idx, &total);
+    if (ret < 0)
+        return ret;
+    idx += total;
+
     /* octect string: priv */
     if (exportPriv) {
         idx += SetOctetString(privSz, output + idx);
@@ -4892,77 +4899,42 @@ int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz)
  * version 2 build.
  *
  * return bytes written on success */
-int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
+int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
 {
-    word32 sz = 0, idx = 0;
-    int pSz = 0, gSz = 0, ret;
-    byte scratch[MAX_LENGTH_SZ];
+    word32 idx, total;
 
     if (key == NULL || outSz == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    pSz = mp_unsigned_bin_size(&key->p);
-    if (pSz < 0) {
-        return pSz;
-    }
-    if (mp_leading_bit(&key->p)) {
-        pSz++;
-    }
+    /* determine size */
+    /* integer - g */
+    idx = SetASNIntMP(&key->g, -1, NULL);
+    /* integer - p */
+    idx += SetASNIntMP(&key->p, -1, NULL);
+    total = idx;
+     /* sequence */
+    idx += SetSequence(idx, NULL);
 
-    gSz = mp_unsigned_bin_size(&key->g);
-    if (gSz < 0) {
-        return gSz;
-    }
-    if (mp_leading_bit(&key->g)) {
-        gSz++;
-    }
-
-    sz  = ASN_TAG_SZ; /* Integer */
-    sz += SetLength(pSz, scratch);
-    sz += ASN_TAG_SZ; /* Integer */
-    sz += SetLength(gSz, scratch);
-    sz += gSz + pSz;
-
-    if (out == NULL) {
-        byte seqScratch[MAX_SEQ_SZ];
-
-        *outSz = sz + SetSequence(sz, seqScratch);
+    if (output == NULL) {
+        *outSz = idx;
         return LENGTH_ONLY_E;
     }
-
-    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+    /* make sure output fits in buffer */
+    if (idx > *outSz) {
         return BUFFER_E;
     }
 
-    idx += SetSequence(sz, out);
-    if (*outSz < idx + sz) {
-        return BUFFER_E;
-    }
 
-    out[idx++] = ASN_INTEGER;
-    idx += SetLength(pSz, out + idx);
-    if (mp_leading_bit(&key->p)) {
-        out[idx++] = 0x00;
-        pSz -= 1; /* subtract 1 from size to account for leading 0 */
-    }
-    ret = mp_to_unsigned_bin(&key->p, out + idx);
-    if (ret != MP_OKAY) {
-        return BUFFER_E;
-    }
-    idx += pSz;
+    /* write DH parameters */
+    /* sequence - for P and G only */
+    idx = SetSequence(total, output);
+    /* integer - p */
+    idx += SetASNIntMP(&key->p, -1, output + idx);
+    /* integer - g */
+    idx += SetASNIntMP(&key->g, -1, output + idx);
+    *outSz = idx;
 
-    out[idx++] = ASN_INTEGER;
-    idx += SetLength(gSz, out + idx);
-    if (mp_leading_bit(&key->g)) {
-        out[idx++] = 0x00;
-        gSz -= 1; /* subtract 1 from size to account for leading 0 */
-    }
-    ret = mp_to_unsigned_bin(&key->g, out + idx);
-    if (ret != MP_OKAY) {
-        return BUFFER_E;
-    }
-    idx += gSz;
     return idx;
 }
 
