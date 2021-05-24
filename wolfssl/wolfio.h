@@ -429,12 +429,6 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
             WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL* ssl,
                                                   char* buf, int sz, void*);
         #endif /* WOLFSSL_MULTICAST */
-        #ifdef WOLFSSL_SESSION_EXPORT
-            WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
-                                                unsigned short* port, int* fam);
-            WOLFSSL_API int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
-                                                  unsigned short port, int fam);
-        #endif /* WOLFSSL_SESSION_EXPORT */
     #endif /* WOLFSSL_DTLS */
 #endif /* USE_WOLFSSL_IO */
 
@@ -593,16 +587,20 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API void  wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx);
     WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 
-    #ifdef WOLFSSL_SESSION_EXPORT
-        typedef int (*CallbackGetPeer)(WOLFSSL* ssl, char* ip, int* ipSz,
-                                            unsigned short* port, int* fam);
-        typedef int (*CallbackSetPeer)(WOLFSSL* ssl, char* ip, int ipSz,
-                                              unsigned short port, int fam);
-
-        WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*, CallbackGetPeer);
-        WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*, CallbackSetPeer);
-    #endif /* WOLFSSL_SESSION_EXPORT */
 #endif
+#ifdef WOLFSSL_SESSION_EXPORT
+    typedef int (*CallbackGetPeer)(WOLFSSL* ssl, char* ip, int* ipSz,
+                                        unsigned short* port, int* fam);
+    typedef int (*CallbackSetPeer)(WOLFSSL* ssl, char* ip, int ipSz,
+                                          unsigned short port, int fam);
+
+    WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX*, CallbackGetPeer);
+    WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX*, CallbackSetPeer);
+    WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
+                                                unsigned short* port, int* fam);
+    WOLFSSL_API int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
+                                                  unsigned short port, int fam);
+#endif /* WOLFSSL_SESSION_EXPORT */
 
 
 
