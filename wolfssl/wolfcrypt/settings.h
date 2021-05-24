@@ -218,6 +218,11 @@
 /* Uncomment next line if building for Linux Kernel Module */
 /* #define WOLFSSL_LINUXKM */
 
+/* Uncomment next line if building for devkitPro */
+/* #define DEVKITPRO */
+
+/* Uncomment next line if building for Dolphin Emulator */
+/* #define DOLPHIN_EMULATOR */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
