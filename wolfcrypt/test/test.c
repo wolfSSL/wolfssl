@@ -16271,10 +16271,15 @@ static int dh_test_check_pubvalue(void)
 
 #if defined(HAVE_FFDHE)
 
-#ifdef HAVE_FFDHE_3072
-    #define FFDHE_KEY_SIZE      (3072/8)
+#if defined(HAVE_FFDHE_4096)
+    #define MAX_DH_PRIV_SZ 39
+    #define MAX_DH_KEY_SZ  512
+#elif defined(HAVE_FFDHE_3072)
+    #define MAX_DH_PRIV_SZ 34
+    #define MAX_DH_KEY_SZ  384
 #else
-    #define FFDHE_KEY_SIZE      (2048/8)
+    #define MAX_DH_PRIV_SZ 29
+    #define MAX_DH_KEY_SZ  256
 #endif
 
 #ifndef WC_NO_RNG
@@ -16283,26 +16288,26 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
     int    ret;
     word32 privSz, pubSz, privSz2, pubSz2;
 #ifdef WOLFSSL_SMALL_STACK
-    byte   *priv = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte   *pub = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte   *priv2 = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte   *pub2 = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte   *agree = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    byte   *agree2 = (byte *)XMALLOC(FFDHE_KEY_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    DhKey  *key = (DhKey *)XMALLOC(sizeof *key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    DhKey  *key2 = (DhKey *)XMALLOC(sizeof *key2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *priv = (byte*)XMALLOC(MAX_DH_PRIV_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *pub = (byte*)XMALLOC(MAX_DH_KEY_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *priv2 = (byte*)XMALLOC(MAX_DH_PRIV_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *pub2 = (byte*)XMALLOC(MAX_DH_KEY_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *agree = (byte*)XMALLOC(MAX_DH_KEY_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    byte   *agree2 = (byte*)XMALLOC(MAX_DH_KEY_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    DhKey  *key = (DhKey*)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    DhKey  *key2 = (DhKey*)XMALLOC(sizeof(*key2), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-    byte   priv[FFDHE_KEY_SIZE];
-    byte   pub[FFDHE_KEY_SIZE];
-    byte   priv2[FFDHE_KEY_SIZE];
-    byte   pub2[FFDHE_KEY_SIZE];
-    byte   agree[FFDHE_KEY_SIZE];
-    byte   agree2[FFDHE_KEY_SIZE];
+    byte   priv[MAX_DH_PRIV_SZ];
+    byte   pub[MAX_DH_KEY_SZ];
+    byte   priv2[MAX_DH_PRIV_SZ];
+    byte   pub2[MAX_DH_KEY_SZ];
+    byte   agree[MAX_DH_KEY_SZ];
+    byte   agree2[MAX_DH_KEY_SZ];
     DhKey  key[1];
     DhKey  key2[1];
 #endif
-    word32 agreeSz = FFDHE_KEY_SIZE;
-    word32 agreeSz2 = FFDHE_KEY_SIZE;
+    word32 agreeSz = MAX_DH_KEY_SZ;
+    word32 agreeSz2 = MAX_DH_KEY_SZ;
 
 #ifdef WOLFSSL_SMALL_STACK
     if ((priv == NULL) ||
@@ -16316,13 +16321,13 @@ static int dh_ffdhe_test(WC_RNG *rng, const DhParams* params)
         ERROR_OUT(-8050, done);
 #endif
 
-    pubSz = FFDHE_KEY_SIZE;
-    pubSz2 = FFDHE_KEY_SIZE;
-    privSz = FFDHE_KEY_SIZE;
-    privSz2 = FFDHE_KEY_SIZE;
+    pubSz = MAX_DH_KEY_SZ;
+    pubSz2 = MAX_DH_KEY_SZ;
+    privSz = MAX_DH_PRIV_SZ;
+    privSz2 = MAX_DH_PRIV_SZ;
 
-    XMEMSET(key, 0, sizeof *key);
-    XMEMSET(key2, 0, sizeof *key2);
+    XMEMSET(key, 0, sizeof(*key));
+    XMEMSET(key2, 0, sizeof(*key2));
 
     ret = wc_InitDhKey_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
@@ -16410,17 +16415,17 @@ done:
 
 #ifdef WOLFSSL_SMALL_STACK
     if (priv)
-      XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pub)
-      XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (priv2)
-      XFREE(priv2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(priv2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (pub2)
-      XFREE(pub2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (agree)
-      XFREE(agree, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(agree, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (agree2)
-      XFREE(agree2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(agree2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (key) {
         wc_FreeDhKey(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -16654,17 +16659,41 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
     {
+    #ifdef WOLFSSL_SMALL_STACK
+        byte *tmp2;
+    #else
+        byte  tmp2[DH_TEST_TMP_SIZE];
+    #endif
         XFILE file = XFOPEN(dhKeyFile, "rb");
         if (!file)
             ERROR_OUT(-8121, done);
         bytes = (word32)XFREAD(tmp, 1, DH_TEST_TMP_SIZE, file);
         XFCLOSE(file);
-    }
 
-    idx = 0;
-    ret = wc_DhKeyDecode(tmp, &idx, key, bytes);
-    if (ret != 0) {
-        ERROR_OUT(-8122, done);
+    #ifdef WOLFSSL_SMALL_STACK
+        tmp2 = (byte*)XMALLOC(DH_TEST_TMP_SIZE, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp2 == NULL)
+            ERROR_OUT(-8122, done);
+    #endif
+        idx = 0;
+        XMEMSET(tmp2, 0, DH_TEST_TMP_SIZE);
+
+        /* Import DH key as DER */
+        ret = wc_DhKeyDecode(tmp, &idx, key, bytes);
+        if (ret == 0) {
+            /* Export as DER */
+            idx = DH_TEST_TMP_SIZE;
+            ret = wc_DhPrivKeyToDer(key, tmp2, &idx);
+        }
+
+        /* Verify export matches original */
+        if (ret <= 0 || bytes != idx || XMEMCMP(tmp, tmp2, bytes) != 0) {
+            ERROR_OUT(-8123, done);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(tmp2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
     }
 #else
     ret = wc_DhSetKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
@@ -16703,7 +16732,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
 #endif
 
 #ifndef WC_NO_RNG
-    /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
+    /* Specialized code for key gen when using FFDHE-2048, FFDHE-3072 and FFDHE-4096 */
     #ifdef HAVE_FFDHE_2048
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe2048_Get());
     if (ret != 0)
@@ -16713,6 +16742,11 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe3072_Get());
     if (ret != 0)
         ERROR_OUT(-8130, done);
+    #endif
+    #ifdef HAVE_FFDHE_4096
+    ret = dh_ffdhe_test(&rng, wc_Dh_ffdhe4096_Get());
+    if (ret != 0)
+        ERROR_OUT(-8131, done);
     #endif
 #endif /* !WC_NO_RNG */
 
@@ -16725,7 +16759,7 @@ WOLFSSL_TEST_SUBROUTINE int dh_test(void)
     ret = wc_DhSetCheckKey(key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
                            NULL, 0, 0, &rng);
     if (ret != 0)
-        ERROR_OUT(-8131, done);
+        ERROR_OUT(-8132, done);
     keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
 #endif
 
