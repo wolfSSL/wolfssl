@@ -1344,6 +1344,7 @@ enum Misc {
     DTLS_EXPORT_STATE_PRO    = 166,/* wolfSSL protocol for serialized state */
     TLS_EXPORT_PRO           = 167,/* wolfSSL protocol for serialized TLS */
     DTLS_EXPORT_OPT_SZ       = 61, /* amount of bytes used from Options */
+    TLS_EXPORT_OPT_SZ        = 65, /* amount of bytes used from Options */
     DTLS_EXPORT_OPT_SZ_3     = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
@@ -1358,7 +1359,7 @@ enum Misc {
     /* older export versions supported */
     WOLFSSL_EXPORT_VERSION_3 = 3,  /* wolfSSL version before TLS 1.3 addition */
 
-    DTLS_EXPORT_IP           = 46, /* max ip size IPv4 mapped IPv6 */
+    MAX_EXPORT_IP            = 46, /* max ip size IPv4 mapped IPv6 */
     MAX_EXPORT_BUFFER        = 514, /* max size of buffer for exporting */
     MAX_EXPORT_STATE_BUFFER  = (DTLS_EXPORT_MIN_KEY_SZ) + (3 * WOLFSSL_EXPORT_LEN),
                                     /* max size of buffer for exporting state */
@@ -2876,12 +2877,14 @@ struct WOLFSSL_CTX {
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
+#endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_SESSION_EXPORT
+#ifdef WOLFSSL_DTLS
     wc_dtls_export  dtls_export;        /* export function for DTLS session */
+#endif
     CallbackGetPeer CBGetPeer;
     CallbackSetPeer CBSetPeer;
 #endif
-#endif /* WOLFSSL_DTLS */
     VerifyCallback  verifyCallback;     /* cert verification callback */
 #ifdef OPENSSL_ALL
     CertVerifyCallback verifyCertCb;
