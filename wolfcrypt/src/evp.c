@@ -4365,6 +4365,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_CIPHER_CTX_cleanup");
         if (ctx) {
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
+    #if defined(HAVE_AESGCM) && defined(WOLFSSL_AESGCM_STREAM)
+            if ((ctx->cipherType == AES_128_GCM_TYPE) ||
+                (ctx->cipherType == AES_192_GCM_TYPE) ||
+                (ctx->cipherType == AES_256_GCM_TYPE)) {
+               wc_AesFree(&ctx->cipher.aes);
+            }
+    #endif /* HAVE_AESGCM && WOLFSSL_AESGCM_STREAM */
+#endif /* not FIPS or new FIPS */
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
 #ifdef HAVE_AESGCM

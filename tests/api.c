@@ -12275,6 +12275,10 @@ static int test_wc_AesGcmStream (void)
         AES_IV_SIZE, tag, AES_BLOCK_SIZE, aad, sizeof(aad)), 0);
     AssertIntEQ(XMEMCMP(plain, in, sizeof(in)), 0);
 
+    wc_AesFree(aesEnc);
+    wc_AesFree(aesDec);
+    wc_FreeRng(rng);
+
 #endif
     return ret;
 
