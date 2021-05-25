@@ -40242,7 +40242,8 @@ static int test_tls13_apis(void)
 
 #endif
 
-#ifdef HAVE_PK_CALLBACKS
+#if defined(HAVE_PK_CALLBACKS) && (!defined(WOLFSSL_NO_TLS12) || \
+    !defined(NO_OLD_TLS))
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
         !defined(NO_WOLFSSL_CLIENT) && !defined(NO_DH) && !defined(NO_AES) && \
          defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED)
@@ -43754,7 +43755,8 @@ void ApiTest(void)
     AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
 #endif /* NO_CERTS */
 
-#ifdef HAVE_PK_CALLBACKS
+#if defined(HAVE_PK_CALLBACKS) && (!defined(WOLFSSL_NO_TLS12) || \
+    !defined(NO_OLD_TLS))
     /* public key callback tests */
     test_DhCallbacks();
 #endif
