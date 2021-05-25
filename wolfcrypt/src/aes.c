@@ -8044,7 +8044,7 @@ static void AesGcmFinal_C(Aes* aes, byte* authTag, word32 authTagSz)
     aes->aadLen = aes->aSz;
 #endif
     /* Zeroize last block to protect sensitive data. */
-    ForceZero(AES_LASTBLOCK(aes), sizeof(AES_LASTBLOCK(aes)));
+    ForceZero(AES_LASTBLOCK(aes), AES_BLOCK_SIZE);
 }
 
 #ifdef WOLFSSL_AESNI
