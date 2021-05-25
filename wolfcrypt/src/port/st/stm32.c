@@ -594,7 +594,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc256_pointX;
         *GenPointY = stm32_ecc256_pointY;
         *coef_sign = &stm32_ecc256_coef_sign;
-        *order = stm32_ecc256_order;
+        if (order) *order = stm32_ecc256_order;
         break;
 #ifdef ECC224
     case 28:
@@ -603,7 +603,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc224_pointX;
         *GenPointY = stm32_ecc224_pointY;
         *coef_sign = &stm32_ecc224_coef;
-        *order = stm32_ecc224_order;
+        if (order) *order = stm32_ecc224_order;
         break;
 #endif
 #ifdef ECC192
@@ -613,7 +613,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc192_pointX;
         *GenPointY = stm32_ecc192_pointY;
         *coef_sign = &stm32_ecc192_coef;
-        *order = stm32_ecc192_order;
+        if (order) *order = stm32_ecc192_order;
         break;
 #endif
 #ifdef ECC384
@@ -623,7 +623,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *GenPointX = stm32_ecc384_pointX;
         *GenPointY = stm32_ecc384_pointY;
         *coef_sign = &stm32_ecc384_coef;
-        *order = stm32_ecc384_order;
+        if (order) *order = stm32_ecc384_order;
         break;
 #endif
     default:
@@ -658,7 +658,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     uint8_t kbin[STM32_MAX_ECC_SIZE];
     uint8_t PtXbin[STM32_MAX_ECC_SIZE];
     uint8_t PtYbin[STM32_MAX_ECC_SIZE];
-    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint8_t *prime, *coef, *gen_x, *gen_y;
     const uint32_t *coef_sign;
     (void)a;
     (void)heap;
@@ -685,10 +685,9 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
 
     size = (uint8_t)szModulus;
     /* find STM32_PKA friendly parameters for the selected curve */
-    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, NULL, size)) {
         return ECC_BAD_ARG_E;
     }
-    (void)order;
 
     pka_mul.modulusSize = szModulus;
     pka_mul.coefSign = *coef_sign;
@@ -729,6 +728,16 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     (void)order;
     (void)rng;
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, heap);
+}
+
+int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
+{
+    /* this is handled in hardware, so no projective mapping needed */
+    (void)P;
+    (void)modulus;
+    (void)mp;
+    (void)ct;
+    return MP_OKAY;
 }
 
 int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
