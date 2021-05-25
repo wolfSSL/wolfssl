@@ -56364,11 +56364,6 @@ static int cmdfunc_dhparam(WOLFSSL_CONF_CTX* cctx, const char* value)
         return ret;
     }
     
-    if (!(cctx->flags & WOLFSSL_CONF_FLAG_CERTIFICATE)) {
-        WOLFSSL_MSG("certificate flag is not set");
-        return -2;
-    }
-    
     if (cctx->ctx || cctx->ssl) {
         bio = wolfSSL_BIO_new_file(value, "rb");
         if (!bio) {
