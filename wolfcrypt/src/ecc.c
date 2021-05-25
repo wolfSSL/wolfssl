@@ -2278,7 +2278,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 #endif
 }
 
-
+#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA)
 /**
   Map a projective Jacobian point back to affine space
   P        [in/out] The point to map
@@ -2497,6 +2497,7 @@ done:
     return ECC_BAD_ARG_E;
 #endif
 }
+#endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
 
 int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 {
@@ -4463,14 +4464,10 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
                err = MEMORY_E;
             }
         }
-#ifndef FREESCALE_LTC_ECC /* this is done in hardware */
         if (err == MP_OKAY) {
             /* Use constant time map if compiled in */
             err = ecc_map_ex(pub, curve->prime, mp, 1);
         }
-#else
-        (void)mp;
-#endif
 
         wc_ecc_del_point_ex(base, key->heap);
     }

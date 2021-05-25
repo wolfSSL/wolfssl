@@ -136,21 +136,28 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
         uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
         if (ptrA && ptrB && ptrN && ptrC) {
-            uint16_t sizeA, sizeB, sizeC = 0;
+            uint16_t sizeA, sizeB, sizeN, sizeC = 0;
 
             res = ltc_get_lsb_bin_from_mp_int(ptrA, A, &sizeA);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, B, &sizeB);
             if (res == MP_OKAY) {
-                XMEMSET(ptrN, 0xFF, LTC_MAX_INT_BYTES);
+                sizeN = sizeA + sizeB;
+                XMEMSET(ptrN, 0xFF, sizeN);
+                XMEMSET(ptrC, 0, LTC_MAX_INT_BYTES);
 
-                status = LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB, ptrN,
-                    LTC_MAX_INT_BYTES, ptrC, &sizeC, kLTC_PKHA_IntegerArith,
+                status = LTC_PKHA_ModMul(LTC_BASE, ptrA, sizeA, ptrB, sizeB,
+                    ptrN, sizeN, ptrC, &sizeC, kLTC_PKHA_IntegerArith,
                     kLTC_PKHA_NormalValue, kLTC_PKHA_NormalValue,
                     kLTC_PKHA_TimingEqualized);
                 if (status == kStatus_Success) {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(C, ptrC, sizeC);
+
+                #ifndef WOLFSSL_SP_MATH
+                    /* fix sign */
+                    C->sign = neg;
+                #endif
                 }
                 else {
                     res = MP_VAL;
@@ -158,10 +165,6 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
             }
         }
 
-#ifndef WOLFSSL_SP_MATH
-        /* fix sign */
-        C->sign = neg;
-#endif
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
         }
@@ -388,14 +391,13 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
                     ptrB, sizeB, ptrC, sizeC, ptrD, &sizeD,
                     kLTC_PKHA_IntegerArith, kLTC_PKHA_NormalValue,
                     kLTC_PKHA_NormalValue, kLTC_PKHA_TimingEqualized);
-                if (status != kStatus_Success) {
+                if (status == kStatus_Success) {
+                    ltc_reverse_array(ptrD, sizeD);
+                    res = mp_read_unsigned_bin(d, ptrD, sizeD);
+                }
+                else {
                     res = MP_VAL;
                 }
-            }
-
-            if (res == MP_OKAY) {
-                ltc_reverse_array(ptrD, sizeD);
-                res = mp_read_unsigned_bin(d, ptrD, sizeD);
             }
         }
         else {
@@ -890,6 +892,16 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     (void)order;
     (void)rng;
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, heap);
+}
+
+int ecc_map_ex(ecc_point* P, mp_int* modulus, mp_digit mp, int ct)
+{
+    /* this is handled in hardware, so no projective mapping needed */
+    (void)P;
+    (void)modulus;
+    (void)mp;
+    (void)ct;
+    return MP_OKAY;
 }
 
 int wc_ecc_point_add(ecc_point *mG, ecc_point *mQ, ecc_point *mR, mp_int *m)
