@@ -825,7 +825,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
     XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
-    XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
+    XMEMSET(&pka_ecc_out, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
 
     if (r == NULL || s == NULL || hash == NULL || key == NULL) {
         return ECC_BAD_ARG_E;

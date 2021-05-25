@@ -6797,7 +6797,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 #endif /* !NO_ASN */
 
 #if !defined(WOLFSSL_STM32_PKA) && !defined(WOLFSSL_PSOC6_CRYPTO)
-
 static int wc_ecc_check_r_s_range(ecc_key* key, mp_int* r, mp_int* s)
 {
     int err;
