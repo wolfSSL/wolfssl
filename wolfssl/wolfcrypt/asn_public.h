@@ -583,6 +583,8 @@ WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
                                              word32* inOutIdx, word32 sz);
 WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
        byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
+WOLFSSL_API int wc_EncryptPKCS8Key(byte*, word32, byte*, word32, const char*,
+        int, int, int, int, byte*, word32, int, WC_RNG*, void*);
 
 #ifndef NO_ASN_TIME
 /* Time */
