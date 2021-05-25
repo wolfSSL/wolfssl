@@ -124,16 +124,15 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
     /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call software mul */
     if ((szA <= LTC_MAX_INT_BYTES / 2) && (szB <= LTC_MAX_INT_BYTES / 2)) {
         int neg = 0;
-
-#ifndef WOLFSSL_SP_MATH
-        neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
-#endif
-
-        /* unsigned multiply */
         uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrN = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+
+        /* unsigned multiply */
+#ifndef WOLFSSL_SP_MATH
+        neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
+#endif
 
         if (ptrA && ptrB && ptrN && ptrC) {
             uint16_t sizeA, sizeB, sizeN, sizeC = 0;
@@ -328,34 +327,38 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     int res = MP_OKAY;
     status_t status;
     int szA, szB, szC;
+
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     szC = mp_unsigned_bin_size(c);
+
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
-        mp_int t;
-
         uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
 
+#ifndef WOLFSSL_SP_MATH
         /* if A or B is negative, subtract abs(A) or abs(B) from modulus to get 
          * positive integer representation of the same number */
+        mp_int t;
         res = mp_init(&t);
-#ifndef WOLFSSL_SP_MATH
-        if (a->sign) {
-            if (res == MP_OKAY)
-                res = mp_add(a, c, &t);
-            if (res == MP_OKAY)
-                res = mp_copy(&t, a);
-        }
-        if (b->sign) {
-            if (res == MP_OKAY)
-                res = mp_add(b, c, &t);
-            if (res == MP_OKAY)
-                res = mp_copy(&t, b);
+        if (res == MP_OKAY) {
+            if (a->sign) {
+                if (res == MP_OKAY)
+                    res = mp_add(a, c, &t);
+                if (res == MP_OKAY)
+                    res = mp_copy(&t, a);
+            }
+            if (b->sign) {
+                if (res == MP_OKAY)
+                    res = mp_add(b, c, &t);
+                if (res == MP_OKAY)
+                    res = mp_copy(&t, b);
+            }
+            mp_clear(&t);
         }
 #endif
 
@@ -416,9 +419,6 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         if (ptrD) {
             XFREE(ptrD, NULL, DYNAMIC_TYPE_BIGINT);
         }
-    #ifndef USE_FAST_MATH
-        mp_clear(&t);
-    #endif
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
