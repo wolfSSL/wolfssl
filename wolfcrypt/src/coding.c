@@ -136,9 +136,12 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *o
             WOLFSSL_MSG("Bad end of line in Base64 Decode");
             return ASN_INPUT_E;
         }
-        curChar = in[j];
+
+        if (len) {
+            curChar = in[j];
+        }
     }
-    while (len && curChar == ' ') {
+    while (len > 1 && curChar == ' ') {
         /* skip whitespace at beginning of line */
         curChar = in[++j];
         len--;
