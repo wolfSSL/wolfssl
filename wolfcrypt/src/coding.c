@@ -141,10 +141,10 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *o
             curChar = in[j];
         }
     }
-    while (len > 1 && curChar == ' ') {
-        /* skip whitespace at beginning of line */
-        curChar = in[++j];
-        len--;
+    while (len && curChar == ' ') {
+        if (--len > 0) {
+            curChar = in[++j];
+        }
     }
     if (!len) {
         return BUFFER_E;
