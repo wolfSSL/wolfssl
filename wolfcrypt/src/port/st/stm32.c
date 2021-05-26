@@ -386,19 +386,19 @@ extern PKA_HandleTypeDef hpka;
  * and mp_int has only 31 bytes, we add leading zeros
  * so that result array has 32 bytes, same as modulus (sz).
  */
-static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
+static int stm32_get_from_mp_int(uint8_t *dst, const mp_int *a, int sz)
 {
     int res;
     int szbin;
     int offset;
 
-    if (!a || !dst || (sz < 0))
-        return -1;
+    if (a == NULL || dst == NULL || sz < 0)
+        return BAD_FUNC_ARG;
 
     /* check how many bytes are in the mp_int */
-    szbin = mp_unsigned_bin_size(a);
-    if ((szbin < 0) || (szbin > sz))
-        return -1;
+    szbin = mp_unsigned_bin_size((mp_int*)a);
+    if (szbin < 0 || szbin > sz)
+        return BUFFER_E;
 
     /* compute offset from dst */
     offset = sz - szbin;
@@ -412,7 +412,7 @@ static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
         XMEMSET(dst, 0, offset);
 
     /* convert mp_int to array of bytes */
-    res = mp_to_unsigned_bin(a, dst + offset);
+    res = mp_to_unsigned_bin((mp_int*)a, dst + offset);
     return res;
 }
 
@@ -627,7 +627,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         break;
 #endif
     default:
-        return -1;
+        return NOT_COMPILED_IN;
     }
     return 0;
 }
@@ -672,7 +672,7 @@ int wc_ecc_mulmod_ex(const mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     }
 
     szModulus = mp_unsigned_bin_size(modulus);
-    szkbin = mp_unsigned_bin_size(k);
+    szkbin = mp_unsigned_bin_size((mp_int*)k);
 
     res = stm32_get_from_mp_int(kbin, k, szkbin);
     if (res == MP_OKAY)
