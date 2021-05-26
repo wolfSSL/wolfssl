@@ -5927,8 +5927,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
     ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
+
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
+
+    ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;  /* prevent invalid pointer access if not */
+    ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;  /* correctly set */
+
 #endif
 
 #ifndef WOLFSSL_AEAD_ONLY
@@ -10008,7 +10013,9 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     XMEMCPY(x509->subject.raw, dCert->subjectRaw, x509->subject.rawLen);
 #ifdef WOLFSSL_CERT_EXT
     x509->issuer.rawLen = min(dCert->issuerRawLen, sizeof(x509->issuer.raw));
-    XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
+    if (x509->issuer.rawLen) {
+      XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
+    }
 #endif
 #endif
 

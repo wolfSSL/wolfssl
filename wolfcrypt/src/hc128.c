@@ -271,13 +271,13 @@ static void Hc128_SetIV(HC128* ctx, const byte* inIv)
     for (i = 0; i < 64; i++)  setup_update(ctx);
 }
 
-
+#define HC128_KEY_NUMBYTES (128 >> 5)
 static WC_INLINE int DoKey(HC128* ctx, const byte* key, const byte* iv)
 {
   word32 i;
 
   /* Key size in bits 128 */
-  for (i = 0; i < (128 >> 5); i++)
+  for (i = 0; i < HC128_KEY_NUMBYTES; i++)
       ctx->key[i] = LITTLE32(((word32*)key)[i]);
 
   for ( ; i < 8 ; i++) ctx->key[i] = ctx->key[i-4];

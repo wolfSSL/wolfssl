@@ -217,12 +217,14 @@ static void wc_PKCS7_FreeStream(PKCS7* pkcs7)
 static int wc_PKCS7_GrowStream(PKCS7* pkcs7, word32 newSz)
 {
     byte* pt;
-
     pt = (byte*)XMALLOC(newSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     if (pt == NULL) {
         return MEMORY_E;
     }
-    XMEMCPY(pt, pkcs7->stream->buffer, pkcs7->stream->bufferSz);
+
+    if (pkcs7->stream->buffer != NULL && pkcs7->stream->bufferSz > 0) {
+        XMEMCPY(pt, pkcs7->stream->buffer, pkcs7->stream->bufferSz);
+    }
 
 #ifdef WC_PKCS7_STREAM_DEBUG
     printf("PKCS7 increasing internal stream buffer %d -> %d\n",
@@ -2641,7 +2643,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx = 0;
     }
     else {
-        if (!pkcs7->detached) {
+        if (!pkcs7->detached && pkcs7->content != NULL && pkcs7->contentSz > 0) {
             XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
             idx += pkcs7->contentSz;
         }

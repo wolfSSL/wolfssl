@@ -2506,7 +2506,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, ENGINE* e,
             pkey = NULL;
         }
         else {
-            XMEMCPY(pkey->pkey.ptr, key, keylen);
+            if (keylen) {
+                XMEMCPY(pkey->pkey.ptr, key, keylen);
+            }
             pkey->pkey_sz = keylen;
             pkey->type = pkey->save_type = type;
         }
