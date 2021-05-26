@@ -42,6 +42,8 @@
 
 #define ERROR_OUT(res) { ret = (res); goto done; }
 
+/* For debugging only - Enable this to do software tests of each operation */
+/* #define ENABLE_NXPLTC_TESTS */
 
 int ksdk_port_init(void)
 {
@@ -118,6 +120,13 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
     int res = MP_OKAY;
     status_t status;
     int szA, szB;
+
+#ifdef ENABLE_NXPLTC_TESTS
+    mp_int t;
+    mp_init(&t);
+    wolfcrypt_mp_mul(A, B, &t);
+#endif
+
     szA = mp_unsigned_bin_size(A);
     szB = mp_unsigned_bin_size(B);
 
@@ -184,6 +193,18 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
         res = wolfcrypt_mp_mul(A, B, C);
 #endif
     }
+
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (mp_cmp(&t, C) != MP_EQ) {
+        printf("mp_mul test fail!\n");
+
+        mp_dump("C", C, 0);
+        mp_dump("C soft", &t, 0);
+    }
+    mp_clear(&t);
+#endif
+
     return res;
 }
 
@@ -192,10 +213,16 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
 {
     int res = MP_OKAY;
     int szA, szB;
+
+#ifdef ENABLE_NXPLTC_TESTS
+    mp_int t;
+    mp_init(&t);
+    wolfcrypt_mp_mod(a, b, &t);
+#endif
+
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
-    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES))
-    {
+    if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
         int neg = 0;
         uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
@@ -220,6 +247,11 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
                 {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
+                
+                #ifndef WOLFSSL_SP_MATH
+                    /* fix sign */
+                    c->sign = neg;
+                #endif
                 }
                 else {
                     res = MP_VAL;
@@ -229,11 +261,6 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
         else {
             res = MP_MEM;
         }
-
-#ifndef WOLFSSL_SP_MATH
-        /* fix sign */
-        c->sign = neg;
-#endif
 
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
@@ -253,6 +280,17 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
 #endif
     }
 
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (mp_cmp(&t, c) != MP_EQ) {
+        printf("mp_mod test fail!\n");
+
+        mp_dump("C", c, 0);
+        mp_dump("C soft", &t, 0);
+    }
+    mp_clear(&t);
+#endif
+
     return res;
 }
 
@@ -261,6 +299,13 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
 {
     int res = MP_OKAY;
     int szA, szB;
+
+#ifdef ENABLE_NXPLTC_TESTS
+    mp_int t;
+    mp_init(&t);
+    wolfcrypt_mp_invmod(a, b, &t);
+#endif
+
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES)) {
@@ -288,6 +333,10 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
                         &sizeC, kLTC_PKHA_IntegerArith) == kStatus_Success) {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
+
+                #ifndef WOLFSSL_SP_MATH
+                    c->sign = a->sign;
+                #endif
                 }
                 else {
                     res = MP_VAL;
@@ -298,9 +347,6 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
             res = MP_MEM;
         }
 
-#ifndef WOLFSSL_SP_MATH
-        c->sign = a->sign;
-#endif
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
         }
@@ -318,6 +364,18 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
         res = NOT_COMPILED_IN;
 #endif
     }
+
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (mp_cmp(&t, c) != MP_EQ) {
+        printf("mp_invmod test fail!\n");
+
+        mp_dump("C", c, 0);
+        mp_dump("C soft", &t, 0);
+    }
+    mp_clear(&t);
+#endif
+
     return res;
 }
 
@@ -327,6 +385,12 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     int res = MP_OKAY;
     status_t status;
     int szA, szB, szC;
+    
+#ifdef ENABLE_NXPLTC_TESTS
+    mp_int t;
+    mp_init(&t);
+    wolfcrypt_mp_mulmod(a, b, c, &t);
+#endif
 
     szA = mp_unsigned_bin_size(a);
     szB = mp_unsigned_bin_size(b);
@@ -335,39 +399,44 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
-        uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrA, *ptrB, *ptrC, *ptrD;
 
 #ifndef WOLFSSL_SP_MATH
         /* if A or B is negative, subtract abs(A) or abs(B) from modulus to get 
          * positive integer representation of the same number */
-        mp_int t;
-        res = mp_init(&t);
+        mp_int aabs, babs;
+        res = mp_init_multi(&aabs, &babs, NULL, NULL, NULL, NULL);
+        if (res != MP_OKAY) {
+            return res;
+        }
+        if (a->sign)
+            res = mp_add(a, c, &aabs);
+        else
+            res = mp_copy(a, &aabs);
         if (res == MP_OKAY) {
-            if (a->sign) {
-                if (res == MP_OKAY)
-                    res = mp_add(a, c, &t);
-                if (res == MP_OKAY)
-                    res = mp_copy(&t, a);
-            }
-            if (b->sign) {
-                if (res == MP_OKAY)
-                    res = mp_add(b, c, &t);
-                if (res == MP_OKAY)
-                    res = mp_copy(&t, b);
-            }
-            mp_clear(&t);
+            if (b->sign)
+                res = mp_add(b, c, &babs);
+            else
+                res = mp_copy(b, &babs);
+        }
+        if (res != MP_OKAY) {
+            mp_clear(&aabs);
+            mp_clear(&babs);
+            return res;
         }
 #endif
 
-        if (res == MP_OKAY && ptrA && ptrB && ptrC && ptrD) {
+        ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrB = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrC = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrD = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+
+        if (ptrA && ptrB && ptrC && ptrD) {
             uint16_t sizeA, sizeB, sizeC, sizeD;
 
-            res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
+            res = ltc_get_lsb_bin_from_mp_int(ptrA, &aabs, &sizeA);
             if (res == MP_OKAY)
-                res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
+                res = ltc_get_lsb_bin_from_mp_int(ptrB, &babs, &sizeB);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrC, c, &sizeC);
 
@@ -419,6 +488,11 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         if (ptrD) {
             XFREE(ptrD, NULL, DYNAMIC_TYPE_BIGINT);
         }
+
+    #ifndef WOLFSSL_SP_MATH
+        mp_clear(&aabs);
+        mp_clear(&babs);
+    #endif
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -427,6 +501,17 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         res = NOT_COMPILED_IN;
 #endif
     }
+
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (mp_cmp(&t, d) != MP_EQ) {
+        printf("mp_mulmod test fail!\n");
+
+        mp_dump("D", d, 0);
+        mp_dump("D soft", &t, 0);
+    }
+    mp_clear(&t);
+#endif
 
     return res;
 }
@@ -440,6 +525,12 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
     mp_int tmp;
 #endif
 
+#ifdef ENABLE_NXPLTC_TESTS
+    mp_int t;
+    mp_init(&t);
+    res = wolfcrypt_mp_exptmod(G, X, P, Y);
+#endif
+
     /* if G cannot fit into LTC_PKHA, reduce it */
     szA = mp_unsigned_bin_size(G);
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -448,6 +539,7 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
         if (res != MP_OKAY)
             return res;
         if ((res = mp_mod(G, P, &tmp)) != MP_OKAY) {
+            mp_clear(&tmp);
             return res;
         }
         G = &tmp;
@@ -461,26 +553,28 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
         (szB <= LTC_MAX_INT_BYTES) && 
         (szC <= LTC_MAX_INT_BYTES))
     {
-        mp_int t;
-
         uint16_t sizeG, sizeX, sizeP;
-        uint8_t *ptrG = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrX = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
-        uint8_t *ptrP = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        uint8_t *ptrG, *ptrX, *ptrP;
 
         /* if G is negative, add modulus to convert to positive number for LTC */
-        res = mp_init(&t);
 #ifndef WOLFSSL_SP_MATH
-        if (G->sign) {
-            if (res == MP_OKAY)
-                res = mp_add(G, P, &t);
-            if (res == MP_OKAY)
-                res = mp_copy(&t, G);
+        mp_int gabs;
+        res = mp_init(&gabs);
+        if (G->sign)
+            res = mp_add(G, P, &gabs);
+        else
+            res = mp_copy(G, &gabs);
+        if (res != MP_OKAY) {
+            mp_clear(&gabs);
+            return res;
         }
 #endif
 
-        if (res == MP_OKAY && ptrG && ptrX && ptrP) {
-            res = ltc_get_lsb_bin_from_mp_int(ptrG, G, &sizeG);
+        ptrG = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrX = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        ptrP = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL, DYNAMIC_TYPE_BIGINT);
+        if (ptrG && ptrX && ptrP) {
+            res = ltc_get_lsb_bin_from_mp_int(ptrG, &gabs, &sizeG);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrX, X, &sizeX);
             if (res == MP_OKAY)
@@ -528,8 +622,8 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
         if (ptrP) {
             XFREE(ptrP, NULL, DYNAMIC_TYPE_BIGINT);
         }
-    #ifndef USE_FAST_MATH
-        mp_clear(&t);
+    #ifndef WOLFSSL_SP_MATH
+        mp_clear(&gabs);
     #endif
     }
     else {
@@ -540,6 +634,17 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 #endif
     }
 
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (mp_cmp(&t, Y) != MP_EQ) {
+        printf("mp_exptmod test fail!\n");
+
+        mp_dump("Y", Y, 0);
+        mp_dump("Y soft", &t, 0);
+    }
+    mp_clear(&t);
+#endif
+
 #ifndef USE_FAST_MATH
     if (szA > LTC_MAX_INT_BYTES)
         mp_clear(&tmp);
@@ -548,7 +653,7 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
     return res;
 }
 
-int mp_exptmod_nct (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
+int mp_exptmod_nct(mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 {
     /* use hardware implementation even for non-constant time operations */
     return mp_exptmod(G, X, P, Y);
@@ -560,6 +665,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 {
     int res = MP_OKAY;
     int szA;
+
+#ifdef ENABLE_NXPLTC_TESTS
+    int result_soft = 0;
+    res = mp_prime_is_prime_ex(a, t, &result_soft, rng);
+#endif
 
     szA = mp_unsigned_bin_size(a);
     if (szA <= LTC_MAX_INT_BYTES) {
@@ -613,6 +723,14 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         res = NOT_COMPILED_IN;
 #endif
     }
+
+#ifdef ENABLE_NXPLTC_TESTS
+    /* compare hardware vs software */
+    if (*result != result_soft) {
+        printf("Fail! mp_prime_is_prime_ex %d != %d\n", *result, result_soft);
+    }
+#endif
+
     return res;
 }
 
