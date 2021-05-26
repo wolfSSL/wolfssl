@@ -41675,7 +41675,7 @@ static THREAD_RETURN WOLFSSL_THREAD SSL_read_test_server_thread(void* args)
         wolfSSL_CTX_free(ctx);
         CloseSocket(cfd);
         ((func_args*)args)->return_code = TEST_FAIL;
-        return WOLFSSL_FAILURE;
+        return 0;
     }
 
     /* read and write data */
