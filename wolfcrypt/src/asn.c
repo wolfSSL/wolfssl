@@ -11894,11 +11894,19 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 #endif
 
 #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+
 /* Convert Rsa Public key to DER format, write to output (inLen), return bytes
    written */
 int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 {
     return SetRsaPublicKey(output, key, inLen, 1);
+}
+
+/* Convert Rsa Public key to DER format, write to output (inLen), return bytes
+   written, choose DER header or not*/
+int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen, int with_header)
+{
+    return SetRsaPublicKey(output, key, inLen, with_header);
 }
 
 #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
