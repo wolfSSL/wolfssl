@@ -17211,12 +17211,16 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     ret = GetOctetString(source, &idx, &length, size);
     if (ret < 0)
         return ret;
+    if (length > (int)sizeof(single->issuerHash))
+        return BUFFER_E;
     XMEMCPY(single->issuerHash, source + idx, length);
     idx += length;
     /* Save reference to the hash of the issuer public key */
     ret = GetOctetString(source, &idx, &length, size);
     if (ret < 0)
         return ret;
+    if (length > (int)sizeof(single->issuerKeyHash))
+        return BUFFER_E;
     XMEMCPY(single->issuerKeyHash, source + idx, length);
     idx += length;
 
@@ -17468,8 +17472,10 @@ static int DecodeResponseData(byte* source,
             if (single->next == NULL) {
                 return MEMORY_E;
             }
+            CertStatus* status = single->status;
             single = single->next;
             XMEMSET(single, 0, sizeof(OcspEntry));
+            single->status = status;
             single->isDynamic = 1;
         }
     }
