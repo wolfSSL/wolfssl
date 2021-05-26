@@ -536,7 +536,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         SOCKADDR_S addr;
 
         /* sanity checks on arguments */
-        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > DTLS_EXPORT_IP) {
+        if (ssl == NULL || ip == NULL || ipSz < 0 || ipSz > MAX_EXPORT_IP) {
             return BAD_FUNC_ARG;
         }
 
