@@ -271,6 +271,19 @@ else()
     list(APPEND WOLFSSL_DEFINITIONS "-DWC_NO_HARDEN")
 endif()
 
+set(WOLFSSL_OPENSSLEXTRA_HELP_STRING "Enable extra OpenSSL API, size+ (default: disabled)")
+add_option(WOLFSSL_OPENSSLEXTRA ${WOLFSSL_OPENSSLEXTRA_HELP_STRING} "no" "yes;no")
+
+if (WOLFSSL_OPENSSLEXTRA AND NOT WOLFSSL_OPENSSLCOEXIST)
+    list(APPEND WOLFSSL_DEFINITIONS
+      "-DOPENSSL_EXTRA"
+      "-DWOLFSSL_ALWAYS_VERIFY_CB"
+      "-DWOLFSSL_VERIFY_CB_ALL_CERTS"
+      "-DWOLFSSL_EXTRA_ALERTS"
+      "-DHAVE_EXT_CACHE"
+      "-DWOLFSSL_FORCE_CACHE_ON_TICKET")
+endif()
+
 # TODO: - IPv6 test apps
 
 set(WOLFSSL_SLOW_MATH "yes")
@@ -1025,6 +1038,31 @@ endif()
 #       - Secure renegotiation
 #       - Fallback SCSV
 
+set(WOLFSSL_SNI_HELP_STRING "Enable SNI (default: disabled)")
+add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} "no" "yes;no")
+
+if (WOLFSSL_SNI)
+   list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_TLS_EXTENSIONS" "-DHAVE_SNI")
+endif()
+
+
+set(WOLFSSL_TLSX_HELP_STRING "Enable all TLS Extensions (default: disabled)")
+add_option(WOLFSSL_TLSX ${WOLFSSL_TLSX_HELP_STRING} "no" "yes;no")
+
+if (WOLFSSL_TLSX)
+  list(APPEND WOLFSSL_DEFINITIONS
+    "-DHAVE_TLS_EXTENSIONS"
+    "-DHAVE_SNI"
+    "-DHAVE_MAX_FRAGMENT"
+    "-DHAVE_TRUNCATED_HMAC"
+    "-DHAVE_ALPN"
+    "-DHAVE_TRUSTED_CA")
+    if (WOLFSSL_ECC OR WOLFSSL_CURVE25519 OR WOLFSSL_CURVE448 OR WOLFSSL_TLS13)
+       list(APPEND WOLFSSL_DEFINITIONS  "-DHAVE_SUPPORTED_CURVES")
+    endif()
+endif()
+
+
 # Supported elliptic curves extensions
 set(WOLFSSL_SUPPORTED_CURVES_HELP_STRING "Enable Supported Elliptic Curves (default: enabled)")
 add_option("WOLFSSL_SUPPORTED_CURVES" ${WOLFSSL_SUPPORTED_CURVES_HELP_STRING} "yes" "yes;no")
@@ -1409,6 +1447,9 @@ set_target_properties(wolfssl
         SOVERSION ${LIBTOOL_SO_VERSION}
         VERSION ${LIBTOOL_FULL_VERSION}
 )
+
+target_compile_options(wolfssl PRIVATE "-DBUILDING_WOLFSSL")
+
 
 ####################################################
 # Include Directories
