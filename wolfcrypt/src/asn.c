@@ -17472,10 +17472,11 @@ static int DecodeResponseData(byte* source,
             if (single->next == NULL) {
                 return MEMORY_E;
             }
-            CertStatus* status = single->status;
             single = single->next;
             XMEMSET(single, 0, sizeof(OcspEntry));
-            single->status = status;
+            single->status = (CertStatus*)XMALLOC(sizeof(CertStatus),
+                resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            XMEMSET(single->status, 0, sizeof(CertStatus));
             single->isDynamic = 1;
         }
     }
@@ -17672,8 +17673,10 @@ void FreeOcspResponse(OcspResponse* resp)
     OcspEntry *single, *next;
     for (single = resp->single; single; single = next) {
         next = single->next;
-        if (single->isDynamic)
+        if (single->isDynamic) {
+            XFREE(single->status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
             XFREE(single, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+        }
     }
 }
 
