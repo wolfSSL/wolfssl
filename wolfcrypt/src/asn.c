@@ -17211,12 +17211,16 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     ret = GetOctetString(source, &idx, &length, size);
     if (ret < 0)
         return ret;
+    if (length > (int)sizeof(single->issuerHash))
+        return BUFFER_E;
     XMEMCPY(single->issuerHash, source + idx, length);
     idx += length;
     /* Save reference to the hash of the issuer public key */
     ret = GetOctetString(source, &idx, &length, size);
     if (ret < 0)
         return ret;
+    if (length > (int)sizeof(single->issuerKeyHash))
+        return BUFFER_E;
     XMEMCPY(single->issuerKeyHash, source + idx, length);
     idx += length;
 
@@ -17470,6 +17474,9 @@ static int DecodeResponseData(byte* source,
             }
             single = single->next;
             XMEMSET(single, 0, sizeof(OcspEntry));
+            single->status = (CertStatus*)XMALLOC(sizeof(CertStatus),
+                resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            XMEMSET(single->status, 0, sizeof(CertStatus));
             single->isDynamic = 1;
         }
     }
@@ -17666,8 +17673,10 @@ void FreeOcspResponse(OcspResponse* resp)
     OcspEntry *single, *next;
     for (single = resp->single; single; single = next) {
         next = single->next;
-        if (single->isDynamic)
+        if (single->isDynamic) {
+            XFREE(single->status, resp->heap, DYNAMIC_TYPE_OCSP_STATUS);
             XFREE(single, resp->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+        }
     }
 }
 
