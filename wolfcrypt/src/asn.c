@@ -3921,6 +3921,48 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32 outSz,
     return ret;
 }
 
+/* PKCS#8 decryption from RFC 5208
+ *
+ * NOTE: input buffer is overwritten with decrypted data!
+ *
+ * This function takes an encrypted PKCS#8 DER key and decrypts it to PKCS#8
+ * unencrypted DER. Undoes the encryption done by wc_EncryptPKCS8Key. Returns
+ * the length of the decrypted buffer or a negative value if there was an error.
+ */
+int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
+        int passwordSz)
+{
+    int ret;
+    int length;
+    word32 inOutIdx = 0;
+
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else {
+        ret = DecryptContent(input + inOutIdx, sz - inOutIdx, password,
+                passwordSz);
+        if (ret > 0) {
+            XMEMMOVE(input, input + inOutIdx, ret);
+        }
+    }
+
+    if (ret > 0) {
+        /* DecryptContent will decrypt the data, but it will leave any padding
+         * bytes intact. This code calculates the length without the padding
+         * and we return that to the user. */
+        inOutIdx = 0;
+        if (GetSequence(input, &inOutIdx, &length, ret) < 0) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            ret = inOutIdx + length;
+        }
+    }
+
+    return ret;
+}
+
 /* Takes an unencrypted, traditional DER-encoded key and converts it to a PKCS#8
  * encrypted key. */
 int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
@@ -4146,25 +4188,16 @@ exit_dc:
     return ret;
 }
 
-
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
    of input */
-int ToTraditionalEnc(byte* input, word32 sz,const char* password,
+int ToTraditionalEnc(byte* input, word32 sz, const char* password,
                      int passwordSz, word32* algId)
 {
-    int ret, length;
-    word32 inOutIdx = 0;
+    int ret;
 
-    if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
-        ret = ASN_PARSE_E;
-    }
-    else {
-        ret = DecryptContent(input + inOutIdx, sz - inOutIdx, password,
-                passwordSz);
-        if (ret > 0) {
-            XMEMMOVE(input, input + inOutIdx, ret);
-            ret = ToTraditional_ex(input, ret, algId);
-        }
+    ret = wc_DecryptPKCS8Key(input, sz, password, passwordSz);
+    if (ret > 0) {
+        ret = ToTraditional_ex(input, ret, algId);
     }
 
     return ret;
